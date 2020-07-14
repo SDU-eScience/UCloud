@@ -3,18 +3,13 @@ package dk.sdu.cloud.app.license.rpc
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.AppLicenseService
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
-import org.hibernate.Session
 
-class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Controller {
+class AppLicenseController(appLicenseService: AppLicenseService) : Controller {
     private val licenseService = appLicenseService
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {

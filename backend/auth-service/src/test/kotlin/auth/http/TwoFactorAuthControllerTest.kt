@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.warrenstrange.googleauth.GoogleAuthenticator
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AnswerChallengeRequest
+import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.Create2FACredentialsResponse
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
@@ -12,21 +13,16 @@ import dk.sdu.cloud.auth.api.TwoFactorStatusResponse
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.QRService
 import dk.sdu.cloud.auth.services.TOTPService
+import dk.sdu.cloud.auth.services.TwoFactorAsyncDAO
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
-import dk.sdu.cloud.auth.services.TwoFactorDAO
-import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
-import dk.sdu.cloud.auth.services.UserDAO
-import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.auth.services.UserAsyncDAO
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
+import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -34,25 +30,59 @@ import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TwoFactorAuthControllerTest {
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
+
+    @BeforeTest
+    fun before() {
+        dbTruncate(db)
+    }
+
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
     private val passwordHashingService = PasswordHashingService()
 
     private data class TestContext(
-        val loginResponder: LoginResponder<HibernateSession>,
-        val twoFactorChallengeService: TwoFactorChallengeService<HibernateSession>,
+        val loginResponder: LoginResponder,
+        val twoFactorChallengeService: TwoFactorChallengeService,
 
-        val twoFactorDAO: TwoFactorDAO<HibernateSession>,
-        val userDAO: UserDAO<HibernateSession>,
+        val twoFactorDAO: TwoFactorAsyncDAO,
+        val userDAO: UserAsyncDAO,
         val totpService: TOTPService,
-        val qrService: QRService,
-
-        val db: DBSessionFactory<HibernateSession>
+        val qrService: QRService
     )
 
     private suspend fun TestContext.withUser(
@@ -76,15 +106,15 @@ class TwoFactorAuthControllerTest {
 
     // TODO Refactor this code.
     private fun runTest(
-        twoFactorDAO: TwoFactorDAO<HibernateSession> = TwoFactorHibernateDAO(),
-        userDAO: UserDAO<HibernateSession> = UserHibernateDAO(
+        twoFactorDAO: TwoFactorAsyncDAO = TwoFactorAsyncDAO(),
+        userDAO: UserAsyncDAO = UserAsyncDAO(
             passwordHashingService,
             twoFactorDAO
         ),
         totpService: TOTPService = WSTOTPService(),
         qrService: QRService = ZXingQRService(),
 
-        twoFactorChallengeService: (HibernateSessionFactory) -> TwoFactorChallengeService<HibernateSession> = { db ->
+        twoFactorChallengeService: (AsyncDBSessionFactory) -> TwoFactorChallengeService = { db ->
             TwoFactorChallengeService(
                 db,
                 twoFactorDAO,
@@ -96,13 +126,12 @@ class TwoFactorAuthControllerTest {
 
         consumer: suspend TestApplicationEngine.(TestContext) -> Unit
     ) {
-        lateinit var twoFactorService: TwoFactorChallengeService<HibernateSession>
-        lateinit var loginResponder: LoginResponder<HibernateSession>
+        lateinit var twoFactorService: TwoFactorChallengeService
+        lateinit var loginResponder: LoginResponder
 
         withKtorTest(
             setup = {
-                micro.install(HibernateFeature)
-                twoFactorService = twoFactorChallengeService(micro.hibernateDatabase)
+                twoFactorService = twoFactorChallengeService(db)
                 loginResponder = LoginResponder(mockk(relaxed = true), twoFactorService)
                 listOf(TwoFactorAuthController(twoFactorService, loginResponder))
             },
@@ -113,8 +142,7 @@ class TwoFactorAuthControllerTest {
                     twoFactorDAO,
                     userDAO,
                     totpService,
-                    qrService,
-                    micro.hibernateDatabase
+                    qrService
                 )
                 runBlocking {
                     engine.consumer(ctx)

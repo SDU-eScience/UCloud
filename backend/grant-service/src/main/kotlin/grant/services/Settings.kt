@@ -3,12 +3,12 @@ package dk.sdu.cloud.grant.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.grant.api.AutomaticApprovalSettings
-import dk.sdu.cloud.grant.api.ProjectApplicationSettings
-import dk.sdu.cloud.grant.api.ResourceRequest
-import dk.sdu.cloud.grant.api.UserCriteria
+import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.service.Actor
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 
 object AllowApplicationsFromTable : SQLTable("allow_applications_from") {
@@ -232,23 +232,42 @@ class SettingsService(
         }
     }
 
-    private fun UserCriteria.toSqlApplicantId(): String {
-        return when (this) {
-            is UserCriteria.Anyone -> ""
-            is UserCriteria.EmailDomain -> domain
-            is UserCriteria.WayfOrganization -> org
+    suspend fun browse(
+        ctx: DBContext,
+        actor: Actor,
+        pagination: NormalizedPaginationRequest
+    ): Page<ProjectWithTitle> {
+        return ctx.withSession { session ->
+            session
+                .paginatedQuery(
+                    pagination,
+                    {
+                        setParameter("isSystem", actor is Actor.System)
+                        if (actor is Actor.User) {
+                            setParameter("wayfId", actor.principal.organization)
+                            setParameter("emailDomain", actor.principal.email?.substringAfter('@'))
+                        } else {
+                            setParameter("wayfId", null as String?)
+                            setParameter("emailDomain", null as String?)
+                        }
+                    },
+                    """
+                        from allow_applications_from a
+                        where
+                            :isSystem or
+                            (a.type = 'anyone') or
+                            (a.type = 'wayf' and a.applicant_id = :wayfId::text and :wayfId::text is not null) or
+                            (a.type = 'email' and a.applicant_id = :emailDomain::text and :emailDomain::text is not null)
+                    """
+                )
+                .mapItems { row ->
+                    val projectId = row.getField(AllowApplicationsFromTable.projectId)
+                    ProjectWithTitle(projectId, projects.ancestors.get(projectId)?.last()?.title ?: projectId)
+                }
         }
     }
 
-    private fun UserCriteria.toSqlType(): String {
-        return when (this) {
-            is UserCriteria.Anyone -> UserCriteria.ANYONE_TYPE
-            is UserCriteria.EmailDomain -> UserCriteria.EMAIL_TYPE
-            is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
-        }
-    }
-
-    private fun RowData.toUserCriteria(): UserCriteria {
+   private fun RowData.toUserCriteria(): UserCriteria {
         val id = getField(AllowApplicationsFromTable.applicantId)
         return when (getField(AllowApplicationsFromTable.type)) {
             UserCriteria.ANYONE_TYPE -> UserCriteria.Anyone()
@@ -265,5 +284,21 @@ class SettingsService(
             getFieldNullable(AutomaticApprovalLimitsTable.maximumCredits),
             getFieldNullable(AutomaticApprovalLimitsTable.maximumQuota)
         )
+    }
+}
+
+fun UserCriteria.toSqlApplicantId(): String {
+    return when (this) {
+        is UserCriteria.Anyone -> ""
+        is UserCriteria.EmailDomain -> domain
+        is UserCriteria.WayfOrganization -> org
+    }
+}
+
+fun UserCriteria.toSqlType(): String {
+    return when (this) {
+        is UserCriteria.Anyone -> UserCriteria.ANYONE_TYPE
+        is UserCriteria.EmailDomain -> UserCriteria.EMAIL_TYPE
+        is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
     }
 }

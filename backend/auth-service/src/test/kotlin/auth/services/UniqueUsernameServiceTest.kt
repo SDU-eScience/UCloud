@@ -1,35 +1,51 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.Person
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.auth.testUtil.dbTruncate
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.assertThatProperty
-import dk.sdu.cloud.service.test.initializeMicro
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Ignore
 
 class UniqueUsernameServiceTest {
-    private lateinit var service: UniqueUsernameService<HibernateSession>
-    private lateinit var userDao: UserDAO<HibernateSession>
-    private lateinit var db: DBSessionFactory<HibernateSession>
-    private lateinit var personService: PersonService
-    private lateinit var personTemplate: Person.ByPassword
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
 
     @BeforeTest
-    fun initTests() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
+    fun before() {
+        dbTruncate(db)
 
         val passwordHashingService = PasswordHashingService()
-        db = micro.hibernateDatabase
-        userDao = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
+        userDao = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
         service = UniqueUsernameService(db, userDao)
         personService = PersonService(passwordHashingService, service)
 
@@ -42,6 +58,17 @@ class UniqueUsernameServiceTest {
             "dthrane@foo.dkl"
         )
     }
+
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
+
+    private lateinit var service: UniqueUsernameService
+    private lateinit var userDao: UserAsyncDAO
+    private lateinit var personService: PersonService
+    private lateinit var personTemplate: Person.ByPassword
+
 
     @Test
     fun `generate a single username`(): Unit = runBlocking {

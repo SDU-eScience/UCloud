@@ -4,13 +4,14 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.ServiceAgreementText
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 
-class SLAService<Session>(
+class SLAService(
     private val serviceLicenseAgreement: ServiceAgreementText,
-    private val db: DBSessionFactory<Session>,
-    private val userDao: UserDAO<Session>
+    private val db: DBContext,
+    private val userDao: UserAsyncDAO
 ) {
     fun fetchText(): ServiceAgreementText = serviceLicenseAgreement
 
@@ -18,9 +19,6 @@ class SLAService<Session>(
         if (version != serviceLicenseAgreement.version) {
             throw RPCException("Accepted version does not match current version", HttpStatusCode.BadRequest)
         }
-
-        db.withTransaction { session ->
-            userDao.setAcceptedSlaVersion(session,securityPrincipal.username, version)
-        }
+        userDao.setAcceptedSlaVersion(db, securityPrincipal.username, version)
     }
 }

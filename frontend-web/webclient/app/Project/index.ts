@@ -24,7 +24,7 @@ export interface ListGroupMembersRequestProps extends PaginationRequest {
     group: string;
 }
 
-export function createGroup(props: CreateGroupRequest): APICallParameters<{}> {
+export function createGroup(props: CreateGroupRequest): APICallParameters {
     return {
         reloadId: Math.random(),
         method: "PUT",
@@ -77,7 +77,7 @@ export function membersCountRequest(): APICallParameters {
         method: "GET",
         path: `${projectContext}membership/count`,
         reloadId: Math.random(),
-    }
+    };
 }
 
 export function groupsCountRequest(): APICallParameters {
@@ -85,7 +85,7 @@ export function groupsCountRequest(): APICallParameters {
         method: "GET",
         path: `${groupContext}count`,
         reloadId: Math.random(),
-    }
+    };
 }
 
 export function subprojectsCountRequest(): APICallParameters {
@@ -93,19 +93,6 @@ export function subprojectsCountRequest(): APICallParameters {
         method: "GET",
         path: `${projectContext}sub-projects-count`,
         reloadId: Math.random(),
-    }
-}
-
-export interface ShouldVerifyMembershipResponse {
-    shouldVerify: boolean;
-}
-
-export function shouldVerifyMembership(projectId: string): APICallParameters {
-    return {
-        method: "GET",
-        path: `${projectContext}should-verify`,
-        reloadId: Math.random(),
-        projectOverride: projectId
     };
 }
 
@@ -262,7 +249,7 @@ export interface UserGroupSummary {
     username: string;
 }
 
-export const createProject = (payload: {title: string; parent?: string}): APICallParameters => ({
+export const createProject = (payload: {title: string; parent: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
@@ -276,7 +263,7 @@ export const inviteMember = (payload: {projectId: string; usernames: string[]}):
     reloadId: Math.random()
 });
 
-export const deleteMemberInProject = (payload: {project: string; member: string}): APICallParameters => ({
+export const deleteMemberInProject = (payload: {projectId: string; member: string}): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members",
     payload,
@@ -284,7 +271,7 @@ export const deleteMemberInProject = (payload: {project: string; member: string}
 });
 
 export const changeRoleInProject = (
-    payload: {project: string; member: string; newRole: ProjectRole}
+    payload: {projectId: string; member: string; newRole: ProjectRole}
 ): APICallParameters => ({
     method: "POST",
     path: "/projects/members/change-role",
@@ -342,7 +329,7 @@ export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined
 
 
 export interface ToggleProjectFavorite {
-    project: string;
+    projectId: string;
 }
 
 export function toggleFavoriteProject(request: ToggleProjectFavorite): APICallParameters<ToggleProjectFavorite> {
@@ -378,6 +365,7 @@ export function listOutgoingInvites(request: ListOutgoingInvitesRequest): APICal
 
 export interface IngoingInvite {
     project: string;
+    title: string;
     invitedBy: string;
     timestamp: string;
 }
@@ -509,7 +497,8 @@ export function areProjectsEnabled(): boolean {
     return Client.userRole === "ADMIN";
 }
 
-export function useProjectManagementStatus() {
+// eslint-disable-next-line
+export function useProjectManagementStatus(allowPersonalProject?: true) {
     const history = useHistory();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
     const locationParams = useParams<{group: string; member?: string}>();
@@ -558,7 +547,7 @@ export function useProjectManagementStatus() {
     const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
     const [subprojectSearchQuery, setSubprojectSearchQuery] = useGlobal("projectManagementQuery", "");
 
-    if (projectId === undefined) {
+    if (projectId === undefined && !allowPersonalProject) {
         history.push("/");
     }
 

@@ -5,69 +5,94 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
+import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.services.JWTFactory
-import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
+import dk.sdu.cloud.auth.services.OneTimeTokenAsyncDAO
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
-import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
+import dk.sdu.cloud.auth.services.RefreshTokenAsyncDAO
 import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
+import dk.sdu.cloud.auth.services.TwoFactorAsyncDAO
 import dk.sdu.cloud.auth.services.UniqueUsernameService
+import dk.sdu.cloud.auth.services.UserAsyncDAO
 import dk.sdu.cloud.auth.services.UserCreationService
-import dk.sdu.cloud.auth.services.UserHibernateDAO
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.test.KtorApplicationTestContext
-import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import dk.sdu.cloud.service.test.parseSuccessful
-import dk.sdu.cloud.service.test.sendJson
-import dk.sdu.cloud.service.test.sendRequest
-import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.test.*
 import io.ktor.http.HttpMethod
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 
 class TokenExtensionTest {
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
+
+    @BeforeTest
+    fun before() {
+        dbTruncate(db)
+    }
+
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
+
     private lateinit var passwordHashingService: PasswordHashingService
-    private lateinit var userDao: UserHibernateDAO
-    private lateinit var userCreationService: UserCreationService<HibernateSession>
-    private lateinit var usernameGenerator: UniqueUsernameService<HibernateSession>
+    private lateinit var userDao: UserAsyncDAO
+    private lateinit var userCreationService: UserCreationService
+    private lateinit var usernameGenerator: UniqueUsernameService
     private lateinit var personService: PersonService
-    private lateinit var ottDao: OneTimeTokenHibernateDAO
-    private lateinit var refreshTokenDao: RefreshTokenHibernateDAO
+    private lateinit var ottDao: OneTimeTokenAsyncDAO
+    private lateinit var refreshTokenDao: RefreshTokenAsyncDAO
     private lateinit var tokenValidationJWT: TokenValidationJWT
     private lateinit var jwtFactory: JWTFactory
-    private lateinit var tokenService: TokenService<HibernateSession>
-    private lateinit var db: HibernateSessionFactory
-    private lateinit var twoFactorDao: TwoFactorHibernateDAO
+    private lateinit var tokenService: TokenService
+    private lateinit var twoFactorDao: TwoFactorAsyncDAO
 
     private fun KtorApplicationTestSetupContext.setup(
         extensionScopes: Map<String, Set<SecurityScope>>
     ): List<Controller> {
-        micro.install(HibernateFeature)
-        db = micro.hibernateDatabase
 
         tokenValidationJWT = micro.tokenValidation as TokenValidationJWT
         jwtFactory = JWTFactory(tokenValidationJWT.algorithm)
 
         passwordHashingService = PasswordHashingService()
 
-        twoFactorDao = TwoFactorHibernateDAO()
-        userDao = UserHibernateDAO(passwordHashingService, twoFactorDao)
-        ottDao = OneTimeTokenHibernateDAO()
-        refreshTokenDao = RefreshTokenHibernateDAO()
+        twoFactorDao = TwoFactorAsyncDAO()
+        userDao = UserAsyncDAO(passwordHashingService, twoFactorDao)
+        ottDao = OneTimeTokenAsyncDAO()
+        refreshTokenDao = RefreshTokenAsyncDAO()
 
         userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
         usernameGenerator = UniqueUsernameService(db, userDao)

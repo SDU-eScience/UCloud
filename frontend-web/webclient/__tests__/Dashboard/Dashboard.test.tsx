@@ -9,7 +9,6 @@ import Dashboard from "../../app/Dashboard/Dashboard";
 import {ReduxObject, emptyPage} from "../../app/DefaultObjects";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
-import {render} from "react-dom";
 
 jest.mock("Authentication/HttpClientInstance", () => ({
     Client: {
@@ -22,7 +21,13 @@ jest.mock("Authentication/HttpClientInstance", () => ({
             }
             return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage});
         },
-        call: () => Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage}),
+        call: call => {
+            switch (call.path) {
+                case "/accounting/wallets/balance?includeChildren=false":
+                    return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: {wallets: []}});
+            }
+            return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage});
+        },
         homeFolder: "/home/test@test/"
     }
 }));

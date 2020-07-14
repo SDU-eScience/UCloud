@@ -68,7 +68,7 @@ class SubscriptionDao {
                     setParameter("earliest", earliestAllowedPing)
                 },
                 """
-                    FROM subscriptions
+                    SELECT * FROM subscriptions
                     WHERE (username = ?username) AND (last_ping >= to_timestamp(?earliest))
                 """.trimIndent()
             ).rows.map {

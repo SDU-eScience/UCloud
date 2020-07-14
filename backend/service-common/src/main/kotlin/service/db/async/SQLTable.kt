@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service.db.async
 
 import org.joda.time.LocalDateTime
+import java.sql.SQLType
 
 /**
  * A type safe definition of a SQL table.

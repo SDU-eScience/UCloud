@@ -25,9 +25,6 @@ data class CreateGroupRequest(val group: String) {
 }
 typealias CreateGroupResponse = Unit
 
-typealias ListGroupsRequest = Unit
-typealias ListGroupsResponse = List<String>
-
 data class ListGroupsWithSummaryRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
@@ -77,6 +74,11 @@ typealias GroupCountResponse = Long
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
 
+    /**
+     * Creates a new group.
+     *
+     * Only project administrators can create new groups in a project.
+     */
     val create = call<CreateGroupRequest, CreateGroupResponse, CommonErrorMessage>("create") {
         auth {
             access = AccessRight.READ_WRITE
@@ -93,6 +95,11 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         }
     }
 
+    /**
+     * Lists groups of a project with a summary (See [GroupWithSummary]).
+     *
+     * Any project member can read the groups.
+     */
     val listGroupsWithSummary =
         call<ListGroupsWithSummaryRequest, ListGroupsWithSummaryResponse, CommonErrorMessage>("listGroupsWithSummary") {
             auth {
@@ -112,6 +119,11 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             }
         }
 
+    /**
+     * List all members of a group.
+     *
+     * Any member of the project can read the members of the group.
+     */
     val listAllGroupMembers = call<ListAllGroupMembersRequest, ListAllGroupMembersResponse, CommonErrorMessage>(
         "listAllGroupMembers"
     ) {
@@ -130,6 +142,11 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         }
     }
 
+    /**
+     * Deletes a group.
+     *
+     * Only project administrators can delete a group.
+     */
     val delete = call<DeleteGroupsRequest, DeleteGroupsResponse, CommonErrorMessage>("delete") {
         auth {
             access = AccessRight.READ_WRITE
@@ -146,6 +163,11 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         }
     }
 
+    /**
+     * Adds a member of the project to a group.
+     *
+     * Only project administrators can add members to a group.
+     */
     val addGroupMember = call<AddGroupMemberRequest, AddGroupMemberResponse, CommonErrorMessage>("addGroupMember") {
         auth {
             access = AccessRight.READ_WRITE
@@ -163,6 +185,11 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         }
     }
 
+    /**
+     * Removes a group member from a group.
+     *
+     * Only project administrators can remove members from a group.
+     */
     val removeGroupMember =
         call<RemoveGroupMemberRequest, RemoveGroupMemberResponse, CommonErrorMessage>("removeGroupMember") {
             auth {
@@ -200,6 +227,11 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
     }
      */
 
+    /**
+     * Lists members of a group.
+     *
+     * All members of a project can read members of any group.
+     */
     val listGroupMembers =
         call<ListGroupMembersRequest, ListGroupMembersResponse, CommonErrorMessage>("listGroupMembers") {
             auth {
@@ -220,6 +252,12 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             }
         }
 
+    /**
+     * Checks if a project member is a member of a group.
+     *
+     * Only [Roles.PRIVILEGED] can use this endpoint. It is intended for services which need to check if a members
+     * belongs to a specific group.
+     */
     val isMember = call<IsMemberRequest, IsMemberResponse, CommonErrorMessage>("isMember") {
         auth {
             roles = Roles.PRIVILEGED
@@ -238,6 +276,12 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         }
     }
 
+    /**
+     * Checks if a group exists.
+     *
+     * Only [Roles.PRIVILEGED] can call this endpoint. It is intended for services which need to verify that their input
+     * is valid.
+     */
     val groupExists = call<GroupExistsRequest, GroupExistsResponse, CommonErrorMessage>("groupExists") {
         auth {
             roles = Roles.PRIVILEGED
@@ -256,6 +300,11 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         }
     }
 
+    /**
+     * Returns the count of groups for a project.
+     *
+     * All project members can use this endpoint.
+     */
     val count = call<GroupCountRequest, GroupCountResponse, CommonErrorMessage>("count") {
         auth {
             access = AccessRight.READ

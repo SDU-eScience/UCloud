@@ -27,6 +27,7 @@ import {Dictionary} from "Types";
 import {ThemeColor} from "ui-components/theme";
 import {Toggle} from "ui-components/Toggle";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import {Client} from "Authentication/HttpClientInstance";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -172,7 +173,7 @@ export const durationOptions: Duration[] = [
 ];
 
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
-    const {projectId, ...projectManagement} = useProjectManagementStatus();
+    const {projectId, reload} = useProjectManagementStatus(true);
 
     const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3]);
 
@@ -286,20 +287,20 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
 
     useEffect(() => {
         props.setRefresh(() => {
-            projectManagement.reload();
+            reload();
             setUsageParams({...usageParams, reloadId: Math.random()});
             fetchBalance({...balanceParams, reloadId: Math.random()});
         });
         return () => props.setRefresh();
-    }, [projectManagement.reload]);
+    }, [reload]);
 
     return (
         <MainContainer
             header={
                 <Flex>
-                    <ProjectBreadcrumbs crumbs={[{title: "Usage"}]}/>
+                    <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]} />
                     <ClickableDropdown
-                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16}/></Heading.h4>}
+                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16} /></Heading.h4>}
                         onChange={opt => setDurationOption(durationOptions[parseInt(opt)])}
                         options={durationOptions.map((it, idx) => {
                             return {text: it.text, value: `${idx}`};
@@ -399,11 +400,11 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 top: 10, right: 30, left: 0, bottom: 0,
                                             }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3"/>
-                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)}/>
-                                            <YAxis width={150} tickFormatter={creditFormatter}/>
-                                            <Tooltip labelFormatter={ getDateFormatter(durationOption)}
-                                                     formatter={n => creditFormatter(n as number, 2)}
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)} />
+                                            <YAxis width={150} tickFormatter={creditFormatter} />
+                                            <Tooltip labelFormatter={getDateFormatter(durationOption)}
+                                                formatter={n => creditFormatter(n as number, 2)}
                                             />
                                             {chart.lineNames.map((id, idx) => {
                                                 if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
@@ -425,8 +426,8 @@ const VisualizationForArea: React.FunctionComponent<{
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHeaderCell width={30}/>
-                                                <TableHeaderCell/>
+                                                <TableHeaderCell width={30} />
+                                                <TableHeaderCell />
                                                 <TableHeaderCell textAlign="right">
                                                     Credits Used In Period
                                                 </TableHeaderCell>
@@ -435,35 +436,35 @@ const VisualizationForArea: React.FunctionComponent<{
                                             </TableRow>
                                         </TableHeader>
                                         <tbody>
-                                        {chart.lineNames.map((p, idx) => (
-                                            <TableRow key={p}>
-                                                <TableCell>
-                                                    <Box width={20} height={20}
-                                                         backgroundColor={theme.chartColors[idx]}/>
-                                                </TableCell>
-                                                <TableCell>{p}</TableCell>
-                                                <TableCell textAlign="right">
-                                                    {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
-                                                </TableCell>
-                                                <TableCell textAlign="right">
-                                                    {creditFormatter(
-                                                        balance.data.wallets.find(it =>
-                                                            it.wallet.id === chart.lineNameToWallet[p].id &&
-                                                            it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
-                                                            it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
-                                                        )?.balance ?? 0
-                                                    )}
-                                                </TableCell>
-                                                <TableCell textAlign={"right"}>
-                                                    <Toggle
-                                                        onChange={() => onIncludeInChart(chart.provider, p)}
-                                                        scale={1.5}
-                                                        activeColor={"green"}
-                                                        checked={(includeInCharts[chart.provider] ?? {})[p] ?? true}
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                            {chart.lineNames.map((p, idx) => (
+                                                <TableRow key={p}>
+                                                    <TableCell>
+                                                        <Box width={20} height={20}
+                                                            backgroundColor={theme.chartColors[idx]} />
+                                                    </TableCell>
+                                                    <TableCell>{p}</TableCell>
+                                                    <TableCell textAlign="right">
+                                                        {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
+                                                    </TableCell>
+                                                    <TableCell textAlign="right">
+                                                        {creditFormatter(
+                                                            balance.data.wallets.find(it =>
+                                                                it.wallet.id === chart.lineNameToWallet[p].id &&
+                                                                it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
+                                                                it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
+                                                            )?.balance ?? 0
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell textAlign={"right"}>
+                                                        <Toggle
+                                                            onChange={() => onIncludeInChart(chart.provider, p)}
+                                                            scale={1.5}
+                                                            activeColor={"green"}
+                                                            checked={(includeInCharts[chart.provider] ?? {})[p] ?? true}
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
                                         </tbody>
                                     </Table>
                                 </Box>
@@ -506,7 +507,7 @@ const PercentageDisplay: React.FunctionComponent<{
     numerator: number,
     denominator: number,
     // Note this must be sorted ascending by breakpoint
-    colorRanges: { breakpoint: number, color: ThemeColor }[]
+    colorRanges: {breakpoint: number, color: ThemeColor}[]
 }> = props => {
     if (props.denominator === 0) {
         return null;
@@ -520,7 +521,7 @@ const PercentageDisplay: React.FunctionComponent<{
         }
     }
 
-    return <Text as={"span"} color={theme.colors[color]}>({percentage.toFixed(2)}%)</Text>;
+    return <Text as="span" color={theme.colors[color]}>({percentage.toFixed(2)}%)</Text>;
 };
 
 const SummaryCard: React.FunctionComponent<{
@@ -540,7 +541,7 @@ const SummaryCard: React.FunctionComponent<{
             {creditFormatter(props.balance)}
             <figcaption>Credits remaining</figcaption>
         </SummaryStat>
-        <SummaryStat>
+        {Client.hasActiveProject ? <SummaryStat>
             {creditFormatter(props.allocatedToChildren)}{" "}
             <PercentageDisplay
                 numerator={props.allocatedToChildren}
@@ -552,7 +553,7 @@ const SummaryCard: React.FunctionComponent<{
                 ]}
             />
             <figcaption>Allocated to subprojects</figcaption>
-        </SummaryStat>
+        </SummaryStat> : null}
     </SummaryWrapper>;
 };
 

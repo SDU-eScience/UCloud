@@ -1,10 +1,5 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
-import dk.sdu.cloud.app.store.api.NormalizedToolDescription
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.JSONB_TYPE
-import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.bool
 import dk.sdu.cloud.service.db.async.byteArray
@@ -12,10 +7,7 @@ import dk.sdu.cloud.service.db.async.jsonb
 import dk.sdu.cloud.service.db.async.long
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
-import org.hibernate.annotations.Type
 import java.io.Serializable
-import java.util.*
-import javax.persistence.*
 
 /**
  * Updated in:

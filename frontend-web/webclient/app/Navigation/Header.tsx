@@ -45,6 +45,7 @@ import {
 import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 import {ContextSwitcher} from "Project/ContextSwitcher";
 import {NewsPost} from "Dashboard/Dashboard";
+import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -121,6 +122,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             </ui.Flex>
             <ui.Support />
             <Notification />
+            <AutomaticGiftClaim/>
             <ClickableDropdown
                 colorOnHover={false}
                 width="200px"

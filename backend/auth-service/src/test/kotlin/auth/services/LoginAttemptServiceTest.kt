@@ -1,15 +1,16 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.auth.api.AuthServiceDescription
+import dk.sdu.cloud.auth.testUtil.dbTruncate
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.test.TestDB
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import kotlin.math.pow
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,24 +18,47 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class LoginAttemptServiceTest {
-    private lateinit var micro: Micro
-    private lateinit var db: DBSessionFactory<HibernateSession>
-    var currentTime: Long = 0
-    private val dao = LoginAttemptHibernateDao { currentTime + 1_000_000_000L }
-    val user = "user"
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
 
     @BeforeTest
-    fun beforeTest() {
-        micro = initializeMicro()
-        micro.install(HibernateFeature)
-
-        db = micro.hibernateDatabase
+    fun before() {
+        dbTruncate(db)
     }
+
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
+
+    val time = System.currentTimeMillis()
+    var currentTime: Long = 0
+    private val dao = LoginAttemptAsyncDao { currentTime + time }
+    val user = "user"
 
     @Test
     fun `test that login attempts are allowed`(): Unit = runBlocking {
-        db.withTransaction { session ->
-            repeat(LoginAttemptHibernateDao.LOCKOUT_THRESHOLD) {
+        db.withSession { session ->
+            repeat(LoginAttemptAsyncDao.LOCKOUT_THRESHOLD) {
                 assertNull(dao.timeUntilNextAllowedLogin(session, user))
                 dao.logAttempt(session, user)
             }
@@ -43,58 +67,55 @@ class LoginAttemptServiceTest {
 
     @Test
     fun `test that attempts are blocked`(): Unit = runBlocking {
-        db.withTransaction { session ->
-            repeat(LoginAttemptHibernateDao.LOCKOUT_THRESHOLD + 1) {
-                dao.logAttempt(session, user)
-            }
-
-            assertNotNull(dao.timeUntilNextAllowedLogin(session, user))
-            assertEquals(
-                LoginAttemptHibernateDao.LOCKOUT_DURATION_BASE_SECONDS * 1000L,
-                dao.timeUntilNextAllowedLogin(session, user)
-            )
-
-            currentTime = LoginAttemptHibernateDao.LOCKOUT_DURATION_BASE_SECONDS * 1000L + 1
-            assertNull(dao.timeUntilNextAllowedLogin(session, user))
+        repeat(LoginAttemptAsyncDao.LOCKOUT_THRESHOLD + 1) {
+            dao.logAttempt(db, user)
         }
+
+        assertNotNull(dao.timeUntilNextAllowedLogin(db, user))
+        assertEquals(
+            LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS * 1000L,
+            dao.timeUntilNextAllowedLogin(db, user)
+        )
+
+        currentTime = LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS * 1000L + 1
+        assertNull(dao.timeUntilNextAllowedLogin(db, user))
     }
 
     @Test
     fun `test that time increases and decreases`(): Unit = runBlocking {
-        db.withTransaction { session ->
-            repeat(LoginAttemptHibernateDao.LOCKOUT_THRESHOLD + 1) {
-                dao.timeUntilNextAllowedLogin(session, user)
-                dao.logAttempt(session, user)
-            }
-
-            currentTime = LoginAttemptHibernateDao.LOCKOUT_DURATION_BASE_SECONDS * 1000L + 1
-            assertNull(dao.timeUntilNextAllowedLogin(session, user))
-
-            repeat(LoginAttemptHibernateDao.LOCKOUT_THRESHOLD) {
-                assertNull(dao.timeUntilNextAllowedLogin(session, user))
-                dao.logAttempt(session, user)
-            }
-
-            dao.logAttempt(session, user)
-            assertEquals(
-                LoginAttemptHibernateDao.LOCKOUT_DURATION_BASE_SECONDS.toDouble().pow(2).toLong() * 1000L,
-                dao.timeUntilNextAllowedLogin(session, user)
-            )
-
-            currentTime += LoginAttemptHibernateDao.LOCKOUT_DURATION_BASE_SECONDS.toDouble().pow(2).toLong() * 1000L +
-                    LoginAttemptHibernateDao.COOLDOWN_EXPIRY + 1
-
-            assertNull(dao.timeUntilNextAllowedLogin(session, user))
-
-            repeat(LoginAttemptHibernateDao.LOCKOUT_THRESHOLD + 1) {
-                dao.timeUntilNextAllowedLogin(session, user)
-                dao.logAttempt(session, user)
-            }
-
-            assertEquals(
-                LoginAttemptHibernateDao.LOCKOUT_DURATION_BASE_SECONDS * 1000L,
-                dao.timeUntilNextAllowedLogin(session, user)
-            )
+        repeat(LoginAttemptAsyncDao.LOCKOUT_THRESHOLD + 1) {
+            dao.timeUntilNextAllowedLogin(db, user)
+            dao.logAttempt(db, user)
         }
+
+        currentTime = LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS * 1000L + 1
+        assertNull(dao.timeUntilNextAllowedLogin(db, user))
+
+        repeat(LoginAttemptAsyncDao.LOCKOUT_THRESHOLD) {
+            assertNull(dao.timeUntilNextAllowedLogin(db, user))
+            dao.logAttempt(db, user)
+        }
+
+        dao.logAttempt(db, user)
+        assertEquals(
+            LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS.toDouble().pow(2).toLong() * 1000L,
+            dao.timeUntilNextAllowedLogin(db, user)
+        )
+
+        currentTime += LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS.toDouble().pow(2).toLong() * 1000L +
+                LoginAttemptAsyncDao.COOLDOWN_EXPIRY + 1000
+
+        assertNull(dao.timeUntilNextAllowedLogin(db, user))
+
+        repeat(LoginAttemptAsyncDao.LOCKOUT_THRESHOLD + 1) {
+            dao.timeUntilNextAllowedLogin(db, user)
+            dao.logAttempt(db, user)
+        }
+
+        assertEquals(
+            LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS.toLong() * 1000L,
+            dao.timeUntilNextAllowedLogin(db, user)
+        )
+
     }
 }

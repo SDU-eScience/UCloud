@@ -6,10 +6,6 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
-import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.bool
@@ -19,22 +15,13 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
-import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.task.api.Task
 import io.ktor.http.HttpStatusCode
-import org.hibernate.annotations.NaturalId
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
-import javax.persistence.Column
-import javax.persistence.Entity
-import javax.persistence.Id
-import javax.persistence.Table
 
 object TaskTable : SQLTable("tasks") {
     val jobId = text("job_id", notNull = true)
@@ -147,7 +134,7 @@ class TaskAsyncDao {
         owner: String,
         processor: SecurityPrincipal
     ): String {
-        if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        if (processor.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val jobId = UUID.randomUUID().toString()
         db.withSession { session ->

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {APICallState, useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
@@ -23,8 +23,6 @@ import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, U
 import {creditFormatter} from "Project/ProjectUsage";
 
 const wayfIdpsPairs = wayfIdps.map(it => ({value: it, content: it}));
-
-
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus();

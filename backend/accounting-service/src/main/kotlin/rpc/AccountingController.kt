@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.toActor
 
 class AccountingController(
@@ -15,8 +16,17 @@ class AccountingController(
     private val balance: BalanceService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(Wallets.grantCredits) {
+        implement(Wallets.addToBalance) {
             balance.addToBalance(db, ctx.securityPrincipal.toActor(), request.wallet, request.credits)
+            ok(Unit)
+        }
+
+        implement(Wallets.addToBalanceBulk) {
+            db.withSession { session ->
+                request.requests.forEach { req ->
+                    balance.addToBalance(session, ctx.securityPrincipal.toActor(), req.wallet, req.credits)
+                }
+            }
             ok(Unit)
         }
 
@@ -37,6 +47,21 @@ class AccountingController(
                 request.amount,
                 request.productUnits
             )
+
+            ok(Unit)
+        }
+
+        implement(Wallets.transferToPersonal) {
+            db.withSession { session ->
+                request.transfers.forEach { transfer ->
+                    balance.transferToPersonal(
+                        session,
+                        Actor.SystemOnBehalfOfUser(transfer.initiatedBy),
+                        transfer
+                    )
+                }
+            }
+
 
             ok(Unit)
         }

@@ -64,7 +64,6 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
 ): List<Controller> {
     val fsRoot = fsRootInitializer()
     val (runner, fs, aclService) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, scope)
-    micro.install(HibernateFeature)
     val coreFs =
         CoreFileSystemService(fs, ClientMock.authenticatedClient, scope, mockedMetadataService, mockk(relaxed = true))
 

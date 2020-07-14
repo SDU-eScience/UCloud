@@ -147,7 +147,7 @@ class FavoriteAsyncDao(
                             setParameter("role", user.role.toString())
                             setParameter("project", project)
                             setParameter("groups", groups)
-                            setParameter("privileged", Roles.PRIVILEDGED.toList())
+                            setParameter("privileged", Roles.PRIVILEGED.toList())
                             setParameter("limit", paging.itemsPerPage)
                             setParameter("offset", paging.offset)
                         },

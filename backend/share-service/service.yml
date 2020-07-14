@@ -1,9 +1,0 @@
----
-name: share
-
-namespaces:
-  - shares
-
-dependencies:
-  - files
-  - notifications

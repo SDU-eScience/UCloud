@@ -1,5 +1,5 @@
 var webpack = require("webpack");
-var webpackMerge = require("webpack-merge");
+var {merge} = require("webpack-merge");
 var commonConfig = require("./webpack.config.js");
 const TerserPlugin = require('terser-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -8,7 +8,7 @@ var path = require("path");
 
 const ENV = process.env.NODE_ENV = process.env.ENV = "production";
 
-module.exports = webpackMerge(commonConfig, {
+module.exports = merge(commonConfig, {
     // devtool: "source-map",
 
     mode: "production",

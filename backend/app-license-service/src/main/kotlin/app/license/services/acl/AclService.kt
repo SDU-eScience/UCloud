@@ -16,43 +16,38 @@ import dk.sdu.cloud.project.api.GroupExistsRequest
 import dk.sdu.cloud.project.api.LookupByTitleRequest
 import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 
-class AclService<Session>(
-    private val db: DBSessionFactory<Session>,
+class AclService(
+    private val db: DBContext,
     private val authenticatedClient: AuthenticatedClient,
-    private val dao: AclDao<Session>
+    private val dao: AclAsyncDao
 ) {
 
     suspend fun hasPermission(serverId: String, accessEntity: AccessEntity, permission: ServerAccessRight): Boolean {
-        return db.withTransaction { session ->
-            dao.hasPermission(session, serverId, accessEntity, permission)
-        }
+        return dao.hasPermission(db, serverId, accessEntity, permission)
     }
 
     suspend fun updatePermissions(serverId: String, changes: List<AclEntryRequest>, accessEntity: AccessEntity) {
-        db.withTransaction { session ->
-            if (dao.hasPermission(session, serverId, accessEntity, ServerAccessRight.READ_WRITE)) {
-                changes.forEach { change ->
-                    if (accessEntity.user == change.entity.user) {
-                        throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-                    }
-                    if (!change.revoke) {
-                        updatePermissionsWithSession(session, serverId, change.entity, change.rights)
-                    } else {
-                        revokePermissionWithSession(session, serverId, change.entity)
-                    }
+        if (dao.hasPermission(db, serverId, accessEntity, ServerAccessRight.READ_WRITE)) {
+            changes.forEach { change ->
+                if (accessEntity.user == change.entity.user) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 }
-            } else {
-                RPCException("Request to update permissions unauthorized", HttpStatusCode.Unauthorized)
+                if (!change.revoke) {
+                    updatePermissionsWithSession(serverId, change.entity, change.rights)
+                } else {
+                    revokePermissionWithSession(serverId, change.entity)
+                }
             }
+        } else {
+            throw RPCException("Request to update permissions unauthorized", HttpStatusCode.Unauthorized)
         }
+
     }
 
     suspend fun updatePermissionsWithSession(
-        session: Session,
         serverId: String,
         entity: AccessEntity,
         permissions: ServerAccessRight
@@ -76,7 +71,7 @@ class AclService<Session>(
             if (lookup.results[user]?.role == Role.SERVICE) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
             }
-            dao.updatePermissions(session, serverId, entity, permissions)
+            dao.updatePermissions(db, serverId, entity, permissions)
         } else {
             val group = entity.group
             val project = entity.project
@@ -104,7 +99,7 @@ class AclService<Session>(
 
                 val entityWithId = AccessEntity(entity.user, projectInfo.id, entity.group)
 
-                dao.updatePermissions(session, serverId, entityWithId, permissions)
+                dao.updatePermissions(db, serverId, entityWithId, permissions)
             } else {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Neither user or project group defined")
             }
@@ -112,28 +107,22 @@ class AclService<Session>(
     }
 
     suspend fun listAcl(serverId: String): List<AccessEntityWithPermission> {
-        return db.withTransaction {
-            dao.listAcl(it, serverId)
-        }
+        return dao.listAcl(db, serverId)
     }
 
     suspend fun revokePermission(serverId: String, entity: AccessEntity) {
-        db.withTransaction {
-            revokePermissionWithSession(it, serverId, entity)
-        }
+        revokePermissionWithSession(serverId, entity)
     }
 
     suspend fun revokeAllFromEntity(entity: AccessEntity) {
-        db.withTransaction { session ->
-            dao.revokePermissionsFromEntity(session, entity)
-        }
+        dao.revokePermissionsFromEntity(db, entity)
     }
 
-    private fun revokePermissionWithSession(session: Session, serverId: String, entity: AccessEntity) {
-        dao.revokePermission(session, serverId, entity)
+    private suspend fun revokePermissionWithSession(serverId: String, entity: AccessEntity) {
+        dao.revokePermission(db, serverId, entity)
     }
 
-    fun revokeAllServerPermissionsWithSession(session: Session, serverId: String) {
-        dao.revokeAllServerPermissions(session, serverId)
+    suspend fun revokeAllServerPermissionsWithSession(serverId: String) {
+        dao.revokeAllServerPermissions(db, serverId)
     }
 }

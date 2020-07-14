@@ -1,9 +1,7 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.micro.HibernateFeature.Feature.safeSchemaName
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.generateDDL
 import org.flywaydb.core.Flyway
 
 class FlywayFeature : MicroFeature {

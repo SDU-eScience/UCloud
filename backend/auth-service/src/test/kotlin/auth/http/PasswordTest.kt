@@ -1,21 +1,15 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.services.*
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.assertStatus
-import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.sendRequest
-import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.service.test.*
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -23,34 +17,68 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.setBody
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 
 class PasswordTest {
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
+
+    @BeforeTest
+    fun before() {
+        dbTruncate(db)
+    }
+
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
     private val passwordHashingService = PasswordHashingService()
     private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     private data class TestContext(
-        val userDao: UserHibernateDAO,
-        val refreshTokenDao: RefreshTokenHibernateDAO,
+        val userDao: UserAsyncDAO,
+        val refreshTokenDao: RefreshTokenAsyncDAO,
         val jwtFactory: JWTFactory,
-        val tokenService: TokenService<HibernateSession>,
-        val db: DBSessionFactory<HibernateSession>,
+        val tokenService: TokenService,
+        val db: AsyncDBSessionFactory,
         val controllers: List<Controller>
     )
 
     private fun KtorApplicationTestSetupContext.createPasswordController(): TestContext {
-        micro.install(HibernateFeature)
-
-        val twoFactorDao = TwoFactorHibernateDAO()
-        val userDao = UserHibernateDAO(passwordHashingService, twoFactorDao)
-        val refreshTokenDao = RefreshTokenHibernateDAO()
+        val twoFactorDao = TwoFactorAsyncDAO()
+        val userDao = UserAsyncDAO(passwordHashingService, twoFactorDao)
+        val refreshTokenDao = RefreshTokenAsyncDAO()
 
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
         val jwtFactory = JWTFactory(tokenValidation.algorithm)
 
         val tokenService = TokenService(
-            micro.hibernateDatabase,
+            db,
             personService,
             userDao,
             refreshTokenDao,
@@ -59,16 +87,16 @@ class PasswordTest {
             tokenValidation = tokenValidation
         )
 
-        val twoFactorChallengeService = mockk<TwoFactorChallengeService<HibernateSession>>(relaxed = true)
+        val twoFactorChallengeService = mockk<TwoFactorChallengeService>(relaxed = true)
         coEvery { twoFactorChallengeService.isConnected(any()) } returns false
         coEvery { twoFactorChallengeService.createLoginChallengeOrNull(any(), any()) } returns null
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
         val loginService = LoginService(
-            micro.hibernateDatabase,
+            db,
             passwordHashingService,
             userDao,
-            LoginAttemptHibernateDao(),
+            LoginAttemptAsyncDao(),
             loginResponder
         )
 
@@ -76,7 +104,7 @@ class PasswordTest {
             PasswordController(loginService)
         )
 
-        return TestContext(userDao, refreshTokenDao, jwtFactory, tokenService, micro.hibernateDatabase, controllers)
+        return TestContext(userDao, refreshTokenDao, jwtFactory, tokenService, db, controllers)
     }
 
     private val person = personService.createUserByPassword(

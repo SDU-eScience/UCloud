@@ -1,8 +1,0 @@
----
-name: file-trash
-
-namespaces:
-  - files.trash
-
-dependencies:
-  - files

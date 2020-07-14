@@ -37,7 +37,7 @@ internal suspend fun internalHasPermission(
     publicDao: ApplicationPublicAsyncDao,
     aclDao: AclAsyncDao
 ): Boolean {
-    if (user.role in Roles.PRIVILEDGED) return true
+    if (user.role in Roles.PRIVILEGED) return true
     if (ctx.withSession { session -> publicDao.isPublic(session, user, appName, appVersion)}) return true
     return ctx.withSession { session ->
         aclDao.hasPermission(
@@ -76,7 +76,7 @@ internal suspend fun internalFindAllByName(
                     setParameter("project", currentProject)
                     setParameter("groups", groups)
                     setParameter("role", (user?.role ?: Role.UNKNOWN).toString())
-                    setParameter("privileged", Roles.PRIVILEDGED.toList())
+                    setParameter("privileged", Roles.PRIVILEGED.toList())
                     setParameter("user", user?.username ?: "")
                 },
                 """

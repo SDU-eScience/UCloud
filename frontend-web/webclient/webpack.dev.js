@@ -1,12 +1,12 @@
 var webpack = require("webpack");
-var webpackMerge = require("webpack-merge");
+var {merge} = require("webpack-merge");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
 var commonConfig = require("./webpack.config.js");
 var path = require("path");
 var {DEV_SITE} = require("./site.config.json")
 
-module.exports = webpackMerge(commonConfig, {
+module.exports = merge(commonConfig, {
     devtool: "eval-source-map",
 
     mode: "development",

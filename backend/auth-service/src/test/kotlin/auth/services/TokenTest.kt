@@ -3,39 +3,75 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.every
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TokenTest {
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
+
+    @BeforeTest
+    fun before() {
+        dbTruncate(db)
+    }
+
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
+
     private val email = "test@testmail.com"
     private val token = "token"
     private lateinit var person: Person
 
     private data class TestContext(
-        val tokenService: TokenService<HibernateSession>,
-        val userDao: UserDAO<HibernateSession>,
-        val refreshTokenDao: RefreshTokenDAO<HibernateSession>,
-        val db: DBSessionFactory<HibernateSession>,
+        val tokenService: TokenService,
+        val userDao: UserAsyncDAO,
+        val refreshTokenDao: RefreshTokenAsyncDAO,
+        val db: AsyncDBSessionFactory,
         val personService: PersonService,
         val passwordHashingService: PasswordHashingService
     )
@@ -46,12 +82,9 @@ class TokenTest {
 
     private fun createTokenService(): TestContext = runBlocking {
         val micro = initializeMicro()
-        micro.install(HibernateFeature)
-
-        val db = micro.hibernateDatabase
         val testJwtFactory = JWTFactory(testJwtVerifier.algorithm)
         val passwordHashingService = PasswordHashingService()
-        val userDao = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
+        val userDao = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
         val personService = PersonService(passwordHashingService, UniqueUsernameService(db, userDao))
 
         person = personService.createUserByPassword(
@@ -63,16 +96,9 @@ class TokenTest {
             email
         )
 
-        db.withTransaction {
-            try {
-                userDao.delete(it, person.id)
-            } catch (_: Exception) {
-            }
+        userDao.insert(db, person)
 
-            userDao.insert(it, person)
-        }
-
-        val refreshTokenDao = RefreshTokenHibernateDAO()
+        val refreshTokenDao = RefreshTokenAsyncDAO()
         val tokenService = TokenService(
             db,
             personService,
@@ -166,8 +192,8 @@ class TokenTest {
         with(createTokenService()) {
             db.withTransaction { session ->
                 val refreshTAU = RefreshTokenAndUser(email, token, "")
-                val refreshHibernateTAU = RefreshTokenHibernateDAO()
-                refreshHibernateTAU.insert(session, refreshTAU)
+                val refreshDao = RefreshTokenAsyncDAO()
+                refreshDao.insert(session, refreshTAU)
 
             }
             val result = tokenService.refresh(token)
@@ -192,7 +218,7 @@ class TokenTest {
         with(createTokenService()) {
             db.withTransaction { session ->
                 val refreshTAU = RefreshTokenAndUser(email, token, "")
-                RefreshTokenHibernateDAO().insert(session, refreshTAU)
+                RefreshTokenAsyncDAO().insert(session, refreshTAU)
             }
 
             tokenService.logout(token)

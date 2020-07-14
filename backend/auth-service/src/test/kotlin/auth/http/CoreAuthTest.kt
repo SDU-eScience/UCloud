@@ -6,33 +6,28 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.AuthConfiguration
+import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.services.JWTFactory
-import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
+import dk.sdu.cloud.auth.services.OneTimeTokenAsyncDAO
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenAndUser
-import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
+import dk.sdu.cloud.auth.services.RefreshTokenAsyncDAO
 import dk.sdu.cloud.auth.services.TokenService
-import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
+import dk.sdu.cloud.auth.services.TwoFactorAsyncDAO
 import dk.sdu.cloud.auth.services.UniqueUsernameService
-import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.auth.services.UserAsyncDAO
+import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.TokenValidationMock
-import dk.sdu.cloud.service.test.assertStatus
-import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.test.*
 import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -46,46 +41,81 @@ import io.ktor.server.testing.TestApplicationResponse
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
 import java.util.*
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class CoreAuthTest {
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
+
+    @BeforeTest
+    fun before() {
+        dbTruncate(db)
+    }
+
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
 
     private data class TestContext(
-        val db: HibernateSessionFactory,
-        val ottDao: OneTimeTokenHibernateDAO,
-        val userdao: UserHibernateDAO,
-        val refreshTokenDao: RefreshTokenHibernateDAO,
+        val db: AsyncDBSessionFactory,
+        val ottDao: OneTimeTokenAsyncDAO,
+        val userdao: UserAsyncDAO,
+        val refreshTokenDao: RefreshTokenAsyncDAO,
         val jwtFactory: JWTFactory,
         val config: AuthConfiguration,
-        val tokenService: TokenService<HibernateSession>,
+        val tokenService: TokenService,
         val validation: TokenValidationJWT,
         val controllers: List<Controller>,
         val passwordHashingService: PasswordHashingService,
-        val uniqueUsernameService: UniqueUsernameService<*>,
+        val uniqueUsernameService: UniqueUsernameService,
         val personService: PersonService
     )
 
     private fun KtorApplicationTestSetupContext.createCoreAuthController(
         serviceExtensionPolicy: Map<String, Set<SecurityScope>> = emptyMap()
     ): TestContext {
-        micro.install(HibernateFeature)
         val validation = micro.tokenValidation as TokenValidationJWT
 
         val passwordHashingService = PasswordHashingService()
-        val ottDao = OneTimeTokenHibernateDAO()
-        val twoFactorDao = TwoFactorHibernateDAO()
-        val userDao = UserHibernateDAO(passwordHashingService, twoFactorDao)
-        val refreshTokenDao = RefreshTokenHibernateDAO()
-        val uniqueUsernameService = UniqueUsernameService(micro.hibernateDatabase, userDao)
+        val ottDao = OneTimeTokenAsyncDAO()
+        val twoFactorDao = TwoFactorAsyncDAO()
+        val userDao = UserAsyncDAO(passwordHashingService, twoFactorDao)
+        val refreshTokenDao = RefreshTokenAsyncDAO()
+        val uniqueUsernameService = UniqueUsernameService(db, userDao)
         val personService = PersonService(passwordHashingService, uniqueUsernameService)
         val config = mockk<AuthConfiguration>()
         val jwtFactory = JWTFactory(validation.algorithm)
         val tokenService = TokenService(
-            micro.hibernateDatabase,
+            db,
             personService,
             userDao,
             refreshTokenDao,
@@ -97,7 +127,7 @@ class CoreAuthTest {
 
         val controllers = listOf(
             CoreAuthController(
-                micro.hibernateDatabase,
+                db,
                 ottDao,
                 tokenService,
                 validation
@@ -105,7 +135,7 @@ class CoreAuthTest {
         )
 
         return TestContext(
-            micro.hibernateDatabase,
+            db,
             ottDao,
             userDao,
             refreshTokenDao,
@@ -142,32 +172,38 @@ class CoreAuthTest {
     }
 
     private fun TestContext.createUser(
-        session: HibernateSession,
+        db: DBContext,
         username: String,
         role: Role = Role.USER,
         password: String = "password"
     ) {
-        userdao.insert(
-            session,
-            personService.createUserByPassword(
-                "firstname",
-                "lastname",
-                username,
-                role,
-                password,
-                "email@email"
-            )
-        )
+        runBlocking {
+            db.withSession { session ->
+                userdao.insert(
+                    session,
+                    personService.createUserByPassword(
+                        "firstname",
+                        "lastname",
+                        username,
+                        role,
+                        password,
+                        "email@email"
+                    )
+                )
+            }
+        }
     }
 
     private fun TestContext.createRefreshToken(
-        session: HibernateSession,
+        session: DBContext,
         username: String,
         role: Role = Role.USER,
         csrf: String = "csrf"
     ): RefreshTokenAndUser {
         val tokenAndUser = RefreshTokenAndUser(username, "$username/$role", csrf)
-        refreshTokenDao.insert(session, tokenAndUser)
+        runBlocking {
+            refreshTokenDao.insert(session, tokenAndUser)
+        }
         return tokenAndUser
     }
 
@@ -191,7 +227,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.ADMIN
             lateinit var refreshToken: RefreshTokenAndUser
-            ctx.db.withTransaction {
+            db.withSession {
                 ctx.createUser(it, username, role)
                 refreshToken = ctx.createRefreshToken(it, username, role)
             }
@@ -206,7 +242,7 @@ class CoreAuthTest {
     fun `Refresh test - unauthorized`() {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.ADMIN
-            ctx.db.withTransaction {
+            db.withSession {
                 ctx.createUser(it, username, role)
                 ctx.createRefreshToken(it, username, role)
             }
@@ -221,7 +257,7 @@ class CoreAuthTest {
     fun `Refresh test - no token`() {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.ADMIN
-            ctx.db.withTransaction {
+            db.withSession {
                 ctx.createUser(it, username, role)
                 ctx.createRefreshToken(it, username, role)
             }
@@ -235,7 +271,7 @@ class CoreAuthTest {
     fun `Request test`() {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.ADMIN
-            ctx.db.withTransaction {
+            db.withSession {
                 ctx.createUser(it, username, role)
                 ctx.createRefreshToken(it, username, role)
             }
@@ -253,7 +289,7 @@ class CoreAuthTest {
     fun `Request test - missing params`() {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.ADMIN
-            ctx.db.withTransaction {
+            db.withSession {
                 ctx.createUser(it, username, role)
                 ctx.createRefreshToken(it, username, role)
             }
@@ -268,7 +304,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.ADMIN
             val jti = "givenJTI"
-            ctx.db.withTransaction {
+            db.withSession {
                 ctx.createUser(it, username, role)
                 ctx.createRefreshToken(it, username, role)
             }
@@ -283,7 +319,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.USER
             val jti = "givenJTI"
-            ctx.db.withTransaction { session ->
+            db.withSession { session ->
                 ctx.createUser(session, username, role)
                 ctx.createRefreshToken(session, username, role)
             }
@@ -297,7 +333,7 @@ class CoreAuthTest {
     fun `Claim test - No token`() {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.USER
-            ctx.db.withTransaction { session ->
+            db.withSession { session ->
                 ctx.createUser(session, username, role)
                 ctx.createRefreshToken(session, username, role)
             }
@@ -311,7 +347,7 @@ class CoreAuthTest {
     fun `Claim test - claim same`() {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.ADMIN
-            ctx.db.withTransaction { session ->
+            db.withSession { session ->
                 ctx.createUser(session, username, role)
                 ctx.createRefreshToken(session, username, role)
             }
@@ -329,7 +365,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.USER
             lateinit var refreshToken: RefreshTokenAndUser
-            ctx.db.withTransaction { session ->
+            db.withSession { session ->
                 ctx.createUser(session, username, role)
                 refreshToken = ctx.createRefreshToken(session, username, role)
             }
@@ -345,7 +381,7 @@ class CoreAuthTest {
     private suspend fun webRefreshInitialize(ctx: TestContext): RefreshTokenAndUser {
         val (username, role) = "user" to Role.USER
         lateinit var refreshToken: RefreshTokenAndUser
-        ctx.db.withTransaction { session ->
+        db.withSession { session ->
             ctx.createUser(session, username, role)
             refreshToken = ctx.createRefreshToken(session, username, role)
         }
@@ -520,6 +556,7 @@ class CoreAuthTest {
     fun `Web refresh - test bad csrf token`() {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
+            println(embDB.getJdbcUrl("postgres", "postgres"))
             val response = webRefresh(token, addCsrfToken = false, headersToUse = *arrayOf(HttpHeaders.Origin)) {
                 addHeader(CoreAuthController.REFRESH_WEB_CSRF_TOKEN, "Bad csrf token")
             }
@@ -580,7 +617,7 @@ class CoreAuthTest {
         )
 
         withBasicSetup(serviceExtensionPolicy = extensionPolicy) { ctx ->
-            ctx.db.withTransaction { session ->
+            db.withSession { session ->
                 ctx.createUser(session, user, userRole)
             }
 

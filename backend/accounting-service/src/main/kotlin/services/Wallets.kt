@@ -1,20 +1,18 @@
 package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
-import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletBalance
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
+import java.util.*
 
 object WalletTable : SQLTable("wallets") {
     val accountId = text("account_id", notNull = true)
@@ -72,7 +70,7 @@ class BalanceService(
             val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
 
             val membershipOfThis = memberStatus?.membership?.find { it.projectId == accountId }
-            if (membershipOfThis != null && membershipOfThis.whoami.role.isAdmin()) {
+            if (membershipOfThis != null) {
                 return
             }
 
@@ -112,12 +110,32 @@ class BalanceService(
             val parentProject = ancestors[ancestors.lastIndex - 1]
             check(thisProject.parent == parentProject.id)
 
-            val membershipOfParent = memberStatus?.membership?.find { it.projectId == accountId }
+            val membershipOfParent = memberStatus?.membership?.find { it.projectId == parentProject.id }
             if (membershipOfParent != null && membershipOfParent.whoami.role.isAdmin()) {
                 return true
             }
         }
         return false
+    }
+
+    suspend fun requirePermissionToTransferFromAccount(
+        ctx: DBContext,
+        initiatedBy: Actor,
+        accountId: String,
+        walletOwnerType: WalletOwnerType
+    ) {
+        if (initiatedBy == Actor.System) return
+        if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEGED) return
+        if (initiatedBy != Actor.System && initiatedBy.username.startsWith("_")) return
+
+        if (walletOwnerType == WalletOwnerType.PROJECT) {
+            val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
+                ?: throw RPCException("Could not lookup member status", HttpStatusCode.BadGateway)
+            val isAdmin = memberStatus.membership.any { it.projectId == accountId && it.whoami.role.isAdmin() }
+            if (isAdmin) return
+        }
+
+        throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
     suspend fun getWalletsForAccount(
@@ -149,8 +167,8 @@ class BalanceService(
                         select w.*, pc.area
                         from wallets w, product_categories pc
                         where 
-                            w.account_id in (select unnest(?accountIds::text[])) and 
-                            w.account_type = ?accountType and
+                            w.account_id in (select unnest(:accountIds::text[])) and 
+                            w.account_type = :accountType and
                             pc.category = w.product_category and
                             pc.provider = w.product_provider
                     """
@@ -195,10 +213,10 @@ class BalanceService(
                         select balance 
                         from wallets 
                         where 
-                            account_id = ?accountId and 
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider
+                            account_id = :accountId and 
+                            account_type = :accountType and
+                            product_category = :productCategory and
+                            product_provider = :productProvider
                     """
                 )
                 .rows
@@ -259,12 +277,12 @@ class BalanceService(
 
                     """
                         update wallets
-                        set balance = ?amount
+                        set balance = :amount
                         where 
-                            account_id = ?accountId and 
-                            account_type = ?accountType and 
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider
+                            account_id = :accountId and 
+                            account_type = :accountType and 
+                            product_category = :productCategory and
+                            product_provider = :productProvider
                     """
                 )
         }
@@ -290,12 +308,12 @@ class BalanceService(
 
                     """
                         update wallets  
-                        set balance = balance + ?amount
+                        set balance = balance + :amount
                         where 
-                            account_id = ?accountId and 
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider
+                            account_id = :accountId and 
+                            account_type = :accountType and
+                            product_category = :productCategory and
+                            product_provider = :productProvider
                     """
                 )
                 .rowsAffected
@@ -325,10 +343,10 @@ class BalanceService(
                     """
                         delete from transactions 
                         where
-                            account_id = ?accountId and
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider and
+                            account_id = :accountId and
+                            account_type = :accountType and
+                            product_category = :productCategory and
+                            product_provider = :productProvider and
                             is_reserved = true and
                             expires_at is not null and
                             expires_at < timezone('utc', now())
@@ -343,10 +361,10 @@ class BalanceService(
                         select sum(amount)::bigint
                         from transactions
                         where
-                            account_id = ?accountId and
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider and
+                            account_id = :accountId and
+                            account_type = :accountType and
+                            product_category = :productCategory and
+                            product_provider = :productProvider and
                             is_reserved = true
                     """
                 )
@@ -363,16 +381,13 @@ class BalanceService(
         initiatedBy: Actor,
         request: ReserveCreditsRequest,
         reserveForAncestors: Boolean = true,
-        origWallet: Wallet? = null
+        origWallet: Wallet? = null,
+        initiatedByUsername: String? = null
     ): Unit = with(request) {
         val wallet = request.account
         val originalWallet = origWallet ?: wallet
         require(originalWallet.paysFor == wallet.paysFor)
         require(originalWallet.type == wallet.type)
-
-        if (initiatedBy == Actor.System) {
-            throw IllegalStateException("System cannot initiate a reservation")
-        }
 
         try {
             ctx.withSession { session ->
@@ -391,7 +406,7 @@ class BalanceService(
                     set(TransactionTable.productProvider, wallet.paysFor.provider)
                     set(TransactionTable.amount, amount)
                     set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
-                    set(TransactionTable.initiatedBy, initiatedBy.username)
+                    set(TransactionTable.initiatedBy, initiatedByUsername ?: initiatedBy.safeUsername())
                     set(TransactionTable.isReserved, true)
                     set(TransactionTable.productId, productId)
                     set(TransactionTable.units, productUnits)
@@ -405,10 +420,11 @@ class BalanceService(
                     // thrown too early
                     reserveCredits(
                         session,
-                        initiatedBy,
+                        Actor.System,
                         request.copy(account = ancestor, discardAfterLimitCheck = false),
                         reserveForAncestors = false,
-                        origWallet = wallet
+                        origWallet = wallet,
+                        initiatedByUsername = initiatedByUsername ?: initiatedBy.safeUsername()
                     )
                 }
 
@@ -461,13 +477,13 @@ class BalanceService(
                     """
                         update transactions     
                         set
-                            amount = ?amount,
-                            units = ?units,
+                            amount = :amount,
+                            units = :units,
                             is_reserved = false,
                             completed_at = now(),
                             expires_at = null
                         where
-                            id = ?reservationId 
+                            id = :reservationId 
                     """
                 )
 
@@ -480,15 +496,61 @@ class BalanceService(
 
                     """
                         update wallets
-                        set balance = balance - ?amount
+                        set balance = balance - :amount
                         where
                             (account_id, account_type, product_category, product_provider) in (
                                 select t.account_id, t.account_type, t.product_category, t.product_provider
                                 from transactions t
-                                where t.id = ?reservationId
+                                where t.id = :reservationId
                             )
                     """
                 )
+        }
+    }
+
+    suspend fun transferToPersonal(
+        ctx: DBContext,
+        actor: Actor,
+        request: SingleTransferRequest
+    ) {
+        ctx.withSession { session ->
+            requirePermissionToTransferFromAccount(session, actor, request.sourceAccount.id, request.sourceAccount.type)
+
+            val id = UUID.randomUUID().toString()
+            reserveCredits(
+                session,
+                actor,
+                ReserveCreditsRequest(
+                    jobId = id,
+                    amount = request.amount,
+                    expiresAt = System.currentTimeMillis() + (1000L * 60),
+                    account = request.sourceAccount,
+                    jobInitiatedBy = actor.safeUsername(),
+                    productId = "",
+                    productUnits = 1L,
+                    chargeImmediately = true
+                )
+            )
+
+            val success = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("destId", request.destinationAccount.id)
+                        setParameter("amount", request.amount)
+                        setParameter("prodCategory", request.destinationAccount.paysFor.id)
+                        setParameter("prodProvider", request.destinationAccount.paysFor.provider)
+                    },
+
+                    """
+                        insert into wallets (account_id, account_type, product_category, product_provider, balance) 
+                        values (:destId, 'USER', :prodCategory, :prodProvider, :amount)
+                        on conflict (account_id, account_type, product_category, product_provider)
+                        do update set balance = wallets.balance + excluded.balance
+                    """
+                )
+                .rowsAffected > 0L
+
+            if (!success) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     }
 

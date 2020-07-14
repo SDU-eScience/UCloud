@@ -58,7 +58,6 @@ class HealthCheckFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         val serverFeature = ctx.featureOrNull(ServerFeature) ?: return
         val redisFeature = ctx.featureOrNull(RedisFeature)
-        val hibernateFeature = ctx.featureOrNull(HibernateFeature)
         val elasticFeature = ctx.featureOrNull(ElasticFeature)
 
         val isObservingRedisStreams = if (redisFeature != null) {
@@ -102,26 +101,6 @@ class HealthCheckFeature : MicroFeature {
                                 HttpStatusCode.InternalServerError
                             )
                         }
-                    }
-                }
-
-                if (hibernateFeature != null) {
-                    log.debug("Testing Hibernate")
-                    val result = try {
-                        ctx.hibernateDatabase.withTransaction { session ->
-                            session.createNativeQuery(
-                                "SELECT 1"
-                            ).resultList
-                        }
-                    } catch (ex: Exception) {
-                        log.error("Hibernate is not working: EX: ${ex.stackTraceToString()}")
-                        throw RPCException(
-                            "Hibernate is not working, EX: ${ex.stackTraceToString()}",
-                            HttpStatusCode.InternalServerError
-                        )
-                    }
-                    if (result.isEmpty()) {
-                        throw RPCException("Hibernate is not working", HttpStatusCode.InternalServerError)
                     }
                 }
 

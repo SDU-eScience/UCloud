@@ -36,5 +36,5 @@ fun Actor.safeUsername(systemUsername: String = "_ucloud"): String {
     }
 }
 
-fun SecurityPrincipalToken.toActor(): Actor = Actor.User(principal)
-fun SecurityPrincipal.toActor(): Actor = Actor.User(this)
+fun SecurityPrincipalToken.toActor(): Actor.User = Actor.User(principal)
+fun SecurityPrincipal.toActor(): Actor.User = Actor.User(this)

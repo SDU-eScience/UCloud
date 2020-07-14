@@ -56,15 +56,6 @@ class ServiceRegistry(val args: Array<String>) {
         scopedMicro.serviceDescription = service.description
         scopedMicro.isEmbeddedService = true
         scopedMicro.install(DatabaseConfigurationFeature)
-        scopedMicro.install(
-            HibernateFeature,
-            HibernateFeatureConfiguration(
-                listOf(
-                    "dk.sdu.cloud." +
-                        service.description.name.split("-").joinToString(".") { it.toLowerCase() }
-                )
-            )
-        )
         scopedMicro.install(FlywayFeature)
         val server = service.initializeServer(scopedMicro)
         services.add(ConfiguredService(service.description, service, scopedMicro, server))

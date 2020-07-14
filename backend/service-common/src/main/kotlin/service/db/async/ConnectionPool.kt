@@ -8,8 +8,6 @@ import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
-import dk.sdu.cloud.service.db.POSTGRES_DRIVER
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.future.await
 
@@ -42,11 +40,6 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
     }
 
     private val pool = run {
-        if (config.dialect != POSTGRES_9_5_DIALECT && config.driver != POSTGRES_DRIVER) {
-            log.warn("Bad configuration: $config")
-            throw IllegalArgumentException("Cannot create an AsyncDBSessionFactory for non postgres databases!")
-        }
-
         val username = config.username ?: throw IllegalArgumentException("Missing credentials")
         val password = config.password ?: throw IllegalArgumentException("Missing credentials")
         val jdbcUrl = config.jdbcUrl ?: throw IllegalArgumentException("Missing connection string")

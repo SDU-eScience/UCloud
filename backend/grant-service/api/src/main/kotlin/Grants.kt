@@ -6,15 +6,13 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
 
 data class UploadTemplatesRequest(
     val personalProject: String,
@@ -71,6 +69,9 @@ typealias ApproveApplicationResponse = Unit
 data class RejectApplicationRequest(val requestId: Long)
 typealias RejectApplicationResponse = Unit
 
+data class CloseApplicationRequest(val requestId: Long)
+typealias CloseApplicationResponse = Unit
+
 data class CommentOnApplicationRequest(val requestId: Long, val comment: String)
 typealias CommentOnApplicationResponse = Unit
 
@@ -99,6 +100,7 @@ typealias EditApplicationResponse = Unit
 enum class ApplicationStatus {
     APPROVED,
     REJECTED,
+    CLOSED,
     IN_PROGRESS
 }
 
@@ -115,7 +117,11 @@ enum class ApplicationStatus {
 sealed class GrantRecipient {
     class PersonalProject(val username: String) : GrantRecipient()
     class ExistingProject(val projectId: String) : GrantRecipient()
-    class NewProject(val projectTitle: String) : GrantRecipient()
+    class NewProject(val projectTitle: String) : GrantRecipient() {
+        init {
+            CreateProjectRequest(projectTitle, null) // Trigger validation
+        }
+    }
 
     companion object {
         const val PERSONAL_TYPE = "personal"
@@ -129,7 +135,16 @@ data class ResourceRequest(
     val productProvider: String,
     val creditsRequested: Long?,
     val quotaRequested: Long?
-)
+) {
+    init {
+        if (creditsRequested != null && creditsRequested < 0) {
+            throw RPCException("Cannot request a negative amount of resources", HttpStatusCode.BadRequest)
+        }
+        if (quotaRequested != null && quotaRequested < 0) {
+            throw RPCException("Cannot request a negative quota", HttpStatusCode.BadRequest)
+        }
+    }
+}
 
 data class CreateApplication(
     val resourcesOwnedBy: String, // Project ID of the project owning the resources
@@ -161,6 +176,10 @@ typealias SetEnabledStatusResponse = Unit
 
 data class IsEnabledRequest(val projectId: String)
 data class IsEnabledResponse(val enabled: Boolean)
+
+data class BrowseProjectsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+typealias BrowseProjectsResponse = Page<ProjectWithTitle>
+data class ProjectWithTitle(val projectId: String, val title: String)
 
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
@@ -326,7 +345,9 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
-    val editApplication = call<EditApplicationRequest, EditApplicationResponse, CommonErrorMessage>("editApplication") {
+    val editApplication = call<EditApplicationRequest, EditApplicationResponse, CommonErrorMessage>(
+        "editApplication"
+    ) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -337,6 +358,25 @@ object Grants : CallDescriptionContainer("grant") {
             path {
                 using(baseContext)
                 +"edit"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val closeApplication = call<CloseApplicationRequest, CloseApplicationResponse, CommonErrorMessage>(
+        "closeApplication"
+    ) {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"close"
             }
 
             body { bindEntireRequestFromBody() }
@@ -385,21 +425,6 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
-    val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +boundTo(ViewApplicationRequest::id)
-            }
-        }
-    }
-
     val setEnabledStatus =
         call<SetEnabledStatusRequest, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
             auth {
@@ -434,6 +459,42 @@ object Grants : CallDescriptionContainer("grant") {
 
             params {
                 +boundTo(IsEnabledRequest::projectId)
+            }
+        }
+    }
+
+    val browseProjects = call<BrowseProjectsRequest, BrowseProjectsResponse, CommonErrorMessage>("browseProjects") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"browse-projects"
+            }
+
+            params {
+                +boundTo(BrowseProjectsRequest::itemsPerPage)
+                +boundTo(BrowseProjectsRequest::page)
+            }
+        }
+    }
+
+    // This needs to be last
+    val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +boundTo(ViewApplicationRequest::id)
             }
         }
     }

@@ -11,8 +11,6 @@ import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import {
     membershipSearch,
-    shouldVerifyMembership,
-    ShouldVerifyMembershipResponse,
     verifyMembership
 } from "Project";
 import styled from "styled-components";
@@ -32,13 +30,11 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
         groupMembers,
         memberSearchQuery,
         membersPage,
-        reload
+        reload,
+        projectDetails
     } = useProjectManagementStatus();
 
-    const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
-        shouldVerifyMembership(projectId),
-        {shouldVerify: false}
-    );
+    const shouldVerify = projectDetails.data.needsVerification;
 
     useEffect(() => {
         setProjectMemberParams(
@@ -67,7 +63,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
 
     const onApprove = async (): Promise<void> => {
         await callAPIWithErrorHandler(verifyMembership(projectId));
-        setShouldVerifyParams(shouldVerifyMembership(projectId));
+        reload();
     };
 
     const isSettingsPage = membersPage === "settings";
@@ -77,7 +73,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
             sidebar={null}
             main={(
                 <>
-                    {!shouldVerify.data.shouldVerify ? null : (
+                    {!shouldVerify ? null : (
                         <Box backgroundColor="orange" color="white" p={32} m={16}>
                             <Heading.h4>Time for a review!</Heading.h4>
 

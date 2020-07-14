@@ -41,7 +41,7 @@ class ApplicationPublicAsyncDao() {
         appVersion: String,
         public: Boolean
     ) {
-        if (user.role !in Roles.PRIVILEDGED) throw ApplicationException.NotAllowed()
+        if (user.role !in Roles.PRIVILEGED) throw ApplicationException.NotAllowed()
         val existing = ctx.withSession { session ->
             internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
         }

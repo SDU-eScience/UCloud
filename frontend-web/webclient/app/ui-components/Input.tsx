@@ -60,6 +60,10 @@ const Input = styled.input<InputProps>`
         background-color: transparent;
     }
 
+    &:disabled {
+        background-color: var(--FtFolderColor2, #f00);
+    }
+
     ${borders} ${space} ${borderRadius}
     ${left} ${width} ${right}
 `;

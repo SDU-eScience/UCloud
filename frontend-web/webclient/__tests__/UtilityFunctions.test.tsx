@@ -4,7 +4,7 @@ import {dateToString} from "../app/Utilities/DateUtilities";
 import {getFilenameFromPath, sizeToString} from "../app/Utilities/FileUtilities";
 import * as UF from "../app/UtilityFunctions";
 import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files";
-import { AccessRight } from "Types";
+import {AccessRight} from "../app/Types";
 
 // TO LOWER CASE AND CAPITALIZE
 

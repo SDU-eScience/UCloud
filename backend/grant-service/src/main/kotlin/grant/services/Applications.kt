@@ -1,12 +1,24 @@
 package dk.sdu.cloud.grant.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.CreateApplication
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
+import dk.sdu.cloud.grant.utils.autoApproveTemplate
+import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
+import dk.sdu.cloud.grant.utils.responseTemplate
+import dk.sdu.cloud.grant.utils.updatedTemplate
+import dk.sdu.cloud.project.api.CreateProjectRequest
+import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
@@ -33,16 +45,16 @@ object RequestedResourceTable : SQLTable("requested_resources") {
 
 class ApplicationService(
     private val projects: ProjectCache,
-    private val settings: SettingsService
+    private val settings: SettingsService,
+    private val notifications: NotificationService,
+    private val serviceClient: AuthenticatedClient
 ) {
     suspend fun submit(
         ctx: DBContext,
-        actor: Actor,
+        actor: Actor.User,
         application: CreateApplication
     ): Long {
-        if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
-        return ctx.withSession { session ->
+        val returnedId = ctx.withSession { session ->
             val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
             if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
                 throw RPCException(
@@ -61,17 +73,21 @@ class ApplicationService(
                             setParameter("document", document)
 
                             val grantRecipient = this.grantRecipient
-                            setParameter("grant_recipient", when (grantRecipient) {
-                                is GrantRecipient.PersonalProject -> grantRecipient.username
-                                is GrantRecipient.ExistingProject -> grantRecipient.projectId
-                                is GrantRecipient.NewProject -> grantRecipient.projectTitle
-                            })
+                            setParameter(
+                                "grant_recipient", when (grantRecipient) {
+                                    is GrantRecipient.PersonalProject -> grantRecipient.username
+                                    is GrantRecipient.ExistingProject -> grantRecipient.projectId
+                                    is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                                }
+                            )
 
-                            setParameter("grant_recipient_type", when (grantRecipient) {
-                                is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
-                                is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
-                                is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
-                            })
+                            setParameter(
+                                "grant_recipient_type", when (grantRecipient) {
+                                    is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
+                                    is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
+                                    is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
+                                }
+                            )
                         }
                     },
                     //language=sql
@@ -101,6 +117,107 @@ class ApplicationService(
 
             id
         }
+
+        lateinit var returnedApplication: Application
+        ctx.withSession { session ->
+            returnedApplication = viewApplicationById(session, actor, returnedId).first
+        }
+
+        if (autoApproveApplication(ctx, actor, returnedApplication)) {
+            // Notifications are sent by autoApprover
+            return returnedId
+        }
+
+        notifications.notify(
+            GrantNotification(
+                returnedApplication,
+                adminMessage = GrantNotificationMessage(
+                    "New Grant Application",
+                    "NEW_GRANT_APPLICATION",
+                    message = { user, projectTitle ->
+                        newIngoingApplicationTemplate(user, actor.safeUsername(), projectTitle)
+                    }
+                ),
+                userMessage = null
+            ),
+            actor.safeUsername()
+        )
+
+        return returnedId
+    }
+
+    private suspend fun autoApproveApplication(
+        ctx: DBContext,
+        actor: Actor.User,
+        application: Application
+    ): Boolean {
+        val settings = settings.fetchSettings(ctx, Actor.System, application.resourcesOwnedBy)
+        val matchesUserCriteria = settings.automaticApproval.from.any { it.matches(actor.principal) }
+        if (settings.automaticApproval.maxResources.isEmpty()) return false
+        if (!matchesUserCriteria) return false
+        val matchesResources = application
+            .requestedResources
+            .all { requested ->
+                settings.automaticApproval.maxResources.any { max ->
+                    val maxCredits = max.creditsRequested
+                    val maxQuota = max.quotaRequested
+                    if (maxCredits != null) {
+                        val creditsRequested = requested.creditsRequested
+                        creditsRequested != null && creditsRequested <= maxCredits
+                    } else {
+                        require(maxQuota != null)
+                        val quotaRequested = requested.quotaRequested
+                        quotaRequested != null && quotaRequested <= maxQuota
+                    }
+                }
+            }
+
+        if (!matchesResources) return false
+
+        try {
+            ctx.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("status", ApplicationStatus.APPROVED.name)
+                            setParameter("id", application.id)
+                        },
+                        """
+                            update applications set status = :status where id = :id
+                        """
+                    )
+
+                onApplicationApproved(
+                    Actor.System,
+                    application
+                )
+            }
+        } catch (ex: Throwable) {
+            log.warn("Failed to automatically approve application\n${ex.stackTraceToString()}")
+            return false
+        }
+
+        notifications.notify(
+            GrantNotification(
+                application,
+                adminMessage = GrantNotificationMessage(
+                    "Grant Application for Subproject Automatically Approved",
+                    GRANT_APP_RESPONSE,
+                    message = { user, title ->
+                        autoApproveTemplate(user, application.requestedBy, title)
+                    }
+                ),
+                userMessage = GrantNotificationMessage(
+                    "Grant Application Approved",
+                    GRANT_APP_RESPONSE,
+                    message = { user, title ->
+                        responseTemplate(ApplicationStatus.APPROVED, user, "UCloud", title)
+                    }
+                )
+            ),
+            "_ucloud"
+        )
+        return true
     }
 
     private suspend fun insertResources(
@@ -170,6 +287,24 @@ class ApplicationService(
 
             insertResources(session, newResources, id)
         }
+
+        lateinit var application: Application
+        ctx.withSession { session ->
+            application = viewApplicationById(session, actor, id).first
+        }
+        notifications.notify(
+            GrantNotification(
+                application,
+                GrantNotificationMessage(
+                    "Grant Application Updated",
+                    "GRANT_APPLICATION_UPDATED",
+                    message = { user, projectTitle ->
+                        updatedTemplate(projectTitle, user, actor.safeUsername())
+                    }
+                )
+            ),
+            actor.safeUsername()
+        )
     }
 
     suspend fun updateStatus(
@@ -178,9 +313,10 @@ class ApplicationService(
         id: Long,
         newStatus: ApplicationStatus
     ) {
-        require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED or REJECTED!" }
+        require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
+
         ctx.withSession { session ->
-            val updatedProjectId = session
+            val (updatedProjectId, requestedBy) = session
                 .sendPreparedStatement(
                     {
                         setParameter("id", id)
@@ -190,16 +326,107 @@ class ApplicationService(
                         update "grant".applications 
                         set status = :status
                         where id = :id
-                        returning resources_owned_by
+                        returning resources_owned_by, requested_by
                     """
                 )
-                .rows.singleOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                .rows
+                .singleOrNull()
+                ?.let { Pair(it.getString(0)!!, it.getString(1)!!) }
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            if (!projects.isAdminOfParent(updatedProjectId, actor)) {
+            if (!projects.isAdminOfParent(updatedProjectId, actor) && newStatus != ApplicationStatus.CLOSED) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
+            if (newStatus == ApplicationStatus.CLOSED && requestedBy != actor.safeUsername()) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
+            if (newStatus == ApplicationStatus.APPROVED) {
+                onApplicationApproved(actor, viewApplicationById(session, actor, id).first)
+            }
+        }
+
+        lateinit var application: Application
+        ctx.withSession { session ->
+            application = viewApplicationById(session, actor, id).first
+        }
+        val statusTitle = when (newStatus) {
+            ApplicationStatus.APPROVED -> "Approved"
+            ApplicationStatus.REJECTED -> "Rejected"
+            ApplicationStatus.CLOSED -> "Closed"
+            ApplicationStatus.IN_PROGRESS -> "In Progress"
+        }
+        notifications.notify(
+            GrantNotification(
+                application,
+                GrantNotificationMessage(
+                    "Grant Application $statusTitle",
+                    GRANT_APP_RESPONSE,
+                    message = { user, projectTitle ->
+                        responseTemplate(
+                            newStatus,
+                            user,
+                            actor.safeUsername(),
+                            projectTitle
+                        )
+                    }
+                )
+            ),
+            actor.safeUsername()
+        )
+    }
+
+    private suspend fun onApplicationApproved(
+        actor: Actor,
+        application: Application
+    ) {
+        when (val grantRecipient = application.grantRecipient) {
+            is GrantRecipient.PersonalProject -> {
+                grantResourcesToProject(
+                    application.resourcesOwnedBy,
+                    application.requestedResources,
+                    grantRecipient.username,
+                    WalletOwnerType.USER,
+                    serviceClient,
+                    actor.safeUsername()
+                )
+            }
+
+            is GrantRecipient.ExistingProject -> {
+                grantResourcesToProject(
+                    application.resourcesOwnedBy,
+                    application.requestedResources,
+                    grantRecipient.projectId,
+                    WalletOwnerType.PROJECT,
+                    serviceClient,
+                    actor.safeUsername()
+                )
+            }
+
+            is GrantRecipient.NewProject -> {
+                val (newProjectId) = Projects.create.call(
+                    CreateProjectRequest(
+                        grantRecipient.projectTitle,
+                        application.resourcesOwnedBy,
+                        principalInvestigator = application.requestedBy
+                    ),
+                    serviceClient
+                ).orThrow()
+
+                grantResourcesToProject(
+                    application.resourcesOwnedBy,
+                    application.requestedResources,
+                    newProjectId,
+                    WalletOwnerType.PROJECT,
+                    serviceClient,
+                    actor.safeUsername()
+                )
             }
         }
     }
+
+
 
     suspend fun listIngoingApplications(
         ctx: DBContext,
@@ -364,36 +591,38 @@ class ApplicationService(
                 resourcesOwnedBy,
                 requestedBy,
                 grantRecipient,
-                    it.getField(ApplicationTable.document),
-                    buildList {
-                        val productCategory = it.getFieldNullable(RequestedResourceTable.productCategory)
-                        if (productCategory != null) {
-                            add(ResourceRequest(
+                it.getField(ApplicationTable.document),
+                buildList {
+                    val productCategory = it.getFieldNullable(RequestedResourceTable.productCategory)
+                    if (productCategory != null) {
+                        add(
+                            ResourceRequest(
                                 it.getField(RequestedResourceTable.productCategory),
                                 it.getField(RequestedResourceTable.productProvider),
                                 it.getFieldNullable(RequestedResourceTable.creditsRequested),
                                 it.getFieldNullable(RequestedResourceTable.quotaRequestedBytes)
-                            ))
-                        }
-                    },
-                    it.getField(ApplicationTable.id),
-                    projects.ancestors.get(resourcesOwnedBy)?.last()?.title ?: resourcesOwnedBy,
-                    when (grantRecipient) {
-                        is GrantRecipient.PersonalProject -> grantRecipient.username
-                        is GrantRecipient.ExistingProject ->
-                            projects.principalInvestigators.get(grantRecipient.projectId) ?: requestedBy
-                        is GrantRecipient.NewProject -> requestedBy
-                    },
-                    when (grantRecipient) {
-                        is GrantRecipient.PersonalProject -> grantRecipient.username
-                        is GrantRecipient.ExistingProject ->
-                            projects.ancestors.get(grantRecipient.projectId)?.last()?.title ?: grantRecipient.projectId
-                        is GrantRecipient.NewProject -> grantRecipient.projectTitle
-                    },
-                    it.getField(ApplicationTable.createdAt).toDate().time,
-                    it.getField(ApplicationTable.updatedAt).toDate().time
-                )
-            }
+                            )
+                        )
+                    }
+                },
+                it.getField(ApplicationTable.id),
+                projects.ancestors.get(resourcesOwnedBy)?.last()?.title ?: resourcesOwnedBy,
+                when (grantRecipient) {
+                    is GrantRecipient.PersonalProject -> grantRecipient.username
+                    is GrantRecipient.ExistingProject ->
+                        projects.principalInvestigators.get(grantRecipient.projectId) ?: requestedBy
+                    is GrantRecipient.NewProject -> requestedBy
+                },
+                when (grantRecipient) {
+                    is GrantRecipient.PersonalProject -> grantRecipient.username
+                    is GrantRecipient.ExistingProject ->
+                        projects.ancestors.get(grantRecipient.projectId)?.last()?.title ?: grantRecipient.projectId
+                    is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                },
+                it.getField(ApplicationTable.createdAt).toDate().time,
+                it.getField(ApplicationTable.updatedAt).toDate().time
+            )
+        }
             .groupingBy { it.id }
             .reduce { _, accumulator, element ->
                 accumulator.copy(requestedResources = accumulator.requestedResources + element.requestedResources)
@@ -412,5 +641,86 @@ class ApplicationService(
 
     companion object : Loggable {
         override val log = logger()
+        private const val GRANT_APP_RESPONSE = "GRANT_APPLICATION_RESPONSE"
+    }
+}
+
+suspend fun grantResourcesToProject(
+    sourceProject: String,
+    resources: List<ResourceRequest>,
+    targetWallet: String,
+    targetWalletType: WalletOwnerType,
+    serviceClient: AuthenticatedClient,
+    initiatedBy: String = "_ucloud"
+) {
+    when (targetWalletType) {
+        WalletOwnerType.PROJECT -> {
+            Wallets.addToBalanceBulk.call(
+                AddToBalanceBulkRequest(resources.mapNotNull { resource ->
+                    val creditsRequested = resource.creditsRequested ?: return@mapNotNull null
+                    val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
+
+                    AddToBalanceRequest(
+                        Wallet(
+                            targetWallet,
+                            WalletOwnerType.PROJECT,
+                            paysFor
+                        ),
+                        creditsRequested
+                    )
+                }),
+                serviceClient
+            ).orThrow()
+
+            resources.forEach { resource ->
+                val quotaRequested = resource.quotaRequested ?: return@forEach
+                FileDescriptions.updateQuota.call(
+                    UpdateQuotaRequest(
+                        projectHomeDirectory(targetWallet),
+                        quotaRequested,
+                        additive = true
+                    ),
+                    serviceClient
+                ).orThrow()
+            }
+        }
+
+        WalletOwnerType.USER -> {
+            val requests = resources.mapNotNull { resource ->
+                val creditsRequested = resource.creditsRequested ?: return@mapNotNull null
+                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
+
+                SingleTransferRequest(
+                    initiatedBy,
+                    creditsRequested,
+                    Wallet(
+                        sourceProject,
+                        WalletOwnerType.PROJECT,
+                        paysFor
+                    ),
+                    Wallet(
+                        targetWallet,
+                        WalletOwnerType.USER,
+                        paysFor
+                    )
+                )
+            }
+
+            Wallets.transferToPersonal.call(
+                TransferToPersonalRequest(requests),
+                serviceClient
+            ).orThrow()
+
+            resources.forEach { resource ->
+                val quotaRequested = resource.quotaRequested ?: return@forEach
+                FileDescriptions.transferQuota.call(
+                    TransferQuotaRequest(
+                        homeDirectory(targetWallet),
+                        quotaRequested
+                    ),
+                    serviceClient.withProject(sourceProject)
+                ).orThrow()
+            }
+        }
     }
 }

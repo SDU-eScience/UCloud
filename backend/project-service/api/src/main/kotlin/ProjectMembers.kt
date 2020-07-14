@@ -39,13 +39,23 @@ typealias SearchResponse = Page<ProjectMember>
 typealias CountRequest = Unit
 typealias CountResponse = Long
 
+data class LookupAdminsRequest(val projectId: String)
+data class LookupAdminsResponse(
+    val admins: List<ProjectMember>
+)
 
-/**
- * A service only API for querying about a user's project membership
- */
 object ProjectMembers : CallDescriptionContainer("project.members") {
     val baseContext = "/api/projects/membership"
 
+    /**
+     * An endpoint for retrieving the complete project status of a specific user.
+     *
+     * UCloud users in [Roles.PRIVILEGED] can set [UserStatusRequest.username] otherwise the username of the caller
+     * will be used.
+     *
+     * The returned information will contain a complete status of all groups and project memberships. This endpoint
+     * is mostly intended for services to perform permission checks.
+     */
     val userStatus = call<UserStatusRequest, UserStatusResponse, CommonErrorMessage>("userStatus") {
         auth {
             roles = Roles.AUTHENTICATED
@@ -59,6 +69,14 @@ object ProjectMembers : CallDescriptionContainer("project.members") {
         }
     }
 
+    /**
+     * Searches in members of a project.
+     *
+     * If [SearchRequest.notInGroup] is specified then only members which are not in the group specified will be
+     * returned. Otherwise all members of the project will be used as the search space.
+     *
+     * The [SearchRequest.query] will be used to search in the usernames of project members.
+     */
     val search = call<SearchRequest, SearchResponse, CommonErrorMessage>("search") {
         auth {
             access = AccessRight.READ
@@ -81,6 +99,11 @@ object ProjectMembers : CallDescriptionContainer("project.members") {
         }
     }
 
+    /**
+     * Returns the number of members in a project.
+     *
+     * Only project administrators can use this endpoint.
+     */
     val count = call<CountRequest, CountResponse, CommonErrorMessage>("count") {
         auth {
             access = AccessRight.READ
@@ -92,6 +115,32 @@ object ProjectMembers : CallDescriptionContainer("project.members") {
             path {
                 using(baseContext)
                 +"count"
+            }
+        }
+    }
+
+    /**
+     * Returns a complete list of all project administrators in a project.
+     *
+     * This endpoint can only be used by [Roles.PRIVILEGED]. It is intended for services to consume when they need to
+     * communicate with administrators of a project.
+     */
+    val lookupAdmins = call<LookupAdminsRequest, LookupAdminsResponse, CommonErrorMessage>("lookupAdmins") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"lookup-admins"
+            }
+
+            params {
+                +boundTo(LookupAdminsRequest::projectId)
             }
         }
     }

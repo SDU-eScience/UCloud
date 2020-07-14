@@ -5,7 +5,9 @@ bundle {
     name = "grant"
     version = "0.1.0"
     
-    withAmbassador() {}
+    withAmbassador() {
+        addSimpleMapping("/api/gifts")
+    }
     
     val deployment = withDeployment {
         deploy.spec.replicas = 2

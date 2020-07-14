@@ -255,10 +255,19 @@ data class CreatePersonalRepositoryRequest(val project: String, val username: St
 typealias CreatePersonalRepositoryResponse = Unit
 
 data class RetrieveQuotaRequest(val path: String)
-data class RetrieveQuotaResponse(val quotaInBytes: Long)
+typealias RetrieveQuotaResponse = Quota
 
-data class UpdateQuotaRequest(val path: String, val quotaInBytes: Long)
+data class Quota(
+    val quotaInTotal: Long,
+    val quotaInBytes: Long,
+    val allocated: Long
+)
+
+data class UpdateQuotaRequest(val path: String, val quotaInBytes: Long, val additive: Boolean = false)
 typealias UpdateQuotaResponse = Unit
+
+data class TransferQuotaRequest(val path: String, val quotaInBytes: Long)
+typealias TransferQuotaResponse = Unit
 
 const val NO_QUOTA = -1L
 
@@ -646,6 +655,9 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
+    /**
+     * Updates the quota of a subproject
+     */
     val updateQuota = call<UpdateQuotaRequest, UpdateQuotaResponse, CommonErrorMessage>("updateQuota") {
         auth {
             access = AccessRight.READ_WRITE
@@ -659,6 +671,26 @@ object FileDescriptions : CallDescriptionContainer("files") {
             path {
                 using(baseContext)
                 +"quota"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    /**
+     * Transfers quota to a personal project
+     */
+    val transferQuota = call<TransferQuotaRequest, TransferQuotaResponse, CommonErrorMessage>("transferQuota") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"transfer-quota"
             }
 
             body { bindEntireRequestFromBody() }

@@ -202,7 +202,7 @@ export function moveFileQuery(path: string, newPath: string, policy?: UploadPoli
 
 export function copyFileQuery(path: string, newPath: string, policy: UploadPolicy): string {
     let query = `/files/copy?path=${encodeURIComponent(resolvePath(path))}&newPath=${encodeURIComponent(newPath)}`;
-    if (policy) query += `&policy=${policy}`;
+    query += `&policy=${policy}`;
     return query;
 }
 
@@ -214,7 +214,7 @@ export const MOCK_VIRTUAL = "virtual";
 export const MOCK_RELATIVE = "relative";
 
 export function mockFile(props: {path: string; type: FileType; fileId?: string; tag?: string}): File {
-    const username = Client.activeUsername ? Client.activeUsername : "";
+    const username = Client.activeUsername ?? "";
     return {
         fileType: props.type,
         path: props.path,

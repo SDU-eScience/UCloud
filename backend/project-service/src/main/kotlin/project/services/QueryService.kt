@@ -80,8 +80,8 @@ class QueryService(
 
                     val idx = queries.indexOfFirst {
                         it.group == summary.group &&
-                                it.project == summary.projectId &&
-                                it.username == summary.username
+                            it.project == summary.projectId &&
+                            it.username == summary.username
                     }
 
                     if (idx == -1) {
@@ -343,9 +343,9 @@ class QueryService(
     }
 
     suspend fun membersCount(
-            ctx: DBContext,
-            requestedBy: String,
-            projectId: String
+        ctx: DBContext,
+        requestedBy: String,
+        projectId: String
     ): Long {
         return ctx.withSession { session ->
             projects.requireRole(session, requestedBy, projectId, ProjectRole.ADMINS)
@@ -608,7 +608,7 @@ class QueryService(
             }
 
             return@withSession (System.currentTimeMillis() - latestVerification.toTimestamp()) >
-                    VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
+                VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
         }
     }
 
@@ -692,24 +692,43 @@ class QueryService(
         pagination: NormalizedPaginationRequest
     ): Page<IngoingInvite> {
         return ctx.withSession { session ->
-            session
-                .paginatedQuery(
-                    pagination,
+            val count = session
+                .sendPreparedStatement(
+                    { setParameter("username", requestedBy) },
+                    "select count(*) from invites where username = :username"
+                )
+                .rows
+                .single()
+                .getLong(0) ?: 0L
+            val items = session
+                .sendPreparedStatement(
                     {
                         setParameter("username", requestedBy)
+                        setParameter("o", pagination.offset)
+                        setParameter("l", pagination.itemsPerPage)
                     },
                     """
-                        from invites 
-                        where username = :username
+                        select invites.*, projects.title as title
+                        from invites, projects
+                        where
+                            invites.project_id = projects.id and
+                            username = :username
+                        order by projects.title
+                        offset :o
+                        limit :l
                     """
                 )
-                .mapItems {
+                .rows
+                .map {
                     IngoingInvite(
                         it.getField(ProjectInvite.projectId),
+                        it.getString("title")!!,
                         it.getField(ProjectInvite.invitedBy),
                         it.getField(ProjectInvite.createdAt).toTimestamp()
                     )
                 }
+
+            Page.forRequest(pagination, count.toInt(), items)
         }
     }
 
@@ -852,10 +871,10 @@ class QueryService(
             projects.requireRole(session, requestedBy, projectId, ProjectRole.ADMINS)
 
             session.sendPreparedStatement(
-                    {
-                        setParameter("projectId", projectId)
-                    },
-                    """
+                {
+                    setParameter("projectId", projectId)
+                },
+                """
                     select count(*) from project.projects where parent = :projectId
                 """.trimIndent()
             ).rows.singleOrNull()?.getLong(0) ?: 0
@@ -940,12 +959,27 @@ class QueryService(
 
             val pi = session
                 .sendPreparedStatement(
-                    { setParameter("projectId", projectId)},
+                    { setParameter("projectId", projectId) },
                     "select username from project_members where project_id = :projectId and role = 'PI' limit 1"
                 )
                 .rows.firstOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             LookupPrincipalInvestigatorResponse(pi)
+        }
+    }
+
+    suspend fun lookupAdmins(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String
+    ): List<ProjectMember> {
+        if (actor !is Actor.System && !(actor is Actor.User && actor.principal.role in Roles.PRIVILEGED)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        return ctx.withSession { session ->
+            val (pi, admins) = projects.getPIAndAdminsOfProject(session, projectId)
+            admins.map { ProjectMember(it, ProjectRole.ADMIN) } + ProjectMember(pi, ProjectRole.PI)
         }
     }
 

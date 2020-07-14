@@ -48,7 +48,17 @@ export interface ResourceRequest {
 export enum GrantApplicationStatus {
     APPROVED = "APPROVED",
     REJECTED = "REJECTED",
-    IN_PROGRESS = "IN_PROGRESS"
+    IN_PROGRESS = "IN_PROGRESS",
+    CLOSED = "CLOSED"
+}
+
+export function isGrantFinalized(status?: GrantApplicationStatus): boolean {
+    if (status === undefined) return false;
+    return [
+        GrantApplicationStatus.APPROVED,
+        GrantApplicationStatus.REJECTED,
+        GrantApplicationStatus.CLOSED
+    ].includes(status);
 }
 
 export interface CreateGrantApplication {
@@ -98,7 +108,7 @@ export interface ViewGrantApplicationRequest {
     id: number;
 }
 
-export type ViewGrantApplicationResponse = { application: GrantApplication, comments: Comment[], approver: boolean } ;
+export type ViewGrantApplicationResponse = {application: GrantApplication, comments: Comment[], approver: boolean};
 
 export function viewGrantApplication(
     request: ViewGrantApplicationRequest
@@ -190,6 +200,22 @@ export function rejectGrantApplication(
     return {
         method: "POST",
         path: "/grant/reject",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface CloseGrantApplicationRequest {
+    requestId: number;
+}
+
+export function closeGrantApplication(
+    request: CloseGrantApplicationRequest
+): APICallParameters<CloseGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/close",
         parameters: request,
         payload: request,
         reloadId: Math.random()
@@ -294,6 +320,18 @@ export function uploadTemplates(request: UploadTemplatesRequest): APICallParamet
         path: "/grant/upload-templates",
         parameters: request,
         payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export type BrowseProjectsRequest = PaginationRequest;
+export type BrowseProjectsResponse = Page<{projectId: string, title: string}>;
+
+export function browseProjects(request: BrowseProjectsRequest): APICallParameters<BrowseProjectsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/browse-projects", request),
+        parameters: request,
         reloadId: Math.random()
     };
 }
