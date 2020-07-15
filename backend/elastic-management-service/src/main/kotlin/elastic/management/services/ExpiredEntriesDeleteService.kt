@@ -59,9 +59,9 @@ class ExpiredEntriesDeleteService(
         val daysToSave = 180
 
         val indexToDelete = if (indexExists("development_default-*", elastic))
-            "development_default-${currentDate.minusDays(daysToSave.toLong())}"
+            "development_default-${currentDate.minusDays(daysToSave.toLong())}*"
         else
-            "kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}"
+            "kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}*"
 
         if (!indexExists(indexToDelete, elastic)) {
             log.info("no index with the name $indexToDelete")
@@ -73,7 +73,19 @@ class ExpiredEntriesDeleteService(
     fun deleteOldFileBeatLogs() {
         val datePeriodFormat = LocalDate.now().minusDays(180).toString().replace("-","." )
 
-        val indexToDelete = "filebeat-$datePeriodFormat"
+        val indexToDelete = "filebeat-${datePeriodFormat}*"
+
+        if (!indexExists(indexToDelete, elastic)) {
+            log.info("no index with the name $indexToDelete")
+            return
+        }
+        deleteIndex(indexToDelete, elastic)
+    }
+
+    fun deleteOldInfrastructureLogs() {
+        val datePeriodFormat = LocalDate.now().minusDays(180).toString().replace("-","." )
+
+        val indexToDelete = "infrastructure-${datePeriodFormat}*"
 
         if (!indexExists(indexToDelete, elastic)) {
             log.info("no index with the name $indexToDelete")
