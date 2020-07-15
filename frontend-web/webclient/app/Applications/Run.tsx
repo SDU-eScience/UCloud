@@ -987,8 +987,7 @@ const ApplicationUrl: React.FunctionComponent<{
 
 
 interface JobSchedulingOptionsProps {
-    /* FIXME: add typesafety */
-    onChange: (a, b, c) => void;
+    onChange: (field: string | number, value: number, timeField: string) => void;
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservation: string;

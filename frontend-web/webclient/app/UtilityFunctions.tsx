@@ -302,7 +302,7 @@ export const iconFromFilePath = (
  *
  * @param params: { status, min, max } (both inclusive)
  */
-export const inRange = ({status, min, max}: { status: number; min: number; max: number }): boolean =>
+export const inRange = ({status, min, max}: {status: number; min: number; max: number}): boolean =>
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
 export const removeTrailingSlash = (path: string): string => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
@@ -330,7 +330,7 @@ export const downloadAllowed = (files: File[]): boolean => files.every(f => f.se
 export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
-    error: { request: XMLHttpRequest; response: any }
+    error: {request: XMLHttpRequest; response: any}
 ): number {
     const request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
@@ -385,9 +385,9 @@ export function requestFullScreen(el: Element, onFailure: () => void): void {
 
 export function timestampUnixMs(): number {
     return window.performance &&
-    window.performance.now &&
-    window.performance.timing &&
-    window.performance.timing.navigationStart ?
+        window.performance.now &&
+        window.performance.timing &&
+        window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
         Date.now();
 }
@@ -422,7 +422,7 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
 }
 
 export function errorMessageOrDefault(
-    err: { request: XMLHttpRequest; response: any } | { status: number; response: string } | string,
+    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string,
     defaultMessage: string
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";
@@ -456,11 +456,11 @@ export const generateId = ((): (target: string) => string => {
     };
 })();
 
-export function stopPropagation(e: { stopPropagation(): void }): void {
+export function stopPropagation(e: {stopPropagation(): void}): void {
     e.stopPropagation();
 }
 
-export function preventDefault(e: { preventDefault(): void }): void {
+export function preventDefault(e: {preventDefault(): void}): void {
     e.preventDefault();
 }
 
@@ -468,7 +468,7 @@ export function doNothing() {
 
 }
 
-export function stopPropagationAndPreventDefault(e: { preventDefault(): void; stopPropagation(): void }): void {
+export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}): void {
     preventDefault(e);
     stopPropagation(e);
 }

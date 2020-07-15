@@ -15,7 +15,7 @@
         "icons-index": "node scripts/create-icons-index.js"
     },
     "dependencies": {
-        "@novnc/novnc": "^1.1.0",
+        "@novnc/novnc": "^1.2.0",
         "@svgr/cli": "^5.4.0",
         "@types/ua-parser-js": "^0.7.33",
         "date-fns": "^2.14.0",
@@ -86,7 +86,7 @@
         "style-loader": "1.2.1",
         "terser-webpack-plugin": "^3.0.6",
         "ts-jest": "^26.1.2",
-        "ts-loader": "8.0.0",
+        "ts-loader": "8.0.1",
         "typescript": "^3.9.6",
         "url-loader": "4.1.0",
         "webpack": "4.43.0",
