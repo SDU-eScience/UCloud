@@ -344,12 +344,9 @@ class QueryService(
 
     suspend fun membersCount(
         ctx: DBContext,
-        requestedBy: String,
         projectId: String
     ): Long {
         return ctx.withSession { session ->
-            projects.requireRole(session, requestedBy, projectId, ProjectRole.ADMINS)
-
             session.sendPreparedStatement(
                 {
                     setParameter("projectId", projectId)
@@ -864,12 +861,9 @@ class QueryService(
 
     suspend fun subProjectsCount(
         ctx: DBContext,
-        requestedBy: String,
         projectId: String
     ): Long {
         return ctx.withSession { session ->
-            projects.requireRole(session, requestedBy, projectId, ProjectRole.ADMINS)
-
             session.sendPreparedStatement(
                 {
                     setParameter("projectId", projectId)

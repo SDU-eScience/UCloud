@@ -195,7 +195,6 @@ class ProjectController(
             ok(
                 queries.subProjectsCount(
                     db,
-                    ctx.securityPrincipal.username,
                     ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
                 )
             )

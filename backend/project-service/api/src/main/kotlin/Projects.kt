@@ -588,7 +588,7 @@ object Projects : CallDescriptionContainer("project") {
      */
     val countSubProjects = call<CountSubProjectsRequest, CountSubProjectsResponse, CommonErrorMessage>("countSubProjects") {
         auth {
-            access = AccessRight.READ_WRITE
+            access = AccessRight.READ
         }
 
         http {
