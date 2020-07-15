@@ -74,7 +74,6 @@ import {
     moveFile, projectIdFromPath,
     resolvePath,
     sizeToString,
-    fileTablePage
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon, ConfirmCancelButtons} from "UtilityComponents";
@@ -82,9 +81,9 @@ import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {
-    createRepository, isRepository, renameRepository, getProjectNames
+    createRepository, isRepository, renameRepository, getProjectNames, isAdminOrPI
 } from "Utilities/ProjectUtilities";
-import {ProjectRole, isAdminOrPI} from "Project";
+import {ProjectRole} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
@@ -432,7 +431,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     // Aliases
     const forbidden = error === "Forbidden";
-    const notFound = error === "Not Found";
+    // At the time of writing, "Not found " provided by backend error is trailed by a space.
+    const notFound = error === "Not found ";
     const isForbiddenPath = forbidden || notFound;
     const isEmbedded = props.embedded !== false;
     const sortingSupported = !props.embedded;

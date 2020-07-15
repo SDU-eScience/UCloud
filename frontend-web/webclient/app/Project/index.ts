@@ -12,6 +12,7 @@ import {useProjectStatus} from "./cache";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";
 import {useCallback, useEffect} from "react";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -227,10 +228,6 @@ export enum ProjectRole {
     PI = "PI",
     ADMIN = "ADMIN",
     USER = "USER"
-}
-
-export function isAdminOrPI(role: ProjectRole): boolean {
-    return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
 }
 
 export interface UserInProject {

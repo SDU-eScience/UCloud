@@ -1,4 +1,4 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole, isAdminOrPI} from "Project/index";
+import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "Project";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as React from "react";
@@ -11,6 +11,7 @@ import {errorMessageOrDefault} from "UtilityFunctions";
 import {addStandardDialog} from "UtilityComponents";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {RemoveButton} from "Files/FileInputSelector";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];

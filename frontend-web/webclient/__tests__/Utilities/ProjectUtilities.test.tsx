@@ -5,7 +5,6 @@ import {Page} from "../../app/Types";
 import {create} from "react-test-renderer";
 import {Client} from "../../app/Authentication/HttpClientInstance";
 import {GroupWithSummary} from "../../app/Project/GroupList";
-import {isAdminOrPI} from "../../app/Project";
 let groupCounter = 0;
 
 function newGroupWithSummary(): GroupWithSummary {
@@ -74,15 +73,15 @@ describe("isRepository", () => {
 
 describe("isAdminOrPI", () => {
     test("User", () => {
-        expect(isAdminOrPI(ProjectRole.USER)).toBe(false);
+        expect(ProjectUtils.isAdminOrPI(ProjectRole.USER)).toBe(false);
     });
 
     test("Admin", () => {
-        expect(isAdminOrPI(ProjectRole.ADMIN)).toBe(true);
+        expect(ProjectUtils.isAdminOrPI(ProjectRole.ADMIN)).toBe(true);
     });
 
     test("PI", () => {
-        expect(isAdminOrPI(ProjectRole.PI)).toBe(true);
+        expect(ProjectUtils.isAdminOrPI(ProjectRole.PI)).toBe(true);
     });
 });
 
