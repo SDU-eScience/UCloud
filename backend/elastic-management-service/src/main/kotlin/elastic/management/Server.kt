@@ -79,6 +79,7 @@ class Server(
                 shrinkService.shrink()
                 deleteService.deleteOldRancherLogs()
                 deleteService.deleteOldFileBeatLogs()
+                deleteService.deleteOldInfrastructureLogs()
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
