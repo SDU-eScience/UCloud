@@ -266,7 +266,7 @@ exports[`Dashboard Dashboard mount 1`] = `
           className="c5"
           style={
             Object {
-              "borderTop": "5px solid orange",
+              "borderTop": "5px solid var(--orange, #f00)",
             }
           }
         >
@@ -373,7 +373,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             className="c5"
             style={
               Object {
-                "borderTop": "5px solid blue",
+                "borderTop": "5px solid var(--blue, #f00)",
               }
             }
           >
@@ -448,7 +448,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             className="c5"
             style={
               Object {
-                "borderTop": "5px solid purple",
+                "borderTop": "5px solid var(--purple, #f00)",
               }
             }
           >
@@ -527,7 +527,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             className="c5"
             style={
               Object {
-                "borderTop": "5px solid darkGreen",
+                "borderTop": "5px solid var(--darkGreen, #f00)",
               }
             }
           >
@@ -620,7 +620,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             className="c5"
             style={
               Object {
-                "borderTop": "5px solid red",
+                "borderTop": "5px solid var(--red, #f00)",
               }
             }
           >

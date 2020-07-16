@@ -13,7 +13,7 @@ import {notificationRead, readAllNotifications} from "Notifications/Redux/Notifi
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Card, Flex, Icon, Link, Text, Markdown, theme} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Link, Text, Markdown} from "ui-components";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
@@ -48,7 +48,7 @@ import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {ThemeColor} from "ui-components/theme";
+import theme, {ThemeColor} from "ui-components/theme";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: string;
@@ -69,12 +69,12 @@ export const DashboardCard: React.FunctionComponent<{
                     m={8}
                     ml={0}
                     size="20"
-                    color={getCssVar("darkGray")}
+                    color={theme.colors.darkGray}
                 />
             ) : null}
             {title ? <Heading.h3>{title}</Heading.h3> : null}
             <Box flexGrow={1}></Box>
-            {subtitle ? <Box color={getCssVar("gray")}>{subtitle}</Box> : null}
+            {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
         </Flex>
         <Box px={3} py={1}>
             {!isLoading ? children : <Spinner />}
