@@ -148,13 +148,27 @@ class PaymentService(
                         SendRequest(
                             admin.username,
                             "Low resources for project",
-                            lowResourcesTemplate(admin.username, wallet.area, projectTitle)
+                            lowResourcesTemplate(
+                                admin.username,
+                                wallet.wallet.paysFor.id,
+                                wallet.wallet.paysFor.provider,
+                                projectTitle
+                            )
                         )
                     }
                     MailDescriptions.sendBulk.call(
                         SendBulkRequest(messages),
                         serviceClient
                     )
+
+                    Wallets.setNotificationSent.call(
+                        SetNotificationSentRequest(
+                            wallet.wallet,
+                            true
+                        ),
+                        serviceClient
+                    )
+
                 }
             }
         }
@@ -168,15 +182,16 @@ class PaymentService(
 
     fun lowResourcesTemplate(
         recipient: String,
-        productArea: ProductArea,
+        catagory: String,
+        provider: String,
         projectTitle: String
     ) = """
     <p>Dear ${escapeHtml(recipient)}</p>
     <p>
         We write to you to inform you that the project: ${escapeHtml(projectTitle)} is running low on the 
-        ${escapeHtml(productArea.name)} resource.
+        ${escapeHtml(catagory)} resource from ${escapeHtml(provider)}.
     </p>
     <p>If you do not want to receive these notifications per mail, 
     you can unsubscribe to non-crucial emails in your personal settings on UCloud</p>
-    """".trimIndent()
+    """.trimIndent()
 }

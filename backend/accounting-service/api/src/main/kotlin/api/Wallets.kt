@@ -69,6 +69,13 @@ data class SetBalanceRequest(
 
 typealias SetBalanceResponse = Unit
 
+data class SetNotificationSentRequest(
+    val wallet: Wallet,
+    val sent: Boolean
+)
+
+typealias SetNotificationSentResponse = Unit
+
 data class ReserveCreditsRequest(
     val jobId: String,
     val amount: Long,
@@ -192,6 +199,27 @@ object Wallets : CallDescriptionContainer("wallets") {
             path {
                 using(baseContext)
                 +"set-balance"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val setNotificationSent = call<
+            SetNotificationSentRequest,
+            SetNotificationSentResponse,
+            CommonErrorMessage
+            >("setNotificationSend") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"set-notification"
             }
 
             body { bindEntireRequestFromBody() }

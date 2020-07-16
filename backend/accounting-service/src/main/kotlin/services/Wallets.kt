@@ -232,6 +232,30 @@ class BalanceService(
         }
     }
 
+    suspend fun setNotificationSent(
+        ctx: DBContext,
+        account: Wallet,
+        sent: Boolean
+    ) {
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", account.id)
+                    setParameter("accountType", account.type.name)
+                    setParameter("prodCat", account.paysFor.id)
+                    setParameter("prodProvi", account.paysFor.provider)
+                    setParameter("sent", sent)
+                },
+                """
+                    UPDATE wallets
+                    SET low_funds_notifications_send = :sent
+                    WHERE account_id = :id AND account_type = :accountType 
+                        AND product_category = :prodCat AND product_provider = :prodProvi
+                """
+            )
+        }
+    }
+
     suspend fun setBalance(
         ctx: DBContext,
         initiatedBy: Actor,
