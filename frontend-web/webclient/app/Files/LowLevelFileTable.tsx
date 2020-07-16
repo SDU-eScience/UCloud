@@ -49,7 +49,6 @@ import * as Heading from "ui-components/Heading";
 import {IconName} from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import {TextSpan} from "ui-components/Text";
-import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {Upload} from "Uploader";
 import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
@@ -87,6 +86,7 @@ import {ProjectRole} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -1085,16 +1085,16 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null, isRepo
 
     switch (props.sensitivity) {
         case SensitivityLevelMap.CONFIDENTIAL:
-            def = {color: Theme.colors.purple, text: "Confidential", shortText: "C"};
+            def = {color: getCssVar("purple"), text: "Confidential", shortText: "C"};
             break;
         case SensitivityLevelMap.SENSITIVE:
             def = {color: "#ff0004", text: "Sensitive", shortText: "S"};
             break;
         case SensitivityLevelMap.PRIVATE:
-            def = {color: Theme.colors.midGray, text: "Private", shortText: "P"};
+            def = {color: getCssVar("midGray"), text: "Private", shortText: "P"};
             break;
         default:
-            def = {color: Theme.colors.midGray, text: "", shortText: ""};
+            def = {color: getCssVar("midGray"), text: "", shortText: ""};
             break;
     }
 

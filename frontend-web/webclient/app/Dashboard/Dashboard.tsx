@@ -47,11 +47,13 @@ import {creditFormatter} from "Project/ProjectUsage";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {ThemeColor} from "ui-components/theme";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: string;
     subtitle?: React.ReactNode;
-    color: string;
+    color: ThemeColor;
     isLoading: boolean;
     icon?: IconName,
     height?: string,
@@ -60,19 +62,19 @@ export const DashboardCard: React.FunctionComponent<{
 }> = ({title, subtitle, onClick, color, isLoading, icon = undefined, children, height = "auto", minHeight}) => (
     <Card onClick={onClick} overflow="hidden" height={height} width={1} boxShadow="sm" borderWidth={0} borderRadius={6}
         minHeight={minHeight}>
-        <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
+        <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid var(--${color}, #f00)`}} >
             {icon !== undefined ? (
                 <Icon
                     name={icon}
                     m={8}
                     ml={0}
                     size="20"
-                    color={theme.colors.darkGray}
+                    color={getCssVar("darkGray")}
                 />
             ) : null}
             {title ? <Heading.h3>{title}</Heading.h3> : null}
             <Box flexGrow={1}></Box>
-            {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
+            {subtitle ? <Box color={getCssVar("gray")}>{subtitle}</Box> : null}
         </Flex>
         <Box px={3} py={1}>
             {!isLoading ? children : <Spinner />}

@@ -44,6 +44,7 @@ import Warning from "ui-components/Warning";
 import {Toggle} from "ui-components/Toggle";
 import {useProjectStatus} from "Project/cache";
 import {getProjectNames} from "Utilities/ProjectUtilities";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 export const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
@@ -567,10 +568,10 @@ const ShareStateRow: React.FunctionComponent<{state: ShareState}> = props => {
 
     switch (props.state) {
         case ShareState.ACCEPTED:
-            body = <><Icon size={20} color={colors.green} name={"check"} /> The share has been accepted.</>;
+            body = <><Icon size={20} color={getCssVar("green")} name="check" /> The share has been accepted.</>;
             break;
         case ShareState.UPDATING:
-            body = <><Icon size={20} color={colors.blue} name={"refresh"} /> The share is currently updating.</>;
+            body = <><Icon size={20} color={getCssVar("blue")} name="refresh" /> The share is currently updating.</>;
             break;
         case ShareState.REQUEST_SENT:
             body = <>The share has not yet been accepted.</>;

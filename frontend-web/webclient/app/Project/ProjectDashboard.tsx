@@ -141,7 +141,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                 <>
                     <ProjectDashboardGrid minmax={300}>
                         {projectId !== undefined && projectId !== "" ? (
-                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/members")} title="Members" icon="user" color={theme.colors.blue} isLoading={false}>
+                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/members")} title="Members" icon="user" color="blue" isLoading={false}>
                                 <Table>
                                     <tbody>
                                         <TableRow cursor="pointer">
@@ -159,7 +159,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         <DashboardCard
                             title={"Resource Allocation"}
                             icon="projects"
-                            color={theme.colors.purple}
+                            color="purple"
                             isLoading={false}
                             onClick={() => history.push("/project/subprojects")}
                             subtitle={<RightArrow />}
@@ -174,7 +174,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </Table> : null}
                         </DashboardCard>
 
-                        <DashboardCard title="Usage" icon="hourglass" color={theme.colors.green}
+                        <DashboardCard title="Usage" icon="hourglass" color="green"
                             isLoading={false}
                             subtitle={<RightArrow />}
                             onClick={() => history.push("/project/usage")}
@@ -196,7 +196,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </Table>
                         </DashboardCard>
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || !noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings.data) ? null :
-                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/grants/ingoing")} title="Grant Applications" icon="mail" color={theme.colors.red}
+                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/grants/ingoing")} title="Grant Applications" icon="mail" color="red"
                                 isLoading={false}>
                                 <Table>
                                     <tbody>
@@ -208,7 +208,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Table>
                             </DashboardCard>}
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null : (
-                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/settings")} title="Settings" icon="properties" color={theme.colors.orange}
+                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/settings")} title="Settings" icon="properties" color="orange"
                                 isLoading={false}>
                                 <Table>
                                     <tbody>

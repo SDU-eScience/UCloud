@@ -4,12 +4,9 @@ import styled from "styled-components";
 import {color, ResponsiveValue, space, SpaceProps, style} from "styled-system";
 import Bug from "./Bug";
 import * as icons from "./icons";
-import theme, {Theme} from "./theme";
+import theme, {Theme, ThemeColor} from "./theme";
 import {Cursor} from "./Types";
-
-export function getCssVar(name: string): string {
-    return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`);
-}
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 const IconBase = ({name, size, squared, theme, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
     const key = 0;
@@ -27,7 +24,7 @@ const IconBase = ({name, size, squared, theme, color2, spin, hoverColor, ...prop
             key={key.toString()}
             width={size}
             height={squared ? size : undefined }
-            color2={color2 ? getCssVar(color2) : undefined}
+            color2={color2 ? getCssVar(color2 as ThemeColor) : undefined}
             {...props}
         />
     );

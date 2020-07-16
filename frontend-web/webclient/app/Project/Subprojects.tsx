@@ -108,7 +108,7 @@ const SelectableWallet: React.FunctionComponent<{
 }> = props => {
     return (
         <SelectableWalletWrapper className={props.selected === true ? "selected" : ""} onClick={props.onClick}>
-            <DashboardCard color={props.selected ? theme.colors.green : theme.colors.blue} isLoading={false}>
+            <DashboardCard color={props.selected ? "green" : "blue"} isLoading={false}>
                 <table>
                     <tbody>
                         <tr>
@@ -266,7 +266,7 @@ const Subprojects: React.FunctionComponent = () => {
 
                             {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
                                 <div className="request-resources">
-                                    <DashboardCard color={theme.colors.blue} isLoading={false}>
+                                    <DashboardCard color="blue" isLoading={false}>
                                         <Box m={8} mt={0}>
                                             <Heading.h3>Need more resources?</Heading.h3>
                                             <p>

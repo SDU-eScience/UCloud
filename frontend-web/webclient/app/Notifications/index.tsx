@@ -205,20 +205,20 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
         if (props.onAction) props.onAction(props.notification);
     }
 
-    function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
+    function resolveEventType(eventType: string): {name: IconName; color: string; color2: string} {
         switch (eventType) {
             case "REVIEW_PROJECT":
-                return {name: "projects", color: "black", color2: "black"};
+                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
             case "SHARE_REQUEST":
-                return {name: "share", color: "black", color2: "black"};
+                return {name: "share", color: "var(--black)", color2: "var(--black)"};
             case "PROJECT_INVITE":
-                return {name: "projects", color: "black", color2: "black"};
+                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
             case "PROJECT_ROLE_CHANGE":
-                return {name: "projects", color: "black", color2: "black"};
+                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
             case "PROJECT_USER_LEFT":
-                return {name: "projects", color: "black", color2: "black"};
+                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
             case "PROJECT_USER_REMOVED":
-                return {name: "projects", color: "black", color2: "black"};
+                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
             case "APP_COMPLETE":
             default:
                 return {name: "info", color: "white", color2: "black"};
@@ -226,8 +226,8 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
     }
 }
 
-const read = (p: {read: boolean; theme: Theme}): {backgroundColor: ThemeColor} => p.read ?
-    {backgroundColor: p.theme.colors.white as ThemeColor} : {backgroundColor: p.theme.colors.lightGray as ThemeColor};
+const read = (p: {read: boolean; theme: Theme}): {backgroundColor: string} => p.read ?
+    {backgroundColor: "var(--white, #f00)"} : {backgroundColor: "var(--lightGray, #f00)"};
 
 const NotificationWrapper = styled(Flex) <{read: boolean}>`
     ${read};
@@ -237,7 +237,7 @@ const NotificationWrapper = styled(Flex) <{read: boolean}>`
     cursor: pointer;
     width: 100%;
     &:hover {
-        background-color: ${p => p.theme.colors.lightGray};
+        background-color: var(--lightGray, #f00);
     }
 `;
 

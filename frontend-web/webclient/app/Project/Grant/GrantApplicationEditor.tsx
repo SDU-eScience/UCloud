@@ -591,7 +591,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         <ResourceContainer>
                             {state.wallets.map((it, idx) => (
                                 <RequestForSingleResourceWrapper key={idx}>
-                                    <DashboardCard color={theme.colors.blue} isLoading={false}>
+                                    <DashboardCard color="blue" isLoading={false}>
                                         <table>
                                             <tbody>
                                                 <tr>

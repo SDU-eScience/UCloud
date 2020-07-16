@@ -6,6 +6,7 @@ import Truncate from "./Truncate";
 import {stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
 import {Icon, Text} from "ui-components/index";
+import {ThemeColor} from "./theme";
 
 type StringOrNumber = string | number;
 
@@ -84,9 +85,9 @@ export function ListRow(props: ListRowProps): JSX.Element {
 }
 
 
-export const ListRowStat: React.FunctionComponent<{icon?: IconName; color?: string; color2?: string}> = props => {
-    const color = props.color ?? "gray";
-    const color2 = props.color2 ?? "white";
+export const ListRowStat: React.FunctionComponent<{icon?: IconName; color?: ThemeColor; color2?: ThemeColor}> = props => {
+    const color: ThemeColor = props.color ?? "gray";
+    const color2: ThemeColor = props.color2 ?? "white";
     return (
         <>
             <Text color="gray" fontSize={0} mr={"4px"}>

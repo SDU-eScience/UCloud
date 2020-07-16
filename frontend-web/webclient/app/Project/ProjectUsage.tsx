@@ -28,6 +28,7 @@ import {ThemeColor} from "ui-components/theme";
 import {Toggle} from "ui-components/Toggle";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Client} from "Authentication/HttpClientInstance";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -521,7 +522,7 @@ const PercentageDisplay: React.FunctionComponent<{
         }
     }
 
-    return <Text as="span" color={theme.colors[color]}>({percentage.toFixed(2)}%)</Text>;
+    return <Text as="span" color={getCssVar(color)}>({percentage.toFixed(2)}%)</Text>;
 };
 
 const SummaryCard: React.FunctionComponent<{
