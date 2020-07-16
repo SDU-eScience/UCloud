@@ -44,7 +44,8 @@ data class RetrieveBalanceResponse(
 data class Wallet(
     val id: String,
     val type: WalletOwnerType,
-    val paysFor: ProductCategoryId
+    val paysFor: ProductCategoryId,
+    val lowFundsEmailSend: Boolean = false
 )
 
 data class AddToBalanceRequest(

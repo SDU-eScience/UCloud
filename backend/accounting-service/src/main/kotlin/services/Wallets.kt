@@ -19,8 +19,8 @@ object WalletTable : SQLTable("wallets") {
     val accountType = text("account_type", notNull = true)
     val productCategory = text("product_category", notNull = true)
     val productProvider = text("product_provider", notNull = true)
-
     val balance = long("balance", notNull = true)
+    val lowFundsNotificationSend = bool("low_funds_notifications_send", notNull = true)
 }
 
 object TransactionTable : SQLTable("transactions") {
@@ -182,7 +182,8 @@ class BalanceService(
                             ProductCategoryId(
                                 it.getField(WalletTable.productCategory),
                                 it.getField(WalletTable.productProvider)
-                            )
+                            ),
+                            it.getField(WalletTable.lowFundsNotificationSend)
                         ),
                         it.getField(WalletTable.balance),
                         ProductArea.valueOf(it.getString("area")!!)
@@ -452,7 +453,7 @@ class BalanceService(
             ancestors
                 .asSequence()
                 .filter { it.id != this.id }
-                .map { Wallet(it.id, WalletOwnerType.PROJECT, wallet.paysFor) }
+                .map { Wallet(it.id, WalletOwnerType.PROJECT, wallet.paysFor, wallet.lowFundsEmailSend) }
                 .toList()
         } else {
             emptyList()
