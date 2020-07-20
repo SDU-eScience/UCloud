@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import dk.sdu.cloud.accounting.Utils.lowResourcesTemplate
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
@@ -165,20 +166,4 @@ class CronJobs(
                 )
         }
     }
-
-
-    private fun lowResourcesTemplate(
-        recipient: String,
-        catagory: String,
-        provider: String,
-        projectTitle: String
-    ) = """
-    <p>Dear ${escapeHtml(recipient)}</p>
-    <p>
-        We write to you to inform you that the project: ${escapeHtml(projectTitle)} is running low on the 
-        ${escapeHtml(catagory)} resource from ${escapeHtml(provider)}.
-    </p>
-    <p>If you do not want to receive these notifications per mail, 
-    you can unsubscribe to non-crucial emails in your personal settings on UCloud</p>
-    """.trimIndent()
 }

@@ -27,7 +27,7 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val projectCache = ProjectCache(client)
         val verificationService = VerificationService(client)
-        val balanceService = BalanceService(projectCache, verificationService)
+        val balanceService = BalanceService(projectCache, verificationService, client)
         val visualizationService = VisualizationService(balanceService, projectCache)
         val productService = ProductService()
 
