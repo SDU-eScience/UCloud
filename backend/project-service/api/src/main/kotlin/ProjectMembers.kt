@@ -44,6 +44,11 @@ data class LookupAdminsResponse(
     val admins: List<ProjectMember>
 )
 
+data class LookupAdminsBulkRequest(val projectId: List<String>)
+data class LookupAdminsBulkResponse(
+    val admins: List<Pair<String, List<ProjectMember>>>
+)
+
 object ProjectMembers : CallDescriptionContainer("project.members") {
     val baseContext = "/api/projects/membership"
 
@@ -142,6 +147,24 @@ object ProjectMembers : CallDescriptionContainer("project.members") {
             params {
                 +boundTo(LookupAdminsRequest::projectId)
             }
+        }
+    }
+
+    val lookupAdminsBulk = call<LookupAdminsBulkRequest, LookupAdminsBulkResponse, CommonErrorMessage>("lookupAdminsBulk") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"lookup-admins"
+            }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 }

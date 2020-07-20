@@ -95,6 +95,7 @@ class AccountingController(
 
             ok(Unit)
         }
+
         implement(Wallets.setNotificationSent) {
             balance.setNotificationSent(
                 db,

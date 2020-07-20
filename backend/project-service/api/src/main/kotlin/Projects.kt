@@ -146,6 +146,10 @@ data class LookupByIdRequest(
     val id: String
 )
 
+data class LookupByIdBulkRequest(
+    val ids: List<String>
+)
+
 typealias LookupPrincipalInvestigatorRequest = Unit
 data class LookupPrincipalInvestigatorResponse(val principalInvestigator: String)
 
@@ -655,6 +659,26 @@ object Projects : CallDescriptionContainer("project") {
 
             params {
                 +boundTo(LookupByIdRequest::id)
+            }
+        }
+    }
+
+    val lookupByIdBulk = call<LookupByIdBulkRequest, List<Project>, CommonErrorMessage>("lookupByIdBulk") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"lookupByIdBulk"
+            }
+
+            body {
+                bindEntireRequestFromBody()
             }
         }
     }

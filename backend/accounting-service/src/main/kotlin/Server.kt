@@ -6,12 +6,16 @@ import dk.sdu.cloud.accounting.services.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.commandLineArguments
 import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.runBlocking
+import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro
@@ -26,6 +30,19 @@ class Server(
         val balanceService = BalanceService(projectCache, verificationService)
         val visualizationService = VisualizationService(balanceService, projectCache)
         val productService = ProductService()
+
+        if (micro.commandLineArguments.contains("--low-funds-check")) {
+            val jobs = CronJobs(db, client)
+            try {
+                runBlocking {
+                    jobs.notifyLowFundsWallets()
+                }
+                exitProcess(0)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                exitProcess(1)
+            }
+        }
 
         with(micro.server) {
             configureControllers(

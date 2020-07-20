@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
@@ -285,6 +286,7 @@ class BalanceService(
                     set(WalletTable.productCategory, account.paysFor.id)
                     set(WalletTable.productProvider, account.paysFor.provider)
                     set(WalletTable.balance, amount)
+                    set(WalletTable.lowFundsNotificationSend, false)
                 }
 
                 return@withSession
@@ -564,12 +566,13 @@ class BalanceService(
                         setParameter("amount", request.amount)
                         setParameter("prodCategory", request.destinationAccount.paysFor.id)
                         setParameter("prodProvider", request.destinationAccount.paysFor.provider)
+                        setParameter("sent", false)
                     },
 
                     """
-                        insert into wallets (account_id, account_type, product_category, product_provider, balance) 
-                        values (:destId, 'USER', :prodCategory, :prodProvider, :amount)
-                        on conflict (account_id, account_type, product_category, product_provider)
+                        insert into wallets (account_id, account_type, product_category, product_provider, balance, low_funds_notifications_send) 
+                        values (:destId, 'USER', :prodCategory, :prodProvider, :amount, :sent)
+                        on conflict (account_id, account_type, product_category, product_provider, low_funds_notifications_send)
                         do update set balance = wallets.balance + excluded.balance
                     """
                 )
