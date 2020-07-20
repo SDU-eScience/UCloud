@@ -13,6 +13,7 @@ import {useGlobal} from "Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";
 import {useCallback, useEffect} from "react";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {usePromiseKeeper} from "PromiseKeeper";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -413,8 +414,7 @@ export const deleteProject = (payload: {projectId: string}): APICallParameters =
     reloadId: Math.random()
 });
 
-
-type LeaveProjectRequest = {};
+interface LeaveProjectRequest {}
 export function leaveProject(
     request: LeaveProjectRequest,
     projectOverride?: string
@@ -497,6 +497,7 @@ export function areProjectsEnabled(): boolean {
 // eslint-disable-next-line
 export function useProjectManagementStatus(allowPersonalProject?: true) {
     const history = useHistory();
+    const promises = usePromiseKeeper();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
     const locationParams = useParams<{group: string; member?: string}>();
     let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
@@ -555,6 +556,7 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
     const reloadProjectStatus = projects.reload;
 
     useEffect(() => {
+        if (promises.canceledKeeper) return;
         if (group !== undefined) {
             fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
         } else {
@@ -568,6 +570,7 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
     }, [projectId, group]);
 
     const reload = useCallback(() => {
+        if (promises.canceledKeeper) return;
         fetchOutgoingInvites(outgoingInvitesParams);
         setProjectMemberParams(projectMemberParams);
         fetchProjectDetails(projectDetailsParams);

@@ -30,6 +30,7 @@ import {useHistory} from "react-router";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {usePromiseKeeper} from "PromiseKeeper";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails, projectRole} = useProjectManagementStatus(true);
@@ -38,6 +39,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         return id === undefined || id === "";
     }
 
+    const promises = usePromiseKeeper();
     useTitle("Project Dashboard");
     useSidebarPage(SidebarPages.Projects);
 
@@ -77,6 +79,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     );
 
     React.useEffect(() => {
+        if (promises.canceledKeeper) return;
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
