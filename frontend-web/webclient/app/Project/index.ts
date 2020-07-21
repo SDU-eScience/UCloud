@@ -567,7 +567,7 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
         reloadProjectStatus();
         fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
         if (projectId) fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId, group]);
+    }, [projectId, group, projectRole]);
 
     const reload = useCallback(() => {
         if (promises.canceledKeeper) return;
