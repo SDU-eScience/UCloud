@@ -1,5 +1,7 @@
 package dk.sdu.cloud.indexing
 
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.indexing.http.QueryController
 import dk.sdu.cloud.indexing.services.CephFsFastDirectoryStats
 import dk.sdu.cloud.indexing.services.ElasticQueryService
@@ -28,6 +30,7 @@ class Server(
     override fun start() {
         val cephFsRoot = "/mnt/cephfs/" + cephConfig.subfolder
         elastic = micro.elasticHighLevelClient
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val stats = if (cephConfig.useCephDirectoryStats) CephFsFastDirectoryStats else null
         val queryService = ElasticQueryService(elastic, stats, cephFsRoot)
 
@@ -43,8 +46,32 @@ class Server(
                                 cephFsRoot
                             }
                         },
-                        stats
+                        stats,
+                        client
                     ).runScan()
+                } catch (ex: Throwable) {
+                    log.error(ex.stackTraceToString())
+                    exitProcess(1)
+                }
+            }
+            exitProcess(0)
+        }
+
+        if (micro.commandLineArguments.contains("--scan-accounting")) {
+            runBlocking {
+                try {
+                    FileSystemScanner(
+                        elastic,
+                        queryService,
+                        run {
+                            if (micro.developmentModeEnabled) TODO()
+                            else {
+                                cephFsRoot
+                            }
+                        },
+                        stats,
+                        client
+                    ).runAccountingStorage()
                 } catch (ex: Throwable) {
                     log.error(ex.stackTraceToString())
                     exitProcess(1)
