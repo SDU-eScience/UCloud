@@ -211,14 +211,21 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Table>
                             </DashboardCard>}
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null : (
-                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/settings")} title="Settings" icon="properties" color="orange"
-                                isLoading={false}>
+                            <DashboardCard
+                                subtitle={<RightArrow />}
+                                onClick={() => history.push("/project/settings")}
+                                title="Settings"
+                                icon="properties"
+                                color="orange"
+                                isLoading={false}
+                            >
                                 <Table>
                                     <tbody>
                                         <TableRow cursor="pointer">
                                             <TableCell>Archived</TableCell>
-                                            <TableCell
-                                                textAlign="right">{projectDetails.data.archived ? "Yes" : "No"}</TableCell>
+                                            <TableCell textAlign="right">
+                                                {projectDetails.data.archived ? "Yes" : "No"}
+                                            </TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>

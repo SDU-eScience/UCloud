@@ -1,11 +1,14 @@
 import {Client as currentClient} from "Authentication/HttpClientInstance";
 import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Notification} from "Notifications";
+import {History} from "history";
 import {
     getFilenameFromPath, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
     isSharesFolder, isTrashFolder
 } from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
+import {GrantRecipientExisting, GrantRecipientPersonal, GrantRecipientNew} from "Project/Grant";
 
 export function toggleCssColors(light: boolean): void {
     if (light) {
@@ -464,7 +467,7 @@ export function preventDefault(e: {preventDefault(): void}): void {
     e.preventDefault();
 }
 
-export function doNothing() {
+export function doNothing(): void {
 
 }
 
@@ -486,4 +489,52 @@ export function getUserThemePreference(): "light" | "dark" {
     // options: dark, light and no-preference
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
     return "light";
+}
+
+
+export function onNotificationAction(
+    history: History,
+    setProject: (projectId: string) => void,
+    notification: Notification
+): void {
+    switch (notification.type) {
+        case "APP_COMPLETE":
+            history.push(`/applications/results/${notification.meta.jobId}`);
+            break;
+        case "SHARE_REQUEST":
+            history.push("/shares");
+            break;
+        case "REVIEW_PROJECT":
+        case "PROJECT_INVITE":
+            history.push("/projects/");
+            break;
+        case "NEW_GRANT_APPLICATION":
+        case "COMMENT_GRANT_APPLICATION":
+        case "GRANT_APPLICATION_RESPONSE":
+        case "GRANT_APPLICATION_UPDATED":
+            const {meta} = notification;
+            if ("projectId" in meta.grantRecipient) {
+                const grantRecipient = meta.grantRecipient as GrantRecipientExisting;
+                setProject(grantRecipient.projectId);
+                snackbarStore.addInformation(`${grantRecipient.projectId} is now active.`, false);
+                history.push(`/project/grants/view/${meta.appId}`);
+            } else if ("username" in meta.grantRecipient) {
+                const grantRecipient = meta.grantRecipient as GrantRecipientPersonal;
+                console.warn("Unhandled GrantRecipientPersonal");
+            } else if ("projectTitle" in meta.grantRecipient) {
+                const grantRecipient = meta.grantRecipient as GrantRecipientNew;
+                console.warn("Unhandled GrantRecipientNew");
+            }
+            break;
+        case "PROJECT_ROLE_CHANGE":
+            const {projectId} = notification.meta;
+            setProject(projectId);
+            snackbarStore.addInformation(`${projectId} is now active.`, false);
+            history.push("/project/members");
+            break;
+        default:
+            console.warn("unhandled");
+            console.warn(notification);
+            break;
+    }
 }
