@@ -9,6 +9,8 @@ import {
 } from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import {GrantRecipientExisting, GrantRecipientPersonal, GrantRecipientNew} from "Project/Grant";
+import {ProjectName} from "Project";
+import {getStoredProject} from "Project/Redux";
 
 export function toggleCssColors(light: boolean): void {
     if (light) {
@@ -495,8 +497,10 @@ export function getUserThemePreference(): "light" | "dark" {
 export function onNotificationAction(
     history: History,
     setProject: (projectId: string) => void,
-    notification: Notification
+    notification: Notification,
+    projectNames: ProjectName[]
 ): void {
+    const currentProject = getStoredProject();
     switch (notification.type) {
         case "APP_COMPLETE":
             history.push(`/applications/results/${notification.meta.jobId}`);
@@ -515,8 +519,12 @@ export function onNotificationAction(
             const {meta} = notification;
             if ("projectId" in meta.grantRecipient) {
                 const grantRecipient = meta.grantRecipient as GrantRecipientExisting;
-                setProject(grantRecipient.projectId);
-                snackbarStore.addInformation(`${grantRecipient.projectId} is now active.`, false);
+                if (currentProject !== grantRecipient.projectId) {
+                    setProject(grantRecipient.projectId);
+                    const projectName =
+                        projectNames.find(it => it.projectId === grantRecipient.projectId)?.title ?? grantRecipient.projectId;
+                    snackbarStore.addInformation(`${projectName} is now active.`, false);
+                }
                 history.push(`/project/grants/view/${meta.appId}`);
             } else if ("username" in meta.grantRecipient) {
                 const grantRecipient = meta.grantRecipient as GrantRecipientPersonal;
@@ -528,8 +536,11 @@ export function onNotificationAction(
             break;
         case "PROJECT_ROLE_CHANGE":
             const {projectId} = notification.meta;
-            setProject(projectId);
-            snackbarStore.addInformation(`${projectId} is now active.`, false);
+            if (currentProject !== projectId) {
+                setProject(projectId);
+                const projectName = projectNames.find(it => it.projectId === projectId)?.title ?? projectId;
+                snackbarStore.addInformation(`${projectName} is now active.`, false);
+            }
             history.push("/project/members");
             break;
         default:

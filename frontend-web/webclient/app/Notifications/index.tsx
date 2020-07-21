@@ -12,15 +12,19 @@ import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-co
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
-import theme, {Theme, ThemeColor} from "ui-components/theme";
+import theme, {Theme} from "ui-components/theme";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
+import * as UF from "UtilityFunctions";
 import {
     fetchNotifications,
     notificationRead,
     readAllNotifications,
     receiveSingleNotification
 } from "./Redux/NotificationsActions";
+import {dispatchSetProjectAction} from "Project/Redux";
+import {useProjectStatus} from "Project/cache";
+import {getProjectNames} from "Utilities/ProjectUtilities";
 
 interface NotificationProps {
     items: Notification[];
@@ -35,6 +39,7 @@ type Notifications = NotificationProps & NotificationsOperations;
 function Notifications(props: Notifications): JSX.Element {
 
     const history = useHistory();
+    const projectNames = getProjectNames(useProjectStatus());
 
     React.useEffect(() => {
         reload();
@@ -73,27 +78,8 @@ function Notifications(props: Notifications): JSX.Element {
     }
 
     function onNotificationAction(notification: Notification): void {
-        switch (notification.type) {
-            case "APP_COMPLETE":
-                // TODO This is buggy! Doesn't update if already present on analyses page
-                // TODO Should refactor these URLs somewhere else
-                history.push(`/applications/results/${notification.meta.jobId}`);
-                break;
-            case "REVIEW_PROJECT":
-                reload();
-                history.push("/projects/");
-                break;
-
-            case "SHARE_REQUEST":
-                reload();
-                history.push("/shares");
-                break;
-
-            case "PROJECT_INVITE":
-                reload();
-                history.push("/projects");
-                break;
-        }
+        reload();
+        UF.onNotificationAction(history, props.setActiveProject, notification, projectNames);
     }
 
     const entries: JSX.Element[] = props.items.map((notification, index) => (
@@ -247,6 +233,7 @@ interface NotificationsOperations {
     notificationRead: (id: number) => void;
     showUploader: () => void;
     readAll: () => void;
+    setActiveProject: (projectId?: string) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
@@ -254,7 +241,8 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
-    readAll: async () => dispatch(await readAllNotifications())
+    readAll: async () => dispatch(await readAllNotifications()),
+    setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId)
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
 

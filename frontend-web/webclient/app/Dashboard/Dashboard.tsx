@@ -90,6 +90,8 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         emptyPage
     );
 
+    const projectNames = getProjectNames(useProjectStatus());
+
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
@@ -135,7 +137,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     } = props;
 
     const onNotificationAction = (notification: Notification): void =>
-        UF.onNotificationAction(props.history, props.setActiveProject, notification);
+        UF.onNotificationAction(props.history, props.setActiveProject, notification, projectNames);
 
     const main = (
         <Flex alignItems="flex-start">
