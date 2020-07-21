@@ -487,6 +487,7 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
         if (op.disabled(props.selectedProjects, Client)) return null;
         return (
             <Box
+                key={op.text}
                 ml="-17px"
                 mr="-17px"
                 pl="15px"

@@ -1003,7 +1003,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
     return (
         <Flex maxWidth={`calc(100% - ${220 + (props.isEmbedded ? 15 : 0)}px)`}>
-            <Flex mx="10px" alignItems="center" >
+            <Flex mx="10px" alignItems="center">
                 {isAnyMockFile([props.file]) ? <Box width="24px" /> : (
                     <Icon
                         cursor="pointer"
