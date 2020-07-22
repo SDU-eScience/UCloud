@@ -80,6 +80,7 @@ const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
     "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
 );
+const NO_WALLET_FOUND_VALUE = 0;
 
 class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState> {
     constructor(props: Readonly<RunAppProps & RouterLocationProps>) {
@@ -111,7 +112,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             previousRuns: emptyPage,
             reservation: "",
             unknownParameters: [],
-            balance: 0
+            balance: NO_WALLET_FOUND_VALUE
         };
     }
 
@@ -206,7 +207,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             const {response} = await Client.get<RetrieveBalanceResponse>(req.path!) //.then(it => {
             const balance = response.wallets.find(({wallet}) =>
                 wallet.paysFor.provider == productProvider && wallet.paysFor.id == productCategory
-            )?.balance ?? 0;
+            )?.balance ?? NO_WALLET_FOUND_VALUE;
             this.setState({balance});
         }
 
