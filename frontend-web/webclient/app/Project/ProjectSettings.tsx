@@ -18,6 +18,8 @@ import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {GrantProjectSettings} from "Project/Grant/Settings";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const ActionContainer = styled.div`
     & > * {
@@ -46,6 +48,10 @@ const ActionBox = styled.div`
 
 export const ProjectSettings: React.FunctionComponent = () => {
     const {projectId, projectRole, projectDetails} = useProjectManagementStatus();
+
+    useTitle("Project Settings");
+    useSidebarPage(SidebarPages.Projects);
+
     const history = useHistory();
     return (
         <MainContainer
@@ -65,7 +71,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         projectId={projectId}
                         projectRole={projectRole}
                     />
-                    <GrantProjectSettings/>
+                    <GrantProjectSettings />
                 </ActionContainer>
             }
             sidebar={null}

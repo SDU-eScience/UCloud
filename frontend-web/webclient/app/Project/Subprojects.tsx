@@ -26,6 +26,8 @@ import HexSpin, {HexSpinWrapper} from "LoadingIcon/LoadingIcon";
 import {Client} from "Authentication/HttpClientInstance";
 import {sizeToString} from "Utilities/FileUtilities";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -163,6 +165,9 @@ const SearchContainer = styled(Flex)`
 const Subprojects: React.FunctionComponent = () => {
     const newSubprojectRef = React.useRef<HTMLInputElement>(null);
     const [isLoading, runCommand] = useAsyncCommand();
+
+    useTitle("Resources");
+    useSidebarPage(SidebarPages.Projects);
 
     const {
         projectId,

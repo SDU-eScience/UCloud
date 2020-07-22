@@ -29,6 +29,8 @@ import {Toggle} from "ui-components/Toggle";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Client} from "Authentication/HttpClientInstance";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -79,7 +81,7 @@ export function creditFormatter(credits: number, precision: number = 2): string 
     }
 
     // Group into before and after decimal separator
-    let stringified = credits.toString().padStart(6, "0");
+    const stringified = credits.toString().padStart(6, "0");
 
     let before = stringified.substr(0, stringified.length - 6);
     let after = stringified.substr(stringified.length - 6);
@@ -175,6 +177,9 @@ export const durationOptions: Duration[] = [
 
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const {projectId, reload} = useProjectManagementStatus(true);
+
+    useTitle("Usage");
+    useSidebarPage(SidebarPages.Projects);
 
     const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3]);
 

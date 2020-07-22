@@ -13,6 +13,7 @@ import {format} from "date-fns/esm";
 import {Tag, hashF, appColor} from "Applications/Card";
 import {capitalized} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;
@@ -45,6 +46,8 @@ export const NewsList: React.FC = () => {
             })
         );
     }, [filter]);
+
+    useTitle("News");
 
     return (
         <MainContainer
