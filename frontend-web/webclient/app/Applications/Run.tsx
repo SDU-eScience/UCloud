@@ -204,7 +204,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                 type: undefined,
                 includeChildren: false
             });
-            const {response} = await Client.get<RetrieveBalanceResponse>(req.path!) //.then(it => {
+            const {response} = await Client.get<RetrieveBalanceResponse>(req.path!);
             const balance = response.wallets.find(({wallet}) =>
                 wallet.paysFor.provider == productProvider && wallet.paysFor.id == productCategory
             )?.balance ?? NO_WALLET_FOUND_VALUE;
