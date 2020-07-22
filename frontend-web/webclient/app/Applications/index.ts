@@ -180,6 +180,7 @@ export interface RunAppState {
     unknownParameters: string[];
     reservation: string;
     reservationMachine?: Product;
+    balance: number;
 }
 
 export interface RunOperations extends SetStatusLoading {
