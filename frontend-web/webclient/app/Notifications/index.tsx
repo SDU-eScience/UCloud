@@ -12,7 +12,7 @@ import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-co
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
-import theme, {Theme, ThemeColor} from "ui-components/theme";
+import theme, {Theme} from "ui-components/theme";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {

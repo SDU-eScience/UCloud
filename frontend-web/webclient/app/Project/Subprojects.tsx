@@ -169,7 +169,8 @@ const Subprojects: React.FunctionComponent = () => {
         allowManagement,
         subprojectSearchQuery,
         setSubprojectSearchQuery,
-        projectRole
+        projectRole,
+        reloadProjectStatus
     } = useProjectManagementStatus(true);
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
@@ -232,6 +233,7 @@ const Subprojects: React.FunctionComponent = () => {
             }));
             inputField.value = "";
             reloadSubprojects();
+            reloadProjectStatus();
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed creating new project"), false);
         }
