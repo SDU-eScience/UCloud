@@ -2,7 +2,7 @@ import {MachineTypes} from "Applications/MachineTypes";
 import {OptionalParameters} from "Applications/OptionalParameters";
 import {InputDirectoryParameter} from "Applications/Widgets/FileParameter";
 import {AdditionalPeerParameter} from "Applications/Widgets/PeerParameter";
-import {callAPI, useCloudAPI} from "Authentication/DataHook";
+import {callAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
