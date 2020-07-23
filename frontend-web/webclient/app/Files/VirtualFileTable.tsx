@@ -5,7 +5,6 @@ import {File} from "Files/index";
 import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable";
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
-import {Page} from "Types";
 import {
     getParentPath,
     isProjectHome,

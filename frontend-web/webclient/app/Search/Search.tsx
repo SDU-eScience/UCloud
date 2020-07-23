@@ -97,7 +97,6 @@ function Search(props: SearchProps): JSX.Element {
     let main: React.ReactNode = null;
     const {priority} = props.match.params;
     const entriesPerPage = (
-
         <Box my="8px">
             <Spacer
                 left={null}
@@ -235,8 +234,8 @@ export function fileSearchBody(
     if (fileSearch.allowFiles) fileTypes.push("FILE");
     if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
     const modifiedAt = {
-        after: !!fileSearch.modifiedAfter ? fileSearch.modifiedAfter.valueOf() : undefined,
-        before: !!fileSearch.modifiedBefore ? fileSearch.modifiedBefore.valueOf() : undefined,
+        after: fileSearch.modifiedAfter?.valueOf(),
+        before: fileSearch.modifiedBefore?.valueOf(),
     };
 
     return {

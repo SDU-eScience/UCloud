@@ -23,7 +23,6 @@ import {Dispatch} from "redux";
 import * as SearchActions from "Search/Redux/SearchActions";
 import {applicationSearchBody, fileSearchBody} from "Search/Search";
 import styled from "styled-components";
-import {Page} from "Types";
 import * as ui from "ui-components";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
 import ClickableDropdown from "ui-components/ClickableDropdown";

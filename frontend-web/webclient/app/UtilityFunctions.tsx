@@ -332,7 +332,7 @@ export const prettierString = (str: string): string => capitalized(str).replace(
 export function defaultErrorHandler(
     error: {request: XMLHttpRequest; response: any}
 ): number {
-    const request: XMLHttpRequest = error.request;
+    const {request} = error;
     // FIXME must be solvable more elegantly
     let why: string | null = error.response?.why;
 
@@ -464,8 +464,8 @@ export function preventDefault(e: {preventDefault(): void}): void {
     e.preventDefault();
 }
 
-export function doNothing() {
-
+export function doNothing(): void {
+    return undefined;
 }
 
 export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}): void {

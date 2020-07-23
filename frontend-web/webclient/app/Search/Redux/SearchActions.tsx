@@ -2,7 +2,7 @@ import {AdvancedSearchRequest as AppSearchRequest, FullAppInfo} from "Applicatio
 import {Client} from "Authentication/HttpClientInstance";
 import {AdvancedSearchRequest, File} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page, PayloadAction} from "Types";
+import {PayloadAction} from "Types";
 import {advancedSearchQuery} from "Utilities/ApplicationUtilities";
 import {advancedFileSearch} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";

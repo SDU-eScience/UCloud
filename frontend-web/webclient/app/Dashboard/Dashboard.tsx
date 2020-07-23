@@ -36,8 +36,7 @@ import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
 import {IconName} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
-import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
-import {Page, PaginationRequest} from "Types";
+import {useCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
@@ -47,7 +46,6 @@ import {creditFormatter} from "Project/ProjectUsage";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import theme, {ThemeColor} from "ui-components/theme";
 
 export const DashboardCard: React.FunctionComponent<{

@@ -1,9 +1,8 @@
 import * as React from "react";
-import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
+import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 import * as Heading from "ui-components/Heading";
 import {listOutgoingInvites} from "Project";
-import {Page, PaginationRequest} from "Types";
 import {List as PaginationList} from "Pagination";
 import {MainContainer} from "MainContainer/MainContainer";
 import {GrantApplication} from ".";

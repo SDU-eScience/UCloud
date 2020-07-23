@@ -1,9 +1,8 @@
-import {useGlobal, useGlobalWithMerge} from "Utilities/ReduxHooks";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {useGlobalWithMerge} from "Utilities/ReduxHooks";
+import {AvatarType} from "UserSettings/Avataaar";
 import {useCallback} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {fetchBulkAvatars, FetchBulkAvatarsResponse} from "AvataaarLib/index";
-import {Dictionary} from "Types";
 
 export function useAvatars(): AvatarHook {
     const [cache, setCache] = useGlobalWithMerge("avatarCache", {});
@@ -21,7 +20,7 @@ export function useAvatars(): AvatarHook {
 }
 
 export interface AvatarHook {
-    cache: Dictionary<AvatarType>;
+    cache: Record<string, AvatarType>;
     updateCache: (usernames: string[]) => Promise<void>;
 }
 

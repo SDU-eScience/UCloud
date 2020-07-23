@@ -10,7 +10,6 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Dictionary, Page} from "Types";
 import {Icon} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -29,7 +28,7 @@ interface BackgroundTaskProps {
     activeUploads: number;
     uploads: Upload[];
     showUploader: () => void;
-    tasks?: Dictionary<TaskUpdate>;
+    tasks?: Record<string, TaskUpdate>;
     onTaskUpdate: (update: TaskUpdate) => void;
     loadInitialTasks: () => void;
 }

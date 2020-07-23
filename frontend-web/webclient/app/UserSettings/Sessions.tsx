@@ -5,7 +5,6 @@ import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {Page} from "Types";
 import {UAParser} from "ua-parser-js";
 import Box from "ui-components/Box";
 import Button from "ui-components/Button";

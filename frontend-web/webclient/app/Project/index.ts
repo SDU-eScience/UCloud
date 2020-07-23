@@ -1,6 +1,5 @@
-import {APICallParameters, useGlobalCloudAPI} from "Authentication/DataHook";
+import {useGlobalCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
 import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 import {inDevEnvironment} from "UtilityFunctions";

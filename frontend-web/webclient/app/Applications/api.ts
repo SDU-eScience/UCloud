@@ -1,5 +1,4 @@
 import {JobState, RunsSortBy} from "Applications/index";
-import {APICallParameters} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {SortOrder} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";

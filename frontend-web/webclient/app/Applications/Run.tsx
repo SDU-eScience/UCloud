@@ -18,7 +18,6 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Page} from "Types";
 import {
     Box,
     Button,
@@ -74,7 +73,7 @@ import Warning from "ui-components/Warning";
 import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import * as PublicLinks from "Applications/PublicLinks/Management";
 import {creditFormatter} from "Project/ProjectUsage";
-import {Product, retrieveBalance, RetrieveBalanceRequest, RetrieveBalanceResponse, Wallet} from "Accounting";
+import {Product, retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -206,10 +205,10 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             });
             const {response} = await Client.get<RetrieveBalanceResponse>(req.path!);
             const balance = response.wallets.find(({wallet}) =>
-                wallet.paysFor.provider == productProvider && wallet.paysFor.id == productCategory
+                wallet.paysFor.provider === productProvider && wallet.paysFor.id === productCategory
             )?.balance ?? NO_WALLET_FOUND_VALUE;
             this.setState({balance});
-        }
+        };
 
         return (
             <MainContainer
@@ -345,8 +344,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                             getBalance(
                                                 reservationMachine.category.id,
                                                 reservationMachine.category.provider
-                                            )
-                                            this.setState({reservation, reservationMachine})
+                                            );
+                                            this.setState({reservation, reservationMachine});
                                         }
                                     }
                                     urlEnabled={this.state.useUrl}
@@ -1103,7 +1102,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                 />
             </div>
 
-            {props.app.invocation.applicationType == "WEB" ? (
+            {props.app.invocation.applicationType === "WEB" ? (
                 <Box mb="4px" mt="1em">
                     <ApplicationUrl
                         inputRef={props.url}

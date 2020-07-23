@@ -17,7 +17,6 @@ import {connect} from "react-redux";
 import {RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import {Button, Flex, VerticalButtonGroup} from "ui-components";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";

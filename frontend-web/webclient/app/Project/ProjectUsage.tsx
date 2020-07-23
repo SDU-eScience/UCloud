@@ -23,7 +23,6 @@ import {
 import {useProjectManagementStatus} from "Project";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import styled from "styled-components";
-import {Dictionary} from "Types";
 import {ThemeColor} from "ui-components/theme";
 import {Toggle} from "ui-components/Toggle";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -184,14 +183,14 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3]);
 
     // ProductArea -> Provider -> LineName -> includeInChartStatus (default: true)
-    const [includeInCharts, setIncludeInCharts] = useState<Dictionary<Dictionary<Dictionary<boolean>>>>({});
+    const [includeInCharts, setIncludeInCharts] = useState<Record<string, Record<string, Record<string, boolean>>>>({});
 
-    const computeIncludeInCharts: Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.COMPUTE] ?? {};
-    const storageIncludeInCharts: Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
+    const computeIncludeInCharts: Record<string, Record<string, boolean>> = includeInCharts[ProductArea.COMPUTE] ?? {};
+    const storageIncludeInCharts: Record<string, Record<string, boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
 
     const onIncludeInChart = (area: ProductArea) => (provider: string, lineName: string) => {
-        const existingAtProvider: Dictionary<boolean> = (includeInCharts[area] ?? {})[provider] ?? {};
-        const newIncludeAtProvider: Dictionary<boolean> = {...existingAtProvider};
+        const existingAtProvider: Record<string, boolean> = (includeInCharts[area] ?? {})[provider] ?? {};
+        const newIncludeAtProvider: Record<string, boolean> = {...existingAtProvider};
         newIncludeAtProvider[lineName] = !(existingAtProvider[lineName] ?? true);
 
         const newComputeInclude = {...computeIncludeInCharts};
@@ -347,7 +346,7 @@ const VisualizationForArea: React.FunctionComponent<{
     usageResponse: APICallState<UsageResponse>,
     balance: APICallState<RetrieveBalanceResponse>,
     durationOption: Duration,
-    includeInCharts: Dictionary<Dictionary<boolean>>,
+    includeInCharts: Record<string, Record<string, boolean>>,
     onIncludeInChart: (provider: string, lineName: string) => void
 }> = ({area, projectId, usageResponse, balance, durationOption, includeInCharts, onIncludeInChart}) => {
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
@@ -363,11 +362,11 @@ const VisualizationForArea: React.FunctionComponent<{
     }, 0);
 
     // provider -> lineName -> usage
-    const creditsUsedByWallet: Dictionary<Dictionary<number>> = {};
+    const creditsUsedByWallet: Record<string, Record<string, number>> = {};
     let creditsUsedInPeriod = 0;
 
     for (const chart of charts) {
-        const usageByCurrentProvider: Dictionary<number> = {};
+        const usageByCurrentProvider: Record<string, number> = {};
         creditsUsedByWallet[chart.provider] = usageByCurrentProvider;
 
         for (let i = 0; i < chart.points.length; i++) {

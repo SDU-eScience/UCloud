@@ -6,12 +6,18 @@ import {
     listProjects,
     ListProjectsRequest,
     UserInProject,
-    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects, ProjectRole
+    IngoingInvite,
+    listIngoingInvites,
+    acceptInvite,
+    rejectInvite,
+    ListFavoriteProjectsRequest,
+    listFavoriteProjects,
+    ProjectRole
 } from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Page, Operation} from "Types";
+import {Operation} from "Types";
 import Button from "ui-components/Button";
 import {Flex, Icon, List, Text, Box, Checkbox, Label, Link, Tooltip} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";

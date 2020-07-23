@@ -12,7 +12,6 @@ import HttpClient from "Authentication/lib";
 import {SortOrder} from "Files";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import {addStandardDialog} from "UtilityComponents";
 import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
 import {expandHomeOrProjectFolder} from "./FileUtilities";

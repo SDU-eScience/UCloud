@@ -3,7 +3,7 @@ import {defaultFileOperations} from "Files/FileOperations";
 import {FileTable} from "Files/FileTable";
 import {defaultVirtualFolders} from "Files/VirtualFileTable";
 import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setActivePage, setLoading, updatePageTitle, useTitle} from "Navigation/Redux/StatusActions";
+import {setLoading, useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";

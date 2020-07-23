@@ -1,13 +1,10 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {MainContainer} from "MainContainer/MainContainer";
-import {setActivePage} from "Navigation/Redux/StatusActions";
+import {useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
 import {Box, Button, Flex, Icon, Link} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {IconName} from "ui-components/Icon";
-import {SidebarPages} from "ui-components/Sidebar";
 import {ThemeColor} from "ui-components/theme";
 
 const linkInfo: LinkInfo[] = [
@@ -25,15 +22,9 @@ interface LinkInfo {
     color2?: ThemeColor;
 }
 
-interface AdminOperations {
-    setActivePage: () => void;
-}
+function AdminOverview(): JSX.Element | null {
 
-function AdminOverview(props: AdminOperations): JSX.Element | null {
-
-    React.useEffect(() => {
-        props.setActivePage();
-    }, []);
+    useTitle("Admin Dashboard");
 
     if (!Client.userIsAdmin) return null;
     return (
@@ -46,7 +37,15 @@ function AdminOverview(props: AdminOperations): JSX.Element | null {
                             {linkInfo.map(it => (
                                 <Link key={it.to} to={it.to}>
                                     <Button mb="10px" mx="10px" width="200px">
-                                        {!it.icon ? null : <Icon mr=".5em" name={it.icon} size="1.5em" color={it.color} color2={it.color2} />}
+                                        {!it.icon ? null :
+                                            <Icon
+                                                mr=".5em"
+                                                name={it.icon}
+                                                size="1.5em"
+                                                color={it.color}
+                                                color2={it.color2}
+                                            />
+                                        }
                                         {it.text}
                                     </Button>
                                 </Link>
@@ -59,8 +58,4 @@ function AdminOverview(props: AdminOperations): JSX.Element | null {
     );
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): AdminOperations => ({
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
-});
-
-export default connect(null, mapDispatchToProps)(AdminOverview);
+export default AdminOverview;

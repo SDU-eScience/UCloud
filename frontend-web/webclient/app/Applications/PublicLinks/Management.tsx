@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {createPublicLink, deletePublicLink, listPublicLinks, PublicLink} from "Applications/PublicLinks/index";
-import {Page} from "Types";
 import {emptyPage, KeyCode} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import {Box, Button, Flex, Icon, Input, List} from "ui-components";

@@ -1,7 +1,7 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page, PayloadAction} from "Types";
+import {PayloadAction} from "Types";
 import {notificationsQuery, readAllNotificationsQuery, readNotificationQuery} from "Utilities/NotificationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Notification} from "..";

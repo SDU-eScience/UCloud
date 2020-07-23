@@ -1,8 +1,8 @@
 import {AppToolLogo} from "Applications/AppToolLogo";
-import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
+import {AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
-import {emptyPage, KeyCode, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
+import {emptyPage, KeyCode, SensitivityLevelMap, ReduxObject} from "DefaultObjects";
 import {File, FileType, SortBy, SortOrder} from "Files";
 import {
     defaultFileOperations,
@@ -18,13 +18,11 @@ import * as Pagination from "Pagination";
 import PromiseKeeper, {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {connect} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import {useHistory} from "react-router";
-import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
-import {Page} from "Types";
 import {
     Button, Card,
     Checkbox,
@@ -275,10 +273,7 @@ function useApiForComponent(
 }
 
 
-// eslint-disable-next-line no-underscore-dangle
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLevelFileTableOperations & {
-    activeUploadCount: number;
-}> = props => {
+export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -297,6 +292,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
     const favorites = useFavoriteStatus();
     const projects = useProjectStatus();
+    const dispatch = useDispatch();
     const projectMember = (
         !Client.projectId ?
             undefined :
@@ -309,6 +305,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     const history = useHistory();
 
+    const activeUploadCount = useSelector<ReduxObject, number>(redux =>
+        redux.uploader.uploads.filter(upload =>
+            ((upload.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
+                (upload.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE))).length
+    );
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
         useApiForComponent(props, setSortByColumn);
 
@@ -360,12 +361,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     useEffect(() => {
         if (!props.embedded) {
-            props.setUploaderCallback(() => reload());
+            dispatch(setUploaderCallback(() => reload()));
         }
     }, [reload]);
 
     useEffect(() => {
-        return () => props.setUploaderCallback();
+        return () => void dispatch(setUploaderCallback());
     }, []);
 
     const permissions = useFilePermissions();
@@ -384,7 +385,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         },
         requestFileUpload: () => {
             const path = props.path ? props.path : Client.homeFolder;
-            props.showUploader(path);
+            dispatch(setUploaderVisible(true, path));
         },
         requestFolderCreation: (isRepo?: boolean) => {
             if (props.path === undefined) return;
@@ -407,10 +408,10 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             return null;
         },
         createNewUpload: upload => {
-            props.appendUpload(upload);
+            dispatch(appendUpload(upload));
 
-            const path = props.path ? props.path : Client.homeFolder;
-            props.showUploader(path);
+            const path = props.path ?? Client.homeFolder;
+            dispatch(setUploaderVisible(true, path));
         },
         history
     };
@@ -485,13 +486,33 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                 <>
                                     <Card
                                         onClick={() => onFileNavigation(Client.homeFolder)}
-                                        cursor="pointer" mr="8px" height="auto" pb="4px" alignItems="center" width="100px" textAlign="center" boxShadow="sm" borderWidth={0} borderRadius={6}>
+                                        cursor="pointer"
+                                        mr="8px"
+                                        height="auto"
+                                        pb="4px"
+                                        alignItems="center"
+                                        width="100px"
+                                        textAlign="center"
+                                        boxShadow="sm"
+                                        borderWidth={0}
+                                        borderRadius={6}
+                                    >
                                         <Icon color="iconColor" color2="iconColor2" name="home" />
                                         <Text fontSize={0}>Personal Home</Text>
                                     </Card>
                                     <Card
                                         onClick={() => onFileNavigation(`${Client.homeFolder}Project List`)}
-                                        cursor="pointer" height="auto" mr="8px" pb="4px" alignItems="center" width="100px" textAlign="center" boxShadow="sm" borderWidth={0} borderRadius={6}>
+                                        cursor="pointer"
+                                        height="auto"
+                                        mr="8px"
+                                        pb="4px"
+                                        alignItems="center"
+                                        width="100px"
+                                        textAlign="center"
+                                        boxShadow="sm"
+                                        borderWidth={0}
+                                        borderRadius={6}
+                                    >
                                         <Icon color="iconColor" color2="iconColor2" name="projects" />
                                         <Text fontSize={0}>Project List</Text>
                                     </Card>
@@ -522,7 +543,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
-                            <RepositoryOperations role={projectMember.role} path={props.path} createFolder={callbacks.requestFolderCreation} />
+                            <RepositoryOperations
+                                role={projectMember.role}
+                                path={props.path}
+                                createFolder={callbacks.requestFolderCreation}
+                            />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
@@ -543,14 +568,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                             {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
 
                             <OutlineButton
-                                onClick={(): void => props.activeUploadCount ? addStandardDialog({
+                                onClick={(): void => activeUploadCount ? addStandardDialog({
                                     title: "Continue",
                                     message: (
                                         <Box>
                                             <Text>You have tasks that will be cancelled if you continue.</Text>
-                                            {props.activeUploadCount ? (
+                                            {activeUploadCount ? (
                                                 <Text>
-                                                    {props.activeUploadCount} uploads in progress.
+                                                    {activeUploadCount} uploads in progress.
                                                 </Text>
                                             ) : ""}
                                             {/* TODO: TASKS */}
@@ -750,7 +775,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                         message: "This file has some non-standard metadata. This can cause problems in some applications. Do you wish to resolve this issue?",
                                                         confirmText: "Resolve issue",
                                                         onConfirm: async () => {
-                                                            await Client.post("/files/normalize-permissions", {path: f.path});
+                                                            const {path} = f;
+                                                            await Client.post("/files/normalize-permissions", {path});
                                                             callbacks.requestReload();
                                                         }
                                                     });
@@ -821,7 +847,16 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                 width="auto"
                                                 minWidth="175px"
                                                 left="-160px"
-                                                trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display: "block"}} />}
+                                                trigger={
+                                                    <Icon
+                                                        mr="8px"
+                                                        name="play"
+                                                        size="1em"
+                                                        color="midGray"
+                                                        hoverColor="gray"
+                                                        style={{display: "block"}}
+                                                    />
+                                                }
                                             >
                                                 <QuickLaunchApps
                                                     file={f}
@@ -871,28 +906,6 @@ function toWebDav(): void {
     a.click();
     document.body.removeChild(a);
 }
-
-const mapStateToProps = ({uploader}: ReduxObject): {activeUploadCount: number} => {
-    const activeUploadCount = uploader.uploads.filter(it =>
-        (it.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
-        (it.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE)).length;
-    return {activeUploadCount};
-};
-
-
-interface LowLevelFileTableOperations {
-    showUploader(path: string): void;
-    setUploaderCallback(cb?: () => void): void;
-    appendUpload(upload: Upload): void;
-}
-
-const mapDispatchToProps = (dispatch: Dispatch): LowLevelFileTableOperations => ({
-    showUploader: path => dispatch(setUploaderVisible(true, path)),
-    setUploaderCallback: cb => dispatch(setUploaderCallback(cb)),
-    appendUpload: upload => dispatch(appendUpload(upload))
-});
-
-export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(LowLevelFileTable_);
 
 interface ShellProps {
     embedded: boolean;
@@ -1054,7 +1067,9 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                                 props.projectRole === undefined || !isAdminOrPI(props.projectRole) ?
                                 null :
                                 <Text color={"red"} mr={"12px"} fontSize={0}>PROJECT ADMINS ONLY</Text>
-                        ) : (<Text title="Members" fontSize={0} mr="12px" color="gray">{props.file.acl?.length} members</Text>)}
+                        ) : (<Text title="Members" fontSize={0} mr="12px" color="gray">
+                            {props.file.acl?.length} members
+                        </Text>)}
                     </Flex>
                 </Hide>
             </Box>
@@ -1067,7 +1082,7 @@ function RepositoryOperations(props: {
     createFolder: (isRepo?: boolean) => void;
     role: ProjectRole;
 }): JSX.Element | null {
-    if (props.path === undefined || !isProjectHome(props.path) || ![ProjectRole.ADMIN, ProjectRole.PI].includes(props.role)) {
+    if (props.path === undefined || !isProjectHome(props.path) || !isAdminOrPI(props.role)) {
         return null;
     }
     return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;
@@ -1261,7 +1276,6 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
         </>
     );
 };
-
 
 function getSortingColumn(): SortBy {
     const sortingColumn = window.localStorage.getItem("filesSorting");
