@@ -34,6 +34,7 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.file.processors.ProjectProcessor
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -90,6 +91,8 @@ class Server(
             fsRootFile,
             homeFolderService
         ).init()
+
+        ProjectProcessor(streams, fsRootFile, client).init()
 
         val metadataRecovery = MetadataRecoveryService(
             micro.backgroundScope,

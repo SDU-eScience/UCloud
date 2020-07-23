@@ -252,6 +252,8 @@ class ProjectService(
                 set(ProjectMemberTable.createdAt, LocalDateTime.now())
                 set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
             }
+
+            eventProducer.produce(ProjectEvent.MemberAdded(projectId, ProjectMember(invitedUser, ProjectRole.USER)))
         }
     }
 
