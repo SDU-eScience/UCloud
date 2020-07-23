@@ -57,7 +57,7 @@ class ProjectProcessor(
                     
                     This file is located in your own personal folder of this project.
                     
-                    Files here is accessible to you and admins of the project.
+                    Files here are accessible to you and admins of the project.
 
                     Running a job while this project is active will make output and results appear in this folder.
                     
