@@ -1,6 +1,6 @@
 import {SensitivityLevelMap} from "../../app/DefaultObjects";
 import {File, FileType} from "../../app/Files";
-import {AccessRight, Page} from "../../app/Types";
+import {AccessRight} from "../../app/Types";
 
 export const mockFilesSensitivityConfidential: Page<File> = {
     itemsInTotal: 12,

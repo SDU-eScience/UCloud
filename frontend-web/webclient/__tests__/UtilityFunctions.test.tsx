@@ -120,14 +120,12 @@ test("Upper 5xx range", () =>
 
 // Get owner from ACL
 
-const mockAcls: Acl[] = [
-    {
-        entity: {username: "user3@test.dk"},
-        rights: [
-            AccessRight.READ
-        ]
-    }
-];
+const mockAcls: Acl[] = [{
+    entity: {username: "user3@test.dk"},
+    rights: [
+        AccessRight.READ
+    ]
+}];
 
 test("Get multiple owners from Acls", () =>
     expect(UF.getMembersString(mockAcls)).toBe("2 members")

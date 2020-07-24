@@ -1,5 +1,4 @@
 import {Notification} from "../../app/Notifications";
-import {Page} from "../../app/Types";
 
 export const notifications: Page<Notification> = {
     itemsInTotal: 2,
