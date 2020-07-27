@@ -6,7 +6,7 @@ import {fetchBulkAvatars, FetchBulkAvatarsResponse} from "AvataaarLib/index";
 
 export function useAvatars(): AvatarHook {
     const [cache, setCache] = useGlobalWithMerge("avatarCache", {});
-    const [_, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useAsyncCommand();
     const updateCache = useCallback(async (usernames: string[]) => {
         const usernamesToUse = usernames.filter(it => !cache.hasOwnProperty(it));
         if (usernamesToUse.length === 0) return;

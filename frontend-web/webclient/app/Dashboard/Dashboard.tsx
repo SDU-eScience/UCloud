@@ -47,6 +47,8 @@ import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
 import theme, {ThemeColor} from "ui-components/theme";
+import {dispatchSetProjectAction} from "Project/Redux";
+import {GrantRecipient, GrantRecipientExisting, GrantRecipientNew, GrantRecipientPersonal} from "Project/Grant";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: string;
@@ -87,6 +89,8 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         emptyPage
     );
 
+    const projectNames = getProjectNames(useProjectStatus());
+
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
@@ -119,24 +123,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         props.fetchRecentAnalyses();
     }
 
-    const onNotificationAction = (notification: Notification): void => {
-        // FIXME: Not DRY, reused
-        switch (notification.type) {
-            case "APP_COMPLETE":
-                props.history.push(`/applications/results/${notification.meta.jobId}`);
-                break;
-            case "SHARE_REQUEST":
-                props.history.push("/shares");
-                break;
-            case "REVIEW_PROJECT":
-                props.history.push("/projects/");
-                break;
-            case "PROJECT_INVITE":
-                props.history.push("/projects/");
-                break;
-        }
-    };
-
     const favoriteOrUnfavorite = async (file: File): Promise<void> => {
         await favorites.toggle(file.path);
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
@@ -149,8 +135,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         recentJobsError
     } = props;
 
+    const onNotificationAction = (notification: Notification): void =>
+        UF.onNotificationAction(props.history, props.setActiveProject, notification, projectNames);
+
     const main = (
-        <Flex alignItems={"flex-start"}>
+        <Flex alignItems="flex-start">
             <DashboardMessageOfTheDay news={news.data.items} loading={news.loading} />
             <DashboardGrid minmax={315} gridGap={16}>
                 <DashboardFavoriteFiles
@@ -411,6 +400,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
         dispatch(updatePageTitle("Dashboard"));
         dispatch(setActivePage(SidebarPages.None));
     },
+    setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     notificationRead: async id => dispatch(await notificationRead(id)),

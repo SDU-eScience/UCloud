@@ -3,7 +3,6 @@ package dk.sdu.cloud.project.services
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -22,12 +21,10 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
-import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.project.utils.userInvitedToInviteeTemplate
-import dk.sdu.cloud.project.utils.userLeftTemplate
-import dk.sdu.cloud.project.utils.userRemovedTemplate
-import dk.sdu.cloud.project.utils.userRemovedToPersonRemovedTemplate
-import dk.sdu.cloud.project.utils.userRoleChangeTemplate
+import dk.sdu.cloud.project.api.ProjectEvent
+import dk.sdu.cloud.project.api.ProjectMember
+import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.utils.*
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
@@ -340,13 +337,19 @@ class ProjectService(
         }
     }
 
-    private suspend fun notify(notificationType: NotificationType, reciever: String, message: String) {
+    private suspend fun notify(
+        notificationType: NotificationType,
+        receiver: String,
+        message: String,
+        meta: Map<String, Any?> = emptyMap()
+    ) {
         NotificationDescriptions.create.call(
             CreateNotification(
-                reciever,
+                receiver,
                 Notification(
                     notificationType.name,
-                    message
+                    message,
+                    meta = meta
                 )
             ),
             serviceClient
@@ -484,8 +487,10 @@ class ProjectService(
             val notificationMessage = "$memberToUpdate has changed role to $newRole in project: $projectTitle"
 
             allAdmins.forEach { admin ->
-                notify(NotificationType.PROJECT_ROLE_CHANGE, pi, notificationMessage)
+                notify(NotificationType.PROJECT_ROLE_CHANGE, admin, notificationMessage, mapOf("projectId" to projectId))
             }
+
+            notify(NotificationType.PROJECT_ROLE_CHANGE, pi, notificationMessage, mapOf("projectId" to projectId))
 
             MailDescriptions.sendBulk.call(
                 SendBulkRequest(allAdmins.map {
