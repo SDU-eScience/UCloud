@@ -325,7 +325,6 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     const state = useRequestInformation(target);
     const grantFinalized = isGrantFinalized(state.editingApplication?.status);
     const [, runWork] = useAsyncCommand();
-    const isUser = !isAdminOrPI(useProjectManagementStatus().projectRole);
     const projectTitleRef = useRef<HTMLInputElement>(null);
     const history = useHistory();
 
@@ -488,7 +487,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             main={
                 <Flex justifyContent="center">
                     <Box maxWidth={1400} width="100%">
-                        {target !== RequestTarget.NEW_PROJECT || isUser ? null : (
+                        {target !== RequestTarget.NEW_PROJECT ? null : (
                             <>
                                 <Label mb={16} mt={16}>
                                     Principal Investigator (PI)
@@ -506,12 +505,12 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 </Label>
                                 <Label mb={16} mt={16}>
                                     Title
-                                    <Input disabled={isUser} ref={projectTitleRef} />
+                                    <Input ref={projectTitleRef} />
                                 </Label>
                             </>
                         )}
 
-                        {target !== RequestTarget.VIEW_APPLICATION || isUser ? null : (
+                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
                             <>
                                 <DashboardCard color="blue" isLoading={false}>
                                     <Heading.h4 mb={16}>Metadata</Heading.h4>
@@ -636,7 +635,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         <Flex alignItems={"center"}>
                                                             <Input
                                                                 placeholder={"0"}
-                                                                disabled={isUser || grantFinalized}
+                                                                disabled={grantFinalized}
                                                                 data-target={productCategoryId(it.wallet.paysFor)}
                                                                 autoComplete="off"
                                                                 type="number"
@@ -657,7 +656,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                             <Flex alignItems={"center"}>
                                                                 <Input
                                                                     placeholder={"0"}
-                                                                    disabled={isUser || grantFinalized}
+                                                                    disabled={grantFinalized}
                                                                     data-target={
                                                                         "quota-" + productCategoryId(it.wallet.paysFor)
                                                                     }
@@ -679,7 +678,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         <CommentApplicationWrapper>
                             <RequestFormContainer>
                                 <Heading.h4>Application</Heading.h4>
-                                <TextArea disabled={isUser || grantFinalized} rows={25} ref={state.documentRef} />
+                                <TextArea disabled={grantFinalized} rows={25} ref={state.documentRef} />
                             </RequestFormContainer>
 
                             {state.editingApplication === undefined ? null : (

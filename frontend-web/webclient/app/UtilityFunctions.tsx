@@ -517,22 +517,7 @@ export function onNotificationAction(
         case "GRANT_APPLICATION_RESPONSE":
         case "GRANT_APPLICATION_UPDATED":
             const {meta} = notification;
-            if ("projectId" in meta.grantRecipient) {
-                const grantRecipient = meta.grantRecipient as GrantRecipientExisting;
-                if (currentProject !== grantRecipient.projectId) {
-                    setProject(grantRecipient.projectId);
-                    const projectName =
-                        projectNames.find(it => it.projectId === grantRecipient.projectId)?.title ?? grantRecipient.projectId;
-                    snackbarStore.addInformation(`${projectName} is now active.`, false);
-                }
-                history.push(`/project/grants/view/${meta.appId}`);
-            } else if ("username" in meta.grantRecipient) {
-                const grantRecipient = meta.grantRecipient as GrantRecipientPersonal;
-                console.warn("Unhandled GrantRecipientPersonal");
-            } else if ("projectTitle" in meta.grantRecipient) {
-                const grantRecipient = meta.grantRecipient as GrantRecipientNew;
-                console.warn("Unhandled GrantRecipientNew");
-            }
+            history.push(`/project/grants/view/${meta.appId}`);
             break;
         case "PROJECT_ROLE_CHANGE":
             const {projectId} = notification.meta;

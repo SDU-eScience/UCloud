@@ -57,7 +57,7 @@ class CommentService(
                 )
             ),
             actor.safeUsername(),
-            mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
+            mapOf("appId" to application.id)
         )
     }
 
