@@ -287,7 +287,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     }, [reload]);
 
     useEffect(() => {
-        return () => void dispatch(setUploaderCallback());
+        return () => {dispatch(setUploaderCallback());};
     }, []);
 
     const permissions = useFilePermissions();
@@ -1103,7 +1103,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 cursor="pointer"
                 color={fileOp.color}
                 alignItems="center"
-                onClick={(): void => fileOp.onClick(filesInCallback, props.callback)}
+                onClick={() => fileOp.onClick(filesInCallback, props.callback)}
                 ml={props.inDropdown ? "-17px" : undefined}
                 mr={props.inDropdown ? "-17px" : undefined}
                 pl={props.inDropdown ? "15px" : undefined}
@@ -1124,8 +1124,10 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
     const content: JSX.Element[] =
         filteredButtons.map((op, i) => <Operation fileOp={op} key={i} />)
             .concat(files.length === 0 || fileOperations.length === 1 || props.inDropdown ? [] :
-                <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>)
-            .concat(filteredOptions.map((op, i) => <Operation fileOp={op} key={i} />));
+                <div key="selected">
+                    <TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan>
+                </div>
+            ).concat(filteredOptions.map((op, i) => <Operation fileOp={op} key={i + "_"} />));
 
     return (props.inDropdown ?
         <Box>
