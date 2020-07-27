@@ -5,10 +5,7 @@ import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, SensitivityLevelMap, ReduxObject} from "DefaultObjects";
 import {File, FileType, SortBy, SortOrder} from "Files";
 import {
-    defaultFileOperations,
-    FileOperation,
-    FileOperationCallback,
-    FileOperationRepositoryMode
+    defaultFileOperations, FileOperation, FileOperationCallback, FileOperationRepositoryMode
 } from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
 import {History} from "history";
@@ -24,19 +21,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {
-    Button, Card,
-    Checkbox,
-    Divider,
-    Hide,
-    Icon,
-    Input,
-    Label,
-    Link,
-    List,
-    OutlineButton,
-    Text,
-    Tooltip,
-    Truncate
+    Button, Card, Checkbox, Divider, Hide, Icon, Input, Label, Link, List, OutlineButton, Text, Tooltip, Truncate
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
@@ -48,7 +33,6 @@ import {IconName} from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import {TextSpan} from "ui-components/Text";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {Upload} from "Uploader";
 import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {
     createFolder,
@@ -80,11 +64,12 @@ import {ListRow} from "ui-components/List";
 import {
     createRepository, isRepository, renameRepository, getProjectNames, isAdminOrPI
 } from "Utilities/ProjectUtilities";
-import {ProjectRole} from "Project";
+import {ProjectRole, useProjectManagementStatus} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {useAppQuickLaunch} from "Utilities/ApplicationUtilities";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -289,7 +274,6 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, , invokeWork] = useAsyncWork();
-    const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
     const favorites = useFavoriteStatus();
     const projects = useProjectStatus();
     const dispatch = useDispatch();
@@ -323,41 +307,8 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     }, [page]);
 
     // Fetch quick launch applications upon page refresh
-    useEffect(() => {
-        const filesOnly = page.items.filter(f => f.fileType === "FILE");
-        if (filesOnly.length > 0) {
-            Client.post<QuickLaunchApp[]>(
-                "/hpc/apps/bySupportedFileExtension",
-                {files: filesOnly.map(f => f.path)}
-            ).then(({response}) => {
-                const newApplications = new Map<string, QuickLaunchApp[]>();
-                filesOnly.forEach(f => {
-                    const fileApps: QuickLaunchApp[] = [];
 
-                    const [fileName] = f.path.split("/").slice(-1);
-                    let [fileExtension] = fileName.split(".").slice(-1);
-
-                    if (fileName !== fileExtension) {
-                        fileExtension = `.${fileExtension}`;
-                    }
-
-                    response.forEach(item => {
-                        item.extensions.forEach(ext => {
-                            if (fileExtension === ext) {
-                                fileApps.push(item);
-                            }
-                        });
-                    });
-
-                    newApplications.set(f.path, fileApps);
-                });
-                setApplications(newApplications);
-            }).catch(e =>
-                snackbarStore.addFailure(
-                    UF.errorMessageOrDefault(e, "An error occurred fetching Quicklaunch Apps"), false
-                ));
-        }
-    }, [page]);
+    const applications = useAppQuickLaunch(page, Client);
 
     useEffect(() => {
         if (!props.embedded) {
@@ -445,8 +396,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         allFiles.every(f => checkedFiles.has(f.path) || f.mockTag !== undefined);
     const isMasterDisabled = allFiles.every(f => f.mockTag !== undefined);
     const isAnyLoading = workLoading || pageLoading;
-    const checkedFilesWithInfo = allFiles
-        .filter(f => f.path && checkedFiles.has(f.path) && f.mockTag === undefined);
+    const checkedFilesWithInfo = allFiles.filter(f => f.path && checkedFiles.has(f.path) && f.mockTag === undefined);
     const onFileNavigation = (path: string): void => {
         setCheckedFiles(new Set());
         setFileBeingRenamed(null);
@@ -487,8 +437,8 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                     <Card
                                         onClick={() => onFileNavigation(Client.homeFolder)}
                                         cursor="pointer"
-                                        mr="8px"
                                         height="auto"
+                                        mr="8px"
                                         pb="4px"
                                         alignItems="center"
                                         width="100px"
@@ -543,11 +493,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
-                            <RepositoryOperations
-                                role={projectMember.role}
-                                path={props.path}
-                                createFolder={callbacks.requestFolderCreation}
-                            />
+                            <RepositoryOperations path={props.path} createFolder={callbacks.requestFolderCreation} />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
@@ -562,11 +508,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                     type: "DIRECTORY"
                                 })}
                             />
-
                             <Box flexGrow={1} />
-
-                            {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
-
                             <OutlineButton
                                 onClick={(): void => activeUploadCount ? addStandardDialog({
                                     title: "Continue",
@@ -1080,9 +1022,9 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 function RepositoryOperations(props: {
     path: string | undefined;
     createFolder: (isRepo?: boolean) => void;
-    role: ProjectRole;
 }): JSX.Element | null {
-    if (props.path === undefined || !isProjectHome(props.path) || !isAdminOrPI(props.role)) {
+    const {projectRole} = useProjectManagementStatus(true);
+    if (props.path === undefined || !isProjectHome(props.path) || !isAdminOrPI(projectRole)) {
         return null;
     }
     return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;
@@ -1168,8 +1110,8 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
     };
 
     const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
-        // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
+        // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
         let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {
             As = OutlineButton;
@@ -1209,15 +1151,11 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
         return <Box width="38px" />;
     }
 
-    const content = (
-        <>
-            {filteredButtons.map((op, i) => <Operation fileOp={op} key={i} />)}
-            {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
-                <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>
-            }
-            {filteredOptions.map((op, i) => <Operation fileOp={op} key={i} />)}
-        </>
-    );
+    const content: JSX.Element[] =
+        filteredButtons.map((op, i) => <Operation fileOp={op} key={i} />)
+            .concat(files.length === 0 || fileOperations.length === 1 || props.inDropdown ? [] :
+                <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>)
+            .concat(filteredOptions.map((op, i) => <Operation fileOp={op} key={i} />));
 
     return (props.inDropdown ?
         <Box>
@@ -1237,11 +1175,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
             >
                 {content}
             </ClickableDropdown>
-        </Box> : (
-            <>
-                {content}
-            </>
-        )
+        </Box> : <>{content}</>
     );
 };
 
