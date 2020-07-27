@@ -333,35 +333,25 @@ const Subprojects: React.FunctionComponent = () => {
                                     </form>
                                 </SearchContainer>
                                 <Box mt={20}>
-                                    <>
-                                        <Table>
-                                            <tbody>
-                                                <tr>
-                                                    <td>
-                                                        <Pagination.List
-                                                            page={subprojects.data}
-                                                            pageRenderer={pageRenderer}
-                                                            loading={subprojects.loading}
-                                                            onPageChanged={newPage => {
-                                                                setSubprojectParams(
-                                                                    listSubprojects({
-                                                                        page: newPage,
-                                                                        itemsPerPage: 50,
-                                                                    })
-                                                                );
-                                                            }}
-                                                            customEmptyPage={
-                                                                <Flex justifyContent="center" alignItems="center" height="200px">
-                                                                    This project doesn&apos;t have any subprojects.
-                                                                    {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
-                                                                </Flex>
-                                                            }
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </Table>
-                                    </>
+                                    <Pagination.List
+                                        page={subprojects.data}
+                                        pageRenderer={pageRenderer}
+                                        loading={subprojects.loading}
+                                        onPageChanged={newPage => {
+                                            setSubprojectParams(
+                                                listSubprojects({
+                                                    page: newPage,
+                                                    itemsPerPage: 50,
+                                                })
+                                            );
+                                        }}
+                                        customEmptyPage={
+                                            <Flex justifyContent="center" alignItems="center" height="200px">
+                                                This project doesn&apos;t have any subprojects.
+                                                {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
+                                            </Flex>
+                                        }
+                                    />
                                 </Box>
                             </Box>
                         </Box>
@@ -371,7 +361,7 @@ const Subprojects: React.FunctionComponent = () => {
         />
     );
 
-    function pageRenderer(page: Page<Project>): JSX.Element[] {
+    function pageRenderer(page: Page<Project>): JSX.Element {
         const filteredItems = (subprojectSearchQuery === "" ? page.items :
             page.items.filter(it =>
                 it.title.toLowerCase()
@@ -379,20 +369,26 @@ const Subprojects: React.FunctionComponent = () => {
             )
         );
 
-        return filteredItems.map(subproject => {
-            return <SubprojectRow
-                key={subproject.id}
-                subproject={subproject}
-                shakeWallets={shakeWallets}
-                requestReload={reloadWallets}
-                walletBalance={selectedWallet === null ?
-                    undefined :
-                    subprojectWallets.find(it => it.wallet.id === subproject.id) ??
-                    {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
-                }
-                allowManagement={allowManagement}
-            />;
-        });
+        return (
+            <Table>
+                <tbody>
+                    {filteredItems.map(subproject => {
+                        return <SubprojectRow
+                            key={subproject.id}
+                            subproject={subproject}
+                            shakeWallets={shakeWallets}
+                            requestReload={reloadWallets}
+                            walletBalance={selectedWallet === null ?
+                                undefined :
+                                subprojectWallets.find(it => it.wallet.id === subproject.id) ??
+                                {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
+                            }
+                            allowManagement={allowManagement}
+                        />;
+                    })}
+                </tbody>
+            </Table>
+        );
     }
 };
 
