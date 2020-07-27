@@ -1,4 +1,4 @@
-import {ReduxObject, emptyPage} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Link from "ui-components/Link";

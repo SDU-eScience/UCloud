@@ -8,7 +8,7 @@ import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
 import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
-import {HeaderSearchType, KeyCode, ReduxObject} from "DefaultObjects";
+import {HeaderSearchType, KeyCode} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {setFilename} from "Files/Redux/DetailedFileSearchActions";

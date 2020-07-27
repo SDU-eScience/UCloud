@@ -1,7 +1,7 @@
 import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
-import {emptyPage, ReduxObject} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";

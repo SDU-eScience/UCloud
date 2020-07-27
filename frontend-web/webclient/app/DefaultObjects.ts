@@ -163,11 +163,12 @@ interface LegacyReduxObject {
     project: ProjectRedux.State;
     loading?: boolean;
 }
-
-export type ReduxObject =
-    LegacyReduxObject &
-    ApplicationRedux.Objects &
-    TaskReduxState;
+declare global {
+    export type ReduxObject =
+        LegacyReduxObject &
+        ApplicationRedux.Objects &
+        TaskReduxState;
+}
 
 export const initActivity = (): ActivityReduxObject => ({
     loading: false

@@ -1,6 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Avatar} from "AvataaarLib";
-import {ReduxObject} from "DefaultObjects";
 import Spinner from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setActivePage, useTitle} from "Navigation/Redux/StatusActions";

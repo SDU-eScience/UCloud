@@ -2,7 +2,6 @@ import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {Progress, Speed, Task, TaskUpdate} from "BackgroundTasks/api";
 import DetailedTask from "BackgroundTasks/DetailedTask";
 import {taskLoadAction, taskUpdateAction} from "BackgroundTasks/redux";
-import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import * as ReactModal from "react-modal";

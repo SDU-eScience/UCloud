@@ -6,7 +6,7 @@ import {inDevEnvironment} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
 import {useHistory, useParams} from "react-router";
 import {useSelector} from "react-redux";
-import {ReduxObject, emptyPage} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import {useProjectStatus} from "./cache";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";

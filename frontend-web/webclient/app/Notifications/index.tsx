@@ -1,6 +1,6 @@
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
-import {NotificationsReduxObject, ReduxObject} from "DefaultObjects";
+import {NotificationsReduxObject} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Redirect, useHistory} from "react-router";

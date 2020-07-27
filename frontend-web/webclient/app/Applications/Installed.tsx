@@ -1,6 +1,5 @@
 import {FullAppInfo, WithAppFavorite, WithAppMetadata} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
-import {ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";

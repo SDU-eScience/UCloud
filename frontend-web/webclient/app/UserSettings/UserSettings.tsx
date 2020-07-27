@@ -1,5 +1,4 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {ReduxObject} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setLoading, SetStatusLoading, useTitle} from "Navigation/Redux/StatusActions";

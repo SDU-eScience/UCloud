@@ -1,4 +1,3 @@
-import {ReduxObject} from "DefaultObjects";
 import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";

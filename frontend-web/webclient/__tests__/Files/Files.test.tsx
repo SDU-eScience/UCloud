@@ -14,7 +14,8 @@ jest.mock("Utilities/ProjectUtilities", () => ({
 }));
 
 jest.mock("Project/index", () => ({
-    ProjectRole: {USER: "USER"}
+    ProjectRole: {USER: "USER"},
+    useProjectManagementStatus: () => ({projectRole: "USER"})
 }));
 
 test("Mount Files component", async () => {

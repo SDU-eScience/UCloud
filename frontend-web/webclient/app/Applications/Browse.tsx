@@ -1,5 +1,4 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";

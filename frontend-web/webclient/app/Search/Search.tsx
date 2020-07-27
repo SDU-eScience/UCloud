@@ -3,7 +3,7 @@ import {ApplicationCard} from "Applications/Card";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
 import {Client} from "Authentication/HttpClientInstance";
-import {emptyPage, HeaderSearchType, ReduxObject} from "DefaultObjects";
+import {emptyPage, HeaderSearchType} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, FileType} from "Files";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {EmbeddedFileTable} from "Files/FileTable";

@@ -2,7 +2,6 @@ import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
-import {ReduxObject} from "DefaultObjects";
 import {SortOrder} from "Files";
 import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";

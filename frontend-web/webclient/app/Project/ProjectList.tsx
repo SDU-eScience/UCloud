@@ -1,5 +1,5 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {emptyPage, ReduxObject} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import {

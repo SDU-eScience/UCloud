@@ -1,6 +1,5 @@
 import {FullAppInfo, WithAppInvocation, WithAppMetadata} from "Applications";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import {ReduxObject} from "DefaultObjects";
 import {LoadableContent, loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
 import {updatePageTitle, UpdatePageTitleAction} from "Navigation/Redux/StatusActions";
