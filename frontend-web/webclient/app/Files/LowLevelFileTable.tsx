@@ -1,3 +1,5 @@
+import * as React from "react";
+import {useEffect, useState} from "react";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
@@ -13,52 +15,27 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
 import PromiseKeeper, {usePromiseKeeper} from "PromiseKeeper";
-import * as React from "react";
-import {useEffect, useState} from "react";
 import {useDispatch, useSelector} from "react-redux";
 import {useHistory} from "react-router";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {
-    Button, Card, Checkbox, Divider, Hide, Icon, Input, Label, Link, List, OutlineButton, Text, Tooltip, Truncate
+    Button, Box, Flex, Card, Checkbox, Divider, Hide, Icon, Input,
+    Label, Link, List, OutlineButton, Text, Tooltip, Truncate
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
-import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import {IconName} from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import {TextSpan} from "ui-components/Text";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
-import {
-    createFolder,
-    filePreviewQuery,
-    getFilenameFromPath,
-    getParentPath,
-    isAnyMockFile,
-    isDirectory,
-    isFilePreviewSupported,
-    isInvalidPathName,
-    isMyPersonalFolder,
-    isPartOfProject,
-    isPartOfSomePersonalFolder,
-    isProjectHome,
-    MOCK_RELATIVE,
-    MOCK_RENAME_TAG,
-    MOCK_REPO_CREATE_TAG,
-    MOCK_VIRTUAL,
-    mockFile,
-    moveFile, projectIdFromPath,
-    resolvePath,
-    sizeToString,
-} from "Utilities/FileUtilities";
+import * as FUtils from "Utilities/FileUtilities";
+import * as UF from "UtilityFunctions";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon, ConfirmCancelButtons} from "UtilityComponents";
-import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {
@@ -115,12 +92,7 @@ export const statFile = (request: {path: string}): APICallParameters<{path: stri
 });
 
 export const listDirectory = ({
-    path,
-    page,
-    itemsPerPage,
-    order,
-    sortBy,
-    type
+    path, page, itemsPerPage, order, sortBy, type
 }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
@@ -144,9 +116,7 @@ const loadFiles = async (
     promises: PromiseKeeper
 ): Promise<void> => {
     try {
-        const response = await callAPI<Page<File>>(listDirectory({
-            ...request
-        }));
+        const response = await callAPI<Page<File>>(listDirectory({...request}));
         if (promises.canceledKeeper) return;
         callback(response);
     } catch (e) {
@@ -300,7 +270,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     useEffect(() => {
         const isKnownToBeFavorite = props.path === Client.favoritesFolder;
         const files = page.items
-            .filter(it => it.mockTag === MOCK_VIRTUAL || it.mockTag === undefined)
+            .filter(it => it.mockTag === FUtils.MOCK_VIRTUAL || it.mockTag === undefined)
             .map(it => it.path);
 
         favorites.updateCache(files, isKnownToBeFavorite);
@@ -342,9 +312,9 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
             if (props.path === undefined) return;
             const path = `${props.path}/newFolder`;
             setInjectedViaState([
-                mockFile({
+                FUtils.mockFile({
                     path,
-                    tag: isRepo ? MOCK_REPO_CREATE_TAG : MOCK_RENAME_TAG,
+                    tag: isRepo ? FUtils.MOCK_REPO_CREATE_TAG : FUtils.MOCK_RENAME_TAG,
                     type: "DIRECTORY"
                 })
             ]
@@ -423,7 +393,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                 <Spacer
                     left={(
                         <BreadCrumbs
-                            embedded={props.embedded ?? false}
+                            embedded={!!props.embedded}
                             currentPath={props.path ?? ""}
                             navigate={onFileNavigation}
                             client={Client}
@@ -501,10 +471,10 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                 role={projectMember?.role}
                                 // Don't pass a directory if the page is set.
                                 // This should indicate that the path is fake.
-                                directory={props.page !== undefined ? undefined : mockFile({
+                                directory={props.page !== undefined ? undefined : FUtils.mockFile({
                                     path: props.path ? props.path : "",
                                     fileId: "currentDir",
-                                    tag: MOCK_RELATIVE,
+                                    tag: FUtils.MOCK_RELATIVE,
                                     type: "DIRECTORY"
                                 })}
                             />
@@ -546,7 +516,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                                 size={27}
                                                 data-tag="masterCheckbox"
                                                 onClick={() => setChecked(
-                                                    allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked
+                                                    allFiles.filter(it => !FUtils.isAnyMockFile([it])), !isMasterChecked
                                                 )}
                                                 checked={isMasterChecked}
                                                 disabled={isMasterDisabled}
@@ -649,25 +619,25 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         } else if (key === KeyCode.ENTER) {
             const file = allFiles.find(f => f.path === fileBeingRenamed);
             if (file === undefined) return;
-            const isProjectRepo = file.mockTag === MOCK_REPO_CREATE_TAG || !!file.isRepo;
-            const fileNames = allFiles.map(f => getFilenameFromPath(f.path, []));
-            if (isInvalidPathName({path: name, filePaths: fileNames})) return;
+            const isProjectRepo = file.mockTag === FUtils.MOCK_REPO_CREATE_TAG || !!file.isRepo;
+            const fileNames = allFiles.map(f => FUtils.getFilenameFromPath(f.path, []));
+            if (FUtils.isInvalidPathName({path: name, filePaths: fileNames})) return;
             if (isProjectRepo) {
-                if (file.mockTag === MOCK_REPO_CREATE_TAG) {
+                if (file.mockTag === FUtils.MOCK_REPO_CREATE_TAG) {
                     createRepository(Client, name, callbacks.requestReload);
                 } else {
-                    renameRepository(getFilenameFromPath(file.path, []), name, Client, callbacks.requestReload);
+                    renameRepository(FUtils.getFilenameFromPath(file.path, []), name, Client, callbacks.requestReload);
                 }
             } else {
-                const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
-                if (file.mockTag === MOCK_RENAME_TAG) {
-                    createFolder({
+                const fullPath = `${UF.addTrailingSlash(FUtils.getParentPath(file.path))}${name}`;
+                if (file.mockTag === FUtils.MOCK_RENAME_TAG) {
+                    FUtils.createFolder({
                         path: fullPath,
                         client: Client,
                         onSuccess: () => callbacks.requestReload()
                     });
                 } else {
-                    moveFile({
+                    FUtils.moveFile({
                         oldPath: file.path,
                         newPath: fullPath,
                         client: Client,
@@ -686,7 +656,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                         key={f.path}
                         isSelected={checkedFiles.has(f.path)}
                         select={() => {
-                            if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
+                            if (!FUtils.isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
                         navigate={() => onFileNavigation(f.path)}
                         left={<NameBox
@@ -700,7 +670,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                             projectRole={projectMember.role}
                         />}
                         right={
-                            (f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
+                            (f.mockTag !== undefined && f.mockTag !== FUtils.MOCK_RELATIVE) ? null : (
                                 <Flex alignItems="center" onClick={UF.stopPropagation}>
                                     {props.permissionAlertEnabled !== true || f.permissionAlert !== true ? null : (
                                         <Tooltip
@@ -737,7 +707,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                             Non-standard metadata
                                         </Tooltip>
                                     )}
-                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
+                                    {!(props.previewEnabled && FUtils.isFilePreviewSupported(f)) ? null :
                                         f.size != null
                                             && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
                                                 <Tooltip
@@ -747,7 +717,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                                     top="1"
                                                     mb="50px"
                                                     trigger={(
-                                                        <Link to={filePreviewQuery(f.path)}>
+                                                        <Link to={FUtils.filePreviewQuery(f.path)}>
                                                             <Icon
                                                                 cursor="pointer"
                                                                 size="24px"
@@ -830,7 +800,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
 };
 
 function messageFromError(error: string): string {
-    if (error === "Not Found") return "Folder not found.";
+    if (error === "Not Found ") return "Folder not found.";
     if (error === "Forbidden") return "You do not have access to this folder.";
     return error;
 }
@@ -877,26 +847,15 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
 
 
 function getFileNameForNameBox(path: string, projectStatus: ProjectStatus): string {
-    if (isMyPersonalFolder(path)) {
+    if (FUtils.isMyPersonalFolder(path)) {
         return `Personal Files (${Client.username})`;
-    } else if (isProjectHome(path)) {
-        const projectId = projectIdFromPath(path);
+    } else if (FUtils.isProjectHome(path)) {
+        const projectId = FUtils.projectIdFromPath(path);
         return projectStatus.fetch().membership.find(it => it.projectId === projectId)?.title
-            ?? getFilenameFromPath(path, []);
+            ?? FUtils.getFilenameFromPath(path, []);
     }
 
-    return getFilenameFromPath(path, []);
-}
-
-interface NameBoxProps {
-    file: File;
-    onRenameFile: (keycode: number, value: string) => void;
-    onNavigate: (path: string) => void;
-    fileBeingRenamed: string | null;
-    callbacks: FileOperationCallback;
-    previewEnabled?: boolean;
-    projectRole?: ProjectRole;
-    isEmbedded?: boolean;
+    return FUtils.getFilenameFromPath(path, []);
 }
 
 const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}): JSX.Element => {
@@ -905,8 +864,8 @@ const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: st
     return (
         <Flex width={1} alignItems="center">
             <Input
-                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path, projectNames)}
-                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path, projectNames)}
+                placeholder={props.file.mockTag ? "" : FUtils.getFilenameFromPath(props.file.path, projectNames)}
+                defaultValue={props.file.mockTag ? "" : FUtils.getFilenameFromPath(props.file.path, projectNames)}
                 pt="0px"
                 pb="0px"
                 pr="0px"
@@ -932,10 +891,22 @@ const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: st
     );
 };
 
+
+interface NameBoxProps {
+    file: File;
+    onRenameFile: (keycode: number, value: string) => void;
+    onNavigate: (path: string) => void;
+    fileBeingRenamed: string | null;
+    callbacks: FileOperationCallback;
+    previewEnabled?: boolean;
+    projectRole?: ProjectRole;
+    isEmbedded?: boolean;
+}
+
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const projectStatus = useProjectStatus();
     const favorites = useFavoriteStatus();
-    const canNavigate = isDirectory({fileType: props.file.fileType});
+    const canNavigate = FUtils.isDirectory({fileType: props.file.fileType});
 
     const icon = (
         <Flex mr="10px" alignItems="center" cursor="inherit">
@@ -959,7 +930,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     return (
         <Flex maxWidth={`calc(100% - ${220 + (props.isEmbedded ? 15 : 0)}px)`}>
             <Flex mx="10px" alignItems="center">
-                {isAnyMockFile([props.file]) ? <Box width="24px" /> : (
+                {FUtils.isAnyMockFile([props.file]) ? <Box width="24px" /> : (
                     <Icon
                         cursor="pointer"
                         size="24"
@@ -980,22 +951,21 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         onClick={e => {
                             e.preventDefault();
                             e.stopPropagation();
-                            props.onNavigate(resolvePath(props.file.path));
+                            props.onNavigate(FUtils.resolvePath(props.file.path));
                         }}
                     >
                         {fileName}
                     </BaseLink>
-                ) : props.previewEnabled && isFilePreviewSupported(props.file) && !beingRenamed &&
+                ) : props.previewEnabled && FUtils.isFilePreviewSupported(props.file) && !beingRenamed &&
                     UF.inRange({status: props.file.size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) ?
-                        <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
-                        fileName
+                        <Link to={FUtils.filePreviewQuery(props.file.path)}>{fileName}</Link> : fileName
                 }
 
                 <Hide sm xs>
                     <Flex mt="4px">
-                        {!props.file.size || isDirectory(props.file) ? null : (
+                        {!props.file.size || FUtils.isDirectory(props.file) ? null : (
                             <Text fontSize={0} title="Size" mr="12px" color="gray">
-                                {sizeToString(props.file.size)}
+                                {FUtils.sizeToString(props.file.size)}
                             </Text>
                         )}
                         {!props.file.modifiedAt ? null : (
@@ -1005,7 +975,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                             </Text>
                         )}
                         {!((props.file.acl?.length ?? 0) > 0) ? (
-                            !isPartOfProject(props.file.path) || isPartOfSomePersonalFolder(props.file.path) ||
+                            !FUtils.isPartOfProject(props.file.path) || FUtils.isPartOfSomePersonalFolder(props.file.path) ||
                                 props.projectRole === undefined || !isAdminOrPI(props.projectRole) ?
                                 null :
                                 <Text color={"red"} mr={"12px"} fontSize={0}>PROJECT ADMINS ONLY</Text>
@@ -1024,7 +994,7 @@ function RepositoryOperations(props: {
     createFolder: (isRepo?: boolean) => void;
 }): JSX.Element | null {
     const {projectRole} = useProjectManagementStatus(true);
-    if (props.path === undefined || !isProjectHome(props.path) || !isAdminOrPI(projectRole)) {
+    if (props.path === undefined || !FUtils.isProjectHome(props.path) || !isAdminOrPI(projectRole)) {
         return null;
     }
     return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;
@@ -1194,7 +1164,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
             <Flex
                 cursor="pointer"
                 alignItems="center"
-                onClick={() => quickLaunchCallback(quickLaunchApp, getParentPath(file.path), props.history)}
+                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), props.history)}
                 width="auto"
                 {...props}
             >
