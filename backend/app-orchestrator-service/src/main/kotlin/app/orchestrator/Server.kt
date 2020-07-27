@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.app.orchestrator.api.AppOrchestratorServiceDescription
 
 class Server(override val micro: Micro, val config: Configuration) : CommonServer {
     override val log = logger()
@@ -104,7 +105,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         AppProcessor(
             streams,
             jobOrchestrator,
-            applicationService
+            applicationService,
+            AppOrchestratorServiceDescription
         ).init()
 
         with(micro.server) {

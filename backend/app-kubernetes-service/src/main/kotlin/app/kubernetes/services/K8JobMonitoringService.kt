@@ -125,7 +125,7 @@ class K8JobMonitoringService(
                     }
                 }
             }
-        })
+        }, k8.nameAllocator.namespace)
     }
 
     suspend fun runPostCreateHandlers(

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.processors
 
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.events.EventConsumer
@@ -17,10 +18,11 @@ import java.nio.file.attribute.PosixFilePermissions
 class ProjectProcessor(
     private val streams: EventStreamService,
     private val rootFolder: File,
-    private val authenticatedClient: AuthenticatedClient
+    private val authenticatedClient: AuthenticatedClient,
+    private val description: ServiceDescription
 ) {
     fun init() {
-        streams.subscribe(ProjectEvents.events, EventConsumer.Immediate(this::handleEvent))
+        streams.subscribe(ProjectEvents.events, EventConsumer.Immediate(this::handleEvent), description.name)
     }
 
     private suspend fun handleEvent(event: ProjectEvent) {

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.processors
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.events.EventConsumer
@@ -17,10 +18,11 @@ import java.nio.file.attribute.PosixFilePermissions
 class UserProcessor(
     private val streams: EventStreamService,
     private val rootFolder: File,
-    private val homeFolderService: HomeFolderService
+    private val homeFolderService: HomeFolderService,
+    private val description: ServiceDescription
 ) {
     fun init() {
-        streams.subscribe(AuthStreams.UserUpdateStream, EventConsumer.Immediate(this::handleEvent))
+        streams.subscribe(AuthStreams.UserUpdateStream, EventConsumer.Immediate(this::handleEvent), description.name)
     }
 
     private suspend fun handleEvent(event: UserEvent) {

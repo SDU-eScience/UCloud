@@ -6,11 +6,7 @@ import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.startServices
-import org.apache.http.HttpHost
-import org.elasticsearch.client.RestClient
-import org.elasticsearch.client.RestHighLevelClient
-import java.net.InetAddress
-import java.net.UnknownHostException
+import dk.sdu.cloud.audit.ingestion.api.AuditIngestionServiceDescription
 
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
@@ -18,7 +14,7 @@ class Server(override val micro: Micro) : CommonServer {
     override fun start() {
         val client = micro.elasticHighLevelClient
 
-        AuditProcessor(micro.eventStreamService, client).init()
+        AuditProcessor(micro.eventStreamService, client, AuditIngestionServiceDescription).init()
 
         startServices()
     }

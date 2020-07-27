@@ -36,7 +36,6 @@ class RedisFeature : MicroFeature {
 
         ctx.eventStreamService = RedisStreamService(
             ctx.redisConnectionManager,
-            ctx.serviceDescription.name,
             ctx.serviceInstance.hostname
         )
 

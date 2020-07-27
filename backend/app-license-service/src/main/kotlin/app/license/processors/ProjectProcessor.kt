@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.license.processors
 
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.project.api.ProjectEvent
@@ -9,10 +10,11 @@ import dk.sdu.cloud.service.Loggable
 
 class ProjectProcessor(
     private val streams: EventStreamService,
-    private val appLicenseService: AppLicenseService
+    private val appLicenseService: AppLicenseService,
+    private val description: ServiceDescription
 ) {
     fun init() {
-        streams.subscribe(ProjectEvents.events, EventConsumer.Immediate(this::handleEvent))
+        streams.subscribe(ProjectEvents.events, EventConsumer.Immediate(this::handleEvent), description.name)
     }
 
     private suspend fun handleEvent(event: ProjectEvent) {

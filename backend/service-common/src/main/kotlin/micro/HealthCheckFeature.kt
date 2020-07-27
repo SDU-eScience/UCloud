@@ -180,7 +180,7 @@ class HealthCheckFeature : MicroFeature {
             if (event.id == uuid && now - event.timestamp < REDIS_HEALTH_STREAM_MESSAGE_MAX_AGE) {
                 lastObservedRedisMessage = now
             }
-        })
+        }, ctx.serviceDescription.name)
 
         lastObservedRedisMessage = System.currentTimeMillis()
         return true

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.processors
 
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.app.orchestrator.services.ApplicationService
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.store.api.AppEvent
@@ -11,10 +12,11 @@ import dk.sdu.cloud.service.Loggable
 class AppProcessor(
     private val streams: EventStreamService,
     private val jobService: JobOrchestrator,
-    private val appService: ApplicationService
+    private val appService: ApplicationService,
+    private val description: ServiceDescription
 ) {
     fun init() {
-        streams.subscribe(AppStoreStreams.AppDeletedStream, EventConsumer.Immediate(this::handleEvent))
+        streams.subscribe(AppStoreStreams.AppDeletedStream, EventConsumer.Immediate(this::handleEvent), description.name)
     }
 
     private suspend fun handleEvent(event: AppEvent) {

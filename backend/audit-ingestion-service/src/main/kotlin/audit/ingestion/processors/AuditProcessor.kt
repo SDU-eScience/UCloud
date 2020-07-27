@@ -1,6 +1,7 @@
 package dk.sdu.cloud.audit.ingestion.processors
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStream
@@ -28,7 +29,8 @@ object HttpLogsStream : EventStream<String> {
 
 class AuditProcessor(
     private val events: EventStreamService,
-    private val client: RestHighLevelClient
+    private val client: RestHighLevelClient,
+    private val description: ServiceDescription
 ) {
     fun init() {
         events.subscribe(HttpLogsStream, EventConsumer.Batched { rawBatch ->
@@ -63,7 +65,7 @@ class AuditProcessor(
                 .forEach { chunk ->
                     client.bulk(BulkRequest().also { it.add(chunk) }, RequestOptions.DEFAULT)
                 }
-        })
+        }, description.name)
     }
 
     companion object : Loggable {

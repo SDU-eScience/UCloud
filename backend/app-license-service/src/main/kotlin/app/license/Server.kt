@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.license
 
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.app.license.rpc.*
@@ -11,6 +12,7 @@ import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.app.license.api.AppLicenseServiceDescription
 
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
@@ -22,8 +24,9 @@ class Server(override val micro: Micro) : CommonServer {
     val aclService = AclService(db, authenticatedClient, aclDao)
     val appLicenseService = AppLicenseService(db, aclService, appLicenseDao, authenticatedClient)
 
+
     override fun start() {
-        ProjectProcessor(streams, appLicenseService).init()
+        ProjectProcessor(streams, appLicenseService, AppLicenseServiceDescription).init()
         with(micro.server) {
             configureControllers(
                 AppLicenseController(appLicenseService)

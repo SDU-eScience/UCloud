@@ -42,6 +42,7 @@ interface EventStreamService {
     fun <V : Any> subscribe(
         stream: EventStream<V>,
         consumer: EventConsumer<V>,
+        group: String,
         rescheduleIdleJobsAfterMs: Long = 1000 * 60 * 5L
     )
 

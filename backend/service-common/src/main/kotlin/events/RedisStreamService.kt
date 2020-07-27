@@ -65,7 +65,6 @@ internal object RedisScope : CoroutineScope, Loggable {
 
 class RedisStreamService(
     public val connManager: RedisConnectionManager,
-    private val group: String,
     private val consumerId: String
 ) : EventStreamService {
     private suspend fun initializeStream(redis: RedisAsyncCommands<String, String>, stream: EventStream<*>) {
@@ -81,14 +80,16 @@ class RedisStreamService(
     override fun <V : Any> subscribe(
         stream: EventStream<V>,
         consumer: EventConsumer<V>,
+        group: String,
         rescheduleIdleJobsAfterMs: Long
     ) {
-        internalSubscribe(stream, consumer, rescheduleIdleJobsAfterMs)
+        internalSubscribe(stream, consumer, group, rescheduleIdleJobsAfterMs)
     }
 
     private fun <V : Any> internalSubscribe(
         stream: EventStream<V>,
         consumer: EventConsumer<V>,
+        group: String,
         rescheduleIdleJobsAfterMs: Long,
         criticalFailureTimestamps: List<Long> = emptyList()
     ) {
@@ -202,6 +203,7 @@ class RedisStreamService(
                 internalSubscribe(
                     stream,
                     consumer,
+                    group,
                     rescheduleIdleJobsAfterMs,
                     criticalFailureTimestamps + System.currentTimeMillis()
                 )

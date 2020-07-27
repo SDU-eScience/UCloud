@@ -35,6 +35,7 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.file.processors.ProjectProcessor
+import dk.sdu.cloud.storage.api.StorageServiceDescription
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -89,10 +90,11 @@ class Server(
         UserProcessor(
             streams,
             fsRootFile,
-            homeFolderService
+            homeFolderService,
+            StorageServiceDescription
         ).init()
 
-        ProjectProcessor(streams, fsRootFile, client).init()
+        ProjectProcessor(streams, fsRootFile, client, StorageServiceDescription).init()
 
         val metadataRecovery = MetadataRecoveryService(
             micro.backgroundScope,
