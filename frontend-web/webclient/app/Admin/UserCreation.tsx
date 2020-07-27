@@ -1,6 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {MainContainer} from "MainContainer/MainContainer";
-import {setActivePage, setLoading, SetStatusLoading} from "Navigation/Redux/StatusActions";
+import {setLoading, SetStatusLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -8,7 +8,7 @@ import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Input, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import {SidebarPages} from "ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {UserCreationState} from ".";
 
@@ -46,14 +46,13 @@ const reducer = (state: UserCreationState, action: UserCreationActionType): User
     }
 };
 
-function UserCreation(props: UserCreationOperations): JSX.Element | null {
+function UserCreation(props: SetStatusLoading): JSX.Element | null {
     const [state, dispatch] = React.useReducer(reducer, initialState, () => initialState);
     const [submitted, setSubmitted] = React.useState(false);
     const promiseKeeper = usePromiseKeeper();
 
-    React.useEffect(() => {
-        props.setActivePage();
-    }, []);
+    useTitle("User Creation");
+    useSidebarPage(SidebarPages.Admin);
 
     if (!Client.userIsAdmin) return null;
 
@@ -176,12 +175,7 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
     }
 }
 
-interface UserCreationOperations extends SetStatusLoading {
-    setActivePage: () => void;
-}
-
-const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
+const mapDispatchToProps = (dispatch: Dispatch): SetStatusLoading => ({
     setLoading: loading => dispatch(setLoading(loading))
 });
 

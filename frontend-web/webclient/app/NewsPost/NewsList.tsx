@@ -1,6 +1,5 @@
 import * as React from "react";
-import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
-import {PaginationRequest, Page} from "Types";
+import {useCloudAPI} from "Authentication/DataHook";
 import * as Heading from "ui-components/Heading";
 import {Link, Text, Flex, Box, Icon, theme, Grid} from "ui-components";
 import {buildQueryString} from "Utilities/URIUtilities";
@@ -13,6 +12,7 @@ import {format} from "date-fns/esm";
 import {Tag, hashF, appColor} from "Applications/Card";
 import {capitalized} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;
@@ -45,6 +45,8 @@ export const NewsList: React.FC = () => {
             })
         );
     }, [filter]);
+
+    useTitle("News");
 
     return (
         <MainContainer

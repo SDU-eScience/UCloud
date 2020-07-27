@@ -6,7 +6,7 @@ import {
     subprojectsCountRequest
 } from "Project";
 import * as React from "react";
-import {Flex, theme, Card, Icon, Text} from "ui-components";
+import {Flex, Card, Icon, Text} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -19,7 +19,6 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {ProductArea, UsageResponse, transformUsageChartForCharting, usage} from "Accounting";
 import {creditFormatter, durationOptions} from "./ProjectUsage";
 import Table, {TableCell, TableRow} from "ui-components/Table";
-import {Dictionary} from "Types";
 import styled from "styled-components";
 import {
     ingoingGrantApplications, IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings
@@ -94,11 +93,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
 
     const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.COMPUTE));
 
-    const computeCreditsUsedByWallet: Dictionary<Dictionary<number>> = {};
+    const computeCreditsUsedByWallet: Record<string, Record<string, number>> = {};
     let computeCreditsUsedInPeriod = 0;
 
     for (const chart of computeCharts) {
-        const usageByCurrentProvider: Dictionary<number> = {};
+        const usageByCurrentProvider: Record<string, number> = {};
         computeCreditsUsedByWallet[chart.provider] = usageByCurrentProvider;
 
         for (let i = 0; i < chart.points.length; i++) {
@@ -115,11 +114,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
 
     const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.STORAGE));
 
-    const storageCreditsUsedByWallet: Dictionary<Dictionary<number>> = {};
+    const storageCreditsUsedByWallet: Record<string, Record<string, number>> = {};
     let storageCreditsUsedInPeriod = 0;
 
     for (const chart of storageCharts) {
-        const usageByCurrentProvider: Dictionary<number> = {};
+        const usageByCurrentProvider: Record<string, number> = {};
         storageCreditsUsedByWallet[chart.provider] = usageByCurrentProvider;
 
         for (let i = 0; i < chart.points.length; i++) {

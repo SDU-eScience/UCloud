@@ -3,12 +3,11 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {createProject, listSubprojects, Project, useProjectManagementStatus} from "Project";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text, theme} from "ui-components";
+import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text} from "ui-components";
 import styled from "styled-components";
 import {emptyPage} from "DefaultObjects";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import * as Pagination from "Pagination";
@@ -26,6 +25,8 @@ import HexSpin, {HexSpinWrapper} from "LoadingIcon/LoadingIcon";
 import {Client} from "Authentication/HttpClientInstance";
 import {sizeToString} from "Utilities/FileUtilities";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -164,12 +165,16 @@ const Subprojects: React.FunctionComponent = () => {
     const newSubprojectRef = React.useRef<HTMLInputElement>(null);
     const [isLoading, runCommand] = useAsyncCommand();
 
+    useTitle("Resources");
+    useSidebarPage(SidebarPages.Projects);
+
     const {
         projectId,
         allowManagement,
         subprojectSearchQuery,
         setSubprojectSearchQuery,
-        projectRole
+        projectRole,
+        reloadProjectStatus
     } = useProjectManagementStatus(true);
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
@@ -232,6 +237,7 @@ const Subprojects: React.FunctionComponent = () => {
             }));
             inputField.value = "";
             reloadSubprojects();
+            reloadProjectStatus();
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed creating new project"), false);
         }

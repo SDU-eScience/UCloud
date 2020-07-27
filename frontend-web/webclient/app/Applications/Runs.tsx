@@ -13,7 +13,6 @@ import {List} from "Pagination/List";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Box, Button, Checkbox, Label, List as ItemList, Flex, Text, Icon, Divider} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";

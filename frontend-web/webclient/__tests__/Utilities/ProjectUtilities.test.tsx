@@ -1,7 +1,6 @@
 import * as React from "react";
 import * as ProjectUtils from "../../app/Utilities/ProjectUtilities";
 import {ProjectRole} from "../../app/Project";
-import {Page} from "../../app/Types";
 import {create} from "react-test-renderer";
 import {Client} from "../../app/Authentication/HttpClientInstance";
 import {GroupWithSummary} from "../../app/Project/GroupList";

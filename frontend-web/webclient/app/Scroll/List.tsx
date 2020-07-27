@@ -43,11 +43,11 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         this.state = {};
     }
 
-    public shouldComponentUpdate(nextProps: ListProps<Item, OffsetType>, nextState: ListState) {
+    public shouldComponentUpdate(nextProps: ListProps<Item, OffsetType>, nextState: ListState): boolean {
         return this.state !== nextState || this.props !== nextProps;
     }
 
-    public getSnapshotBeforeUpdate(prevProps: Readonly<ListProps<Item, OffsetType>>, prevState: Readonly<ListState>) {
+    public getSnapshotBeforeUpdate(prevProps: Readonly<ListProps<Item, OffsetType>>): null {
         const scroll = prevProps.scroll || {endOfScroll: false, nextOffset: null, items: []};
         const nextScrollOrDefault = this.scrollOrDefault;
 
@@ -63,7 +63,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         return null;
     }
 
-    public componentDidMount() {
+    public componentDidMount(): void {
         // Attach scroll listener
         this.eventListener = e => {
             // Request more when we reach the end of the page
@@ -143,11 +143,11 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         window.addEventListener("scroll", this.eventListener);
     }
 
-    public componentWillUnmount() {
+    public componentWillUnmount(): void {
         window.removeEventListener("scroll", this.eventListener);
     }
 
-    public componentDidUpdate() {
+    public componentDidUpdate(): void {
         const container = this.container.current;
         if (container !== null) {
             const offset = this.state.firstVisibleElement || 0;
@@ -178,7 +178,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         }
     }
 
-    public render() {
+    public render(): JSX.Element {
         return (
             <>
                 {this.renderBody()}
@@ -249,7 +249,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         );
     }
 
-    private requestMore(alwaysLoadMore: boolean) {
+    private requestMore(alwaysLoadMore: boolean): void {
         const {loading, onNextScrollRequested} = this.props;
         const scroll = this.scrollOrDefault;
         const size = this.scrollSizeOrDefault;
@@ -275,7 +275,7 @@ interface ListBodyProps {
 }
 
 class ListBody extends React.Component<ListBodyProps> {
-    public shouldComponentUpdate(nextProps: ListBodyProps) {
+    public shouldComponentUpdate(nextProps: ListBodyProps): boolean {
         const {props} = this;
         return props.spacingRequired !== nextProps.spacingRequired ||
             props.postSpacingRequired !== nextProps.postSpacingRequired ||
@@ -284,7 +284,7 @@ class ListBody extends React.Component<ListBodyProps> {
             props.items.length !== nextProps.items.length;
     }
 
-    public render() {
+    public render(): JSX.Element {
         const {
             spacingRequired, postSpacingRequired, firstVisibleElement, lastVisibleElement,
             containerRef, renderer, spacer, items

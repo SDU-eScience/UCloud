@@ -1,7 +1,7 @@
 import {Activity} from "Activity";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page, PayloadAction, SetLoadingAction} from "Types";
+import {PayloadAction, SetLoadingAction} from "Types";
 import {activityStreamByPath} from "Utilities/ActivityUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {FILE_INFO_ERROR, RECEIVE_FILE_ACTIVITY, SET_FILE_INFO_LOADING} from "./FileInfoReducer";

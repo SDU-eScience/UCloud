@@ -8,7 +8,6 @@ import {
     listByName,
     updateApplicationPermission,
     uploadLogo,
-    AccessEntity,
     AccessEntityType,
     DetailedAccessEntity
 } from "Applications/api";
@@ -31,7 +30,6 @@ import {RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Page} from "Types";
 import {Button, Checkbox, Flex, Icon, Label, Text, VerticalButtonGroup} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -58,7 +56,7 @@ const entityTypes = [
     {text: prettifyEntityType(AccessEntityType.PROJECT_GROUP), value: AccessEntityType.PROJECT_GROUP},
 ];
 
-function prettifyAccessRight(accessRight: ApplicationAccessRight) {
+function prettifyAccessRight(accessRight: ApplicationAccessRight): "Can launch" {
     switch (accessRight) {
         case ApplicationAccessRight.LAUNCH:
             return "Can launch";
@@ -76,7 +74,6 @@ function prettifyEntityType(entityType: AccessEntityType): string {
         default: {
             return "Unknown";
         }
-
     }
 }
 
@@ -86,7 +83,7 @@ async function loadApplicationPermissionEntries(appName: string): Promise<Applic
         permission: ApplicationAccessRight;
     }>>(`/hpc/apps/list-acl/${appName}`);
     return response.map(item => {
-        const entityObj: DetailedAccessEntity = { user: item.entity.user, project: item.entity.project, group: item.entity.group };
+        const entityObj: DetailedAccessEntity = {user: item.entity.user, project: item.entity.project, group: item.entity.group};
         const entry: ApplicationPermissionEntry = {
             entity: entityObj,
             permission: item.permission,
@@ -115,20 +112,20 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
         text-align: left;
     `;
 
-    async function setPermissionsOnInit() {
+    async function setPermissionsOnInit(): Promise<void> {
         setPermissionEntries(await loadApplicationPermissionEntries(name));
     }
 
     // Loading of permission entries
-    useEffect(() =>  {
+    useEffect(() => {
         setPermissionsOnInit();
     }, []);
 
     // Loading of application versions
-    useEffect(() =>  {
+    useEffect(() => {
         const appVersions: AppVersion[] = [];
         apps.data.items.forEach(item => {
-            appVersions.push({ version: item.metadata.version, isPublic: item.metadata.public });
+            appVersions.push({version: item.metadata.version, isPublic: item.metadata.public});
         });
         setVersions(appVersions);
     }, [apps.data.items]);
@@ -212,7 +209,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                             {tags.map(tag => (
                                 <Flex key={tag} mb={16}>
                                     <Box flexGrow={1}>
-                                        <Tag key={tag} label={tag}/>
+                                        <Tag key={tag} label={tag} />
                                     </Box>
                                     <Box>
                                         <Button
@@ -280,7 +277,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                 applicationName: name,
                                                 changes: [
                                                     {
-                                                        entity: { user: userValue, project: null, group: null},
+                                                        entity: {user: userValue, project: null, group: null},
                                                         rights: access,
                                                         revoke: false
                                                     }
@@ -307,7 +304,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                 applicationName: name,
                                                 changes: [
                                                     {
-                                                        entity: { user: null, project: projectValue, group: groupValue},
+                                                        entity: {user: null, project: projectValue, group: groupValue},
                                                         rights: access,
                                                         revoke: false
                                                     }
@@ -342,27 +339,27 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                             placeholder="Username"
                                         />
                                     ) : (
-                                        <>
-                                            <Input
-                                                leftLabel
-                                                rightLabel
-                                                required
-                                                width={180}
-                                                type="text"
-                                                ref={projectEntityField}
-                                                placeholder="Project name"
-                                            />
-                                            <Input
-                                                leftLabel
-                                                rightLabel
-                                                required
-                                                width={180}
-                                                type="text"
-                                                ref={groupEntityField}
-                                                placeholder="Group name"
-                                            />
-                                        </>
-                                    )}
+                                            <>
+                                                <Input
+                                                    leftLabel
+                                                    rightLabel
+                                                    required
+                                                    width={180}
+                                                    type="text"
+                                                    ref={projectEntityField}
+                                                    placeholder="Project name"
+                                                />
+                                                <Input
+                                                    leftLabel
+                                                    rightLabel
+                                                    required
+                                                    width={180}
+                                                    type="text"
+                                                    ref={groupEntityField}
+                                                    placeholder="Group name"
+                                                />
+                                            </>
+                                        )}
                                     <InputLabel width={300} rightLabel>
                                         <ClickableDropdown
                                             chevron
@@ -378,7 +375,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                         </Box>
                         <Flex key={5} mb={16} mt={26}>
                             <Box width={800}>
-                                { (permissionEntries.length > 0) ? (
+                                {(permissionEntries.length > 0) ? (
                                     <Table>
                                         <LeftAlignedTableHeader>
                                             <TableRow>
@@ -394,8 +391,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                         {(permissionEntry.entity.user) ? (
                                                             permissionEntry.entity.user
                                                         ) : (
-                                                            `${permissionEntry.entity.project?.title}/${permissionEntry.entity.group}`
-                                                        )}</TableCell>
+                                                                `${permissionEntry.entity.project?.title}/${permissionEntry.entity.group}`
+                                                            )}</TableCell>
                                                     <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                     <TableCell textAlign="right">
                                                         <Button
@@ -439,8 +436,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                         </tbody>
                                     </Table>
                                 ) : (
-                                    <Text textAlign="center">No explicit permissions set for this application</Text>
-                                )}
+                                        <Text textAlign="center">No explicit permissions set for this application</Text>
+                                    )}
                             </Box>
                         </Flex>
                     </Box>
@@ -477,12 +474,12 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                         public: !version.isPublic
                                                                     });
 
-                                                                    setVersions(versions.map( v =>
+                                                                    setVersions(versions.map(v =>
                                                                         (v.version === version.version) ?
-                                                                        {
-                                                                            version: v.version,
-                                                                            isPublic: !v.isPublic
-                                                                        } : v
+                                                                            {
+                                                                                version: v.version,
+                                                                                isPublic: !v.isPublic
+                                                                            } : v
                                                                     ));
                                                                 }}
                                                             />
@@ -510,7 +507,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                             </Box>
                                                         ),
                                                         onConfirm: async () => {
-                                                            await Client.delete("/hpc/apps", { appName: name, appVersion: version.version });
+                                                            await Client.delete("/hpc/apps", {appName: name, appVersion: version.version});
                                                             setAppParameters(listByName({...appParameters.parameters}));
                                                         },
                                                         confirmText: "Delete"

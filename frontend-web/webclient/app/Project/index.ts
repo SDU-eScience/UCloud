@@ -1,6 +1,5 @@
-import {APICallParameters, useGlobalCloudAPI} from "Authentication/DataHook";
+import {useGlobalCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
 import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 import {inDevEnvironment} from "UtilityFunctions";
@@ -567,7 +566,7 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
         reloadProjectStatus();
         fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
         if (projectId) fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId, group]);
+    }, [projectId, group, projectRole]);
 
     const reload = useCallback(() => {
         if (promises.canceledKeeper) return;

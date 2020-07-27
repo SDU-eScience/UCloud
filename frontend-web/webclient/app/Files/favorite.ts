@@ -1,6 +1,5 @@
-import {APICallParameters, useAsyncCommand} from "Authentication/DataHook";
+import {useAsyncCommand} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Dictionary, PaginationRequest} from "Types";
 import {useCallback} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 
@@ -24,7 +23,7 @@ export interface FavoriteStatusRequest {
 }
 
 export interface FavoriteStatusResponse {
-    favorited: Dictionary<boolean>;
+    favorited: Record<string, boolean>;
 }
 
 export function favoriteStatus(
@@ -53,7 +52,7 @@ export function listFavorites(
 }
 
 export interface FavoriteStatusHook {
-    cache: Dictionary<boolean>;
+    cache: Record<string, boolean>;
     updateCache: (files: string[], markAsFavorite?: boolean) => Promise<void>;
     toggle: (path: string) => Promise<void>;
     loading: boolean;
@@ -65,13 +64,13 @@ export function useFavoriteStatus(): FavoriteStatusHook {
 
     const updateCache = useCallback(async (files: string[], markAsFavorite?: boolean) => {
         if (markAsFavorite === true) {
-            const newCache: Dictionary<boolean> = {...cache};
+            const newCache: Record<string, boolean> = {...cache};
             files.forEach(it => newCache[it] = true);
             setCache(newCache);
         } else {
             const favStatus = await invokeCommand<FavoriteStatusResponse>(favoriteStatus({files}));
             if (favStatus != null) {
-                const newCache: Dictionary<boolean> = ({...cache, ...favStatus.favorited})
+                const newCache: Record<string, boolean> = ({...cache, ...favStatus.favorited})
                 setCache(newCache);
             }
         }
@@ -80,7 +79,7 @@ export function useFavoriteStatus(): FavoriteStatusHook {
     const toggle: ((path: string) => Promise<void>) = useCallback(async (path: string) => {
         await invokeCommand(toggleFavorite({path}));
         const existing = cache ? (cache[path] ?? false) : false;
-        const newCache: Dictionary<boolean> = {...cache};
+        const newCache: Record<string, boolean> = {...cache};
         newCache[path] = !existing;
         setCache(newCache);
     }, [cache, setCache, invokeCommand]);

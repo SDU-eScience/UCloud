@@ -1,5 +1,3 @@
-import {APICallParameters} from "Authentication/DataHook";
-import {Dictionary, PaginationRequest} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 
@@ -225,7 +223,7 @@ export function cumulativeUsage(request: CumulativeUsageRequest): APICallParamet
     };
 }
 
-export interface NativeChartPoint extends Dictionary<number> {
+export interface NativeChartPoint extends Record<string, number> {
     time: number;
 }
 
@@ -233,16 +231,16 @@ export interface NativeChart {
     provider: string;
     lineNames: string[];
     points: NativeChartPoint[];
-    lineNameToWallet: Dictionary<Wallet>;
+    lineNameToWallet: Record<string, Wallet>;
 }
 
 export function transformUsageChartForCharting(
     chart: UsageChart,
     type: ProductArea
 ): NativeChart {
-    const builder: Dictionary<NativeChartPoint> = {};
+    const builder: Record<string, NativeChartPoint> = {};
     const lineNames: string[] = [];
-    const lineNameToWallet: Dictionary<Wallet> = {};
+    const lineNameToWallet: Record<string, Wallet> = {};
 
     for (const line of chart.lines) {
         if (type !== line.area) continue;

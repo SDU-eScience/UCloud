@@ -1,5 +1,5 @@
 import {useAsyncCommand} from "Authentication/DataHook";
-import {deleteMemberInProject, inviteMember, listOutgoingInvites, ProjectRole, rejectInvite} from "Project/index";
+import {deleteMemberInProject, inviteMember, listOutgoingInvites, ProjectRole, rejectInvite, viewProject} from "Project/index";
 import * as React from "react";
 import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -30,12 +30,13 @@ const MembersPanel: React.FunctionComponent = () => {
     const {
         projectId, projectMembers, group, fetchGroupMembers, groupMembersParams,
         setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, projectRole
+        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, projectRole, reloadProjectStatus
     } = useProjectManagementStatus();
     const [isLoading, runCommand] = useAsyncCommand();
     const reloadMembers = (): void => {
         setProjectMemberParams(projectMemberParams);
         fetchOutgoingInvites(outgoingInvitesParams);
+        reloadProjectStatus();
     };
 
     const newMemberRef = useRef<HTMLInputElement>(null);
@@ -46,7 +47,7 @@ const MembersPanel: React.FunctionComponent = () => {
         const username = inputField.value;
         try {
             await runCommand(inviteMember({
-                projectId: projectId,
+                projectId,
                 usernames: [username]
             }));
             inputField.value = "";
@@ -91,7 +92,7 @@ const MembersPanel: React.FunctionComponent = () => {
                                     .map(it => it.trim())
                                     .filter(it => it.length > 0);
 
-                                await runCommand(inviteMember({projectId: projectId, usernames}));
+                                await runCommand(inviteMember({projectId, usernames}));
                                 reloadMembers();
                             } catch (ignored) {
                                 // Ignored

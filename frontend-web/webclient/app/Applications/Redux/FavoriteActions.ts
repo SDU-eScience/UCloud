@@ -1,7 +1,7 @@
 import {WithAppFavorite, WithAppMetadata} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {LoadableEvent, unwrapCall} from "LoadableContent";
-import {Page, PayloadAction} from "Types";
+import {PayloadAction} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export enum Tag {

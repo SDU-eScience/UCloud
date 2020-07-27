@@ -10,7 +10,7 @@ import {EmbeddedFileTable} from "Files/FileTable";
 import {setFilename, toggleFilesSearchHidden} from "Files/Redux/DetailedFileSearchActions";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setActivePage} from "Navigation/Redux/StatusActions";
+import {setActivePage, useTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -27,10 +27,9 @@ import {prettierString} from "UtilityFunctions";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
 import * as SSActions from "./Redux/SearchActions";
 
-function Search(props: SearchProps) {
+function Search(props: SearchProps): JSX.Element {
     React.useEffect(() => {
         props.toggleAdvancedSearch();
-        props.setActivePage();
         const q = query(props);
         props.setSearch(q);
         props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
@@ -43,6 +42,8 @@ function Search(props: SearchProps) {
         };
     }, []);
 
+    useTitle("Search");
+
     React.useEffect(() => {
         props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
     }, [props.match.params.priority]);
@@ -52,9 +53,9 @@ function Search(props: SearchProps) {
         fetchAll();
     }, [query(props)]);
 
-    const setPath = (text: string) => props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
+    const setPath = (text: string): void => props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
 
-    function fetchAll(itemsPerPage?: number) {
+    function fetchAll(itemsPerPage?: number): void {
         props.searchFiles(fileSearchBody(
             props.fileSearch,
             props.search,
@@ -70,7 +71,7 @@ function Search(props: SearchProps) {
         props.history.push(searchPage(props.match.params.priority, props.search));
     }
 
-    const refreshFiles = () => props.searchFiles(fileSearchBody(
+    const refreshFiles = (): void => props.searchFiles(fileSearchBody(
         props.fileSearch,
         props.search,
         props.files.itemsPerPage,
@@ -96,7 +97,6 @@ function Search(props: SearchProps) {
     let main: React.ReactNode = null;
     const {priority} = props.match.params;
     const entriesPerPage = (
-
         <Box my="8px">
             <Spacer
                 left={null}
@@ -143,12 +143,14 @@ function Search(props: SearchProps) {
                         <GridCardGroup>
                             {items.map(app => (
                                 <ApplicationCard
-                                    onFavorite={async () => props.setApplicationsPage(await favoriteApplicationFromPage({
-                                        name: app.metadata.name,
-                                        version: app.metadata.version,
-                                        page: props.applications,
-                                        client: Client
-                                    }))}
+                                    onFavorite={async () => props.setApplicationsPage(
+                                        await favoriteApplicationFromPage({
+                                            name: app.metadata.name,
+                                            version: app.metadata.version,
+                                            page: props.applications,
+                                            client: Client
+                                        })
+                                    )}
                                     key={`${app.metadata.name}${app.metadata.version}`}
                                     app={app}
                                     isFavorite={app.favorite}
@@ -232,8 +234,8 @@ export function fileSearchBody(
     if (fileSearch.allowFiles) fileTypes.push("FILE");
     if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
     const modifiedAt = {
-        after: !!fileSearch.modifiedAfter ? fileSearch.modifiedAfter.valueOf() : undefined,
-        before: !!fileSearch.modifiedBefore ? fileSearch.modifiedBefore.valueOf() : undefined,
+        after: fileSearch.modifiedAfter?.valueOf(),
+        before: fileSearch.modifiedBefore?.valueOf(),
     };
 
     return {

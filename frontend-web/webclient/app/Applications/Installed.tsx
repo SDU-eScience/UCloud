@@ -10,7 +10,6 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import {Box} from "ui-components";
 import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";

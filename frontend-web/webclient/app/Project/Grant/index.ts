@@ -1,6 +1,4 @@
-import {APICallParameters} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Page, PaginationRequest} from "Types";
 
 export interface ReadTemplatesRequest {
     projectId: string;

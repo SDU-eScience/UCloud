@@ -3,7 +3,7 @@ import HttpClient from "Authentication/lib";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {AccessRight, Page} from "Types";
+import {AccessRight} from "Types";
 import {dialogStore} from "Dialog/DialogStore";
 import {Box, Button, Flex, List, Truncate} from "ui-components";
 import {useCloudAPI} from "Authentication/DataHook";

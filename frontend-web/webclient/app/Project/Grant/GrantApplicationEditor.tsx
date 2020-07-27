@@ -51,6 +51,7 @@ import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -328,6 +329,21 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     const projectTitleRef = useRef<HTMLInputElement>(null);
     const history = useHistory();
 
+    switch (target) {
+        case RequestTarget.EXISTING_PROJECT:
+            useTitle("Viewing Project");
+            break;
+        case RequestTarget.NEW_PROJECT:
+            useTitle("Create Project");
+            break;
+        case RequestTarget.PERSONAL_PROJECT:
+            useTitle("Personal Project");
+            break;
+        case RequestTarget.VIEW_APPLICATION:
+            useTitle("Viewing Application");
+            break;
+    }
+
     const submitRequest = useCallback(async () => {
         if (state.targetProject === undefined) {
             snackbarStore.addFailure("Unknown target. Root level projects cannot apply for more resources.", false);
@@ -491,7 +507,6 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 <Label mb={16} mt={16}>
                                     Title
                                     <Input disabled={isUser} ref={projectTitleRef} />
-                                    disabled={isUser}
                                 </Label>
                             </>
                         )}

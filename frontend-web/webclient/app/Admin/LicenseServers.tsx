@@ -5,7 +5,6 @@ import {
     UserEntityType,
     addLicenseServerTag,
     deleteLicenseServerTag,
-    AccessEntity,
     DetailedAccessEntity
 } from "Applications/api";
 import {useAsyncCommand} from "Authentication/DataHook";
@@ -15,7 +14,6 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import * as ReactModal from "react-modal";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip, Card} from "ui-components";
@@ -27,6 +25,8 @@ import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const LeftAlignedTableHeader = styled(TableHeader)`
     text-align: left;
@@ -540,6 +540,9 @@ export default function LicenseServers(): JSX.Element | null {
     React.useEffect(() => {
         loadAndSetLicenseServers();
     }, []);
+
+    useTitle("License Servers");
+    useSidebarPage(SidebarPages.Admin);
 
     async function loadAndSetLicenseServers(): Promise<void> {
         setLicenseServers(await loadLicenseServers());

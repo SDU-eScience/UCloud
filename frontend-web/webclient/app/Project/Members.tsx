@@ -1,4 +1,4 @@
-import {callAPIWithErrorHandler, useCloudAPI} from "Authentication/DataHook";
+import {callAPIWithErrorHandler} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useProjectManagementStatus, } from "Project/index";
 import * as Heading from "ui-components/Heading";
@@ -19,6 +19,8 @@ import ProjectMembers from "./MembersPanel";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {ProjectSettings} from "Project/ProjectSettings";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const Members: React.FunctionComponent<MembersOperations> = props => {
     const {
@@ -35,6 +37,9 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
     } = useProjectManagementStatus();
 
     const shouldVerify = projectDetails.data.needsVerification;
+
+    useTitle("Members");
+    useSidebarPage(SidebarPages.Projects);
 
     useEffect(() => {
         setProjectMemberParams(
