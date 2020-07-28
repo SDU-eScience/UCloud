@@ -12,7 +12,7 @@ import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-co
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
-import theme, {Theme} from "ui-components/theme";
+import theme, {Theme, ThemeColor} from "ui-components/theme";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
@@ -191,20 +191,20 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
         if (props.onAction) props.onAction(props.notification);
     }
 
-    function resolveEventType(eventType: string): {name: IconName; color: string; color2: string} {
+    function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
         switch (eventType) {
             case "REVIEW_PROJECT":
-                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
+                return {name: "projects", color: "black", color2: "midGray"};
             case "SHARE_REQUEST":
-                return {name: "share", color: "var(--black)", color2: "var(--black)"};
+                return {name: "share", color: "black", color2: "black"};
             case "PROJECT_INVITE":
-                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
+                return {name: "projects", color: "black", color2: "midGray"};
             case "PROJECT_ROLE_CHANGE":
-                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
+                return {name: "projects", color: "black", color2: "midGray"};
             case "PROJECT_USER_LEFT":
-                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
+                return {name: "projects", color: "black", color2: "midGray"};
             case "PROJECT_USER_REMOVED":
-                return {name: "projects", color: "var(--black)", color2: "var(--black)"};
+                return {name: "projects", color: "black", color2: "midGray"};
             case "APP_COMPLETE":
             default:
                 return {name: "info", color: "white", color2: "black"};
