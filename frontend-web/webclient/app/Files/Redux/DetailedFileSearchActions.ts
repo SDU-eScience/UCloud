@@ -1,6 +1,6 @@
 import {SensitivityLevel} from "Files";
 import {Action} from "redux";
-import {PayloadAction, SetLoadingAction} from "Types";
+import {SetLoadingAction} from "Types";
 import * as DFSReducer from "./DetailedFileSearchReducer";
 
 export type DetailedFileSearchActions = ToggleFilesSearchHiddenAction | ToggleFoldersAllowedAction | SetTime |

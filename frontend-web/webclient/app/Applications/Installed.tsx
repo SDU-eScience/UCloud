@@ -45,7 +45,6 @@ function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Eleme
         if (props.header !== null) props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage));
     }
 
-
     async function onFavorite(name: string, version: string): Promise<void> {
         try {
             await Client.post(hpcFavoriteApp(name, version));

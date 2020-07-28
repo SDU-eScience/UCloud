@@ -68,7 +68,9 @@ export interface ClearRefresh {
 
 export type SetLoadingAction<T> = PayloadAction<T, {loading: boolean}>;
 export type Error<T> = PayloadAction<T, {error?: string, statusCode?: number}>;
-export interface PayloadAction<T1, T2> extends Action<T1> {payload: T2;}
+declare global {
+    export interface PayloadAction<Act, T> extends Action<Act> {payload: T;}
+}
 
 export interface PredicatedOperation<T> {
     predicate: (listItems: T[], client: HttpClient) => boolean;

@@ -3,7 +3,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {ScrollRequest, ScrollResult} from "Scroll/Types";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {PayloadAction, SetLoadingAction} from "Types";
+import {SetLoadingAction} from "Types";
 import {activityQuery} from "Utilities/ActivityUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 

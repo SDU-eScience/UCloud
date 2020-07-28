@@ -1,7 +1,7 @@
 import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
 import HttpClient, {MissingAuthError, Override} from "../../app/Authentication/lib";
-import {emptyPage, ReduxObject} from "../../app/DefaultObjects";
+import {emptyPage} from "../../app/DefaultObjects";
 
 interface JWT {
     sub: string;

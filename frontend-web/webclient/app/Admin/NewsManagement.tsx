@@ -133,10 +133,7 @@ function NewsManagement(): JSX.Element | null {
                             />
                             {showPreview ?
                                 <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="scroll">
-                                    <Markdown
-                                        unwrapDisallowed
-                                        source={bodyRef.current?.value ?? ""}
-                                    />
+                                    <Markdown unwrapDisallowed source={bodyRef.current?.value ?? ""} />
                                 </Card>
                                 : null}
                             <Input

@@ -3,7 +3,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {SortOrder} from "Files";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {PayloadAction, SetLoadingAction} from "Types";
+import {SetLoadingAction} from "Types";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {RunsSortBy} from "..";

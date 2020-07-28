@@ -120,7 +120,7 @@ const Tool: React.FunctionComponent<RouteComponentProps<{name: string}> & ToolOp
                         }
 
                         pageRenderer={page => (
-                            <Flex justifyContent={"center"} flexWrap={"wrap"}>
+                            <Flex justifyContent="center" flexWrap="wrap">
                                 {page.items.map(({metadata}) => (
                                     <SmallAppToolCard
                                         key={`${metadata.name}/${metadata.version}`}

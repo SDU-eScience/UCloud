@@ -372,8 +372,8 @@ const Subprojects: React.FunctionComponent = () => {
         return (
             <Table>
                 <tbody>
-                    {filteredItems.map(subproject => {
-                        return <SubprojectRow
+                    {filteredItems.map(subproject =>
+                        <SubprojectRow
                             key={subproject.id}
                             subproject={subproject}
                             shakeWallets={shakeWallets}
@@ -384,8 +384,8 @@ const Subprojects: React.FunctionComponent = () => {
                                 {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
                             }
                             allowManagement={allowManagement}
-                        />;
-                    })}
+                        />
+                    )}
                 </tbody>
             </Table>
         );
@@ -546,7 +546,7 @@ const SubprojectRow: React.FunctionComponent<{
                                                 </AllocationEditor>
                                                 <Button height="35px" width={"135px"} onClick={() => setIsEditing(true)}>
                                                     Edit allocation
-                                            </Button>
+                                                </Button>
                                             </>
                                         ) : (
                                                 <AllocationForm onSubmit={onSubmit}>
@@ -567,10 +567,10 @@ const SubprojectRow: React.FunctionComponent<{
                                                         }
                                                     </AllocationEditor>
 
-                                                    <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
+                                                    <Button type="submit" height="35px" width="135px" color="green"
                                                         disabled={loading}>
                                                         Allocate
-                                            </Button>
+                                                    </Button>
                                                 </AllocationForm>
                                             )
                                         }
@@ -585,10 +585,9 @@ const SubprojectRow: React.FunctionComponent<{
                                         <AllocationEditor>
                                             {quotaInBytes === -1 ? "No quota" : sizeToString(quotaInBytes)}
                                         </AllocationEditor>
-                                        <Button height="35px" width={"135px"}
-                                            onClick={() => setIsEditingQuota(true)}>
+                                        <Button height="35px" width="135px" onClick={() => setIsEditingQuota(true)}>
                                             Edit quota
-                                            </Button>
+                                        </Button>
                                     </>
                                 ) : (
                                         <AllocationForm onSubmit={onSubmitQuota}>
@@ -609,7 +608,7 @@ const SubprojectRow: React.FunctionComponent<{
                                                 }
                                             </AllocationEditor>
 
-                                            <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
+                                            <Button type="submit" height="35px" width="135px" color="green"
                                                 disabled={loading}>
                                                 Allocate
                                             </Button>

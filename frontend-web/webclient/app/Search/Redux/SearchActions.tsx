@@ -2,7 +2,6 @@ import {AdvancedSearchRequest as AppSearchRequest, FullAppInfo} from "Applicatio
 import {Client} from "Authentication/HttpClientInstance";
 import {AdvancedSearchRequest, File} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {PayloadAction} from "Types";
 import {advancedSearchQuery} from "Utilities/ApplicationUtilities";
 import {advancedFileSearch} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -72,7 +71,7 @@ export const setSearch = (search: string): SetSearchType => ({
     payload: {search}
 });
 
-type SetErrorMessage = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_ERROR, {error?: string} & LoadingPanes>;
+export type SetErrorMessage = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_ERROR, {error?: string} & LoadingPanes>;
 export const setErrorMessage = (loading?: LoadingPanes): SetErrorMessage => ({
     type: SSActionTypes.SET_SIMPLE_SEARCH_ERROR,
     payload: {...loading}
