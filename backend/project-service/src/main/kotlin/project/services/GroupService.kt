@@ -69,16 +69,15 @@ class GroupService(
                 """
                     delete from groups
                     where 
-                        lower(project) = lower(?project) and   
-                        the_group in (select * from unnest(?groups::text[]))
+                        id in (select * from unnest(?groups::text[]))
                 """
             )
         }
 
-        eventProducer.produce(groups.map { groupName ->
+        eventProducer.produce(groups.map { groupId ->
             ProjectEvent.GroupDeleted(
                 projectId,
-                groupName
+                groupId
             )
         })
     }
