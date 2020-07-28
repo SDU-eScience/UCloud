@@ -30,6 +30,22 @@ object TestDB {
         )
     }
 
+    fun initializeWithoutService() {
+        db = EmbeddedPostgres.start()
+    }
+
+    fun dbSessionFactory(defaultSchema: String): AsyncDBSessionFactory {
+        return AsyncDBSessionFactory(
+            DatabaseConfig(
+                jdbcUrl = db.getJdbcUrl("postgres", "postgres"),
+                defaultSchema = defaultSchema,
+                recreateSchema = false,
+                username = "postgres",
+                password = "postgres"
+            )
+        )
+    }
+
     fun getEmbeddedPostgresInfo(): String {
         return db.getJdbcUrl("postgres", "postgres")
     }

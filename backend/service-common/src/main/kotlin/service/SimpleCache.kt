@@ -3,25 +3,33 @@ package dk.sdu.cloud.service
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+interface Cache<K, V : Any> {
+    suspend fun clearAll()
+
+    suspend fun remove(key: K)
+
+    suspend fun get(key: K): V?
+}
+
 class SimpleCache<K, V : Any>(
     private val maxAge: Long = 60_000,
     private val lookup: suspend (K) -> V?
-) {
+) : Cache<K, V> {
     private data class CacheEntry<V>(val timestamp: Long, val value: V)
 
     private val internalMap = HashMap<K, CacheEntry<V>>()
     private val mutex = Mutex()
     private var nextRemoveExpired = System.currentTimeMillis() + (maxAge * 5)
 
-    suspend fun clearAll() {
+    override suspend fun clearAll() {
         mutex.withLock { internalMap.clear() }
     }
 
-    suspend fun remove(key: K) {
+    override suspend fun remove(key: K) {
         mutex.withLock { internalMap.remove(key) }
     }
 
-    suspend fun get(key: K): V? {
+    override suspend fun get(key: K): V? {
         cleanup()
 
         val existing = mutex.withLock {

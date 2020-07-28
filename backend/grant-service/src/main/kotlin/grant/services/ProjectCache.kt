@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Actor
+import dk.sdu.cloud.service.Cache
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.HttpStatusCode
@@ -15,42 +16,42 @@ import io.ktor.http.HttpStatusCode
 data class ProjectAndGroup(val project: String, val group: String)
 
 class ProjectCache(private val serviceClient: AuthenticatedClient) {
-    val memberStatus = SimpleCache<String, UserStatusResponse> { username ->
+    val memberStatus: Cache<String, UserStatusResponse> = SimpleCache<String, UserStatusResponse> { username ->
         ProjectMembers.userStatus.call(
             UserStatusRequest(username),
             serviceClient
         ).orThrow()
     }
 
-    val groupMembers = SimpleCache<ProjectAndGroup, List<String>> { (project, group) ->
+    val groupMembers: Cache<ProjectAndGroup, List<String>> = SimpleCache<ProjectAndGroup, List<String>> { (project, group) ->
         ProjectGroups.listAllGroupMembers.call(
             ListAllGroupMembersRequest(project, group),
             serviceClient
         ).orThrow()
     }
 
-    val ancestors = SimpleCache<String, List<Project>> { project ->
+    val ancestors: Cache<String, List<Project>> = SimpleCache<String, List<Project>> { project ->
         Projects.viewAncestors.call(
             ViewAncestorsRequest,
             serviceClient.withProject(project)
         ).orThrow()
     }
 
-    val principalInvestigators = SimpleCache<String, String> { project ->
+    val principalInvestigators: Cache<String, String> = SimpleCache<String, String> { project ->
         Projects.lookupPrincipalInvestigator.call(
             LookupPrincipalInvestigatorRequest,
             serviceClient.withProject(project)
         ).orThrow().principalInvestigator
     }
 
-    val subprojects = SimpleCache<String, List<Project>> { project ->
+    val subprojects: Cache<String, List<Project>> = SimpleCache<String, List<Project>> { project ->
         Projects.listSubProjects.call(
             ListSubProjectsRequest(PaginationRequest.FULL_READ),
             serviceClient.withProject(project)
         ).orThrow().items
     }
 
-    val admins = SimpleCache<String, List<ProjectMember>> { project ->
+    val admins: Cache<String, List<ProjectMember>> = SimpleCache<String, List<ProjectMember>> { project ->
         ProjectMembers.lookupAdmins.call(
             LookupAdminsRequest(project),
             serviceClient

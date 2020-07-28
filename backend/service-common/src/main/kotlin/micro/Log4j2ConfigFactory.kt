@@ -17,7 +17,7 @@ import java.net.URI
 
 @Order(Int.MAX_VALUE)
 @Plugin(name = "Log4j2ConfigFactory", category = ConfigurationFactory.CATEGORY)
-internal object Log4j2ConfigFactory : ConfigurationFactory() {
+object Log4j2ConfigFactory : ConfigurationFactory() {
     private const val appenderRef = "stdout"
     private lateinit var loggerContext: LoggerContext
 

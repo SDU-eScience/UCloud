@@ -112,15 +112,20 @@ object AuthService : dk.sdu.cloud.micro.Service {
         val samlProperties = Properties().apply {
             load(Server::class.java.classLoader.getResourceAsStream("saml.properties"))
         }
-        insertKeysIntoProps(loadKeys(configuration.wayfCerts), samlProperties)
-        val jwtCerts = loadKeys(configuration.certsLocation)
-        val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
+        if (configuration.enableWayf) {
+            insertKeysIntoProps(loadKeys(configuration.wayfCerts), samlProperties)
+        }
+        val authSettings = SettingsBuilder().fromProperties(samlProperties).build()
+        if (configuration.enableWayf) {
+            authSettings.validateOrThrow()
+        }
 
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         val algorithm = if (tokenValidation.algorithm.javaClass.canonicalName == "com.auth0.jwt.algorithms.HMACAlgorithm") {
             tokenValidation.algorithm
         } else {
+            val jwtCerts = loadKeys(configuration.certsLocation)
             Algorithm.RSA256(null, jwtCerts.privateKey)
         }
 

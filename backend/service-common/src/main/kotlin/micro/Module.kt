@@ -12,7 +12,7 @@ var Micro.isEmbeddedService: Boolean by delegate("isRootContainer")
 class ServiceRegistry(val args: Array<String>) {
     private data class ConfiguredService(val description: ServiceDescription, val service: Service, val scope: Micro, val server: CommonServer)
 
-    private val rootMicro = Micro()
+    val rootMicro = Micro()
     private val services = ArrayList<ConfiguredService>()
     private val rootServer  = object : CommonServer {
         override val micro: Micro = rootMicro

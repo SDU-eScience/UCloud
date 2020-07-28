@@ -160,19 +160,19 @@ class Server(
 
             log.info("Creating HTTP controllers")
 
-            val samlController = SAMLController(
-                authSettings,
-                { settings, call, params -> SamlRequestProcessor(settings, call, params) },
-                tokenService,
-                loginResponder
-            )
-
             val loginService =
                 LoginService(db, passwordHashingService, userDao, LoginAttemptAsyncDao(), loginResponder)
             val passwordController = PasswordController(loginService)
             log.info("HTTP controllers configured!")
 
             if (config.enableWayf) {
+                val samlController = SAMLController(
+                    authSettings,
+                    { settings, call, params -> SamlRequestProcessor(settings, call, params) },
+                    tokenService,
+                    loginResponder
+                )
+
                 routing {
                     route("/auth/saml") {
                         samlController.configure(this)
