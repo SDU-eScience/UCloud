@@ -12,12 +12,11 @@ import io.ktor.http.HttpStatusCode
 
 object GroupTable : SQLTable("groups") {
     val project = text("project")
-    val group = text("the_group")
+    val group = text("title")
 }
 
 object GroupMembershipTable : SQLTable("group_members") {
-    val project = text("project")
-    val group = text("the_group")
+    val group = text("group_id")
     val username = text("username")
 }
 
@@ -97,7 +96,6 @@ class GroupService(
 
                 session.insert(GroupMembershipTable) {
                     set(GroupMembershipTable.group, groupId)
-                    set(GroupMembershipTable.project, projectId)
                     set(GroupMembershipTable.username, newMember)
                 }
 
@@ -133,15 +131,13 @@ class GroupService(
                 .sendPreparedStatement(
                     {
                         setParameter("username", memberToRemove)
-                        setParameter("project", projectId)
                         setParameter("group", groupId)
                     },
                     """
                         delete from group_members
                         where
-                            username = ?username and
-                            lower(project) = lower(?project) and
-                            the_group = ?group
+                            username = :username and
+                            group_id = :group
                     """
                 )
 

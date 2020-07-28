@@ -30,7 +30,7 @@ data class ListGroupsWithSummaryRequest(
     override val page: Int?
 ) : WithPaginationRequest
 typealias ListGroupsWithSummaryResponse = Page<GroupWithSummary>
-data class GroupWithSummary(val group: String, val numberOfMembers: Int)
+data class GroupWithSummary(val groupId: String, val groupTitle: String, val numberOfMembers: Int)
 
 data class DeleteGroupsRequest(val groups: Set<String>)
 typealias DeleteGroupsResponse = Unit
@@ -70,6 +70,9 @@ typealias ListAllGroupMembersResponse = List<String>
 
 typealias GroupCountRequest = Unit
 typealias GroupCountResponse = Long
+
+data class ViewGroupRequest(val id: String)
+typealias ViewGroupResponse = GroupWithSummary
 
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
@@ -316,6 +319,30 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             path {
                 using(baseContext)
                 +"count"
+            }
+        }
+    }
+
+    /**
+     * View information about a group
+     *
+     * All project members can use this endpoint.
+     */
+    val view = call<ViewGroupRequest, ViewGroupResponse, CommonErrorMessage>("view") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"view"
+            }
+
+            params {
+                +boundTo(ViewGroupRequest::id)
             }
         }
     }

@@ -13,7 +13,7 @@ import {MembersList} from "Project/MembersList";
 
 const GroupView: React.FunctionComponent = () => {
     const {
-        projectId, group, groupMembers, fetchGroupMembers, groupMembersParams,
+        projectId, groupId, groupMembers, groupDetails, fetchGroupMembers, groupMembersParams,
         membersPage, projectRole, projectDetails
     } = useProjectManagementStatus();
     const activeGroup = groupMembers;
@@ -24,15 +24,15 @@ const GroupView: React.FunctionComponent = () => {
         <Flex>
             <Link to={`/project/members/-/${membersPage ?? ""}`}><Text fontSize={"25px"}>Groups</Text></Link>
             <Text mx="8px" fontSize="25px">/</Text>
-            <Flex width={"100%"}><Truncate fontSize="25px" width={1}>{group}</Truncate></Flex>
+            <Flex width={"100%"}><Truncate fontSize="25px" width={1}>{groupDetails.data.groupTitle}</Truncate></Flex>
         </Flex>
     );
 
-    if (!group || activeGroup.error) {
+    if (!groupId || activeGroup.error) {
         return (
             <>
                 {header}
-                Could not fetch {group}!
+                Could not fetch {groupId}!
             </>
         );
     }
@@ -42,7 +42,7 @@ const GroupView: React.FunctionComponent = () => {
         <Pagination.List
             loading={activeGroup.loading}
             onPageChanged={(newPage, page) => fetchActiveGroup(listGroupMembersRequest({
-                group,
+                group: groupId,
                 itemsPerPage: page.itemsPerPage,
                 page: newPage
             }))}
@@ -70,7 +70,7 @@ const GroupView: React.FunctionComponent = () => {
     function promptRemoveMember(member: string): void {
         addStandardDialog({
             title: "Remove member?",
-            message: `Do you want to remove ${member} from the group ${group}?`,
+            message: `Do you want to remove ${member} from the group ${groupDetails.data.groupTitle}?`,
             onConfirm: () => removeMember(member),
             cancelText: "Cancel",
             confirmText: "Remove"
@@ -78,9 +78,9 @@ const GroupView: React.FunctionComponent = () => {
     }
 
     async function removeMember(member: string): Promise<void> {
-        if (group === undefined) return;
+        if (groupId === undefined) return;
 
-        await runCommand(removeGroupMemberRequest({group: group!, memberUsername: member}));
+        await runCommand(removeGroupMemberRequest({group: groupId!, memberUsername: member}));
         fetchGroupMembers(groupMembersParams);
     }
 };

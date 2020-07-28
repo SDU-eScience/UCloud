@@ -80,7 +80,7 @@ data class UserProjectSummary(
 )
 
 data class UserGroupSummary(
-    val projectId: String,
+    val project: String,
     val group: String,
     val username: String
 )

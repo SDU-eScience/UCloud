@@ -25,7 +25,7 @@ import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 const Members: React.FunctionComponent<MembersOperations> = props => {
     const {
         projectId,
-        group,
+        groupId,
         projectMembers,
         setProjectMemberParams,
         projectMemberParams,
@@ -46,10 +46,10 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
             membershipSearch({
                 ...projectMemberParams.parameters,
                 query: memberSearchQuery,
-                notInGroup: group
+                notInGroup: groupId
             })
         );
-    }, [projectId, group, groupMembers.data, memberSearchQuery]);
+    }, [projectId, groupId, groupMembers.data, memberSearchQuery]);
 
     useEffect(() => {
         props.setLoading(projectMembers.loading || groupMembers.loading);

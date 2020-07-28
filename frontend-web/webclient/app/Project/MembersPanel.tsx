@@ -28,7 +28,7 @@ const SearchContainer = styled(Flex)`
 
 const MembersPanel: React.FunctionComponent = () => {
     const {
-        projectId, projectMembers, group, fetchGroupMembers, groupMembersParams,
+        projectId, projectMembers, groupId, fetchGroupMembers, groupMembersParams,
         setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
         outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, projectRole, reloadProjectStatus
     } = useProjectManagementStatus();
@@ -144,13 +144,13 @@ const MembersPanel: React.FunctionComponent = () => {
             projectId={projectId}
             projectRole={projectRole}
             allowRoleManagement={allowManagement}
-            onAddToGroup={!(allowManagement && !!group) ? undefined : async (memberUsername) => {
-                await runCommand(addGroupMember({group, memberUsername}));
+            onAddToGroup={!(allowManagement && !!groupId) ? undefined : async (memberUsername) => {
+                await runCommand(addGroupMember({group: groupId, memberUsername}));
                 fetchGroupMembers(groupMembersParams);
             }}
         />
 
-        {group ? null :
+        {groupId ? null :
             <Pagination.List
                 loading={outgoingInvites.loading}
                 page={outgoingInvites.data}

@@ -21,7 +21,8 @@ import {useAsyncCommand} from "Authentication/DataHook";
 import {Spacer} from "ui-components/Spacer";
 
 export interface GroupWithSummary {
-    group: string;
+    groupId: string;
+    groupTitle: string;
     numberOfMembers: number;
     members: string[];
 }
@@ -30,7 +31,7 @@ const baseContext = "/projects/groups";
 
 const GroupList: React.FunctionComponent = () => {
     const history = useHistory();
-    const {allowManagement, group, groupList, fetchGroupList, groupListParams,
+    const {allowManagement, groupId, groupList, fetchGroupList, groupListParams,
         membersPage} = useProjectManagementStatus();
 
     const [creatingGroup, setCreatingGroup] = useState(false);
@@ -58,7 +59,7 @@ const GroupList: React.FunctionComponent = () => {
     ];
 
 
-    if (group) return <GroupView />;
+    if (groupId) return <GroupView />;
     const [trashOp] = operations;
     const content = (
         <>
@@ -80,10 +81,10 @@ const GroupList: React.FunctionComponent = () => {
                         isSelected={false}
                         select={() => undefined}
                     /> : null}
-                {groupList.data.items.map((g, index) => (<React.Fragment key={g.group + index}>
+                {groupList.data.items.map((g, index) => (<React.Fragment key={g.groupId + index}>
                     <ListRow
                         left={
-                            renamingGroup !== g.group ? g.group : (
+                            renamingGroup !== g.groupTitle ? g.groupTitle : (
                                 <NamingField
                                     onCancel={() => setRenamingGroup(null)}
                                     onSubmit={renameGroup}
@@ -91,7 +92,7 @@ const GroupList: React.FunctionComponent = () => {
                                 />
                             )
                         }
-                        navigate={() => history.push(`/project/members/${encodeURIComponent(g.group)}/${membersPage ?? ""}`)}
+                        navigate={() => history.push(`/project/members/${encodeURIComponent(g.groupId)}/${membersPage ?? ""}`)}
                         leftSub={<div />}
                         right={
                             <>
@@ -169,10 +170,10 @@ const GroupList: React.FunctionComponent = () => {
             title: "Delete groups?",
             message: <>
                 <Text mb="5px">Selected groups:</Text>
-                {groups.map(g => <Text key={g.group} fontSize="12px">{g.group}</Text>)}
+                {groups.map(g => <Text key={g.groupId} fontSize="12px">{g.groupTitle}</Text>)}
             </>,
             onConfirm: async () => {
-                await runCommand(deleteGroup({groups: groups.map(it => it.group)}));
+                await runCommand(deleteGroup({groups: groups.map(it => it.groupId)}));
                 fetchGroupList(groupListParams);
             },
             confirmText: "Delete"
