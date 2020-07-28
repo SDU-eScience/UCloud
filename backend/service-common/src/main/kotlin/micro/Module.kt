@@ -14,6 +14,7 @@ class ServiceRegistry(val args: Array<String>) {
 
     val rootMicro = Micro()
     private val services = ArrayList<ConfiguredService>()
+    val isRunning: Boolean get() = rootServer.isRunning
     private val rootServer  = object : CommonServer {
         override val micro: Micro = rootMicro
         override fun start() {

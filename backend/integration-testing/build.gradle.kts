@@ -8,6 +8,10 @@ dependencies {
     implementation(project(":service-common"))
     testImplementation(project(":service-common-test"))
 
+    implementation(platform("org.testcontainers:testcontainers-bom:1.14.3"))
+    testImplementation("org.testcontainers:elasticsearch")
+    testImplementation("it.ozimov:embedded-redis:0.7.3")
+
     rootProject.childProjects.values
         .filter { it.name.endsWith("-service") }
         .forEach {

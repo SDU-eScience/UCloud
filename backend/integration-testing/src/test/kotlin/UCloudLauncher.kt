@@ -1,17 +1,15 @@
 package dk.sdu.cloud.integration
 
+import com.sun.jna.Platform
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.activity.ActivityService
-import dk.sdu.cloud.app.kubernetes.AppKubernetesService
-import dk.sdu.cloud.app.kubernetes.watcher.AppKubernetesWatcherService
 import dk.sdu.cloud.app.license.AppLicenseService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.CreateSingleUserRequest
-import dk.sdu.cloud.auth.api.CreateUserRequest
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.authenticator
@@ -33,7 +31,6 @@ import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.Log4j2ConfigFactory
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.Service
 import dk.sdu.cloud.micro.ServiceRegistry
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.news.NewsService
@@ -42,34 +39,71 @@ import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.ProjectService
 import dk.sdu.cloud.project.repository.ProjectRepositoryService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
-import dk.sdu.cloud.service.ClassDiscovery
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.test.TestDB
-import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.share.ShareService
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
 import dk.sdu.cloud.webdav.WebdavService
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.Location
+import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.elasticsearch.ElasticsearchContainer
+import org.testcontainers.utility.Base58
+import redis.embedded.RedisExecProvider
+import redis.embedded.RedisServer
+import redis.embedded.util.OS
 import java.io.File
 import java.io.FileOutputStream
+import java.net.DatagramSocket
+import java.net.InetAddress
 import java.net.URL
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
+import javax.swing.JLabel
+import javax.swing.JOptionPane
+import javax.swing.JPanel
+import javax.swing.JPasswordField
+import kotlin.IllegalStateException
+
+class CephContainer : GenericContainer<CephContainer?>("ceph/daemon") {
+    val hostIp: String
+
+    init {
+        logger().info("Starting an ceph container using [{}]", dockerImageName)
+        withNetworkAliases("ceph-" + Base58.randomString(6))
+
+        hostIp = DatagramSocket().use { socket ->
+            socket.connect(InetAddress.getByName("1.1.1.1"), 12345)
+            socket.localAddress.hostAddress
+        }
+
+        logger().info("Using the following IP: $hostIp")
+        withEnv("CEPH_PUBLIC_NETWORK", "$hostIp/32")
+        withEnv("MON_IP", hostIp)
+        withEnv("CEPH_DEMO_UID", "1000")
+        withEnv("RGW_FRONTEND_PORT", "8000")
+        withNetworkMode("host")
+        withFileSystemBind("/etc/ceph", "/etc/ceph")
+
+        withCommand("demo")
+
+        // In case logging is needed:
+        // withLogConsumer { print(it.utf8String) }
+    }
+}
 
 object UCloudLauncher : Loggable {
     init {
@@ -77,14 +111,151 @@ object UCloudLauncher : Loggable {
     }
 
     override val log = logger()
+
     var isRunning = false
         private set
+
+    var shouldRunCeph: Boolean = true
+
+    private val CEPHFS_HOME = "/mnt/cephfs"
+    private const val REDIS_PORT = 44231
     lateinit var micro: Micro
+    private lateinit var redisServer: RedisServer
+    private lateinit var elasticSearch: ElasticsearchContainer
+    private lateinit var ceph: CephContainer
+    private var isRunningCeph = false
+    private var localSudoPassword: String? = null
+    private val uid: Int by lazy {
+        if (!Platform.isLinux()) throw IllegalStateException()
+
+        val process = ProcessBuilder()
+            .command("id", "-u")
+            .start()
+
+        String(process.inputStream.readAllBytes()).trim().toInt(10)
+    }
+
+    private fun sudo(vararg command: String): Process? {
+        if (uid == 0) {
+            val process = ProcessBuilder()
+                .command(*command)
+                .start()
+
+            return process
+        } else {
+            val localSudoPassword = this.localSudoPassword ?: return null
+
+            val process = ProcessBuilder()
+                .command(
+                    "sudo",
+                    "-S",
+                    *command
+                )
+                .start()
+
+            process.outputStream.write(localSudoPassword.toByteArray())
+            process.outputStream.write(byteArrayOf('\n'.toByte()))
+            process.outputStream.flush()
+            return process
+        }
+    }
+
+    private fun initializeDatabases() {
+        @Suppress("BlockingMethodInNonBlockingContext") val job = GlobalScope.launch {
+            coroutineScope {
+                launch {
+                    // Postgres
+                    TestDB.initializeWithoutService()
+                }
+
+                launch {
+                    // Redis
+                    val redisMacOS = File.createTempFile("redis-macos", "").also { f ->
+                        f.outputStream().use { outs ->
+                            javaClass.classLoader.getResourceAsStream("redis-macos")!!.use { ins -> ins.copyTo(outs) }
+                        }
+                    }
+                    redisMacOS.setExecutable(true)
+
+                    val redisLinux = File.createTempFile("redis-linux", "").also { f ->
+                        f.outputStream().use { outs ->
+                            javaClass.classLoader.getResourceAsStream("redis-linux")!!.use { ins -> ins.copyTo(outs) }
+                        }
+                    }
+                    redisLinux.setExecutable(true)
+
+                    redisServer = RedisServer(
+                        RedisExecProvider.defaultProvider()
+                            .override(OS.MAC_OS_X, redisMacOS.absolutePath)
+                            .override(OS.UNIX, redisLinux.absolutePath),
+                        REDIS_PORT
+                    )
+
+                    redisServer.start()
+                }
+
+                launch {
+                    // ElasticSearch
+                    elasticSearch = ElasticsearchContainer()
+                    elasticSearch.start()
+                }
+
+                launch {
+                    // Ceph or normal file system
+                    File(CEPHFS_HOME).mkdirs()
+
+                    if (Platform.isLinux() && shouldRunCeph) {
+                        isRunningCeph = true
+
+                        val console = System.console()
+                        if (uid != 0) {
+                            localSudoPassword = if (console != null) {
+                                String(console.readPassword("Local sudo password"))
+                            } else {
+                                val panel = JPanel()
+                                val label = JLabel("Local sudo password:")
+                                val pass = JPasswordField(10)
+                                panel.add(label)
+                                panel.add(pass)
+                                val options = arrayOf("OK", "Cancel")
+                                val option = JOptionPane.showOptionDialog(
+                                    null, panel, "Local sudo password",
+                                    JOptionPane.NO_OPTION, JOptionPane.PLAIN_MESSAGE,
+                                    null, options, options[0]
+                                )
+
+                                String(pass.password)
+                            }
+                        }
+
+                        val c = CephContainer()
+                        c.start()
+                        ceph = c
+                        while (true) {
+                            if (c.execInContainer("curl", "http://localhost:5000").exitCode == 0) break
+                            Thread.sleep(100)
+                        }
+
+                        if (sudo("ceph-fuse", CEPHFS_HOME)!!.waitFor() != 0) throw IllegalStateException()
+                        if (sudo(
+                                "chown",
+                                "$uid:$uid",
+                                CEPHFS_HOME,
+                                "-R"
+                            )!!.waitFor() != 0
+                        ) throw IllegalStateException()
+                    }
+                }
+            }
+        }
+
+        runBlocking { job.join() }
+    }
 
     private fun createConfiguration(refreshToken: String): File {
         val dir = Files.createTempDirectory("c").toFile()
 
-        TestDB.initializeWithoutService()
+        initializeDatabases()
 
         File(dir, "token.yml").writeText(
             """
@@ -109,6 +280,25 @@ object UCloudLauncher : Loggable {
             """.trimIndent()
         )
 
+        File(dir, "redis.yml").writeText(
+            """
+                ---
+                redis:
+                  hostname: localhost
+                  port: $REDIS_PORT
+            """.trimIndent()
+        )
+
+        File(dir, "elasticsearch.yml").writeText(
+            """
+                ---
+                elk:
+                  elasticsearch:
+                    hostname: localhost
+                    port: ${elasticSearch.getMappedPort(9200)}
+            """.trimIndent()
+        )
+
         return dir
     }
 
@@ -118,7 +308,7 @@ object UCloudLauncher : Loggable {
         val jdbcUrl = TestDB.getEmbeddedPostgresInfo()
 
         javaClass.classLoader.resources("db/migration").forEach outer@{ migrationUrl ->
-           val tempDirectory = Files.createTempDirectory("migration").toFile()
+            val tempDirectory = Files.createTempDirectory("migration").toFile()
 
             Files.newDirectoryStream(pathInResources(migrationUrl, "db/migration")).use { dirStream ->
                 dirStream.forEach {
@@ -135,7 +325,10 @@ object UCloudLauncher : Loggable {
             val schema = try {
                 URL("$migrationUrl/schema.txt").readText()
             } catch (ex: Throwable) {
-                throw RuntimeException("Could not find 'schema.txt' in $migrationUrl ${URL("$migrationUrl/schema.txt")}", ex)
+                throw RuntimeException(
+                    "Could not find 'schema.txt' in $migrationUrl ${URL("$migrationUrl/schema.txt")}",
+                    ex
+                )
             }
 
             val flyway = Flyway.configure().apply {
@@ -145,6 +338,16 @@ object UCloudLauncher : Loggable {
             }.load()
 
             flyway.migrate()
+        }
+    }
+
+    private fun shutdown() {
+        elasticSearch.close()
+        redisServer.stop()
+        TestDB.db.close()
+        if (isRunningCeph) {
+            sudo("umount", "-f", CEPHFS_HOME)
+            ceph.close()
         }
     }
 
@@ -161,6 +364,7 @@ object UCloudLauncher : Loggable {
     fun launch() {
         if (isRunning) return
         isRunning = true
+        Runtime.getRuntime().addShutdownHook(Thread { shutdown() })
 
         runBlocking {
             val serviceRefreshToken = UUID.randomUUID().toString()
@@ -176,6 +380,8 @@ object UCloudLauncher : Loggable {
             micro = reg.rootMicro
 
             migrateAll()
+            File(CEPHFS_HOME, "home").mkdirs()
+            File(CEPHFS_HOME, "projects").mkdirs()
 
             TestDB.dbSessionFactory("auth").withSession { session ->
                 val parameters: EnhancedPreparedStatement.() -> Unit = {
@@ -187,26 +393,26 @@ object UCloudLauncher : Loggable {
                     .sendPreparedStatement(
                         parameters,
                         """
-                        insert into principals 
-                            (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
-                            phone_number, title, hashed_password, salt, org_id, email) 
-                            values 
-                            ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
-                            E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
-                   """
+                            insert into principals 
+                                (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
+                                phone_number, title, hashed_password, salt, org_id, email) 
+                                values 
+                                ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
+                                E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
+                       """
                     )
 
                 session
                     .sendPreparedStatement(
                         parameters,
                         """
-                        insert into refresh_tokens 
-                            (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
-                            expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
-                            values
-                            (:refreshToken, 'admin@dev', 'csrf', 'initial', null, :scopes::jsonb, 
-                            31536000000, null, '[]'::jsonb,now(), '127.0.0.1', 'UCloud');
-                    """
+                            insert into refresh_tokens 
+                                (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
+                                expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
+                                values
+                                (:refreshToken, 'admin@dev', 'csrf', 'initial', null, :scopes::jsonb, 
+                                31536000000, null, '[]'::jsonb, now(), '127.0.0.1', 'UCloud');
+                        """
                     )
             }
 
@@ -226,8 +432,8 @@ object UCloudLauncher : Loggable {
             val services = setOf(
                 AccountingService,
                 ActivityService,
-                AppKubernetesService,
-                AppKubernetesWatcherService,
+                //AppKubernetesService,
+                //AppKubernetesWatcherService,
                 AppLicenseService,
                 AppOrchestratorService,
                 AppStoreService,
@@ -270,13 +476,20 @@ object UCloudLauncher : Loggable {
             GlobalScope.launch {
                 reg.start()
             }
+
+            while (!reg.isRunning) {
+                delay(50)
+            }
         }
     }
 }
 
 class F {
     companion object {
-        @BeforeClass @JvmStatic fun beforeClass() {
+        @BeforeClass
+        @JvmStatic
+        fun beforeClass() {
+            UCloudLauncher.shouldRunCeph = false
             UCloudLauncher.launch()
         }
     }
@@ -287,10 +500,12 @@ class F {
         val m = UCloudLauncher.micro.createScope()
         m.install(RefreshingJWTCloudFeature)
         val serviceClient = m.authenticator.authenticateClient(OutgoingHttpCall)
-        println(UserDescriptions.createNewUser.call(
-            listOf(CreateSingleUserRequest("user", "testing", "user@dev", Role.USER)),
-            serviceClient
-        ).orThrow())
+        println(
+            UserDescriptions.createNewUser.call(
+                listOf(CreateSingleUserRequest("user", "testing", "user@dev", Role.USER)),
+                serviceClient
+            ).orThrow().map { it.refreshToken }
+        )
 
         return@runBlocking
     }
