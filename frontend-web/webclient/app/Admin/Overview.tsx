@@ -6,6 +6,7 @@ import {Box, Button, Flex, Icon, Link} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {IconName} from "ui-components/Icon";
 import {ThemeColor} from "ui-components/theme";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const linkInfo: LinkInfo[] = [
     {to: "/admin/userCreation", text: "User Creation", icon: "user", color: "white", color2: "midGray"},
@@ -25,6 +26,7 @@ interface LinkInfo {
 function AdminOverview(): JSX.Element | null {
 
     useTitle("Admin Dashboard");
+    useSidebarPage(SidebarPages.Admin);
 
     if (!Client.userIsAdmin) return null;
     return (

@@ -243,7 +243,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                         >
                             Submit
                         </Button>
-                        <Box mt={32} color={"black"} textAlign={"center"}>
+                        <Box mt={32} color="black" textAlign="center">
                             {!this.state.reservationMachine ? null : (
                                 <>
                                     <Icon name={"grant"}/>{" "}
@@ -262,10 +262,10 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                 </>
                             )}
                         </Box>
-                        <Box mt={32} color={"black"} textAlign={"center"}>
+                        <Box mt={32} color="black" textAlign="center">
                             {!this.state.reservationMachine ? null : (
                                 <>
-                                    <Icon name={"grant"}/>{" "}
+                                    <Icon name="grant" />{" "}
                                     Credits Available: <br/>
 
                                     {

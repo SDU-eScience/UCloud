@@ -8,7 +8,6 @@ import {
     isSharesFolder, isTrashFolder
 } from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
-import {GrantRecipientExisting, GrantRecipientPersonal, GrantRecipientNew} from "Project/Grant";
 import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
 
@@ -93,7 +92,7 @@ export const extensionFromPath = (path: string): string => {
     return splitString[splitString.length - 1];
 };
 
-type ExtensionType =
+export type ExtensionType =
     null
     | "code"
     | "image"
@@ -105,6 +104,7 @@ type ExtensionType =
     | "binary"
     | "markdown"
     | "application";
+
 export const extensionType = (ext: string): ExtensionType => {
     switch (ext.toLowerCase()) {
         case "app":

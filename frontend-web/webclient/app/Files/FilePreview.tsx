@@ -1,9 +1,8 @@
 import {Client} from "Authentication/HttpClientInstance";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
-import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
-import {useHistory, useLocation, useParams} from "react-router";
+import {useHistory, useLocation} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Box, Button, Markdown} from "ui-components";
@@ -13,6 +12,7 @@ import {
     extensionFromPath,
     extensionTypeFromPath,
     isExtPreviewSupported,
+    ExtensionType,
 } from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import SyntaxHighlighter from "react-syntax-highlighter";
@@ -22,14 +22,18 @@ import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useEffect, useState} from "react";
 import {statFile} from "Files/LowLevelFileTable";
 import {quickLaunchFromParametersFile} from "Files/QuickLaunch";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 interface FilePreviewStateProps {
     isEmbedded?: boolean;
 }
 
-function useFileContent() {
+function useFileContent(): {
+    path: string; fileContent: string | null; hasDownloadButton: boolean; error: string | null, fileType: ExtensionType
+} {
     const [, runCommand] = useAsyncCommand();
-    const [,, runWork] = useAsyncWork();
+    const [, , runWork] = useAsyncWork();
     const location = useLocation();
     const path = getQueryParamOrElse(location.search, "path", "");
     const [error, setError] = useState<string | null>(null);
@@ -67,7 +71,7 @@ function useFileContent() {
 
                 const content = await fetch(Client.computeURL(
                     "/api",
-                    buildQueryString("/files/download", { path, token })
+                    buildQueryString("/files/download", {path, token})
                 ));
                 switch (fileType) {
                     case "image":
@@ -99,6 +103,9 @@ function useFileContent() {
 const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
     const {hasDownloadButton, fileContent, fileType, error, path} = useFileContent();
     const history = useHistory();
+    useTitle("File Preview");
+    useSidebarPage(SidebarPages.Files);
+
 
     function showContent(): JSX.Element | null {
         if (hasDownloadButton) {
@@ -108,7 +115,7 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
                 </Button>
             );
         } else if (error) return null;
-        else if (!fileContent) return (<LoadingIcon size={36}/>);
+        else if (!fileContent) return (<LoadingIcon size={36} />);
         switch (fileType) {
             case "application":
                 quickLaunchFromParametersFile(fileContent, path, history);
@@ -117,17 +124,17 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
             case "code":
                 return <SyntaxHighlighter className="fullscreen">{fileContent}</SyntaxHighlighter>;
             case "image":
-                return <Img src={fileContent} className="fullscreen"/>;
+                return <Img src={fileContent} className="fullscreen" />;
             case "audio":
-                return <audio controls src={fileContent}/>;
+                return <audio controls src={fileContent} />;
             case "video":
-                return <Video src={fileContent} controls/>;
+                return <Video src={fileContent} controls />;
             case "pdf":
-                return <div><Embed className="fullscreen" src={fileContent}/></div>;
+                return <div><Embed className="fullscreen" src={fileContent} /></div>;
             case "markdown":
                 return <Box maxWidth={"1200px"} m={"0 auto"}><Markdown>{fileContent}</Markdown></Box>;
             default:
-                return <div>Can't render content</div>;
+                return <div>Cant render content</div>;
         }
     }
 
@@ -138,7 +145,7 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
     if (props.isEmbedded) {
         return (
             <>
-                <Error error={error ?? undefined}/>
+                <Error error={error ?? undefined} />
                 {showContent()}
             </>
         );
@@ -155,7 +162,7 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
                         client={Client}
                     />
 
-                    <Error error={error ?? undefined}/>
+                    <Error error={error ?? undefined} />
                     {showContent()}
                 </>
             )}
