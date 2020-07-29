@@ -113,6 +113,12 @@ class ProjectService(
         }
 
         eventProducer.produce(ProjectEvent.Created(id))
+        eventProducer.produce(
+            ProjectEvent.MemberAdded(
+                id,
+                ProjectMember(principalInvestigatorOverride ?: actor.safeUsername(), ProjectRole.PI)
+            )
+        )
         return id
     }
 
@@ -490,7 +496,12 @@ class ProjectService(
             val notificationMessage = "$memberToUpdate has changed role to $newRole in project: $projectTitle"
 
             allAdmins.forEach { admin ->
-                notify(NotificationType.PROJECT_ROLE_CHANGE, admin, notificationMessage, mapOf("projectId" to projectId))
+                notify(
+                    NotificationType.PROJECT_ROLE_CHANGE,
+                    admin,
+                    notificationMessage,
+                    mapOf("projectId" to projectId)
+                )
             }
 
             notify(NotificationType.PROJECT_ROLE_CHANGE, pi, notificationMessage, mapOf("projectId" to projectId))

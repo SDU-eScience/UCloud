@@ -163,10 +163,10 @@ enum class StorageFileAttribute {
 
 data class ListDirectoryRequest(
     val path: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?,
-    val order: SortOrder?,
-    val sortBy: FileSortBy?,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
+    val order: SortOrder? = null,
+    val sortBy: FileSortBy? = null,
     val attributes: String? = null,
     val type: FileType? = null
 ) : WithPaginationRequest
