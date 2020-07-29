@@ -406,6 +406,21 @@ export function rejectInvite(request: RejectInviteRequest): APICallParameters<Re
     };
 }
 
+export interface RenameProjectRequest {
+    id: string;
+    newTitle: string;
+}
+
+export function renameProject(request: RenameProjectRequest): APICallParameters<RenameProjectRequest> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/projects/rename",
+        payload: request,
+        parameters: request 
+    };
+}
+
 export const deleteProject = (payload: {projectId: string}): APICallParameters => ({
     method: "DELETE",
     path: "/projects/subprojects",
