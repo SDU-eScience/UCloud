@@ -11,6 +11,10 @@ dependencies {
     implementation(platform("org.testcontainers:testcontainers-bom:1.14.3"))
     testImplementation("org.testcontainers:elasticsearch")
     testImplementation("it.ozimov:embedded-redis:0.7.3")
+    testImplementation("org.testcontainers:selenium:1.14.3")
+    testImplementation("org.seleniumhq.selenium:selenium-remote-driver:3.141.59")
+    testImplementation("org.seleniumhq.selenium:selenium-chrome-driver:3.141.59")
+    testImplementation("org.seleniumhq.selenium:selenium-firefox-driver:3.141.59")
 
     rootProject.childProjects.values
         .filter { it.name.endsWith("-service") }

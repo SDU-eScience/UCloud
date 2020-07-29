@@ -76,6 +76,13 @@ import javax.swing.JPanel
 import javax.swing.JPasswordField
 import kotlin.IllegalStateException
 
+fun findPreferredOutgoingIp(): String {
+    return DatagramSocket().use { socket ->
+        socket.connect(InetAddress.getByName("1.1.1.1"), 12345)
+        socket.localAddress.hostAddress
+    }
+}
+
 class CephContainer : GenericContainer<CephContainer?>("ceph/daemon") {
     val hostIp: String
 
@@ -83,10 +90,7 @@ class CephContainer : GenericContainer<CephContainer?>("ceph/daemon") {
         logger().info("Starting an ceph container using [{}]", dockerImageName)
         withNetworkAliases("ceph-" + Base58.randomString(6))
 
-        hostIp = DatagramSocket().use { socket ->
-            socket.connect(InetAddress.getByName("1.1.1.1"), 12345)
-            socket.localAddress.hostAddress
-        }
+        hostIp = findPreferredOutgoingIp()
 
         logger().info("Using the following IP: $hostIp")
         withEnv("CEPH_PUBLIC_NETWORK", "$hostIp/32")

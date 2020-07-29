@@ -11,23 +11,31 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import java.util.*
 import kotlin.random.Random
 
+data class CreatedUser(
+    val client: AuthenticatedClient,
+    val username: String,
+    val password: String
+)
+
 suspend fun createUser(
     username: String = "user-${Random.nextLong()}",
+    password: String = UUID.randomUUID().toString(),
     role: Role = Role.USER
-): Pair<AuthenticatedClient, String> {
+): CreatedUser {
     val refreshToken = UserDescriptions.createNewUser.call(
         listOf(
-            CreateSingleUserRequest(username, UUID.randomUUID().toString(), "$username@mail", role)
+            CreateSingleUserRequest(username, password, "$username@mail", role)
         ),
         serviceClient
     ).orThrow().single().refreshToken
 
-    return Pair(
+    return CreatedUser(
         RefreshingJWTAuthenticator(
             serviceClient.client,
             refreshToken,
             UCloudLauncher.micro.tokenValidation as TokenValidationJWT
         ).authenticateClient(OutgoingHttpCall),
-        username
+        username,
+        password
     )
 }
