@@ -108,15 +108,19 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
 
                     if (titleValue === "") return;
 
-                    await invokeCommand(renameProject(
+                    const success = await invokeCommand(renameProject(
                         {
                             id: props.projectId,
                             newTitle: titleValue
                         }
-                    ));
+                    )) !== null;
 
-                    props.onSuccess();
-                    snackbarStore.addSuccess("Project renamed successfully", true);
+                    if(success) {
+                        props.onSuccess();
+                        snackbarStore.addSuccess("Project renamed successfully", true);
+                    } else {
+                        snackbarStore.addFailure("Renaming of project failed", true);
+                    }
                 }}>
                     <Heading.h4>Project Title</Heading.h4>
                     <Flex flexGrow={1}>
