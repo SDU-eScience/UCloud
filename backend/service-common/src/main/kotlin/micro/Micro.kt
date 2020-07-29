@@ -34,7 +34,7 @@ fun <Feature : MicroFeature, Config> Micro.install(
     featureFactory: MicroFeatureFactory<Feature, Config>,
     configuration: Config
 ) {
-    if (getOrNull(featureFactory.key) != null) return
+    if (getOrNull(featureFactory.key, lookInParent = false) != null) return
 
     val time = measureTime {
         val feature = featureFactory.create(configuration)
@@ -99,10 +99,10 @@ class Micro(private val parent: Micro? = null) {
         return getOrNull(key) ?: throw IllegalStateException("Missing attribute for key: ${key.name}")
     }
 
-    fun <T : Any> getOrNull(key: MicroAttributeKey<T>): T? {
+    fun <T : Any> getOrNull(key: MicroAttributeKey<T>, lookInParent: Boolean = true): T? {
         @Suppress("UNCHECKED_CAST") val result = internalAttributes[key.name] as T?
 
-        if (result == null && parent != null) {
+        if (result == null && parent != null && lookInParent) {
             return parent.getOrNull(key)
         }
 

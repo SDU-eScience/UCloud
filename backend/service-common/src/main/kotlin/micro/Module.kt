@@ -58,6 +58,7 @@ class ServiceRegistry(val args: Array<String>) {
         scopedMicro.isEmbeddedService = true
         scopedMicro.install(DatabaseConfigurationFeature)
         scopedMicro.install(FlywayFeature)
+        scopedMicro.install(RedisFeature)
         val server = service.initializeServer(scopedMicro)
         services.add(ConfiguredService(service.description, service, scopedMicro, server))
     }
