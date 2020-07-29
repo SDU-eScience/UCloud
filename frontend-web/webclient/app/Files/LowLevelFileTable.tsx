@@ -289,7 +289,10 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     }, [reload]);
 
     useEffect(() => {
-        return () => {dispatch(setUploaderCallback());};
+        return () => {
+            dispatch(setUploaderCallback());
+            props.onLoadingState?.(false);
+        };
     }, []);
 
     const permissions = useFilePermissions();
