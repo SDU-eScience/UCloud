@@ -17,6 +17,7 @@ import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
 import {expandHomeOrProjectFolder} from "./FileUtilities";
 import {useEffect, useState} from "react";
 import {QuickLaunchApp} from "Files/QuickLaunch";
+import {usePromiseKeeper} from "PromiseKeeper";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -320,6 +321,7 @@ export function checkForMissingParameters(
 
 export function useAppQuickLaunch(page: Page<File>, client: HttpClient): Map<string, QuickLaunchApp[]> {
     const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
+    const promises = usePromiseKeeper();
 
     useEffect(() => {
         const filesOnly = page.items.filter(f => f.fileType === "FILE");
@@ -349,7 +351,7 @@ export function useAppQuickLaunch(page: Page<File>, client: HttpClient): Map<str
 
                     newApplications.set(f.path, fileApps);
                 });
-                setApplications(newApplications);
+                if (!promises.canceledKeeper) setApplications(newApplications);
             }).catch(e =>
                 snackbarStore.addFailure(
                     errorMessageOrDefault(e, "An error occurred fetching Quicklaunch Apps"), false

@@ -238,6 +238,8 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         throw Error("page is not currently supported in non-embedded mode without a path");
     }
 
+    const {projectRole} = useProjectManagementStatus(true);
+
     // Hooks
     const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
@@ -463,7 +465,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
-                            <RepositoryOperations path={props.path} createFolder={callbacks.requestFolderCreation} />
+                            <RepositoryOperations role={projectRole} path={props.path} createFolder={callbacks.requestFolderCreation} />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
@@ -992,9 +994,9 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 function RepositoryOperations(props: {
     path: string | undefined;
     createFolder: (isRepo?: boolean) => void;
+    role: ProjectRole;
 }): JSX.Element | null {
-    const {projectRole} = useProjectManagementStatus(true);
-    if (props.path === undefined || !FUtils.isProjectHome(props.path) || !isAdminOrPI(projectRole)) {
+    if (props.path === undefined || !FUtils.isProjectHome(props.path) || !isAdminOrPI(props.role)) {
         return null;
     }
     return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;

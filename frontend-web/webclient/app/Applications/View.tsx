@@ -318,8 +318,6 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAct
     }
 });
 
-const mapStateToProps = (state: ReduxObject): StateProps => ({
-    ...state.applicationView
-});
+const mapStateToProps = (state: ReduxObject): StateProps => state.applicationView;
 
 export default connect(mapStateToProps, mapDispatchToProps)(View);

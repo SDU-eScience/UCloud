@@ -73,7 +73,7 @@
         "enzyme": "^3.11.0",
         "enzyme-adapter-react-16": "^1.15.2",
         "eslint": "^7.5.0",
-        "eslint-plugin-react": "^7.20.4",
+        "eslint-plugin-react": "^7.20.5",
         "file-loader": "6.0.0",
         "html-webpack-plugin": "^4.3.0",
         "imports-loader": "1.1.0",
