@@ -3,18 +3,7 @@ package dk.sdu.cloud.project.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.project.api.GroupWithSummary
-import dk.sdu.cloud.project.api.IngoingInvite
-import dk.sdu.cloud.project.api.IsMemberQuery
-import dk.sdu.cloud.project.api.LookupPrincipalInvestigatorResponse
-import dk.sdu.cloud.project.api.OutgoingInvite
-import dk.sdu.cloud.project.api.Project
-import dk.sdu.cloud.project.api.ProjectMember
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.UserGroupSummary
-import dk.sdu.cloud.project.api.UserProjectSummary
-import dk.sdu.cloud.project.api.UserStatusInProject
-import dk.sdu.cloud.project.api.UserStatusResponse
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -959,6 +948,37 @@ class QueryService(
                 .rows.firstOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             LookupPrincipalInvestigatorResponse(pi)
+        }
+    }
+
+    suspend fun renameProject(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String,
+        newTitle: String
+    ) {
+        val isAdmin = when (actor) {
+            Actor.System -> true
+
+            is Actor.User, is Actor.SystemOnBehalfOfUser -> {
+                if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
+                    true
+                } else {
+                    projects.findRoleOfMember(ctx, projectId, actor.username) in ProjectRole.ADMINS
+                }
+            }
+        }
+
+        if (!isAdmin) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("newTitle", newTitle)
+                },
+                """update projects set title = :newTitle where id = :project"""
+            )
         }
     }
 
