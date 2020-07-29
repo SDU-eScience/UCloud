@@ -128,7 +128,7 @@ class Server(
                     commandRunnerForCalls,
                     newAclService,
                     coreFileSystem,
-                    config.filePermissionAcl
+                    config.filePermissionAcl + if (micro.developmentModeEnabled) setOf("admin@dev") else emptySet()
                 ),
 
                 IndexingController(
