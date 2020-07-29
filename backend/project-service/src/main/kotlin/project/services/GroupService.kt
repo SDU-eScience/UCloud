@@ -11,8 +11,9 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 
 object GroupTable : SQLTable("groups") {
+    val id = text("id")
     val project = text("project")
-    val group = text("title")
+    val title = text("title")
 }
 
 object GroupMembershipTable : SQLTable("group_members") {
@@ -36,7 +37,7 @@ class GroupService(
 
                 session.insert(GroupTable) {
                     set(GroupTable.project, projectId) // TODO This needs to be a foreign key
-                    set(GroupTable.group, group)
+                    set(GroupTable.title, group)
                 }
 
                 eventProducer.produce(ProjectEvent.GroupCreated(projectId, group))
