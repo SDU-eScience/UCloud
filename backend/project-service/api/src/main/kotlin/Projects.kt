@@ -86,9 +86,9 @@ data class UserGroupSummary(
 )
 
 data class ListProjectsRequest(
-    val user: String?,
-    override val itemsPerPage: Int?,
-    override val page: Int?,
+    val user: String? = null,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
     val archived: Boolean? = null,
     val noFavorites: Boolean? = null
 ) : WithPaginationRequest
@@ -107,10 +107,16 @@ typealias ListFavoriteProjectsResponse = ListProjectsResponse
 data class ViewProjectRequest(val id: String)
 typealias ViewProjectResponse = UserProjectSummary
 
-data class ListIngoingInvitesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class ListIngoingInvitesRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
 typealias ListIngoingInvitesResponse = Page<IngoingInvite>
 
-data class ListOutgoingInvitesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class ListOutgoingInvitesRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
 typealias ListOutgoingInvitesResponse = Page<OutgoingInvite>
 
 data class AcceptInviteRequest(val projectId: String)
@@ -586,6 +592,7 @@ object Projects : CallDescriptionContainer("project") {
     /**
      * Returns the number of sub-projects of an existing project
      */
+    @Deprecated("Should be replaced with listSubProjects.itemsInTotal")
     val countSubProjects = call<CountSubProjectsRequest, CountSubProjectsResponse, CommonErrorMessage>("countSubProjects") {
         auth {
             access = AccessRight.READ
