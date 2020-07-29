@@ -194,10 +194,11 @@ class ProjectService(
         invitesTo: Set<String>
     ) {
         invitesTo.forEach { member ->
+            // We do not wish to fail if contact book is misbehaving
             ContactBookDescriptions.insert.call(
                 InsertRequest(invitedBy, listOf(member), ServiceOrigin.PROJECT_SERVICE),
                 serviceClient
-            ).orThrow()
+            )
 
             notify(NotificationType.PROJECT_INVITE, member, "$invitedBy has invited you to collaborate")
         }
@@ -212,10 +213,11 @@ class ProjectService(
                 )
             }
 
+            // We don't wish to fail if mails fail at sending
             MailDescriptions.sendBulk.call(
                 SendBulkRequest(messages),
                 serviceClient
-            ).orThrow()
+            )
         }
     }
 
@@ -343,6 +345,7 @@ class ProjectService(
         message: String,
         meta: Map<String, Any?> = emptyMap()
     ) {
+        // We don't wish to fail if notifications fail
         NotificationDescriptions.create.call(
             CreateNotification(
                 receiver,
@@ -353,7 +356,7 @@ class ProjectService(
                 )
             ),
             serviceClient
-        ).orThrow()
+        )
     }
 
     suspend fun deleteMember(

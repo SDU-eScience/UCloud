@@ -14,10 +14,12 @@ import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.AvatarService
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.ContactBookService
+import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.downtime.management.DowntimeManagementService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.StorageService
@@ -29,10 +31,7 @@ import dk.sdu.cloud.grant.GrantService
 import dk.sdu.cloud.indexing.IndexingService
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
-import dk.sdu.cloud.micro.Log4j2ConfigFactory
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServiceRegistry
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
@@ -53,7 +52,6 @@ import kotlinx.coroutines.*
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.Location
-import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
 import org.testcontainers.containers.GenericContainer
@@ -115,7 +113,9 @@ object UCloudLauncher : Loggable {
     var isRunning = false
         private set
 
-    var shouldRunCeph: Boolean = true
+    var shouldRunCeph: Boolean = false
+
+    lateinit var serviceClient: AuthenticatedClient
 
     private val CEPHFS_HOME = "/mnt/cephfs"
     private const val REDIS_PORT = 44231
@@ -125,6 +125,7 @@ object UCloudLauncher : Loggable {
     private lateinit var ceph: CephContainer
     private var isRunningCeph = false
     private var localSudoPassword: String? = null
+    private lateinit var refreshToken: String
     private val uid: Int by lazy {
         if (!Platform.isLinux()) throw IllegalStateException()
 
@@ -137,11 +138,7 @@ object UCloudLauncher : Loggable {
 
     private fun sudo(vararg command: String): Process? {
         if (uid == 0) {
-            val process = ProcessBuilder()
-                .command(*command)
-                .start()
-
-            return process
+            return ProcessBuilder().command(*command).start()
         } else {
             val localSudoPassword = this.localSudoPassword ?: return null
 
@@ -196,7 +193,7 @@ object UCloudLauncher : Loggable {
 
                 launch {
                     // ElasticSearch
-                    elasticSearch = ElasticsearchContainer()
+                    elasticSearch = ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:7.6.0")
                     elasticSearch.start()
                 }
 
@@ -252,7 +249,7 @@ object UCloudLauncher : Loggable {
         runBlocking { job.join() }
     }
 
-    private fun createConfiguration(refreshToken: String): File {
+    private fun createConfiguration(): File {
         val dir = Files.createTempDirectory("c").toFile()
 
         initializeDatabases()
@@ -312,7 +309,6 @@ object UCloudLauncher : Loggable {
 
             Files.newDirectoryStream(pathInResources(migrationUrl, "db/migration")).use { dirStream ->
                 dirStream.forEach {
-                    println(it)
                     if (it.fileName.toString().endsWith(".class")) return@outer
                     Files.newInputStream(it).use { ins ->
                         FileOutputStream(File(tempDirectory, it.fileName.toString())).use { fos ->
@@ -361,61 +357,111 @@ object UCloudLauncher : Loggable {
         }
     }
 
-    fun launch() {
-        if (isRunning) return
-        isRunning = true
-        Runtime.getRuntime().addShutdownHook(Thread { shutdown() })
+    suspend fun wipeDatabases() {
+        File(CEPHFS_HOME, "home").apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        File(CEPHFS_HOME, "projects").apply {
+            deleteRecursively()
+            mkdirs()
+        }
 
+        TestDB.dbSessionFactory("public").withSession { session ->
+            session.sendQuery("select truncate_tables()")
+        }
+
+        TestDB.dbSessionFactory("auth").withSession { session ->
+            val parameters: EnhancedPreparedStatement.() -> Unit = {
+                setParameter("refreshToken", refreshToken)
+                setParameter("scopes", "[\"all:write\"]")
+            }
+
+            session
+                .sendPreparedStatement(
+                    parameters,
+                    """
+                        insert into principals 
+                            (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
+                            phone_number, title, hashed_password, salt, org_id, email) 
+                            values 
+                            ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
+                            E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
+                   """
+                )
+
+            session
+                .sendPreparedStatement(
+                    parameters,
+                    """
+                        insert into refresh_tokens 
+                            (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
+                            expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
+                            values
+                            (:refreshToken, 'admin@dev', 'csrf', 'initial', null, :scopes::jsonb, 
+                            31536000000, null, '[]'::jsonb, now(), '127.0.0.1', 'UCloud');
+                    """
+                )
+        }
+    }
+
+    fun launch() {
         runBlocking {
+            if (isRunning) {
+                wipeDatabases()
+                return@runBlocking
+            }
+
+            isRunning = true
+            Runtime.getRuntime().addShutdownHook(Thread { shutdown() })
+
             val serviceRefreshToken = UUID.randomUUID().toString()
+            refreshToken = serviceRefreshToken
             val reg = ServiceRegistry(
                 arrayOf(
                     "--dev",
                     "--no-implicit-config",
                     "--config-dir",
-                    createConfiguration(serviceRefreshToken).absolutePath
+                    createConfiguration().absolutePath
                 )
             )
 
             micro = reg.rootMicro
 
             migrateAll()
-            File(CEPHFS_HOME, "home").mkdirs()
-            File(CEPHFS_HOME, "projects").mkdirs()
-
-            TestDB.dbSessionFactory("auth").withSession { session ->
-                val parameters: EnhancedPreparedStatement.() -> Unit = {
-                    setParameter("refreshToken", serviceRefreshToken)
-                    setParameter("scopes", "[\"all:write\"]")
-                }
-
-                session
-                    .sendPreparedStatement(
-                        parameters,
-                        """
-                            insert into principals 
-                                (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
-                                phone_number, title, hashed_password, salt, org_id, email) 
-                                values 
-                                ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
-                                E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
-                       """
-                    )
-
-                session
-                    .sendPreparedStatement(
-                        parameters,
-                        """
-                            insert into refresh_tokens 
-                                (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
-                                expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
-                                values
-                                (:refreshToken, 'admin@dev', 'csrf', 'initial', null, :scopes::jsonb, 
-                                31536000000, null, '[]'::jsonb, now(), '127.0.0.1', 'UCloud');
-                        """
-                    )
+            run {
+                // TODO Deal with elasticsearch
+                val me = micro.createScope()
+                me.install(ElasticFeature)
+                ContactBookElasticDao(me.elasticHighLevelClient).createIndex()
             }
 
+            TestDB.dbSessionFactory("public").withSession { session ->
+                // Create a truncate script
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        create or replace function truncate_tables() returns void as $$
+                        declare
+                            statements cursor for
+                                select schemaname, tablename from pg_tables
+                                where schemaname != 'public' and schemaname != 'pg_catalog';
+                        begin
+                            for stmt in statements loop
+                                execute 'truncate table ' || quote_ident(stmt.schemaname) || '.' || 
+                                    quote_ident(stmt.tablename) || ' cascade;';
+                            end loop;
+                        end;
+                        $$ language plpgsql
+                    """
+                )
+            }
+
+            wipeDatabases()
+
+            val m = micro.createScope()
+            m.install(RefreshingJWTCloudFeature)
+            serviceClient = m.authenticator.authenticateClient(OutgoingHttpCall)
 
             val blacklist = setOf(
                 // WebDav needs to run as a standalone server
@@ -484,29 +530,8 @@ object UCloudLauncher : Loggable {
     }
 }
 
-class F {
-    companion object {
-        @BeforeClass
-        @JvmStatic
-        fun beforeClass() {
-            UCloudLauncher.shouldRunCeph = false
-            UCloudLauncher.launch()
-        }
-    }
-
-    @Test
-    fun testing(): Unit = runBlocking {
-        println("Hello, World!")
-        val m = UCloudLauncher.micro.createScope()
-        m.install(RefreshingJWTCloudFeature)
-        val serviceClient = m.authenticator.authenticateClient(OutgoingHttpCall)
-        println(
-            UserDescriptions.createNewUser.call(
-                listOf(CreateSingleUserRequest("user", "testing", "user@dev", Role.USER)),
-                serviceClient
-            ).orThrow().map { it.refreshToken }
-        )
-
-        return@runBlocking
+abstract class IntegrationTest {
+    init {
+        UCloudLauncher.launch()
     }
 }

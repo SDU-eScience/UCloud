@@ -28,18 +28,22 @@ class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
             return
         }
         val request = CreateIndexRequest(CONTACT_BOOK_INDEX)
-        request.settings("""
-            {
-            "number_of_shards": 2,
-            "number_of_replicas": 2,
-            "analysis": {
-              "analyzer": "whitespace",
-              "tokenizer": "whitespace"
-            }
-            }
-            """.trimIndent(), XContentType.JSON)
+        request.settings(
+            """
+                {
+                    "number_of_shards": 2,
+                    "number_of_replicas": 2,
+                    "analysis": {
+                        "analyzer": "whitespace",
+                        "tokenizer": "whitespace"
+                    }
+                }
+            """,
+            XContentType.JSON
+        )
 
-        request.mapping("""
+        request.mapping(
+            """
                 {
                     "properties" : {
                         "fromUser" : {
@@ -76,7 +80,10 @@ class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
                             }
                         }
                     }
-                }""".trimIndent(), XContentType.JSON)
+                }
+            """,
+            XContentType.JSON
+        )
         elasticClient.indices().create(request, RequestOptions.DEFAULT)
         elasticClient.indices().flush(FlushRequest(CONTACT_BOOK_INDEX).waitIfOngoing(true), RequestOptions.DEFAULT)
     }
