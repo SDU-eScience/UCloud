@@ -230,7 +230,7 @@ class ProjectController(
 
         implement(Projects.rename) {
             ok(
-                queries.renameProject(
+                projects.renameProject(
                     db,
                     ctx.securityPrincipal.toActor(),
                     request.id,
