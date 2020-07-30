@@ -11,6 +11,7 @@ alter table group_members alter column group_id set not null;
 alter table group_members drop constraint group_members_pkey;
 alter table group_members drop constraint group_members_project_members_fkey;
 alter table group_members drop constraint group_members_project_the_group_fkey;
+alter table group_members drop constraint if exists group_members_project_fkey;
 
 alter table groups drop constraint groups_pkey;
 alter table groups add primary key (id);
