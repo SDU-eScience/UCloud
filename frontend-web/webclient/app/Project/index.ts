@@ -179,7 +179,7 @@ export function membershipSearch(request: MembershipSearchRequest): APICallParam
 }
 
 export interface UpdateGroupNameRequest {
-    oldGroupName: string;
+    groupId: string;
     newGroupName: string;
 }
 
@@ -620,7 +620,7 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
     }, [projectMemberParams, groupMembersParams, setProjectMemberParams, groupId]);
 
     return {
-        locationParams, projectId: projectId ?? "", groupId, groupDetails, groupDetailsParams, projectMembers, setProjectMemberParams, groupMembers,
+        locationParams, projectId: projectId ?? "", groupId, groupDetails, fetchGroupDetails, groupDetailsParams, projectMembers, setProjectMemberParams, groupMembers,
         fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
         projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
         outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
