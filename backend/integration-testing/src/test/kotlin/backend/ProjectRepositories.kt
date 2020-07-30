@@ -1,10 +1,12 @@
-package dk.sdu.cloud.integration
+package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AccessRights
+import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.repository.api.*
 import dk.sdu.cloud.service.test.assertThatInstance
@@ -15,68 +17,69 @@ import org.junit.Test
 
 class ProjectRepositories : IntegrationTest() {
     @Test
-    fun `test that personal repository is automatically created and accessible`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        // This sections need to retry because repository creation is asynchronous
-        retrySection {
-            FileDescriptions.listAtPath.call(
-                ListDirectoryRequest(
-                    joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, project.piUsername)
-                ),
-                project.piClient
-            ).orThrow()
-        }
-
-        val (newUserClient, newUser) = createUser()
-        addMemberToProject(project.projectId, project.piClient, newUserClient, newUser)
-        retrySection {
-            // Files are accessible by both admins and the user
-
-            // Test the PI
-            FileDescriptions.listAtPath.call(
-                ListDirectoryRequest(
-                    joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, newUser)
-                ),
-                project.piClient
-            ).orThrow()
-
-            // Test the user
-            FileDescriptions.listAtPath.call(
-                ListDirectoryRequest(
-                    joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, newUser)
-                ),
-                newUserClient
-            ).orThrow()
-
-            // Test that users cannot read other personal repos
-            assertThatInstance(
+    fun `test that personal repository is automatically created and accessible`() =
+        t {
+            val project = initializeNormalProject(initializeRootProject())
+            // This sections need to retry because repository creation is asynchronous
+            retrySection {
                 FileDescriptions.listAtPath.call(
                     ListDirectoryRequest(
                         joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, project.piUsername)
                     ),
-                    newUserClient
-                ),
-                "was unsuccessful"
-            ) { !it.statusCode.isSuccess() }
-        }
+                    project.piClient
+                ).orThrow()
+            }
 
-        if (false) { // This part is really slow because of caching of project membership
-            Projects.changeUserRole.call(
-                ChangeUserRoleRequest(project.projectId, newUser, ProjectRole.ADMIN),
-                project.piClient
-            ).orThrow()
+            val (newUserClient, newUser) = createUser()
+            addMemberToProject(project.projectId, project.piClient, newUserClient, newUser)
+            retrySection {
+                // Files are accessible by both admins and the user
 
-            retrySection(attempts = 90, delay = 1000) {
-                // When promoted we should be able to read the directory
+                // Test the PI
                 FileDescriptions.listAtPath.call(
                     ListDirectoryRequest(
-                        joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, project.piUsername)
+                        joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, newUser)
+                    ),
+                    project.piClient
+                ).orThrow()
+
+                // Test the user
+                FileDescriptions.listAtPath.call(
+                    ListDirectoryRequest(
+                        joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, newUser)
                     ),
                     newUserClient
                 ).orThrow()
+
+                // Test that users cannot read other personal repos
+                assertThatInstance(
+                    FileDescriptions.listAtPath.call(
+                        ListDirectoryRequest(
+                            joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, project.piUsername)
+                        ),
+                        newUserClient
+                    ),
+                    "was unsuccessful"
+                ) { !it.statusCode.isSuccess() }
+            }
+
+            if (false) { // This part is really slow because of caching of project membership
+                Projects.changeUserRole.call(
+                    ChangeUserRoleRequest(project.projectId, newUser, ProjectRole.ADMIN),
+                    project.piClient
+                ).orThrow()
+
+                retrySection(attempts = 90, delay = 1000) {
+                    // When promoted we should be able to read the directory
+                    FileDescriptions.listAtPath.call(
+                        ListDirectoryRequest(
+                            joinPath(projectHomeDirectory(project.projectId), PERSONAL_REPOSITORY, project.piUsername)
+                        ),
+                        newUserClient
+                    ).orThrow()
+                }
             }
         }
-    }
 
     @Test
     fun `test crud`() = t {

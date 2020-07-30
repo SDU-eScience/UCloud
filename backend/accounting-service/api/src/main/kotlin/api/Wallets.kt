@@ -20,7 +20,7 @@ enum class WalletOwnerType {
 data class RetrieveBalanceRequest(
     val id: String?,
     val type: WalletOwnerType?,
-    val includeChildren: Boolean?
+    val includeChildren: Boolean? = null
 ) {
     init {
         if (id != null || type != null) {

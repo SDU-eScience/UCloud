@@ -6,6 +6,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.service.Page
@@ -13,6 +14,8 @@ import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+
+val Int.DKK: Long get() = toLong() * 1_000_000
 
 data class UploadTemplatesRequest(
     val personalProject: String,
@@ -78,13 +81,19 @@ typealias CommentOnApplicationResponse = Unit
 data class DeleteCommentRequest(val commentId: Long)
 typealias DeleteCommentResponse = Unit
 
-data class IngoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class IngoingApplicationsRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
 typealias IngoingApplicationsResponse = Page<Application>
 
 data class Comment(val id: Long, val postedBy: String, val postedAt: Long, val comment: String)
 data class ApplicationWithComments(val application: Application, val comments: List<Comment>, val approver: Boolean)
 
-data class OutgoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class OutgoingApplicationsRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
 typealias OutgoingApplicationsResponse = Page<Application>
 
 typealias SubmitApplicationRequest = CreateApplication
@@ -144,6 +153,16 @@ data class ResourceRequest(
             throw RPCException("Cannot request a negative quota", HttpStatusCode.BadRequest)
         }
     }
+
+    companion object {
+        fun fromProduct(product: Product.Compute, credits: Long): ResourceRequest {
+            return ResourceRequest(product.category.id, product.category.provider, credits, null)
+        }
+
+        fun fromProduct(product: Product.Storage, credits: Long, quota: Long): ResourceRequest {
+            return ResourceRequest(product.category.id, product.category.provider, credits, quota)
+        }
+    }
 }
 
 data class CreateApplication(
@@ -177,7 +196,10 @@ typealias SetEnabledStatusResponse = Unit
 data class IsEnabledRequest(val projectId: String)
 data class IsEnabledResponse(val enabled: Boolean)
 
-data class BrowseProjectsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class BrowseProjectsRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
 typealias BrowseProjectsResponse = Page<ProjectWithTitle>
 data class ProjectWithTitle(val projectId: String, val title: String)
 

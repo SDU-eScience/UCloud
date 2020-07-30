@@ -1,4 +1,4 @@
-package dk.sdu.cloud.integration
+package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.SetBalanceRequest
 import dk.sdu.cloud.accounting.api.Wallet
@@ -9,7 +9,9 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.grant.api.*
+import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
+import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.favorite.api.ProjectFavorites
 import dk.sdu.cloud.project.favorite.api.ToggleFavoriteRequest
@@ -168,56 +170,6 @@ class ProjectTests : IntegrationTest() {
             return@t
         }
         assertTrue(false)
-    }
-
-    @Test
-    fun `request a project as normal user`() = t {
-        val root = initializeRootProject()
-        Grants.uploadRequestSettings.call(
-            UploadRequestSettingsRequest(
-                AutomaticApprovalSettings(emptyList(), emptyList()),
-                listOf(UserCriteria.Anyone())
-            ),
-            serviceClient.withProject(root)
-        ).orThrow()
-
-        val (myUser, username) = createUser()
-        val projectTitle = "My New Project"
-        val app = Grants.submitApplication.call(
-            SubmitApplicationRequest(
-                root,
-                GrantRecipient.NewProject(projectTitle),
-                "This is a document",
-                listOf(
-                    ResourceRequest(
-                        productCategory = sampleStorage.category.id,
-                        productProvider = sampleStorage.category.provider,
-                        creditsRequested = 1_000_000_000L,
-                        quotaRequested = null
-                    )
-                )
-            ),
-            myUser
-        ).orThrow()
-
-        Grants.approveApplication.call(
-            ApproveApplicationRequest(app.id),
-            serviceClient
-        ).orThrow()
-
-        val projectsAfterApproval = Projects.listProjects.call(
-            ListProjectsRequest(),
-            myUser
-        ).orThrow()
-
-        assertThatInstance(projectsAfterApproval, "has a single new project") {
-            it.items.single().title == projectTitle
-        }
-
-        assertThatInstance(projectsAfterApproval, "we are the PI") {
-            val whoami = it.items.single().whoami
-            whoami.username == username && whoami.role == ProjectRole.PI
-        }
     }
 
     @Test
@@ -538,14 +490,14 @@ class ProjectTests : IntegrationTest() {
         ).orThrow()
 
         assertThatInstance(
-            Projects.exists.call(ExistsRequest("not a project"), serviceClient),
+            Projects.exists.call(ExistsRequest("not a project"), serviceClient).orThrow(),
             "fails because project does not exist"
-        ) { it.statusCode == HttpStatusCode.NotFound }
+        ) { !it.exists }
 
         assertThatInstance(
             Projects.exists.call(ExistsRequest("not a project"), newUserClient),
             "fails because users cannot use this endpoint"
-        ) { it.statusCode == HttpStatusCode.Forbidden }
+        ) { !it.statusCode.isSuccess() }
     }
 
     @Test

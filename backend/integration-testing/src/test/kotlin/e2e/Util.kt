@@ -1,6 +1,5 @@
 package dk.sdu.cloud.integration.e2e
 
-import kotlinx.coroutines.delay
 import org.openqa.selenium.By
 import org.openqa.selenium.SearchContext
 import org.openqa.selenium.WebElement

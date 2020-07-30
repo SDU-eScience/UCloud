@@ -1,7 +1,6 @@
-package dk.sdu.cloud.integration
+package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
