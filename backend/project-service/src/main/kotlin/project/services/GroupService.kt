@@ -1,10 +1,12 @@
 package dk.sdu.cloud.project.services
 
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.stackTraceToString
@@ -147,6 +149,46 @@ class GroupService(
                     memberToRemove,
                     groupId
                 )
+            )
+        }
+    }
+
+
+    suspend fun rename(
+        ctx: DBContext,
+        actor: Actor,
+        groupId: String,
+        newName: String
+    ) {
+        ctx.withSession { session ->
+
+            val projectId = session.sendPreparedStatement(
+                {
+                    setParameter("group", groupId)
+                },
+                """select project from groups where id = :group"""
+            ).rows[0]["project"].toString()
+
+            val isAdmin = when (actor) {
+                Actor.System -> true
+
+                is Actor.User, is Actor.SystemOnBehalfOfUser -> {
+                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
+                        true
+                    } else {
+                        projects.findRoleOfMember(ctx, projectId, actor.username) in ProjectRole.ADMINS
+                    }
+                }
+            }
+
+            if (!isAdmin) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("group", groupId)
+                    setParameter("newTitle", newName)
+                },
+                """update groups set title = :newTitle where id = :group"""
             )
         }
     }

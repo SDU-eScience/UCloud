@@ -41,7 +41,7 @@ typealias AddGroupMemberResponse = Unit
 data class RemoveGroupMemberRequest(val group: String, val memberUsername: String)
 typealias RemoveGroupMemberResponse = Unit
 
-data class UpdateGroupNameRequest(val oldGroupName: String, val newGroupName: String) {
+data class UpdateGroupNameRequest(val groupId: String, val newGroupName: String) {
     init {
         if (newGroupName.isEmpty()) throw RPCException("Group cannot be empty", HttpStatusCode.BadRequest)
         if (newGroupName.contains('\n')) throw RPCException("Group cannot contain new lines", HttpStatusCode.BadRequest)
@@ -211,7 +211,6 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             }
         }
 
-    /*
     val updateGroupName = call<UpdateGroupNameRequest, UpdateGroupNameResponse, CommonErrorMessage>("updateGroupName") {
         auth {
             access = AccessRight.READ_WRITE
@@ -228,7 +227,6 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             body { bindEntireRequestFromBody() }
         }
     }
-     */
 
     /**
      * Lists members of a group.
