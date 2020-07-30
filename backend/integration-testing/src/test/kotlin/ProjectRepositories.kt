@@ -9,6 +9,7 @@ import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.repository.api.*
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.retrySection
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import org.junit.Test
 
@@ -274,5 +275,87 @@ class ProjectRepositories : IntegrationTest() {
             ),
             "fail because the group no longer exists"
         ) { !it.statusCode.isSuccess() }
+    }
+
+    @Test
+    fun `test repository creation by normal user fails`() = t {
+        val project = initializeNormalProject(initializeRootProject())
+        val user = createUser()
+        addMemberToProject(project.projectId, project.piClient, user.client, user.username)
+        assertThatInstance(
+            ProjectRepository.create.call(
+                RepositoryCreateRequest("whatever"),
+                user.client.withProject(project.projectId)
+            ),
+            "should fail because we are a user"
+        ) { it.statusCode == HttpStatusCode.Forbidden }
+    }
+
+    @Test
+    fun `test repository creation fails for personal repos`() = t {
+        val project = initializeNormalProject(initializeRootProject())
+        assertThatInstance(
+            ProjectRepository.create.call(
+                RepositoryCreateRequest(PERSONAL_REPOSITORY),
+                project.piClient.withProject(project.projectId)
+            ),
+            "should fail because"
+        ) { it.statusCode == HttpStatusCode.BadRequest }
+    }
+
+    @Test
+    fun `list repositories in unknown project`() = t {
+        val user = createUser()
+        assertThatInstance(
+            ProjectRepository.list.call(RepositoryListRequest(), user.client.withProject("notarealproject")),
+            "fails because it does not exist"
+        ) { it.statusCode == HttpStatusCode.NotFound }
+    }
+
+    @Test
+    fun `list repositories in unknown project that exists`() = t {
+        val project = initializeNormalProject(initializeRootProject())
+        val user = createUser()
+        assertThatInstance(
+            ProjectRepository.list.call(RepositoryListRequest(), user.client.withProject(project.projectId)),
+            "fails because it does not exist"
+        ) { it.statusCode == HttpStatusCode.NotFound }
+    }
+
+    @Test
+    fun `list repo files as a normal user`() = t {
+        val project = initializeNormalProject(initializeRootProject())
+        val user = createUser()
+        addMemberToProject(project.projectId, project.piClient, user.client, user.username)
+        val repo = "repo"
+        ProjectRepository.create.call(
+            RepositoryCreateRequest(repo),
+            project.piClient.withProject(project.projectId)
+        ).orThrow()
+        assertThatInstance(
+            ProjectRepository.listFiles.call(
+                RepositoryListRequest(),
+                user.client.withProject(project.projectId)
+            ).orThrow(),
+            "should contain a file"
+        ) { it.items.any { it.path.fileName() == repo && it.fileType == FileType.DIRECTORY } }
+    }
+
+    @Test
+    fun `test updating permissions with bad group`() = t {
+        val project = initializeNormalProject(initializeRootProject())
+        val repo = "repo"
+        ProjectRepository.create.call(
+            RepositoryCreateRequest(repo),
+            project.piClient.withProject(project.projectId)
+        ).orThrow()
+
+        assertThatInstance(
+            ProjectRepository.updatePermissions.call(
+                UpdatePermissionsRequest(repo, listOf(ProjectAclEntry("badgroup", setOf(FileRights.READ)))),
+                project.piClient.withProject(project.projectId)
+            ),
+            "fails because the group doesn't exist"
+        ) { it.statusCode == HttpStatusCode.BadRequest }
     }
 }
