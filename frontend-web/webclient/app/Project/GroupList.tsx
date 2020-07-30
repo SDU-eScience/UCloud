@@ -45,7 +45,7 @@ const GroupList: React.FunctionComponent = () => {
     const operations: GroupOperation[] = [
         {
             disabled: groups => groups.length !== 1,
-            onClick: (groups) => setRenamingGroup(groups[0].groupId),
+            onClick: ([group]) => setRenamingGroup(group.groupId),
             icon: "rename",
             text: "Rename"
         },
