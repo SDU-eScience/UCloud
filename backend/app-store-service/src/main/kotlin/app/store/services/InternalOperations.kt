@@ -136,7 +136,7 @@ internal suspend fun retrieveUserProjectGroups(
         authenticatedClient
     ).orRethrowAs {
         throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-    }.groups.filter { it.projectId == project }.map { it.group }
+    }.groups.filter { it.project == project }.map { it.group }
 
 
 internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: String): String? {

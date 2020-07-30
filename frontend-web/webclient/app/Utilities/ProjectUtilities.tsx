@@ -141,7 +141,7 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
                         pageRenderer={() => (
                             <>
                                 {groups.data.items.map(summary => {
-                                    const g = summary.group;
+                                    const g = summary.groupId;
                                     const acl = newRights.get(g) ?? props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
                                     let rights = "None";
                                     if (acl.includes(AccessRight.READ)) rights = "Read";

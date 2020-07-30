@@ -7,12 +7,15 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.GroupExistsResponse
 import dk.sdu.cloud.project.api.IsMemberResponse
 import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.ViewGroupResponse
 import dk.sdu.cloud.project.services.GroupService
+import dk.sdu.cloud.project.services.ProjectException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.project.services.QueryService
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 
 class GroupController(
     private val db: DBContext,
@@ -83,6 +86,18 @@ class GroupController(
         implement(ProjectGroups.count) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
             ok(queries.groupsCount(db, project))
+        }
+
+        implement(ProjectGroups.view) {
+            val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
+            ok(
+                queries.viewGroup(
+                    db,
+                    ctx.securityPrincipal.username,
+                    project,
+                    request.id
+                )
+            )
         }
     }
 }

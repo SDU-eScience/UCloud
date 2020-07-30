@@ -87,7 +87,7 @@ class AppLicenseService(
         ).orRethrowAs {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }.groups.map {
-            ProjectAndGroup(it.projectId, it.group)
+            ProjectAndGroup(it.project, it.group)
         }
 
         return appLicenseDao.list(
