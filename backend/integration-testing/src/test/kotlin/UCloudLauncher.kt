@@ -171,12 +171,18 @@ object UCloudLauncher : Loggable {
 
                 launch {
                     // Redis
-                    val redisMacOS = File.createTempFile("redis-macos", "").also { f ->
-                        f.outputStream().use { outs ->
-                            javaClass.classLoader.getResourceAsStream("redis-macos")!!.use { ins -> ins.copyTo(outs) }
+
+                    // For macos we always use the same file name as it appears to have some problems with macOS
+                    // security features
+                    val redisMacOS = File("/tmp/redis-macos").also { f ->
+                        if (!f.exists()) {
+                            f.outputStream().use { outs ->
+                                javaClass.classLoader.getResourceAsStream("redis-macos")!!
+                                    .use { ins -> ins.copyTo(outs) }
+                            }
+                            f.setExecutable(true)
                         }
                     }
-                    redisMacOS.setExecutable(true)
 
                     val redisLinux = File.createTempFile("redis-linux", "").also { f ->
                         f.outputStream().use { outs ->

@@ -17,6 +17,8 @@ class BrowserWebDriverContainerFix : BrowserWebDriverContainer<BrowserWebDriverC
     val localhostIp: String by lazy {
         if (Platform.isLinux()) {
             findPreferredOutgoingIp()
+        } else if (Platform.isMac()) {
+            "host.docker.internal"
         } else {
             testHostIpAddress
         }
