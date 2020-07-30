@@ -80,11 +80,11 @@ class AclAsyncDao {
                     """
                         SELECT *
                         FROM permissions
-                        WHERE (server_id = ?server) AND
-                            (project = ?project) AND 
-                            (username = ?user) AND
-                            (project_group = ?group)                        
-                    """.trimIndent()
+                        WHERE (server_id = :server) AND
+                            (project = :project) AND 
+                            (username = :user) AND
+                            (project_group = :group)                        
+                    """
                 ).rows.singleOrNull()
 
             if (found != null) {
@@ -99,12 +99,12 @@ class AclAsyncDao {
                     },
                     """
                         UPDATE permissions
-                        SET permission = ?permission
-                        WHERE (server_id = ?server) AND
-                            (project = ?project) AND 
-                            (username = ?user) AND
-                            (project_group = ?group)
-                    """.trimIndent()
+                        SET permission = :permission
+                        WHERE (server_id = :server) AND
+                            (project = :project) AND 
+                            (username = :user) AND
+                            (project_group = :group)
+                    """
                 )
             } else {
                 session.insert(PermissionTable) {
@@ -134,10 +134,10 @@ class AclAsyncDao {
                         },
                         """
                             DELETE FROM permissions
-                            WHERE (server_id = ?serverID) AND
-                                (project = ?project) AND
-                                (project_group = ?group)
-                        """.trimIndent()
+                            WHERE (server_id = :serverID) AND
+                                (project = :project) AND
+                                (project_group = :group)
+                        """
                     )
             } else {
                 session
@@ -148,8 +148,8 @@ class AclAsyncDao {
                         },
                         """
                             DELETE FROM permissions
-                            WHERE (server_id = ?serverID) AND (username = ?user)
-                        """.trimIndent()
+                            WHERE (server_id = :serverID) AND (username = :user)
+                        """
                     )
             }
         }
@@ -167,8 +167,8 @@ class AclAsyncDao {
                     },
                     """
                         DELETE FROM permissions
-                        WHERE server_id = ?serverID
-                    """.trimIndent()
+                        WHERE server_id = :serverID
+                    """
                 )
         }
     }
@@ -186,8 +186,8 @@ class AclAsyncDao {
                     """
                         SELECT *
                         FROM permissions
-                        WHERE server_id = ?serverID
-                    """.trimIndent()
+                        WHERE server_id = :serverID
+                    """
                 ).rows
         }.map { it.toAccessWithPermission() }
     }
@@ -203,8 +203,8 @@ class AclAsyncDao {
                         },
                         """
                             DELETE FROM permissions
-                            WHERE (project = ?project) AND (project_group = group)
-                        """.trimIndent()
+                            WHERE (project = :project) AND (project_group = :group)
+                        """
                     )
             } else {
                 session
@@ -214,8 +214,8 @@ class AclAsyncDao {
                         },
                         """
                             DELETE FROM permissions
-                            WHERE username = ?user
-                        """.trimIndent()
+                            WHERE username = :user
+                        """
                     )
             }
         }

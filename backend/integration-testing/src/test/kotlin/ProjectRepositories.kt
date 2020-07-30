@@ -156,16 +156,16 @@ class ProjectRepositories : IntegrationTest() {
         val project = initializeNormalProject(initializeRootProject())
         val (newUserClient, newUser) = createUser()
         addMemberToProject(project.projectId, project.piClient, newUserClient, newUser)
-        val groupName = "group"
+        val groupId: String
 
         run {
-            ProjectGroups.create.call(
-                CreateGroupRequest(groupName),
+            groupId = ProjectGroups.create.call(
+                CreateGroupRequest("group"),
                 project.piClient.withProject(project.projectId)
-            ).orThrow()
+            ).orThrow().id
 
             ProjectGroups.addGroupMember.call(
-                AddGroupMemberRequest(groupName, newUser),
+                AddGroupMemberRequest(groupId, newUser),
                 project.piClient.withProject(project.projectId)
             ).orThrow()
         }
@@ -181,7 +181,7 @@ class ProjectRepositories : IntegrationTest() {
             ProjectRepository.updatePermissions.call(
                 UpdatePermissionsRequest(
                     repoName,
-                    listOf(ProjectAclEntry(groupName, AccessRights.READ_WRITE))
+                    listOf(ProjectAclEntry(groupId, AccessRights.READ_WRITE))
                 ),
                 project.piClient.withProject(project.projectId)
             ).orThrow()
@@ -231,5 +231,48 @@ class ProjectRepositories : IntegrationTest() {
                 "does not contain the new repository"
             ) { it.items.any { it.name == secondaryRepo } }
         }
+    }
+
+    @Test
+    fun `test permission with group deletion`() = t {
+        val project = initializeNormalProject(initializeRootProject())
+        val users = (0..5).map { createUser() }
+        for (user in users) {
+            addMemberToProject(project.projectId, project.piClient, user.client, user.username)
+        }
+
+        val group = createGroup(project, users.map { it.username }.toSet())
+
+        val repo = "repo"
+        ProjectRepository.create.call(
+            RepositoryCreateRequest(repo),
+            project.piClient.withProject(project.projectId)
+        ).orThrow()
+
+        ProjectRepository.updatePermissions.call(
+            UpdatePermissionsRequest(repo, listOf(ProjectAclEntry(group.groupId, AccessRights.READ_WRITE))),
+            project.piClient.withProject(project.projectId)
+        ).orThrow()
+
+        // Check that the first user can read/write the repo
+        val folderName = "foobar"
+        FileDescriptions.createDirectory.call(
+            CreateDirectoryRequest(joinPath(projectHomeDirectory(project.projectId), repo, folderName)),
+            users[0].client
+        ).orThrow()
+
+        // Delete the repo and check again (different user to avoid caching issues)
+        ProjectGroups.delete.call(
+            DeleteGroupsRequest(setOf(group.groupId)),
+            project.piClient.withProject(project.projectId)
+        ).orThrow()
+
+        assertThatInstance(
+            FileDescriptions.listAtPath.call(
+                ListDirectoryRequest(joinPath(projectHomeDirectory(project.projectId), repo, folderName)),
+                users[1].client
+            ),
+            "fail because the group no longer exists"
+        ) { !it.statusCode.isSuccess() }
     }
 }

@@ -17,6 +17,7 @@ import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import org.junit.Test
+import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -56,6 +57,31 @@ suspend fun initializeWallets(projectId: String, amount: Long = 1_000_000 * 10_0
             serviceClient
         ).orThrow()
     }
+}
+
+data class GroupInitialization(
+    val groupId: String,
+    val groupName: String
+)
+
+suspend fun createGroup(
+    project: NormalProjectInitialization,
+    members: Set<String> = emptySet(),
+    groupName: String = "group${Random.nextLong()}"
+): GroupInitialization {
+    val groupId = ProjectGroups.create.call(
+        CreateGroupRequest(groupName),
+        project.piClient.withProject(project.projectId)
+    ).orThrow().id
+
+    for (member in members) {
+        ProjectGroups.addGroupMember.call(
+            AddGroupMemberRequest(groupId, member),
+            project.piClient.withProject(project.projectId)
+        ).orThrow()
+    }
+
+    return GroupInitialization(groupId, groupName)
 }
 
 data class NormalProjectInitialization(

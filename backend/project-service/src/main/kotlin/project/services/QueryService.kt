@@ -53,7 +53,7 @@ class QueryService(
                         where
                             (gm.group_id, gm.username) in (
                                 select
-                                    unnest(:groupId::text[]),
+                                    unnest(:groups::text[]),
                                     unnest(:usernames::text[])
                             )
                     """
@@ -259,7 +259,7 @@ class QueryService(
                         where
                               g.project = :project and
                               check_group_acl(:username, :userIsAdmin, g.id)
-                        group by g.id
+                        group by g.id, g.title
                         order by g.title
                         offset :offset
                         limit :limit

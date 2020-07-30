@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import java.util.*
 
 object GroupTable : SQLTable("groups") {
     val id = text("id")
@@ -30,7 +31,8 @@ class GroupService(
         createdBy: String,
         projectId: String,
         group: String
-    ) {
+    ): String {
+        val id = UUID.randomUUID().toString()
         try {
             ctx.withSession { session ->
                 projects.requireRole(session, createdBy, projectId, ProjectRole.ADMINS)
@@ -38,6 +40,7 @@ class GroupService(
                 session.insert(GroupTable) {
                     set(GroupTable.project, projectId) // TODO This needs to be a foreign key
                     set(GroupTable.title, group)
+                    set(GroupTable.id, id)
                 }
 
                 eventProducer.produce(ProjectEvent.GroupCreated(projectId, group))
@@ -50,6 +53,7 @@ class GroupService(
             log.warn(ex.stackTraceToString())
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }
+        return id
     }
 
     suspend fun deleteGroups(
@@ -61,16 +65,36 @@ class GroupService(
         ctx.withSession { session ->
             projects.requireRole(session, deletedBy, projectId, ProjectRole.ADMINS)
 
+            val block: EnhancedPreparedStatement.() -> Unit = {
+                setParameter("project", projectId)
+                setParameter("groups", groups.toList())
+            }
+
+            session
+                .sendPreparedStatement(
+                    block,
+                    """
+                        with allowed_groups as (
+                            select id 
+                            from groups g
+                            where
+                                g.id in (select * from unnest(:groups::text[])) and
+                                g.project = :project
+                        )
+                        
+                        delete from group_members
+                        where group_id in (select * from allowed_groups)
+                    """
+                )
+
             session.sendPreparedStatement(
-                {
-                    setParameter("project", projectId)
-                    setParameter("groups", groups.toList())
-                },
+                block,
 
                 """
                     delete from groups
                     where 
-                        id in (select * from unnest(?groups::text[]))
+                        id in (select * from unnest(?groups::text[])) and
+                        project = :project
                 """
             )
         }

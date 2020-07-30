@@ -1,5 +1,6 @@
 package dk.sdu.cloud.project.rpc
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
@@ -25,8 +26,12 @@ class GroupController(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectGroups.create) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            groups.createGroup(db, ctx.securityPrincipal.username, project, request.group)
-            ok(Unit)
+
+            ok(
+                FindByStringId(
+                    groups.createGroup(db, ctx.securityPrincipal.username, project, request.group)
+                )
+            )
         }
 
         implement(ProjectGroups.delete) {

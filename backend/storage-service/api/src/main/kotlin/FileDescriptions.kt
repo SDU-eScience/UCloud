@@ -74,7 +74,7 @@ data class FindByPath(val path: String)
 
 data class CreateDirectoryRequest(
     val path: String,
-    val owner: String?,
+    val owner: String? = null,
     val sensitivity: SensitivityLevel? = null
 )
 

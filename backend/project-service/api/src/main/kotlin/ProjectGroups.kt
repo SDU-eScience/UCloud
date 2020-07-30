@@ -3,6 +3,7 @@ package dk.sdu.cloud.project.api
 import com.github.jasync.sql.db.util.size
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.RPCException
@@ -23,7 +24,7 @@ data class CreateGroupRequest(val group: String) {
         if (group == "-") throw RPCException("Group cannot be '-'", HttpStatusCode.BadRequest)
     }
 }
-typealias CreateGroupResponse = Unit
+typealias CreateGroupResponse = FindByStringId
 
 data class ListGroupsWithSummaryRequest(
     override val itemsPerPage: Int?,
