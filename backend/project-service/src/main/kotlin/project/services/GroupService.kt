@@ -162,12 +162,18 @@ class GroupService(
     ) {
         ctx.withSession { session ->
 
-            val projectId = session.sendPreparedStatement(
+            val project = session.sendPreparedStatement(
                 {
                     setParameter("group", groupId)
                 },
                 """select project from groups where id = :group"""
-            ).rows[0]["project"].toString()
+            ).rows
+
+            val projectId = if (project.isNotEmpty()) {
+                project[0]["project"].toString()
+            } else {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Project group not found")
+            }
 
             val isAdmin = when (actor) {
                 Actor.System -> true
