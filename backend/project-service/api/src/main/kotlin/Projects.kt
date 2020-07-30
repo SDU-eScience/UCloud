@@ -155,6 +155,13 @@ data class LookupByIdRequest(
 typealias LookupPrincipalInvestigatorRequest = Unit
 data class LookupPrincipalInvestigatorResponse(val principalInvestigator: String)
 
+data class RenameProjectRequest(
+    val id: String,
+    val newTitle: String
+)
+
+typealias RenameProjectResponse = Unit
+
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
 
@@ -685,4 +692,24 @@ object Projects : CallDescriptionContainer("project") {
                 }
             }
         }
+
+    /**
+     * Rename a project
+     */
+    val rename = call<RenameProjectRequest, RenameProjectResponse, CommonErrorMessage>("rename") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"rename"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
 }

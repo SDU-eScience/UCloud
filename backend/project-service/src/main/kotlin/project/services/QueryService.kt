@@ -980,6 +980,37 @@ class QueryService(
         }
     }
 
+    suspend fun renameProject(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String,
+        newTitle: String
+    ) {
+        val isAdmin = when (actor) {
+            Actor.System -> true
+
+            is Actor.User, is Actor.SystemOnBehalfOfUser -> {
+                if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
+                    true
+                } else {
+                    projects.findRoleOfMember(ctx, projectId, actor.username) in ProjectRole.ADMINS
+                }
+            }
+        }
+
+        if (!isAdmin) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("newTitle", newTitle)
+                },
+                """update projects set title = :newTitle where id = :project"""
+            )
+        }
+    }
+
     suspend fun lookupAdmins(
         ctx: DBContext,
         actor: Actor,

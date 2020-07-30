@@ -227,6 +227,17 @@ class ProjectController(
                 )
             )
         }
+
+        implement(Projects.rename) {
+            ok(
+                queries.renameProject(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    request.id,
+                    request.newTitle
+                )
+            )
+        }
     }
 
     companion object : Loggable {
