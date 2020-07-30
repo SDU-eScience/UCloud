@@ -59,7 +59,7 @@ class Server(
 
         // FS root
         val fsRootFile =
-            File("/mnt/cephfs/" + cephConfig.subfolder).takeIf { it.exists() }
+            File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
         log.info("Serving files from ${fsRootFile.absolutePath}")

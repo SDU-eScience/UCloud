@@ -121,7 +121,7 @@ object UCloudLauncher : Loggable {
 
     lateinit var serviceClient: AuthenticatedClient
 
-    private val CEPHFS_HOME = "/mnt/cephfs"
+    private val CEPHFS_HOME = "/tmp/cephfs"
     private const val REDIS_PORT = 44231
     lateinit var micro: Micro
     private lateinit var redisServer: RedisServer
@@ -300,6 +300,14 @@ object UCloudLauncher : Loggable {
             """.trimIndent()
         )
 
+        File(dir, "ceph.yml").writeText(
+            """
+                ---
+                ceph:
+                  cephfsBaseMount: $CEPHFS_HOME
+            """.trimIndent()
+        )
+
         return dir
     }
 
@@ -363,12 +371,12 @@ object UCloudLauncher : Loggable {
 
     suspend fun wipeDatabases() {
         File(CEPHFS_HOME, "home").apply {
-            deleteRecursively()
-            mkdirs()
+            require(deleteRecursively())
+            require(mkdirs())
         }
         File(CEPHFS_HOME, "projects").apply {
-            deleteRecursively()
-            mkdirs()
+            require(deleteRecursively())
+            require(mkdirs())
         }
 
         TestDB.dbSessionFactory("public").withSession { session ->
