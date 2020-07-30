@@ -16,4 +16,12 @@ class ExampleE2ETest : EndToEndTest() {
         driver.login(user.username, user.password)
         driver.goToFiles()
     }
+
+    @Test
+    fun `testing 2`() = e2e {
+        val user = createUser()
+        driver.get("$address/app")
+        driver.login(user.username, user.password)
+        driver.goToFiles()
+    }
 }

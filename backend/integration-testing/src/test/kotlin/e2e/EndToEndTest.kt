@@ -2,28 +2,23 @@ package dk.sdu.cloud.integration.e2e
 
 import com.sun.jna.Platform
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.findPreferredOutgoingIp
 import dk.sdu.cloud.integration.t
+import dk.sdu.cloud.micro.configuration
 import org.junit.Rule
+import org.junit.rules.ExternalResource
 import org.openqa.selenium.Dimension
 import org.openqa.selenium.WebDriver
+import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
+import org.openqa.selenium.firefox.FirefoxDriver
 import org.openqa.selenium.firefox.FirefoxOptions
 import org.testcontainers.containers.BrowserWebDriverContainer
 import java.io.File
 
 // Kotlin cannot instantiate BrowserWebDriverContainer due to the generics
-class BrowserWebDriverContainerFix : BrowserWebDriverContainer<BrowserWebDriverContainerFix>() {
-    val localhostIp: String by lazy {
-        if (Platform.isLinux()) {
-            findPreferredOutgoingIp()
-        } else if (Platform.isMac()) {
-            "host.docker.internal"
-        } else {
-            testHostIpAddress
-        }
-    }
-}
+class BrowserWebDriverContainerFix : BrowserWebDriverContainer<BrowserWebDriverContainerFix>()
 
 data class EndToEndContext(
     val address: String,
@@ -35,9 +30,28 @@ enum class E2EDrivers {
     CHROME;
 }
 
+data class E2EConfig(val useLocalDriver: Boolean = false)
+
 abstract class EndToEndTest : IntegrationTest() {
-    @JvmField @Rule
-    val chrome = BrowserWebDriverContainerFix().apply {
+    val config = UCloudLauncher.micro.configuration.requestChunkAtOrNull("e2e") ?: E2EConfig()
+
+    private val localDocker: String by lazy {
+        when {
+            Platform.isLinux() -> {
+                findPreferredOutgoingIp()
+            }
+            Platform.isMac() -> {
+                "host.docker.internal"
+            }
+            else -> {
+                throw IllegalStateException()
+            }
+        }
+    }
+
+    @JvmField
+    @Rule
+    val chrome = if (config.useLocalDriver) null else BrowserWebDriverContainerFix().apply {
         withCapabilities(ChromeOptions())
         withRecordingMode(
             BrowserWebDriverContainer.VncRecordingMode.RECORD_ALL,
@@ -47,8 +61,9 @@ abstract class EndToEndTest : IntegrationTest() {
         if (Platform.isLinux()) withNetworkMode("host")
     }
 
-    @JvmField @Rule
-    val firefox = BrowserWebDriverContainerFix().apply {
+    @JvmField
+    @Rule
+    val firefox = if (config.useLocalDriver) null else BrowserWebDriverContainerFix().apply {
         withCapabilities(FirefoxOptions())
         withRecordingMode(
             BrowserWebDriverContainer.VncRecordingMode.RECORD_ALL,
@@ -58,19 +73,33 @@ abstract class EndToEndTest : IntegrationTest() {
         if (Platform.isLinux()) withNetworkMode("host")
     }
 
+    val localFirefox = if (!config.useLocalDriver) null else FirefoxDriver()
+    val localChrome = if (!config.useLocalDriver) null else ChromeDriver()
+
+    @JvmField
+    @Rule
+    val firefoxRule = object : ExternalResource() {
+        override fun after() {
+            localFirefox?.close()
+            localChrome?.close()
+        }
+    }
+
     fun e2e(
         drivers: Array<E2EDrivers> = E2EDrivers.values(),
         block: suspend EndToEndContext.() -> Unit
     ) {
+
         for (driver in drivers) {
             t {
                 val d = when (driver) {
-                    E2EDrivers.FIREFOX -> firefox
-                    E2EDrivers.CHROME -> chrome
+                    E2EDrivers.FIREFOX -> if (config.useLocalDriver) localFirefox!! else firefox!!.webDriver
+                    E2EDrivers.CHROME -> if (config.useLocalDriver) localChrome!! else chrome!!.webDriver
                 }
 
-                d.webDriver.manage().window().size = Dimension(1300, 800)
-                EndToEndContext("http://${d.localhostIp}:9000", d.webDriver).block()
+                d.manage().window().size = Dimension(1300, 800)
+                val localAddress = if (config.useLocalDriver) "localhost" else localDocker
+                EndToEndContext("http://${localAddress}:9000", d).block()
             }
         }
     }

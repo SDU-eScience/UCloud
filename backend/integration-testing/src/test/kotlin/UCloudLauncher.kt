@@ -440,7 +440,9 @@ object UCloudLauncher : Loggable {
                     "--dev",
                     "--no-implicit-config",
                     "--config-dir",
-                    createConfiguration().absolutePath
+                    createConfiguration().absolutePath,
+                    "--config-dir",
+                    File(System.getProperty("user.home"), "sducloud-integration").absolutePath
                 )
             )
 
