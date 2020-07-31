@@ -384,6 +384,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     left={
                         <>
                             <Box
+                                test-tag={e.projectId}
                                 onClick={() => {
                                     if (e.projectId !== props.project) {
                                         props.setProject(e.projectId);
@@ -447,6 +448,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     <ClickableDropdown
                                         width="125px"
                                         left="-105px"
+                                        test-tag={`${e.projectId}-dropdown`}
                                         trigger={(
                                             <Icon
                                                 ml="0.5em"
