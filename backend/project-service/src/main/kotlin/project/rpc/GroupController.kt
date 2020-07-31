@@ -17,6 +17,7 @@ import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.project.services.QueryService
 import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.toActor
 
 class GroupController(
     private val db: DBContext,
@@ -53,6 +54,17 @@ class GroupController(
         implement(ProjectGroups.removeGroupMember) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
             ok(groups.removeMember(db, ctx.securityPrincipal.username, project, request.group, request.memberUsername))
+        }
+
+        implement(ProjectGroups.updateGroupName) {
+            ok(
+                groups.rename(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    request.groupId,
+                    request.newGroupName
+                )
+            )
         }
 
         implement(ProjectGroups.listAllGroupMembers) {
