@@ -43,12 +43,12 @@ const GroupList: React.FunctionComponent = () => {
     const [, runCommand] = useAsyncCommand();
 
     const operations: GroupOperation[] = [
-        /* {
+        {
             disabled: groups => groups.length !== 1,
-            onClick: (groups) => setRenamingGroup(groups[0].group),
+            onClick: ([group]) => setRenamingGroup(group.groupId),
             icon: "rename",
             text: "Rename"
-        }, */
+        },
         {
             disabled: groups => groups.length === 0 || !allowManagement,
             onClick: (groups) => promptDeleteGroups(groups),
@@ -69,6 +69,7 @@ const GroupList: React.FunctionComponent = () => {
                     <ListRow
                         left={
                             <NamingField
+                                confirmText="Create"
                                 onSubmit={createGroup}
                                 onCancel={() => setCreatingGroup(false)}
                                 inputRef={createGroupRef}
@@ -84,15 +85,20 @@ const GroupList: React.FunctionComponent = () => {
                 {groupList.data.items.map((g, index) => (<React.Fragment key={g.groupId + index}>
                     <ListRow
                         left={
-                            renamingGroup !== g.groupTitle ? g.groupTitle : (
+                            renamingGroup !== g.groupId ? g.groupTitle : (
                                 <NamingField
+                                    confirmText="Rename"
+                                    defaultValue={g.groupTitle}
                                     onCancel={() => setRenamingGroup(null)}
                                     onSubmit={renameGroup}
                                     inputRef={renameRef}
                                 />
                             )
                         }
-                        navigate={() => history.push(`/project/members/${encodeURIComponent(g.groupId)}/${membersPage ?? ""}`)}
+                        navigate={() => {renamingGroup !== g.groupId ?
+                            history.push(`/project/members/${encodeURIComponent(g.groupId)}/${membersPage ?? ""}`)
+                            : (null)
+                        }}
                         leftSub={<div />}
                         right={
                             <>
@@ -202,20 +208,30 @@ const GroupList: React.FunctionComponent = () => {
     }
 
     async function renameGroup(): Promise<void> {
-        const oldGroupName = renamingGroup;
-        if (!oldGroupName) return;
+        const groupId = renamingGroup;
+        if (!groupId) return;
         const newGroupName = renameRef.current?.value;
         if (!newGroupName) return;
 
-        await runCommand(updateGroupName({oldGroupName, newGroupName}));
+        const success = await runCommand(updateGroupName({groupId, newGroupName}));
+
+        if (!success) {
+            snackbarStore.addFailure("Failed to rename project group", true);
+            return;
+        }
+
         fetchGroupList(groupListParams);
+        setRenamingGroup(null);
+        snackbarStore.addSuccess("Project group renamed", true);
     }
 };
 
 const NamingField: React.FunctionComponent<{
     onCancel: () => void;
+    confirmText: string;
     inputRef: MutableRefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
+    defaultValue?: string;
 }> = props => {
     const submit = useCallback((e) => {
         e.preventDefault();
@@ -237,6 +253,7 @@ const NamingField: React.FunctionComponent<{
                     pr="0px"
                     pl="0px"
                     noBorder
+                    defaultValue={props.defaultValue ? props.defaultValue : ""}
                     fontSize={20}
                     maxLength={1024}
                     onKeyDown={keyDown}
@@ -247,7 +264,7 @@ const NamingField: React.FunctionComponent<{
                     ref={props.inputRef}
                 />
                 <ConfirmCancelButtons
-                    confirmText="Create"
+                    confirmText={props.confirmText}
                     cancelText="Cancel"
                     onConfirm={submit}
                     onCancel={props.onCancel}
