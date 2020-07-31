@@ -2,6 +2,7 @@ package dk.sdu.cloud.grant.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
@@ -40,7 +41,7 @@ data class ClaimGiftRequest(val giftId: Long)
 typealias ClaimGiftResponse = Unit
 
 typealias CreateGiftRequest = GiftWithCriteria
-typealias CreateGiftResponse = Unit
+typealias CreateGiftResponse = FindByLongId
 
 data class DeleteGiftRequest(val giftId: Long)
 typealias DeleteGiftResponse = Unit
