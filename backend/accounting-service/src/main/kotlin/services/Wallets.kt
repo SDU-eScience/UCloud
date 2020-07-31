@@ -92,6 +92,9 @@ class BalanceService(
         if (walletOwnerType == WalletOwnerType.PROJECT) {
             val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
             if (isAdminOfParentProject(accountId, memberStatus)) return
+            projectCache.memberStatus.remove(initiatedBy.username)
+            val memberStatus2 = projectCache.memberStatus.get(initiatedBy.username)
+            if (isAdminOfParentProject(accountId, memberStatus2)) return
         }
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }

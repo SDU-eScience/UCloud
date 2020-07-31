@@ -16,6 +16,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 
 val Int.DKK: Long get() = toLong() * 1_000_000
+fun Long.creditsToDKK(): Long = this / 1_000_000
 
 data class UploadTemplatesRequest(
     val personalProject: String,

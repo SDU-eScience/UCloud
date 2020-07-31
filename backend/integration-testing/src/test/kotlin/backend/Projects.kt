@@ -23,7 +23,10 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-suspend fun initializeRootProject(initializeWallet: Boolean = true): String {
+suspend fun initializeRootProject(
+    initializeWallet: Boolean = true,
+    amount: Long = 10_000_000.DKK
+): String {
     if (initializeWallet) {
         createSampleProducts()
     }
@@ -42,7 +45,7 @@ suspend fun initializeRootProject(initializeWallet: Boolean = true): String {
     ).orThrow()
 
     if (initializeWallet) {
-        initializeWallets(id)
+        initializeWallets(id, amount)
     }
 
     return id
@@ -94,7 +97,8 @@ data class NormalProjectInitialization(
 
 suspend fun initializeNormalProject(
     rootProject: String,
-    initializeWallet: Boolean = true
+    initializeWallet: Boolean = true,
+    amount: Long = 10_000_000.DKK
 ): NormalProjectInitialization {
     val (piClient, piUsername) = createUser()
 
@@ -124,7 +128,7 @@ suspend fun initializeNormalProject(
     ).orThrow()
 
     if (initializeWallet) {
-        initializeWallets(newProject)
+        initializeWallets(newProject, amount)
     }
 
     return NormalProjectInitialization(piClient, piUsername, newProject)
