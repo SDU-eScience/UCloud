@@ -70,7 +70,7 @@ class ProductService {
                     set(ProductTable.description, product.description)
                     set(ProductTable.priority, product.priority)
                     when (val availability = product.availability) {
-                        ProductAvailability.Available -> {
+                        is ProductAvailability.Available -> {
                             set(ProductTable.availability, null)
                         }
 
@@ -125,7 +125,7 @@ class ProductService {
                         setParameter("id", product.id)
                         setParameter("description", product.description)
                         setParameter("availability", when(val availability = product.availability) {
-                            ProductAvailability.Available -> null
+                            is ProductAvailability.Available -> null
                             is ProductAvailability.Unavailable -> availability.reason
                         })
                         setParameter("cpu", when(product) {
@@ -145,16 +145,16 @@ class ProductService {
                     """
                         update products 
                         set
-                            price_per_unit = ?pricePerUnit,
-                            description = ?description,
-                            availability = ?availability,
-                            cpu = ?cpu,
-                            gpu = ?gpu,
-                            memory_in_gigs = ?memoryInGigs
+                            price_per_unit = :pricePerUnit,
+                            description = :description,
+                            availability = :availability,
+                            cpu = :cpu,
+                            gpu = :gpu,
+                            memory_in_gigs = :memoryInGigs
                         where 
-                            provider = ?provider and 
-                            category = ?category and 
-                            id = ?id
+                            provider = :provider and 
+                            category = :category and 
+                            id = :id
                     """
                 )
                 .rowsAffected > 0L
@@ -183,9 +183,9 @@ class ProductService {
                         select *
                         from products
                         where
-                            category = ?category and
-                            provider = ?provider and
-                            id = ?id
+                            category = :category and
+                            provider = :provider and
+                            id = :id
                     """
                 )
                 .rows
@@ -206,7 +206,7 @@ class ProductService {
             session
                 .sendPreparedStatement(
                     { setParameter("provider", provider) },
-                    "select * from products where provider = ?provider order by priority, id"
+                    "select * from products where provider = :provider order by priority, id"
                 )
                 .rows
                 .map { it.toProduct() }
@@ -232,7 +232,7 @@ class ProductService {
 
                     """
                         from products
-                        where provider = ?provider
+                        where provider = :provider
                     """,
 
                     "order by priority, id"
@@ -315,8 +315,8 @@ class ProductService {
                         select * 
                         from product_categories 
                         where 
-                            provider = ?provider and
-                            category = ?category
+                            provider = :provider and
+                            category = :category
                     """
                 )
                 .rows
@@ -344,7 +344,7 @@ class ProductService {
                     ),
                     getField(ProductTable.description),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
-                        null -> ProductAvailability.Available
+                        null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)
                     },
                     getField(ProductTable.priority),
@@ -364,7 +364,7 @@ class ProductService {
                     ),
                     getField(ProductTable.description),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
-                        null -> ProductAvailability.Available
+                        null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)
                     },
                     getField(ProductTable.priority)

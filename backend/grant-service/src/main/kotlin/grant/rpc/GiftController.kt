@@ -1,5 +1,6 @@
 package dk.sdu.cloud.grant.rpc
 
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
@@ -28,8 +29,7 @@ class GiftController(
         }
 
         implement(Gifts.createGift) {
-            gifts.createGift(db, ctx.securityPrincipal.toActor(), request)
-            ok(Unit)
+            ok(FindByLongId(gifts.createGift(db, ctx.securityPrincipal.toActor(), request)))
         }
 
         implement(Gifts.deleteGift) {

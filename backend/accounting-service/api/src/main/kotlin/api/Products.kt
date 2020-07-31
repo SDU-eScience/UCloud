@@ -49,8 +49,18 @@ typealias UpdateProductResponse = Unit
     JsonSubTypes.Type(value = ProductAvailability.Unavailable::class, name = "unavailable")
 )
 sealed class ProductAvailability {
-    object Available : ProductAvailability()
-    class Unavailable(val reason: String) : ProductAvailability()
+    class Available : ProductAvailability() {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return javaClass.hashCode()
+        }
+    }
+    data class Unavailable(val reason: String) : ProductAvailability()
 }
 
 @JsonTypeInfo(
@@ -78,7 +88,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
-        override val availability: ProductAvailability = ProductAvailability.Available,
+        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0
     ) : Product() {
         @get:JsonIgnore
@@ -96,7 +106,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
-        override val availability: ProductAvailability = ProductAvailability.Available,
+        override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val cpu: Int? = null,
         val memoryInGigs: Int? = null,
@@ -127,16 +137,16 @@ typealias FindProductResponse = Product
 
 data class ListProductsRequest(
     val provider: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
 ) : WithPaginationRequest
 typealias ListProductsResponse = Page<Product>
 
 data class ListProductsByAreaRequest(
     val provider: String,
     val area: ProductArea,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
 ) : WithPaginationRequest
 typealias ListProductsByAreaResponse = Page<Product>
 
