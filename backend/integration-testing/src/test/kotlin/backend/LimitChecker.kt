@@ -267,4 +267,25 @@ class LimitCheckerTest : IntegrationTest() {
             assertThatInstance(ex.httpStatusCode, "fails") { it.value in 400..499 }
         }
     }
+
+    @Test
+    fun `test transfer permissions of non UCloud admin`() = t {
+        val root = initializeRootProject()
+        val project = initializeNormalProject(root)
+        val user = createUser()
+        FileDescriptions.updateQuota.call(
+            UpdateQuotaRequest(projectHomeDirectory(project.projectId), 1024 * 1024 * 1024L),
+            serviceClient
+        ).orThrow()
+
+        try {
+            FileDescriptions.transferQuota.call(
+                TransferQuotaRequest(homeDirectory(user.username), 1000L),
+                project.piClient
+            ).orThrow()
+            assert(false)
+        } catch (ex: RPCException) {
+            assertThatInstance(ex.httpStatusCode, "fails") { it.value in 400..499 }
+        }
+    }
 }
