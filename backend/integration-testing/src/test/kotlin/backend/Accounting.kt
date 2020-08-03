@@ -20,6 +20,27 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
+suspend fun addFundsToPersonalProject(
+    rootProject: String,
+    username: String,
+    product: ProductCategoryId = sampleCompute.category,
+    amount: Long = 10_000.DKK
+) {
+    Wallets.transferToPersonal.call(
+        TransferToPersonalRequest(
+            listOf(
+                SingleTransferRequest(
+                    "_UCloud",
+                    amount,
+                    Wallet(rootProject, WalletOwnerType.PROJECT, product),
+                    Wallet(username, WalletOwnerType.USER, product)
+                )
+            )
+        ),
+        serviceClient
+    ).orThrow()
+}
+
 suspend fun findPersonalWallet(
     username: String,
     client: AuthenticatedClient,

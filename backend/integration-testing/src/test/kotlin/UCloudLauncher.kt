@@ -29,6 +29,8 @@ import dk.sdu.cloud.file.trash.FileTrashService
 import dk.sdu.cloud.filesearch.FileSearchService
 import dk.sdu.cloud.grant.GrantService
 import dk.sdu.cloud.indexing.IndexingService
+import dk.sdu.cloud.integration.backend.sampleCompute
+import dk.sdu.cloud.integration.backend.sampleStorage
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
@@ -311,6 +313,19 @@ object UCloudLauncher : Loggable {
                 ---
                 ceph:
                   cephfsBaseMount: $CEPHFS_HOME
+            """.trimIndent()
+        )
+
+        File(dir, "storage.yml").writeText(
+            """
+                ---
+                storage:
+                  product:
+                    id: ${sampleStorage.id}
+                    category: ${sampleStorage.category.id}
+                    provider: ${sampleStorage.category.provider}
+                    pricePerGb: ${sampleStorage.pricePerUnit}
+                    defaultQuota: -1
             """.trimIndent()
         )
 
