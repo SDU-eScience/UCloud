@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.UsageRequest
 import dk.sdu.cloud.accounting.api.Visualization
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
@@ -13,6 +14,7 @@ import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
 import org.junit.Test
 import kotlin.math.abs
+import kotlin.test.assertEquals
 
 class AccountVisualizationTest : IntegrationTest() {
     @Test
@@ -74,7 +76,67 @@ class AccountVisualizationTest : IntegrationTest() {
         assertThatInstance(
             usage.charts.single().lines.single().points.map { abs(now - it.timestamp) },
             "has timestamps within range"
-        ) { it.all { it < period + 500 } }
+        ) { it.all { it < period + 1000 } }
+    }
+
+    @Test
+    fun `test usage permissions`() = t {
+        val project = initializeNormalProject(initializeRootProject())
+        val wallet = Wallet(project.projectId, WalletOwnerType.PROJECT, sampleCompute.category)
+        val user = createUser()
+        addMemberToProject(project.projectId, project.piClient, user.client, user.username)
+        val charge = 10.DKK
+        reserveCredits(wallet, charge, chargeImmediately = true)
+
+        val now = System.currentTimeMillis()
+        val period = 30_000
+        val usage = Visualization.usage.call(
+            UsageRequest(
+                1000L,
+                now - period,
+                now
+            ),
+            user.client.withProject(project.projectId)
+        ).orThrow()
+
+        assertThatInstance(
+            usage,
+            "contains the correct usage"
+        ) { resp ->
+            val chart = resp.charts.single()
+            val line = chart.lines.find { it.category == wallet.paysFor.id } ?: error("Could not find wallet")
+            line.points.fold(0L) { acc, usagePoint ->  acc + usagePoint.creditsUsed } == charge
+        }
+
+        assertThatInstance(
+            usage.charts.single().lines.single().points.map { abs(now - it.timestamp) },
+            "has timestamps within range"
+        ) { it.all { it < period + 1000 } }
+    }
+
+    @Test
+    fun `test usage permissions (invalid)`() = t {
+        val project = initializeNormalProject(initializeRootProject())
+        val wallet = Wallet(project.projectId, WalletOwnerType.PROJECT, sampleCompute.category)
+        val user = createUser()
+        val charge = 10.DKK
+        reserveCredits(wallet, charge, chargeImmediately = true)
+
+        val now = System.currentTimeMillis()
+        val period = 30_000
+        try {
+            Visualization.usage.call(
+                UsageRequest(
+                    1000L,
+                    now - period,
+                    now
+                ),
+                user.client.withProject(project.projectId)
+            ).orThrow()
+            assert(false)
+        } catch (ex: RPCException) {
+            assertThatInstance(ex.httpStatusCode, "is a user error") { it.value in 400..499 }
+        }
     }
 
     // TODO more advanced tests require us to mock the time source
