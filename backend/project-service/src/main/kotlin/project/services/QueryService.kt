@@ -933,12 +933,13 @@ class QueryService(
         title: String
     ): Project? {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                { setParameter("title", title) },
-                "select * from projects where title = :title"
-            )
-            .rows
-            .singleOrNull()?.toProject() ?: null
+            session
+                .sendPreparedStatement(
+                    { setParameter("title", title) },
+                    "select * from projects where title = :title"
+                )
+                .rows
+                .singleOrNull()?.toProject() ?: null
         }
     }
 
@@ -947,10 +948,11 @@ class QueryService(
         title: String
     ): Project? {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                { setParameter("id", title) },
-                "select * from projects where id = :id"
-            )
+            session
+                .sendPreparedStatement(
+                    { setParameter("id", title) },
+                    "select * from projects where id = :id"
+                )
                 .rows
                 .singleOrNull()?.toProject() ?: null
         }
@@ -961,10 +963,11 @@ class QueryService(
         titles: List<String>
     ): List<Project> {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                { setParameter("ids", titles) },
-                "select * from projects where id IN (SELECT unnest(:ids::text[]))"
-            )
+            session
+                .sendPreparedStatement(
+                    { setParameter("ids", titles) },
+                    "select * from projects where id IN (SELECT unnest(:ids::text[]))"
+                )
                 .rows
                 .map { it.toProject() }
         }
@@ -1013,11 +1016,11 @@ class QueryService(
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        val pairings = mutableListOf<Pair<String,List<ProjectMember>>>()
+        val projectWithAdmins = mutableListOf<Pair<String,List<ProjectMember>>>()
         ctx.withSession { session ->
             projectIds.forEach { projectId ->
                 val (pi, admins) = projects.getPIAndAdminsOfProject(session, projectId)
-                pairings.add(
+                projectWithAdmins.add(
                     Pair(
                         projectId,
                         admins.map { ProjectMember(it, ProjectRole.ADMIN) } + ProjectMember(pi, ProjectRole.PI)
@@ -1026,7 +1029,7 @@ class QueryService(
             }
         }
 
-        return pairings
+        return projectWithAdmins
     }
 
     companion object : Loggable {

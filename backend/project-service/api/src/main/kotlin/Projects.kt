@@ -152,9 +152,12 @@ data class LookupByIdRequest(
     val id: String
 )
 
-data class LookupByIdBulkRequest(
-    val ids: List<String>
-)
+data class LookupByIdBulkRequest(val ids: List<String>) {
+    init {
+        if (ids.isEmpty()) throw RPCException("ids is empty", HttpStatusCode.BadRequest)
+        if (ids.size > 150) throw RPCException("too many ids", HttpStatusCode.BadRequest)
+    }
+}
 
 typealias LookupPrincipalInvestigatorRequest = Unit
 data class LookupPrincipalInvestigatorResponse(val principalInvestigator: String)

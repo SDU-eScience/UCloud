@@ -1,23 +1,10 @@
 package dk.sdu.cloud.accounting.services
 
-import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.Utils.CREDITS_NOTIFY_LIMIT
-import dk.sdu.cloud.accounting.Utils.LOW_FUNDS_SUBJECT
-import dk.sdu.cloud.accounting.Utils.stillLowResources
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendBulkRequest
-import dk.sdu.cloud.mail.api.SendRequest
-import dk.sdu.cloud.project.api.LookupAdminsRequest
-import dk.sdu.cloud.project.api.LookupByIdRequest
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
@@ -201,8 +188,7 @@ class BalanceService(
                             ProductCategoryId(
                                 it.getField(WalletTable.productCategory),
                                 it.getField(WalletTable.productProvider)
-                            ),
-                            it.getField(WalletTable.lowFundsNotificationSend)
+                            )
                         ),
                         it.getField(WalletTable.balance),
                         ProductArea.valueOf(it.getString("area")!!)
@@ -248,30 +234,6 @@ class BalanceService(
                     }
                     Pair(0L, false)
                 }
-        }
-    }
-
-    suspend fun setNotificationSent(
-        ctx: DBContext,
-        account: Wallet,
-        sent: Boolean
-    ) {
-        ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", account.id)
-                    setParameter("accountType", account.type.name)
-                    setParameter("prodCat", account.paysFor.id)
-                    setParameter("prodProvi", account.paysFor.provider)
-                    setParameter("sent", sent)
-                },
-                """
-                    UPDATE wallets
-                    SET low_funds_notifications_send = :sent
-                    WHERE account_id = :id AND account_type = :accountType 
-                        AND product_category = :prodCat AND product_provider = :prodProvi
-                """
-            )
         }
     }
 
@@ -384,37 +346,6 @@ class BalanceService(
                             AND product_category = :category
                         """
                     )
-            } else if (balance < CREDITS_NOTIFY_LIMIT) {
-                val admins = ProjectMembers.lookupAdmins.call(
-                    LookupAdminsRequest(wallet.getField(WalletTable.accountId)),
-                    client
-                ).orThrow()
-                val project = Projects.lookupById.call(
-                    LookupByIdRequest(wallet.getField(WalletTable.accountId)),
-                    client
-                ).orThrow()
-
-                val messages = mutableListOf<SendRequest>()
-
-                admins.admins.forEach { admin ->
-                    messages.add(
-                        SendRequest(
-                            admin.username,
-                            LOW_FUNDS_SUBJECT,
-                            stillLowResources(
-                                admin.username,
-                                wallet.getField(WalletTable.productCategory),
-                                wallet.getField(WalletTable.productProvider),
-                                project.title
-                            )
-                        )
-                    )
-                }
-
-                MailDescriptions.sendBulk.call(
-                    SendBulkRequest(messages),
-                    client
-                ).orThrow()
             } else {
                 //DO Nothing since balance is high and notification does not need to be reset.
             }
@@ -586,7 +517,7 @@ class BalanceService(
             ancestors
                 .asSequence()
                 .filter { it.id != this.id }
-                .map { Wallet(it.id, WalletOwnerType.PROJECT, wallet.paysFor, wallet.lowFundsEmailSend) }
+                .map { Wallet(it.id, WalletOwnerType.PROJECT, wallet.paysFor) }
                 .toList()
         } else {
             emptyList()

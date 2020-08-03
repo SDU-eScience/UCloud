@@ -18,7 +18,8 @@ import kotlinx.coroutines.runBlocking
 import kotlin.system.exitProcess
 
 class Server(
-    override val micro: Micro
+    override val micro: Micro,
+    val config: Configuration
 ) : CommonServer {
     override val log = logger()
 
@@ -32,7 +33,7 @@ class Server(
         val productService = ProductService()
 
         if (micro.commandLineArguments.contains("--low-funds-check")) {
-            val jobs = CronJobs(db, client)
+            val jobs = CronJobs(db, client, config)
             try {
                 runBlocking {
                     jobs.notifyLowFundsWallets()

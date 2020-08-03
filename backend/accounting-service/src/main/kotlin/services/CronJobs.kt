@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import dk.sdu.cloud.accounting.Configuration
 import dk.sdu.cloud.accounting.Utils.lowResourcesTemplate
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Wallet
@@ -26,9 +27,9 @@ import io.ktor.http.HttpStatusCode
 
 class CronJobs(
     private val db: DBContext,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val config: Configuration
 ) {
-    private val CREDITS_NOTIFY_LIMIT = 5000000
     private val LOW_FUNDS_SUBJECT = "Project low on resource"
 
     suspend fun  notifyLowFundsWallets() {
@@ -37,12 +38,14 @@ class CronJobs(
                 .sendPreparedStatement(
                     {
                         setParameter("sent", false)
-                        setParameter("limit", CREDITS_NOTIFY_LIMIT)
+                        setParameter("limit", config.notificationLimit)
+                        setParameter("type", WalletOwnerType.PROJECT.toString())
                     },
                     """
                         DECLARE curs NO SCROLL CURSOR WITH HOLD
                         FOR SELECT * FROM wallets 
-                        WHERE low_funds_notifications_send = :sent AND balance < :limit
+                        WHERE low_funds_notifications_send = :sent AND balance < :limit AND account_type = :type
+                        GROUP BY account_id, account_type, product_provider, product_category
                     """
                 )
             while (true) {
@@ -53,7 +56,7 @@ class CronJobs(
                         },
                         """
                         FETCH FORWARD 1000 FROM curs
-                    """
+                        """
                     ).rows
 
                 if (rows.isEmpty()) {
@@ -72,16 +75,12 @@ class CronJobs(
                 ).orThrow()
 
                 val wallets = rows.map {
-                    Pair(
+                    Wallet(
                         it.getField(WalletTable.accountId),
-                        Wallet(
-                            it.getField(WalletTable.accountId),
-                            WalletOwnerType.valueOf(it.getField(WalletTable.accountType)),
-                            ProductCategoryId(
-                                it.getField(WalletTable.productCategory),
-                                it.getField(WalletTable.productProvider)
-                            ),
-                            true
+                        WalletOwnerType.valueOf(it.getField(WalletTable.accountType)),
+                        ProductCategoryId(
+                            it.getField(WalletTable.productCategory),
+                            it.getField(WalletTable.productProvider)
                         )
                     )
                 }
@@ -90,7 +89,7 @@ class CronJobs(
 
                 //For each project send a mail for each wallet below limit to each admin
                 adminsAndPI.admins.forEach { projectAndAdmins ->
-                    val projectWalletsBelowLimit = wallets.filter { it.first == projectAndAdmins.first }
+                    val projectWalletsBelowLimit = wallets.filter { it.id == projectAndAdmins.first }
                     projectAndAdmins.second.forEach { admin ->
                         projectWalletsBelowLimit.forEach { wallet ->
                             sendRequests.add(
@@ -99,8 +98,8 @@ class CronJobs(
                                     LOW_FUNDS_SUBJECT,
                                     lowResourcesTemplate(
                                         admin.username,
-                                        wallet.second.paysFor.id,
-                                        wallet.second.paysFor.provider,
+                                        wallet.paysFor.id,
+                                        wallet.paysFor.provider,
                                         projects[projectAndAdmins.first]?.title ?: throw RPCException.fromStatusCode(
                                             HttpStatusCode.InternalServerError,
                                             "No project found"
@@ -123,8 +122,8 @@ class CronJobs(
                                         LOW_FUNDS_SUBJECT,
                                         lowResourcesTemplate(
                                             parentAdmin.username,
-                                            wallet.second.paysFor.id,
-                                            wallet.second.paysFor.provider,
+                                            wallet.paysFor.id,
+                                            wallet.paysFor.provider,
                                             projects[projectAndAdmins.first]?.title ?: throw RPCException.fromStatusCode(
                                                 HttpStatusCode.InternalServerError,
                                                 "No project found"
@@ -156,7 +155,7 @@ class CronJobs(
                     {
                         setParameter("state", true)
                         setParameter("oldstate", false)
-                        setParameter("limit", CREDITS_NOTIFY_LIMIT)
+                        setParameter("limit", config.notificationLimit)
                     },
                     """
                         UPDATE wallets

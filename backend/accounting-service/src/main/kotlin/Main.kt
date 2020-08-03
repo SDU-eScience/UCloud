@@ -11,9 +11,17 @@ object AccountingService : Service {
 
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(RefreshingJWTCloudFeature)
-        return Server(micro)
+        val config = micro.configuration.requestChunkAtOrNull<Configuration>("accountning") ?:
+        Configuration(
+            notificationLimit =  5000000
+        )
+        return Server(micro, config)
     }
 }
+
+data class Configuration(
+    val notificationLimit: Long
+)
 
 fun main(args: Array<String>) {
     AccountingService.runAsStandalone(args)

@@ -66,8 +66,7 @@ class MembershipController(
         implement(ProjectMembers.lookupAdminsBulk) {
             ok(
                 LookupAdminsBulkResponse(
-                    queries.lookupAdminsBulk(db, ctx.securityPrincipal.toActor(), request.projectId
-                    )
+                    queries.lookupAdminsBulk(db, ctx.securityPrincipal.toActor(), request.projectId)
                 )
             )
         }

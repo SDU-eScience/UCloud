@@ -221,7 +221,7 @@ class ProjectController(
         implement(Projects.lookupByIdBulk) {
             val projects = queries.lookupByIdBulk(db, request.ids)
             if (projects.isEmpty()) {
-                throw RPCException("No projects with those ids", HttpStatusCode.BadRequest)
+                throw RPCException("No projects with those ids", HttpStatusCode.NotFound)
             }
             ok(projects)
         }

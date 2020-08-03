@@ -44,8 +44,7 @@ data class RetrieveBalanceResponse(
 data class Wallet(
     val id: String,
     val type: WalletOwnerType,
-    val paysFor: ProductCategoryId,
-    val lowFundsEmailSend: Boolean = false
+    val paysFor: ProductCategoryId
 )
 
 data class AddToBalanceRequest(
@@ -215,27 +214,6 @@ object Wallets : CallDescriptionContainer("wallets") {
             path {
                 using(baseContext)
                 +"set-balance"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val setNotificationSent = call<
-            SetNotificationSentRequest,
-            SetNotificationSentResponse,
-            CommonErrorMessage
-            >("setNotificationSend") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"set-notification"
             }
 
             body { bindEntireRequestFromBody() }

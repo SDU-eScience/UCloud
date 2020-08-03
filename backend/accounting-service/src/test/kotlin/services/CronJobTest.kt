@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import dk.sdu.cloud.accounting.Configuration
 import dk.sdu.cloud.accounting.api.AccountingServiceDescription
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.project.api.LookupAdminsBulkResponse
@@ -154,7 +155,8 @@ class CronJobTest {
     @Test
     fun LowFundsEmailingTest() {
         val client = ClientMock.authenticatedClient
-        val cronjobs = CronJobs(db, client)
+        val config = Configuration(500000)
+        val cronjobs = CronJobs(db, client, config)
         ClientMock.mockCallSuccess(
             Projects.lookupByIdBulk,
             listOf(project2)
