@@ -45,7 +45,12 @@ suspend fun findProjectWallet(
         .wallets.find { it.wallet.paysFor == product }
 }
 
-suspend fun reserveCredits(wallet: Wallet, amount: Long, product: Product = sampleCompute): String {
+suspend fun reserveCredits(
+    wallet: Wallet,
+    amount: Long,
+    product: Product = sampleCompute,
+    chargeImmediately: Boolean = false
+): String {
     val id = UUID.randomUUID().toString()
     Wallets.reserveCredits.call(
         ReserveCreditsRequest(
@@ -55,7 +60,8 @@ suspend fun reserveCredits(wallet: Wallet, amount: Long, product: Product = samp
             wallet,
             "_UCloud",
             product.id,
-            amount / product.pricePerUnit
+            amount / product.pricePerUnit,
+            chargeImmediately = chargeImmediately
         ),
         serviceClient
     ).orThrow()
