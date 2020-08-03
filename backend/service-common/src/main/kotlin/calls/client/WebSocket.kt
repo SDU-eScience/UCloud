@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -69,7 +70,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         ctx: OutgoingWSCall
     ): IngoingCallResponse<S, E> {
         val callId = Random.nextInt(10000) // Non unique ID for logging
-        val start = System.currentTimeMillis()
+        val start = Time.now()
         val shortRequestMessage = request.toString().take(100)
         val streamId = streamId.getAndIncrement().toString()
         val shouldSample = sampleCounter.incrementAndGet() % SAMPLE_FREQUENCY == 0
@@ -124,7 +125,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                     val message = channel.receive()
                     if (message is WSMessage.Response) {
                         val responseDebug =
-                            "[$callId] <- ${call.fullName} RESPONSE ${System.currentTimeMillis() - start}ms"
+                            "[$callId] <- ${call.fullName} RESPONSE ${Time.now() - start}ms"
 
                         if (message.status in 400..599 || shouldSample) log.info(responseDebug)
                         else log.debug(responseDebug)
@@ -133,7 +134,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                         session.unsubscribe(streamId)
                         break
                     } else if (message is WSMessage.Message && handler != null) {
-                        log.debug("[$callId] <- ${call.fullName} MESSAGE ${System.currentTimeMillis() - start}ms")
+                        log.debug("[$callId] <- ${call.fullName} MESSAGE ${Time.now() - start}ms")
                         handler(message.payload!!)
                     }
                 }

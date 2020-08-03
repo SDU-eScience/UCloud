@@ -19,7 +19,7 @@ class SimpleCache<K, V : Any>(
 
     private val internalMap = HashMap<K, CacheEntry<V>>()
     private val mutex = Mutex()
-    private var nextRemoveExpired = System.currentTimeMillis() + (maxAge * 5)
+    private var nextRemoveExpired = Time.now() + (maxAge * 5)
 
     override suspend fun clearAll() {
         mutex.withLock { internalMap.clear() }
@@ -39,14 +39,14 @@ class SimpleCache<K, V : Any>(
         if (existing != null) {
             if (maxAge == DONT_EXPIRE) {
                 return existing.value
-            } else if (System.currentTimeMillis() - existing.timestamp < maxAge) {
+            } else if (Time.now() - existing.timestamp < maxAge) {
                 return existing.value
             }
         }
 
         val result = lookup(key) ?: return null
         mutex.withLock {
-            internalMap[key] = CacheEntry(System.currentTimeMillis(), result)
+            internalMap[key] = CacheEntry(Time.now(), result)
         }
 
         return result
@@ -54,7 +54,7 @@ class SimpleCache<K, V : Any>(
 
     private suspend fun cleanup() {
         if (maxAge == DONT_EXPIRE) return
-        val now = System.currentTimeMillis()
+        val now = Time.now()
 
         mutex.withLock {
             if (now < nextRemoveExpired) return
@@ -67,7 +67,7 @@ class SimpleCache<K, V : Any>(
             }
         }
 
-        nextRemoveExpired = System.currentTimeMillis() + (maxAge * 5)
+        nextRemoveExpired = Time.now() + (maxAge * 5)
     }
 
     companion object : Loggable {

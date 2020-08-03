@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
@@ -126,7 +127,7 @@ class TwoFactorChallengeService(
 
     private fun createChallengeId(): String = UUID.randomUUID().toString()
 
-    private fun createChallengeExpiryTimestamp(): Long = System.currentTimeMillis() + CHALLENGE_EXPIRES_IN_MS
+    private fun createChallengeExpiryTimestamp(): Long = Time.now() + CHALLENGE_EXPIRES_IN_MS
 
     companion object : Loggable {
         override val log = logger()

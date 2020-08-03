@@ -4,6 +4,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
@@ -94,7 +95,7 @@ class RefreshTokenAndUserTest {
             db.withTransaction { session ->
                 UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO()).insert(session, person)
                 dao.insert(session, RefreshTokenAndUser(
-                    email, "token", "csrf", refreshTokenExpiry = (System.currentTimeMillis() + 1000000))
+                    email, "token", "csrf", refreshTokenExpiry = (Time.now() + 1000000))
                 )
                 dao.insert(session, RefreshTokenAndUser(email, "token2", "csrf", refreshTokenExpiry = 1549209140000))
             }

@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.bool
@@ -439,8 +440,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.WAYF.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                             set(PrincipalTable.uid, principal.uid)
                             set(PrincipalTable.firstNames, principal.firstNames)
                             set(PrincipalTable.lastName, principal.lastName)
@@ -458,8 +459,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.PASSWORD.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                             set(PrincipalTable.title, principal.title)
                             set(PrincipalTable.firstNames, principal.firstNames)
                             set(PrincipalTable.lastName, principal.lastName)
@@ -478,8 +479,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.SERVICE.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                             set(PrincipalTable.uid, principal.uid)
                         }
                     else -> {

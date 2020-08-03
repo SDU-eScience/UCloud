@@ -2,6 +2,7 @@ package dk.sdu.cloud.contact.book.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
+import dk.sdu.cloud.service.Time
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
@@ -18,7 +19,7 @@ val searchHitAsBytesArray = BytesArray(
                     {
                          "fromUser": "fromUser#1234",
                          "toUser": "toUser#123",
-                         "createdAt": ${Date().time},
+                         "createdAt": ${Time.now()},
                          "serviceOrigin": "${ServiceOrigin.SHARE_SERVICE.name}"
                     }
                     """.trimIndent())

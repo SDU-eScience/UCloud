@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.collect
 import org.joda.time.DateTimeConstants
 import org.joda.time.LocalDateTime
 import dk.sdu.cloud.project.services.QueryService.Companion.VERIFICATION_REQUIRED_EVERY_X_DAYS
+import dk.sdu.cloud.service.Time
 
 class VerificationReminder(
     private val db: AsyncDBSessionFactory,
@@ -122,7 +123,7 @@ class MailCooldownDao {
             ?.getField(CooldownTable.timestamp)
             ?: return false
 
-        return (System.currentTimeMillis() - lastEntry.toTimestamp()) <=
+        return (Time.now() - lastEntry.toTimestamp()) <=
                 VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
     }
 
@@ -130,7 +131,7 @@ class MailCooldownDao {
         session.insert(CooldownTable)  {
             set(CooldownTable.project, project)
             set(CooldownTable.username, username)
-            set(CooldownTable.timestamp, LocalDateTime.now())
+            set(CooldownTable.timestamp, LocalDateTime(Time.now()))
         }
     }
 

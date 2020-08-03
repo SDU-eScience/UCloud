@@ -2,6 +2,7 @@ package dk.sdu.cloud.task.api
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 
 data class Task(
     val jobId: String,
@@ -44,7 +45,7 @@ class MeasuredSpeedInteger(
     override val unit: String,
     private val customFormatter: ((speed: Double) -> String)? = null
 ) : Speed {
-    private var lastUpdate: Long = System.currentTimeMillis()
+    private var lastUpdate: Long = Time.now()
     private var counter: Long = 0
     private var isUpdating = false
     private var isFirstUpdate = true
@@ -61,7 +62,7 @@ class MeasuredSpeedInteger(
 
     fun start() {
         synchronized(this) {
-            lastUpdate = System.currentTimeMillis()
+            lastUpdate = Time.now()
             counter = 0
             isFirstUpdate = true
         }
@@ -73,17 +74,17 @@ class MeasuredSpeedInteger(
 
     private fun update() {
         if (isUpdating) return
-        val now = System.currentTimeMillis()
+        val now = Time.now()
         if (now != -1L && now - lastUpdate < 1_000 && !isFirstUpdate) return
 
         synchronized(this) {
             if (!isUpdating) {
                 isUpdating = true
-                val delta = System.currentTimeMillis() - lastUpdate
+                val delta = Time.now() - lastUpdate
                 val unitsPerSecond = (counter / (delta / 1000.0))
                 counter = 0
                 speed = unitsPerSecond
-                lastUpdate = System.currentTimeMillis()
+                lastUpdate = Time.now()
                 isFirstUpdate = false
                 isUpdating = false
             }

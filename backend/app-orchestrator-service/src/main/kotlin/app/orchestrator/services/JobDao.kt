@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -74,8 +75,8 @@ class JobDao {
                 set(JobInformationTable.archiveInCollection, job.archiveInCollection)
                 set(JobInformationTable.backendName, job.backend)
                 set(JobInformationTable.startedAt, null)
-                set(JobInformationTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(JobInformationTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(JobInformationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(JobInformationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(JobInformationTable.peers, defaultMapper.writeValueAsString(job.peers.toList()))
                 set(JobInformationTable.refreshToken, refreshToken)
                 set(JobInformationTable.reservationType, job.reservation.id)

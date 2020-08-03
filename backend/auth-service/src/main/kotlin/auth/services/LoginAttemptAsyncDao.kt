@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -55,7 +56,7 @@ fun RowData.toLoginCoolDown(): LoginCooldown {
 }
 
 class LoginAttemptAsyncDao(
-    private val timeSource: () -> Long = { System.currentTimeMillis() }
+    private val timeSource: () -> Long = { Time.now() }
 ) {
     /**
      * Logs that a failed login attempt has taken place

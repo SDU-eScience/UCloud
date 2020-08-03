@@ -11,6 +11,7 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.webdav.services.UserClient
 import io.ktor.http.HttpStatusCode
@@ -56,7 +57,7 @@ suspend fun reserveCredits(
         ReserveCreditsRequest(
             id,
             amount,
-            System.currentTimeMillis() + 1000 * 60,
+            Time.now() + 1000 * 60,
             wallet,
             "_UCloud",
             product.id,

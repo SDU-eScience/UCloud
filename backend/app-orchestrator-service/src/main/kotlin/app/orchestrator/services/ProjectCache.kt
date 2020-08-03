@@ -7,6 +7,7 @@ import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.project.api.UserStatusResponse
+import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -22,7 +23,7 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
             CacheResponse(true, updateCache(username))
         } else {
             val existingEntry = mutex.withLock { cache[username] }
-            if (existingEntry != null && System.currentTimeMillis() - existingEntry.timestamp <= MAX_AGE) {
+            if (existingEntry != null && Time.now() - existingEntry.timestamp <= MAX_AGE) {
                 CacheResponse(false, existingEntry.userStatus)
             } else {
                 CacheResponse(true, updateCache(username))
@@ -35,7 +36,7 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
     ): UserStatusResponse {
         val result = ProjectMembers.userStatus.call(UserStatusRequest(username), serviceClient).orThrow()
         mutex.withLock {
-            cache[username] = CacheEntry(System.currentTimeMillis(), result)
+            cache[username] = CacheEntry(Time.now(), result)
         }
         return result
     }

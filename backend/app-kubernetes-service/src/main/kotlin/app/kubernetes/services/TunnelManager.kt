@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -55,7 +56,7 @@ class TunnelManager(private val k8: K8Dependencies) {
             }
 
             return if (existing != null && alive) {
-                existing.lastUsed = System.currentTimeMillis()
+                existing.lastUsed = Time.now()
                 existing.tunnel
             } else {
                 val localPort: Int = run {
@@ -72,7 +73,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                 }
 
                 val newTunnel = createTunnel(id, localPort, remotePort, urlId)
-                openTunnels[id] = TunnelWithUsageTracking(newTunnel, System.currentTimeMillis())
+                openTunnels[id] = TunnelWithUsageTracking(newTunnel, Time.now())
                 newTunnel
             }
         }

@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -55,7 +56,7 @@ class TwoFactorAsyncDAO {
                 .sendPreparedStatement(
                     {
                         setParameter("id", challengeId)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis / 1000)
+                        setParameter("time", LocalDateTime(Time.now(), DateTimeZone.UTC).toDateTime().millis / 1000)
                     },
                     """
                         SELECT *

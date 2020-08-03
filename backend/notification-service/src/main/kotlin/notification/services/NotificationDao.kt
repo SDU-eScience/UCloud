@@ -5,9 +5,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationId
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -20,7 +18,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.offset
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
@@ -116,8 +113,8 @@ class NotificationDao {
                 set(NotificationTable.message, notification.message)
                 set(NotificationTable.meta, defaultMapper.writeValueAsString(notification.meta))
                 set(NotificationTable.read, notification.read)
-                set(NotificationTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(NotificationTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(NotificationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(NotificationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(NotificationTable.type, notification.type)
                 set(NotificationTable.id, id)
             }

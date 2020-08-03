@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.outgoingTargetHost
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
@@ -78,7 +79,7 @@ class UserIterationService(
                                 log.debug("Removing ${next.key} (could not find in db)")
                                 iterator.remove()
                             } else {
-                                if (System.currentTimeMillis() > state.expiresAt) {
+                                if (Time.now() > state.expiresAt) {
                                     log.debug("Removing ${next.key} (expired)")
                                     iterator.remove()
                                 }
@@ -139,7 +140,7 @@ class UserIterationService(
 
     // Note: Tweak this, if needed.
     private fun nextExpiresAt(): Long =
-        System.currentTimeMillis() + 1000L * 60 * 30
+        Time.now() + 1000L * 60 * 30
 
     private suspend fun fetchLocal(id: String): List<Principal> {
         val open = openIterators[id] ?: throw UserIterationException.BadIterator()

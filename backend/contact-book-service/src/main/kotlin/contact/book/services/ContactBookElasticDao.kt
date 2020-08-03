@@ -2,6 +2,7 @@ package dk.sdu.cloud.contact.book.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.bulk.BulkRequest
@@ -93,7 +94,7 @@ class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
         val source = HashMap<String, Any>()
         source["fromUser"] = fromUser
         source["toUser"] = toUser
-        source["createdAt"] = Date().time
+        source["createdAt"] = Time.now()
         source["serviceOrigin"] = serviceOrigin
         request.source(source)
 

@@ -11,17 +11,17 @@ import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.t
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
 import org.junit.Test
 import kotlin.math.abs
-import kotlin.test.assertEquals
 
 class AccountVisualizationTest : IntegrationTest() {
     @Test
     fun `test usage (no data)`() = t {
         val user = createUser()
         val usage = Visualization.usage.call(
-            UsageRequest(1000L, System.currentTimeMillis() - 60_000, System.currentTimeMillis()),
+            UsageRequest(1000L, Time.now() - 60_000, Time.now()),
             user.client
         ).orThrow()
 
@@ -34,7 +34,7 @@ class AccountVisualizationTest : IntegrationTest() {
     @Test
     fun `test usage (no data - with wallets)`() = t {
         val project = initializeNormalProject(initializeRootProject())
-        val now = System.currentTimeMillis()
+        val now = Time.now()
         val usage = Visualization.usage.call(
             UsageRequest(AN_HOUR, now - AN_HOUR * 24, now),
             project.piClient.withProject(project.projectId)
@@ -53,7 +53,7 @@ class AccountVisualizationTest : IntegrationTest() {
         val charge = 10.DKK
         reserveCredits(wallet, charge, chargeImmediately = true)
 
-        val now = System.currentTimeMillis()
+        val now = Time.now()
         val period = 30_000
         val usage = Visualization.usage.call(
             UsageRequest(
@@ -88,7 +88,7 @@ class AccountVisualizationTest : IntegrationTest() {
         val charge = 10.DKK
         reserveCredits(wallet, charge, chargeImmediately = true)
 
-        val now = System.currentTimeMillis()
+        val now = Time.now()
         val period = 30_000
         val usage = Visualization.usage.call(
             UsageRequest(
@@ -122,7 +122,7 @@ class AccountVisualizationTest : IntegrationTest() {
         val charge = 10.DKK
         reserveCredits(wallet, charge, chargeImmediately = true)
 
-        val now = System.currentTimeMillis()
+        val now = Time.now()
         val period = 30_000
         try {
             Visualization.usage.call(

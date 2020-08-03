@@ -7,6 +7,7 @@ import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
@@ -413,7 +414,7 @@ class BalanceService(
                     set(TransactionTable.isReserved, true)
                     set(TransactionTable.productId, productId)
                     set(TransactionTable.units, productUnits)
-                    set(TransactionTable.completedAt, LocalDateTime.now(DateTimeZone.UTC))
+                    set(TransactionTable.completedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                     set(TransactionTable.originalAccountId, originalWallet.id)
                     set(TransactionTable.id, jobId)
                 }
@@ -526,7 +527,7 @@ class BalanceService(
                 ReserveCreditsRequest(
                     jobId = id,
                     amount = request.amount,
-                    expiresAt = System.currentTimeMillis() + (1000L * 60),
+                    expiresAt = Time.now() + (1000L * 60),
                     account = request.sourceAccount,
                     jobInitiatedBy = actor.safeUsername(),
                     productId = "",

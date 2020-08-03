@@ -25,11 +25,8 @@ import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.utils.*
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.safeUsername
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.joda.time.LocalDateTime
 import java.util.*
@@ -90,8 +87,8 @@ class ProjectService(
                 session.insert(ProjectTable) {
                     set(ProjectTable.id, id)
                     set(ProjectTable.title, title)
-                    set(ProjectTable.createdAt, LocalDateTime.now())
-                    set(ProjectTable.modifiedAt, LocalDateTime.now())
+                    set(ProjectTable.createdAt, LocalDateTime(Time.now()))
+                    set(ProjectTable.modifiedAt, LocalDateTime(Time.now()))
                     set(ProjectTable.parent, parent)
                 }
 
@@ -99,8 +96,8 @@ class ProjectService(
                     set(ProjectMemberTable.username, principalInvestigatorOverride ?: actor.safeUsername())
                     set(ProjectMemberTable.role, ProjectRole.PI.name)
                     set(ProjectMemberTable.project, id)
-                    set(ProjectMemberTable.createdAt, LocalDateTime.now())
-                    set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
+                    set(ProjectMemberTable.createdAt, LocalDateTime(Time.now()))
+                    set(ProjectMemberTable.modifiedAt, LocalDateTime(Time.now()))
                 }
 
                 verifyMembership(session, "_project", id)
@@ -254,8 +251,8 @@ class ProjectService(
                 set(ProjectMemberTable.role, ProjectRole.USER.name)
                 set(ProjectMemberTable.project, projectId)
                 set(ProjectMemberTable.username, invitedUser)
-                set(ProjectMemberTable.createdAt, LocalDateTime.now())
-                set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
+                set(ProjectMemberTable.createdAt, LocalDateTime(Time.now()))
+                set(ProjectMemberTable.modifiedAt, LocalDateTime(Time.now()))
             }
 
             eventProducer.produce(ProjectEvent.MemberAdded(projectId, ProjectMember(invitedUser, ProjectRole.USER)))
@@ -543,7 +540,7 @@ class ProjectService(
 
             session.insert(ProjectMembershipVerified) {
                 set(ProjectMembershipVerified.projectId, project)
-                set(ProjectMembershipVerified.verification, LocalDateTime.now())
+                set(ProjectMembershipVerified.verification, LocalDateTime(Time.now()))
                 set(ProjectMembershipVerified.verifiedBy, verifiedBy)
             }
         }

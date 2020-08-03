@@ -17,6 +17,7 @@ import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -32,7 +33,7 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
             val cacheKey = CacheEntryKey(projectId, username)
             val existing = cache[cacheKey]
             if (existing != null) {
-                if (System.currentTimeMillis() > existing.expiry) {
+                if (Time.now() > existing.expiry) {
                     cache.remove(cacheKey)
                 } else {
                     return existing.member
@@ -47,7 +48,7 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
             log.debug("viewMember($projectId, $username) = $member")
 
             return if (member != null) {
-                cache[cacheKey] = CacheEntryValue(member, System.currentTimeMillis() + 60_000)
+                cache[cacheKey] = CacheEntryValue(member, Time.now() + 60_000)
                 member
             } else {
                 null

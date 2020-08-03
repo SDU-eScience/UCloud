@@ -18,12 +18,9 @@ import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.startServices
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import kotlinx.coroutines.runBlocking
@@ -248,8 +245,8 @@ class Server(
             user, AccessTokenContents(
                 user,
                 listOf(SecurityScope.ALL_WRITE),
-                createdAt = System.currentTimeMillis(),
-                expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
+                createdAt = Time.now(),
+                expiresAt = Time.now() + ONE_YEAR_IN_MILLS
             ),
             userAgent = null,
             ip = null
