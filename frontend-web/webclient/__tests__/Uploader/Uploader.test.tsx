@@ -24,19 +24,6 @@ describe("Uploader", () => {
         ).toJSON()).toMatchSnapshot();
     });
 
-    // FIXME Tests modal, which requires accessing the portal it is being rendered in?
-    test.skip("Open Uploader component", () => {
-        const storeCopy = {...store};
-        storeCopy.dispatch(UploaderActions.setUploaderVisible(true, "") as AnyAction);
-        expect(create(
-            <Provider store={storeCopy}>
-                <MemoryRouter>
-                    <Uploader />
-                </MemoryRouter>
-            </Provider>
-        ).toJSON()).toMatchSnapshot();
-    });
-
     test.skip("Render Uploader component with files", () => {
         const storeCopy = {...store};
         storeCopy.dispatch(UploaderActions.setUploaderVisible(false, "") as AnyAction);

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.contact.book.services
 
+import dk.sdu.cloud.service.Time
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -8,7 +9,7 @@ class ElasticIndexedContactTest {
 
     @Test
     fun `simple class test `() {
-        val time = Date().time
+        val time = Time.now()
         val contact = ElasticIndexedContact(
             "user#1234",
             "toUser#1231",

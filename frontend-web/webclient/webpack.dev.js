@@ -18,7 +18,7 @@ module.exports = merge(commonConfig, {
 
     output: {
         path: path.join(process.cwd(), "/dist"),
-        publicPath: "http://localhost:9000/",
+        publicPath: "/",
         filename: "[name].js",
     },
 
@@ -54,6 +54,7 @@ module.exports = merge(commonConfig, {
         },
         hot: true,
         inline: true,
+        host: "0.0.0.0",
         proxy: [{
             context: ["/auth", "/api"],
             target: process.env["local_dev"] !== undefined ? `http://localhost:8080` : `https://${DEV_SITE}`,

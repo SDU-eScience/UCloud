@@ -2,19 +2,18 @@ import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
-import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
+import {useTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Page} from "Types";
-import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea, Link, Text, Card, Markdown, SelectableTextWrapper, SelectableText, Checkbox, Label} from "ui-components";
+import {
+    Box, Button, Flex, Input, InputGroup, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label
+} from "ui-components";
 import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
-import {SidebarPages} from "ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault, capitalized} from "UtilityFunctions";
 import {NewsPost} from "Dashboard/Dashboard";
@@ -25,11 +24,7 @@ import {addStandardDialog} from "UtilityComponents";
 
 const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
-interface NewsManagementOperations {
-    onInit: () => void;
-}
-
-function NewsManagement(props: NewsManagementOperations): JSX.Element | null {
+function NewsManagement(): JSX.Element | null {
     const [start, setStart] = React.useState<Date | null>(null);
     const [end, setEnd] = React.useState<Date | null>(null);
     const [loading, setLoading] = React.useState(false);
@@ -40,8 +35,10 @@ function NewsManagement(props: NewsManagementOperations): JSX.Element | null {
     const categoryRef = React.useRef<HTMLInputElement>(null);
     const promises = usePromiseKeeper();
 
+    useSidebarPage(SidebarPages.Admin);
+    useTitle("News Management");
+
     React.useEffect(() => {
-        props.onInit();
         fetchNewsPost(0, 25);
     }, []);
 
@@ -114,8 +111,17 @@ function NewsManagement(props: NewsManagementOperations): JSX.Element | null {
                             <Input width={1} my="3px" required placeholder="Post title..." ref={titleRef} />
                             <Input width={1} my="3px" required placeholder="Short summation..." ref={subtitleRef} />
                             <Flex mb="3px">
-                                <SelectableText cursor="pointer" mr="5px" selected={!showPreview} onClick={() => setPreview(false)}>Edit</SelectableText>
-                                <SelectableText cursor="pointer" selected={showPreview} onClick={() => setPreview(true)}>Preview</SelectableText>
+                                <SelectableText
+                                    cursor="pointer"
+                                    mr="5px"
+                                    selected={!showPreview}
+                                    onClick={() => setPreview(false)}
+                                >Edit</SelectableText>
+                                <SelectableText
+                                    cursor="pointer"
+                                    selected={showPreview}
+                                    onClick={() => setPreview(true)}
+                                >Preview</SelectableText>
                             </Flex>
                             <TextAreaWithMargin
                                 width={1}
@@ -127,13 +133,18 @@ function NewsManagement(props: NewsManagementOperations): JSX.Element | null {
                             />
                             {showPreview ?
                                 <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="scroll">
-                                    <Markdown
-                                        unwrapDisallowed
-                                        source={bodyRef.current?.value ?? ""}
-                                    />
+                                    <Markdown unwrapDisallowed source={bodyRef.current?.value ?? ""} />
                                 </Card>
                                 : null}
-                            <Input width={1} autoComplete="off" onKeyUp={onKeyUp} my="3px" placeholder="Category" required ref={categoryRef} />
+                            <Input
+                                width={1}
+                                autoComplete="off"
+                                onKeyUp={onKeyUp}
+                                my="3px"
+                                placeholder="Category"
+                                required
+                                ref={categoryRef}
+                            />
                             <Categories categories={results} onSelect={category => {
                                 categoryRef.current!.value = category;
                                 setResults([]);
@@ -213,7 +224,9 @@ function NewsManagement(props: NewsManagementOperations): JSX.Element | null {
 
         try {
             await promises.makeCancelable(
-                Client.put("/news/post", {showFrom: start.getTime(), hideFrom: end?.getTime(), title, subtitle, body, category})
+                Client.put("/news/post", {
+                    title, subtitle, body, category, showFrom: start.getTime(), hideFrom: end?.getTime()
+                })
             ).promise;
             snackbarStore.addSuccess("Submitted", false, 2_000);
             fetchNewsPost(0, news.itemsInTotal);
@@ -242,7 +255,13 @@ const TextAreaWithMargin = styled(TextArea)`
     marginLeft: 4px;
 `;
 
-export function NewsList(props: {news: NewsPost[], title: string, toggleHidden?: (id: number) => void}): JSX.Element | null {
+interface NewsListProps {
+    news: NewsPost[];
+    title: string;
+    toggleHidden?: (id: number) => void;
+}
+
+export function NewsList(props: NewsListProps): JSX.Element | null {
     if (props.news.length === 0) return null;
     return (
         <>
@@ -261,11 +280,14 @@ function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => v
             <Text>{props.post.subtitle}</Text>
             <Flex>
                 <Input my="6px" mx="6px" width="210px" readOnly value={format(props.post.showFrom, DATE_FORMAT)} />
-                {props.post.hideFrom == null ? <Box style={{content: ""}} width="222px" /> : <Input my="6px" mx="6px" readOnly width="210px" value={format(props.post.hideFrom, DATE_FORMAT)} />}
+                {props.post.hideFrom == null ?
+                    <Box style={{content: ""}} width="222px" /> :
+                    <Input
+                        my="6px" mx="6px" readOnly width="210px" value={format(props.post.hideFrom, DATE_FORMAT)} />}
                 {props.toggleHidden ? (
                     <Flex mt="18px" ml="10px">
                         <Label onClick={onToggleHidden}>
-                            Hidden <Checkbox checked={props.post.hidden} />
+                            Hidden <Checkbox checked={props.post.hidden} onChange={e => e} />
                         </Label>
                     </Flex>
                 ) : null}
@@ -298,11 +320,4 @@ const Categories = (props: {categories: string[], onSelect: (cat: string) => voi
     );
 };
 
-const mapDispatchToProps = (dispatch: Dispatch): NewsManagementOperations => ({
-    onInit: () => {
-        dispatch(setActivePage(SidebarPages.Admin));
-        dispatch(updatePageTitle("News Management"));
-    }
-});
-
-export default connect(null, mapDispatchToProps)(NewsManagement);
+export default NewsManagement;

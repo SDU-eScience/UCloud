@@ -17,7 +17,6 @@ import {connect} from "react-redux";
 import {RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import {Button, Flex, VerticalButtonGroup} from "ui-components";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
@@ -121,7 +120,7 @@ const Tool: React.FunctionComponent<RouteComponentProps<{name: string}> & ToolOp
                         }
 
                         pageRenderer={page => (
-                            <Flex justifyContent={"center"} flexWrap={"wrap"}>
+                            <Flex justifyContent="center" flexWrap="wrap">
                                 {page.items.map(({metadata}) => (
                                     <SmallAppToolCard
                                         key={`${metadata.name}/${metadata.version}`}

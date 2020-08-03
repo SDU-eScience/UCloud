@@ -6,6 +6,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidationJWT
 import java.util.*
 import kotlin.math.absoluteValue
@@ -26,7 +27,7 @@ object TokenValidationMock {
         securityPrincipal: SecurityPrincipal,
         scopes: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE),
         issuedAt: Long = 0L,
-        expiresAt: Long = System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 365)
+        expiresAt: Long = Time.now() + (1000L * 60 * 60 * 24 * 365)
     ): String {
         return JWT.create().run {
             val principalType = when (securityPrincipal.role) {
@@ -85,7 +86,7 @@ fun TokenValidationMock.createTokenForUser(
     role: Role = Role.USER,
     scopes: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE),
     issuedAt: Long = 0L,
-    expiresAt: Long = System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 365)
+    expiresAt: Long = Time.now() + (1000L * 60 * 60 * 24 * 365)
 ): String {
     return createTokenForPrincipal(
         SecurityPrincipal(username, role, "user", "user", Random.nextLong().absoluteValue),
@@ -99,7 +100,7 @@ fun TokenValidationMock.createTokenForService(
     serviceName: String = "service",
     scopes: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE),
     issuedAt: Long = 0L,
-    expiresAt: Long = System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 365)
+    expiresAt: Long = Time.now() + (1000L * 60 * 60 * 24 * 365)
 ): String {
     return createTokenForPrincipal(
         SecurityPrincipal(

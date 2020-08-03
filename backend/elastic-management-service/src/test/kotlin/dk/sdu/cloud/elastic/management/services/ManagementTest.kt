@@ -3,6 +3,7 @@ package dk.sdu.cloud.elastic.management.services
 import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.initializeMicro
 import org.apache.http.HttpHost
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
@@ -39,7 +40,7 @@ class ManagementTest {
         numberOfDocuments: Int,
         expired: Boolean = true
     ): String{
-        val date = Date().time
+        val date = Time.now()
         val pastdate = LocalDate.now().minusDays(numberOfDaysBeforeNow).toString().replace("-","." )
 
         var bulkRequest = BulkRequest()
@@ -68,22 +69,22 @@ class ManagementTest {
     @Ignore
     @Test
     fun `Multiple index find and delete test`() {
-        val startCreateTime = Date().time
+        val startCreateTime = Time.now()
         var indices = "${createDocuments("hello", 0, 50000)},"
         indices += "${createDocuments("hello", 1, 50000)},"
         indices += "${createDocuments("hello", 2, 50000)},"
         indices += "${createDocuments("hello", 3, 50000)},"
         indices += createDocuments("hello", 4, 50000)
-        val endCreateTime = Date().time
+        val endCreateTime = Time.now()
         println("Time to create: ${endCreateTime-startCreateTime} millsec")
 
         elastic.indices().flush(FlushRequest(indices), RequestOptions.DEFAULT)
 
         val deleteService = ExpiredEntriesDeleteService(elastic)
 
-        val starttime = Date().time
+        val starttime = Time.now()
         deleteService.deleteExpiredAllIndices()
-        val endtime = Date().time
+        val endtime = Time.now()
 
         println("Took: ${endtime-starttime} millsec")
     }

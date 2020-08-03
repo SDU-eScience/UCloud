@@ -19,6 +19,7 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
 import dk.sdu.cloud.project.api.ViewProjectRequest
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.escapeHtml
 import io.ktor.http.HttpStatusCode
@@ -60,7 +61,7 @@ class PaymentService(
                 session.insert(MissedPayments) {
                     set(MissedPayments.reservationId, job.id)
                     set(MissedPayments.amount, price)
-                    set(MissedPayments.createdAt, LocalDateTime.now(DateTimeZone.UTC))
+                    set(MissedPayments.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 }
             }
         }
@@ -75,7 +76,7 @@ class PaymentService(
             ReserveCreditsRequest(
                 job.id,
                 price,
-                System.currentTimeMillis() + job.maxTime.toMillis() * 3,
+                Time.now() + job.maxTime.toMillis() * 3,
                 Wallet(
                     job.project ?: job.owner,
                     if (job.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,

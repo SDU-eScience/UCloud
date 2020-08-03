@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.testUtil.dbTruncate
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.TestDB
@@ -50,7 +51,7 @@ class LoginAttemptServiceTest {
         dbTruncate(db)
     }
 
-    val time = System.currentTimeMillis()
+    val time = Time.now()
     var currentTime: Long = 0
     private val dao = LoginAttemptAsyncDao { currentTime + time }
     val user = "user"

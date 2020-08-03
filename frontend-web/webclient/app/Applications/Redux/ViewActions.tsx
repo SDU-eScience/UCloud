@@ -1,7 +1,6 @@
 import {FullAppInfo, WithAllAppTags, WithAppFavorite, WithAppInvocation, WithAppMetadata} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {LoadableEvent, unwrapCall} from "LoadableContent";
-import {Page, PayloadAction} from "Types";
 import {hpcFavoriteApp} from "Utilities/ApplicationUtilities";
 
 export enum Tag {

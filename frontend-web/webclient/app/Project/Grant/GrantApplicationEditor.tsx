@@ -51,6 +51,7 @@ import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -324,9 +325,23 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     const state = useRequestInformation(target);
     const grantFinalized = isGrantFinalized(state.editingApplication?.status);
     const [, runWork] = useAsyncCommand();
-    const isUser = !isAdminOrPI(useProjectManagementStatus().projectRole);
     const projectTitleRef = useRef<HTMLInputElement>(null);
     const history = useHistory();
+
+    switch (target) {
+        case RequestTarget.EXISTING_PROJECT:
+            useTitle("Viewing Project");
+            break;
+        case RequestTarget.NEW_PROJECT:
+            useTitle("Create Project");
+            break;
+        case RequestTarget.PERSONAL_PROJECT:
+            useTitle("Personal Project");
+            break;
+        case RequestTarget.VIEW_APPLICATION:
+            useTitle("Viewing Application");
+            break;
+    }
 
     const submitRequest = useCallback(async () => {
         if (state.targetProject === undefined) {
@@ -472,7 +487,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             main={
                 <Flex justifyContent="center">
                     <Box maxWidth={1400} width="100%">
-                        {target !== RequestTarget.NEW_PROJECT || isUser ? null : (
+                        {target !== RequestTarget.NEW_PROJECT ? null : (
                             <>
                                 <Label mb={16} mt={16}>
                                     Principal Investigator (PI)
@@ -490,13 +505,12 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 </Label>
                                 <Label mb={16} mt={16}>
                                     Title
-                                    <Input disabled={isUser} ref={projectTitleRef} />
-                                    disabled={isUser}
+                                    <Input ref={projectTitleRef} />
                                 </Label>
                             </>
                         )}
 
-                        {target !== RequestTarget.VIEW_APPLICATION || isUser ? null : (
+                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
                             <>
                                 <DashboardCard color="blue" isLoading={false}>
                                     <Heading.h4 mb={16}>Metadata</Heading.h4>
@@ -591,7 +605,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         <ResourceContainer>
                             {state.wallets.map((it, idx) => (
                                 <RequestForSingleResourceWrapper key={idx}>
-                                    <DashboardCard color={theme.colors.blue} isLoading={false}>
+                                    <DashboardCard color="blue" isLoading={false}>
                                         <table>
                                             <tbody>
                                                 <tr>
@@ -621,7 +635,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         <Flex alignItems={"center"}>
                                                             <Input
                                                                 placeholder={"0"}
-                                                                disabled={isUser || grantFinalized}
+                                                                disabled={grantFinalized}
                                                                 data-target={productCategoryId(it.wallet.paysFor)}
                                                                 autoComplete="off"
                                                                 type="number"
@@ -642,7 +656,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                             <Flex alignItems={"center"}>
                                                                 <Input
                                                                     placeholder={"0"}
-                                                                    disabled={isUser || grantFinalized}
+                                                                    disabled={grantFinalized}
                                                                     data-target={
                                                                         "quota-" + productCategoryId(it.wallet.paysFor)
                                                                     }
@@ -664,7 +678,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         <CommentApplicationWrapper>
                             <RequestFormContainer>
                                 <Heading.h4>Application</Heading.h4>
-                                <TextArea disabled={isUser || grantFinalized} rows={25} ref={state.documentRef} />
+                                <TextArea disabled={grantFinalized} rows={25} ref={state.documentRef} />
                             </RequestFormContainer>
 
                             {state.editingApplication === undefined ? null : (

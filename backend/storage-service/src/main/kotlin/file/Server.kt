@@ -34,6 +34,7 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.file.processors.ProjectProcessor
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -58,7 +59,7 @@ class Server(
 
         // FS root
         val fsRootFile =
-            File("/mnt/cephfs/" + cephConfig.subfolder).takeIf { it.exists() }
+            File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
         log.info("Serving files from ${fsRootFile.absolutePath}")
@@ -90,6 +91,8 @@ class Server(
             fsRootFile,
             homeFolderService
         ).init()
+
+        ProjectProcessor(streams, fsRootFile, client).init()
 
         val metadataRecovery = MetadataRecoveryService(
             micro.backgroundScope,
@@ -125,7 +128,7 @@ class Server(
                     commandRunnerForCalls,
                     newAclService,
                     coreFileSystem,
-                    config.filePermissionAcl
+                    config.filePermissionAcl + if (micro.developmentModeEnabled) setOf("admin@dev") else emptySet()
                 ),
 
                 IndexingController(

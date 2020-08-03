@@ -20,6 +20,7 @@ import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.long
@@ -343,7 +344,7 @@ class LimitChecker(
             ReserveCreditsRequest(
                 "ucloud-storage-limitchk-" + UUID.randomUUID().toString(),
                 productConfiguration.pricePerGb * gigabytes,
-                System.currentTimeMillis(),
+                Time.now(),
                 Wallet(
                     walletId,
                     walletType,

@@ -80,15 +80,15 @@ data class UserProjectSummary(
 )
 
 data class UserGroupSummary(
-    val projectId: String,
+    val project: String,
     val group: String,
     val username: String
 )
 
 data class ListProjectsRequest(
-    val user: String?,
-    override val itemsPerPage: Int?,
-    override val page: Int?,
+    val user: String? = null,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
     val archived: Boolean? = null,
     val noFavorites: Boolean? = null
 ) : WithPaginationRequest
@@ -107,10 +107,16 @@ typealias ListFavoriteProjectsResponse = ListProjectsResponse
 data class ViewProjectRequest(val id: String)
 typealias ViewProjectResponse = UserProjectSummary
 
-data class ListIngoingInvitesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class ListIngoingInvitesRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
 typealias ListIngoingInvitesResponse = Page<IngoingInvite>
 
-data class ListOutgoingInvitesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class ListOutgoingInvitesRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
 typealias ListOutgoingInvitesResponse = Page<OutgoingInvite>
 
 data class AcceptInviteRequest(val projectId: String)
@@ -152,6 +158,13 @@ data class LookupByIdBulkRequest(
 
 typealias LookupPrincipalInvestigatorRequest = Unit
 data class LookupPrincipalInvestigatorResponse(val principalInvestigator: String)
+
+data class RenameProjectRequest(
+    val id: String,
+    val newTitle: String
+)
+
+typealias RenameProjectResponse = Unit
 
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
@@ -590,6 +603,7 @@ object Projects : CallDescriptionContainer("project") {
     /**
      * Returns the number of sub-projects of an existing project
      */
+    @Deprecated("Should be replaced with listSubProjects.itemsInTotal")
     val countSubProjects = call<CountSubProjectsRequest, CountSubProjectsResponse, CommonErrorMessage>("countSubProjects") {
         auth {
             access = AccessRight.READ
@@ -702,4 +716,24 @@ object Projects : CallDescriptionContainer("project") {
                 }
             }
         }
+
+    /**
+     * Rename a project
+     */
+    val rename = call<RenameProjectRequest, RenameProjectResponse, CommonErrorMessage>("rename") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"rename"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
 }

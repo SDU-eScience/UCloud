@@ -3,7 +3,6 @@ import {VirtualFileTable, VirtualFolderDefinition, defaultVirtualFolders} from "
 import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
-import {Box} from "ui-components";
 import {
     isDirectory,
     isProjectHome,
@@ -16,7 +15,6 @@ import {
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
 import {FileOperationRepositoryMode} from "Files/FileOperations";
-import {Page} from "Types";
 import {callAPI} from "Authentication/DataHook";
 import {listProjects, UserInProject} from "Project";
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {

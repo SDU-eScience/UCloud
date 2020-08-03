@@ -5,7 +5,6 @@ import {setLoading} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {hpcJobQueryPost} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {getFilenameFromPath, getParentPath, resolvePath} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export async function quickLaunchFromParametersFile(

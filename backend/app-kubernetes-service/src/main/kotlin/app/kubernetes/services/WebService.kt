@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.features.origin
@@ -70,7 +71,7 @@ class WebService(
                         value = ingoingToken,
                         secure = call.request.origin.scheme == "https",
                         httpOnly = true,
-                        expires = GMTDate(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
+                        expires = GMTDate(Time.now() + (1000L * 60 * 60 * 24 * 30)),
                         path = "/",
                         domain = domain
                     )

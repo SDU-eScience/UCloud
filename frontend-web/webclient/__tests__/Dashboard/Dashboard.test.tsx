@@ -6,9 +6,14 @@ import {create, act} from "react-test-renderer";
 import {Store} from "redux";
 import {ThemeProvider} from "styled-components";
 import Dashboard from "../../app/Dashboard/Dashboard";
-import {ReduxObject, emptyPage} from "../../app/DefaultObjects";
+import {emptyPage} from "../../app/DefaultObjects";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
+
+jest.mock("Project", () => ({
+    getProjectNames: () => [],
+    userProjectStatus: () => {}
+}));
 
 jest.mock("Authentication/HttpClientInstance", () => ({
     Client: {

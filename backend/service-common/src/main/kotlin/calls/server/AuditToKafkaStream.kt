@@ -16,6 +16,7 @@ import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.events.JsonEventStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.call
 import io.ktor.http.HttpHeaders
@@ -86,7 +87,7 @@ class AuditToEventStream(
             override fun canUseContext(ctx: IngoingCall): Boolean = true
 
             override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
-                context.audit = AuditData(System.currentTimeMillis())
+                context.audit = AuditData(Time.now())
             }
         })
 
@@ -113,7 +114,7 @@ class AuditToEventStream(
                 val startTime = auditData.requestStart
                 val responseTime =
                     if (auditDescription?.longRunningResponseTime == true) 0L
-                    else System.currentTimeMillis() - startTime
+                    else Time.now() - startTime
 
                 val responseCode = result.statusCode.value
 

@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.service.Time
 
 enum class AccessRight {
     READ,
@@ -114,8 +115,8 @@ fun StorageFile.mergeWith(other: StorageFile): StorageFile {
 fun StorageFile(
     fileType: FileType,
     path: String,
-    createdAt: Long = System.currentTimeMillis(),
-    modifiedAt: Long = System.currentTimeMillis(),
+    createdAt: Long = Time.now(),
+    modifiedAt: Long = Time.now(),
     ownerName: String = path.components().getOrElse(1) { "_storage" },
     size: Long = 0,
     acl: List<AccessEntry>? = emptyList(),

@@ -192,7 +192,7 @@ class AppStoreAsyncDao(
     ): Application {
         val cacheKey = NameAndVersion(appName, appVersion)
         val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
-        if (cached != null && expiry > System.currentTimeMillis()) {
+        if (cached != null && expiry > Time.now()) {
             val hasPermission = ctx.withSession { session ->
                     internalHasPermission(
                         session,
@@ -228,7 +228,7 @@ class AppStoreAsyncDao(
                 )
             }
         if (hasPermission) {
-            byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
+            byNameAndVersionCache[cacheKey] = Pair(result, Time.now() + (1000L * 60 * 60))
             return result
         } else {
             throw ApplicationException.NotFound()
@@ -427,8 +427,8 @@ class AppStoreAsyncDao(
         ctx.withSession { session ->
             session.insert(ApplicationTable) {
                 set(ApplicationTable.owner, user.username)
-                set(ApplicationTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(ApplicationTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(ApplicationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(ApplicationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(ApplicationTable.authors, defaultMapper.writeValueAsString(description.metadata.authors))
                 set(ApplicationTable.title, description.metadata.title)
                 set(ApplicationTable.description, description.metadata.description)

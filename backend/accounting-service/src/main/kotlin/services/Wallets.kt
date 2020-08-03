@@ -21,6 +21,7 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
@@ -107,6 +108,9 @@ class BalanceService(
         if (walletOwnerType == WalletOwnerType.PROJECT) {
             val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
             if (isAdminOfParentProject(accountId, memberStatus)) return
+            projectCache.memberStatus.remove(initiatedBy.username)
+            val memberStatus2 = projectCache.memberStatus.get(initiatedBy.username)
+            if (isAdminOfParentProject(accountId, memberStatus2)) return
         }
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
@@ -540,7 +544,7 @@ class BalanceService(
                     set(TransactionTable.isReserved, true)
                     set(TransactionTable.productId, productId)
                     set(TransactionTable.units, productUnits)
-                    set(TransactionTable.completedAt, LocalDateTime.now(DateTimeZone.UTC))
+                    set(TransactionTable.completedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                     set(TransactionTable.originalAccountId, originalWallet.id)
                     set(TransactionTable.id, jobId)
                 }
@@ -653,7 +657,7 @@ class BalanceService(
                 ReserveCreditsRequest(
                     jobId = id,
                     amount = request.amount,
-                    expiresAt = System.currentTimeMillis() + (1000L * 60),
+                    expiresAt = Time.now() + (1000L * 60),
                     account = request.sourceAccount,
                     jobInitiatedBy = actor.safeUsername(),
                     productId = "",

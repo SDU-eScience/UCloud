@@ -40,8 +40,8 @@ const UIGlobalStyle = css`
     --paginationDisabled: var(--lightGray, #f00);
     --iconColor: var(--darkGray, #f00);
     --iconColor2: var(--gray, #f00);
-    --FtIconColor: var(--lightGray, #f00);
-    --FtIconColor2: var(--midGray, #f00);
+    --FtIconColor: #f5f7f9;
+    --FtIconColor2: #c9d3df;
     --FtFolderColor: var(--gray, #f00);
     --FtFolderColor2: var(--midGray, #f00);
     --spinnerColor: var(--blue, #f00);

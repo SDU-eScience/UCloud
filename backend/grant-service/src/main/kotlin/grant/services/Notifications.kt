@@ -27,7 +27,7 @@ class NotificationService(
     private val serviceClient: AuthenticatedClient
 ) {
     @OptIn(ExperimentalStdlibApi::class)
-    suspend fun notify(notification: GrantNotification, invokedBy: String) {
+    suspend fun notify(notification: GrantNotification, invokedBy: String, meta: Map<String, Any?> = emptyMap()) {
         with(notification) {
             val title = projects.ancestors.get(application.resourcesOwnedBy)?.last()?.title ?: return
 
@@ -42,7 +42,7 @@ class NotificationService(
                         NotificationDescriptions.create.call(
                             CreateNotification(
                                 admin.username,
-                                Notification(adminMessage.type, adminMessage.subject)
+                                Notification(adminMessage.type, adminMessage.subject, meta = meta)
                             ),
                             serviceClient
                         )
@@ -70,7 +70,7 @@ class NotificationService(
                 NotificationDescriptions.create.call(
                     CreateNotification(
                         application.requestedBy,
-                        Notification(userMessage.type, userMessage.subject)
+                        Notification(userMessage.type, userMessage.subject, meta = meta)
                     ),
                     serviceClient
                 )

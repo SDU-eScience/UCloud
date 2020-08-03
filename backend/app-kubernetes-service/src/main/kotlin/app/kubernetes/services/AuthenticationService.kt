@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.validateAndDecodeOrNull
 import kotlinx.coroutines.sync.Mutex
@@ -22,7 +23,7 @@ class AuthenticationService(
     suspend fun validate(token: String): SecurityPrincipalToken? {
         mutex.withLock {
             val existing = localTokenCache[token]
-            if (existing != null && existing.expiresAt > System.currentTimeMillis()) {
+            if (existing != null && existing.expiresAt > Time.now()) {
                 return existing
             }
         }

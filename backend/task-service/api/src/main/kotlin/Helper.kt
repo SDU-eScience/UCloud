@@ -3,6 +3,7 @@ package dk.sdu.cloud.task.api
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -62,7 +63,7 @@ class RealTaskContext @PublishedApi internal constructor(
     }
 
     private fun setNextUpdate() {
-        nextUpdate = System.currentTimeMillis() + updateFrequencyMs
+        nextUpdate = Time.now() + updateFrequencyMs
     }
 
     override suspend fun writeln(message: String) {
@@ -94,7 +95,7 @@ class RealTaskContext @PublishedApi internal constructor(
             ).orNull()?.jobId ?: return@launch
 
             while (!isComplete) {
-                if (System.currentTimeMillis() > nextUpdate) {
+                if (Time.now() > nextUpdate) {
                     val messageToAppend = bufferMutex.withLock {
                         val messageToAppend = buffer.toString()
                         buffer.clear()

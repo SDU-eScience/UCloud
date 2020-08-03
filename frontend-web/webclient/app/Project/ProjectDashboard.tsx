@@ -6,7 +6,7 @@ import {
     subprojectsCountRequest
 } from "Project";
 import * as React from "react";
-import {Flex, theme, Card, Icon, Text} from "ui-components";
+import {Flex, Card, Icon, Text} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -19,7 +19,6 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {ProductArea, UsageResponse, transformUsageChartForCharting, usage} from "Accounting";
 import {creditFormatter, durationOptions} from "./ProjectUsage";
 import Table, {TableCell, TableRow} from "ui-components/Table";
-import {Dictionary} from "Types";
 import styled from "styled-components";
 import {
     ingoingGrantApplications, IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings
@@ -30,6 +29,7 @@ import {useHistory} from "react-router";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {usePromiseKeeper} from "PromiseKeeper";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails, projectRole} = useProjectManagementStatus(true);
@@ -38,6 +38,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         return id === undefined || id === "";
     }
 
+    const promises = usePromiseKeeper();
     useTitle("Project Dashboard");
     useSidebarPage(SidebarPages.Projects);
 
@@ -77,6 +78,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     );
 
     React.useEffect(() => {
+        if (promises.canceledKeeper) return;
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
@@ -91,11 +93,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
 
     const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.COMPUTE));
 
-    const computeCreditsUsedByWallet: Dictionary<Dictionary<number>> = {};
+    const computeCreditsUsedByWallet: Record<string, Record<string, number>> = {};
     let computeCreditsUsedInPeriod = 0;
 
     for (const chart of computeCharts) {
-        const usageByCurrentProvider: Dictionary<number> = {};
+        const usageByCurrentProvider: Record<string, number> = {};
         computeCreditsUsedByWallet[chart.provider] = usageByCurrentProvider;
 
         for (let i = 0; i < chart.points.length; i++) {
@@ -112,11 +114,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
 
     const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.STORAGE));
 
-    const storageCreditsUsedByWallet: Dictionary<Dictionary<number>> = {};
+    const storageCreditsUsedByWallet: Record<string, Record<string, number>> = {};
     let storageCreditsUsedInPeriod = 0;
 
     for (const chart of storageCharts) {
-        const usageByCurrentProvider: Dictionary<number> = {};
+        const usageByCurrentProvider: Record<string, number> = {};
         storageCreditsUsedByWallet[chart.provider] = usageByCurrentProvider;
 
         for (let i = 0; i < chart.points.length; i++) {
@@ -141,7 +143,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                 <>
                     <ProjectDashboardGrid minmax={300}>
                         {projectId !== undefined && projectId !== "" ? (
-                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/members")} title="Members" icon="user" color={theme.colors.blue} isLoading={false}>
+                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/members")} title="Members" icon="user" color="blue" isLoading={false}>
                                 <Table>
                                     <tbody>
                                         <TableRow cursor="pointer">
@@ -159,7 +161,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         <DashboardCard
                             title={"Resource Allocation"}
                             icon="projects"
-                            color={theme.colors.purple}
+                            color="purple"
                             isLoading={false}
                             onClick={() => history.push("/project/subprojects")}
                             subtitle={<RightArrow />}
@@ -174,7 +176,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </Table> : null}
                         </DashboardCard>
 
-                        <DashboardCard title="Usage" icon="hourglass" color={theme.colors.green}
+                        <DashboardCard title="Usage" icon="hourglass" color="green"
                             isLoading={false}
                             subtitle={<RightArrow />}
                             onClick={() => history.push("/project/usage")}
@@ -196,7 +198,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </Table>
                         </DashboardCard>
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || !noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings.data) ? null :
-                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/grants/ingoing")} title="Grant Applications" icon="mail" color={theme.colors.red}
+                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/grants/ingoing")} title="Grant Applications" icon="mail" color="red"
                                 isLoading={false}>
                                 <Table>
                                     <tbody>
@@ -208,14 +210,21 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Table>
                             </DashboardCard>}
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null : (
-                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/settings")} title="Settings" icon="properties" color={theme.colors.orange}
-                                isLoading={false}>
+                            <DashboardCard
+                                subtitle={<RightArrow />}
+                                onClick={() => history.push("/project/settings")}
+                                title="Settings"
+                                icon="properties"
+                                color="orange"
+                                isLoading={false}
+                            >
                                 <Table>
                                     <tbody>
                                         <TableRow cursor="pointer">
                                             <TableCell>Archived</TableCell>
-                                            <TableCell
-                                                textAlign="right">{projectDetails.data.archived ? "Yes" : "No"}</TableCell>
+                                            <TableCell textAlign="right">
+                                                {projectDetails.data.archived ? "Yes" : "No"}
+                                            </TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>

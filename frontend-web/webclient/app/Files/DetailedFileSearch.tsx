@@ -1,4 +1,4 @@
-import {KeyCode, ReduxObject} from "DefaultObjects";
+import {KeyCode} from "DefaultObjects";
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import * as React from "react";
 import {connect} from "react-redux";

@@ -20,7 +20,7 @@ enum class WalletOwnerType {
 data class RetrieveBalanceRequest(
     val id: String?,
     val type: WalletOwnerType?,
-    val includeChildren: Boolean?
+    val includeChildren: Boolean? = null
 ) {
     init {
         if (id != null || type != null) {
@@ -51,7 +51,11 @@ data class Wallet(
 data class AddToBalanceRequest(
     val wallet: Wallet,
     val credits: Long
-)
+) {
+    init {
+        if (credits < 0) throw RPCException("credits must be non-negative", HttpStatusCode.BadRequest)
+    }
+}
 
 typealias AddToBalanceResponse = Unit
 
@@ -99,6 +103,7 @@ data class ReserveCreditsRequest(
     val chargeImmediately: Boolean = false
 ) {
     init {
+        if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
         if (discardAfterLimitCheck && chargeImmediately) {
             throw RPCException("Cannot discard and charge at the same time", HttpStatusCode.BadRequest)
         }
@@ -107,7 +112,16 @@ data class ReserveCreditsRequest(
 
 typealias ReserveCreditsResponse = Unit
 
-data class ChargeReservationRequest(val name: String, val amount: Long, val productUnits: Long)
+data class ChargeReservationRequest(
+    val name: String,
+    val amount: Long,
+    val productUnits: Long
+) {
+    init {
+        if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
+    }
+}
+
 typealias ChargeReservationResponse = Unit
 
 data class TransferToPersonalRequest(val transfers: List<SingleTransferRequest>)
@@ -118,6 +132,8 @@ data class SingleTransferRequest(
     val destinationAccount: Wallet
 ) {
     init {
+        if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
+
         if (destinationAccount.type != WalletOwnerType.USER) {
             throw RPCException("Destination account must be a personal project!", HttpStatusCode.BadRequest)
         }

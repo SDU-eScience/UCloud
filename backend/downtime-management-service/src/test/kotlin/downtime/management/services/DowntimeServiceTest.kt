@@ -3,6 +3,7 @@ package dk.sdu.cloud.downtime.management.services
 import dk.sdu.cloud.downtime.management.api.DowntimeManagementServiceDescription
 import dk.sdu.cloud.downtime.management.api.DowntimeWithoutId
 import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.TestDB
@@ -70,7 +71,7 @@ class DowntimeServiceTest {
         val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         runBlocking {
-            service.add(TestUsers.admin, DowntimeWithoutId(Date().time - 1, Date().time + 1, "This is some text"))
+            service.add(TestUsers.admin, DowntimeWithoutId(Time.now() - 1, Time.now() + 1, "This is some text"))
             assertEquals(1, service.listAll(TestUsers.admin, defaultPaginationRequest).itemsInTotal)
         }
 
@@ -81,7 +82,7 @@ class DowntimeServiceTest {
         val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         runBlocking {
-            service.add(TestUsers.admin, DowntimeWithoutId(Date().time - 100, Date().time + 100, "Text for the weary soul."))
+            service.add(TestUsers.admin, DowntimeWithoutId(Time.now() - 100, Time.now() + 100, "Text for the weary soul."))
             assert(service.listAll(TestUsers.admin, defaultPaginationRequest).itemsInTotal == 1)
             val id = service.listAll(TestUsers.admin, defaultPaginationRequest).items[0].id
             service.remove(TestUsers.admin, id)
@@ -95,7 +96,7 @@ class DowntimeServiceTest {
         val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         (0..99).forEach { i ->
-            service.add(TestUsers.admin, DowntimeWithoutId(Date().time, Date().time, "$i"))
+            service.add(TestUsers.admin, DowntimeWithoutId(Time.now(), Time.now(), "$i"))
         }
         assert(service.listAll(TestUsers.admin, defaultPaginationRequest).itemsInTotal == 100)
     }
@@ -105,9 +106,9 @@ class DowntimeServiceTest {
         val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         (0..99).forEach { i ->
-            service.add(TestUsers.admin, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
+            service.add(TestUsers.admin, DowntimeWithoutId(Time.now() - i, Time.now() - i, "$i"))
         }
-        service.add(TestUsers.admin, DowntimeWithoutId(Date().time + 5000, Date().time + 50000, "Hello"))
+        service.add(TestUsers.admin, DowntimeWithoutId(Time.now() + 5000, Time.now() + 50000, "Hello"))
         assert(service.listAll(TestUsers.admin, defaultPaginationRequest).itemsInTotal == 101)
         Thread.sleep(1000)
         val result = service.listPending(defaultPaginationRequest)
@@ -119,9 +120,9 @@ class DowntimeServiceTest {
         val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         (0..99).forEach { i ->
-            service.add(TestUsers.admin, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
+            service.add(TestUsers.admin, DowntimeWithoutId(Time.now() - i, Time.now() - i, "$i"))
         }
-        service.add(TestUsers.admin, DowntimeWithoutId(Date().time + 5000, Date().time + 50000, "Hello"))
+        service.add(TestUsers.admin, DowntimeWithoutId(Time.now() + 5000, Time.now() + 50000, "Hello"))
         assert(service.listAll(TestUsers.admin, defaultPaginationRequest).itemsInTotal == 101)
         Thread.sleep(3000)
         service.removeExpired(TestUsers.admin)

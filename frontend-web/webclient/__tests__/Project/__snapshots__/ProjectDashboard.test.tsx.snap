@@ -312,7 +312,7 @@ exports[`Mount ProjectDashboard 1`] = `
           className="c11"
           style={
             Object {
-              "borderTop": "5px solid #006aff",
+              "borderTop": "5px solid var(--blue, #f00)",
             }
           }
         >
@@ -424,7 +424,7 @@ exports[`Mount ProjectDashboard 1`] = `
           className="c11"
           style={
             Object {
-              "borderTop": "5px solid #70b",
+              "borderTop": "5px solid var(--purple, #f00)",
             }
           }
         >
@@ -496,7 +496,7 @@ exports[`Mount ProjectDashboard 1`] = `
           className="c11"
           style={
             Object {
-              "borderTop": "5px solid #00C05A",
+              "borderTop": "5px solid var(--green, #f00)",
             }
           }
         >

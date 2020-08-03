@@ -33,6 +33,9 @@ suspend fun main(args: Array<String>) {
         KubernetesMonitorService
     )
 
+    val loader = Launcher::class.java.classLoader
+    println(loader)
+
     ClassDiscovery(listOf("dk.sdu.cloud"), Launcher::class.java.classLoader) {
         val objectInstance = it.objectInstance
         if (objectInstance != null) {

@@ -4,8 +4,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.downtime.management.api.Downtime
 import dk.sdu.cloud.downtime.management.api.DowntimeWithoutId
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -16,8 +15,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -65,7 +62,7 @@ class DowntimeDao {
     }
 
     suspend fun removeExpired(db: DBContext, user: SecurityPrincipal) {
-        val now = Date().time
+        val now = Time.now()
         db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -104,7 +101,7 @@ class DowntimeDao {
 
 
     suspend fun listPending(db: DBContext, paging: NormalizedPaginationRequest): Page<Downtime> {
-        val now = Date().time
+        val now = Time.now()
         return db.withSession { session ->
             session
                 .sendPreparedStatement(

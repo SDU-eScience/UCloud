@@ -4,13 +4,14 @@ import {
     ProjectRole,
     setProjectArchiveStatus,
     useProjectManagementStatus,
-    UserInProject
+    UserInProject,
+    renameProject
 } from "Project/index";
-import {Box, Button, Flex, Text} from "ui-components";
+import {Box, Button, Flex, Text, Input} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
-import {callAPIWithErrorHandler} from "Authentication/DataHook";
+import {callAPIWithErrorHandler, useCloudAPI, useAsyncCommand} from "Authentication/DataHook";
 import {useHistory} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
@@ -18,6 +19,9 @@ import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {GrantProjectSettings} from "Project/Grant/Settings";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+import { snackbarStore } from "Snackbar/SnackbarStore";
 
 const ActionContainer = styled.div`
     & > * {
@@ -45,13 +49,22 @@ const ActionBox = styled.div`
 `;
 
 export const ProjectSettings: React.FunctionComponent = () => {
-    const {projectId, projectRole, projectDetails} = useProjectManagementStatus();
+    const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails} = useProjectManagementStatus();
+
+    useTitle("Project Settings");
+    useSidebarPage(SidebarPages.Projects);
+
     const history = useHistory();
     return (
         <MainContainer
             header={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]} />}
             main={
                 <ActionContainer>
+                    <ChangeProjectTitle
+                        projectId={projectId}
+                        projectDetails={projectDetails.data}
+                        onSuccess={() => fetchProjectDetails(projectDetailsParams)}
+                    />
                     <ArchiveProject
                         isArchived={projectDetails.data.archived}
                         projectId={projectId}
@@ -65,13 +78,82 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         projectId={projectId}
                         projectRole={projectRole}
                     />
-                    <GrantProjectSettings/>
+                    <GrantProjectSettings />
                 </ActionContainer>
             }
             sidebar={null}
         />
     );
 };
+
+interface ChangeProjectTitleProps {
+    projectId: string;
+    projectDetails: UserInProject;
+    onSuccess: () => void;
+}
+
+export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
+    const newProjectTitle = React.useRef<HTMLInputElement>(null);
+    const [, invokeCommand] = useAsyncCommand();
+    const [saveDisabled, setSaveDisabled] = React.useState<boolean>(true);
+    return (
+            <Box flexGrow={1}>
+                <form onSubmit={async e => {
+                    e.preventDefault();
+
+                    const titleField = newProjectTitle.current;
+                    if (titleField === null) return;
+
+                    const titleValue = titleField.value;
+
+                    if (titleValue === "") return;
+
+                    const success = await invokeCommand(renameProject(
+                        {
+                            id: props.projectId,
+                            newTitle: titleValue
+                        }
+                    )) !== null;
+
+                    if(success) {
+                        props.onSuccess();
+                        snackbarStore.addSuccess("Project renamed successfully", true);
+                    } else {
+                        snackbarStore.addFailure("Renaming of project failed", true);
+                    }
+                }}>
+                    <Heading.h4>Project Title</Heading.h4>
+                    <Flex flexGrow={1}>
+                        <Box minWidth={500}>
+                            <Input
+                                rightLabel
+                                required
+                                type="text"
+                                ref={newProjectTitle}
+                                placeholder="New project title"
+                                autoComplete="off"
+                                onChange={() => {
+                                    if(newProjectTitle.current?.value !== props.projectDetails.title) {
+                                        setSaveDisabled(false);
+                                    } else {
+                                        setSaveDisabled(true);
+                                    }
+                                }}
+                                defaultValue={props.projectDetails.title}
+                            />
+                        </Box>
+                        <Button
+                            attached
+                            disabled={saveDisabled}
+                        >
+                            Save
+                        </Button>
+                    </Flex>
+                </form>
+            </Box>
+    );
+};
+
 
 interface ArchiveProjectProps {
     isArchived: boolean;

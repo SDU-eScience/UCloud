@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.withTransaction
@@ -79,9 +80,7 @@ class PasswordResetService(
         val resetRequest = resetRequestsDao.get(db, token)
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Unable to reset password")
 
-        println(LocalDateTime(resetRequest.expiresAt.time))
-        println(LocalDateTime.now(DateTimeZone.UTC))
-        if (LocalDateTime(resetRequest.expiresAt.time) < LocalDateTime.now(DateTimeZone.UTC)) {
+        if (LocalDateTime(resetRequest.expiresAt.time) < LocalDateTime(Time.now(), DateTimeZone.UTC)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Unable to reset password (token expired)")
         }
 

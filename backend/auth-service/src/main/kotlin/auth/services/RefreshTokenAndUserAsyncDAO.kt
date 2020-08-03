@@ -4,8 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
@@ -16,8 +15,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.paginate
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
@@ -52,7 +49,7 @@ data class RefreshTokenAndUser(
 
     val ip: String? = null,
 
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = Time.now()
 )
 
 /**
@@ -112,7 +109,7 @@ class RefreshTokenAsyncDAO {
                 .sendPreparedStatement(
                     {
                         setParameter("token", token)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis)
+                        setParameter("time", LocalDateTime(Time.now(), DateTimeZone.UTC).toDateTime().millis)
                     },
                     """
                         SELECT *
@@ -221,7 +218,7 @@ class RefreshTokenAsyncDAO {
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("time", System.currentTimeMillis())
+                        setParameter("time", Time.now())
                     },
                     """
                         DELETE FROM refresh_tokens

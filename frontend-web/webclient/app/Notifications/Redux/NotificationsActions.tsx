@@ -1,7 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page, PayloadAction} from "Types";
 import {notificationsQuery, readAllNotificationsQuery, readNotificationQuery} from "Utilities/NotificationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Notification} from "..";
@@ -17,20 +16,14 @@ export type NotificationActions = ReceiveNotificationAction | ReceiveSingleNotif
     SetNotificationError | ReadAllAction;
 
 type SetNotificationError = Action<typeof NOTIFICATIONS_ERROR>;
-interface ReceiveSingleNotificationAction {
-    type: typeof RECEIVE_SINGLE_NOTIFICATION;
-    payload: {item: Notification};
-}
-
+type ReceiveSingleNotificationAction = PayloadAction<typeof RECEIVE_SINGLE_NOTIFICATION, {item: Notification}>;
 export const receiveSingleNotification = (notification: Notification): ReceiveSingleNotificationAction => ({
     type: RECEIVE_SINGLE_NOTIFICATION,
     payload: {item: notification}
 });
 
-interface ReceiveNotificationAction {
-    type: typeof RECEIVE_NOTIFICATIONS;
-    payload: {items: Notification[]};
-}
+type ReceiveNotificationAction = PayloadAction<typeof RECEIVE_NOTIFICATIONS, {items: Notification[]}>;
+
 /**
  * Returns the action for receiving the notifications
  * @param {Page<Notification>} page Page of notifications received

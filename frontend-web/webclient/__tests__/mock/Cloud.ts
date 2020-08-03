@@ -1,7 +1,7 @@
 import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
 import HttpClient, {MissingAuthError, Override} from "../../app/Authentication/lib";
-import {emptyPage, ReduxObject} from "../../app/DefaultObjects";
+import {emptyPage} from "../../app/DefaultObjects";
 
 interface JWT {
     sub: string;
@@ -147,43 +147,44 @@ class MockHttpClient {
                     resolve({request: {} as XMLHttpRequest, response: {usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"}});
                     return;
             }
-            resolve({request: {} as XMLHttpRequest,  response: emptyPage});
+            resolve({request: {} as XMLHttpRequest, response: emptyPage});
         })
 
     public get = (path: string, context = this.apiContext) =>
-        this.call({method: "GET", path, body: undefined, context})
+        this.call({method: "GET", path, body: undefined, context});
 
     public post = (path: string, body?: object, context = this.apiContext) =>
-        this.call({method: "POST", path, body, context})
+        this.call({method: "POST", path, body, context});
 
     public put = (path: string, body: object, context = this.apiContext) =>
-        this.call({method: "PUT", path, body, context})
+        this.call({method: "PUT", path, body, context});
 
     public delete = (path: string, body: object, context = this.apiContext) =>
-        this.call({method: "DELETE", path, body, context})
+        this.call({method: "DELETE", path, body, context});
 
     public patch = (path: string, body: object, context = this.apiContext) =>
-        this.call({method: "PATCH", path, body, context})
+        this.call({method: "PATCH", path, body, context});
 
     public options = (path: string, body: object, context = this.apiContext) =>
-        this.call({method: "OPTIONS", path, body, context})
+        this.call({method: "OPTIONS", path, body, context});
 
     public head = (path: string, context = this.apiContext) =>
-        this.call({method: "HEAD", path, body: undefined, context})
+        this.call({method: "HEAD", path, body: undefined, context});
 
-    public openBrowserLoginPage() {
-        window.location.href = `${this.context}${this.authContext}/login?service=${encodeURIComponent(this.serviceName)}`;
+    public openBrowserLoginPage(): void {
+        window.location.href =
+            `${this.context}${this.authContext}/login?service=${encodeURIComponent(this.serviceName)}`;
     }
 
     public receiveAccessTokenOrRefreshIt = (): Promise<any> => {
         return new Promise(resolve => resolve("1"));
-    }
+    };
 
     public createOneTimeTokenWithPermission(permission: string) {return new Promise(resolve => resolve(1));}
 
-    public setTokens(csrfToken: string) {/*  */}
+    public setTokens(csrfToken: string): void {/*  */}
 
-    public logout() {
+    public logout(): Promise<void> {
         return new Promise<void>(() => undefined);
     }
 

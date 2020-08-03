@@ -12,7 +12,6 @@ import {RefObject, useState} from "react";
 import * as ReactModal from "react-modal";
 import {Link} from "react-router-dom";
 import styled from "styled-components";
-import {Page} from "Types";
 import Box from "ui-components/Box";
 import Button from "ui-components/Button";
 import Divider from "ui-components/Divider";

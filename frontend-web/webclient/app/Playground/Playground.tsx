@@ -1,10 +1,11 @@
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
-import {EveryIcon, getCssVar} from "ui-components/Icon";
+import {EveryIcon} from "ui-components/Icon";
 import {Grid, Box, Button} from "ui-components";
-
 import * as PublicLinks from "Applications/PublicLinks/Management";
 import {dialogStore} from "Dialog/DialogStore";
+import {ThemeColor} from "ui-components/theme";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -14,7 +15,7 @@ export const Playground: React.FunctionComponent = () => {
                 gridTemplateColumns="repeat(auto-fit, minmax(40px, 40px))"
                 style={{overflowY: "scroll"}}
             >
-                {colors.map(c => (
+                {colors.map((c: ThemeColor) => (
                     <Box
                         title={`${c}, ${getCssVar(c)}`}
                         key={c}

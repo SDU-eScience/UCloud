@@ -1,5 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {ReduxObject, Sensitivity} from "DefaultObjects";
+import {Sensitivity} from "DefaultObjects";
 import {File as CloudFile} from "Files";
 import {Refresh} from "Navigation/Header";
 import * as React from "react";

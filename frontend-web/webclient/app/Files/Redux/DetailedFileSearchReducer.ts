@@ -32,7 +32,6 @@ const detailedFileSearch = (
         case DETAILED_FILES_TOGGLE_INCLUDE_SHARES: {
             return {...state, includeShares: !state.includeShares};
         }
-        // FIXME Not DRY compliant
         case DETAILED_FILES_REMOVE_TAGS: {
             const {tags} = state;
             action.payload.tags.forEach(it => tags.delete(it));
@@ -63,7 +62,6 @@ const detailedFileSearch = (
             action.payload.sensitivities.forEach(it => sensitivities.add(it));
             return {...state, sensitivities};
         }
-        // FIXME END Not DRY compliant
 
         case DETAILED_FILES_SET_FILENAME:
         case DETAILED_FILES_SET_LOADING:

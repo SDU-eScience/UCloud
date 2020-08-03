@@ -2,10 +2,11 @@ import {Client} from "Authentication/HttpClientInstance";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Divider, ExternalLink, Flex, Input, theme} from "ui-components";
+import {Button, Divider, ExternalLink, Flex, Input} from "ui-components";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import {TwoFactorSetupState} from ".";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
@@ -27,7 +28,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
             <React.StrictMode>
                 <Heading.h2>Two Factor Authentication</Heading.h2>
                 {this.props.mustActivate2fa ? (
-                    <Heading.h3 color={theme.colors.red}>
+                    <Heading.h3 color={getCssVar("red")}>
                         You must activate 2FA for your account before you can continue
                     </Heading.h3>
                 ) : null}

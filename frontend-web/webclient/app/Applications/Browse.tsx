@@ -1,5 +1,4 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -8,7 +7,6 @@ import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Page} from "Types";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";

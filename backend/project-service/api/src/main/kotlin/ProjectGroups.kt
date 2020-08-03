@@ -3,6 +3,7 @@ package dk.sdu.cloud.project.api
 import com.github.jasync.sql.db.util.size
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.RPCException
@@ -23,14 +24,14 @@ data class CreateGroupRequest(val group: String) {
         if (group == "-") throw RPCException("Group cannot be '-'", HttpStatusCode.BadRequest)
     }
 }
-typealias CreateGroupResponse = Unit
+typealias CreateGroupResponse = FindByStringId
 
 data class ListGroupsWithSummaryRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
 typealias ListGroupsWithSummaryResponse = Page<GroupWithSummary>
-data class GroupWithSummary(val group: String, val numberOfMembers: Int)
+data class GroupWithSummary(val groupId: String, val groupTitle: String, val numberOfMembers: Int)
 
 data class DeleteGroupsRequest(val groups: Set<String>)
 typealias DeleteGroupsResponse = Unit
@@ -41,7 +42,7 @@ typealias AddGroupMemberResponse = Unit
 data class RemoveGroupMemberRequest(val group: String, val memberUsername: String)
 typealias RemoveGroupMemberResponse = Unit
 
-data class UpdateGroupNameRequest(val oldGroupName: String, val newGroupName: String) {
+data class UpdateGroupNameRequest(val groupId: String, val newGroupName: String) {
     init {
         if (newGroupName.isEmpty()) throw RPCException("Group cannot be empty", HttpStatusCode.BadRequest)
         if (newGroupName.contains('\n')) throw RPCException("Group cannot contain new lines", HttpStatusCode.BadRequest)
@@ -70,6 +71,9 @@ typealias ListAllGroupMembersResponse = List<String>
 
 typealias GroupCountRequest = Unit
 typealias GroupCountResponse = Long
+
+data class ViewGroupRequest(val id: String)
+typealias ViewGroupResponse = GroupWithSummary
 
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
@@ -208,7 +212,6 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             }
         }
 
-    /*
     val updateGroupName = call<UpdateGroupNameRequest, UpdateGroupNameResponse, CommonErrorMessage>("updateGroupName") {
         auth {
             access = AccessRight.READ_WRITE
@@ -225,7 +228,6 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             body { bindEntireRequestFromBody() }
         }
     }
-     */
 
     /**
      * Lists members of a group.
@@ -316,6 +318,30 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             path {
                 using(baseContext)
                 +"count"
+            }
+        }
+    }
+
+    /**
+     * View information about a group
+     *
+     * All project members can use this endpoint.
+     */
+    val view = call<ViewGroupRequest, ViewGroupResponse, CommonErrorMessage>("view") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"view"
+            }
+
+            params {
+                +boundTo(ViewGroupRequest::id)
             }
         }
     }

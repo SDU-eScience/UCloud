@@ -1,4 +1,4 @@
-import {HookStore, ReduxObject} from "DefaultObjects";
+import {HookStore} from "DefaultObjects";
 import {useDispatch, useSelector} from "react-redux";
 import {useCallback} from "react";
 
@@ -23,10 +23,12 @@ export function useGlobal<Property extends keyof HookStore>(
     property: Property,
     defaultValue: NonNullable<HookStore[Property]>
 ): [NonNullable<HookStore[Property]>, (newValue: ValueOrSetter<HookStore[Property]>) => void] {
+    /* FIXME: this hook causes memory leaks */
     const value = useSelector<ReduxObject, HookStore[Property]>(it => {
         if (it.hookStore === undefined) return undefined;
         return it.hookStore[property];
     });
+    /* FIXME END */
     const dispatch = useDispatch();
     const setter = useCallback((newValue: HookStore[Property]) => {
         dispatch<GenericSetAction>({type: "GENERIC_SET", property, newValue, defaultValue});

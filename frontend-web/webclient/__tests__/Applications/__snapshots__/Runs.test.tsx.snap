@@ -302,7 +302,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   position: relative;
   vertical-align: middle;
   cursor: pointer;
-  color: #8393A7;
+  color: var(--gray,#f00);
   margin-right: .5em;
 }
 

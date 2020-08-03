@@ -1,6 +1,6 @@
 import {ActivityDispatchProps, ActivityFilter, ActivityProps} from "Activity";
 import * as Module from "Activity";
-import {ActivityReduxObject, ReduxObject} from "DefaultObjects";
+import {ActivityReduxObject} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";

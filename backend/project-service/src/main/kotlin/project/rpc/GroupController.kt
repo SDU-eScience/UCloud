@@ -1,5 +1,6 @@
 package dk.sdu.cloud.project.rpc
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
@@ -7,12 +8,16 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.GroupExistsResponse
 import dk.sdu.cloud.project.api.IsMemberResponse
 import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.ViewGroupResponse
 import dk.sdu.cloud.project.services.GroupService
+import dk.sdu.cloud.project.services.ProjectException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.project.services.QueryService
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.toActor
 
 class GroupController(
     private val db: DBContext,
@@ -22,8 +27,12 @@ class GroupController(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectGroups.create) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            groups.createGroup(db, ctx.securityPrincipal.username, project, request.group)
-            ok(Unit)
+
+            ok(
+                FindByStringId(
+                    groups.createGroup(db, ctx.securityPrincipal.username, project, request.group)
+                )
+            )
         }
 
         implement(ProjectGroups.delete) {
@@ -45,6 +54,17 @@ class GroupController(
         implement(ProjectGroups.removeGroupMember) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
             ok(groups.removeMember(db, ctx.securityPrincipal.username, project, request.group, request.memberUsername))
+        }
+
+        implement(ProjectGroups.updateGroupName) {
+            ok(
+                groups.rename(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    request.groupId,
+                    request.newGroupName
+                )
+            )
         }
 
         implement(ProjectGroups.listAllGroupMembers) {
@@ -83,6 +103,18 @@ class GroupController(
         implement(ProjectGroups.count) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
             ok(queries.groupsCount(db, project))
+        }
+
+        implement(ProjectGroups.view) {
+            val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
+            ok(
+                queries.viewGroup(
+                    db,
+                    ctx.securityPrincipal.username,
+                    project,
+                    request.id
+                )
+            )
         }
     }
 }

@@ -6,7 +6,9 @@ import * as React from "react";
 import List from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text, ButtonGroup} from "ui-components";
+import {
+    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text, ButtonGroup
+} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
@@ -163,11 +165,11 @@ export const ConfirmCancelButtons = ({
     onCancel,
     height
 }: ConfirmCancelButtonsProps): JSX.Element => (
-    <ButtonGroup width="150px" height={height}>
-        <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
-        <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
-    </ButtonGroup>
-);
+        <ButtonGroup width="150px" height={height}>
+            <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
+        </ButtonGroup>
+    );
 
 const SharePromptWrapper = styled(Box)`
     overflow-y: auto;

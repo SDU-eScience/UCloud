@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.password.reset.api.PasswordResetServiceDescription
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -34,7 +35,7 @@ class PasswordResetServiceTest {
         @BeforeClass
         @JvmStatic
         fun setup() {
-            val (db,embDB) = TestDB.from(PasswordResetServiceDescription)
+            val (db, embDB) = TestDB.from(PasswordResetServiceDescription)
             this.db = db
             this.embDB = embDB
         }
@@ -135,7 +136,7 @@ class PasswordResetServiceTest {
     }
 
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `create and reset late test`() {
         val client = ClientMock.authenticatedClient
         val resetDAO = ResetRequestsAsyncDao()
@@ -170,7 +171,10 @@ class PasswordResetServiceTest {
                 it.sendPreparedStatement(
                     {
                         setParameter("token", token)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).minusDays(1).toDate().time / 1000 )
+                        setParameter(
+                            "time",
+                            LocalDateTime(Time.now(), DateTimeZone.UTC).minusDays(1).toDate().time / 1000
+                        )
                     },
                     """
                         UPDATE password_reset_requests

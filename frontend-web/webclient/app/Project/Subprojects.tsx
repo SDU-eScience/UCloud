@@ -3,12 +3,11 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {createProject, listSubprojects, Project, useProjectManagementStatus} from "Project";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text, theme} from "ui-components";
+import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text} from "ui-components";
 import styled from "styled-components";
 import {emptyPage} from "DefaultObjects";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import * as Pagination from "Pagination";
@@ -26,6 +25,8 @@ import HexSpin, {HexSpinWrapper} from "LoadingIcon/LoadingIcon";
 import {Client} from "Authentication/HttpClientInstance";
 import {sizeToString} from "Utilities/FileUtilities";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -108,7 +109,7 @@ const SelectableWallet: React.FunctionComponent<{
 }> = props => {
     return (
         <SelectableWalletWrapper className={props.selected === true ? "selected" : ""} onClick={props.onClick}>
-            <DashboardCard color={props.selected ? theme.colors.green : theme.colors.blue} isLoading={false}>
+            <DashboardCard color={props.selected ? "green" : "blue"} isLoading={false}>
                 <table>
                     <tbody>
                         <tr>
@@ -164,12 +165,16 @@ const Subprojects: React.FunctionComponent = () => {
     const newSubprojectRef = React.useRef<HTMLInputElement>(null);
     const [isLoading, runCommand] = useAsyncCommand();
 
+    useTitle("Resources");
+    useSidebarPage(SidebarPages.Projects);
+
     const {
         projectId,
         allowManagement,
         subprojectSearchQuery,
         setSubprojectSearchQuery,
-        projectRole
+        projectRole,
+        reloadProjectStatus
     } = useProjectManagementStatus(true);
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
@@ -232,6 +237,7 @@ const Subprojects: React.FunctionComponent = () => {
             }));
             inputField.value = "";
             reloadSubprojects();
+            reloadProjectStatus();
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed creating new project"), false);
         }
@@ -266,7 +272,7 @@ const Subprojects: React.FunctionComponent = () => {
 
                             {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
                                 <div className="request-resources">
-                                    <DashboardCard color={theme.colors.blue} isLoading={false}>
+                                    <DashboardCard color="blue" isLoading={false}>
                                         <Box m={8} mt={0}>
                                             <Heading.h3>Need more resources?</Heading.h3>
                                             <p>
@@ -327,35 +333,25 @@ const Subprojects: React.FunctionComponent = () => {
                                     </form>
                                 </SearchContainer>
                                 <Box mt={20}>
-                                    <>
-                                        <Table>
-                                            <tbody>
-                                                <tr>
-                                                    <td>
-                                                        <Pagination.List
-                                                            page={subprojects.data}
-                                                            pageRenderer={pageRenderer}
-                                                            loading={subprojects.loading}
-                                                            onPageChanged={newPage => {
-                                                                setSubprojectParams(
-                                                                    listSubprojects({
-                                                                        page: newPage,
-                                                                        itemsPerPage: 50,
-                                                                    })
-                                                                );
-                                                            }}
-                                                            customEmptyPage={
-                                                                <Flex justifyContent="center" alignItems="center" height="200px">
-                                                                    This project doesn&apos;t have any subprojects.
-                                                                    {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
-                                                                </Flex>
-                                                            }
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </Table>
-                                    </>
+                                    <Pagination.List
+                                        page={subprojects.data}
+                                        pageRenderer={pageRenderer}
+                                        loading={subprojects.loading}
+                                        onPageChanged={newPage => {
+                                            setSubprojectParams(
+                                                listSubprojects({
+                                                    page: newPage,
+                                                    itemsPerPage: 50,
+                                                })
+                                            );
+                                        }}
+                                        customEmptyPage={
+                                            <Flex justifyContent="center" alignItems="center" height="200px">
+                                                This project doesn&apos;t have any subprojects.
+                                                {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
+                                            </Flex>
+                                        }
+                                    />
                                 </Box>
                             </Box>
                         </Box>
@@ -365,7 +361,7 @@ const Subprojects: React.FunctionComponent = () => {
         />
     );
 
-    function pageRenderer(page: Page<Project>): JSX.Element[] {
+    function pageRenderer(page: Page<Project>): JSX.Element {
         const filteredItems = (subprojectSearchQuery === "" ? page.items :
             page.items.filter(it =>
                 it.title.toLowerCase()
@@ -373,20 +369,26 @@ const Subprojects: React.FunctionComponent = () => {
             )
         );
 
-        return filteredItems.map(subproject => {
-            return <SubprojectRow
-                key={subproject.id}
-                subproject={subproject}
-                shakeWallets={shakeWallets}
-                requestReload={reloadWallets}
-                walletBalance={selectedWallet === null ?
-                    undefined :
-                    subprojectWallets.find(it => it.wallet.id === subproject.id) ??
-                    {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
-                }
-                allowManagement={allowManagement}
-            />;
-        });
+        return (
+            <Table>
+                <tbody>
+                    {filteredItems.map(subproject =>
+                        <SubprojectRow
+                            key={subproject.id}
+                            subproject={subproject}
+                            shakeWallets={shakeWallets}
+                            requestReload={reloadWallets}
+                            walletBalance={selectedWallet === null ?
+                                undefined :
+                                subprojectWallets.find(it => it.wallet.id === subproject.id) ??
+                                {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
+                            }
+                            allowManagement={allowManagement}
+                        />
+                    )}
+                </tbody>
+            </Table>
+        );
     }
 };
 
@@ -544,7 +546,7 @@ const SubprojectRow: React.FunctionComponent<{
                                                 </AllocationEditor>
                                                 <Button height="35px" width={"135px"} onClick={() => setIsEditing(true)}>
                                                     Edit allocation
-                                            </Button>
+                                                </Button>
                                             </>
                                         ) : (
                                                 <AllocationForm onSubmit={onSubmit}>
@@ -565,10 +567,10 @@ const SubprojectRow: React.FunctionComponent<{
                                                         }
                                                     </AllocationEditor>
 
-                                                    <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
+                                                    <Button type="submit" height="35px" width="135px" color="green"
                                                         disabled={loading}>
                                                         Allocate
-                                            </Button>
+                                                    </Button>
                                                 </AllocationForm>
                                             )
                                         }
@@ -583,10 +585,9 @@ const SubprojectRow: React.FunctionComponent<{
                                         <AllocationEditor>
                                             {quotaInBytes === -1 ? "No quota" : sizeToString(quotaInBytes)}
                                         </AllocationEditor>
-                                        <Button height="35px" width={"135px"}
-                                            onClick={() => setIsEditingQuota(true)}>
+                                        <Button height="35px" width="135px" onClick={() => setIsEditingQuota(true)}>
                                             Edit quota
-                                            </Button>
+                                        </Button>
                                     </>
                                 ) : (
                                         <AllocationForm onSubmit={onSubmitQuota}>
@@ -607,7 +608,7 @@ const SubprojectRow: React.FunctionComponent<{
                                                 }
                                             </AllocationEditor>
 
-                                            <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
+                                            <Button type="submit" height="35px" width="135px" color="green"
                                                 disabled={loading}>
                                                 Allocate
                                             </Button>

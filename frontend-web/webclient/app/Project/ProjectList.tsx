@@ -1,19 +1,24 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {emptyPage, ReduxObject} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import {
     listProjects,
     ListProjectsRequest,
     UserInProject,
-    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects, ProjectRole
+    IngoingInvite,
+    listIngoingInvites,
+    acceptInvite,
+    rejectInvite,
+    ListFavoriteProjectsRequest,
+    listFavoriteProjects,
+    ProjectRole
 } from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Page, Operation} from "Types";
-import Button from "ui-components/Button";
-import {Flex, Icon, List, Text, Box, Checkbox, Label, Link, Tooltip} from "ui-components";
+import {Operation} from "Types";
+import {Button, Flex, Icon, List, Text, Box, Checkbox, Label, Link, Tooltip} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -379,6 +384,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     left={
                         <>
                             <Box
+                                test-tag={e.projectId}
                                 onClick={() => {
                                     if (e.projectId !== props.project) {
                                         props.setProject(e.projectId);
@@ -442,6 +448,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     <ClickableDropdown
                                         width="125px"
                                         left="-105px"
+                                        test-tag={`${e.projectId}-dropdown`}
                                         trigger={(
                                             <Icon
                                                 ml="0.5em"
@@ -487,6 +494,7 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
         if (op.disabled(props.selectedProjects, Client)) return null;
         return (
             <Box
+                key={op.text}
                 ml="-17px"
                 mr="-17px"
                 pl="15px"

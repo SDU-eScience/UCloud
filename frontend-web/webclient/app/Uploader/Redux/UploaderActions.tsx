@@ -1,4 +1,4 @@
-import {Error, PayloadAction} from "Types";
+import {Error} from "Types";
 import {Upload} from "Uploader";
 import {
     APPEND_UPLOADS,

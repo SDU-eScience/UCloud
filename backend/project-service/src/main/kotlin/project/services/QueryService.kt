@@ -3,22 +3,8 @@ package dk.sdu.cloud.project.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.project.api.GroupWithSummary
-import dk.sdu.cloud.project.api.IngoingInvite
-import dk.sdu.cloud.project.api.IsMemberQuery
-import dk.sdu.cloud.project.api.LookupPrincipalInvestigatorResponse
-import dk.sdu.cloud.project.api.OutgoingInvite
-import dk.sdu.cloud.project.api.Project
-import dk.sdu.cloud.project.api.ProjectMember
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.UserGroupSummary
-import dk.sdu.cloud.project.api.UserProjectSummary
-import dk.sdu.cloud.project.api.UserStatusInProject
-import dk.sdu.cloud.project.api.UserStatusResponse
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.getField
@@ -26,8 +12,6 @@ import dk.sdu.cloud.service.db.async.getFieldNullable
 import dk.sdu.cloud.service.db.async.paginatedQuery
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.offset
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -54,17 +38,16 @@ class QueryService(
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("projects", queries.map { it.project })
                         setParameter("groups", queries.map { it.group })
                         setParameter("usernames", queries.map { it.username })
                     },
                     """
                         select *
                         from group_members gm
+                        inner join groups g on gm.group_id = g.id
                         where
-                            (gm.project, gm.the_group, gm.username) in (
+                            (gm.group_id, gm.username) in (
                                 select
-                                    unnest(:projects::text[]),
                                     unnest(:groups::text[]),
                                     unnest(:usernames::text[])
                             )
@@ -73,14 +56,13 @@ class QueryService(
                 .rows
                 .forEach { row ->
                     val summary = UserGroupSummary(
-                        row.getField(GroupMembershipTable.project),
+                        row.getField(GroupTable.project),
                         row.getField(GroupMembershipTable.group),
                         row.getField(GroupMembershipTable.username)
                     )
 
                     val idx = queries.indexOfFirst {
                         it.group == summary.group &&
-                            it.project == summary.projectId &&
                             it.username == summary.username
                     }
 
@@ -108,7 +90,7 @@ class QueryService(
                         select *
                         from groups
                         where
-                            the_group = :group and
+                            id = :group and
                             project = :project
                     """
                 )
@@ -127,6 +109,37 @@ class QueryService(
                     select count(*) from project.groups where project = :project
                 """
             ).rows.singleOrNull()?.getLong(0) ?: 0
+        }
+    }
+
+    suspend fun viewGroup(ctx: DBContext, requestedBy: String, projectId: String, groupId: String): GroupWithSummary {
+        return ctx.withSession { session ->
+            val requestedByRole =
+                if (requestedBy == null) ProjectRole.ADMIN
+                else projects.requireRole(session, requestedBy, projectId, ProjectRole.ALL)
+
+            val group = session.sendPreparedStatement(
+                {
+                    setParameter("group", groupId)
+                    setParameter("project", projectId)
+                    setParameter("username", requestedBy)
+                    setParameter("userIsAdmin", requestedByRole.isAdmin())
+                },
+                """
+                    select g.id, g.title, count(gm.username)
+                    from groups g left join group_members gm on g.id = gm.group_id
+                    where
+                        id = :group and 
+                            check_group_acl(:username, :userIsAdmin, g.id)
+                    group by g.id
+                """
+            ).rows.get(0)
+
+            GroupWithSummary(
+                group.getAs("id"),
+                group.getAs("title"),
+                group.getLong(2)?.toInt() ?: 0
+            )
         }
     }
 
@@ -156,8 +169,7 @@ class QueryService(
                         select count(*) 
                         from group_members 
                         where 
-                            project = :project and
-                            (:group = '' or the_group = :group) and
+                            (:group = '' or group_id = :group) and
                             (:username::text is null or check_group_acl(:username, :userIsAdmin, :group))
                     """
                 )
@@ -174,13 +186,13 @@ class QueryService(
                     },
                     """
                         select *
-                        from group_members
+                        from group_members gm
+                        inner join groups g on g.id = gm.group_id
                         where
-                            project = :project and 
-                            (:group = '' or the_group = :group) and
+                            (:group = '' or group_id = :group) and
                             (:username::text is null or check_group_acl(:username, :userIsAdmin, :group))
                         order by
-                            project, the_group, username
+                            group_id, username
                         limit :limit
                         offset :offset
                     """
@@ -188,7 +200,7 @@ class QueryService(
                 .rows
                 .map {
                     UserGroupSummary(
-                        it.getField(GroupMembershipTable.project),
+                        it.getField(GroupTable.project),
                         it.getField(GroupMembershipTable.group),
                         it.getField(GroupMembershipTable.username)
                     )
@@ -218,11 +230,11 @@ class QueryService(
                 .sendPreparedStatement(
                     params,
                     """
-                        select count(g.the_group)
+                        select count(g.id)
                         from groups g
                         where
                             g.project = :project and
-                            check_group_acl(:username, :userIsAdmin, g.the_group)
+                            check_group_acl(:username, :userIsAdmin, g.id)
                     """
                 )
                 .rows
@@ -237,23 +249,24 @@ class QueryService(
                         setParameter("offset", pagination.itemsPerPage * pagination.page)
                     },
                     """
-                        select g.the_group, count(gm.username)
-                        from groups g left join group_members gm on g.project = gm.project and g.the_group = gm.the_group
+                        select g.id, g.title, count(gm.username)
+                        from groups g left join group_members gm on g.id = gm.group_id
                         where
                               g.project = :project and
-                              check_group_acl(:username, :userIsAdmin, g.the_group)
-                        group by g.the_group
-                        order by g.the_group
+                              check_group_acl(:username, :userIsAdmin, g.id)
+                        group by g.id, g.title
+                        order by g.title
                         offset :offset
                         limit :limit
                     """
                 )
                 .rows
                 .map { row ->
-                    val groupName = row.getString(0)!!
-                    val memberCount = row.getLong(1)?.toInt() ?: 0
+                    val groupId = row.getString(0)!!
+                    val groupTitle = row.getString(1)!!
+                    val memberCount = row.getLong(2)?.toInt() ?: 0
 
-                    GroupWithSummary(groupName, memberCount)
+                    GroupWithSummary(groupId, groupTitle, memberCount)
                 }
 
             Page(groupCount, pagination.itemsPerPage, pagination.page, items)
@@ -297,8 +310,7 @@ class QueryService(
                         select pm.username
                             from group_members gm
                             where
-                            gm.project = pm.project_id and
-                            gm.the_group = :notInGroup and
+                            gm.group_id = :notInGroup and
                             gm.username = pm.username
                     )
                 """
@@ -396,14 +408,15 @@ class QueryService(
                     },
                     """
                         select *
-                        from group_members
+                        from group_members gm
+                        inner join groups g on g.id = gm.group_id 
                         where username = :username
                     """
                 )
                 .rows
                 .map {
                     UserGroupSummary(
-                        it.getField(GroupMembershipTable.project),
+                        it.getField(GroupTable.project),
                         it.getField(GroupMembershipTable.group),
                         username
                     )
@@ -604,7 +617,7 @@ class QueryService(
                 return@withSession false
             }
 
-            return@withSession (System.currentTimeMillis() - latestVerification.toTimestamp()) >
+            return@withSession (Time.now() - latestVerification.toTimestamp()) >
                 VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
         }
     }

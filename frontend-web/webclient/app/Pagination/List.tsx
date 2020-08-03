@@ -1,6 +1,5 @@
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as React from "react";
-import {Page} from "Types";
 import * as Heading from "ui-components/Heading";
 import {ifPresent} from "UtilityFunctions";
 import * as Self from ".";

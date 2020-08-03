@@ -1,7 +1,7 @@
 import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
-import {emptyPage, ReduxObject} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -13,7 +13,7 @@ import {notificationRead, readAllNotifications} from "Notifications/Redux/Notifi
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Card, Flex, Icon, Link, Text, Markdown, theme} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Link, Text, Markdown} from "ui-components";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
@@ -36,8 +36,7 @@ import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
 import {IconName} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
-import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
-import {Page, PaginationRequest} from "Types";
+import {useCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
@@ -47,11 +46,14 @@ import {creditFormatter} from "Project/ProjectUsage";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";
+import theme, {ThemeColor} from "ui-components/theme";
+import {dispatchSetProjectAction} from "Project/Redux";
+import {GrantRecipient, GrantRecipientExisting, GrantRecipientNew, GrantRecipientPersonal} from "Project/Grant";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: string;
     subtitle?: React.ReactNode;
-    color: string;
+    color: ThemeColor;
     isLoading: boolean;
     icon?: IconName,
     height?: string,
@@ -60,7 +62,7 @@ export const DashboardCard: React.FunctionComponent<{
 }> = ({title, subtitle, onClick, color, isLoading, icon = undefined, children, height = "auto", minHeight}) => (
     <Card onClick={onClick} overflow="hidden" height={height} width={1} boxShadow="sm" borderWidth={0} borderRadius={6}
         minHeight={minHeight}>
-        <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
+        <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid var(--${color}, #f00)`}} >
             {icon !== undefined ? (
                 <Icon
                     name={icon}
@@ -86,6 +88,8 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         listFavorites({itemsPerPage: 10, page: 0}),
         emptyPage
     );
+
+    const projectNames = getProjectNames(useProjectStatus());
 
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
@@ -119,24 +123,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         props.fetchRecentAnalyses();
     }
 
-    const onNotificationAction = (notification: Notification): void => {
-        // FIXME: Not DRY, reused
-        switch (notification.type) {
-            case "APP_COMPLETE":
-                props.history.push(`/applications/results/${notification.meta.jobId}`);
-                break;
-            case "SHARE_REQUEST":
-                props.history.push("/shares");
-                break;
-            case "REVIEW_PROJECT":
-                props.history.push("/projects/");
-                break;
-            case "PROJECT_INVITE":
-                props.history.push("/projects/");
-                break;
-        }
-    };
-
     const favoriteOrUnfavorite = async (file: File): Promise<void> => {
         await favorites.toggle(file.path);
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
@@ -149,8 +135,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         recentJobsError
     } = props;
 
+    const onNotificationAction = (notification: Notification): void =>
+        UF.onNotificationAction(props.history, props.setActiveProject, notification, projectNames);
+
     const main = (
-        <Flex alignItems={"flex-start"}>
+        <Flex alignItems="flex-start">
             <DashboardMessageOfTheDay news={news.data.items} loading={news.loading} />
             <DashboardGrid minmax={315} gridGap={16}>
                 <DashboardFavoriteFiles
@@ -411,6 +400,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
         dispatch(updatePageTitle("Dashboard"));
         dispatch(setActivePage(SidebarPages.None));
     },
+    setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     notificationRead: async id => dispatch(await notificationRead(id)),

@@ -1,5 +1,4 @@
 import {TaskUpdate} from "BackgroundTasks/api";
-import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {connect} from "react-redux";

@@ -21,7 +21,8 @@ import {useAsyncCommand} from "Authentication/DataHook";
 import {Spacer} from "ui-components/Spacer";
 
 export interface GroupWithSummary {
-    group: string;
+    groupId: string;
+    groupTitle: string;
     numberOfMembers: number;
     members: string[];
 }
@@ -30,7 +31,7 @@ const baseContext = "/projects/groups";
 
 const GroupList: React.FunctionComponent = () => {
     const history = useHistory();
-    const {allowManagement, group, groupList, fetchGroupList, groupListParams,
+    const {allowManagement, groupId, groupList, fetchGroupList, groupListParams,
         membersPage} = useProjectManagementStatus();
 
     const [creatingGroup, setCreatingGroup] = useState(false);
@@ -42,12 +43,12 @@ const GroupList: React.FunctionComponent = () => {
     const [, runCommand] = useAsyncCommand();
 
     const operations: GroupOperation[] = [
-        /* {
+        {
             disabled: groups => groups.length !== 1,
-            onClick: (groups) => setRenamingGroup(groups[0].group),
+            onClick: ([group]) => setRenamingGroup(group.groupId),
             icon: "rename",
             text: "Rename"
-        }, */
+        },
         {
             disabled: groups => groups.length === 0 || !allowManagement,
             onClick: (groups) => promptDeleteGroups(groups),
@@ -58,7 +59,7 @@ const GroupList: React.FunctionComponent = () => {
     ];
 
 
-    if (group) return <GroupView />;
+    if (groupId) return <GroupView />;
     const [trashOp] = operations;
     const content = (
         <>
@@ -68,6 +69,7 @@ const GroupList: React.FunctionComponent = () => {
                     <ListRow
                         left={
                             <NamingField
+                                confirmText="Create"
                                 onSubmit={createGroup}
                                 onCancel={() => setCreatingGroup(false)}
                                 inputRef={createGroupRef}
@@ -80,18 +82,23 @@ const GroupList: React.FunctionComponent = () => {
                         isSelected={false}
                         select={() => undefined}
                     /> : null}
-                {groupList.data.items.map((g, index) => (<React.Fragment key={g.group + index}>
+                {groupList.data.items.map((g, index) => (<React.Fragment key={g.groupId + index}>
                     <ListRow
                         left={
-                            renamingGroup !== g.group ? g.group : (
+                            renamingGroup !== g.groupId ? g.groupTitle : (
                                 <NamingField
+                                    confirmText="Rename"
+                                    defaultValue={g.groupTitle}
                                     onCancel={() => setRenamingGroup(null)}
                                     onSubmit={renameGroup}
                                     inputRef={renameRef}
                                 />
                             )
                         }
-                        navigate={() => history.push(`/project/members/${encodeURIComponent(g.group)}/${membersPage ?? ""}`)}
+                        navigate={() => {renamingGroup !== g.groupId ?
+                            history.push(`/project/members/${encodeURIComponent(g.groupId)}/${membersPage ?? ""}`)
+                            : (null)
+                        }}
                         leftSub={<div />}
                         right={
                             <>
@@ -169,10 +176,10 @@ const GroupList: React.FunctionComponent = () => {
             title: "Delete groups?",
             message: <>
                 <Text mb="5px">Selected groups:</Text>
-                {groups.map(g => <Text key={g.group} fontSize="12px">{g.group}</Text>)}
+                {groups.map(g => <Text key={g.groupId} fontSize="12px">{g.groupTitle}</Text>)}
             </>,
             onConfirm: async () => {
-                await runCommand(deleteGroup({groups: groups.map(it => it.group)}));
+                await runCommand(deleteGroup({groups: groups.map(it => it.groupId)}));
                 fetchGroupList(groupListParams);
             },
             confirmText: "Delete"
@@ -201,20 +208,30 @@ const GroupList: React.FunctionComponent = () => {
     }
 
     async function renameGroup(): Promise<void> {
-        const oldGroupName = renamingGroup;
-        if (!oldGroupName) return;
+        const groupId = renamingGroup;
+        if (!groupId) return;
         const newGroupName = renameRef.current?.value;
         if (!newGroupName) return;
 
-        await runCommand(updateGroupName({oldGroupName, newGroupName}));
+        const success = await runCommand(updateGroupName({groupId, newGroupName}));
+
+        if (!success) {
+            snackbarStore.addFailure("Failed to rename project group", true);
+            return;
+        }
+
         fetchGroupList(groupListParams);
+        setRenamingGroup(null);
+        snackbarStore.addSuccess("Project group renamed", true);
     }
 };
 
 const NamingField: React.FunctionComponent<{
     onCancel: () => void;
+    confirmText: string;
     inputRef: MutableRefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
+    defaultValue?: string;
 }> = props => {
     const submit = useCallback((e) => {
         e.preventDefault();
@@ -236,6 +253,7 @@ const NamingField: React.FunctionComponent<{
                     pr="0px"
                     pl="0px"
                     noBorder
+                    defaultValue={props.defaultValue ? props.defaultValue : ""}
                     fontSize={20}
                     maxLength={1024}
                     onKeyDown={keyDown}
@@ -246,7 +264,7 @@ const NamingField: React.FunctionComponent<{
                     ref={props.inputRef}
                 />
                 <ConfirmCancelButtons
-                    confirmText="Create"
+                    confirmText={props.confirmText}
                     cancelText="Cancel"
                     onConfirm={submit}
                     onCancel={props.onCancel}
