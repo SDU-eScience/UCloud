@@ -39,6 +39,10 @@ class TokenService(
 ) {
     private val secureRandom = SecureRandom()
 
+    // JWT validation fails if we are using a mocked time source (since it is not using our mock)
+    // As a result we always use a real time source
+    private fun now(): Long = System.currentTimeMillis()
+
     private fun createOneTimeAccessTokenForExistingSession(
         user: Principal,
         audience: List<SecurityScope>
@@ -47,8 +51,8 @@ class TokenService(
         val token = AccessTokenContents(
             user = user,
             scopes = audience,
-            createdAt = Time.now(),
-            expiresAt = Time.now() + THIRTY_SECONDS_IN_MILLS,
+            createdAt = now(),
+            expiresAt = now() + THIRTY_SECONDS_IN_MILLS,
             claimableId = jti
         )
 
@@ -69,8 +73,8 @@ class TokenService(
         tokenTemplate: AccessTokenContents = AccessTokenContents(
             user,
             listOf(SecurityScope.ALL_WRITE),
-            Time.now(),
-            Time.now() + TEN_MIN_IN_MILLS
+            now(),
+            now() + TEN_MIN_IN_MILLS
         ),
         refreshTokenExpiry: Long? = null,
         userAgent: String? = null,
@@ -181,8 +185,8 @@ class TokenService(
         val tokenTemplate = AccessTokenContents(
             user = user,
             scopes = requestedScopes,
-            createdAt = Time.now(),
-            expiresAt = Time.now() + expiresIn,
+            createdAt = now(),
+            expiresAt = now() + expiresIn,
             extendedBy = requestedBy,
             extendedByChain = token.extendedByChain + listOf(requestedBy)
         )
@@ -237,8 +241,8 @@ class TokenService(
             AccessTokenContents(
                 user,
                 token.scopes,
-                Time.now(),
-                Time.now() + token.expiresAfter,
+                now(),
+                now() + token.expiresAfter,
                 claimableId = null,
                 sessionReference = token.publicSessionReference,
                 extendedBy = token.extendedBy,

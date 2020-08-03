@@ -260,13 +260,14 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     }
 
     private suspend fun checkLimitAndQuota(ctx: Ctx, path: String) {
-        val estimatedUsage = fs.estimateRecursiveStorageUsedMakeItFast(ctx, findHomeDirectoryFromPath(path))
+        val homeDir = findHomeDirectoryFromPath(path)
+        val estimatedUsage = fs.estimateRecursiveStorageUsedMakeItFast(ctx, homeDir)
         limitChecker.performLimitCheck(path, estimatedUsage)
         try {
             limitChecker.performQuotaCheck(path, estimatedUsage)
         } catch (ex: RPCException) {
             if (ex.httpStatusCode == HttpStatusCode.PaymentRequired) {
-                limitChecker.performQuotaCheck(path, fs.calculateRecursiveStorageUsed(ctx, path))
+                limitChecker.performQuotaCheck(path, fs.calculateRecursiveStorageUsed(ctx, homeDir))
             } else {
                 throw ex
             }
