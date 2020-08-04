@@ -137,7 +137,7 @@ object NativeFS : Loggable {
                 }
             }
         } else {
-            path.mkdir()
+            path.mkdirs()
         }
     }
 

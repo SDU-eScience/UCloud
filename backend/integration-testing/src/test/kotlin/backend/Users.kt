@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.micro.tokenValidation
@@ -23,7 +24,8 @@ suspend fun createUser(
     username: String = "user-${Random.nextLong()}",
     password: String = UUID.randomUUID().toString(),
     role: Role = Role.USER,
-    email: String = "$username@mail"
+    email: String = "$username@mail",
+    waitForStorage: Boolean = true
 ): CreatedUser {
     val refreshToken = UserDescriptions.createNewUser.call(
         listOf(
@@ -32,12 +34,18 @@ suspend fun createUser(
         serviceClient
     ).orThrow().single().refreshToken
 
+    val client = RefreshingJWTAuthenticator(
+        serviceClient.client,
+        refreshToken,
+        UCloudLauncher.micro.tokenValidation as TokenValidationJWT
+    ).authenticateClient(OutgoingHttpCall)
+
+    if (waitForStorage) {
+        waitForFile(homeDirectory(username), client)
+    }
+
     return CreatedUser(
-        RefreshingJWTAuthenticator(
-            serviceClient.client,
-            refreshToken,
-            UCloudLauncher.micro.tokenValidation as TokenValidationJWT
-        ).authenticateClient(OutgoingHttpCall),
+        client,
         username,
         password,
         email

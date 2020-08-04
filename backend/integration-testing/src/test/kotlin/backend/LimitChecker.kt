@@ -42,8 +42,6 @@ suspend fun setProjectQuota(
 }
 
 class LimitCheckerTest : IntegrationTest() {
-    // TODO Some of these tests are failing (sometimes) because the home directory isn't ready yet
-
     @Test
     fun `test normal upload with quota and credits`() = t {
         val root = initializeRootProject()
