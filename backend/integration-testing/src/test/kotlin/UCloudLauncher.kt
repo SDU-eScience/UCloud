@@ -1,7 +1,6 @@
 package dk.sdu.cloud.integration
 
 import com.sun.jna.Platform
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.license.AppLicenseService
@@ -9,15 +8,11 @@ import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
-import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.downtime.management.DowntimeManagementService
@@ -29,7 +24,6 @@ import dk.sdu.cloud.file.trash.FileTrashService
 import dk.sdu.cloud.filesearch.FileSearchService
 import dk.sdu.cloud.grant.GrantService
 import dk.sdu.cloud.indexing.IndexingService
-import dk.sdu.cloud.integration.backend.sampleCompute
 import dk.sdu.cloud.integration.backend.sampleStorage
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
@@ -54,8 +48,6 @@ import kotlinx.coroutines.*
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.Location
-import org.junit.BeforeClass
-import org.junit.Test
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.elasticsearch.ElasticsearchContainer
 import org.testcontainers.utility.Base58
@@ -336,38 +328,7 @@ object UCloudLauncher : Loggable {
         val username = "postgres"
         val password = "postgres"
         val jdbcUrl = TestDB.getEmbeddedPostgresInfo()
-
-        javaClass.classLoader.resources("db/migration").forEach outer@{ migrationUrl ->
-            val tempDirectory = Files.createTempDirectory("migration").toFile()
-
-            Files.newDirectoryStream(pathInResources(migrationUrl, "db/migration")).use { dirStream ->
-                dirStream.forEach {
-                    if (it.fileName.toString().endsWith(".class")) return@outer
-                    Files.newInputStream(it).use { ins ->
-                        FileOutputStream(File(tempDirectory, it.fileName.toString())).use { fos ->
-                            ins.copyTo(fos)
-                        }
-                    }
-                }
-            }
-
-            val schema = try {
-                URL("$migrationUrl/schema.txt").readText()
-            } catch (ex: Throwable) {
-                throw RuntimeException(
-                    "Could not find 'schema.txt' in $migrationUrl ${URL("$migrationUrl/schema.txt")}",
-                    ex
-                )
-            }
-
-            val flyway = Flyway.configure().apply {
-                dataSource(jdbcUrl, username, password)
-                schemas(schema)
-                locations(Location(Location.FILESYSTEM_PREFIX + tempDirectory.absolutePath))
-            }.load()
-
-            flyway.migrate()
-        }
+        DatabaseConfig(jdbcUrl, username, password, "public", false, false).migrateAll()
     }
 
     private fun shutdown() {
@@ -377,16 +338,6 @@ object UCloudLauncher : Loggable {
         if (isRunningCeph) {
             sudo("umount", "-f", CEPHFS_HOME)
             ceph.close()
-        }
-    }
-
-    private fun pathInResources(url: URL, internalPath: String): Path {
-        val uri = url.toURI()
-        return if (uri.scheme == "jar") {
-            val fs = FileSystems.newFileSystem(uri, emptyMap<String, Any?>())
-            fs.getPath(internalPath)
-        } else {
-            Paths.get(uri)
         }
     }
 
