@@ -50,8 +50,11 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     ingoingRequest.channel.copyTo(this)
                 }
 
+                log.debug("File has been written")
+
                 //handles cancellation of uploads
                 if (ingoingRequest.length != null) {
+                    log.debug("Checking some stuff")
                     val stat = fs.statOrNull(ctx, location, setOf(StorageFileAttribute.size))
                     if (ingoingRequest.length != stat?.size) {
                         fs.delete(ctx, location)
@@ -59,11 +62,12 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     }
                 }
 
-                log.debug("done writing")
+                log.debug("stuff checked. done writing")
 
                 if (sensitivity != null) {
                     fs.setSensitivityLevel(ctx, location, sensitivity)
                 }
+                log.debug("Completely done!")
             }
             ok(Unit)
         }

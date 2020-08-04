@@ -1,5 +1,7 @@
 package dk.sdu.cloud.integration
 
+import dk.sdu.cloud.service.SystemTimeProvider
+import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -15,6 +17,8 @@ import kotlinx.coroutines.runBlocking
  * ```
  */
 fun t(block: suspend () -> Unit) {
+    Time.provider = SystemTimeProvider
+
     runBlocking {
         UCloudLauncher.wipeDatabases()
         block()
