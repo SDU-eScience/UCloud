@@ -10,7 +10,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.toUtf8Bytes
 import org.apache.http.Header
 import org.apache.http.HttpEntity
+import org.elasticsearch.ElasticsearchTimeoutException
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse
+import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsResponse
 import org.elasticsearch.client.ClusterClient
 import org.elasticsearch.client.Response
 import org.elasticsearch.client.RestClient
@@ -175,24 +177,6 @@ class ElasticAlertingTest {
 
         assertEquals(2, ea.getErrorCount())
         assertEquals(Status.RED, ea.getStatus())
-    }
-
-    @Test
-    fun `alert on indices count - not 200 response on health request`() {
-        val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
-        val ea = ElasticAlerting(rest, alerting, true)
-
-        val lowRest = mockk<RestClient>()
-
-        every { lowRest.performRequest(any()) } answers {
-            val response = mockk<Response>()
-            every { response.statusLine.statusCode } returns 400
-            response
-        }
-
-        runBlocking {ea.alertOnIndicesCount(Configuration())}
-
     }
 
     @Test

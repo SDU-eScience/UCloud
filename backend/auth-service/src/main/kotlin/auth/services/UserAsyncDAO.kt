@@ -137,7 +137,7 @@ class UserAsyncDAO(
                     """
                         SELECT * 
                         FROM principals
-                        WHERE id = ?username
+                        WHERE id = :username
                     """
                 )
                 .rows
@@ -179,7 +179,7 @@ class UserAsyncDAO(
                             first_names = (SELECT COALESCE (:firstNames, p.first_names)), 
                             last_name = (SELECT COALESCE (:lastName, p.last_name)), 
                             email = (SELECT COALESCE (:email, p.email))
-                        WHERE principals.id = :username
+                        WHERE p.id = :username
                     """
                 )
                 .rowsAffected > 0L
@@ -204,7 +204,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 )
                 .rows
@@ -229,7 +229,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 )
                 .rows
@@ -252,7 +252,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id IN (select unnest(?ids::text[]))
+                        WHERE id IN (select unnest(:ids::text[]))
                     """
                 ).rows
                 .map { rowData ->
@@ -280,7 +280,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 )
                 .rows
@@ -302,7 +302,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE email = ?email
+                        WHERE email = :email
                     """
                 )
                 .rows
@@ -325,7 +325,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE uid IN (select unnest(?uids::bigint[]))
+                        WHERE uid IN (select unnest(:uids::bigint[]))
                     """
                 ).rows
         }
@@ -360,7 +360,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id LIKE ?prefix
+                        WHERE id LIKE :prefix
                     """
                 )
                 .rows
@@ -383,7 +383,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE wayf_id = ?wayfId
+                        WHERE wayf_id = :wayfId
                     """
                 )
                 .rows
@@ -406,8 +406,8 @@ class UserAsyncDAO(
                         },
                         """
                             UPDATE principals
-                            SET email = ?email
-                            WHERE wayf_id = ?wayfId
+                            SET email = :email
+                            WHERE wayf_id = :wayfId
                             RETURNING *
                         """
                     ).rows.singleOrNull()
@@ -428,7 +428,7 @@ class UserAsyncDAO(
                 """
                     SELECT *
                     FROM principals
-                    WHERE id = ?id
+                    WHERE id = :id
                 """
             ).rows.singleOrNull()
             if (found != null) {
@@ -504,7 +504,7 @@ class UserAsyncDAO(
                         },
                         """
                             DELETE from principals
-                            WHERE id = ?id
+                            WHERE id = :id
                         """
                     ).rowsAffected == 0L
             }
@@ -527,7 +527,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 )
                 .rows
@@ -563,8 +563,8 @@ class UserAsyncDAO(
                     },
                     """
                         UPDATE principals
-                        SET hashed_password = ?hashed, salt = ?salt
-                        WHERE id = ?id
+                        SET hashed_password = :hashed, salt = :salt
+                        WHERE id = :id
                     """
                 )
         }
@@ -580,8 +580,8 @@ class UserAsyncDAO(
                     },
                     """
                         UPDATE principals
-                        SET service_license_agreement = ?sla
-                        WHERE id = ?id
+                        SET service_license_agreement = :sla
+                        WHERE id = :id
                     """
                 )
                 .rowsAffected
@@ -624,7 +624,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 ).rows.singleOrNull()?.getField(PrincipalTable.wantsEmails) ?: throw UserException.NotFound()
         }

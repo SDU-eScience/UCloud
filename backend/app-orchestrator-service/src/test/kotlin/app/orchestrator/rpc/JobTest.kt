@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.app.orchestrator.api.CancelRequest
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsResponse
@@ -78,7 +79,13 @@ class JobTest{
                 val serviceClient = ClientMock.authenticatedClient
                 val vncService = mockk<VncService>()
                 val webService = mockk<WebService>()
-                val machineTypes: List<Product.Compute> = TODO()// listOf( MachineReservation("ReservationName", 2, 2))
+                val machineTypes: List<Product.Compute> = listOf(
+                    Product.Compute(
+                        "ReservationName",
+                        2,
+                        ProductCategoryId("productId", "productProvider")
+                    )
+                )
 
                 ClientMock.mockCallSuccess(
                     AuthDescriptions.tokenExtension,
