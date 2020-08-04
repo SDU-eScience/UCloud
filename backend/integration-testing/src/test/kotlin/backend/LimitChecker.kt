@@ -5,10 +5,24 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.DeleteFileRequest
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.Quota
+import dk.sdu.cloud.file.api.RetrieveQuotaRequest
+import dk.sdu.cloud.file.api.SimpleUploadRequest
+import dk.sdu.cloud.file.api.TransferQuotaRequest
+import dk.sdu.cloud.file.api.UpdateQuotaRequest
+import dk.sdu.cloud.file.api.homeDirectory
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.projectHomeDirectory
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.t
+import dk.sdu.cloud.project.api.CreateProjectRequest
+import dk.sdu.cloud.project.api.LeaveProjectRequest
+import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.TransferPiRoleRequest
 import dk.sdu.cloud.service.StaticTimeProvider
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
@@ -276,14 +290,58 @@ class LimitCheckerTest : IntegrationTest() {
             serviceClient
         ).orThrow()
 
+        FileDescriptions.transferQuota.call(
+            TransferQuotaRequest(homeDirectory(user.username), 1000L),
+            project.piClient.withProject(project.projectId)
+        ).orThrow()
+
         try {
             FileDescriptions.transferQuota.call(
                 TransferQuotaRequest(homeDirectory(user.username), 1000L),
-                project.piClient
+                user.client.withProject(project.projectId)
             ).orThrow()
             assert(false)
         } catch (ex: RPCException) {
-            assertThatInstance(ex.httpStatusCode, "fails") { it.value in 400..499 }
+            assertThatInstance(ex.httpStatusCode, "user error") { it.value in 401..499 }
         }
+    }
+
+    @Test
+    fun `view quota as parent project`() = t {
+        val root = initializeRootProject()
+        val project = initializeNormalProject(root)
+        val user = createUser()
+
+        val child = Projects.create.call(
+            CreateProjectRequest("Sub-project", project.projectId),
+            project.piClient
+        ).orThrow()
+
+        val quota = 1024 * 1024 * 1024L
+        setProjectQuota(project.projectId, quota)
+        FileDescriptions.updateQuota.call(
+            UpdateQuotaRequest(projectHomeDirectory(child.id), quota),
+            project.piClient.withProject(child.id)
+        ).orThrow()
+
+        addMemberToProject(child.id, project.piClient, user.client, user.username)
+
+        Projects.transferPiRole.call(
+            TransferPiRoleRequest(user.username),
+            project.piClient.withProject(child.id)
+        ).orThrow()
+
+        Projects.leaveProject.call(
+            LeaveProjectRequest,
+            project.piClient.withProject(child.id)
+        ).orThrow()
+
+        assertEquals(
+            quota,
+            FileDescriptions.retrieveQuota.call(
+                RetrieveQuotaRequest(projectHomeDirectory(child.id)),
+                project.piClient.withProject(project.projectId)
+            ).orThrow().quotaInBytes
+        )
     }
 }

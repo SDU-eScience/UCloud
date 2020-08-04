@@ -219,7 +219,7 @@ class LimitChecker(
         }
     }
 
-    private suspend fun verifyTransferQuotaPermissions(actor: Actor, homeDirectory: String) {
+    suspend fun verifyTransferQuotaPermissions(actor: Actor, homeDirectory: String) {
         if (actor == Actor.System) return
         if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) return
         val projectId = projectIdFromPath(homeDirectory) ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
