@@ -122,7 +122,7 @@ suspend fun insertTestProduct(db: DBContext, product: Product) {
             set(ProductTable.description, product.description)
             set(ProductTable.priority, product.priority)
             when (val availability = product.availability) {
-                ProductAvailability.Available -> {
+                is ProductAvailability.Available -> {
                     set(ProductTable.availability, null)
                 }
 
