@@ -143,6 +143,34 @@ class QueryService(
         }
     }
 
+    suspend fun lookupGroupByTitle(ctx: DBContext, requestedBy: String, projectId: String, title: String): GroupWithSummary {
+        return ctx.withSession { session ->
+            val groups = session.sendPreparedStatement(
+                {
+                    setParameter("title", title)
+                    setParameter("project", projectId)
+                },
+                """
+                    select g.id, g.title, count(gm.username)
+                    from groups g left join group_members gm on g.id = gm.group_id
+                    where
+                        title = :title and project = :project
+                    group by g.id
+                """
+            ).rows
+
+            if (groups.size <= 0) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val group = groups.get(0)
+
+            GroupWithSummary(
+                group.getAs("id"),
+                group.getAs("title"),
+                group.getLong(2)?.toInt() ?: 0
+            )
+        }
+    }
+
+
     suspend fun listGroupMembers(
         ctx: DBContext,
         requestedBy: String?,

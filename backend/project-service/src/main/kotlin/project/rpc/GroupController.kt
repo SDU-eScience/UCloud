@@ -116,5 +116,16 @@ class GroupController(
                 )
             )
         }
+
+        implement(ProjectGroups.lookupByTitle) {
+            ok(
+                queries.lookupGroupByTitle(
+                    db,
+                    ctx.securityPrincipal.username,
+                    request.projectId,
+                    request.title
+                )
+            )
+        }
     }
 }

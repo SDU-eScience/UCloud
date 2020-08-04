@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -193,22 +194,20 @@ class AppStoreService(
 
             log.debug("Verifying that project group exists")
 
-            val lookup = ProjectGroups.groupExists.call(
-                GroupExistsRequest(projectLookup.id, entity.group!!),
+            val groupLookup = ProjectGroups.lookupByTitle.call(
+                LookupByGroupTitleRequest(projectLookup.id, entity.group!!),
                 authenticatedClient
             ).orRethrowAs {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "The project group does not exist"
+                )
             }
-
-            if (!lookup.exists) throw RPCException.fromStatusCode(
-                HttpStatusCode.BadRequest,
-                "The project group does not exist"
-            )
 
             val entityWithProjectId = AccessEntity(
                 null,
                 projectLookup.id,
-                entity.group
+                groupLookup.groupId
             )
 
             aclDao.updatePermissions(session, entityWithProjectId, applicationName, permissions)
