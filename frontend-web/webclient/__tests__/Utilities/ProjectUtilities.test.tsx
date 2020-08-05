@@ -8,7 +8,8 @@ let groupCounter = 0;
 
 function newGroupWithSummary(): GroupWithSummary {
     return {
-        group: "Group " + groupCounter++,
+        groupId: groupCounter.toString(),
+        groupTitle: "Group " + groupCounter++,
         members: ["foo", "bar", "baz"],
         numberOfMembers: 3
     };

@@ -206,7 +206,7 @@ export const TimeFilter = (props: {text: string; onChange: (ts?: Date) => void; 
                 showTimeInput
                 placeholderText={"Don't filter"}
                 selected={props.selected}
-                onChange={ts => props.onChange(ts ?? undefined)}
+                onChange={ts => props.onChange(ts as Date ?? undefined)}
                 timeIntervals={15}
                 isClearable
                 selectsStart

@@ -285,7 +285,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={firstDate}
-                        onChange={(date): void => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
+                        onChange={(date: Date) => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"
                     />
@@ -302,7 +302,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={secondDate}
-                        onChange={(date): void => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
+                        onChange={(date: Date) => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
                         onSelect={d => fetchJobsInRange(firstDate, d)}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"

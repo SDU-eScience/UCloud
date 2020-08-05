@@ -142,6 +142,7 @@ exports[`Main container Main container with sidebar 1`] = `
   >
     <div
       className="sc-AxiKw c2"
+      data-tag="sidebar"
       height="100%"
       width={240}
     >

@@ -502,6 +502,7 @@ exports[`Mount Files component 1`] = `
           fill="currentcolor"
           height="30px"
           onClick={[Function]}
+          test-tag="to_home"
           viewBox="0 0 148.167 127.257"
           width="30px"
         >
@@ -585,6 +586,7 @@ exports[`Mount Files component 1`] = `
   >
     <div
       className="sc-AxgMl c15"
+      data-tag="sidebar"
       height="100%"
       width={240}
     >
@@ -599,6 +601,7 @@ exports[`Mount Files component 1`] = `
             className="c18 c19"
             color="blue"
             cursor="pointer"
+            data-tag="Upload Files-action"
             onClick={[Function]}
           >
             <span>
@@ -609,6 +612,7 @@ exports[`Mount Files component 1`] = `
             className="c18 c20 c21"
             color="blue"
             cursor="pointer"
+            data-tag="New Folder-action"
             onClick={[Function]}
           >
             <span>
@@ -646,6 +650,7 @@ exports[`Mount Files component 1`] = `
             className="c18 c19"
             color="blue"
             cursor="pointer"
+            data-tag="Upload Files-action"
             onClick={[Function]}
           >
             <span>
@@ -656,6 +661,7 @@ exports[`Mount Files component 1`] = `
             className="c18 c20 c21"
             color="blue"
             cursor="pointer"
+            data-tag="New Folder-action"
             onClick={[Function]}
           >
             <span>

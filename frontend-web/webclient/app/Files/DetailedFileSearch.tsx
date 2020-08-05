@@ -90,7 +90,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
                                 selectsStart
                                 startDate={props.modifiedAfter}
                                 endDate={props.modifiedBefore}
-                                onChange={d => validateAndSetDate(d, "modifiedAfter")}
+                                onChange={d => validateAndSetDate(d as Date, "modifiedAfter")}
                                 showTimeSelect
                                 timeIntervals={15}
                                 isClearable
@@ -106,7 +106,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
                                 selectsEnd
                                 startDate={props.modifiedAfter}
                                 endDate={props.modifiedBefore}
-                                onChange={d => validateAndSetDate(d, "modifiedBefore")}
+                                onChange={d => validateAndSetDate(d as Date, "modifiedBefore")}
                                 showTimeSelect
                                 timeIntervals={15}
                                 isClearable
