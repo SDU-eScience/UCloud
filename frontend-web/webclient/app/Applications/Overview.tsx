@@ -247,7 +247,6 @@ function FeaturedTagAsCard({tag, loading, onFavoriteApp}: FeaturedTagAsCardProps
                         pageRenderer={page => <Box>
                             {page.items.map(app => <ApplicationCard
                                 key={`${app.metadata.name}-${app.metadata.version}`}
-                                withCardColor
                                 onFavorite={async (name, version) => onFavoriteApp(name, version, page)}
                                 app={app}
                                 isFavorite={false}
