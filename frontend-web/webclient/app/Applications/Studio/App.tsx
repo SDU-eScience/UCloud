@@ -397,7 +397,11 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                 message: (
                                                                     <Box>
                                                                         <Text>
-                                                                            Remove permission for {permissionEntry.entity.user}
+                                                                            Remove permission for {(permissionEntry.entity.user) ? (
+                                                                                permissionEntry.entity.user
+                                                                            ) : (
+                                                                                `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                                            )}                                                                          
                                                                         </Text>
                                                                     </Box>
                                                                 ),
