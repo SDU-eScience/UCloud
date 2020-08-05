@@ -247,8 +247,8 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                             Remove access for {accessEntryToDelete?.entity.user !== null ? (
                                 accessEntryToDelete?.entity.user
                             ) : (
-                                    `${accessEntryToDelete?.entity.project}:${accessEntryToDelete?.entity.group}`
-                                )}?
+                                    `${accessEntryToDelete?.entity.project?.title} / ${accessEntryToDelete?.entity.group?.title}`
+                            )}?
                         </Text>
                     </Box>
                     <Box mt="6px" alignItems="center">
@@ -422,8 +422,8 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                             {accessEntry.entity.user ? (
                                                 accessEntry.entity.user
                                             ) : (
-                                                    accessEntry.entity.project?.title + " (" + accessEntry.entity.group + ")"
-                                                )}
+                                                    `${accessEntry.entity.project?.title} / ${accessEntry.entity.group?.title}`
+                                            )}
                                         </TableCell>
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
                                         <TableCell textAlign="right">
