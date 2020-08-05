@@ -1,10 +1,15 @@
 package dk.sdu.cloud.news.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.news.api.NewsPost
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
+import io.ktor.http.HttpStatusCode
+import org.joda.time.DateTimeZone
+import org.joda.time.LocalDate
+import org.joda.time.LocalDateTime
 
 object NewsTable : SQLTable("news") {
     val id = long("id", notNull = true)
@@ -30,25 +35,18 @@ class NewsService {
         category: String
     ) {
         ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", session.allocateId("id_sequence"))
-                    setParameter("title", title)
-                    setParameter("subtitle", subtitle)
-                    setParameter("body", body)
-                    setParameter("posted_by", postedBy)
-                    setParameter("show_from", showFrom / 1000)
-                    setParameter("hide_from", hideFrom?.let { it / 1000 })
-                    setParameter("hidden", false)
-                    setParameter("category", category.toLowerCase())
-                },
-                //language=sql
-                """
-                    INSERT INTO news
-                    (id, title, subtitle, body, posted_by, show_from, hide_from, hidden, category)
-                    VALUES (:id, :title, :subtitle, :body, :posted_by, to_timestamp(:show_from), to_timestamp(:hide_from), :hidden, :category)
-                """.trimIndent()
-            )
+            val id = session.allocateId("id_sequence")
+            session.insert(NewsTable) {
+                set(NewsTable.id, id)
+                set(NewsTable.title, title)
+                set(NewsTable.subtitle, subtitle)
+                set(NewsTable.body, body)
+                set(NewsTable.postedBy, postedBy)
+                set(NewsTable.showFrom, LocalDateTime(showFrom, DateTimeZone.UTC))
+                set(NewsTable.hideFrom, LocalDateTime(hideFrom, DateTimeZone.UTC))
+                set(NewsTable.hidden, false)
+                set(NewsTable.category, category)
+            }
         }
     }
 
@@ -60,37 +58,37 @@ class NewsService {
         userIsAdmin: Boolean
     ): Page<NewsPost> {
         return ctx.withSession { session ->
-            val items = session.sendPreparedStatement(
-                {
-                    setParameter("categoryFilter", categoryFilter)
-                    setParameter("offset", pagination.page * pagination.itemsPerPage)
-                    setParameter("limit", pagination.itemsPerPage)
-                    setParameter("withHidden", withHidden && userIsAdmin)
-                },
-                //language=sql
+            val items = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("categoryFilter", categoryFilter)
+                        setParameter("offset", pagination.page * pagination.itemsPerPage)
+                        setParameter("limit", pagination.itemsPerPage)
+                        setParameter("withHidden", withHidden && userIsAdmin)
+                    },
+                    """
+                    select
+                        n.id,
+                        n.title,
+                        n.subtitle,
+                        n.body,
+                        n.posted_by,
+                        n.show_from,
+                        n.hide_from,
+                        n.hidden,
+                        n.category
+                    from news n
+                    where (:categoryFilter::text is null or n.category = :categoryFilter) and
+                          (:withHidden = true or n.show_from <= now()) and
+                          (:withHidden = true or (n.hide_from is null or n.hide_from > now())) and
+                          (:withHidden = true or n.hidden = false)
+                    order by n.show_from desc
+                    offset :offset
+                    limit :limit
                 """
-                select
-                    n.id,
-                    n.title,
-                    n.subtitle,
-                    n.body,
-                    n.posted_by,
-                    n.show_from,
-                    n.hide_from,
-                    n.hidden,
-                    n.category
-                from news n
-                where (?categoryFilter::text is null or n.category = ?categoryFilter) and
-                      (?withHidden = true or n.show_from <= now()) and
-                      (?withHidden = true or (n.hide_from is null or n.hide_from > now())) and
-                      (?withHidden = true or n.hidden = false)
-                order by n.show_from desc
-                offset ?offset
-                limit ?limit
-            """.trimIndent()
-            )
+                )
                 .rows
-                .map { row -> toNewsPost(row) }
+                .map { it.toNewsPost() }
 
             Page(items.size, pagination.itemsPerPage, pagination.page, items)
         }
@@ -100,14 +98,16 @@ class NewsService {
         ctx: DBContext
     ): List<String> {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                //language=sql
-                """
+            session
+                .sendPreparedStatement(
+                    """
                     select distinct news.category
                     from news
-                """.trimIndent()
-            )
-                .rows.map { rowData -> rowData.getField(NewsTable.category) }
+                """
+                ).rows
+                .map { rowData ->
+                    rowData.getField(NewsTable.category)
+                }
         }
     }
 
@@ -117,44 +117,44 @@ class NewsService {
                 {
                     setParameter("id", id)
                 },
-                //language=sql
                 """
                     UPDATE news 
                     SET hidden = NOT hidden
-                    WHERE ?id = id
-                """.trimIndent()
+                    WHERE id = :id
+                """
             )
         }
     }
 
     suspend fun getPostById(ctx: DBContext, id: Long): NewsPost {
         return ctx.withSession { session ->
-            toNewsPost(
-                session.sendPreparedStatement(
+            session
+                .sendPreparedStatement(
                     {
                         setParameter("id", id)
                     },
                     """
-                    SELECT *
-                    FROM news n
-                    WHERE n.id = ?id
-                """.trimIndent()
-                ).rows.single()
-            )
+                        SELECT *
+                        FROM news n
+                        WHERE n.id = :id
+                    """
+                ).rows
+                .singleOrNull()
+                ?.toNewsPost() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     }
 }
 
-fun toNewsPost(row: RowData): NewsPost {
+fun RowData.toNewsPost(): NewsPost {
     return NewsPost(
-        id = row.getField(NewsTable.id),
-        title = row.getField(NewsTable.title),
-        subtitle = row.getField(NewsTable.subtitle),
-        body = row.getField(NewsTable.body),
-        postedBy = row.getField(NewsTable.postedBy),
-        showFrom = row.getField(NewsTable.showFrom).toDateTime().millis,
-        hideFrom = row.getFieldNullable(NewsTable.hideFrom)?.let { it.toDateTime().millis },
-        hidden = row.getField(NewsTable.hidden),
-        category = row.getField(NewsTable.category)
+        id = getField(NewsTable.id),
+        title = getField(NewsTable.title),
+        subtitle = getField(NewsTable.subtitle),
+        body = getField(NewsTable.body),
+        postedBy = getField(NewsTable.postedBy),
+        showFrom = getField(NewsTable.showFrom).toDateTime().millis,
+        hideFrom = getFieldNullable(NewsTable.hideFrom)?.let { it.toDateTime().millis },
+        hidden = getField(NewsTable.hidden),
+        category = getField(NewsTable.category)
     )
 }
