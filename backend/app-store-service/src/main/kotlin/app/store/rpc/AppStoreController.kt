@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.ApplicationDescription
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.util.yamlMapper
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
@@ -19,6 +20,7 @@ import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
+import kotlinx.coroutines.io.readFully
 import org.yaml.snakeyaml.reader.ReaderException
 
 class AppStoreController(
@@ -61,45 +63,44 @@ class AppStoreController(
         }
 
         implement(AppStore.create) {
-            with(ctx as HttpCall) {
-                val content = try {
-                    call.receiveText()
-                } catch (ex: ContentTransformationException) {
-                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    return@implement
+            val length = request.asIngoing().length?.toInt()
+                ?: throw RPCException("Content-Length required", HttpStatusCode.BadRequest)
+            val content = ByteArray(length)
+                .also { arr ->
+                    request.asIngoing().channel.readFully(arr)
                 }
+                .let { String(it) }
 
-                @Suppress("DEPRECATION")
-                val yamlDocument = try {
-                    yamlMapper.readValue<ApplicationDescription>(content)
-                } catch (ex: JsonMappingException) {
-                    log.debug(ex.stackTraceToString())
-                    error(
-                        CommonErrorMessage(
-                            "Bad value for parameter ${ex.pathReference.replace(
-                                "dk.sdu.cloud.app.api.",
-                                ""
-                            )}. ${ex.message}"
-                        ),
-                        HttpStatusCode.BadRequest
-                    )
-                    return@implement
-                } catch (ex: MarkedYAMLException) {
-                    log.debug(ex.stackTraceToString())
-                    error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
-                    return@implement
-                } catch (ex: ReaderException) {
-                    error(
-                        CommonErrorMessage("Document contains illegal characters (unicode?)"),
-                        HttpStatusCode.BadRequest
-                    )
-                    return@implement
-                }
-
-                appStore.create(ctx.securityPrincipal, yamlDocument.normalize(), content)
-
-                ok(Unit)
+            @Suppress("DEPRECATION")
+            val yamlDocument = try {
+                yamlMapper.readValue<ApplicationDescription>(content)
+            } catch (ex: JsonMappingException) {
+                log.debug(ex.stackTraceToString())
+                error(
+                    CommonErrorMessage(
+                        "Bad value for parameter ${ex.pathReference.replace(
+                            "dk.sdu.cloud.app.api.",
+                            ""
+                        )}. ${ex.message}"
+                    ),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
+            } catch (ex: MarkedYAMLException) {
+                log.debug(ex.stackTraceToString())
+                error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
+                return@implement
+            } catch (ex: ReaderException) {
+                error(
+                    CommonErrorMessage("Document contains illegal characters (unicode?)"),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
             }
+
+            appStore.create(ctx.securityPrincipal, yamlDocument.normalize(), content)
+
+            ok(Unit)
         }
 
         implement(AppStore.delete) {

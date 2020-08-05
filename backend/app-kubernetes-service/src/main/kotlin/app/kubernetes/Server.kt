@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes
 
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
+import dk.sdu.cloud.app.kubernetes.rpc.ReloadController
 import dk.sdu.cloud.app.kubernetes.services.ApplicationProxyService
 import dk.sdu.cloud.app.kubernetes.services.AuthenticationService
 import dk.sdu.cloud.app.kubernetes.services.EnvoyConfigurationService
@@ -11,6 +12,7 @@ import dk.sdu.cloud.app.kubernetes.services.K8JobMonitoringService
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
 import dk.sdu.cloud.app.kubernetes.services.K8NameAllocator
 import dk.sdu.cloud.app.kubernetes.services.NetworkPolicyService
+import dk.sdu.cloud.app.kubernetes.services.ReloadableKubernetesClient
 import dk.sdu.cloud.app.kubernetes.services.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.VerifiedJobCache
 import dk.sdu.cloud.app.kubernetes.services.VncService
@@ -18,14 +20,24 @@ import dk.sdu.cloud.app.kubernetes.services.WebService
 import dk.sdu.cloud.app.kubernetes.services.WorkspaceService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
+import dk.sdu.cloud.micro.backgroundScope
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.eventStreamService
+import dk.sdu.cloud.micro.feature
+import dk.sdu.cloud.micro.featureOrNull
+import dk.sdu.cloud.micro.redisConnectionManager
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.serviceDescription
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.RedisBroadcastingStream
 import dk.sdu.cloud.service.RedisDistributedStateFactory
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.ktor.routing.routing
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -46,7 +58,10 @@ class Server(
         val lockFactory = DistributedLockBestEffortFactory(micro)
         val distributedStateFactory = RedisDistributedStateFactory(micro)
 
-        val k8sClient = DefaultKubernetesClient()
+        val k8sClient = ReloadableKubernetesClient(
+            configuration.reloadableK8Config != null && micro.developmentModeEnabled,
+            listOf(File(configuration.reloadableK8Config))
+        )
         val appRole = if (micro.developmentModeEnabled) {
             "sducloud-app-dev"
         } else {
@@ -149,7 +164,8 @@ class Server(
                     vncService,
                     webService,
                     broadcastingStream
-                )
+                ),
+                ReloadController(k8Dependencies)
             )
         }
 
