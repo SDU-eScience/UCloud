@@ -338,6 +338,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   >
     <div
       className="c0 sc-AxiKw c5"
+      data-tag="sidebar"
       height="100%"
       width={340}
     >

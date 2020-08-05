@@ -1103,6 +1103,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 As = Flex;
             }
         }
+
         return (
             <As
                 cursor="pointer"
@@ -1112,6 +1113,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 ml={props.inDropdown ? "-17px" : undefined}
                 mr={props.inDropdown ? "-17px" : undefined}
                 pl={props.inDropdown ? "15px" : undefined}
+                data-tag={`${fileOp.text}-action`}
                 {...props}
             >
                 {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName} /> : null}
@@ -1134,6 +1136,8 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 </div>
             ).concat(filteredOptions.map((op, i) => <Operation fileOp={op} key={i + "_"} />));
 
+    const dataTag = files.length === 0 ? undefined : files.length === 1 ? files[0].path + "-dropdown" : "file-ops";
+
     return (props.inDropdown ?
         <Box>
             <ClickableDropdown
@@ -1146,6 +1150,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                         mr="10px"
                         name="ellipsis"
                         size="1em"
+                        data-tag={dataTag}
                         rotation={90}
                     />
                 )}

@@ -219,10 +219,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         <div
           className="c5"
           cursor="inherit"
-          title="Group 0"
+          title="0"
           width="300px"
         >
-          Group 0
+          0
         </div>
         <div
           className="c6"
@@ -272,10 +272,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         <div
           className="c5"
           cursor="inherit"
-          title="Group 1"
+          title="1"
           width="300px"
         >
-          Group 1
+          1
         </div>
         <div
           className="c6"
@@ -325,10 +325,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         <div
           className="c5"
           cursor="inherit"
-          title="Group 2"
+          title="2"
           width="300px"
         >
-          Group 2
+          2
         </div>
         <div
           className="c6"

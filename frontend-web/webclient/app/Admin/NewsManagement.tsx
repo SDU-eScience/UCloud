@@ -87,7 +87,7 @@ function NewsManagement(): JSX.Element | null {
                                         placeholderText="Show from"
                                         fontSize="18px"
                                         selected={start}
-                                        onChange={setStart}
+                                        onChange={d => setStart(d as Date)}
                                         dateFormat={DATE_FORMAT}
                                         minDate={new Date()}
                                         selectsStart
@@ -99,7 +99,7 @@ function NewsManagement(): JSX.Element | null {
                                         placeholderText="Show until (Optional)"
                                         fontSize="18px"
                                         selected={end}
-                                        onChange={setEnd}
+                                        onChange={d => setEnd(d as Date)}
                                         dateFormat={DATE_FORMAT}
                                         startDate={start}
                                         showTimeSelect

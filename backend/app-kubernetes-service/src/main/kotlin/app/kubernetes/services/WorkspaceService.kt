@@ -15,12 +15,14 @@ data class PreparedWorkspace(
     val volumes: List<Volume>
 )
 
+val CEPHFS = "cephfs"
+
 class WorkspaceService(private val cephConfiguration: CephConfiguration = CephConfiguration()) {
     fun prepare(job: VerifiedJob): PreparedWorkspace {
         val mounts = ArrayList<VolumeMount>()
         val volume = volume {
             name = "data"
-            persistentVolumeClaim = PersistentVolumeClaimVolumeSource("cephfs", false)
+            persistentVolumeClaim = PersistentVolumeClaimVolumeSource(CEPHFS, false)
         }
 
         data class FileMount(val path: String, val readOnly: Boolean) {

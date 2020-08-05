@@ -33,6 +33,7 @@ Array [
       fill="currentcolor"
       height="30px"
       onClick={[Function]}
+      test-tag="to_home"
       viewBox="0 0 148.167 127.257"
       width="30px"
     >
@@ -113,6 +114,7 @@ Array [
   >
     <span
       onClick={[Function]}
+      test-tag="Home of mail@mailhost.dk"
       title="Home of mail@mailhost.dk"
     >
       Home of mail@mailhost.dk
@@ -155,6 +157,7 @@ Array [
       fill="currentcolor"
       height="30px"
       onClick={[Function]}
+      test-tag="to_home"
       viewBox="0 0 148.167 127.257"
       width="30px"
     >
@@ -235,6 +238,7 @@ Array [
   >
     <span
       onClick={[Function]}
+      test-tag="Home of mail@mailhost.dk"
       title="Home of mail@mailhost.dk"
     >
       Home of mail@mailhost.dk

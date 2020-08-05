@@ -3,6 +3,11 @@ package dk.sdu.cloud.integration
 import com.sun.jna.Platform
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.activity.ActivityService
+import dk.sdu.cloud.app.kubernetes.AppKubernetesService
+import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.kubernetes.api.ReloadRequest
+import dk.sdu.cloud.app.kubernetes.watcher.AppKubernetesWatcherService
+import dk.sdu.cloud.app.kubernetes.watcher.api.AppKubernetesWatcher
 import dk.sdu.cloud.app.license.AppLicenseService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
@@ -13,6 +18,8 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.downtime.management.DowntimeManagementService
@@ -27,7 +34,14 @@ import dk.sdu.cloud.indexing.IndexingService
 import dk.sdu.cloud.integration.backend.sampleStorage
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
-import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.micro.DatabaseConfig
+import dk.sdu.cloud.micro.ElasticFeature
+import dk.sdu.cloud.micro.Log4j2ConfigFactory
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServiceRegistry
+import dk.sdu.cloud.micro.elasticHighLevelClient
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.migrateAll
 import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
@@ -44,31 +58,30 @@ import dk.sdu.cloud.share.ShareService
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
 import dk.sdu.cloud.webdav.WebdavService
-import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.apache.logging.log4j.core.config.ConfigurationFactory
-import org.flywaydb.core.Flyway
-import org.flywaydb.core.api.Location
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.wait.strategy.HttpWaitStrategy
 import org.testcontainers.elasticsearch.ElasticsearchContainer
 import org.testcontainers.utility.Base58
 import redis.embedded.RedisExecProvider
 import redis.embedded.RedisServer
 import redis.embedded.util.OS
 import java.io.File
-import java.io.FileOutputStream
 import java.net.DatagramSocket
+import java.net.HttpURLConnection
 import java.net.InetAddress
-import java.net.URL
-import java.nio.file.FileSystems
 import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
+import java.time.Duration
 import java.util.*
 import javax.swing.JLabel
 import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JPasswordField
-import kotlin.IllegalStateException
 
 fun findPreferredOutgoingIp(): String {
     return DatagramSocket().use { socket ->
@@ -101,6 +114,20 @@ class CephContainer : GenericContainer<CephContainer?>("ceph/daemon") {
     }
 }
 
+class K3sContainer : GenericContainer<K3sContainer?>("rancher/k3s") {
+    init {
+        withPrivilegedMode(true)
+        addExposedPort(6443)
+        withTmpFs(
+            mapOf(
+                "/run" to "",
+                "/var/run" to ""
+            )
+        )
+        withCommand("server")
+    }
+}
+
 object UCloudLauncher : Loggable {
     init {
         ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
@@ -115,7 +142,12 @@ object UCloudLauncher : Loggable {
 
     lateinit var serviceClient: AuthenticatedClient
 
-    private val CEPHFS_HOME = "/tmp/cephfs"
+    var isK8sRunning: Boolean = false
+        private set
+    private lateinit var k3sContainer: K3sContainer
+
+    private val tempDir = Files.createTempDirectory("integration").toFile().also { it.deleteOnExit() }
+    private val CEPHFS_HOME = File(tempDir, "cephfs").absolutePath
     private const val REDIS_PORT = 44231
     lateinit var micro: Micro
     private lateinit var redisServer: RedisServer
@@ -321,6 +353,15 @@ object UCloudLauncher : Loggable {
             """.trimIndent()
         )
 
+        File(dir, "k8s.yml").writeText(
+            """
+                ---
+                app:
+                  kubernetes:
+                    reloadableK8Config: ${File(tempDir, "k3s.yml").absolutePath}
+            """.trimIndent()
+        )
+
         return dir
     }
 
@@ -464,8 +505,8 @@ object UCloudLauncher : Loggable {
             val services = setOf(
                 AccountingService,
                 ActivityService,
-                //AppKubernetesService,
-                //AppKubernetesWatcherService,
+                AppKubernetesService,
+                AppKubernetesWatcherService,
                 AppLicenseService,
                 AppOrchestratorService,
                 AppStoreService,
@@ -512,6 +553,34 @@ object UCloudLauncher : Loggable {
             while (!reg.isRunning) {
                 delay(50)
             }
+        }
+    }
+
+    fun requireK8s() {
+        if (isK8sRunning) return
+        k3sContainer = K3sContainer()
+        k3sContainer.start()
+        while (true) {
+            if (k3sContainer.execInContainer("kubectl", "get", "node").exitCode == 0) break
+            Thread.sleep(100)
+        }
+        while (true) {
+            if (k3sContainer.execInContainer("stat", "/etc/rancher/k3s/k3s.yaml").exitCode == 0) break
+            Thread.sleep(100)
+        }
+        k3sContainer.copyFileFromContainer("/etc/rancher/k3s/k3s.yaml", File(tempDir, "k3s.yml").absolutePath)
+        isK8sRunning = true
+
+        runBlocking {
+            AppKubernetesDescriptions.reload.call(
+                ReloadRequest(CEPHFS_HOME),
+                serviceClient
+            ).orThrow()
+
+            AppKubernetesWatcher.reload.call(
+                Unit,
+                serviceClient
+            ).orThrow()
         }
     }
 }

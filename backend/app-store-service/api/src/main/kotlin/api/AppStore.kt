@@ -460,7 +460,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     }
 
-    val create = call<Unit, Unit, CommonErrorMessage>("create") {
+    val create = call<BinaryStream, Unit, CommonErrorMessage>("create") {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -469,6 +469,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         http {
             method = HttpMethod.Put
             path { using(baseContext) }
+            body { bindEntireRequestFromBody() }
         }
     }
 

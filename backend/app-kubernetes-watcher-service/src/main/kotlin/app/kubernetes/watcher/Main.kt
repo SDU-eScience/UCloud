@@ -10,9 +10,14 @@ object AppKubernetesWatcherService : Service {
 
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(RefreshingJWTCloudFeature)
-        return Server(micro)
+        val configuration = micro.configuration.requestChunkAtOrNull("app", "kubernetes") ?: Configuration()
+        return Server(micro, configuration)
     }
 }
+
+data class Configuration(
+    val reloadableK8Config: String? = null
+)
 
 fun main(args: Array<String>) {
     AppKubernetesWatcherService.runAsStandalone(args)

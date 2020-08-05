@@ -54,6 +54,7 @@ export const MainContainer = ({
                     <Hide sm xs md>
                         <SidebarContainer
                             height="100%"
+                            data-tag="sidebar"
                             pt={topMenuSize + mainYpad}
                             top="0"
                             right="0"

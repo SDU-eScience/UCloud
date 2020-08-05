@@ -5,9 +5,13 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.bindToSubProperty
 import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.client.HttpClientConverter
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.server.HttpServerConverter
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
@@ -71,7 +75,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
         }
     }
 
-    val create = call<Unit, Unit, CommonErrorMessage>("create") {
+    val create = call<BinaryStream, Unit, CommonErrorMessage>("create") {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -83,6 +87,8 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
             path {
                 using(baseContext)
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 
