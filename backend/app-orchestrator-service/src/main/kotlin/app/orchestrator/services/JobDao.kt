@@ -117,15 +117,15 @@ class JobDao {
                         update job_information
                         set
                             modified_at = now(),
-                            status = coalesce(?status::text, status),
-                            state = coalesce(?state::text, state),
-                            failed_state = coalesce(?failedState::text, failed_state),
+                            status = coalesce(:status::text, status),
+                            state = coalesce(:state::text, state),
+                            failed_state = coalesce(:failedState::text, failed_state),
                             started_at = (case
-                                when ?state::text = 'RUNNING' then timezone('utc', now())
+                                when :state::text = 'RUNNING' then timezone('utc', now())
                                 else started_at
                             end)
                         where
-                            system_id = ?systemId
+                            system_id = :systemId
                     """
                 )
                 .rowsAffected
@@ -151,8 +151,8 @@ class JobDao {
                     """
                         delete from job_information  
                         where
-                            application_name = ?appName and
-                            application_version = ?appVersion
+                            application_name = :appName and
+                            application_version = :appVersion
                     """
                 )
         }
