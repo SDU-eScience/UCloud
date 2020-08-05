@@ -170,6 +170,38 @@ class QueryService(
         }
     }
 
+    suspend fun lookupProjectAndGroup(ctx: DBContext, actor: Actor, projectId: String, groupId: String): ProjectAndGroup {
+        return ctx.withSession { session ->
+            val results = session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("group", groupId)
+                },
+                """
+                    select p.title as projecttitle, p.archived as projectarchived, p.parent as projectparent, g.title as grouptitle
+                    from projects p left join groups g on g.project = p.id
+                    where
+                        p.id = :project and g.id = :group
+                """
+            ).rows
+
+            if (results.size <= 0) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val result = results.get(0)
+
+            ProjectAndGroup(
+                Project(
+                    projectId,
+                    result.getAs("projecttitle"),
+                    result.getAs("projectparent"),
+                    result.getAs("projectarchived")
+                ),
+                ProjectGroup(
+                    groupId,
+                    result.getAs("grouptitle")
+                )
+            )
+        }
+    }
 
     suspend fun listGroupMembers(
         ctx: DBContext,

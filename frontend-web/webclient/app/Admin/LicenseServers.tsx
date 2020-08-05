@@ -211,7 +211,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                     entity: {
                         user: accessEntryToDelete.entity.user,
                         project: accessEntryToDelete.entity.project ? accessEntryToDelete.entity.project.id : null,
-                        group: accessEntryToDelete.entity.group
+                        group: accessEntryToDelete.entity.group ? accessEntryToDelete.entity.group.id : null
                     },
                     rights: accessEntryToDelete.permission,
                     revoke: true

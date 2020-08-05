@@ -385,7 +385,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                         {(permissionEntry.entity.user) ? (
                                                             permissionEntry.entity.user
                                                         ) : (
-                                                            `${permissionEntry.entity.project?.title}/${permissionEntry.entity.group}`
+                                                            `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
                                                         )}</TableCell>
                                                     <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                     <TableCell textAlign="right">
@@ -410,7 +410,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                                     entity: {
                                                                                         user: permissionEntry.entity.user,
                                                                                         project: permissionEntry.entity.project ? permissionEntry.entity.project.id : null,
-                                                                                        group: permissionEntry.entity.group
+                                                                                        group: permissionEntry.entity.group ? permissionEntry.entity.group.id : null
                                                                                     },
                                                                                     rights: permissionEntry.permission,
                                                                                     revoke: true
