@@ -53,9 +53,6 @@ class ResetRequestsAsyncDao {
     }
 
     fun RowData.toResetRequest(): ResetRequest {
-        println("JGKLASJF " + getField(PasswordResetRequestTable.expiresAt))
-        println("FIELD" + LocalDateTime(getField(PasswordResetRequestTable.expiresAt), DateTimeZone.UTC).toDate()
-        )
         return ResetRequest(
             getField(PasswordResetRequestTable.token),
             getField(PasswordResetRequestTable.userId),

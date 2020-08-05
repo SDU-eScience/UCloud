@@ -489,7 +489,7 @@ class AppStoreAsyncDao(
                     },
                     """
                         DELETE FROM applications
-                        WHERE (name = ?appname) AND (version = ?appversion)
+                        WHERE (name = :appname) AND (version = :appversion)
                     """
                 )
         }
@@ -533,22 +533,14 @@ class AppStoreAsyncDao(
             session
                 .sendPreparedStatement(
                     {
-                        if (newDescription != null) {
-                            setParameter("newdesc", newDescription)
-                        } else {
-                            setParameter("newdesc", existingApplication.metadata.description)
-                        }
-                        if (newAuthors != null) {
-                            setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors))
-                        } else {
-                            setParameter("newauthors", defaultMapper.writeValueAsString(existingApplication.metadata.authors))
-                        }
+                        setParameter("newdesc", newDescription)
+                        setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors ?: existingApplication.metadata.authors))
                         setParameter("name", appName)
                         setParameter("version", appVersion)
                     },
                     """
                         UPDATE applications
-                        SET description = :newdesc, authors = :newauthors
+                        SET description = COALESCE(:newdesc, description), authors = :newauthors
                         WHERE (name = :name) AND (version = :version)
                     """
                 )
