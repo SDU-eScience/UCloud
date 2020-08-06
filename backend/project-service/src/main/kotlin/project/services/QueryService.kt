@@ -993,12 +993,13 @@ class QueryService(
         title: String
     ): Project? {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                { setParameter("title", title) },
-                "select * from projects where title = :title"
-            )
-            .rows
-            .singleOrNull()?.toProject() ?: null
+            session
+                .sendPreparedStatement(
+                    { setParameter("title", title) },
+                    "select * from projects where title = :title"
+                )
+                .rows
+                .singleOrNull()?.toProject() ?: null
         }
     }
 
@@ -1007,12 +1008,28 @@ class QueryService(
         title: String
     ): Project? {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                { setParameter("id", title) },
-                "select * from projects where id = :id"
-            )
+            session
+                .sendPreparedStatement(
+                    { setParameter("id", title) },
+                    "select * from projects where id = :id"
+                )
                 .rows
                 .singleOrNull()?.toProject() ?: null
+        }
+    }
+
+    suspend fun lookupByIdBulk(
+        ctx: DBContext,
+        titles: List<String>
+    ): List<Project> {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    { setParameter("ids", titles) },
+                    "select * from projects where id IN (SELECT unnest(:ids::text[]))"
+                )
+                .rows
+                .map { it.toProject() }
         }
     }
 
@@ -1048,6 +1065,31 @@ class QueryService(
             val (pi, admins) = projects.getPIAndAdminsOfProject(session, projectId)
             admins.map { ProjectMember(it, ProjectRole.ADMIN) } + ProjectMember(pi, ProjectRole.PI)
         }
+    }
+
+    suspend fun lookupAdminsBulk(
+        ctx: DBContext,
+        actor: Actor,
+        projectIds: List<String>
+    ): List<Pair<String, List<ProjectMember>>> {
+        if (actor !is Actor.System && !(actor is Actor.User && actor.principal.role in Roles.PRIVILEGED)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        val projectWithAdmins = mutableListOf<Pair<String,List<ProjectMember>>>()
+        ctx.withSession { session ->
+            projectIds.forEach { projectId ->
+                val (pi, admins) = projects.getPIAndAdminsOfProject(session, projectId)
+                projectWithAdmins.add(
+                    Pair(
+                        projectId,
+                        admins.map { ProjectMember(it, ProjectRole.ADMIN) } + ProjectMember(pi, ProjectRole.PI)
+                    )
+                )
+            }
+        }
+
+        return projectWithAdmins
     }
 
     companion object : Loggable {
