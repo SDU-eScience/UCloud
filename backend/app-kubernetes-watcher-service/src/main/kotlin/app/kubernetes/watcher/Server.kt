@@ -16,7 +16,7 @@ class Server(
     override fun start() {
         val k8sClient = ReloadableKubernetesClient(
             configuration.reloadableK8Config != null && micro.developmentModeEnabled,
-            listOf(File(configuration.reloadableK8Config))
+            listOfNotNull(configuration.reloadableK8Config).map { File(it) }
         )
 
         val appRole = if (micro.developmentModeEnabled) {

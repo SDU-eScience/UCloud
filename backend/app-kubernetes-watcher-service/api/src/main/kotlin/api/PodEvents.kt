@@ -10,7 +10,12 @@ import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.events.EventStreamContainer
 import io.ktor.http.HttpMethod
 
-data class JobCondition(val type: String?, val reason: String?)
+data class JobCondition(
+    val type: String?,
+    val reason: String?,
+    val isActive: Boolean = false,
+    val isFailed: Boolean = false
+)
 
 data class JobEvent(
     val jobName: String,

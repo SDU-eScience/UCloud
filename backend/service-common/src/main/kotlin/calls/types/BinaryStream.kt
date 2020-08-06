@@ -15,6 +15,7 @@ import io.ktor.http.contentType
 import io.ktor.request.contentType
 import io.ktor.request.receiveChannel
 import kotlinx.coroutines.io.ByteReadChannel
+import java.nio.charset.Charset
 
 sealed class BinaryStream {
     /**
@@ -64,6 +65,21 @@ sealed class BinaryStream {
                 call.call.request.contentType(),
                 call.call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
             )
+        }
+
+        fun outgoingFromText(
+            text: String,
+            charset: Charset = Charsets.UTF_8,
+            contentType: ContentType = ContentType.Text.Any
+        ): Outgoing {
+            return outgoingFromArray(text.toByteArray(charset), contentType)
+        }
+
+        fun outgoingFromArray(
+            array: ByteArray,
+            contentType: ContentType = ContentType.Application.OctetStream
+        ): Outgoing {
+            return outgoingFromChannel(ByteReadChannel(array), array.size.toLong(), contentType)
         }
 
         fun outgoingFromChannel(

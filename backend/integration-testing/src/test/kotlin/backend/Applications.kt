@@ -1,6 +1,9 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.accounting.api.RetrieveBalanceRequest
+import dk.sdu.cloud.accounting.api.WalletOwnerType
+import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
 import dk.sdu.cloud.app.orchestrator.api.JobState
@@ -8,29 +11,35 @@ import dk.sdu.cloud.app.orchestrator.api.JobWithStatus
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolStore
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.t
+import dk.sdu.cloud.service.test.assertThatInstance
+import dk.sdu.cloud.service.test.assertThatProperty
 import io.ktor.util.toByteArray
 import kotlinx.coroutines.io.ByteReadChannel
 import org.junit.Ignore
 import org.junit.Test
+import kotlin.test.assertEquals
 
 object SampleApplications {
     val figlet = NameAndVersion("figlet", "1.0.0")
-    val httpbin = NameAndVersion("httpbin", "1.0.0")
+    val longRunning = NameAndVersion("long-running", "1.0.0")
+
+    fun figletParams(text: String): Map<String, Any> = mapOf("text" to text)
 
     suspend fun create() {
         ToolStore.create.call(
-            BinaryStream.outgoingFromChannel(ByteReadChannel(
+            BinaryStream.outgoingFromText(
                 //language=yaml
                 """
                     ---
@@ -41,7 +50,7 @@ object SampleApplications {
                     name: figlet
                     version: 1.0.0
 
-                    container: truek/figlets:1.1.0
+                    container: truek/figlets:1.1.1
 
                     authors:
                     - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
@@ -55,12 +64,12 @@ object SampleApplications {
 
                     backend: DOCKER
                 """.trimIndent()
-            )),
+            ),
             serviceClient
         ).orThrow()
 
         AppStore.create.call(
-            BinaryStream.outgoingFromChannel(ByteReadChannel(
+            BinaryStream.outgoingFromText(
                 //language=yaml
                 """
                    ---
@@ -91,75 +100,35 @@ object SampleApplications {
                        type: text
      
                 """.trimIndent()
-            )),
-            serviceClient
-        ).orThrow()
-
-        ToolStore.create.call(
-            BinaryStream.outgoingFromChannel(ByteReadChannel(
-                //language=yaml
-                """
-                    ---
-                    tool: v1
-
-                    title: HttpBin
-
-                    name: httpbin
-                    version: 1.0.0
-
-                    container: kennethreitz/httpbin
-
-                    authors:
-                    - Kenneth Reitz
-
-                    description: A tool for testing httprequests.
-
-                    defaultTimeAllocation:
-                      hours: 1
-                      minutes: 0
-                      seconds: 0
-
-                    backend: DOCKER
-                """.trimIndent()
-            )),
+            ),
             serviceClient
         ).orThrow()
 
         AppStore.create.call(
-            BinaryStream.outgoingFromChannel(ByteReadChannel(
+            BinaryStream.outgoingFromText(
                 //language=yaml
                 """
-                   ---
-                   application: v1
-
-                   title: HttpBin
-                   name: HttpBin
-                   version: 1.0.0
-
-                   tool:
-                     name: httpbin
-                     version: 1.0.0
-
-                   authors:
-                   - Kenneth Reitz
-
-                   description:
-                     Test Http requests
-
-                   invocation:
-                     - "gunicorn"
-                     - "-b"
-                     - "0.0.0.0:80"
-                     - "httpbin:app"
-                     - "-k"
-                     - "gevent"
-
-                   applicationType: WEB
-
-                   web:
-                     port: 80 
+                    ---
+                    application: v1
+                    
+                    title: long running
+                    name: long-running
+                    version: 1.0.0
+                    
+                    tool:
+                      name: figlet
+                      version: 1.0.0
+                    
+                    authors: ["Dan Thrane"]
+                    
+                    description: Runs for a long time
+                    
+                    # We just count to a really big number
+                    invocation:
+                    - figlet-count
+                    - 1000000000
                 """.trimIndent()
-            )),
+            ),
             serviceClient
         ).orThrow()
     }
@@ -173,25 +142,19 @@ class ApplicationTest : IntegrationTest() {
         SampleApplications.create()
 
         val user = createUser()
-        addFundsToPersonalProject(initializeRootProject(), user.username)
+        val rootProject = initializeRootProject()
+        initializeAllPersonalFunds(user.username, rootProject)
 
         val jobId = JobDescriptions.start.call(
             StartJobRequest(
                 SampleApplications.figlet,
-                parameters = mapOf(
-                    "text" to "Hello, World!"
-                ),
+                parameters = SampleApplications.figletParams("Hello, World!"),
                 reservation = sampleCompute.id
             ),
-            serviceClient
+            user.client
         ).orThrow().jobId
 
-        lateinit var status: JobWithStatus
-        retrySection(attempts = 300, delay = 10_000) {
-            status = JobDescriptions.findById.call(FindByStringId(jobId), user.client).orThrow()
-            require(status.state == JobState.SUCCESS) { "Current job state is: ${status.state}" }
-            require(status.outputFolder != null)
-        }
+        val status: JobWithStatus = waitForJob(jobId, user.client)
 
         val outputFolder = status.outputFolder!!
         retrySection {
@@ -210,6 +173,88 @@ class ApplicationTest : IntegrationTest() {
                 .toString(Charsets.UTF_8)
 
             require(stdout.lines().size == 7) { "$stdout\nOutput does not appear to be correct" }
+        }
+    }
+
+    private suspend fun waitForJob(
+        jobId: String,
+        userClient: AuthenticatedClient
+    ): JobWithStatus {
+        lateinit var status: JobWithStatus
+        retrySection(attempts = 300, delay = 10_000) {
+            status = JobDescriptions.findById.call(FindByStringId(jobId), userClient).orThrow()
+            require(status.state.isFinal()) { "Current job state is: ${status.state}" }
+            require(status.outputFolder != null)
+        }
+        return status
+    }
+
+    @Test
+    @Ignore
+    fun `test accounting with job timeout`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val user = createUser()
+        val rootProject = initializeRootProject()
+        initializeAllPersonalFunds(user.username, rootProject)
+
+        val wbBefore = findPersonalWallet(user.username, user.client, sampleCompute.category)!!
+
+        val jobId = JobDescriptions.start.call(
+            StartJobRequest(
+                SampleApplications.longRunning,
+                parameters = emptyMap(),
+                reservation = sampleCompute.id,
+                maxTime = SimpleDuration(0, 0, 30)
+            ),
+            user.client
+        ).orThrow().jobId
+
+        waitForJob(jobId, user.client)
+
+        val wbAfter = findPersonalWallet(user.username, user.client, sampleCompute.category)!!
+
+        assertEquals(wbBefore.balance - sampleCompute.pricePerUnit, wbAfter.balance)
+    }
+
+    @Test
+    fun `test accounting in project`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val rootProject = initializeRootProject()
+
+        val project = initializeNormalProject(rootProject)
+        setProjectQuota(project.projectId, 10.GiB)
+
+        val wbBefore = findProjectWallet(project.projectId, project.piClient, sampleCompute.category)
+            ?: error("Could not find wallet")
+
+        val jobId = JobDescriptions.start.call(
+            StartJobRequest(
+                SampleApplications.figlet,
+                parameters = SampleApplications.figletParams("Hello"),
+                reservation = sampleCompute.id
+            ),
+            project.piClient.withProject(project.projectId)
+        ).orThrow().jobId
+
+        val finalJob = waitForJob(jobId, project.piClient.withProject(project.projectId))
+
+        val wbAfter = findProjectWallet(project.projectId, project.piClient, sampleCompute.category)
+            ?: error("Could not find wallet")
+
+        assertEquals(wbAfter.balance - sampleCompute.pricePerUnit, wbBefore.balance)
+
+        assertThatInstance(finalJob, "has a correct output folder") { resp ->
+            val outputFolder = resp.outputFolder
+            outputFolder != null && outputFolder.startsWith(
+                joinPath(
+                    projectHomeDirectory(project.projectId),
+                    PERSONAL_REPOSITORY,
+                    project.piUsername,
+                    isDirectory = true
+                )
+            )
         }
     }
 }

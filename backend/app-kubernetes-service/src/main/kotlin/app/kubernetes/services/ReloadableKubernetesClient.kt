@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.service.Loggable
 import io.fabric8.kubernetes.api.model.Doneable
 import io.fabric8.kubernetes.api.model.DoneableSecret
 import io.fabric8.kubernetes.api.model.HasMetadata
@@ -44,15 +45,20 @@ class ReloadableKubernetesClient(
         if (allowReloading) {
             for (file in configFiles) {
                 if (file.exists()) {
-                    file.inputStream().use { ins ->
-                        delegate = DefaultKubernetesClient.fromConfig(ins)
-                    }
+                    log.info("Reloading Kubernetes client to use $file")
+                    val config = Config.fromKubeconfig(file.readText())
+                    delegate = DefaultKubernetesClient(config)
                     return
                 }
             }
         }
 
+        log.info("Using default Kubernetes configuration")
         delegate = DefaultKubernetesClient()
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 
     override fun lists(): KubernetesListMixedOperation = delegate.lists()

@@ -44,9 +44,8 @@ class ReloadableKubernetesClient(
         if (allowReloading) {
             for (file in configFiles) {
                 if (file.exists()) {
-                    file.inputStream().use { ins ->
-                        delegate = DefaultKubernetesClient.fromConfig(ins)
-                    }
+                    val config = Config.fromKubeconfig(file.readText())
+                    delegate = DefaultKubernetesClient(config)
                     return
                 }
             }

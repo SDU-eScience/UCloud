@@ -137,6 +137,7 @@ class K8JobMonitoringService(
         @Suppress("TooGenericExceptionCaught")
         try {
             jobConfiguration()
+            log.debug("Job has been configured")
 
             // We cannot really provide a better message. We truly do not know what is going on with the job.
             // It might be pulling stuff, it might be in the queue. Really, we have no idea what is happening

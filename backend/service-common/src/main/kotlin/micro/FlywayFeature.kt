@@ -4,13 +4,28 @@ import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.Loggable
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.Location
+import org.flywaydb.core.api.MigrationType
+import org.flywaydb.core.api.MigrationVersion
+import org.flywaydb.core.api.configuration.Configuration
+import org.flywaydb.core.api.executor.MigrationExecutor
+import org.flywaydb.core.api.migration.JavaMigration
+import org.flywaydb.core.api.resolver.Context
+import org.flywaydb.core.api.resolver.MigrationResolver
+import org.flywaydb.core.api.resolver.ResolvedMigration
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
 import java.net.URL
+import java.net.URLClassLoader
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.sql.Connection
+import java.util.*
+import kotlin.streams.toList
+
 
 class FlywayFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -46,6 +61,8 @@ class FlywayFeature : MicroFeature {
     }
 }
 
+annotation class Schema(val name: String)
+
 fun DatabaseConfig.migrateAll() {
     fun pathInResources(url: URL, internalPath: String): Path {
         val uri = url.toURI()
@@ -57,35 +74,241 @@ fun DatabaseConfig.migrateAll() {
         }
     }
 
-    javaClass.classLoader.resources("db/migration").forEach outer@{ migrationUrl ->
-        val tempDirectory = Files.createTempDirectory("migration").toFile()
+    data class SchemaMigrations(val schema: String, val location: Location, val loadedClasses: List<Class<*>>)
 
-        Files.newDirectoryStream(pathInResources(migrationUrl, "db/migration")).use { dirStream ->
-            dirStream.forEach {
-                if (it.fileName.toString().endsWith(".class")) return@outer
-                Files.newInputStream(it).use { ins ->
-                    FileOutputStream(File(tempDirectory, it.fileName.toString())).use { fos ->
-                        ins.copyTo(fos)
+    javaClass.classLoader.resources("db/migration")
+        .toList()
+        .map { migrationUrl ->
+            val tempDirectory = Files.createTempDirectory("migration").toFile()
+
+            val potentialClassNames = ArrayList<String>()
+            val loadedClasses = ArrayList<Class<*>>()
+
+            Files.newDirectoryStream(pathInResources(migrationUrl, "db/migration")).use { dirStream ->
+                dirStream.forEach {
+                    if (it.fileName.toString().endsWith(".class") && !it.fileName.toString().contains("$")) {
+                        potentialClassNames.add(it.fileName.toString().removeSuffix(".class"))
+                    }
+
+                    Files.newInputStream(it).use { ins ->
+                        FileOutputStream(File(tempDirectory, it.fileName.toString())).use { fos ->
+                            ins.copyTo(fos)
+                        }
                     }
                 }
             }
+
+            var classLoader: ClassLoader? = null
+            val schema = try {
+                URL("$migrationUrl/schema.txt").readText()
+            } catch (ex: Throwable) {
+                // Attempt to load a class and retrieve the schema
+                val elements = URL(migrationUrl.toString().substringBefore("db/migration").removeSuffix("/") + "/")
+                println(elements)
+                val newClassLoader = ChildFirstURLClassLoader(
+                    arrayOf(elements),
+                    javaClass.classLoader
+                )
+                require(potentialClassNames.isNotEmpty()) { "Could not find schema $migrationUrl" }
+                var schema: String? = null
+                for (className in potentialClassNames) {
+                    val s = "db.migration.${className}"
+                    val loadedClass = newClassLoader.loadClass(s)
+                        ?: error("Could not find schema $migrationUrl (attempted to load class)")
+                    val schemaAnnotation = loadedClass.annotations.filterIsInstance<Schema>().singleOrNull()
+                        ?: error("Could not find schema $migrationUrl (attempted to locate @Schema annotation)")
+                    require(schema == null || schemaAnnotation.name == schema) {
+                        "Changing schema name in $migrationUrl. ${schema} vs ${schemaAnnotation.name}"
+                    }
+                    loadedClasses.add(loadedClass)
+                    schema = schemaAnnotation.name
+                }
+                classLoader = newClassLoader
+
+                schema!!
+            }
+
+            SchemaMigrations(schema, Location(Location.FILESYSTEM_PREFIX + tempDirectory.absolutePath), loadedClasses)
+        }
+        .groupBy { it.schema }
+        .forEach { (schema, migrations) ->
+            val flyway = Flyway.configure().apply {
+                resolvers(object : MigrationResolver {
+                    override fun resolveMigrations(context: Context?): MutableCollection<ResolvedMigration> {
+                        return migrations.flatMap { it.loadedClasses }
+                            .map { runCatching { it.kotlin.constructors.single().call() }.getOrNull() }
+                            .filterIsInstance<JavaMigration>()
+                            .map { migration ->
+                                // Trying really hard to trick flyway into running our code
+                                object : ResolvedMigration {
+                                    override fun getExecutor(): MigrationExecutor {
+                                        return object : MigrationExecutor {
+                                            override fun canExecuteInTransaction(): Boolean =
+                                                migration.canExecuteInTransaction()
+
+                                            override fun execute(context: org.flywaydb.core.api.executor.Context) {
+                                                val ctx = object : org.flywaydb.core.api.migration.Context {
+                                                    override fun getConfiguration(): Configuration =
+                                                        context.configuration
+
+                                                    override fun getConnection(): Connection = context.connection
+                                                }
+                                                migration.migrate(ctx)
+                                            }
+                                        }
+                                    }
+
+                                    override fun getVersion(): MigrationVersion {
+                                        return migration.version
+                                    }
+
+                                    override fun getDescription(): String {
+                                        return migration.description
+                                    }
+
+                                    override fun getPhysicalLocation(): String {
+                                        return ""
+                                    }
+
+                                    override fun getType(): MigrationType {
+                                        return MigrationType.JDBC
+                                    }
+
+                                    override fun getChecksum(): Int {
+                                        return 0
+                                    }
+
+                                    override fun getScript(): String {
+                                        return "" // I have no idea
+                                    }
+
+                                }
+                            }
+                            .toMutableList()
+                    }
+
+                })
+                dataSource(jdbcUrl, username, password)
+                schemas(schema)
+                locations(*migrations.map { it.location }.toTypedArray())
+            }.load()
+
+            flyway.migrate()
         }
 
-        val schema = try {
-            URL("$migrationUrl/schema.txt").readText()
-        } catch (ex: Throwable) {
-            throw RuntimeException(
-                "Could not find 'schema.txt' in $migrationUrl ${URL("$migrationUrl/schema.txt")}",
-                ex
-            )
+}
+
+
+fun main() {
+    repeat(10) {
+        run {
+            val loader =
+                URLClassLoader(arrayOf(URL("file:/home/dan/work/sducloud/backend/app-orchestrator-service/out/production/classes/")))
+            loader.loadClass("db.migration.V13__MigrateMetadata").annotations.filterIsInstance<Schema>()
+                .forEach { println(it) }
         }
+        run {
+            val loader =
+                URLClassLoader(arrayOf(URL("file:/home/dan/work/sducloud/backend/app-store-service/out/production/classes/")))
+            loader.loadClass("db.migration.V13__MigrateMetadata").annotations.filterIsInstance<Schema>()
+                .forEach { println(it) }
+        }
+    }
+}
 
-        val flyway = Flyway.configure().apply {
-            dataSource(jdbcUrl, username, password)
-            schemas(schema)
-            locations(Location(Location.FILESYSTEM_PREFIX + tempDirectory.absolutePath))
-        }.load()
+// https://stackoverflow.com/a/6424879 (with modifications)
+class ChildFirstURLClassLoader(classpath: Array<URL?>?, parent: ClassLoader?) :
+    URLClassLoader(classpath, parent) {
+    private val system: ClassLoader?
 
-        flyway.migrate()
+    @Synchronized
+    @Throws(ClassNotFoundException::class)
+    override fun loadClass(name: String, resolve: Boolean): Class<*>? {
+        // First, check if the class has already been loaded
+        var c = findLoadedClass(name)
+        if (c == null) {
+            c = try {
+                // checking local
+                findClass(name)
+            } catch (e: ClassNotFoundException) {
+                // checking parent
+                // This call to loadClass may eventually call findClass again, in case the parent doesn't find anything.
+                super.loadClass(name, resolve)
+            }
+        }
+        if (resolve) {
+            resolveClass(c)
+        }
+        return c
+    }
+
+    override fun getResource(name: String): URL {
+        var url: URL? = null
+        if (system != null) {
+            url = system.getResource(name)
+        }
+        if (url == null) {
+            url = findResource(name)
+            if (url == null) {
+                // This call to getResource may eventually call findResource again, in case the parent doesn't find anything.
+                url = super.getResource(name)
+            }
+        }
+        return url!!
+    }
+
+    @Throws(IOException::class)
+    override fun getResources(name: String): Enumeration<URL?> {
+        /**
+         * Similar to super, but local resources are enumerated before parent resources
+         */
+        var systemUrls: Enumeration<URL?>? = null
+        if (system != null) {
+            systemUrls = system.getResources(name)
+        }
+        val localUrls: Enumeration<URL>? = findResources(name)
+        var parentUrls: Enumeration<URL?>? = null
+        if (parent != null) {
+            parentUrls = parent.getResources(name)
+        }
+        val urls: MutableList<URL> = ArrayList()
+        if (systemUrls != null) {
+            while (systemUrls.hasMoreElements()) {
+                systemUrls.nextElement()?.let { urls.add(it) }
+            }
+        }
+        if (localUrls != null) {
+            while (localUrls.hasMoreElements()) {
+                urls.add(localUrls.nextElement())
+            }
+        }
+        if (parentUrls != null) {
+            while (parentUrls.hasMoreElements()) {
+                parentUrls.nextElement()?.let { urls.add(it) }
+            }
+        }
+        return object : Enumeration<URL?> {
+            var iter: Iterator<URL> = urls.iterator()
+            override fun hasMoreElements(): Boolean {
+                return iter.hasNext()
+            }
+
+            override fun nextElement(): URL {
+                return iter.next()
+            }
+        }
+    }
+
+    override fun getResourceAsStream(name: String): InputStream? {
+        val url = getResource(name)
+        try {
+            return url?.openStream()!!
+        } catch (e: IOException) {
+        }
+        return null
+    }
+
+    init {
+        system = ClassLoader.getSystemClassLoader()
     }
 }

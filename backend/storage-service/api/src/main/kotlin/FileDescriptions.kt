@@ -271,6 +271,12 @@ typealias TransferQuotaResponse = Unit
 
 const val NO_QUOTA = -1L
 
+val Int.KiB: Long get() = 1024L * this
+val Int.MiB: Long get() = 1024L * 1024 * this
+val Int.GiB: Long get() = 1024L * 1024 * 1024 * this
+val Int.TiB: Long get() = 1024L * 1024 * 1024 * 1024 * this
+val Int.PiB: Long get() = 1024L * 1024 * 1024 * 1024 * 1024 * this
+
 object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"
     val wsBaseContext = "$baseContext/ws"

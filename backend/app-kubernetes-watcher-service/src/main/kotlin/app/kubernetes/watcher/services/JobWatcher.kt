@@ -48,10 +48,24 @@ class JobWatcher(
     private fun handleJobEvent(job: Job): Unit = runBlocking {
         val jobName = job.metadata.name
         val condition = job.status?.conditions?.firstOrNull()?.let { cond ->
-            JobCondition(cond.type, cond.reason)
+            JobCondition(
+                cond.type,
+                cond.reason,
+                isActive = job.status.active != null && job.status.active != 0,
+                isFailed = job.status.failed != null && job.status.failed != 0
+            )
         }
 
         log.info("Handling event: $jobName $condition")
+
+        log.debug("startTime: ${job.status.startTime}")
+        log.debug("active: ${job.status.active}")
+        log.debug("completionTime: ${job.status.completionTime}")
+        log.debug("succeeded: ${job.status.succeeded}")
+        log.debug("failed: ${job.status.failed}")
+        log.debug("conditions (type): ${job.status.conditions.map { it.type }}")
+        log.debug("conditions (message): ${job.status.conditions.map { it.message }}")
+        log.debug("conditions (reason): ${job.status.conditions.map { it.reason }}")
         producer.produce(JobEvent(jobName, condition))
     }
 

@@ -7,7 +7,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 
 data class Configuration(
-    val backends: List<ApplicationBackend> = emptyList(),
+    val backends: List<ApplicationBackend> = listOf(ApplicationBackend("kubernetes")),
     val defaultBackend: String = "kubernetes"
 )
 

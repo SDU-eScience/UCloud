@@ -65,7 +65,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 import org.testcontainers.containers.GenericContainer
-import org.testcontainers.containers.wait.strategy.HttpWaitStrategy
 import org.testcontainers.elasticsearch.ElasticsearchContainer
 import org.testcontainers.utility.Base58
 import redis.embedded.RedisExecProvider
@@ -73,10 +72,8 @@ import redis.embedded.RedisServer
 import redis.embedded.util.OS
 import java.io.File
 import java.net.DatagramSocket
-import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.nio.file.Files
-import java.time.Duration
 import java.util.*
 import javax.swing.JLabel
 import javax.swing.JOptionPane
@@ -114,7 +111,7 @@ class CephContainer : GenericContainer<CephContainer?>("ceph/daemon") {
     }
 }
 
-class K3sContainer : GenericContainer<K3sContainer?>("rancher/k3s") {
+class K3sContainer : GenericContainer<K3sContainer?>("rancher/k3s:v1.16.13-rc3-k3s1-amd64") {
     init {
         withPrivilegedMode(true)
         addExposedPort(6443)
@@ -125,6 +122,7 @@ class K3sContainer : GenericContainer<K3sContainer?>("rancher/k3s") {
             )
         )
         withCommand("server")
+        withFileSystemBind(UCloudLauncher.cephfsHome, UCloudLauncher.cephfsHome)
     }
 }
 
@@ -147,7 +145,7 @@ object UCloudLauncher : Loggable {
     private lateinit var k3sContainer: K3sContainer
 
     private val tempDir = Files.createTempDirectory("integration").toFile().also { it.deleteOnExit() }
-    private val CEPHFS_HOME = File(tempDir, "cephfs").absolutePath
+    val cephfsHome = File(tempDir, "cephfs").absolutePath
     private const val REDIS_PORT = 44231
     lateinit var micro: Micro
     private lateinit var redisServer: RedisServer
@@ -235,7 +233,7 @@ object UCloudLauncher : Loggable {
 
                 launch {
                     // Ceph or normal file system
-                    File(CEPHFS_HOME).mkdirs()
+                    File(cephfsHome).mkdirs()
 
                     if (Platform.isLinux() && shouldRunCeph) {
                         isRunningCeph = true
@@ -269,11 +267,11 @@ object UCloudLauncher : Loggable {
                             Thread.sleep(100)
                         }
 
-                        if (sudo("ceph-fuse", CEPHFS_HOME)!!.waitFor() != 0) throw IllegalStateException()
+                        if (sudo("ceph-fuse", cephfsHome)!!.waitFor() != 0) throw IllegalStateException()
                         if (sudo(
                                 "chown",
                                 "$uid:$uid",
-                                CEPHFS_HOME,
+                                cephfsHome,
                                 "-R"
                             )!!.waitFor() != 0
                         ) throw IllegalStateException()
@@ -336,7 +334,7 @@ object UCloudLauncher : Loggable {
             """
                 ---
                 ceph:
-                  cephfsBaseMount: $CEPHFS_HOME
+                  cephfsBaseMount: $cephfsHome
             """.trimIndent()
         )
 
@@ -377,17 +375,17 @@ object UCloudLauncher : Loggable {
         redisServer.stop()
         TestDB.db.close()
         if (isRunningCeph) {
-            sudo("umount", "-f", CEPHFS_HOME)
+            sudo("umount", "-f", cephfsHome)
             ceph.close()
         }
     }
 
     suspend fun wipeDatabases() {
-        File(CEPHFS_HOME, "home").apply {
+        File(cephfsHome, "home").apply {
             require(deleteRecursively())
             require(mkdirs())
         }
-        File(CEPHFS_HOME, "projects").apply {
+        File(cephfsHome, "projects").apply {
             require(deleteRecursively())
             require(mkdirs())
         }
@@ -568,12 +566,15 @@ object UCloudLauncher : Loggable {
             if (k3sContainer.execInContainer("stat", "/etc/rancher/k3s/k3s.yaml").exitCode == 0) break
             Thread.sleep(100)
         }
-        k3sContainer.copyFileFromContainer("/etc/rancher/k3s/k3s.yaml", File(tempDir, "k3s.yml").absolutePath)
+        val target = File(tempDir, "k3s.yml") // .also { it.deleteOnExit() }
+        k3sContainer.copyFileFromContainer("/etc/rancher/k3s/k3s.yaml", target.absolutePath)
+        val correctConfig = target.readText().replace("127.0.0.1:6443", "127.0.0.1:${k3sContainer.getMappedPort(6443)}")
+        target.writeText(correctConfig)
         isK8sRunning = true
 
         runBlocking {
             AppKubernetesDescriptions.reload.call(
-                ReloadRequest(CEPHFS_HOME),
+                ReloadRequest(cephfsHome),
                 serviceClient
             ).orThrow()
 
