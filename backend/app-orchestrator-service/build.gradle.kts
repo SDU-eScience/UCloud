@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":accounting-service:api"))
     implementation(project(":storage-service:api"))
     implementation(project(":project-service:api"))
+    implementation(project(":mail-service:api"))
     implementation("com.vladmihalcea:hibernate-types-52:2.4.1")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
 }

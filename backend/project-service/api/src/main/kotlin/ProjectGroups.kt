@@ -32,6 +32,7 @@ data class ListGroupsWithSummaryRequest(
 ) : WithPaginationRequest
 typealias ListGroupsWithSummaryResponse = Page<GroupWithSummary>
 data class GroupWithSummary(val groupId: String, val groupTitle: String, val numberOfMembers: Int)
+data class ProjectAndGroup(val project: Project, val group: ProjectGroup)
 
 data class DeleteGroupsRequest(val groups: Set<String>)
 typealias DeleteGroupsResponse = Unit
@@ -74,6 +75,18 @@ typealias GroupCountResponse = Long
 
 data class ViewGroupRequest(val id: String)
 typealias ViewGroupResponse = GroupWithSummary
+
+data class LookupByGroupTitleRequest(
+    val projectId: String,
+    val title: String
+)
+typealias LookupByGroupTitleResponse = GroupWithSummary
+
+data class LookupProjectAndGroupRequest(
+    val project: String,
+    val group: String
+)
+typealias LookupProjectAndGroupResponse = ProjectAndGroup
 
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
@@ -342,6 +355,60 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
 
             params {
                 +boundTo(ViewGroupRequest::id)
+            }
+        }
+    }
+
+    /**
+     * Look up project group by title
+     *
+     * Only [Roles.PRIVILEGED] can call this endpoint. It is intended for services which need to verify that their input
+     * is valid.
+     */
+    val lookupByTitle = call<LookupByGroupTitleRequest, LookupByGroupTitleResponse, CommonErrorMessage>("lookupByTitle") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"lookup-by-title"
+            }
+
+            params {
+                +boundTo(LookupByGroupTitleRequest::projectId)
+                +boundTo(LookupByGroupTitleRequest::title)
+            }
+        }
+    }
+
+    /**
+     * Look up a project and group
+     *
+     * Only [Roles.PRIVILEGED] can call this endpoint. It is intended for services which need to look up a
+     * project and group, which is not necessarily the active project.
+     */
+    val lookupProjectAndGroup = call<LookupProjectAndGroupRequest, LookupProjectAndGroupResponse, CommonErrorMessage>("lookupProjectAndGroup") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"lookup-project-and-group"
+            }
+
+            params {
+                +boundTo(LookupProjectAndGroupRequest::project)
+                +boundTo(LookupProjectAndGroupRequest::group)
             }
         }
     }

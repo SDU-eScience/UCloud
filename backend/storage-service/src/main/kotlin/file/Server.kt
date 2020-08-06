@@ -70,10 +70,10 @@ class Server(
         val metadataService = MetadataService(db, metadataDao)
         val projectCache = ProjectCache(client)
         val newAclService = AclService(metadataService, homeFolderService, client, projectCache)
-        val limitChecker = LimitChecker(db, newAclService, projectCache, client, config.product)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
         val fs = LinuxFS(fsRootFile, newAclService, cephConfig)
+        val limitChecker = LimitChecker(db, newAclService, projectCache, client, config.product, fs, processRunner)
         val coreFileSystem =
             CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService, limitChecker)
 

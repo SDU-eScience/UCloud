@@ -5,19 +5,13 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.project.api.GroupExistsResponse
-import dk.sdu.cloud.project.api.IsMemberResponse
-import dk.sdu.cloud.project.api.ProjectGroups
-import dk.sdu.cloud.project.api.ViewGroupResponse
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.services.GroupService
 import dk.sdu.cloud.project.services.ProjectException
-import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.project.services.QueryService
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.toActor
+import dk.sdu.cloud.service.*
 
 class GroupController(
     private val db: DBContext,
@@ -114,6 +108,22 @@ class GroupController(
                     project,
                     request.id
                 )
+            )
+        }
+
+        implement(ProjectGroups.lookupByTitle) {
+            ok(
+                queries.lookupGroupByTitle(
+                    db,
+                    request.projectId,
+                    request.title
+                )
+            )
+        }
+
+        implement(ProjectGroups.lookupProjectAndGroup) {
+            ok(
+                queries.lookupProjectAndGroup(db, request.project, request.group)
             )
         }
     }

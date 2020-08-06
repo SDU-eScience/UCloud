@@ -72,6 +72,13 @@ data class SetBalanceRequest(
 
 typealias SetBalanceResponse = Unit
 
+data class SetNotificationSentRequest(
+    val wallet: Wallet,
+    val sent: Boolean
+)
+
+typealias SetNotificationSentResponse = Unit
+
 data class ReserveCreditsRequest(
     val jobId: String,
     val amount: Long,

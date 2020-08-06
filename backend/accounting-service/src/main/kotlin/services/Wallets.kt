@@ -1,9 +1,10 @@
 package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.Utils.CREDITS_NOTIFY_LIMIT
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
@@ -20,8 +21,8 @@ object WalletTable : SQLTable("wallets") {
     val accountType = text("account_type", notNull = true)
     val productCategory = text("product_category", notNull = true)
     val productProvider = text("product_provider", notNull = true)
-
     val balance = long("balance", notNull = true)
+    val lowFundsNotificationSend = bool("low_funds_notifications_send", notNull = true)
 }
 
 object TransactionTable : SQLTable("transactions") {
@@ -54,7 +55,8 @@ object TransactionTable : SQLTable("transactions") {
 
 class BalanceService(
     private val projectCache: ProjectCache,
-    private val verificationService: VerificationService
+    private val verificationService: VerificationService,
+    private val client: AuthenticatedClient
 ) {
     suspend fun requirePermissionToReadBalance(
         ctx: DBContext,
@@ -264,6 +266,7 @@ class BalanceService(
                     set(WalletTable.productCategory, account.paysFor.id)
                     set(WalletTable.productProvider, account.paysFor.provider)
                     set(WalletTable.balance, amount)
+                    set(WalletTable.lowFundsNotificationSend, false)
                 }
 
                 return@withSession
@@ -289,6 +292,63 @@ class BalanceService(
                             product_provider = :productProvider
                     """
                 )
+        }
+        resetLowFundsNotificationIfNeeded(ctx, account)
+    }
+
+    suspend fun resetLowFundsNotificationIfNeeded(
+        ctx: DBContext,
+        account: Wallet
+    ) {
+        ctx.withSession { session ->
+            val wallet = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("id", account.id)
+                        setParameter("type", account.type.name)
+                        setParameter("category", account.paysFor.id)
+                        setParameter("provider", account.paysFor.provider)
+                    },
+                    """
+                        SELECT * 
+                        FROM wallets
+                        WHERE account_id = :id 
+                            AND account_type = :type 
+                            AND product_provider = :provider 
+                            AND product_category = :category
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?: throw RPCException.fromStatusCode(
+                    HttpStatusCode.NotFound,
+                    "Not able to get balance"
+                )
+            val balance = wallet.getField(WalletTable.balance)
+            val notified = wallet.getField(WalletTable.lowFundsNotificationSend)
+
+            if (balance >= CREDITS_NOTIFY_LIMIT && notified) {
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("id", account.id)
+                            setParameter("type", account.type.name)
+                            setParameter("category", account.paysFor.id)
+                            setParameter("provider", account.paysFor.provider)
+                            setParameter("status", false)
+                        },
+                        """
+                            UPDATE wallets   
+                            SET low_funds_notifications_send = :status
+                            WHERE account_id = :id 
+                            AND account_type = :type 
+                            AND product_provider = :provider 
+                            AND product_category = :category
+                        """
+                    )
+            } else {
+                //DO Nothing since balance is high and notification does not need to be reset.
+            }
         }
     }
 
@@ -325,6 +385,7 @@ class BalanceService(
             if (rowsAffected < 1) {
                 setBalance(session, initiatedBy, account, 0L, amount)
             }
+            resetLowFundsNotificationIfNeeded(ctx, account)
         }
     }
 
@@ -543,12 +604,13 @@ class BalanceService(
                         setParameter("amount", request.amount)
                         setParameter("prodCategory", request.destinationAccount.paysFor.id)
                         setParameter("prodProvider", request.destinationAccount.paysFor.provider)
+                        setParameter("sent", false)
                     },
 
                     """
-                        insert into wallets (account_id, account_type, product_category, product_provider, balance) 
-                        values (:destId, 'USER', :prodCategory, :prodProvider, :amount)
-                        on conflict (account_id, account_type, product_category, product_provider)
+                        insert into wallets (account_id, account_type, product_category, product_provider, balance, low_funds_notifications_send) 
+                        values (:destId, 'USER', :prodCategory, :prodProvider, :amount, :sent)
+                        on conflict (account_id, account_type, product_category, product_provider, low_funds_notifications_send)
                         do update set balance = wallets.balance + excluded.balance
                     """
                 )

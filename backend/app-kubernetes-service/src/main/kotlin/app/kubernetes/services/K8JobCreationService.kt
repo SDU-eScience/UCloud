@@ -324,12 +324,6 @@ class K8JobCreationService(
         awaitCatching(retries = 36_000, time = 100) {
             pods = k8.nameAllocator.listPods(verifiedJob.id)
             pods.isNotEmpty() && pods.all { pod ->
-                log.debug("init.state (running): ${pod.status.initContainerStatuses.map { it.state.running }}")
-                log.debug("init.state (terminated): ${pod.status.initContainerStatuses.map { it.state.terminated }}")
-                log.debug("container.state (running): ${pod.status.containerStatuses.map { it.state.running }}")
-                log.debug("container.state (terminated): ${pod.status.containerStatuses.map { it.state.terminated }}")
-                log.debug("phase: ${pod.status.phase}")
-                log.debug("message: ${pod.status.message}")
                 // Note: We are awaiting the init containers
                 val state = if (useInit) {
                     pod.status.initContainerStatuses.first().state
@@ -372,7 +366,6 @@ class K8JobCreationService(
     }
 
     private suspend fun runPostSubmissionHandlers(verifiedJob: VerifiedJob) {
-        log.debug("config 1")
         if (verifiedJob.nodes > 1) {
             // Configure multi-node applications
 
@@ -433,7 +426,6 @@ class K8JobCreationService(
             log.debug("Multi node configuration written to all nodes for ${verifiedJob.id}")
         }
 
-        log.debug("config 2")
         run {
             // Create DNS entries for all our pods
             //
@@ -441,9 +433,7 @@ class K8JobCreationService(
             // advertised to other services as being routable. Without this networking will fail in certain cases.
             // Spark is an application of such application assuming hostnames to be routable.
 
-            log.debug("config 3")
             val ourPods = awaitContainerStart(verifiedJob, useInit = verifiedJob.nodes > 1)
-            log.debug("config 4")
 
             log.debug("Found the following pods: $ourPods")
 

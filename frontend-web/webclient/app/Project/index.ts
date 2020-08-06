@@ -217,6 +217,11 @@ export interface Project {
     archived: boolean;
 }
 
+export interface ProjectGroup {
+    id: string,
+    title: string
+}
+
 export const emptyProject = (id: string): Project => ({
     id,
     title: "",

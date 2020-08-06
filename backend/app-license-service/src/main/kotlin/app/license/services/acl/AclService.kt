@@ -12,10 +12,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.project.api.GroupExistsRequest
-import dk.sdu.cloud.project.api.LookupByTitleRequest
-import dk.sdu.cloud.project.api.ProjectGroups
-import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 
@@ -85,19 +82,14 @@ class AclService(
                     throw RPCException("No project exists with that name", HttpStatusCode.BadRequest)
                 }
 
-                val groupExistsLookup = ProjectGroups.groupExists.call(
-                    GroupExistsRequest(projectInfo.id, group),
+                val groupInfo = ProjectGroups.lookupByTitle.call(
+                    LookupByGroupTitleRequest(projectInfo.id, group),
                     authenticatedClient
                 ).orRethrowAs {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    throw RPCException("No group exists with that name", HttpStatusCode.BadRequest)
                 }
 
-                if (!groupExistsLookup.exists) throw RPCException.fromStatusCode(
-                    HttpStatusCode.BadRequest,
-                    "The project group does not exist"
-                )
-
-                val entityWithId = AccessEntity(entity.user, projectInfo.id, entity.group)
+                val entityWithId = AccessEntity(entity.user, projectInfo.id, groupInfo.groupId)
 
                 dao.updatePermissions(db, serverId, entityWithId, permissions)
             } else {

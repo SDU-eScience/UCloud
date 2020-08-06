@@ -143,6 +143,66 @@ class QueryService(
         }
     }
 
+    suspend fun lookupGroupByTitle(ctx: DBContext, projectId: String, title: String): GroupWithSummary {
+        return ctx.withSession { session ->
+            val groups = session.sendPreparedStatement(
+                {
+                    setParameter("title", title)
+                    setParameter("project", projectId)
+                },
+                """
+                    select g.id, g.title, count(gm.username)
+                    from groups g left join group_members gm on g.id = gm.group_id
+                    where
+                        title = :title and project = :project
+                    group by g.id
+                """
+            ).rows
+
+            if (groups.size <= 0) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val group = groups.get(0)
+
+            GroupWithSummary(
+                group.getAs("id"),
+                group.getAs("title"),
+                group.getLong(2)?.toInt() ?: 0
+            )
+        }
+    }
+
+    suspend fun lookupProjectAndGroup(ctx: DBContext, projectId: String, groupId: String): ProjectAndGroup {
+        return ctx.withSession { session ->
+            val results = session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("group", groupId)
+                },
+                """
+                    select p.title as projecttitle, p.archived as projectarchived, p.parent as projectparent, g.title as grouptitle
+                    from projects p left join groups g on g.project = p.id
+                    where
+                        p.id = :project and g.id = :group
+                """
+            ).rows
+
+            if (results.size <= 0) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val result = results.get(0)
+
+            ProjectAndGroup(
+                Project(
+                    projectId,
+                    result.getAs("projecttitle"),
+                    result.getAs("projectparent"),
+                    result.getAs("projectarchived")
+                ),
+                ProjectGroup(
+                    groupId,
+                    result.getAs("grouptitle")
+                )
+            )
+        }
+    }
+
     suspend fun listGroupMembers(
         ctx: DBContext,
         requestedBy: String?,
@@ -933,12 +993,13 @@ class QueryService(
         title: String
     ): Project? {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                { setParameter("title", title) },
-                "select * from projects where title = :title"
-            )
-            .rows
-            .singleOrNull()?.toProject() ?: null
+            session
+                .sendPreparedStatement(
+                    { setParameter("title", title) },
+                    "select * from projects where title = :title"
+                )
+                .rows
+                .singleOrNull()?.toProject() ?: null
         }
     }
 
@@ -947,12 +1008,28 @@ class QueryService(
         title: String
     ): Project? {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                { setParameter("id", title) },
-                "select * from projects where id = :id"
-            )
+            session
+                .sendPreparedStatement(
+                    { setParameter("id", title) },
+                    "select * from projects where id = :id"
+                )
                 .rows
                 .singleOrNull()?.toProject() ?: null
+        }
+    }
+
+    suspend fun lookupByIdBulk(
+        ctx: DBContext,
+        titles: List<String>
+    ): List<Project> {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    { setParameter("ids", titles) },
+                    "select * from projects where id IN (SELECT unnest(:ids::text[]))"
+                )
+                .rows
+                .map { it.toProject() }
         }
     }
 
@@ -988,6 +1065,31 @@ class QueryService(
             val (pi, admins) = projects.getPIAndAdminsOfProject(session, projectId)
             admins.map { ProjectMember(it, ProjectRole.ADMIN) } + ProjectMember(pi, ProjectRole.PI)
         }
+    }
+
+    suspend fun lookupAdminsBulk(
+        ctx: DBContext,
+        actor: Actor,
+        projectIds: List<String>
+    ): List<Pair<String, List<ProjectMember>>> {
+        if (actor !is Actor.System && !(actor is Actor.User && actor.principal.role in Roles.PRIVILEGED)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        val projectWithAdmins = mutableListOf<Pair<String,List<ProjectMember>>>()
+        ctx.withSession { session ->
+            projectIds.forEach { projectId ->
+                val (pi, admins) = projects.getPIAndAdminsOfProject(session, projectId)
+                projectWithAdmins.add(
+                    Pair(
+                        projectId,
+                        admins.map { ProjectMember(it, ProjectRole.ADMIN) } + ProjectMember(pi, ProjectRole.PI)
+                    )
+                )
+            }
+        }
+
+        return projectWithAdmins
     }
 
     companion object : Loggable {
