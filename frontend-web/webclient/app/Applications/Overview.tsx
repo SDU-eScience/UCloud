@@ -12,7 +12,7 @@ import {Dispatch} from "redux";
 import styled from "styled-components";
 import {Page} from "Types";
 import {Box, Flex, Link, Card} from "ui-components";
-import Grid, {GridCardGroup} from "ui-components/Grid";
+import Grid from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
@@ -27,8 +27,6 @@ import * as Pages from "./Pages";
 import * as Actions from "./Redux/BrowseActions";
 import {Type as ReduxType} from "./Redux/BrowseObject";
 import * as Favorites from "./Redux/FavoriteActions";
-
-const showOtherApproaches = false;
 
 export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
@@ -144,7 +142,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
                 page={featured}
                 onPageChanged={pageNumber => fetchFeatured(featured.itemsPerPage, pageNumber)}
             />
-            {featuredTags.filter(() => showOtherApproaches).map(tag =>
+            {featuredTags.map(tag =>
                 <FeaturedTag key={tag} tag={tag} rows={1} columns={7}
                     setFavorite={async (name, version, page) => {
                         props.receiveApplications(await favoriteApplicationFromPage({
@@ -159,26 +157,6 @@ function Applications(props: ApplicationsProps): JSX.Element {
             )}
 
             {defaultTools.map(tag => <ToolGroup key={tag} tag={tag} />)}
-            <Box my="8px">
-                <GridCardGroup style={{}}>
-                    {featuredTags.filter(() => showOtherApproaches).map(tag =>
-                        <FeaturedTagAsCard
-                            key={tag}
-                            loading={props.loading}
-                            tag={tag}
-                            onFavoriteApp={async (name, version, page) => {
-                                props.receiveApplications(await favoriteApplicationFromPage({
-                                    name,
-                                    version,
-                                    client: Client,
-                                    page
-                                }));
-                                props.fetchFavorites(favorites.itemsPerPage, favorites.pageNumber);
-                            }}
-                        />
-                    )}
-                </GridCardGroup>
-            </Box>
         </>
     );
     return (<MainContainer main={main} />);
@@ -387,6 +365,7 @@ function FeaturedTag({tag, setFavorite, columns, rows}: FeaturedTagProps): JSX.E
                         <ApplicationCard
                             key={`${app.metadata.name}-${app.metadata.version}`}
                             onFavorite={(name, version) => setFavorite(name, version, page)}
+                            colorBySpecificTag={tag}
                             app={app}
                             isFavorite={false}
                             tags={app.tags}
