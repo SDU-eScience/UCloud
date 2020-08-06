@@ -52,8 +52,8 @@ class DowntimeDao {
                     },
                     """
                         DELETE FROM downtimes
-                        WHERE id = ?id
-                    """.trimIndent()
+                        WHERE id = :id
+                    """
                 ).rowsAffected
         }
         if (count == 0L) {
@@ -71,8 +71,8 @@ class DowntimeDao {
                     },
                     """
                         DELETE FROM downtimes
-                        WHERE end_time < to_timestamp(?time)
-                    """.trimIndent()
+                        WHERE end_time < to_timestamp(:time)
+                    """
                 )
         }
     }
@@ -85,7 +85,7 @@ class DowntimeDao {
                         SELECT *
                         FROM downtimes
                         ORDER BY start_time ASC
-                    """.trimIndent()
+                    """
                 ).rows
                 .paginate(paging)
                 .mapItems {
@@ -111,9 +111,9 @@ class DowntimeDao {
                     """
                         SELECT *
                         FROM downtimes
-                        WHERE end_time > to_timestamp(?time)
+                        WHERE end_time > to_timestamp(:time)
                         ORDER BY start_time
-                    """.trimIndent()
+                    """
                 ).rows
                 .paginate(paging)
                 .mapItems {
@@ -137,9 +137,10 @@ class DowntimeDao {
                     """
                         SELECT *
                         FROM downtimes
-                        WHERE id = ?id
-                    """.trimIndent()
-                ).rows.firstOrNull() ?: throw RPCException("No downtime with id found", HttpStatusCode.NotFound)
+                        WHERE id = :id
+                    """
+                ).rows
+                .firstOrNull() ?: throw RPCException("No downtime with id found", HttpStatusCode.NotFound)
         }
 
         return Downtime(

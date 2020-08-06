@@ -101,8 +101,8 @@ class LoginAttemptAsyncDao(
                     """
                         SELECT COUNT(*)
                         FROM login_attempts
-                        WHERE (username = ?username) AND
-                                (created_at >= to_timestamp(?time))
+                        WHERE (username = :username) AND
+                                (created_at >= to_timestamp(:time))
                     """
                 ).rows.singleOrNull()?.getLong(0)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "SQL did not return a count")
@@ -144,10 +144,12 @@ class LoginAttemptAsyncDao(
                     """
                         SELECT *
                         FROM login_cooldown
-                        WHERE username = ?username AND expires_at >= to_timestamp(?expire)
+                        WHERE username = :username AND expires_at >= to_timestamp(:expire)
                         ORDER BY severity DESC
-                    """.trimIndent()
-                ).rows.firstOrNull()?.toLoginCoolDown()
+                    """
+                ).rows
+                .firstOrNull()
+                ?.toLoginCoolDown()
         }
     }
 

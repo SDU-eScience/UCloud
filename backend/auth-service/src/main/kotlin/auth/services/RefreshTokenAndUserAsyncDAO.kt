@@ -91,7 +91,7 @@ class RefreshTokenAsyncDAO {
                     """
                         SELECT *
                         FROM refresh_tokens
-                        WHERE associated_user_id = ?id
+                        WHERE associated_user_id = :id
                     """
                 )
                 .rows
@@ -114,9 +114,9 @@ class RefreshTokenAsyncDAO {
                     """
                         SELECT *
                         FROM refresh_tokens
-                        WHERE token = ?token AND (
+                        WHERE token = :token AND (
                             refresh_token_expiry is NULL OR
-                            refresh_token_expiry > ?time
+                            refresh_token_expiry > :time
                         )
                     """
                 )
@@ -141,7 +141,7 @@ class RefreshTokenAsyncDAO {
                     """
                         SELECT * 
                         FROM principals
-                        WHERE id = ?user
+                        WHERE id = :user
                     """
                 )
                 .rows
@@ -181,8 +181,8 @@ class RefreshTokenAsyncDAO {
                 },
                 """
                     UPDATE refresh_tokens
-                    SET csrf = ?csrf
-                    WHERE token = ?token
+                    SET csrf = :csrf
+                    WHERE token = :token
                 """
             ).rowsAffected
         }
@@ -204,7 +204,7 @@ class RefreshTokenAsyncDAO {
                 },
                 """
                     DELETE FROM refresh_tokens
-                    WHERE token = ?token
+                    WHERE token = :token
                 """
             ).rowsAffected > 0
         }
@@ -222,7 +222,7 @@ class RefreshTokenAsyncDAO {
                     },
                     """
                         DELETE FROM refresh_tokens
-                        WHERE refresh_token_expiry < ?time
+                        WHERE refresh_token_expiry < :time
                     """
                 )
         }
@@ -245,7 +245,7 @@ class RefreshTokenAsyncDAO {
                     """
                         SELECT *
                         FROM refresh_tokens
-                        WHERE associated_user_id = ?user AND
+                        WHERE associated_user_id = :user AND
                                 extended_by is NULL
                     """
                 )
@@ -269,7 +269,7 @@ class RefreshTokenAsyncDAO {
                     },
                     """
                         DELETE FROM refresh_tokens
-                        WHERE associated_user_id = ?user AND 
+                        WHERE associated_user_id = :user AND 
                                 extended_by is NULL
                     """
                 )
