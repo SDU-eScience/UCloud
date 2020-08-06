@@ -86,7 +86,8 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
             ).promise;
 
             if (!response.ok) { // noinspection ExceptionCaughtLocallyJS
-                throw response;
+                snackbarStore.addFailure(response.statusText, false);
+                return;
             }
 
             handleAuthState(await response.json());

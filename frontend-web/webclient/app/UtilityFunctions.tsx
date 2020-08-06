@@ -444,7 +444,7 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
 }
 
 export function errorMessageOrDefault(
-    err: { request: XMLHttpRequest; response: any } | { status: number; response: string } | string,
+    err: { request: {status: number}; response: any } | { status: number; response: string } | string,
     defaultMessage: string
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";
