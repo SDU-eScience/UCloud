@@ -30,13 +30,32 @@ import io.ktor.http.HttpStatusCode
 import java.util.*
 import kotlin.math.ceil
 
-class LimitChecker(
+class LimitChecker<Ctx : FSUserContext>(
     private val db: DBContext,
     private val aclService: AclService,
     private val projectCache: ProjectCache,
     private val serviceClient: AuthenticatedClient,
-    private val productConfiguration: ProductConfiguration
+    private val productConfiguration: ProductConfiguration,
+    private val fs: LowLevelFileSystemInterface<Ctx>,
+    private val runnerFactory: FSCommandRunnerFactory<Ctx>
 ) {
+    suspend fun checkLimitAndQuota(path: String) {
+        runnerFactory.withContext(SERVICE_USER) { fsCtx ->
+            val homeDir = findHomeDirectoryFromPath(path)
+            val estimatedUsage = fs.estimateRecursiveStorageUsedMakeItFast(fsCtx, homeDir)
+            performLimitCheck(path, estimatedUsage)
+            try {
+                performQuotaCheck(path, estimatedUsage)
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.PaymentRequired) {
+                    performQuotaCheck(path, fs.calculateRecursiveStorageUsed(fsCtx, homeDir))
+                } else {
+                    throw ex
+                }
+            }
+        }
+    }
+
     suspend fun retrieveQuota(actor: Actor, path: String, ctx: DBContext = db): Quota {
         return ctx.withSession { session ->
             when (actor) {

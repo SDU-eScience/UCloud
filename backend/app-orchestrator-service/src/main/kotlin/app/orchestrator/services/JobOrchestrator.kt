@@ -259,7 +259,7 @@ class JobOrchestrator(
             } else {
                 val startedAt = job.startedAt
                 if (startedAt == null) {
-                    SimpleDuration.fromMillis(0L)
+                    SimpleDuration.fromMillis(5000L)
                 } else {
                     SimpleDuration.fromMillis(Time.now() - startedAt)
                 }

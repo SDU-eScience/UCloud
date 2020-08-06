@@ -19,12 +19,14 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatProperty
+import io.ktor.http.HttpStatusCode
 import io.ktor.util.toByteArray
 import kotlinx.coroutines.io.ByteReadChannel
 import org.junit.Ignore
@@ -136,7 +138,6 @@ object SampleApplications {
 
 class ApplicationTest : IntegrationTest() {
     @Test
-    @Ignore
     fun `test figlet`() = t {
         UCloudLauncher.requireK8s()
         SampleApplications.create()
@@ -190,7 +191,6 @@ class ApplicationTest : IntegrationTest() {
     }
 
     @Test
-    @Ignore
     fun `test accounting with job timeout`() = t {
         UCloudLauncher.requireK8s()
         SampleApplications.create()
@@ -243,7 +243,7 @@ class ApplicationTest : IntegrationTest() {
         val wbAfter = findProjectWallet(project.projectId, project.piClient, sampleCompute.category)
             ?: error("Could not find wallet")
 
-        assertEquals(wbAfter.balance - sampleCompute.pricePerUnit, wbBefore.balance)
+        assertEquals(wbBefore.balance - sampleCompute.pricePerUnit, wbAfter.balance)
 
         assertThatInstance(finalJob, "has a correct output folder") { resp ->
             val outputFolder = resp.outputFolder
@@ -256,5 +256,92 @@ class ApplicationTest : IntegrationTest() {
                 )
             )
         }
+    }
+
+    @Test
+    fun `test accounting in project (user of project)`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val rootProject = initializeRootProject()
+
+        val project = initializeNormalProject(rootProject)
+        setProjectQuota(project.projectId, 10.GiB)
+
+        val user = createUser()
+        addMemberToProject(project.projectId, project.piClient, user.client, user.username)
+
+        val wbBefore = findProjectWallet(project.projectId, project.piClient, sampleCompute.category)
+            ?: error("Could not find wallet")
+
+        val jobId = JobDescriptions.start.call(
+            StartJobRequest(
+                SampleApplications.figlet,
+                parameters = SampleApplications.figletParams("Hello"),
+                reservation = sampleCompute.id
+            ),
+            user.client.withProject(project.projectId)
+        ).orThrow().jobId
+
+        val finalJob = waitForJob(jobId, user.client.withProject(project.projectId))
+
+        val wbAfter = findProjectWallet(project.projectId, project.piClient, sampleCompute.category)
+            ?: error("Could not find wallet")
+
+        assertEquals(wbBefore.balance - sampleCompute.pricePerUnit, wbAfter.balance)
+
+        assertThatInstance(finalJob, "has a correct output folder") { resp ->
+            val outputFolder = resp.outputFolder
+            outputFolder != null && outputFolder.startsWith(
+                joinPath(
+                    projectHomeDirectory(project.projectId),
+                    PERSONAL_REPOSITORY,
+                    user.username,
+                    isDirectory = true
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `test accounting when no resources`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val rootProject = initializeRootProject()
+        val user = createUser()
+        setPersonalQuota(rootProject, user.username, 10.GiB) // Set a quota but don't add funds
+
+        assertThatInstance(
+            JobDescriptions.start.call(
+                StartJobRequest(
+                    SampleApplications.figlet,
+                    parameters = SampleApplications.figletParams("Hello"),
+                    reservation = sampleCompute.id
+                ),
+                user.client
+            ),
+            "fails with payment required"
+        ) { it.statusCode == HttpStatusCode.PaymentRequired }
+    }
+
+    @Test
+    fun `test accounting when no remaining quota`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val rootProject = initializeRootProject()
+        val user = createUser()
+        addFundsToPersonalProject(rootProject, user.username, sampleCompute.category, 10_000.DKK)
+        setPersonalQuota(rootProject, user.username, 0.GiB) // add funds but no quota
+
+        assertThatInstance(
+            JobDescriptions.start.call(
+                StartJobRequest(
+                    SampleApplications.figlet,
+                    parameters = SampleApplications.figletParams("Hello"),
+                    reservation = sampleCompute.id
+                ),
+                user.client
+            ),
+            "fails with payment required"
+        ) { it.statusCode == HttpStatusCode.PaymentRequired }
     }
 }

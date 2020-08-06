@@ -24,7 +24,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val wsServiceClient: AuthenticatedClient,
     private val backgroundScope: BackgroundScope,
     private val metadataService: MetadataService,
-    private val limitChecker: LimitChecker
+    private val limitChecker: LimitChecker<*>
 ) {
     suspend fun write(
         ctx: Ctx,
@@ -37,7 +37,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite())
-        checkLimitAndQuota(ctx, path)
+        limitChecker.checkLimitAndQuota(path)
         fs.write(ctx, writer)
         return targetPath
     }
@@ -64,7 +64,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
         // The to stat makes sure that we have checked permissions against the target before we continue
         stat(ctx, to.parent(), setOf(StorageFileAttribute.fileType, StorageFileAttribute.size))
-        checkLimitAndQuota(ctx, to)
+        limitChecker.checkLimitAndQuota(to)
 
         if (fromStat.fileType != FileType.DIRECTORY) {
             runTask(wsServiceClient, backgroundScope, "File copy", ctx.user) {
@@ -257,21 +257,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         path: String
     ): SensitivityLevel? {
         return fs.getSensitivityLevel(ctx, path)
-    }
-
-    private suspend fun checkLimitAndQuota(ctx: Ctx, path: String) {
-        val homeDir = findHomeDirectoryFromPath(path)
-        val estimatedUsage = fs.estimateRecursiveStorageUsedMakeItFast(ctx, homeDir)
-        limitChecker.performLimitCheck(path, estimatedUsage)
-        try {
-            limitChecker.performQuotaCheck(path, estimatedUsage)
-        } catch (ex: RPCException) {
-            if (ex.httpStatusCode == HttpStatusCode.PaymentRequired) {
-                limitChecker.performQuotaCheck(path, fs.calculateRecursiveStorageUsed(ctx, homeDir))
-            } else {
-                throw ex
-            }
-        }
     }
 
     private suspend fun renameAccordingToPolicy(

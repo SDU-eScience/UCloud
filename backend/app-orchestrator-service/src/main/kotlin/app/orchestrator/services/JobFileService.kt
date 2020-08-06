@@ -104,7 +104,7 @@ class JobFileService(
                 policy = WriteConflictPolicy.RENAME
             ),
             userClient
-        )
+        ).orThrow()
     }
 
     suspend fun acceptFile(
@@ -253,8 +253,6 @@ class JobFileService(
 
         val mounts = job.mounts.map { it.toMountName() } + job.files.map { it.toMountName() }
         val userClient = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
-        log.debug("access" + jobWithToken.accessToken)
-        log.debug("refresh" + jobWithToken.refreshToken)
 
         mounts.forEach { mountName ->
             FileDescriptions.deleteFile.call(
