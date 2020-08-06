@@ -115,7 +115,6 @@ class GroupController(
             ok(
                 queries.lookupGroupByTitle(
                     db,
-                    ctx.securityPrincipal.username,
                     request.projectId,
                     request.title
                 )
@@ -124,7 +123,7 @@ class GroupController(
 
         implement(ProjectGroups.lookupProjectAndGroup) {
             ok(
-                queries.lookupProjectAndGroup(db, ctx.securityPrincipal.toActor(), request.project, request.group)
+                queries.lookupProjectAndGroup(db, request.project, request.group)
             )
         }
     }

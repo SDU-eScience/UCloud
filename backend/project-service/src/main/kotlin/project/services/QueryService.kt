@@ -143,7 +143,7 @@ class QueryService(
         }
     }
 
-    suspend fun lookupGroupByTitle(ctx: DBContext, requestedBy: String, projectId: String, title: String): GroupWithSummary {
+    suspend fun lookupGroupByTitle(ctx: DBContext, projectId: String, title: String): GroupWithSummary {
         return ctx.withSession { session ->
             val groups = session.sendPreparedStatement(
                 {
@@ -170,7 +170,7 @@ class QueryService(
         }
     }
 
-    suspend fun lookupProjectAndGroup(ctx: DBContext, actor: Actor, projectId: String, groupId: String): ProjectAndGroup {
+    suspend fun lookupProjectAndGroup(ctx: DBContext, projectId: String, groupId: String): ProjectAndGroup {
         return ctx.withSession { session ->
             val results = session.sendPreparedStatement(
                 {
