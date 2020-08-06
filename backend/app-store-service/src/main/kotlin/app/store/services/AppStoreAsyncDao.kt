@@ -242,41 +242,23 @@ class AppStoreAsyncDao(
         projectGroups: List<String>,
         fileExtensions: Set<String>
     ): List<ApplicationWithExtension> {
-        var query = ""
-        query += """
-            SELECT A.*
-            FROM favorited_by as F,
-                applications as A
-            WHERE F.the_user = :user
-              AND F.application_name = A.name
-              AND F.application_version = A.version
-              AND (A.application -> 'applicationType' = '"WEB"'
-                OR A.application -> 'applicationType' = '"VNC"'
-              ) and (
-        """
-
-        for (index in fileExtensions.indices) {
-            query += """ A.application -> 'fileExtensions' @> jsonb_build_array(cast(:ext$index as text)) """
-            if (index != fileExtensions.size - 1) {
-                query += "OR "
-            }
-        }
-
-        query += """
-              )
-        """
-
-
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
                         setParameter("user", user.username)
-                        fileExtensions.forEachIndexed { index, ext ->
-                            setParameter("ext$index", ext)
-                        }
+                        setParameter("ext", fileExtensions.toList())
                     },
-                    query
+                    """
+                        SELECT *
+                            FROM favorited_by as F,
+                            applications as A
+                        WHERE F.the_user = :user
+                            AND F.application_name = A.name
+                            AND F.application_version = A.version
+                            AND (A.application -> 'applicationType' = '"WEB"' OR A.application -> 'applicationType' = '"VNC"') 
+                            AND (A.application -> 'fileExtensions' ??| :ext::text[])
+                    """
                 )
                 .rows
                 .toList()

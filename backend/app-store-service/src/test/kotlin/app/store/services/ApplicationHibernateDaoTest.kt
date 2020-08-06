@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
@@ -623,12 +624,12 @@ class ApplicationHibernateDaoTest {
     @Test
     fun `Find by supported file ext test CC only`() {
         runBlocking {
-            db.withTransaction {
-                val toolDao = ToolAsyncDao()
-                val aclDao = AclAsyncDao()
-                val publicDao = ApplicationPublicAsyncDao()
-                val appDAO = AppStoreAsyncDao(toolDao, aclDao, publicDao)
-
+            val toolDao = ToolAsyncDao()
+            val aclDao = AclAsyncDao()
+            val publicDao = ApplicationPublicAsyncDao()
+            val appDAO = AppStoreAsyncDao(toolDao, aclDao, publicDao)
+            val favorite = FavoriteAsyncDao(publicDao, aclDao)
+            db.withSession {
                 toolDao.create(
                     it,
                     TestUsers.admin,
@@ -639,21 +640,95 @@ class ApplicationHibernateDaoTest {
                 appDAO.create(
                     it,
                     TestUsers.admin,
-                    normAppDesc.copy(invocation = normAppDesc.invocation.copy(fileExtensions = listOf("exe", "cpp"))),
+                    normAppDesc.copy(invocation = normAppDesc.invocation.copy(fileExtensions = listOf(".exe", ".cpp"))),
                     "original"
                 )
 
-                try {
-                    appDAO.findBySupportedFileExtension(
+                appDAO.create(
+                    it,
+                    TestUsers.admin,
+                    normAppDesc.copy(
+                        metadata = normAppDesc.metadata.copy(version = "2.6"),
+                        invocation = normAppDesc.invocation.copy(fileExtensions = listOf(".json", ".exe"))
+                    ),
+                    "original"
+                )
+            }
+            db.withSession {
+                favorite.toggleFavorite(
+                    it,
+                    TestUsers.admin,
+                    null,
+                    emptyList(),
+                    normAppDesc.metadata.name,
+                    normAppDesc.metadata.version
+                )
+                favorite.toggleFavorite(
+                    it,
+                    TestUsers.admin,
+                    null,
+                    emptyList(),
+                    normAppDesc.metadata.name,
+                    "2.6"
+                )
+            }
+            db.withSession {
+                val notFound = appDAO.findBySupportedFileExtension(
                         it,
                         TestUsers.admin,
                         null,
                         emptyList(),
                         setOf("kt")
                     )
-                } catch (ex: Exception) {
-                    //Do nothing
-                }
+                assertEquals(0, notFound.size)
+
+                val found = appDAO.findBySupportedFileExtension(
+                    it,
+                    TestUsers.admin,
+                    null,
+                    emptyList(),
+                    setOf(".cpp")
+                )
+
+                assertEquals(1, found.size)
+                assertEquals(normAppDesc.metadata.version, found.first().metadata.version)
+
+                val foundMulti = appDAO.findBySupportedFileExtension(
+                    it,
+                    TestUsers.admin,
+                    null,
+                    emptyList(),
+                    setOf(".exe")
+                )
+                assertEquals(2, foundMulti.size)
+
+                val foundDiffExt = appDAO.findBySupportedFileExtension(
+                    it,
+                    TestUsers.admin,
+                    null,
+                    emptyList(),
+                    setOf(".json", ".cpp")
+                )
+                assertEquals(2, foundDiffExt.size)
+
+                favorite.toggleFavorite(
+                    it,
+                    TestUsers.admin,
+                    null,
+                    emptyList(),
+                    normAppDesc.metadata.name,
+                    "2.6"
+                )
+            }
+            db.withSession {
+                val foundDiffExtAfterToggle = appDAO.findBySupportedFileExtension(
+                    it,
+                    TestUsers.admin,
+                    null,
+                    emptyList(),
+                    setOf(".json", ".cpp")
+                )
+                assertEquals(1, foundDiffExtAfterToggle.size)
             }
         }
     }
