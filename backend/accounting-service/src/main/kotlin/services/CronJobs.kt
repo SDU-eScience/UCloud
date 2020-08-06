@@ -32,7 +32,7 @@ class CronJobs(
 ) {
     private val LOW_FUNDS_SUBJECT = "Project low on resource"
 
-    suspend fun  notifyLowFundsWallets() {
+    suspend fun notifyLowFundsWallets() {
         db.withSession { session ->
             session
                 .sendPreparedStatement(

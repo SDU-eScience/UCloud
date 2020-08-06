@@ -293,10 +293,10 @@ class BalanceService(
                     """
                 )
         }
-        checkBalanceAndNotification(ctx, account)
+        resetLowFundsNotificationIfNeeded(ctx, account)
     }
 
-    suspend fun checkBalanceAndNotification(
+    suspend fun resetLowFundsNotificationIfNeeded(
         ctx: DBContext,
         account: Wallet
     ) {
@@ -385,7 +385,7 @@ class BalanceService(
             if (rowsAffected < 1) {
                 setBalance(session, initiatedBy, account, 0L, amount)
             }
-            checkBalanceAndNotification(ctx, account)
+            resetLowFundsNotificationIfNeeded(ctx, account)
         }
     }
 

@@ -39,7 +39,7 @@ class Server(
                     jobs.notifyLowFundsWallets()
                 }
                 exitProcess(0)
-            } catch (ex: Exception) {
+            } catch (ex: Throwable) {
                 log.warn(ex.stackTraceToString())
                 exitProcess(1)
             }
