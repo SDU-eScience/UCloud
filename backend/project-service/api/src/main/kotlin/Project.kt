@@ -7,6 +7,11 @@ data class Project(
     val archived: Boolean
 )
 
+data class ProjectGroup(
+    val id: String,
+    val title: String
+)
+
 data class ProjectMember(
     val username: String,
     val role: ProjectRole

@@ -143,6 +143,66 @@ class QueryService(
         }
     }
 
+    suspend fun lookupGroupByTitle(ctx: DBContext, requestedBy: String, projectId: String, title: String): GroupWithSummary {
+        return ctx.withSession { session ->
+            val groups = session.sendPreparedStatement(
+                {
+                    setParameter("title", title)
+                    setParameter("project", projectId)
+                },
+                """
+                    select g.id, g.title, count(gm.username)
+                    from groups g left join group_members gm on g.id = gm.group_id
+                    where
+                        title = :title and project = :project
+                    group by g.id
+                """
+            ).rows
+
+            if (groups.size <= 0) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val group = groups.get(0)
+
+            GroupWithSummary(
+                group.getAs("id"),
+                group.getAs("title"),
+                group.getLong(2)?.toInt() ?: 0
+            )
+        }
+    }
+
+    suspend fun lookupProjectAndGroup(ctx: DBContext, actor: Actor, projectId: String, groupId: String): ProjectAndGroup {
+        return ctx.withSession { session ->
+            val results = session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("group", groupId)
+                },
+                """
+                    select p.title as projecttitle, p.archived as projectarchived, p.parent as projectparent, g.title as grouptitle
+                    from projects p left join groups g on g.project = p.id
+                    where
+                        p.id = :project and g.id = :group
+                """
+            ).rows
+
+            if (results.size <= 0) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val result = results.get(0)
+
+            ProjectAndGroup(
+                Project(
+                    projectId,
+                    result.getAs("projecttitle"),
+                    result.getAs("projectparent"),
+                    result.getAs("projectarchived")
+                ),
+                ProjectGroup(
+                    groupId,
+                    result.getAs("grouptitle")
+                )
+            )
+        }
+    }
+
     suspend fun listGroupMembers(
         ctx: DBContext,
         requestedBy: String?,
