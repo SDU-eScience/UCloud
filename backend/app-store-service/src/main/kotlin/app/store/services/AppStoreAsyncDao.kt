@@ -707,29 +707,21 @@ class AppStoreAsyncDao(
         if (embeddedNameAndVersionList.isEmpty()) {
             return emptyList()
         }
+        val names = embeddedNameAndVersionList.map { it.name }
+        val versions = embeddedNameAndVersionList.map { it.version }
+
         return ctx.withSession { session ->
-            var query = """
-                    SELECT *
-                    FROM applications
-                    WHERE 
-                """
-
-            embeddedNameAndVersionList.forEachIndexed { index, _ ->
-                query += """ (name = :name$index AND version = :version$index) """
-                if (index + 1 != embeddedNameAndVersionList.size) {
-                    query += """ OR """
-                }
-            }
-
             session
                 .sendPreparedStatement(
                     {
-                        embeddedNameAndVersionList.forEachIndexed { index, embeddedNameAndVersion ->
-                            setParameter("name$index", embeddedNameAndVersion.name)
-                            setParameter("version$index", embeddedNameAndVersion.version)
-                        }
+                        setParameter("names", names)
+                        setParameter("versions", versions)
                     },
-                    query
+                    """
+                        SELECT *
+                        FROM app_store.applications
+                        WHERE (name, version) IN (select unnest(:names::text[]), unnest(:versions::text[]))
+                    """
                 )
                 .rows
                 .map { it.toApplicationWithInvocation() }
