@@ -11,7 +11,6 @@ const RadioTilesContainer = styled(Flex)`
   overflow: hidden;
 `;
 
-
 const RadioTile = (props: RadioTileProps): JSX.Element => {
     const {height, label, icon, checked, disabled, fontSize, onChange, name} = props;
 

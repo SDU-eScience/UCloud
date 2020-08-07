@@ -1,10 +1,9 @@
 import {useAsyncCommand} from "Authentication/DataHook";
-import {deleteMemberInProject, inviteMember, listOutgoingInvites, ProjectRole, rejectInvite, viewProject} from "Project/index";
+import {deleteMemberInProject, inviteMember, listOutgoingInvites, ProjectRole, rejectInvite} from "Project/index";
 import * as React from "react";
 import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
-import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {Button, Flex, Icon, Input, Absolute, Label, Relative} from "ui-components";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/index";
@@ -24,7 +23,6 @@ const SearchContainer = styled(Flex)`
         margin-bottom: 10px;
     }
 `;
-
 
 const MembersPanel: React.FunctionComponent = () => {
     const {
