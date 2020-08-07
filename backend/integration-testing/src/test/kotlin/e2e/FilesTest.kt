@@ -51,4 +51,19 @@ class FilesTest : EndToEndTest() {
         driver.goToFiles()
         driver.uploadFile("foo.txt")
     }
+
+    @Test
+    fun `Folder navigation`() = e2e {
+        val user = createUser()
+        val folder1 = "foo"
+        val folder2 = "bar"
+        val folder3 = "baz"
+        createDir("/home/${user.username}/$folder1", user)
+        createDir("/home/${user.username}/$folder1/$folder2", user)
+        createDir("/home/${user.username}/$folder1/$folder2/$folder3", user)
+        driver.get("$address/app")
+        driver.login(user.username, user.password)
+        driver.goToFiles()
+        driver.navigateThroughFolders(listOf(folder1, folder2, folder3))
+    }
 }

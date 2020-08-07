@@ -55,6 +55,16 @@ suspend fun WebDriver.renameFile(fileName: String) {
     awaitElements(By.xpath("//div[text()='$fileName-2']"))
 }
 
+suspend fun WebDriver.navigateThroughFolders(folders: List<String>) {
+    folders.forEach { path ->
+        navigateToFolder(path)
+    }
+}
+
+suspend fun WebDriver.navigateToFolder(folderName: String) {
+    awaitElement(By.xpath("//div[text()='$folderName']")).click()
+}
+
 suspend fun WebDriver.uploadFile(fileName: String) {
     retrySection {
         // This is for some reason prone to being stale.
@@ -85,5 +95,8 @@ suspend fun WebDriver.selectFolder(folderName: String) {
 }
 
 suspend fun createDir(directoryPath: String, user: CreatedUser) {
-    println(FileDescriptions.createDirectory.call(CreateDirectoryRequest(directoryPath, user.username), user.client))
+    val foo = FileDescriptions.createDirectory.call(CreateDirectoryRequest(directoryPath, user.username), user.client)
+    println("-----------------------------------")
+    println(foo.statusCode)
+    println("-----------------------------------")
 }
