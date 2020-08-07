@@ -1,1 +1,0 @@
-docker run --rm -it -v `pwd`:/usr/src/app -v ~/.gradle/gradle.properties:/root/.gradle/gradle.properties -v ~/.m2/:/root/.m2 -v ~/sducloud:/root/sducloud -v ~/sducloud-docker:/root/config -p 8001:8001 storage-dev:latest bash

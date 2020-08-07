@@ -20,6 +20,7 @@ import {usePromiseKeeper} from "PromiseKeeper";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {useCloudAPI} from "Authentication/DataHook";
 import {ProjectName} from "Project";
+import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "styled-system";
 
 interface StandardDialog {
     title?: string;
@@ -622,3 +623,60 @@ export function MasterCheckbox({onClick, checked}: MasterCheckbox): JSX.Element 
         </Label>
     );
 }
+
+const loremText = `
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam fringilla ipsum sem, id egestas risus mollis nec.
+    Quisque sed efficitur lectus. Vestibulum magna erat, auctor at malesuada ut, scelerisque nec quam. Nam mattis at
+    turpis nec vestibulum. Donec vel sapien tempus, porta odio sed, tincidunt metus. Integer ex turpis, pharetra at
+    pellentesque ut, suscipit ut tortor. In hac habitasse platea dictumst. Morbi blandit fermentum gravida. Proin in
+    ultricies mi, sed bibendum dui. Ut eros risus, ultrices vel nisi ac, sodales dictum arcu. Donec mattis urna nec
+    arcu posuere efficitur. Integer luctus ac tellus non tempus. Proin sodales volutpat auctor. Nam laoreet, tellus
+    in sodales egestas, odio ante bibendum odio, vel elementum ipsum quam at neque. Aliquam nec nisl sodales, placerat
+    odio sit amet, aliquam metus.
+
+    Aenean at nunc venenatis, ultricies ex id, varius enim. Fusce lacinia vulputate est vel bibendum. Ut at consequat
+    nulla. Sed placerat erat dolor, in molestie neque egestas nec. Nulla rhoncus, mauris vitae hendrerit volutpat,
+    dui mauris scelerisque quam, id rutrum tortor elit nec nunc. Etiam id elementum metus, a tristique mi. Aenean
+    imperdiet, quam ac tempus feugiat, magna tellus tristique mauris, at vehicula quam mi vel nunc. Maecenas volutpat
+    aliquam elit, eget elementum lorem interdum at.
+
+    Vestibulum id lacus vitae nisi tristique tincidunt. Maecenas facilisis turpis vel metus auctor, in imperdiet dolor
+    ultrices. Integer venenatis hendrerit vehicula. Integer id mauris erat. Vivamus posuere sollicitudin purus, vitae
+    interdum massa posuere ut. Etiam et eleifend diam, in luctus diam. Aenean volutpat sem id lacus imperdiet malesuada.
+    Morbi vulputate est eget leo luctus gravida. Aenean commodo a libero a feugiat. Ut ullamcorper elementum ex, quis
+    ultrices nulla congue scelerisque. Phasellus bibendum eu metus ut efficitur.
+
+    Praesent tempor ipsum ac euismod consequat. Quisque semper tortor ac magna aliquam, consectetur pretium sapien
+    suscipit. Phasellus eu augue eget massa gravida feugiat sed sit amet ipsum. Aenean condimentum aliquam sapien vel
+    suscipit. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Orci varius
+    natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer scelerisque sem leo, nec bibendum
+    elit vestibulum ut. Phasellus lacinia venenatis sollicitudin.
+
+    Pellentesque molestie varius fermentum. In eu purus non lacus tincidunt lacinia. In hac habitasse platea dictumst.
+    Quisque blandit sed nulla at accumsan. Donec finibus est eros, euismod iaculis diam porttitor ac. Duis nec arcu
+    eleifend, ullamcorper quam et, ultricies metus. Vivamus non justo id quam lobortis volutpat.
+`.split(" ").map(it => it.trim());
+
+export const Lorem: React.FunctionComponent<{ maxLength?: number }> = ({maxLength = 240}) => {
+    let builder: string = "";
+    let length = 0;
+    let counter = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+       const nextWord = loremText[counter];
+       counter++;
+       counter = counter % loremText.length;
+
+       if (nextWord.length + length > maxLength) break;
+       if (counter !== 1) builder += " ";
+       builder += nextWord;
+       length += nextWord.length;
+    }
+    return <>{builder}</>;
+};
+
+export const ImagePlaceholder = styled.div<WidthProps & HeightProps & PaddingProps>`
+    ${width} ${height} ${padding}
+    background-color: var(--purple, #f00);
+`;

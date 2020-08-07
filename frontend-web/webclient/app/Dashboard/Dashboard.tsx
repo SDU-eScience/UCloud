@@ -51,7 +51,7 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {GrantRecipient, GrantRecipientExisting, GrantRecipientNew, GrantRecipientPersonal} from "Project/Grant";
 
 export const DashboardCard: React.FunctionComponent<{
-    title?: string;
+    title?: React.ReactNode;
     subtitle?: React.ReactNode;
     color: ThemeColor;
     isLoading: boolean;
@@ -72,8 +72,8 @@ export const DashboardCard: React.FunctionComponent<{
                     color={theme.colors.darkGray}
                 />
             ) : null}
-            {title ? <Heading.h3>{title}</Heading.h3> : null}
-            <Box flexGrow={1}></Box>
+            {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
+            <Box flexGrow={1}/>
             {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
         </Flex>
         <Box px={3} py={1}>
