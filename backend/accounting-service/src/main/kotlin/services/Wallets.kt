@@ -610,7 +610,7 @@ class BalanceService(
                     """
                         insert into wallets (account_id, account_type, product_category, product_provider, balance, low_funds_notifications_send) 
                         values (:destId, 'USER', :prodCategory, :prodProvider, :amount, :sent)
-                        on conflict (account_id, account_type, product_category, product_provider, low_funds_notifications_send)
+                        on conflict (account_id, account_type, product_category, product_provider)
                         do update set balance = wallets.balance + excluded.balance
                     """
                 )
