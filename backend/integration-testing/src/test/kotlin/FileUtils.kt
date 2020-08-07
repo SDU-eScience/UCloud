@@ -44,6 +44,17 @@ suspend fun WebDriver.deleteFolder(folderName: String) {
     awaitNoElements(By.xpath("//div[text()='$folderName']"))
 }
 
+suspend fun WebDriver.renameFile(fileName: String) {
+    openFileDropdown(fileName)
+    awaitElement(By.xpath("//div[@data-tag='Rename-action']")).click()
+    val element = switchTo().activeElement()
+    element.clear()
+    element.sendKeys("$fileName-2")
+    awaitElement(By.xpath("//button[text()='Create']")).click()
+    awaitNoElements(By.xpath("//input[text()='$fileName-2']"))
+    awaitElements(By.xpath("//div[text()='$fileName-2']"))
+}
+
 suspend fun WebDriver.uploadFile(fileName: String) {
     retrySection {
         // This is for some reason prone to being stale.

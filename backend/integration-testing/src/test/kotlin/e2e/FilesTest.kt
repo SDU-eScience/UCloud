@@ -1,11 +1,8 @@
 package dk.sdu.cloud.integration.e2e
 
 import dk.sdu.cloud.file.api.FileDescriptions.transferQuota
+import dk.sdu.cloud.integration.*
 import dk.sdu.cloud.integration.backend.*
-import dk.sdu.cloud.integration.createDir
-import dk.sdu.cloud.integration.createFolder
-import dk.sdu.cloud.integration.deleteFolder
-import dk.sdu.cloud.integration.uploadFile
 import org.junit.Test
 import org.openqa.selenium.By
 
@@ -39,6 +36,7 @@ class FilesTest : EndToEndTest() {
         driver.get("$address/app")
         driver.login(user.username, user.password)
         driver.goToFiles()
+        driver.renameFile(folderName)
     }
 
     @Test
