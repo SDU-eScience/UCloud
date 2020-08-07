@@ -8,8 +8,7 @@ import {browseProjects, BrowseProjectsResponse} from "Project/Grant/index";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Box, Card, Icon, List, Text} from "ui-components";
-import {ListRow} from "ui-components/List";
+import {Box, Card, Icon, Text} from "ui-components";
 import {useHistory, useParams} from "react-router";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {ImagePlaceholder, Lorem} from "UtilityComponents";
@@ -32,7 +31,7 @@ export const ProjectBrowser: React.FunctionComponent = () => {
     if (action !== "new" && action !== "personal") return null;
 
     return <MainContainer
-        header={<Heading.h2>Select an affiliation</Heading.h2>}
+        header={<Heading.h3>Select an affiliation</Heading.h3>}
         main={
             <>
                 <Pagination.List

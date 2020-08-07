@@ -680,3 +680,7 @@ export const ImagePlaceholder = styled.div<WidthProps & HeightProps & PaddingPro
     ${width} ${height} ${padding}
     background-color: var(--purple, #f00);
 `;
+
+export const Center = styled.div`
+    text-align: center;
+`;
