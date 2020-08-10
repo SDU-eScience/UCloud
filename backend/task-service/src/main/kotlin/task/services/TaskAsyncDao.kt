@@ -4,8 +4,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.bool
@@ -15,8 +14,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.task.api.Task
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
@@ -47,9 +44,10 @@ class TaskAsyncDao {
                     """
                         SELECT * 
                         FROM tasks
-                        WHERE job_id = ?jid
-                    """.trimIndent()
-                ).rows.firstOrNull()
+                        WHERE job_id = :jid
+                    """
+                ).rows
+                .firstOrNull()
         }?.toTask()
     }
 
@@ -80,16 +78,17 @@ class TaskAsyncDao {
                     """
                         SELECT * 
                         FROM tasks
-                        WHERE job_id = ?jid
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                        WHERE job_id = :jid
+                    """
+                ).rows
+                .singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }.toTask()
         if (foundTask.owner != user && foundTask.processor != user) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         return foundTask
     }
 
     suspend fun updateStatus(db: DBContext, jobId: String, status: String, user: String): Boolean {
-        val now = LocalDateTime.now(DateTimeZone.UTC).toDate().time
+        val now = LocalDateTime(Time.now(), DateTimeZone.UTC).toDate().time
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -101,16 +100,16 @@ class TaskAsyncDao {
                     },
                     """
                         UPDATE tasks
-                        SET status_message = ?message, modified_at = to_timestamp(?modified)
-                        WHERE (job_id = ?jid) AND (owner = ?user)
-                    """.trimIndent()
+                        SET status_message = :message, modified_at = to_timestamp(:modified)
+                        WHERE (job_id = :jid) AND (owner = :user)
+                    """
                 ).rowsAffected > 0L
         }
     }
 
     suspend fun updateLastPing(db: DBContext, jobId: String, processor: SecurityPrincipal) {
         db.withSession { session ->
-            val now = LocalDateTime.now(DateTimeZone.UTC).toDate().time
+            val now = LocalDateTime(Time.now(), DateTimeZone.UTC).toDate().time
             session
                 .sendPreparedStatement(
                     {
@@ -120,9 +119,9 @@ class TaskAsyncDao {
                     },
                     """
                         UPDATE tasks
-                        SET modified_at = to_timestamp(?modified)
-                        WHERE (job_id = ?jid) AND (processor = ?processor) 
-                    """.trimIndent()
+                        SET modified_at = to_timestamp(:modified)
+                        WHERE (job_id = :jid) AND (processor = :processor) 
+                    """
                 )
         }
     }
@@ -138,7 +137,7 @@ class TaskAsyncDao {
 
         val jobId = UUID.randomUUID().toString()
         db.withSession { session ->
-            val now = LocalDateTime.now(DateTimeZone.UTC)
+            val now = LocalDateTime(Time.now(), DateTimeZone.UTC)
             session.insert(TaskTable) {
                 set(TaskTable.jobId, jobId)
                 set(TaskTable.owner, owner)
@@ -164,9 +163,9 @@ class TaskAsyncDao {
                     },
                     """
                         UPDATE tasks
-                        SET complete = ?complete
-                        WHERE (job_id = ?jid) AND (processor = ?processor) 
-                    """.trimIndent()
+                        SET complete = :complete
+                        WHERE (job_id = :jid) AND (processor = :processor) 
+                    """
                 ).rowsAffected > 0
         }
     }
@@ -176,7 +175,7 @@ class TaskAsyncDao {
         pagination: NormalizedPaginationRequest,
         user: SecurityPrincipal
     ): Page<Task> {
-        val timeLimit = LocalDateTime.now(DateTimeZone.UTC).toDate().time - (1000L * 60 * 60 * 15)
+        val timeLimit = LocalDateTime(Time.now(), DateTimeZone.UTC).toDate().time - (1000L * 60 * 60 * 15)
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -188,10 +187,10 @@ class TaskAsyncDao {
                     """
                         SELECT *
                         FROM tasks
-                        WHERE (owner = ?owner) AND 
-                            (complete = ?complete) AND 
-                            (modified_at > to_timestamp(?modified))
-                    """.trimIndent()
+                        WHERE (owner = :owner) AND 
+                            (complete = :complete) AND 
+                            (modified_at > to_timestamp(:modified))
+                    """
                 )
         }.rows.paginate(pagination)
             .mapItems { it.toTask() }

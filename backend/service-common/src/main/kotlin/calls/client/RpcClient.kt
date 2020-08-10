@@ -133,6 +133,24 @@ data class AuthenticatedClient(
     }
 }
 
+fun AuthenticatedClient.withFilters(
+    authenticator: suspend (OutgoingCall) -> Unit = {},
+    afterFilters: suspend (OutgoingCall) -> Unit = {}
+): AuthenticatedClient {
+    return AuthenticatedClient(
+        client,
+        companion,
+        authenticator = {
+            this.authenticator(it)
+            authenticator(it)
+        },
+        afterFilters = {
+            this.afterFilters?.invoke(it)
+            afterFilters(it)
+        }
+    )
+}
+
 fun AuthenticatedClient.withFixedHost(hostInfo: HostInfo): AuthenticatedClient {
     return AuthenticatedClient(
         client,

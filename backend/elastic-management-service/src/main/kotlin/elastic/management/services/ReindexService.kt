@@ -105,7 +105,6 @@ class ReindexService(
         lowLevelClient: RestClient
     ) {
         val lastDayOfLastMonth = LocalDate.now().withDayOfMonth(1).minusDays(1)
-        println("MONTH: ${lastDayOfLastMonth.month}")
         val numberOfDaysInLastMonth = lastDayOfLastMonth.dayOfMonth
         getAllLogNamesWithPrefix(elastic, prefix, delimiter).forEach {
             val fromIndices = mutableListOf<String>()

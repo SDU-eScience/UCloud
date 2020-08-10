@@ -60,9 +60,6 @@ data class UsageResponse(
     val charts: List<UsageChart>
 )
 
-typealias CumulativeUsageRequest = UsageRequest
-typealias CumulativeUsageResponse = UsageResponse
-
 /**
  * Provides statistics and visualization of resources usage
  */
@@ -86,27 +83,6 @@ object Visualization : CallDescriptionContainer("accounting.visualization") {
                 +boundTo(UsageRequest::bucketSize)
                 +boundTo(UsageRequest::periodEnd)
                 +boundTo(UsageRequest::periodStart)
-            }
-        }
-    }
-
-    val cumulativeUsage = call<CumulativeUsageRequest, CumulativeUsageResponse, CommonErrorMessage>("cumulativeUsage") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"cumulative-usage"
-            }
-
-            params {
-                +boundTo(CumulativeUsageRequest::bucketSize)
-                +boundTo(CumulativeUsageRequest::periodEnd)
-                +boundTo(CumulativeUsageRequest::periodStart)
             }
         }
     }

@@ -1,4 +1,4 @@
-import {KeyCode, ReduxObject} from "DefaultObjects";
+import {KeyCode} from "DefaultObjects";
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -90,7 +90,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
                                 selectsStart
                                 startDate={props.modifiedAfter}
                                 endDate={props.modifiedBefore}
-                                onChange={d => validateAndSetDate(d, "modifiedAfter")}
+                                onChange={d => validateAndSetDate(d as Date, "modifiedAfter")}
                                 showTimeSelect
                                 timeIntervals={15}
                                 isClearable
@@ -106,7 +106,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
                                 selectsEnd
                                 startDate={props.modifiedAfter}
                                 endDate={props.modifiedBefore}
-                                onChange={d => validateAndSetDate(d, "modifiedBefore")}
+                                onChange={d => validateAndSetDate(d as Date, "modifiedBefore")}
                                 showTimeSelect
                                 timeIntervals={15}
                                 isClearable

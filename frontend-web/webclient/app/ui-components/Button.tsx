@@ -34,7 +34,7 @@ const size = (p: {size: string; theme: Theme}) => {
 
 export const fullWidth = (props: {fullWidth?: boolean}) => props.fullWidth ? {width: "100%"} : null;
 
-export const attached = (props: {attached?: boolean}) => props.attached ?
+export const attached = (props: {attached?: boolean}): string | null => props.attached ?
     `border-top-left-radius: 0;
     border-bottom-left-radius: 0;`
     : null;

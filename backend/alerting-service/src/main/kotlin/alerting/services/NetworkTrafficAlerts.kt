@@ -2,6 +2,7 @@ package dk.sdu.cloud.alerting.services
 
 import dk.sdu.cloud.alerting.Configuration
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.delay
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
@@ -38,8 +39,8 @@ class NetworkTrafficAlerts(
                         )
                         .filter(
                             QueryBuilders.rangeQuery("@timestamp")
-                                .gte(Date(Date().time - FIFTEEN_MIN))
-                                .lt(Date())
+                                .gte(Date(Time.now() - FIFTEEN_MIN))
+                                .lt(Date(Time.now()))
                         )
                         .filter(
                             QueryBuilders.rangeQuery("responseCode")
@@ -66,8 +67,8 @@ class NetworkTrafficAlerts(
                         )
                         .filter(
                             QueryBuilders.rangeQuery("@timestamp")
-                                .gte(Date(Date().time - FIFTEEN_MIN))
-                                .lt(Date())
+                                .gte(Date(Time.now() - FIFTEEN_MIN))
+                                .lt(Date(Time.now()))
                         )
                 )
             )
@@ -131,8 +132,8 @@ class NetworkTrafficAlerts(
                         )
                         .filter(
                             QueryBuilders.rangeQuery("@timestamp")
-                                .gte(Date(Date().time - THIRTY_MIN))
-                                .lt(Date())
+                                .gte(Date(Time.now() - THIRTY_MIN))
+                                .lt(Date(Time.now()))
                         )
                         .filter(
                             QueryBuilders.queryStringQuery("4??").analyzeWildcard(true).field("log")

@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -74,8 +75,8 @@ class JobDao {
                 set(JobInformationTable.archiveInCollection, job.archiveInCollection)
                 set(JobInformationTable.backendName, job.backend)
                 set(JobInformationTable.startedAt, null)
-                set(JobInformationTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(JobInformationTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(JobInformationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(JobInformationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(JobInformationTable.peers, defaultMapper.writeValueAsString(job.peers.toList()))
                 set(JobInformationTable.refreshToken, refreshToken)
                 set(JobInformationTable.reservationType, job.reservation.id)
@@ -116,15 +117,15 @@ class JobDao {
                         update job_information
                         set
                             modified_at = now(),
-                            status = coalesce(?status::text, status),
-                            state = coalesce(?state::text, state),
-                            failed_state = coalesce(?failedState::text, failed_state),
+                            status = coalesce(:status::text, status),
+                            state = coalesce(:state::text, state),
+                            failed_state = coalesce(:failedState::text, failed_state),
                             started_at = (case
-                                when ?state::text = 'RUNNING' then timezone('utc', now())
+                                when :state::text = 'RUNNING' then timezone('utc', now())
                                 else started_at
                             end)
                         where
-                            system_id = ?systemId
+                            system_id = :systemId
                     """
                 )
                 .rowsAffected
@@ -150,8 +151,8 @@ class JobDao {
                     """
                         delete from job_information  
                         where
-                            application_name = ?appName and
-                            application_version = ?appVersion
+                            application_name = :appName and
+                            application_version = :appVersion
                     """
                 )
         }

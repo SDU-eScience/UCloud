@@ -69,11 +69,11 @@ export class WebSocketConnection {
         this.resetSocket(socketFactory);
     }
 
-    get closed() {
+    get closed(): boolean {
         return this.internalClosed;
     }
 
-    public close() {
+    public close(): void {
         this.internalClosed = true;
         this.socket.close();
         const closeScript = this.settings.onClose ?? (() => {
@@ -82,9 +82,9 @@ export class WebSocketConnection {
         closeScript(this);
     }
 
-    public async subscribe<T>({call, payload, handler}: SubscribeParameters<T>) {
+    public async subscribe<T>({call, payload, handler}: SubscribeParameters<T>): Promise<void> {
         const streamId = (this.nextStreamId++).toString();
-        this.handlers.set(streamId, (message) => {
+        this.handlers.set(streamId, message => {
             handler(message);
             if (message.type === "response") {
                 this.handlers.delete(streamId);
@@ -116,7 +116,7 @@ export class WebSocketConnection {
         });
     }
 
-    private async resetSocket(socketFactory: () => Promise<WebSocket>) {
+    private async resetSocket(socketFactory: () => Promise<WebSocket>): Promise<void> {
         const socket = await socketFactory();
         const initScript = this.settings.init ?? (() => {
             // Do nothing
@@ -153,7 +153,7 @@ export class WebSocketConnection {
         this.socket = socket;
     }
 
-    private sendMessage(message: WebsocketRequest) {
+    private sendMessage(message: WebsocketRequest): void {
         this.socket.send(JSON.stringify(message));
     }
 }

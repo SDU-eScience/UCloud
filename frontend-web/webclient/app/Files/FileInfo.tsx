@@ -1,7 +1,7 @@
 import {ActivityFeed} from "Activity/Feed";
 import {Client} from "Authentication/HttpClientInstance";
 import {FileInfoReduxObject} from "DefaultObjects";
-import {ReduxObject, SensitivityLevel, SensitivityLevelMap} from "DefaultObjects";
+import {SensitivityLevel, SensitivityLevelMap} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
 import LoadingIcon from "LoadingIcon/LoadingIcon";

@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.bool
@@ -136,7 +137,7 @@ class UserAsyncDAO(
                     """
                         SELECT * 
                         FROM principals
-                        WHERE id = ?username
+                        WHERE id = :username
                     """
                 )
                 .rows
@@ -178,7 +179,7 @@ class UserAsyncDAO(
                             first_names = (SELECT COALESCE (:firstNames, p.first_names)), 
                             last_name = (SELECT COALESCE (:lastName, p.last_name)), 
                             email = (SELECT COALESCE (:email, p.email))
-                        WHERE principals.id = :username
+                        WHERE p.id = :username
                     """
                 )
                 .rowsAffected > 0L
@@ -203,7 +204,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 )
                 .rows
@@ -228,7 +229,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 )
                 .rows
@@ -251,7 +252,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id IN (select unnest(?ids::text[]))
+                        WHERE id IN (select unnest(:ids::text[]))
                     """
                 ).rows
                 .map { rowData ->
@@ -279,7 +280,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 )
                 .rows
@@ -301,7 +302,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE email = ?email
+                        WHERE email = :email
                     """
                 )
                 .rows
@@ -324,15 +325,11 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE uid IN (select unnest(?uids::bigint[]))
+                        WHERE uid IN (select unnest(:uids::bigint[]))
                     """
                 ).rows
         }
         val twoFactorStatus = twoFactorDAO.findStatusBatched(db, users.map { it.getField(PrincipalTable.id) })
-
-        users.forEach {
-            println(it.toPrincipal(false))
-        }
 
         val usersWeFound = users
             .map { rowData ->
@@ -359,7 +356,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id LIKE ?prefix
+                        WHERE id LIKE :prefix
                     """
                 )
                 .rows
@@ -382,7 +379,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE wayf_id = ?wayfId
+                        WHERE wayf_id = :wayfId
                     """
                 )
                 .rows
@@ -405,8 +402,8 @@ class UserAsyncDAO(
                         },
                         """
                             UPDATE principals
-                            SET email = ?email
-                            WHERE wayf_id = ?wayfId
+                            SET email = :email
+                            WHERE wayf_id = :wayfId
                             RETURNING *
                         """
                     ).rows.singleOrNull()
@@ -427,7 +424,7 @@ class UserAsyncDAO(
                 """
                     SELECT *
                     FROM principals
-                    WHERE id = ?id
+                    WHERE id = :id
                 """
             ).rows.singleOrNull()
             if (found != null) {
@@ -439,8 +436,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.WAYF.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                             set(PrincipalTable.uid, principal.uid)
                             set(PrincipalTable.firstNames, principal.firstNames)
                             set(PrincipalTable.lastName, principal.lastName)
@@ -458,8 +455,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.PASSWORD.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                             set(PrincipalTable.title, principal.title)
                             set(PrincipalTable.firstNames, principal.firstNames)
                             set(PrincipalTable.lastName, principal.lastName)
@@ -478,8 +475,8 @@ class UserAsyncDAO(
                             set(PrincipalTable.type, USERTYPE.SERVICE.name)
                             set(PrincipalTable.id, principal.id)
                             set(PrincipalTable.role, principal.role.toString())
-                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                             set(PrincipalTable.uid, principal.uid)
                         }
                     else -> {
@@ -503,7 +500,7 @@ class UserAsyncDAO(
                         },
                         """
                             DELETE from principals
-                            WHERE id = ?id
+                            WHERE id = :id
                         """
                     ).rowsAffected == 0L
             }
@@ -526,7 +523,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 )
                 .rows
@@ -562,8 +559,8 @@ class UserAsyncDAO(
                     },
                     """
                         UPDATE principals
-                        SET hashed_password = ?hashed, salt = ?salt
-                        WHERE id = ?id
+                        SET hashed_password = :hashed, salt = :salt
+                        WHERE id = :id
                     """
                 )
         }
@@ -579,8 +576,8 @@ class UserAsyncDAO(
                     },
                     """
                         UPDATE principals
-                        SET service_license_agreement = ?sla
-                        WHERE id = ?id
+                        SET service_license_agreement = :sla
+                        WHERE id = :id
                     """
                 )
                 .rowsAffected
@@ -623,7 +620,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?id
+                        WHERE id = :id
                     """
                 ).rows.singleOrNull()?.getField(PrincipalTable.wantsEmails) ?: throw UserException.NotFound()
         }

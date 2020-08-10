@@ -67,7 +67,7 @@ export const BreadCrumbs = ({
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map(p => (
-        <span key={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
+        <span key={p.local} test-tag={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
             {p.local}
         </span>
     ));
@@ -81,7 +81,7 @@ export const BreadCrumbs = ({
             {addHomeFolderLink ? (
                 <>
                     <Box ml="15px">
-                        <Icon size="30px" cursor="pointer" name="home" onClick={toHome} />
+                        <Icon test-tag="to_home" size="30px" cursor="pointer" name="home" onClick={toHome} />
                         <Text cursor="pointer" ml="-15px" fontSize="11px" onClick={toHome}>
                             Go to home
                         </Text>

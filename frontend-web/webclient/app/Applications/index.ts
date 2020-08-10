@@ -5,7 +5,6 @@ import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {match} from "react-router";
-import {Page, PaginationRequest} from "Types";
 import {ParameterValues} from "Utilities/ApplicationUtilities";
 import {Product} from "Accounting";
 
@@ -180,6 +179,7 @@ export interface RunAppState {
     unknownParameters: string[];
     reservation: string;
     reservationMachine?: Product;
+    balance: number;
 }
 
 export interface RunOperations extends SetStatusLoading {

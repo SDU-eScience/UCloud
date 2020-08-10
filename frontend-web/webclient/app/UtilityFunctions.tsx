@@ -1,11 +1,15 @@
 import {Client as currentClient} from "Authentication/HttpClientInstance";
 import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Notification} from "Notifications";
+import {History} from "history";
 import {
     getFilenameFromPath, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
     isSharesFolder, isTrashFolder
 } from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
+import {ProjectName} from "Project";
+import {getStoredProject} from "Project/Redux";
 
 export function toggleCssColors(light: boolean): void {
     if (light) {
@@ -88,7 +92,7 @@ export const extensionFromPath = (path: string): string => {
     return splitString[splitString.length - 1];
 };
 
-type ExtensionType =
+export type ExtensionType =
     null
     | "code"
     | "image"
@@ -100,6 +104,7 @@ type ExtensionType =
     | "binary"
     | "markdown"
     | "application";
+
 export const extensionType = (ext: string): ExtensionType => {
     switch (ext.toLowerCase()) {
         case "app":
@@ -332,7 +337,7 @@ export const prettierString = (str: string): string => capitalized(str).replace(
 export function defaultErrorHandler(
     error: {request: XMLHttpRequest; response: any}
 ): number {
-    const request: XMLHttpRequest = error.request;
+    const {request} = error;
     // FIXME must be solvable more elegantly
     let why: string | null = error.response?.why;
 
@@ -464,8 +469,8 @@ export function preventDefault(e: {preventDefault(): void}): void {
     e.preventDefault();
 }
 
-export function doNothing() {
-
+export function doNothing(): void {
+    return undefined;
 }
 
 export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}): void {
@@ -486,4 +491,46 @@ export function getUserThemePreference(): "light" | "dark" {
     // options: dark, light and no-preference
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
     return "light";
+}
+
+
+export function onNotificationAction(
+    history: History,
+    setProject: (projectId: string) => void,
+    notification: Notification,
+    projectNames: ProjectName[]
+): void {
+    const currentProject = getStoredProject();
+    switch (notification.type) {
+        case "APP_COMPLETE":
+            history.push(`/applications/results/${notification.meta.jobId}`);
+            break;
+        case "SHARE_REQUEST":
+            history.push("/shares");
+            break;
+        case "REVIEW_PROJECT":
+        case "PROJECT_INVITE":
+            history.push("/projects/");
+            break;
+        case "NEW_GRANT_APPLICATION":
+        case "COMMENT_GRANT_APPLICATION":
+        case "GRANT_APPLICATION_RESPONSE":
+        case "GRANT_APPLICATION_UPDATED":
+            const {meta} = notification;
+            history.push(`/project/grants/view/${meta.appId}`);
+            break;
+        case "PROJECT_ROLE_CHANGE":
+            const {projectId} = notification.meta;
+            if (currentProject !== projectId) {
+                setProject(projectId);
+                const projectName = projectNames.find(it => it.projectId === projectId)?.title ?? projectId;
+                snackbarStore.addInformation(`${projectName} is now active.`, false);
+            }
+            history.push("/project/members");
+            break;
+        default:
+            console.warn("unhandled");
+            console.warn(notification);
+            break;
+    }
 }

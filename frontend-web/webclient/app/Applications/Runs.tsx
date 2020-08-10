@@ -2,7 +2,6 @@ import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
-import {ReduxObject} from "DefaultObjects";
 import {SortOrder} from "Files";
 import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -13,7 +12,6 @@ import {List} from "Pagination/List";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Box, Button, Checkbox, Label, List as ItemList, Flex, Text, Icon, Divider} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -287,7 +285,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={firstDate}
-                        onChange={(date): void => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
+                        onChange={(date: Date) => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"
                     />
@@ -304,7 +302,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={secondDate}
-                        onChange={(date): void => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
+                        onChange={(date: Date) => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
                         onSelect={d => fetchJobsInRange(firstDate, d)}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"

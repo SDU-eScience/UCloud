@@ -192,7 +192,7 @@ class AppStoreAsyncDao(
     ): Application {
         val cacheKey = NameAndVersion(appName, appVersion)
         val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
-        if (cached != null && expiry > System.currentTimeMillis()) {
+        if (cached != null && expiry > Time.now()) {
             val hasPermission = ctx.withSession { session ->
                     internalHasPermission(
                         session,
@@ -228,7 +228,7 @@ class AppStoreAsyncDao(
                 )
             }
         if (hasPermission) {
-            byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
+            byNameAndVersionCache[cacheKey] = Pair(result, Time.now() + (1000L * 60 * 60))
             return result
         } else {
             throw ApplicationException.NotFound()
@@ -242,41 +242,23 @@ class AppStoreAsyncDao(
         projectGroups: List<String>,
         fileExtensions: Set<String>
     ): List<ApplicationWithExtension> {
-        var query = ""
-        query += """
-            SELECT A.*
-            FROM favorited_by as F,
-                applications as A
-            WHERE F.the_user = :user
-              AND F.application_name = A.name
-              AND F.application_version = A.version
-              AND (A.application -> 'applicationType' = '"WEB"'
-                OR A.application -> 'applicationType' = '"VNC"'
-              ) and (
-        """
-
-        for (index in fileExtensions.indices) {
-            query += """ A.application -> 'fileExtensions' @> jsonb_build_array(cast(:ext$index as text)) """
-            if (index != fileExtensions.size - 1) {
-                query += "OR "
-            }
-        }
-
-        query += """
-              )
-        """
-
-
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
                         setParameter("user", user.username)
-                        fileExtensions.forEachIndexed { index, ext ->
-                            setParameter("ext$index", ext)
-                        }
+                        setParameter("ext", fileExtensions.toList())
                     },
-                    query
+                    """
+                        SELECT *
+                            FROM favorited_by as F,
+                            applications as A
+                        WHERE F.the_user = :user
+                            AND F.application_name = A.name
+                            AND F.application_version = A.version
+                            AND (A.application -> 'applicationType' = '"WEB"' OR A.application -> 'applicationType' = '"VNC"') 
+                            AND (A.application -> 'fileExtensions' ??| :ext::text[])
+                    """
                 )
                 .rows
                 .toList()
@@ -427,8 +409,8 @@ class AppStoreAsyncDao(
         ctx.withSession { session ->
             session.insert(ApplicationTable) {
                 set(ApplicationTable.owner, user.username)
-                set(ApplicationTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(ApplicationTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(ApplicationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(ApplicationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(ApplicationTable.authors, defaultMapper.writeValueAsString(description.metadata.authors))
                 set(ApplicationTable.title, description.metadata.title)
                 set(ApplicationTable.description, description.metadata.description)
@@ -489,7 +471,7 @@ class AppStoreAsyncDao(
                     },
                     """
                         DELETE FROM applications
-                        WHERE (name = ?appname) AND (version = ?appversion)
+                        WHERE (name = :appname) AND (version = :appversion)
                     """
                 )
         }
@@ -533,22 +515,14 @@ class AppStoreAsyncDao(
             session
                 .sendPreparedStatement(
                     {
-                        if (newDescription != null) {
-                            setParameter("newdesc", newDescription)
-                        } else {
-                            setParameter("newdesc", existingApplication.metadata.description)
-                        }
-                        if (newAuthors != null) {
-                            setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors))
-                        } else {
-                            setParameter("newauthors", defaultMapper.writeValueAsString(existingApplication.metadata.authors))
-                        }
+                        setParameter("newdesc", newDescription)
+                        setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors ?: existingApplication.metadata.authors))
                         setParameter("name", appName)
                         setParameter("version", appVersion)
                     },
                     """
                         UPDATE applications
-                        SET description = :newdesc, authors = :newauthors
+                        SET description = COALESCE(:newdesc, description), authors = :newauthors
                         WHERE (name = :name) AND (version = :version)
                     """
                 )
@@ -715,29 +689,21 @@ class AppStoreAsyncDao(
         if (embeddedNameAndVersionList.isEmpty()) {
             return emptyList()
         }
+        val names = embeddedNameAndVersionList.map { it.name }
+        val versions = embeddedNameAndVersionList.map { it.version }
+
         return ctx.withSession { session ->
-            var query = """
-                    SELECT *
-                    FROM applications
-                    WHERE 
-                """
-
-            embeddedNameAndVersionList.forEachIndexed { index, _ ->
-                query += """ (name = :name$index AND version = :version$index) """
-                if (index + 1 != embeddedNameAndVersionList.size) {
-                    query += """ OR """
-                }
-            }
-
             session
                 .sendPreparedStatement(
                     {
-                        embeddedNameAndVersionList.forEachIndexed { index, embeddedNameAndVersion ->
-                            setParameter("name$index", embeddedNameAndVersion.name)
-                            setParameter("version$index", embeddedNameAndVersion.version)
-                        }
+                        setParameter("names", names)
+                        setParameter("versions", versions)
                     },
-                    query
+                    """
+                        SELECT *
+                        FROM app_store.applications
+                        WHERE (name, version) IN (select unnest(:names::text[]), unnest(:versions::text[]))
+                    """
                 )
                 .rows
                 .map { it.toApplicationWithInvocation() }

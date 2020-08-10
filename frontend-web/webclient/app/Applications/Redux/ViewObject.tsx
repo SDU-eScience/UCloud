@@ -1,6 +1,5 @@
 import {FullAppInfo} from "Applications";
 import {emptyLoadableContent, LoadableContent} from "LoadableContent";
-import {Page} from "Types";
 
 export interface Type {
     application: LoadableContent<FullAppInfo>;

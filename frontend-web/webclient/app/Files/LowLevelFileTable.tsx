@@ -1,14 +1,13 @@
+import * as React from "react";
+import {useEffect, useState} from "react";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
+import {AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
-import {emptyPage, KeyCode, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
+import {emptyPage, KeyCode, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileType, SortBy, SortOrder} from "Files";
 import {
-    defaultFileOperations,
-    FileOperation,
-    FileOperationCallback,
-    FileOperationRepositoryMode
+    defaultFileOperations, FileOperation, FileOperationCallback, FileOperationRepositoryMode
 } from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
 import {History} from "history";
@@ -16,77 +15,38 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
 import PromiseKeeper, {usePromiseKeeper} from "PromiseKeeper";
-import * as React from "react";
-import {useEffect, useState} from "react";
-import {connect} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import {useHistory} from "react-router";
-import {Dispatch} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
-import {Page} from "Types";
 import {
-    Button, Card,
-    Checkbox,
-    Divider,
-    Hide,
-    Icon,
-    Input,
-    Label,
-    Link,
-    List,
-    OutlineButton,
-    Text,
-    Tooltip,
-    Truncate
+    Button, Box, Flex, Card, Checkbox, Divider, Hide, Icon, Input,
+    Label, Link, List, OutlineButton, Text, Tooltip, Truncate
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
-import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import {IconName} from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import {TextSpan} from "ui-components/Text";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {Upload} from "Uploader";
 import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
-import {
-    createFolder,
-    filePreviewQuery,
-    getFilenameFromPath,
-    getParentPath,
-    isAnyMockFile,
-    isDirectory,
-    isFilePreviewSupported,
-    isInvalidPathName,
-    isMyPersonalFolder,
-    isPartOfProject,
-    isPartOfSomePersonalFolder,
-    isProjectHome,
-    MOCK_RELATIVE,
-    MOCK_RENAME_TAG,
-    MOCK_REPO_CREATE_TAG,
-    MOCK_VIRTUAL,
-    mockFile,
-    moveFile, projectIdFromPath,
-    resolvePath,
-    sizeToString,
-} from "Utilities/FileUtilities";
+import * as FUtils from "Utilities/FileUtilities";
+import * as UF from "UtilityFunctions";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon, ConfirmCancelButtons} from "UtilityComponents";
-import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {
     createRepository, isRepository, renameRepository, getProjectNames, isAdminOrPI
 } from "Utilities/ProjectUtilities";
-import {ProjectRole} from "Project";
+import {ProjectRole, useProjectManagementStatus} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {useAppQuickLaunch} from "Utilities/ApplicationUtilities";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -132,12 +92,7 @@ export const statFile = (request: {path: string}): APICallParameters<{path: stri
 });
 
 export const listDirectory = ({
-    path,
-    page,
-    itemsPerPage,
-    order,
-    sortBy,
-    type
+    path, page, itemsPerPage, order, sortBy, type
 }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
@@ -161,9 +116,7 @@ const loadFiles = async (
     promises: PromiseKeeper
 ): Promise<void> => {
     try {
-        const response = await callAPI<Page<File>>(listDirectory({
-            ...request
-        }));
+        const response = await callAPI<Page<File>>(listDirectory({...request}));
         if (promises.canceledKeeper) return;
         callback(response);
     } catch (e) {
@@ -275,10 +228,7 @@ function useApiForComponent(
 }
 
 
-// eslint-disable-next-line no-underscore-dangle
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLevelFileTableOperations & {
-    activeUploadCount: number;
-}> = props => {
+export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
         throw Error("FilesTable must set either path or page property");
@@ -288,15 +238,17 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         throw Error("page is not currently supported in non-embedded mode without a path");
     }
 
+    const {projectRole} = useProjectManagementStatus(true);
+
     // Hooks
     const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
     const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, , invokeWork] = useAsyncWork();
-    const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
     const favorites = useFavoriteStatus();
     const projects = useProjectStatus();
+    const dispatch = useDispatch();
     const projectMember = (
         !Client.projectId ?
             undefined :
@@ -309,63 +261,38 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     const history = useHistory();
 
+    const activeUploadCount = useSelector<ReduxObject, number>(redux =>
+        redux.uploader.uploads.filter(upload =>
+            ((upload.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
+                (upload.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE))).length
+    );
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
         useApiForComponent(props, setSortByColumn);
 
     useEffect(() => {
         const isKnownToBeFavorite = props.path === Client.favoritesFolder;
         const files = page.items
-            .filter(it => it.mockTag === MOCK_VIRTUAL || it.mockTag === undefined)
+            .filter(it => it.mockTag === FUtils.MOCK_VIRTUAL || it.mockTag === undefined)
             .map(it => it.path);
 
         favorites.updateCache(files, isKnownToBeFavorite);
     }, [page]);
 
     // Fetch quick launch applications upon page refresh
-    useEffect(() => {
-        const filesOnly = page.items.filter(f => f.fileType === "FILE");
-        if (filesOnly.length > 0) {
-            Client.post<QuickLaunchApp[]>(
-                "/hpc/apps/bySupportedFileExtension",
-                {files: filesOnly.map(f => f.path)}
-            ).then(({response}) => {
-                const newApplications = new Map<string, QuickLaunchApp[]>();
-                filesOnly.forEach(f => {
-                    const fileApps: QuickLaunchApp[] = [];
 
-                    const [fileName] = f.path.split("/").slice(-1);
-                    let [fileExtension] = fileName.split(".").slice(-1);
-
-                    if (fileName !== fileExtension) {
-                        fileExtension = `.${fileExtension}`;
-                    }
-
-                    response.forEach(item => {
-                        item.extensions.forEach(ext => {
-                            if (fileExtension === ext) {
-                                fileApps.push(item);
-                            }
-                        });
-                    });
-
-                    newApplications.set(f.path, fileApps);
-                });
-                setApplications(newApplications);
-            }).catch(e =>
-                snackbarStore.addFailure(
-                    UF.errorMessageOrDefault(e, "An error occurred fetching Quicklaunch Apps"), false
-                ));
-        }
-    }, [page]);
+    const applications = useAppQuickLaunch(page, Client);
 
     useEffect(() => {
         if (!props.embedded) {
-            props.setUploaderCallback(() => reload());
+            dispatch(setUploaderCallback(() => reload()));
         }
     }, [reload]);
 
     useEffect(() => {
-        return () => props.setUploaderCallback();
+        return () => {
+            dispatch(setUploaderCallback());
+            props.onLoadingState?.(false);
+        };
     }, []);
 
     const permissions = useFilePermissions();
@@ -384,15 +311,15 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         },
         requestFileUpload: () => {
             const path = props.path ? props.path : Client.homeFolder;
-            props.showUploader(path);
+            dispatch(setUploaderVisible(true, path));
         },
         requestFolderCreation: (isRepo?: boolean) => {
             if (props.path === undefined) return;
             const path = `${props.path}/newFolder`;
             setInjectedViaState([
-                mockFile({
+                FUtils.mockFile({
                     path,
-                    tag: isRepo ? MOCK_REPO_CREATE_TAG : MOCK_RENAME_TAG,
+                    tag: isRepo ? FUtils.MOCK_REPO_CREATE_TAG : FUtils.MOCK_RENAME_TAG,
                     type: "DIRECTORY"
                 })
             ]
@@ -407,10 +334,10 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             return null;
         },
         createNewUpload: upload => {
-            props.appendUpload(upload);
+            dispatch(appendUpload(upload));
 
-            const path = props.path ? props.path : Client.homeFolder;
-            props.showUploader(path);
+            const path = props.path ?? Client.homeFolder;
+            dispatch(setUploaderVisible(true, path));
         },
         history
     };
@@ -444,8 +371,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         allFiles.every(f => checkedFiles.has(f.path) || f.mockTag !== undefined);
     const isMasterDisabled = allFiles.every(f => f.mockTag !== undefined);
     const isAnyLoading = workLoading || pageLoading;
-    const checkedFilesWithInfo = allFiles
-        .filter(f => f.path && checkedFiles.has(f.path) && f.mockTag === undefined);
+    const checkedFilesWithInfo = allFiles.filter(f => f.path && checkedFiles.has(f.path) && f.mockTag === undefined);
     const onFileNavigation = (path: string): void => {
         setCheckedFiles(new Set());
         setFileBeingRenamed(null);
@@ -472,7 +398,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Spacer
                     left={(
                         <BreadCrumbs
-                            embedded={props.embedded ?? false}
+                            embedded={!!props.embedded}
                             currentPath={props.path ?? ""}
                             navigate={onFileNavigation}
                             client={Client}
@@ -485,13 +411,33 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                 <>
                                     <Card
                                         onClick={() => onFileNavigation(Client.homeFolder)}
-                                        cursor="pointer" mr="8px" height="auto" pb="4px" alignItems="center" width="100px" textAlign="center" boxShadow="sm" borderWidth={0} borderRadius={6}>
+                                        cursor="pointer"
+                                        height="auto"
+                                        mr="8px"
+                                        pb="4px"
+                                        alignItems="center"
+                                        width="100px"
+                                        textAlign="center"
+                                        boxShadow="sm"
+                                        borderWidth={0}
+                                        borderRadius={6}
+                                    >
                                         <Icon color="iconColor" color2="iconColor2" name="home" />
                                         <Text fontSize={0}>Personal Home</Text>
                                     </Card>
                                     <Card
                                         onClick={() => onFileNavigation(`${Client.homeFolder}Project List`)}
-                                        cursor="pointer" height="auto" mr="8px" pb="4px" alignItems="center" width="100px" textAlign="center" boxShadow="sm" borderWidth={0} borderRadius={6}>
+                                        cursor="pointer"
+                                        height="auto"
+                                        mr="8px"
+                                        pb="4px"
+                                        alignItems="center"
+                                        width="100px"
+                                        textAlign="center"
+                                        boxShadow="sm"
+                                        borderWidth={0}
+                                        borderRadius={6}
+                                    >
                                         <Icon color="iconColor" color2="iconColor2" name="projects" />
                                         <Text fontSize={0}>Project List</Text>
                                     </Card>
@@ -522,7 +468,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
-                            <RepositoryOperations role={projectMember.role} path={props.path} createFolder={callbacks.requestFolderCreation} />
+                            <RepositoryOperations role={projectRole} path={props.path} createFolder={callbacks.requestFolderCreation} />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
@@ -530,27 +476,23 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                 role={projectMember?.role}
                                 // Don't pass a directory if the page is set.
                                 // This should indicate that the path is fake.
-                                directory={props.page !== undefined ? undefined : mockFile({
+                                directory={props.page !== undefined ? undefined : FUtils.mockFile({
                                     path: props.path ? props.path : "",
                                     fileId: "currentDir",
-                                    tag: MOCK_RELATIVE,
+                                    tag: FUtils.MOCK_RELATIVE,
                                     type: "DIRECTORY"
                                 })}
                             />
-
                             <Box flexGrow={1} />
-
-                            {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
-
                             <OutlineButton
-                                onClick={(): void => props.activeUploadCount ? addStandardDialog({
+                                onClick={(): void => activeUploadCount ? addStandardDialog({
                                     title: "Continue",
                                     message: (
                                         <Box>
                                             <Text>You have tasks that will be cancelled if you continue.</Text>
-                                            {props.activeUploadCount ? (
+                                            {activeUploadCount ? (
                                                 <Text>
-                                                    {props.activeUploadCount} uploads in progress.
+                                                    {activeUploadCount} uploads in progress.
                                                 </Text>
                                             ) : ""}
                                             {/* TODO: TASKS */}
@@ -579,7 +521,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                 size={27}
                                                 data-tag="masterCheckbox"
                                                 onClick={() => setChecked(
-                                                    allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked
+                                                    allFiles.filter(it => !FUtils.isAnyMockFile([it])), !isMasterChecked
                                                 )}
                                                 checked={isMasterChecked}
                                                 disabled={isMasterDisabled}
@@ -682,25 +624,25 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         } else if (key === KeyCode.ENTER) {
             const file = allFiles.find(f => f.path === fileBeingRenamed);
             if (file === undefined) return;
-            const isProjectRepo = file.mockTag === MOCK_REPO_CREATE_TAG || !!file.isRepo;
-            const fileNames = allFiles.map(f => getFilenameFromPath(f.path, []));
-            if (isInvalidPathName({path: name, filePaths: fileNames})) return;
+            const isProjectRepo = file.mockTag === FUtils.MOCK_REPO_CREATE_TAG || !!file.isRepo;
+            const fileNames = allFiles.map(f => FUtils.getFilenameFromPath(f.path, []));
+            if (FUtils.isInvalidPathName({path: name, filePaths: fileNames})) return;
             if (isProjectRepo) {
-                if (file.mockTag === MOCK_REPO_CREATE_TAG) {
+                if (file.mockTag === FUtils.MOCK_REPO_CREATE_TAG) {
                     createRepository(Client, name, callbacks.requestReload);
                 } else {
-                    renameRepository(getFilenameFromPath(file.path, []), name, Client, callbacks.requestReload);
+                    renameRepository(FUtils.getFilenameFromPath(file.path, []), name, Client, callbacks.requestReload);
                 }
             } else {
-                const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
-                if (file.mockTag === MOCK_RENAME_TAG) {
-                    createFolder({
+                const fullPath = `${UF.addTrailingSlash(FUtils.getParentPath(file.path))}${name}`;
+                if (file.mockTag === FUtils.MOCK_RENAME_TAG) {
+                    FUtils.createFolder({
                         path: fullPath,
                         client: Client,
                         onSuccess: () => callbacks.requestReload()
                     });
                 } else {
-                    moveFile({
+                    FUtils.moveFile({
                         oldPath: file.path,
                         newPath: fullPath,
                         client: Client,
@@ -719,7 +661,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                         key={f.path}
                         isSelected={checkedFiles.has(f.path)}
                         select={() => {
-                            if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
+                            if (!FUtils.isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
                         navigate={() => onFileNavigation(f.path)}
                         left={<NameBox
@@ -733,7 +675,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                             projectRole={projectMember.role}
                         />}
                         right={
-                            (f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
+                            (f.mockTag !== undefined && f.mockTag !== FUtils.MOCK_RELATIVE) ? null : (
                                 <Flex alignItems="center" onClick={UF.stopPropagation}>
                                     {props.permissionAlertEnabled !== true || f.permissionAlert !== true ? null : (
                                         <Tooltip
@@ -750,7 +692,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                         message: "This file has some non-standard metadata. This can cause problems in some applications. Do you wish to resolve this issue?",
                                                         confirmText: "Resolve issue",
                                                         onConfirm: async () => {
-                                                            await Client.post("/files/normalize-permissions", {path: f.path});
+                                                            const {path} = f;
+                                                            await Client.post("/files/normalize-permissions", {path});
                                                             callbacks.requestReload();
                                                         }
                                                     });
@@ -769,7 +712,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                             Non-standard metadata
                                         </Tooltip>
                                     )}
-                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
+                                    {!(props.previewEnabled && FUtils.isFilePreviewSupported(f)) ? null :
                                         f.size != null
                                             && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
                                                 <Tooltip
@@ -779,7 +722,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                     top="1"
                                                     mb="50px"
                                                     trigger={(
-                                                        <Link to={filePreviewQuery(f.path)}>
+                                                        <Link to={FUtils.filePreviewQuery(f.path)}>
                                                             <Icon
                                                                 cursor="pointer"
                                                                 size="24px"
@@ -821,7 +764,16 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                 width="auto"
                                                 minWidth="175px"
                                                 left="-160px"
-                                                trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display: "block"}} />}
+                                                trigger={
+                                                    <Icon
+                                                        mr="8px"
+                                                        name="play"
+                                                        size="1em"
+                                                        color="midGray"
+                                                        hoverColor="gray"
+                                                        style={{display: "block"}}
+                                                    />
+                                                }
                                             >
                                                 <QuickLaunchApps
                                                     file={f}
@@ -853,7 +805,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 };
 
 function messageFromError(error: string): string {
-    if (error === "Not Found") return "Folder not found.";
+    if (error === "Not Found ") return "Folder not found.";
     if (error === "Forbidden") return "You do not have access to this folder.";
     return error;
 }
@@ -871,28 +823,6 @@ function toWebDav(): void {
     a.click();
     document.body.removeChild(a);
 }
-
-const mapStateToProps = ({uploader}: ReduxObject): {activeUploadCount: number} => {
-    const activeUploadCount = uploader.uploads.filter(it =>
-        (it.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
-        (it.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE)).length;
-    return {activeUploadCount};
-};
-
-
-interface LowLevelFileTableOperations {
-    showUploader(path: string): void;
-    setUploaderCallback(cb?: () => void): void;
-    appendUpload(upload: Upload): void;
-}
-
-const mapDispatchToProps = (dispatch: Dispatch): LowLevelFileTableOperations => ({
-    showUploader: path => dispatch(setUploaderVisible(true, path)),
-    setUploaderCallback: cb => dispatch(setUploaderCallback(cb)),
-    appendUpload: upload => dispatch(appendUpload(upload))
-});
-
-export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(LowLevelFileTable_);
 
 interface ShellProps {
     embedded: boolean;
@@ -922,26 +852,15 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
 
 
 function getFileNameForNameBox(path: string, projectStatus: ProjectStatus): string {
-    if (isMyPersonalFolder(path)) {
+    if (FUtils.isMyPersonalFolder(path)) {
         return `Personal Files (${Client.username})`;
-    } else if (isProjectHome(path)) {
-        const projectId = projectIdFromPath(path);
+    } else if (FUtils.isProjectHome(path)) {
+        const projectId = FUtils.projectIdFromPath(path);
         return projectStatus.fetch().membership.find(it => it.projectId === projectId)?.title
-            ?? getFilenameFromPath(path, []);
+            ?? FUtils.getFilenameFromPath(path, []);
     }
 
-    return getFilenameFromPath(path, []);
-}
-
-interface NameBoxProps {
-    file: File;
-    onRenameFile: (keycode: number, value: string) => void;
-    onNavigate: (path: string) => void;
-    fileBeingRenamed: string | null;
-    callbacks: FileOperationCallback;
-    previewEnabled?: boolean;
-    projectRole?: ProjectRole;
-    isEmbedded?: boolean;
+    return FUtils.getFilenameFromPath(path, []);
 }
 
 const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}): JSX.Element => {
@@ -950,8 +869,8 @@ const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: st
     return (
         <Flex width={1} alignItems="center">
             <Input
-                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path, projectNames)}
-                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path, projectNames)}
+                placeholder={props.file.mockTag ? "" : FUtils.getFilenameFromPath(props.file.path, projectNames)}
+                defaultValue={props.file.mockTag ? "" : FUtils.getFilenameFromPath(props.file.path, projectNames)}
                 pt="0px"
                 pb="0px"
                 pr="0px"
@@ -977,10 +896,22 @@ const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: st
     );
 };
 
+
+interface NameBoxProps {
+    file: File;
+    onRenameFile: (keycode: number, value: string) => void;
+    onNavigate: (path: string) => void;
+    fileBeingRenamed: string | null;
+    callbacks: FileOperationCallback;
+    previewEnabled?: boolean;
+    projectRole?: ProjectRole;
+    isEmbedded?: boolean;
+}
+
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const projectStatus = useProjectStatus();
     const favorites = useFavoriteStatus();
-    const canNavigate = isDirectory({fileType: props.file.fileType});
+    const canNavigate = FUtils.isDirectory({fileType: props.file.fileType});
 
     const icon = (
         <Flex mr="10px" alignItems="center" cursor="inherit">
@@ -1003,8 +934,8 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
     return (
         <Flex maxWidth={`calc(100% - ${220 + (props.isEmbedded ? 15 : 0)}px)`}>
-            <Flex mx="10px" alignItems="center" >
-                {isAnyMockFile([props.file]) ? <Box width="24px" /> : (
+            <Flex mx="10px" alignItems="center">
+                {FUtils.isAnyMockFile([props.file]) ? <Box width="24px" /> : (
                     <Icon
                         cursor="pointer"
                         size="24"
@@ -1025,22 +956,21 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         onClick={e => {
                             e.preventDefault();
                             e.stopPropagation();
-                            props.onNavigate(resolvePath(props.file.path));
+                            props.onNavigate(FUtils.resolvePath(props.file.path));
                         }}
                     >
                         {fileName}
                     </BaseLink>
-                ) : props.previewEnabled && isFilePreviewSupported(props.file) && !beingRenamed &&
+                ) : props.previewEnabled && FUtils.isFilePreviewSupported(props.file) && !beingRenamed &&
                     UF.inRange({status: props.file.size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) ?
-                        <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
-                        fileName
+                        <Link to={FUtils.filePreviewQuery(props.file.path)}>{fileName}</Link> : fileName
                 }
 
                 <Hide sm xs>
                     <Flex mt="4px">
-                        {!props.file.size || isDirectory(props.file) ? null : (
+                        {!props.file.size || FUtils.isDirectory(props.file) ? null : (
                             <Text fontSize={0} title="Size" mr="12px" color="gray">
-                                {sizeToString(props.file.size)}
+                                {FUtils.sizeToString(props.file.size)}
                             </Text>
                         )}
                         {!props.file.modifiedAt ? null : (
@@ -1050,11 +980,13 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                             </Text>
                         )}
                         {!((props.file.acl?.length ?? 0) > 0) ? (
-                            !isPartOfProject(props.file.path) || isPartOfSomePersonalFolder(props.file.path) ||
+                            !FUtils.isPartOfProject(props.file.path) || FUtils.isPartOfSomePersonalFolder(props.file.path) ||
                                 props.projectRole === undefined || !isAdminOrPI(props.projectRole) ?
                                 null :
                                 <Text color={"red"} mr={"12px"} fontSize={0}>PROJECT ADMINS ONLY</Text>
-                        ) : (<Text title="Members" fontSize={0} mr="12px" color="gray">{props.file.acl?.length} members</Text>)}
+                        ) : (<Text title="Members" fontSize={0} mr="12px" color="gray">
+                            {props.file.acl?.length} members
+                        </Text>)}
                     </Flex>
                 </Hide>
             </Box>
@@ -1067,7 +999,7 @@ function RepositoryOperations(props: {
     createFolder: (isRepo?: boolean) => void;
     role: ProjectRole;
 }): JSX.Element | null {
-    if (props.path === undefined || !isProjectHome(props.path) || ![ProjectRole.ADMIN, ProjectRole.PI].includes(props.role)) {
+    if (props.path === undefined || !FUtils.isProjectHome(props.path) || !isAdminOrPI(props.role)) {
         return null;
     }
     return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;
@@ -1153,8 +1085,8 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
     };
 
     const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
-        // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
+        // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
         let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {
             As = OutlineButton;
@@ -1171,15 +1103,17 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 As = Flex;
             }
         }
+
         return (
             <As
                 cursor="pointer"
                 color={fileOp.color}
                 alignItems="center"
-                onClick={(): void => fileOp.onClick(filesInCallback, props.callback)}
+                onClick={() => fileOp.onClick(filesInCallback, props.callback)}
                 ml={props.inDropdown ? "-17px" : undefined}
                 mr={props.inDropdown ? "-17px" : undefined}
                 pl={props.inDropdown ? "15px" : undefined}
+                data-tag={`${fileOp.text}-action`}
                 {...props}
             >
                 {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName} /> : null}
@@ -1194,15 +1128,15 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
         return <Box width="38px" />;
     }
 
-    const content = (
-        <>
-            {filteredButtons.map((op, i) => <Operation fileOp={op} key={i} />)}
-            {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
-                <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>
-            }
-            {filteredOptions.map((op, i) => <Operation fileOp={op} key={i} />)}
-        </>
-    );
+    const content: JSX.Element[] =
+        filteredButtons.map((op, i) => <Operation fileOp={op} key={i} />)
+            .concat(files.length === 0 || fileOperations.length === 1 || props.inDropdown ? [] :
+                <div key="selected">
+                    <TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan>
+                </div>
+            ).concat(filteredOptions.map((op, i) => <Operation fileOp={op} key={i + "_"} />));
+
+    const dataTag = files.length === 0 ? undefined : files.length === 1 ? files[0].path + "-dropdown" : "file-ops";
 
     return (props.inDropdown ?
         <Box>
@@ -1216,17 +1150,14 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                         mr="10px"
                         name="ellipsis"
                         size="1em"
+                        data-tag={dataTag}
                         rotation={90}
                     />
                 )}
             >
                 {content}
             </ClickableDropdown>
-        </Box> : (
-            <>
-                {content}
-            </>
-        )
+        </Box> : <>{content}</>
     );
 };
 
@@ -1245,7 +1176,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
             <Flex
                 cursor="pointer"
                 alignItems="center"
-                onClick={() => quickLaunchCallback(quickLaunchApp, getParentPath(file.path), props.history)}
+                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), props.history)}
                 width="auto"
                 {...props}
             >
@@ -1261,7 +1192,6 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
         </>
     );
 };
-
 
 function getSortingColumn(): SortBy {
     const sortingColumn = window.localStorage.getItem("filesSorting");

@@ -3,6 +3,7 @@ package dk.sdu.cloud.project.api
 import com.github.jasync.sql.db.util.size
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.RPCException
@@ -23,14 +24,15 @@ data class CreateGroupRequest(val group: String) {
         if (group == "-") throw RPCException("Group cannot be '-'", HttpStatusCode.BadRequest)
     }
 }
-typealias CreateGroupResponse = Unit
+typealias CreateGroupResponse = FindByStringId
 
 data class ListGroupsWithSummaryRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
 typealias ListGroupsWithSummaryResponse = Page<GroupWithSummary>
-data class GroupWithSummary(val group: String, val numberOfMembers: Int)
+data class GroupWithSummary(val groupId: String, val groupTitle: String, val numberOfMembers: Int)
+data class ProjectAndGroup(val project: Project, val group: ProjectGroup)
 
 data class DeleteGroupsRequest(val groups: Set<String>)
 typealias DeleteGroupsResponse = Unit
@@ -41,7 +43,7 @@ typealias AddGroupMemberResponse = Unit
 data class RemoveGroupMemberRequest(val group: String, val memberUsername: String)
 typealias RemoveGroupMemberResponse = Unit
 
-data class UpdateGroupNameRequest(val oldGroupName: String, val newGroupName: String) {
+data class UpdateGroupNameRequest(val groupId: String, val newGroupName: String) {
     init {
         if (newGroupName.isEmpty()) throw RPCException("Group cannot be empty", HttpStatusCode.BadRequest)
         if (newGroupName.contains('\n')) throw RPCException("Group cannot contain new lines", HttpStatusCode.BadRequest)
@@ -70,6 +72,21 @@ typealias ListAllGroupMembersResponse = List<String>
 
 typealias GroupCountRequest = Unit
 typealias GroupCountResponse = Long
+
+data class ViewGroupRequest(val id: String)
+typealias ViewGroupResponse = GroupWithSummary
+
+data class LookupByGroupTitleRequest(
+    val projectId: String,
+    val title: String
+)
+typealias LookupByGroupTitleResponse = GroupWithSummary
+
+data class LookupProjectAndGroupRequest(
+    val project: String,
+    val group: String
+)
+typealias LookupProjectAndGroupResponse = ProjectAndGroup
 
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
@@ -208,7 +225,6 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             }
         }
 
-    /*
     val updateGroupName = call<UpdateGroupNameRequest, UpdateGroupNameResponse, CommonErrorMessage>("updateGroupName") {
         auth {
             access = AccessRight.READ_WRITE
@@ -225,7 +241,6 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             body { bindEntireRequestFromBody() }
         }
     }
-     */
 
     /**
      * Lists members of a group.
@@ -316,6 +331,84 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             path {
                 using(baseContext)
                 +"count"
+            }
+        }
+    }
+
+    /**
+     * View information about a group
+     *
+     * All project members can use this endpoint.
+     */
+    val view = call<ViewGroupRequest, ViewGroupResponse, CommonErrorMessage>("view") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"view"
+            }
+
+            params {
+                +boundTo(ViewGroupRequest::id)
+            }
+        }
+    }
+
+    /**
+     * Look up project group by title
+     *
+     * Only [Roles.PRIVILEGED] can call this endpoint. It is intended for services which need to verify that their input
+     * is valid.
+     */
+    val lookupByTitle = call<LookupByGroupTitleRequest, LookupByGroupTitleResponse, CommonErrorMessage>("lookupByTitle") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"lookup-by-title"
+            }
+
+            params {
+                +boundTo(LookupByGroupTitleRequest::projectId)
+                +boundTo(LookupByGroupTitleRequest::title)
+            }
+        }
+    }
+
+    /**
+     * Look up a project and group
+     *
+     * Only [Roles.PRIVILEGED] can call this endpoint. It is intended for services which need to look up a
+     * project and group, which is not necessarily the active project.
+     */
+    val lookupProjectAndGroup = call<LookupProjectAndGroupRequest, LookupProjectAndGroupResponse, CommonErrorMessage>("lookupProjectAndGroup") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"lookup-project-and-group"
+            }
+
+            params {
+                +boundTo(LookupProjectAndGroupRequest::project)
+                +boundTo(LookupProjectAndGroupRequest::group)
             }
         }
     }

@@ -19,6 +19,7 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.stackTraceToString
@@ -258,9 +259,9 @@ class JobOrchestrator(
             } else {
                 val startedAt = job.startedAt
                 if (startedAt == null) {
-                    SimpleDuration.fromMillis(0L)
+                    SimpleDuration.fromMillis(5000L)
                 } else {
-                    SimpleDuration.fromMillis(System.currentTimeMillis() - startedAt)
+                    SimpleDuration.fromMillis(Time.now() - startedAt)
                 }
             }
 
@@ -380,7 +381,7 @@ class JobOrchestrator(
     suspend fun replayLostJobs() {
         log.info("Replaying jobs lost from last session...")
         var count = 0
-        jobQueryService.findJobsCreatedBefore(db, System.currentTimeMillis()).collect { jobWithToken ->
+        jobQueryService.findJobsCreatedBefore(db, Time.now()).collect { jobWithToken ->
             count++
             handleStateChange(
                 jobWithToken,
@@ -404,7 +405,7 @@ class JobOrchestrator(
     }
 
     suspend fun removeExpiredJobs() {
-        val expired = System.currentTimeMillis() - JOB_MAX_TIME
+        val expired = Time.now() - JOB_MAX_TIME
         jobQueryService.findJobsCreatedBefore(db, expired).collect { job ->
             failJob(job)
         }

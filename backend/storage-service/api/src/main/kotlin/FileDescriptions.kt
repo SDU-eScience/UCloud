@@ -74,7 +74,7 @@ data class FindByPath(val path: String)
 
 data class CreateDirectoryRequest(
     val path: String,
-    val owner: String?,
+    val owner: String? = null,
     val sensitivity: SensitivityLevel? = null
 )
 
@@ -163,10 +163,10 @@ enum class StorageFileAttribute {
 
 data class ListDirectoryRequest(
     val path: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?,
-    val order: SortOrder?,
-    val sortBy: FileSortBy?,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
+    val order: SortOrder? = null,
+    val sortBy: FileSortBy? = null,
     val attributes: String? = null,
     val type: FileType? = null
 ) : WithPaginationRequest
@@ -270,6 +270,12 @@ data class TransferQuotaRequest(val path: String, val quotaInBytes: Long)
 typealias TransferQuotaResponse = Unit
 
 const val NO_QUOTA = -1L
+
+val Int.KiB: Long get() = 1024L * this
+val Int.MiB: Long get() = 1024L * 1024 * this
+val Int.GiB: Long get() = 1024L * 1024 * 1024 * this
+val Int.TiB: Long get() = 1024L * 1024 * 1024 * 1024 * this
+val Int.PiB: Long get() = 1024L * 1024 * 1024 * 1024 * 1024 * this
 
 object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"

@@ -2,10 +2,12 @@ package db.migration
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.Schema
 import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
 import java.sql.Statement
 
+@Schema("app_store")
 @Suppress("ClassNaming", "NestedBlockDepth")
 class V23__MigrateMetadata : BaseJavaMigration() {
     override fun migrate(context: Context) {

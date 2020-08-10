@@ -1,6 +1,6 @@
 import {ActivityDispatchProps, ActivityFilter, ActivityProps} from "Activity";
 import * as Module from "Activity";
-import {ActivityReduxObject, ReduxObject} from "DefaultObjects";
+import {ActivityReduxObject} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -206,7 +206,7 @@ export const TimeFilter = (props: {text: string; onChange: (ts?: Date) => void; 
                 showTimeInput
                 placeholderText={"Don't filter"}
                 selected={props.selected}
-                onChange={ts => props.onChange(ts ?? undefined)}
+                onChange={ts => props.onChange(ts as Date ?? undefined)}
                 timeIntervals={15}
                 isClearable
                 selectsStart

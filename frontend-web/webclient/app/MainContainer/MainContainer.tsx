@@ -1,17 +1,13 @@
-import {ReduxObject, ResponsiveReduxObject} from "DefaultObjects";
 import {LoadableContent} from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as React from "react";
-import {connect} from "react-redux";
+import {useSelector} from "react-redux";
 import styled from "styled-components";
 import {Absolute, Box, Hide} from "ui-components";
 import * as Heading from "ui-components/Heading";
+import {ResponsiveReduxObject} from "DefaultObjects";
 
-export interface MainContainerStateProps {
-    responsiveState?: ResponsiveReduxObject;
-}
-
-export interface MainContainerProps extends MainContainerStateProps {
+export interface MainContainerProps {
     sidebar?: React.ReactNode;
     sidebarSize?: number;
     main: React.ReactNode;
@@ -20,17 +16,15 @@ export interface MainContainerProps extends MainContainerStateProps {
     headerSize?: number;
 }
 
-
-// eslint-disable-next-line no-underscore-dangle
-export const _MainContainer = ({
+export const MainContainer = ({
     sidebar,
     main,
     additional,
     header,
     sidebarSize = 240,
-    headerSize = 96,
-    responsiveState
+    headerSize = 96
 }: MainContainerProps): JSX.Element => {
+    const responsiveState = useSelector<ReduxObject, ResponsiveReduxObject>(it => it.responsive!);
     const leftSidebarSize = responsiveState!.greaterThan.xl ? 190 : 68; // main website sidebar H size
     const topMenuSize = 48; // main website top menu V size
     const pad = 14; // padding unit
@@ -60,6 +54,7 @@ export const _MainContainer = ({
                     <Hide sm xs md>
                         <SidebarContainer
                             height="100%"
+                            data-tag="sidebar"
                             pt={topMenuSize + mainYpad}
                             top="0"
                             right="0"
@@ -81,12 +76,6 @@ export const _MainContainer = ({
         </React.StrictMode>
     );
 };
-
-const mapStateToProps = ({responsive}: ReduxObject): MainContainerStateProps => ({
-    responsiveState: responsive
-});
-
-export const MainContainer = connect<MainContainerStateProps>(mapStateToProps)(_MainContainer);
 
 export interface LoadingMainContainerProps extends MainContainerProps {
     loading?: boolean;

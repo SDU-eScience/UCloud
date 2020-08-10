@@ -16,7 +16,6 @@ import {useEffect} from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import Box from "ui-components/Box";
 import Button from "ui-components/Button";
 import Flex from "ui-components/Flex";

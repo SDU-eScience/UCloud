@@ -40,8 +40,6 @@ import {
     Top,
     TopAccessory
 } from "UserSettings/AvatarOptions";
-import {APICallParameters} from "Authentication/DataHook";
-import {Dictionary} from "Types";
 import {AvatarType} from "UserSettings/Avataaar";
 export {default as Avatar, AvatarStyle} from "./avatar";
 
@@ -71,7 +69,7 @@ export interface FetchBulkAvatarsRequest {
 }
 
 export interface FetchBulkAvatarsResponse {
-    avatars: Dictionary<AvatarType>;
+    avatars: Record<string, AvatarType>;
 }
 
 export function fetchBulkAvatars(request: FetchBulkAvatarsRequest): APICallParameters<FetchBulkAvatarsRequest> {

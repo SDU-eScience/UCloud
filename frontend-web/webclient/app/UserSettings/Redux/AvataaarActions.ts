@@ -1,7 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {PayloadAction} from "Types";
 import {AvatarType} from "UserSettings/Avataaar";
 import {findAvatarQuery, saveAvatarQuery} from "Utilities/AvatarUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";

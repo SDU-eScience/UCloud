@@ -1,9 +1,8 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Avatar} from "AvataaarLib";
-import {ReduxObject} from "DefaultObjects";
 import Spinner from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
-import {setActivePage} from "Navigation/Redux/StatusActions";
+import {setActivePage, useTitle} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -26,6 +25,8 @@ interface AvataaarModificationOperations {
 function Modification(props: AvataaarModificationOperations): JSX.Element {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
     const [loading, setLoading] = React.useState(true);
+
+    useTitle("Edit Avatar");
 
     React.useEffect(() => {
         const promises = new PromiseKeeper();

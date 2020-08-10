@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.calls.client.outgoingAuthToken
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidation
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
@@ -35,7 +36,7 @@ class RefreshingJWTAuthenticator(
 
     private fun DecodedJWT?.isExpiringSoon(): Boolean {
         if (this == null) return true
-        return Date().toInstant().plus(3, ChronoUnit.MINUTES).isAfter(expiresAt.toInstant())
+        return Date(Time.now()).toInstant().plus(3, ChronoUnit.MINUTES).isAfter(expiresAt.toInstant())
     }
 
     private suspend fun refresh(): String {

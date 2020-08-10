@@ -26,15 +26,7 @@ const OptionalParamsBox = styled(Box)`
 `;
 
 export class OptionalParameters extends React.Component<OptionalParametersProps, OptionalParametersState> {
-    private fuse: Fuse<Types.ApplicationParameter, {
-        shouldSort: true;
-        threshold: number;
-        location: number;
-        distance: number;
-        maxPatternLength: number;
-        minMatchCharLength: number;
-        keys: Array<"title" | "description">;
-    }>;
+    private fuse: Fuse<Types.ApplicationParameter>;
     private currentTimeout: number = -1;
     private searchField = React.createRef<HTMLInputElement>();
 
@@ -82,7 +74,6 @@ export class OptionalParameters extends React.Component<OptionalParametersProps,
             threshold: 0.6,
             location: 0,
             distance: 100,
-            maxPatternLength: 32,
             minMatchCharLength: 1,
             keys: [
                 "title",

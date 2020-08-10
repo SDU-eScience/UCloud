@@ -43,8 +43,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             )
 
             commandRunnerFactory.withCtx(this, owner) { ctx ->
-                log.debug("writing")
-
                 val ingoingRequest = request.file.asIngoing()
                 val location = fs.write(ctx, request.location, policy) {
                     ingoingRequest.channel.copyTo(this)
@@ -58,8 +56,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                         throw FSException.BadRequest("File upload aborted")
                     }
                 }
-
-                log.debug("done writing")
 
                 if (sensitivity != null) {
                     fs.setSensitivityLevel(ctx, location, sensitivity)

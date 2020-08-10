@@ -4,8 +4,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.downtime.management.api.Downtime
 import dk.sdu.cloud.downtime.management.api.DowntimeWithoutId
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -16,8 +15,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -55,8 +52,8 @@ class DowntimeDao {
                     },
                     """
                         DELETE FROM downtimes
-                        WHERE id = ?id
-                    """.trimIndent()
+                        WHERE id = :id
+                    """
                 ).rowsAffected
         }
         if (count == 0L) {
@@ -65,7 +62,7 @@ class DowntimeDao {
     }
 
     suspend fun removeExpired(db: DBContext, user: SecurityPrincipal) {
-        val now = Date().time
+        val now = Time.now()
         db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -74,8 +71,8 @@ class DowntimeDao {
                     },
                     """
                         DELETE FROM downtimes
-                        WHERE end_time < to_timestamp(?time)
-                    """.trimIndent()
+                        WHERE end_time < to_timestamp(:time)
+                    """
                 )
         }
     }
@@ -88,7 +85,7 @@ class DowntimeDao {
                         SELECT *
                         FROM downtimes
                         ORDER BY start_time ASC
-                    """.trimIndent()
+                    """
                 ).rows
                 .paginate(paging)
                 .mapItems {
@@ -104,7 +101,7 @@ class DowntimeDao {
 
 
     suspend fun listPending(db: DBContext, paging: NormalizedPaginationRequest): Page<Downtime> {
-        val now = Date().time
+        val now = Time.now()
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -114,9 +111,9 @@ class DowntimeDao {
                     """
                         SELECT *
                         FROM downtimes
-                        WHERE end_time > to_timestamp(?time)
+                        WHERE end_time > to_timestamp(:time)
                         ORDER BY start_time
-                    """.trimIndent()
+                    """
                 ).rows
                 .paginate(paging)
                 .mapItems {
@@ -140,9 +137,10 @@ class DowntimeDao {
                     """
                         SELECT *
                         FROM downtimes
-                        WHERE id = ?id
-                    """.trimIndent()
-                ).rows.firstOrNull() ?: throw RPCException("No downtime with id found", HttpStatusCode.NotFound)
+                        WHERE id = :id
+                    """
+                ).rows
+                .firstOrNull() ?: throw RPCException("No downtime with id found", HttpStatusCode.NotFound)
         }
 
         return Downtime(

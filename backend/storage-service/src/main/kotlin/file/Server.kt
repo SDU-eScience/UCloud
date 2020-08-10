@@ -34,6 +34,7 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.file.processors.ProjectProcessor
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -58,7 +59,7 @@ class Server(
 
         // FS root
         val fsRootFile =
-            File("/mnt/cephfs/" + cephConfig.subfolder).takeIf { it.exists() }
+            File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
         log.info("Serving files from ${fsRootFile.absolutePath}")
@@ -69,10 +70,10 @@ class Server(
         val metadataService = MetadataService(db, metadataDao)
         val projectCache = ProjectCache(client)
         val newAclService = AclService(metadataService, homeFolderService, client, projectCache)
-        val limitChecker = LimitChecker(db, newAclService, projectCache, client, config.product)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
         val fs = LinuxFS(fsRootFile, newAclService, cephConfig)
+        val limitChecker = LimitChecker(db, newAclService, projectCache, client, config.product, fs, processRunner)
         val coreFileSystem =
             CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService, limitChecker)
 
@@ -90,6 +91,8 @@ class Server(
             fsRootFile,
             homeFolderService
         ).init()
+
+        ProjectProcessor(streams, fsRootFile, client).init()
 
         val metadataRecovery = MetadataRecoveryService(
             micro.backgroundScope,
@@ -125,7 +128,7 @@ class Server(
                     commandRunnerForCalls,
                     newAclService,
                     coreFileSystem,
-                    config.filePermissionAcl
+                    config.filePermissionAcl + if (micro.developmentModeEnabled) setOf("admin@dev") else emptySet()
                 ),
 
                 IndexingController(

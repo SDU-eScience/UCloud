@@ -1,4 +1,4 @@
-import {callAPIWithErrorHandler, useCloudAPI} from "Authentication/DataHook";
+import {callAPIWithErrorHandler} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useProjectManagementStatus, } from "Project/index";
 import * as Heading from "ui-components/Heading";
@@ -19,11 +19,13 @@ import ProjectMembers from "./MembersPanel";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {ProjectSettings} from "Project/ProjectSettings";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const Members: React.FunctionComponent<MembersOperations> = props => {
     const {
         projectId,
-        group,
+        groupId,
         projectMembers,
         setProjectMemberParams,
         projectMemberParams,
@@ -36,15 +38,18 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
 
     const shouldVerify = projectDetails.data.needsVerification;
 
+    useTitle("Members");
+    useSidebarPage(SidebarPages.Projects);
+
     useEffect(() => {
         setProjectMemberParams(
             membershipSearch({
                 ...projectMemberParams.parameters,
                 query: memberSearchQuery,
-                notInGroup: group
+                notInGroup: groupId
             })
         );
-    }, [projectId, group, groupMembers.data, memberSearchQuery]);
+    }, [projectId, groupId, groupMembers.data, memberSearchQuery]);
 
     useEffect(() => {
         props.setLoading(projectMembers.loading || groupMembers.loading);
@@ -122,10 +127,6 @@ const TwoColumnLayout = styled.div`
     & > * {
         flex-basis: 100%;
     }
-
-    & > .groups {
-        overflow: auto;
-    }
     
     @media screen and (min-width: 1200px) {
         & {
@@ -144,6 +145,8 @@ const TwoColumnLayout = styled.div`
         & > .groups {
             flex: 1;
             height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
     }
 `;

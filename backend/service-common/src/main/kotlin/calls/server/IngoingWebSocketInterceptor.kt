@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
@@ -159,16 +160,16 @@ class IngoingWebSocketInterceptor(
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
 
-                    var nextPing = System.currentTimeMillis() + PING_PERIOD
+                    var nextPing = Time.now() + PING_PERIOD
                     try {
                         while (isActive && session.isActive) {
-                            if (System.currentTimeMillis() >= nextPing) {
+                            if (Time.now() >= nextPing) {
                                 try {
                                     session.rawSend("""{"ping":"pong"}""")
                                 } catch (ex: ClosedSendChannelException) {
                                     break
                                 }
-                                nextPing = System.currentTimeMillis() + PING_PERIOD
+                                nextPing = Time.now() + PING_PERIOD
                             }
 
                             val frame = try {

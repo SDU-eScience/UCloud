@@ -5,7 +5,11 @@ import dk.sdu.cloud.indexing.api.IndexingServiceDescription
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 
-data class CephConfiguration(val subfolder: String = "", val useCephDirectoryStats: Boolean = false)
+data class CephConfiguration(
+    val cephfsBaseMount: String? = null,
+    val subfolder: String = "",
+    val useCephDirectoryStats: Boolean = false
+)
 
 object IndexingService : Service {
     override val description = IndexingServiceDescription

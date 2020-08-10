@@ -8,6 +8,7 @@ import dk.sdu.cloud.service.Loggable
 import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
+import io.fabric8.kubernetes.client.Watch
 import io.fabric8.kubernetes.client.Watcher
 import kotlinx.coroutines.runBlocking
 
@@ -21,13 +22,17 @@ class JobWatcher(
     private val namespace: String = "app-kubernetes"
 ) {
     private val producer = eventStreamService.createProducer(JobEvents.events)
+    private var currentWatch: Watch? = null
 
     fun startWatch() {
+        currentWatch?.close()
+        currentWatch = null
+
         ourJobs().list().items.forEach {
             handleJobEvent(it)
         }
 
-        ourJobs().watch(object : Watcher<Job> {
+        currentWatch = ourJobs().watch(object : Watcher<Job> {
             override fun onClose(cause: KubernetesClientException?) {
                 // Do nothing
             }
@@ -43,7 +48,12 @@ class JobWatcher(
     private fun handleJobEvent(job: Job): Unit = runBlocking {
         val jobName = job.metadata.name
         val condition = job.status?.conditions?.firstOrNull()?.let { cond ->
-            JobCondition(cond.type, cond.reason)
+            JobCondition(
+                cond.type,
+                cond.reason,
+                isActive = job.status.active != null && job.status.active != 0,
+                isFailed = job.status.failed != null && job.status.failed != 0
+            )
         }
 
         log.info("Handling event: $jobName $condition")

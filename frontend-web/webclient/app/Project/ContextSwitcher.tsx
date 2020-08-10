@@ -1,4 +1,4 @@
-import {ReduxObject, emptyPage} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
@@ -10,7 +10,6 @@ import {Flex, Truncate, Text, Icon, Divider} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {useCloudAPI} from "Authentication/DataHook";
-import {Page} from "Types";
 import {UserInProject, ListProjectsRequest, listProjects, areProjectsEnabled} from "Project";
 import {useHistory} from "react-router";
 import {History} from "history";

@@ -1,12 +1,11 @@
 import {JobState, RunsSortBy} from "Applications/index";
-import {APICallParameters} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {SortOrder} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
 import {inSuccessRange} from "UtilityFunctions";
-import { Project } from "Project";
+import { Project, ProjectGroup } from "Project";
 
 export interface ListByNameProps {
     itemsPerPage: number;
@@ -115,7 +114,7 @@ export interface AccessEntity {
 export interface DetailedAccessEntity {
     user: string | null;
     project: Project | null;
-    group: string | null;
+    group: ProjectGroup | null;
 }
 
 export interface ApplicationPermissionEntry {

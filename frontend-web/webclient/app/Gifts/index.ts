@@ -1,5 +1,4 @@
-import {APICallParameters} from "Authentication/DataHook";
-import { ResourceRequest } from "Project/Grant";
+import {ResourceRequest} from "Project/Grant";
 
 export type AvailableGiftsRequest = any;
 

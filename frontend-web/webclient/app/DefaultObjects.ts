@@ -9,7 +9,7 @@ import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
 import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
-import {Dictionary, Page, PaginationRequest, SidebarOption} from "Types";
+import {SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
@@ -133,9 +133,9 @@ interface LegacyReducers {
  * Global state created via useGlobal() similar to ReduxObject
  */
 export interface HookStore {
-    fileFavoriteCache?: Dictionary<boolean>;
+    fileFavoriteCache?: Record<string, boolean>;
     projectCache?: ProjectCache;
-    avatarCache?: Dictionary<AvatarType>;
+    avatarCache?: Record<string, AvatarType>;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
     projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
     projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
@@ -163,11 +163,12 @@ interface LegacyReduxObject {
     project: ProjectRedux.State;
     loading?: boolean;
 }
-
-export type ReduxObject =
-    LegacyReduxObject &
-    ApplicationRedux.Objects &
-    TaskReduxState;
+declare global {
+    export type ReduxObject =
+        LegacyReduxObject &
+        ApplicationRedux.Objects &
+        TaskReduxState;
+}
 
 export const initActivity = (): ActivityReduxObject => ({
     loading: false

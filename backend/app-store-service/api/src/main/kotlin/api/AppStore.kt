@@ -19,6 +19,7 @@ data class Project(
     val id: String,
     val title: String
 )
+typealias ProjectGroup = Project
 
 data class AccessEntity(
     val user: String?,
@@ -33,10 +34,10 @@ data class AccessEntity(
 data class DetailedAccessEntity(
     val user: String?,
     val project: Project?,
-    val group: String?
+    val group: ProjectGroup?
 ) {
     init {
-        require(!user.isNullOrBlank() || (project != null && !group.isNullOrBlank())) { "No access entity defined" }
+        require(!user.isNullOrBlank() || (project != null && group != null)) { "No access entity defined" }
     }
 }
 
@@ -460,7 +461,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     }
 
-    val create = call<Unit, Unit, CommonErrorMessage>("create") {
+    val create = call<BinaryStream, Unit, CommonErrorMessage>("create") {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -469,6 +470,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         http {
             method = HttpMethod.Put
             path { using(baseContext) }
+            body { bindEntireRequestFromBody() }
         }
     }
 

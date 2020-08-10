@@ -28,7 +28,7 @@ class Server(
     override val log = logger()
 
     override fun start() {
-        val cephFsRoot = "/mnt/cephfs/" + cephConfig.subfolder
+        val cephFsRoot = (cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder
         elastic = micro.elasticHighLevelClient
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val stats = if (cephConfig.useCephDirectoryStats) CephFsFastDirectoryStats else null

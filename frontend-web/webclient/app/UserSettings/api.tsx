@@ -1,5 +1,3 @@
-import {APICallParameters} from "Authentication/DataHook";
-import {PaginationRequest} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export interface UserSession {

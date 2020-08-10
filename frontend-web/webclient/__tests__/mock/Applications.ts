@@ -1,5 +1,4 @@
 import {Application, ParameterTypes} from "../../app/Applications";
-import {Page} from "../../app/Types";
 
 export const applicationsPage: Page<Application> = {
     itemsInTotal: 8,

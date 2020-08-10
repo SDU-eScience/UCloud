@@ -1,7 +1,7 @@
 dependencies {
     val ktorVersion = "1.2.3"
     val jacksonVersion = "2.10.0.pr3"
-    val jasyncVersion = "1.0.12"
+    val jasyncVersion = "1.1.3"
 
     api("org.jetbrains:annotations:16.0.2")
 

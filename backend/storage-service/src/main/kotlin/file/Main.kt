@@ -24,6 +24,7 @@ data class ProductConfiguration(
 )
 
 data class CephConfiguration(
+    val cephfsBaseMount: String? = null,
     val subfolder: String = "",
     val useCephDirectoryStats: Boolean = false
 )
@@ -36,7 +37,6 @@ object StorageService : Service {
         micro.install(BackgroundScopeFeature)
         val folder = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
         val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
-
 
         micro.feature(LogFeature).configureLevels(
             mapOf(

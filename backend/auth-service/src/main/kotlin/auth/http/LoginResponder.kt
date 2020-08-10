@@ -9,6 +9,7 @@ import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import io.ktor.application.ApplicationCall
 import io.ktor.content.TextContent
 import io.ktor.features.origin
@@ -88,7 +89,7 @@ class LoginResponder(
             call.respondRedirect("/")
         }
 
-        val expiry = resolvedService.refreshTokenExpiresAfter?.let { System.currentTimeMillis() + it }
+        val expiry = resolvedService.refreshTokenExpiresAfter?.let { Time.now() + it }
         val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(
             user,
             refreshTokenExpiry = expiry,
@@ -132,7 +133,7 @@ class LoginResponder(
             name = CoreAuthController.REFRESH_WEB_AUTH_STATE_COOKIE,
             value = defaultMapper.writeValueAsString(value),
             httpOnly = false,
-            expires = GMTDate(System.currentTimeMillis() + 1000L * 60 * 5),
+            expires = GMTDate(Time.now() + 1000L * 60 * 5),
             path = "/"
         )
     }
@@ -143,7 +144,7 @@ class LoginResponder(
             value = refreshToken,
             secure = call.request.origin.scheme == "https",
             httpOnly = true,
-            expires = GMTDate(expiry ?: System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
+            expires = GMTDate(expiry ?: Time.now() + (1000L * 60 * 60 * 24 * 30)),
             path = "/",
             extensions = mapOf(
                 "SameSite" to "strict"

@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.validateAndDecodeOrNull
 import io.ktor.http.HttpStatusCode
@@ -15,7 +16,7 @@ data class UserClient(
     val client: AuthenticatedClient,
     val homePath: String,
     val username: String,
-    var lastUse: Long = System.currentTimeMillis()
+    var lastUse: Long = Time.now()
 )
 
 class UserClientFactory(
@@ -34,7 +35,7 @@ class UserClientFactory(
             mutex.withLock {
                 val existing = clientCache[refreshToken]
                 if (existing != null) {
-                    existing.lastUse = System.currentTimeMillis()
+                    existing.lastUse = Time.now()
                     return existing
                 }
             }
@@ -61,9 +62,9 @@ class UserClientFactory(
     }
 
     private suspend fun cleanup() {
-        if (System.currentTimeMillis() > nextClean) {
+        if (Time.now() > nextClean) {
             mutex.withLock {
-                val now = System.currentTimeMillis()
+                val now = Time.now()
                 if (now <= nextClean) return
                 val iterator = clientCache.iterator()
                 while (iterator.hasNext()) {

@@ -74,9 +74,11 @@ class AppLicenseAsyncDao {
                     """
                         SELECT * 
                         FROM license_servers
-                        WHERE id = ?serverID
-                    """.trimIndent()
-                ).rows.firstOrNull()?.toLicenseServerWithId()
+                        WHERE id = :serverID
+                    """
+                ).rows
+                .firstOrNull()
+                ?.toLicenseServerWithId()
         }
     }
 
@@ -86,28 +88,8 @@ class AppLicenseAsyncDao {
         securityPrincipal: SecurityPrincipal,
         projectGroups: List<ProjectAndGroup>
     ): List<LicenseServerId>? {
-        var query = """
-            SELECT * 
-            FROM license_servers AS LS
-            INNER JOIN permissions as P
-                ON LS.id = P.server_id
-            WHERE LS.id IN (SELECT T.license_server FROM tags AS T where T.name IN (select unnest(?tags::text[])))
-                AND (
-                    P.username = ?user
-        """
-
-        if (projectGroups.isNotEmpty()) {
-            query += " OR ("
-            for((i, index) in projectGroups.indices.withIndex()) {
-                query += "(P.project = ?project$index AND P.project_group = ?group$index)"
-                if (i < projectGroups.size - 1) {
-                    query += " OR "
-                }
-            }
-            query += ")"
-        }
-
-        query += " AND (P.permission = 'READ_WRITE' OR P.permission = 'READ'))"
+        val projects = projectGroups.map { it.project }
+        val groups = projectGroups.map { it.group }
 
         return db.withSession { session ->
             session
@@ -115,13 +97,27 @@ class AppLicenseAsyncDao {
                     {
                         setParameter("tags", tags)
                         setParameter("user", securityPrincipal.username)
-                        projectGroups.forEachIndexed { index, projectAndGroup ->
-                            setParameter("project$index", projectAndGroup.project)
-                            setParameter("group$index", projectAndGroup.group)
-                        }
+                        setParameter("projects", projects )
+                        setParameter("groups", groups)
                     },
-                    query
-                ).rows.map { it.toIdentifiable() }
+                    """
+                        SELECT * 
+                        FROM license_servers AS LS
+                        INNER JOIN permissions as P
+                            ON LS.id = P.server_id
+                        WHERE LS.id IN (SELECT T.license_server FROM tags AS T where T.name IN (select unnest(:tags::text[])))
+                            AND (
+                                P.username = :user
+                                OR ((P.project, P.project_group) IN (select unnest(:projects::text[]), unnest(:groups::text[]))) 
+                                AND (P.permission = 'READ_WRITE' OR P.permission = 'READ')
+                            )
+                    """
+
+                    //query
+                ).rows
+                .map {
+                    it.toIdentifiable()
+                }
 
         }
     }
@@ -134,14 +130,14 @@ class AppLicenseAsyncDao {
             return db.withSession { session ->
                 session
                     .sendPreparedStatement(
-                        {
-                            setParameter("role", user.role.toString())
-                        },
                         """
                             SELECT * 
                             FROM license_servers
-                        """.trimIndent()
-                    ).rows.map { it.toLicenseServerWithId() }
+                        """
+                    ).rows
+                    .map {
+                        it.toLicenseServerWithId()
+                    }
             }
         } else {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
@@ -150,23 +146,7 @@ class AppLicenseAsyncDao {
 
     suspend fun update(db: DBContext, appLicenseServer: LicenseServerWithId) {
         db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("licenseID", appLicenseServer.id)
-                    },
-                    """
-                        SELECT * 
-                        FROM license_servers
-                        WHERE id = ?licenseID
-                    """.trimIndent()
-                )
-                .rows
-                .firstOrNull()
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "License server does not exist.")
-
-
-            session
+            val rowsAffectedByUpdate = session
                 .sendPreparedStatement(
                     {
                         setParameter("address", appLicenseServer.address)
@@ -177,11 +157,14 @@ class AppLicenseAsyncDao {
                     },
                     """
                         UPDATE license_servers
-                        SET address = ?address, port = ?port, license = ?license, name = ?name
-                        WHERE id = ?licenseID
-                    """.trimIndent()
-                )
+                        SET address = :address, port = :port, license = :license, name = :name
+                        WHERE id = :licenseID
+                    """
+                ).rowsAffected
 
+            if ( rowsAffectedByUpdate == 0L ) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "License server does not exist.")
+            }
         }
     }
 
@@ -194,8 +177,8 @@ class AppLicenseAsyncDao {
                     },
                     """
                         DELETE FROM license_servers
-                        WHERE id = ?serverID
-                    """.trimIndent()
+                        WHERE id = :serverID
+                    """
                 )
         }
     }
@@ -220,9 +203,12 @@ class AppLicenseAsyncDao {
                     """
                         SELECT * 
                         FROM tags
-                        WHERE license_server = ?serverId
-                    """.trimIndent()
-                ).rows.map { it.getField(TagLicenseTable.name) }
+                        WHERE license_server = :serverId
+                    """
+                ).rows
+                .map {
+                    it.getField(TagLicenseTable.name)
+                }
         }
     }
 
@@ -236,8 +222,8 @@ class AppLicenseAsyncDao {
                     },
                     """
                         DELETE FROM tags
-                        WHERE license_server = ?serverId AND name = ?name
-                    """.trimIndent()
+                        WHERE license_server = :serverId AND name = :name
+                    """
                 )
         }
     }

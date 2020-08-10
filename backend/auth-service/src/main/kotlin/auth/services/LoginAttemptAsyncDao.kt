@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -55,7 +56,7 @@ fun RowData.toLoginCoolDown(): LoginCooldown {
 }
 
 class LoginAttemptAsyncDao(
-    private val timeSource: () -> Long = { System.currentTimeMillis() }
+    private val timeSource: () -> Long = { Time.now() }
 ) {
     /**
      * Logs that a failed login attempt has taken place
@@ -100,8 +101,8 @@ class LoginAttemptAsyncDao(
                     """
                         SELECT COUNT(*)
                         FROM login_attempts
-                        WHERE (username = ?username) AND
-                                (created_at >= to_timestamp(?time))
+                        WHERE (username = :username) AND
+                                (created_at >= to_timestamp(:time))
                     """
                 ).rows.singleOrNull()?.getLong(0)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "SQL did not return a count")
@@ -143,10 +144,12 @@ class LoginAttemptAsyncDao(
                     """
                         SELECT *
                         FROM login_cooldown
-                        WHERE username = ?username AND expires_at >= to_timestamp(?expire)
+                        WHERE username = :username AND expires_at >= to_timestamp(:expire)
                         ORDER BY severity DESC
-                    """.trimIndent()
-                ).rows.firstOrNull()?.toLoginCoolDown()
+                    """
+                ).rows
+                .firstOrNull()
+                ?.toLoginCoolDown()
         }
     }
 

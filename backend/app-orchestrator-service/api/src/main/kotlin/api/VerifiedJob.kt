@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.service.Time
 import kotlin.math.max
 
 data class VerifiedJob(
@@ -105,12 +106,12 @@ data class VerifiedJob(
     /**
      * Timestamp for when this job was created.
      */
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Long = Time.now(),
 
     /**
      * Timestamp for when this job was last updated.
      */
-    val modifiedAt: Long = System.currentTimeMillis(),
+    val modifiedAt: Long = Time.now(),
 
     /**
      * Timestamp for when this job started execution.
@@ -135,7 +136,7 @@ data class VerifiedJob(
      * Milliseconds left of job from the job is started, null if the job is not started
      */
     val timeLeft: Long? get() = if (startedAt != null) {
-        max((startedAt + maxTime.toMillis()) - System.currentTimeMillis(), 0)
+        max((startedAt + maxTime.toMillis()) - Time.now(), 0)
     } else {
         null
     }

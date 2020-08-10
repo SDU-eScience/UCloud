@@ -3,7 +3,6 @@ package dk.sdu.cloud.project.services
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -22,17 +21,12 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
-import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.project.utils.userInvitedToInviteeTemplate
-import dk.sdu.cloud.project.utils.userLeftTemplate
-import dk.sdu.cloud.project.utils.userRemovedTemplate
-import dk.sdu.cloud.project.utils.userRemovedToPersonRemovedTemplate
-import dk.sdu.cloud.project.utils.userRoleChangeTemplate
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.project.api.ProjectEvent
+import dk.sdu.cloud.project.api.ProjectMember
+import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.utils.*
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.safeUsername
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.joda.time.LocalDateTime
 import java.util.*
@@ -93,8 +87,8 @@ class ProjectService(
                 session.insert(ProjectTable) {
                     set(ProjectTable.id, id)
                     set(ProjectTable.title, title)
-                    set(ProjectTable.createdAt, LocalDateTime.now())
-                    set(ProjectTable.modifiedAt, LocalDateTime.now())
+                    set(ProjectTable.createdAt, LocalDateTime(Time.now()))
+                    set(ProjectTable.modifiedAt, LocalDateTime(Time.now()))
                     set(ProjectTable.parent, parent)
                 }
 
@@ -102,8 +96,8 @@ class ProjectService(
                     set(ProjectMemberTable.username, principalInvestigatorOverride ?: actor.safeUsername())
                     set(ProjectMemberTable.role, ProjectRole.PI.name)
                     set(ProjectMemberTable.project, id)
-                    set(ProjectMemberTable.createdAt, LocalDateTime.now())
-                    set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
+                    set(ProjectMemberTable.createdAt, LocalDateTime(Time.now()))
+                    set(ProjectMemberTable.modifiedAt, LocalDateTime(Time.now()))
                 }
 
                 verifyMembership(session, "_project", id)
@@ -116,6 +110,12 @@ class ProjectService(
         }
 
         eventProducer.produce(ProjectEvent.Created(id))
+        eventProducer.produce(
+            ProjectEvent.MemberAdded(
+                id,
+                ProjectMember(principalInvestigatorOverride ?: actor.safeUsername(), ProjectRole.PI)
+            )
+        )
         return id
     }
 
@@ -197,10 +197,11 @@ class ProjectService(
         invitesTo: Set<String>
     ) {
         invitesTo.forEach { member ->
+            // We do not wish to fail if contact book is misbehaving
             ContactBookDescriptions.insert.call(
                 InsertRequest(invitedBy, listOf(member), ServiceOrigin.PROJECT_SERVICE),
                 serviceClient
-            ).orThrow()
+            )
 
             notify(NotificationType.PROJECT_INVITE, member, "$invitedBy has invited you to collaborate")
         }
@@ -215,10 +216,11 @@ class ProjectService(
                 )
             }
 
+            // We don't wish to fail if mails fail at sending
             MailDescriptions.sendBulk.call(
                 SendBulkRequest(messages),
                 serviceClient
-            ).orThrow()
+            )
         }
     }
 
@@ -249,9 +251,11 @@ class ProjectService(
                 set(ProjectMemberTable.role, ProjectRole.USER.name)
                 set(ProjectMemberTable.project, projectId)
                 set(ProjectMemberTable.username, invitedUser)
-                set(ProjectMemberTable.createdAt, LocalDateTime.now())
-                set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
+                set(ProjectMemberTable.createdAt, LocalDateTime(Time.now()))
+                set(ProjectMemberTable.modifiedAt, LocalDateTime(Time.now()))
             }
+
+            eventProducer.produce(ProjectEvent.MemberAdded(projectId, ProjectMember(invitedUser, ProjectRole.USER)))
         }
     }
 
@@ -338,17 +342,24 @@ class ProjectService(
         }
     }
 
-    private suspend fun notify(notificationType: NotificationType, reciever: String, message: String) {
+    private suspend fun notify(
+        notificationType: NotificationType,
+        receiver: String,
+        message: String,
+        meta: Map<String, Any?> = emptyMap()
+    ) {
+        // We don't wish to fail if notifications fail
         NotificationDescriptions.create.call(
             CreateNotification(
-                reciever,
+                receiver,
                 Notification(
                     notificationType.name,
-                    message
+                    message,
+                    meta = meta
                 )
             ),
             serviceClient
-        ).orThrow()
+        )
     }
 
     suspend fun deleteMember(
@@ -482,8 +493,15 @@ class ProjectService(
             val notificationMessage = "$memberToUpdate has changed role to $newRole in project: $projectTitle"
 
             allAdmins.forEach { admin ->
-                notify(NotificationType.PROJECT_ROLE_CHANGE, pi, notificationMessage)
+                notify(
+                    NotificationType.PROJECT_ROLE_CHANGE,
+                    admin,
+                    notificationMessage,
+                    mapOf("projectId" to projectId)
+                )
             }
+
+            notify(NotificationType.PROJECT_ROLE_CHANGE, pi, notificationMessage, mapOf("projectId" to projectId))
 
             MailDescriptions.sendBulk.call(
                 SendBulkRequest(allAdmins.map {
@@ -494,7 +512,7 @@ class ProjectService(
                     )
                 }),
                 serviceClient
-            ).orThrow()
+            )
         }
     }
 
@@ -522,7 +540,7 @@ class ProjectService(
 
             session.insert(ProjectMembershipVerified) {
                 set(ProjectMembershipVerified.projectId, project)
-                set(ProjectMembershipVerified.verification, LocalDateTime.now())
+                set(ProjectMembershipVerified.verification, LocalDateTime(Time.now()))
                 set(ProjectMembershipVerified.verifiedBy, verifiedBy)
             }
         }
@@ -635,6 +653,37 @@ class ProjectService(
             val user = lookup.results[username] ?: throw ProjectException.UserDoesNotExist()
             log.debug("$username resolved to $user")
             if (user.role !in Roles.END_USER) throw ProjectException.CantAddUserToProject()
+        }
+    }
+
+    suspend fun renameProject(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String,
+        newTitle: String
+    ) {
+        val isAdmin = when (actor) {
+            Actor.System -> true
+
+            is Actor.User, is Actor.SystemOnBehalfOfUser -> {
+                if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
+                    true
+                } else {
+                    findRoleOfMember(ctx, projectId, actor.username) in ProjectRole.ADMINS
+                }
+            }
+        }
+
+        if (!isAdmin) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("newTitle", newTitle)
+                },
+                """update projects set title = :newTitle where id = :project"""
+            )
         }
     }
 

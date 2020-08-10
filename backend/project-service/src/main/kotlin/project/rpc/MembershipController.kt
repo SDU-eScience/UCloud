@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.project.api.LookupAdminsBulkResponse
 import dk.sdu.cloud.project.api.LookupAdminsResponse
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.service.Controller
@@ -58,6 +59,14 @@ class MembershipController(
                 LookupAdminsResponse(
                     queries.lookupAdmins(db, ctx.securityPrincipal.toActor(), request.projectId
                     )
+                )
+            )
+        }
+
+        implement(ProjectMembers.lookupAdminsBulk) {
+            ok(
+                LookupAdminsBulkResponse(
+                    queries.lookupAdminsBulk(db, ctx.securityPrincipal.toActor(), request.projectId)
                 )
             )
         }

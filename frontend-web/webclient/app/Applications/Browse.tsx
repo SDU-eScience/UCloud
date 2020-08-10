@@ -1,5 +1,4 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -8,7 +7,6 @@ import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Page} from "Types";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
@@ -30,106 +28,100 @@ export interface ApplicationsOperations {
 
 export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
 
-class Applications extends React.Component<ApplicationsProps> {
-    public componentDidMount(): void {
-        const {props} = this;
+function Applications(props: ApplicationsProps): JSX.Element {
+    React.useEffect(() => {
         props.onInit();
 
-        this.fetch();
-        props.setRefresh(() => this.fetch());
+        fetch();
+        props.setRefresh(() => fetch());
+        return () => props.setRefresh();
+    }, []);
+
+    React.useEffect(() => {
+        fetch();
+    }, [props.location]);
+
+    const main = (
+        <Pagination.List
+            loading={props.applicationsPage.loading}
+            pageRenderer={renderPage}
+            page={props.applicationsPage.content as Page<FullAppInfo>}
+            onPageChanged={pageNumber => props.history.push(updatePage(pageNumber))}
+        />
+    );
+
+    return (
+        <LoadableMainContainer
+            header={(
+                <Spacer
+                    left={(<Heading.h1>{getQueryParam(props, "tag")}</Heading.h1>)}
+                    right={(
+                        <Pagination.EntriesPerPageSelector
+                            content="Apps per page"
+                            entriesPerPage={getItemsPerPage()}
+                            onChange={itemsPerPage => props.history.push(updateItemsPerPage(itemsPerPage))}
+                        />
+                    )}
+                />
+            )}
+            loadable={props.applicationsPage}
+            main={main}
+        />
+    );
+
+    function renderPage(page: Page<FullAppInfo>): JSX.Element {
+        return (<ApplicationPage onFavorite={onFavorite} page={page} />);
     }
 
-    public componentDidUpdate(prevProps: ApplicationsProps): void {
-        if (prevProps.location !== this.props.location) {
-            this.fetch();
-        }
-    }
-
-    public componentWillUnmount(): void {
-        this.props.setRefresh();
-    }
-
-    public render(): JSX.Element {
-        const main = (
-            <Pagination.List
-                loading={this.props.applicationsPage.loading}
-                pageRenderer={this.renderPage}
-                page={this.props.applicationsPage.content as Page<FullAppInfo>}
-                onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
-            />
-        );
-
-        return (
-            <LoadableMainContainer
-                header={(
-                    <Spacer
-                        left={(<Heading.h1>{getQueryParam(this.props, "tag")}</Heading.h1>)}
-                        right={(
-                            <Pagination.EntriesPerPageSelector
-                                content="Apps per page"
-                                entriesPerPage={this.itemsPerPage()}
-                                onChange={itemsPerPage => this.props.history.push(this.updateItemsPerPage(itemsPerPage))}
-                            />
-                        )}
-                    />
-                )}
-                loadable={this.props.applicationsPage}
-                main={main}
-            />
-        );
-    }
-
-    private renderPage = (page: Page<FullAppInfo>): JSX.Element => (<ApplicationPage onFavorite={this.onFavorite} page={page} />);
-
-    private onFavorite = async (name: string, version: string): Promise<void> => {
-        const page = this.props.applicationsPage.content as Page<FullAppInfo>;
-        this.props.receiveApplications(await favoriteApplicationFromPage({
+    async function onFavorite(name: string, version: string): Promise<void> {
+        const page = props.applicationsPage.content as Page<FullAppInfo>;
+        props.receiveApplications(await favoriteApplicationFromPage({
             client: Client,
             name,
             version,
             page
         }));
-    };
-
-    private pageNumber(props: ApplicationsProps = this.props): number {
-        return parseInt(getQueryParamOrElse(props, "page", "0"), 10);
     }
 
-    private itemsPerPage(props: ApplicationsProps = this.props): number {
-        return parseInt(getQueryParamOrElse(props, "itemsPerPage", "25"), 10);
+    function getPageNumber(argProps: ApplicationsProps = props): number {
+        return parseInt(getQueryParamOrElse(argProps, "page", "0"), 10);
     }
 
-    private tag(props: ApplicationsProps = this.props): string | null {
-        return getQueryParam(props, "tag");
+    function getItemsPerPage(argProps: ApplicationsProps = props): number {
+        return parseInt(getQueryParamOrElse(argProps, "itemsPerPage", "25"), 10);
     }
 
-    private updateItemsPerPage(newItemsPerPage: number): string {
-        const tag = this.tag();
+    function getTag(argProps: ApplicationsProps = props): string | null {
+        return getQueryParam(argProps, "tag");
+    }
+
+    function updateItemsPerPage(newItemsPerPage: number): string {
+        const tag = getTag();
         if (tag === null) {
-            return Pages.browse(newItemsPerPage, this.pageNumber());
+            return Pages.browse(newItemsPerPage, getPageNumber());
         } else {
-            return Pages.browseByTag(tag, newItemsPerPage, this.pageNumber());
+            return Pages.browseByTag(tag, newItemsPerPage, getPageNumber());
         }
     }
 
-    private updatePage(newPage: number): string {
-        const tag = this.tag();
+    function updatePage(newPage: number): string {
+        const tag = getTag();
         if (tag === null) {
-            return Pages.browse(this.itemsPerPage(), newPage);
+            return Pages.browse(getItemsPerPage(), newPage);
         } else {
-            return Pages.browseByTag(tag, this.itemsPerPage(), newPage);
+            return Pages.browseByTag(tag, getItemsPerPage(), newPage);
         }
     }
 
-    private fetch(): void {
-        const itemsPerPage = this.itemsPerPage(this.props);
-        const pageNumber = this.pageNumber(this.props);
-        const tag = this.tag(this.props);
+    function fetch(): void {
+        const itemsPerPage = getItemsPerPage(props);
+        const pageNumber = getPageNumber(props);
+        const tag = getTag(props);
 
         if (tag === null) {
-            this.props.fetchDefault(itemsPerPage, pageNumber);
+            props.fetchDefault(itemsPerPage, pageNumber);
         } else {
-            this.props.fetchByTag(tag, itemsPerPage, pageNumber);
+            props.fetchByTag(tag, itemsPerPage, pageNumber);
         }
     }
 }

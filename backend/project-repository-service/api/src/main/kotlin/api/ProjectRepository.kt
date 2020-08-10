@@ -46,9 +46,9 @@ typealias RepositoryDeleteResponse = Unit
 data class Repository(val name: String)
 
 data class RepositoryListRequest(
-    val user: String?,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    val user: String? = null,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
 ) : WithPaginationRequest
 typealias RepositoryListResponse = Page<Repository>
 

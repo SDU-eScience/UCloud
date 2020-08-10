@@ -11,17 +11,21 @@ export interface SidebarOption {
     children?: SidebarOption;
 }
 
-export interface PaginationRequest {
-    itemsPerPage: number;
-    page: number;
-}
 
-export interface Page<T> {
-    itemsInTotal: number;
-    itemsPerPage: number;
-    pagesInTotal: number;
-    pageNumber: number;
-    items: T[];
+declare global {
+
+    export interface PaginationRequest {
+        itemsPerPage: number;
+        page: number;
+    }
+
+    export interface Page<T> {
+        itemsInTotal: number;
+        itemsPerPage: number;
+        pagesInTotal: number;
+        pageNumber: number;
+        items: T[];
+    }
 }
 
 export function singletonToPage<T>(item?: T | null, itemsPerPage: number = 50): Page<T> {
@@ -64,10 +68,8 @@ export interface ClearRefresh {
 
 export type SetLoadingAction<T> = PayloadAction<T, {loading: boolean}>;
 export type Error<T> = PayloadAction<T, {error?: string, statusCode?: number}>;
-export interface PayloadAction<T1, T2> extends Action<T1> {payload: T2;}
-
-export interface Dictionary<V> {
-    [key: string]: V;
+declare global {
+    export interface PayloadAction<Act, T> extends Action<Act> {payload: T;}
 }
 
 export interface PredicatedOperation<T> {

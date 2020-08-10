@@ -32,17 +32,19 @@ function dataFetchReducer(state, action) {
     }
 }
 
-export interface APICallParameters<Parameters = any, Payload = any> {
-    method?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH" | "OPTIONS" | "HEAD";
-    path?: string;
-    payload?: Payload;
-    context?: string;
-    maxRetries?: number;
-    parameters?: Parameters;
-    reloadId?: number; // Can be used to force an ID by setting this to a random value
-    noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
-    withCredentials?: boolean;
-    projectOverride?: string;
+declare global {
+    export interface APICallParameters<Parameters = any, Payload = any> {
+        method?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH" | "OPTIONS" | "HEAD";
+        path?: string;
+        payload?: Payload;
+        context?: string;
+        maxRetries?: number;
+        parameters?: Parameters;
+        reloadId?: number; // Can be used to force an ID by setting this to a random value
+        noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
+        withCredentials?: boolean;
+        projectOverride?: string;
+    }
 }
 
 export interface APIError {

@@ -1,4 +1,4 @@
-import {APICallParameters, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {LoadingMainContainer} from "MainContainer/MainContainer";
 import {useCallback} from "react";

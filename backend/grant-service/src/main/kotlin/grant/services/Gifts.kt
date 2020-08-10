@@ -157,12 +157,12 @@ class GiftService(
         ctx: DBContext,
         actor: Actor,
         gift: GiftWithCriteria
-    ) {
+    ): Long {
         if (!projects.isAdminOfProject(gift.resourcesOwnedBy, actor)) {
             throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
 
-        ctx.withSession { session ->
+        return ctx.withSession { session ->
             val id = session.allocateId("gift_id_sequence")
             session.insert(GiftTable) {
                 set(GiftTable.id, id)
@@ -188,6 +188,7 @@ class GiftService(
                     set(GiftResourceTable.quota, resource.quotaRequested)
                 }
             }
+            id
         }
     }
 

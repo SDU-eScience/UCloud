@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
@@ -17,7 +18,7 @@ class ExpiredEntriesDeleteService(
 ) {
 
     private fun deleteExpired(index: String) {
-        val date = Date().time
+        val date = Time.now()
 
         val expiredCount = elastic.count(
             CountRequest().query(

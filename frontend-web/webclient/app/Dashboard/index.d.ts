@@ -17,4 +17,5 @@ export interface DashboardOperations {
     notificationRead: (id: number) => void;
     readAll: () => void;
     setRefresh: (refresh?: () => void) => void;
+    setActiveProject: (projectId?: string) => void;
 }

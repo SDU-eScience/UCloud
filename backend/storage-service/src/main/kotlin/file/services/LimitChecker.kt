@@ -20,6 +20,7 @@ import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.long
@@ -29,18 +30,32 @@ import io.ktor.http.HttpStatusCode
 import java.util.*
 import kotlin.math.ceil
 
-object QuotaTable : SQLTable("quotas") {
-    val path = text("path", notNull = true)
-    val quotaInBytes = long("quota_in_bytes", notNull = true)
-}
-
-class LimitChecker(
+class LimitChecker<Ctx : FSUserContext>(
     private val db: DBContext,
     private val aclService: AclService,
     private val projectCache: ProjectCache,
     private val serviceClient: AuthenticatedClient,
-    private val productConfiguration: ProductConfiguration
+    private val productConfiguration: ProductConfiguration,
+    private val fs: LowLevelFileSystemInterface<Ctx>,
+    private val runnerFactory: FSCommandRunnerFactory<Ctx>
 ) {
+    suspend fun checkLimitAndQuota(path: String) {
+        runnerFactory.withContext(SERVICE_USER) { fsCtx ->
+            val homeDir = findHomeDirectoryFromPath(path)
+            val estimatedUsage = fs.estimateRecursiveStorageUsedMakeItFast(fsCtx, homeDir)
+            performLimitCheck(path, estimatedUsage)
+            try {
+                performQuotaCheck(path, estimatedUsage)
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.PaymentRequired) {
+                    performQuotaCheck(path, fs.calculateRecursiveStorageUsed(fsCtx, homeDir))
+                } else {
+                    throw ex
+                }
+            }
+        }
+    }
+
     suspend fun retrieveQuota(actor: Actor, path: String, ctx: DBContext = db): Quota {
         return ctx.withSession { session ->
             when (actor) {
@@ -58,7 +73,13 @@ class LimitChecker(
                                 ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
                             val memberStatus = projectCache.memberStatus.get(actor.username)
-                            if (fetchParentIfAdministrator(projectId, memberStatus) == null) {
+                            if (
+                                // Membership check is needed for users requesting the project home dir
+                                memberStatus?.membership?.any { it.projectId == projectId } != true &&
+
+                                // Admins of the parent are also allowed to view the quota (since they can change it)
+                                fetchParentIfAdministrator(projectId, memberStatus) == null
+                            ) {
                                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
                             }
                         }
@@ -217,7 +238,7 @@ class LimitChecker(
         }
     }
 
-    private suspend fun verifyTransferQuotaPermissions(actor: Actor, homeDirectory: String) {
+    suspend fun verifyTransferQuotaPermissions(actor: Actor, homeDirectory: String) {
         if (actor == Actor.System) return
         if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) return
         val projectId = projectIdFromPath(homeDirectory) ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
@@ -343,7 +364,7 @@ class LimitChecker(
             ReserveCreditsRequest(
                 "ucloud-storage-limitchk-" + UUID.randomUUID().toString(),
                 productConfiguration.pricePerGb * gigabytes,
-                System.currentTimeMillis(),
+                Time.now(),
                 Wallet(
                     walletId,
                     walletType,

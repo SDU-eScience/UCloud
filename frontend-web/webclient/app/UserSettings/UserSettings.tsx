@@ -1,14 +1,12 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {ReduxObject} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setActivePage, setLoading, SetStatusLoading} from "Navigation/Redux/StatusActions";
+import {setLoading, SetStatusLoading, useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Box, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import {SidebarPages} from "ui-components/Sidebar";
 import {ChangePassword} from "UserSettings/ChangePassword";
 import {Sessions} from "UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
@@ -19,9 +17,8 @@ interface UserSettingsState {
 }
 
 const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSettingsState> = props => {
-    React.useEffect(() => {
-        props.setActivePage();
-    }, []);
+
+    useTitle("User Settings");
 
     const mustActivate2fa =
         Client.userInfo?.twoFactorAuthentication === false &&
@@ -66,12 +63,10 @@ const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSetting
 };
 
 interface UserSettingsOperations extends SetStatusLoading {
-    setActivePage: () => void;
     setRefresh: (fn?: () => void) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
-    setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
     setLoading: loading => dispatch(setLoading(loading)),
     setRefresh: fn => dispatch(setRefreshFunction(fn))
 });

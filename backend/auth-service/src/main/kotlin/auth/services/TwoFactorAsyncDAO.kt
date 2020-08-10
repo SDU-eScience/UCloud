@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -29,14 +30,16 @@ class TwoFactorAsyncDAO {
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
-                    { setParameter("user", username) },
+                    {
+                        setParameter("user", username)
+                    },
                     """
                         SELECT *
                         FROM two_factor_credentials
                         WHERE 
                             enforced = true AND
-                            principal_id = ?user
-                    """.trimIndent()
+                            principal_id = :user
+                    """
                 )
                 .rows
                 .singleOrNull()
@@ -55,13 +58,13 @@ class TwoFactorAsyncDAO {
                 .sendPreparedStatement(
                     {
                         setParameter("id", challengeId)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis / 1000)
+                        setParameter("time", LocalDateTime(Time.now(), DateTimeZone.UTC).toDateTime().millis / 1000)
                     },
                     """
                         SELECT *
                         FROM two_factor_challenges
-                        WHERE challenge_id = ?id AND expires_at > to_timestamp(?time)
-                    """.trimIndent()
+                        WHERE challenge_id = :id AND expires_at > to_timestamp(:time)
+                    """
                 )
                 .rows
                 .firstOrNull()
@@ -101,16 +104,19 @@ class TwoFactorAsyncDAO {
      */
     suspend fun createChallenge(db: DBContext, challenge: TwoFactorChallenge) {
         db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", challenge.credentials.id)
-                },
-                """
-                    SELECT *
-                    FROM two_factor_credentials
-                    WHERE id = ?id
-                """.trimIndent()
-            ).rows.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("id", challenge.credentials.id)
+                    },
+                    """
+                        SELECT *
+                        FROM two_factor_credentials
+                        WHERE id = :id
+                    """
+                ).rows
+                .singleOrNull()
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
             session.insert(TwoFactorChallengeTable) {
                 set(TwoFactorChallengeTable.type, challenge.type)
                 set(TwoFactorChallengeTable.challengeId, challenge.challengeId)
@@ -139,8 +145,8 @@ class TwoFactorAsyncDAO {
                     """
                         SELECT *
                         FROM two_factor_credentials
-                        WHERE enforced = ?enforced AND principal_id IN (select unnest(?ids::text[]))
-                    """.trimIndent()
+                        WHERE enforced = :enforced AND principal_id IN (select unnest(:ids::text[]))
+                    """
                 ).rows
                 .forEach { row ->
                     result[row.getField(TwoFactorCredentialsTable.principal)] = true
@@ -186,16 +192,19 @@ fun RowData.toTwoFactorChallenge(db: DBContext): TwoFactorChallenge {
     val credentialsID = getField(TwoFactorChallengeTable.credentials)
     val twoFactorCredentials = runBlocking {
         db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", credentialsID)
-                },
-                """
-                    SELECT *
-                    FROM two_factor_credentials
-                    WHERE id = ?id
-                """.trimIndent()
-            ).rows.singleOrNull()?.toTwoFactorCredentials(db)
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("id", credentialsID)
+                    },
+                    """
+                        SELECT *
+                        FROM two_factor_credentials
+                        WHERE id = :id
+                    """
+                ).rows
+                .singleOrNull()
+                ?.toTwoFactorCredentials(db)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     }
@@ -212,16 +221,19 @@ fun RowData.toTwoFactorCredentials(db: DBContext): TwoFactorCredentials {
     val principalID = getField(TwoFactorCredentialsTable.principal)
     val principal = runBlocking {
         db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", principalID)
-                },
-                """
-                    SELECT * 
-                    FROM principals
-                    WHERE id = ?id
-                """.trimIndent()
-            ).rows.singleOrNull()?.toPrincipal(getField(TwoFactorCredentialsTable.enforced))
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("id", principalID)
+                    },
+                    """
+                        SELECT * 
+                        FROM principals
+                        WHERE id = ?id
+                    """.trimIndent()
+                ).rows
+                .singleOrNull()
+                ?.toPrincipal(getField(TwoFactorCredentialsTable.enforced))
                 ?: throw UserException.NotFound()
         }
     }

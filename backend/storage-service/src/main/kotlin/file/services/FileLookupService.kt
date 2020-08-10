@@ -173,7 +173,6 @@ class FileLookupService<Ctx : FSUserContext>(
         val normalizedItemsPerPage = NormalizedPaginationRequest(itemsPerPage, 0).itemsPerPage
 
         val allFiles = listDirectorySorted(ctx, path.parent(), sortBy, order, attributes).items
-        println(allFiles)
         // The file isn't found because we resolve the symlink in the returned path. We should just look for the file
         // name
         val index = allFiles.indexOfFirst { it.path.fileName() == path.fileName() }

@@ -5,6 +5,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.withTransaction
@@ -20,8 +21,8 @@ class TaskService(
     suspend fun create(processor: SecurityPrincipal, title: String, status: String?, owner: String): Task {
         if (processor.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
-        val startedAt = System.currentTimeMillis()
-        val modifiedAt = System.currentTimeMillis()
+        val startedAt = Time.now()
+        val modifiedAt = Time.now()
         val jobId = dao.create(db, title, status, owner, processor)
 
         postStatus(processor, TaskUpdate(jobId, title, newStatus = status))

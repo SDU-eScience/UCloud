@@ -140,7 +140,8 @@ class ApplicationService(
                 ),
                 userMessage = null
             ),
-            actor.safeUsername()
+            actor.safeUsername(),
+            meta = mapOf("grantRecipient" to returnedApplication.grantRecipient, "appId" to returnedApplication.id)
         )
 
         return returnedId
@@ -215,7 +216,8 @@ class ApplicationService(
                     }
                 )
             ),
-            "_ucloud"
+            "_ucloud",
+            mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
         )
         return true
     }
@@ -303,7 +305,8 @@ class ApplicationService(
                     }
                 )
             ),
-            actor.safeUsername()
+            actor.safeUsername(),
+            meta = mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
         )
     }
 
@@ -373,7 +376,8 @@ class ApplicationService(
                     }
                 )
             ),
-            actor.safeUsername()
+            actor.safeUsername(),
+            mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
         )
     }
 

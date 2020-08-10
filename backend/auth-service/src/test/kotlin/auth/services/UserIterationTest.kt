@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
@@ -113,13 +114,13 @@ class UserIterationTest {
     fun `Iteration Dao test`() {
         runBlocking {
             val id = "cursorID"
-            val state = CursorState(id, "hostname", 1234, System.currentTimeMillis() + 1000L * 60 * 30)
+            val state = CursorState(id, "hostname", 1234, Time.now() + 1000L * 60 * 30)
             cursorDao.create(db, state)
             val found = cursorDao.findByIdOrNull(db, id)
             assertNotNull(found)
             val notReal = cursorDao.findByIdOrNull(db, "notACursor")
             assertNull(notReal)
-            val newExpire = System.currentTimeMillis() + 1000L * 60 * 30 + 5000
+            val newExpire = Time.now() + 1000L * 60 * 30 + 5000
             cursorDao.updateExpiresAt(db, id, newExpire)
             val found2 = cursorDao.findByIdOrNull(db, id)
             assertNotNull(found2)

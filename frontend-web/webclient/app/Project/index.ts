@@ -1,13 +1,12 @@
-import {APICallParameters, useGlobalCloudAPI} from "Authentication/DataHook";
+import {useGlobalCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
 import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 import {inDevEnvironment} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
 import {useHistory, useParams} from "react-router";
 import {useSelector} from "react-redux";
-import {ReduxObject, emptyPage} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import {useProjectStatus} from "./cache";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";
@@ -180,7 +179,7 @@ export function membershipSearch(request: MembershipSearchRequest): APICallParam
 }
 
 export interface UpdateGroupNameRequest {
-    oldGroupName: string;
+    groupId: string;
     newGroupName: string;
 }
 
@@ -216,6 +215,11 @@ export interface Project {
     title: string;
     parent?: string;
     archived: boolean;
+}
+
+export interface ProjectGroup {
+    id: string,
+    title: string
 }
 
 export const emptyProject = (id: string): Project => ({
@@ -407,6 +411,21 @@ export function rejectInvite(request: RejectInviteRequest): APICallParameters<Re
     };
 }
 
+export interface RenameProjectRequest {
+    id: string;
+    newTitle: string;
+}
+
+export function renameProject(request: RenameProjectRequest): APICallParameters<RenameProjectRequest> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/projects/rename",
+        payload: request,
+        parameters: request 
+    };
+}
+
 export const deleteProject = (payload: {projectId: string}): APICallParameters => ({
     method: "DELETE",
     path: "/projects/subprojects",
@@ -478,10 +497,23 @@ export interface ViewProjectRequest {
     id: string;
 }
 
+export interface ViewGroupRequest {
+    id: string;
+}
+
 export function viewProject(request: ViewProjectRequest): APICallParameters<ViewProjectRequest> {
     return {
         method: "GET",
         path: buildQueryString("/projects/view", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export function viewGroup(request: ViewGroupRequest): APICallParameters<ViewGroupRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/projects/groups/view", request),
         parameters: request,
         reloadId: Math.random()
     };
@@ -500,9 +532,9 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
     const promises = usePromiseKeeper();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
     const locationParams = useParams<{group: string; member?: string}>();
-    let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
+    let groupId = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
     let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
-    if (group === '-') group = undefined;
+    if (groupId === '-') groupId = undefined;
     if (membersPage === '-') membersPage = undefined;
 
     const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
@@ -521,6 +553,17 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
             title: "",
             whoami: {username: Client.username ?? "", role: ProjectRole.USER},
             archived: false
+        }
+    );
+
+    const [groupDetails, fetchGroupDetails, groupDetailsParams] = useGlobalCloudAPI<GroupWithSummary>(
+        "projectManagementGroup",
+        {noop: true},
+        {
+            groupId: "NoId",
+            groupTitle: "NoTitle",
+            numberOfMembers: 0,
+            members: [],
         }
     );
 
@@ -557,8 +600,8 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
 
     useEffect(() => {
         if (promises.canceledKeeper) return;
-        if (group !== undefined) {
-            fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
+        if (groupId !== undefined) {
+            fetchGroupMembers(listGroupMembersRequest({group: groupId, itemsPerPage: 25, page: 0}));
         } else {
             fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
         }
@@ -567,20 +610,22 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
         reloadProjectStatus();
         fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
         if (projectId) fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId, group]);
+        if (groupId) fetchGroupDetails(viewGroup({id: groupId}));
+    }, [projectId, groupId, projectRole]);
 
     const reload = useCallback(() => {
         if (promises.canceledKeeper) return;
         fetchOutgoingInvites(outgoingInvitesParams);
         setProjectMemberParams(projectMemberParams);
         fetchProjectDetails(projectDetailsParams);
-        if (group !== undefined) {
+        if (groupId !== undefined) {
             fetchGroupMembers(groupMembersParams);
+            fetchGroupDetails(groupDetailsParams)
         }
-    }, [projectMemberParams, groupMembersParams, setProjectMemberParams, group]);
+    }, [projectMemberParams, groupMembersParams, setProjectMemberParams, groupId]);
 
     return {
-        locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
+        locationParams, projectId: projectId ?? "", groupId, groupDetails, fetchGroupDetails, groupDetailsParams, projectMembers, setProjectMemberParams, groupMembers,
         fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
         projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
         outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,

@@ -4,15 +4,14 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.api.Project
+import dk.sdu.cloud.app.license.api.ProjectAndGroup
+import dk.sdu.cloud.app.license.api.ProjectGroup
 import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.project.api.LookupByIdRequest
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.project.api.UserStatusRequest
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import java.util.*
@@ -48,9 +47,9 @@ class AppLicenseService(
     suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<DetailedAccessEntityWithPermission> {
         return if (Roles.PRIVILEGED.contains(user.role)) {
             aclService.listAcl(request.serverId).map {
-                if (!it.entity.project.isNullOrBlank()) {
-                    val projectInfo = Projects.lookupById.call(
-                        LookupByIdRequest(it.entity.project!!),
+                if (!it.entity.project.isNullOrBlank() && !it.entity.group.isNullOrBlank()) {
+                    val lookup = ProjectGroups.lookupProjectAndGroup.call(
+                        LookupProjectAndGroupRequest(it.entity.project!!, it.entity.group!!),
                         authenticatedClient
                     ).orRethrowAs {
                         throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to fetch project entities")
@@ -59,8 +58,8 @@ class AppLicenseService(
                     DetailedAccessEntityWithPermission(
                         DetailedAccessEntity(
                             null,
-                            Project(projectInfo.id, projectInfo.title),
-                            it.entity.group
+                            Project(lookup.project.id, lookup.project.title),
+                            ProjectGroup(lookup.group.id, lookup.group.title)
                         ),
                         it.permission
                     )
@@ -87,7 +86,7 @@ class AppLicenseService(
         ).orRethrowAs {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }.groups.map {
-            ProjectAndGroup(it.projectId, it.group)
+            ProjectAndGroup(it.project, it.group)
         }
 
         return appLicenseDao.list(

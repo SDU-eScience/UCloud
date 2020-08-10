@@ -20,7 +20,7 @@ import {
     getParentPath,
     isAnyFixedFolder,
     isAnyMockFile,
-    isArchiveExtension,
+    isArchiveExtension, isPartOfProject,
     isTrashFolder,
     moveToTrash,
     shareFiles,
@@ -141,6 +141,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Share",
         onClick: (files) => shareFiles({files, client: Client}),
         disabled: (files, cb) => {
+            if (files.find(it => isPartOfProject(it.path)) !== undefined) return true;
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
             else return !files.every(it => it.ownerName === Client.username);

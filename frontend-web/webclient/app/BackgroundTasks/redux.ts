@@ -1,10 +1,9 @@
 import {Speed, Task, TaskUpdate} from "BackgroundTasks/api";
 import {Action} from "redux";
-import {Dictionary, Page} from "Types";
 import {associateBy, takeLast} from "Utilities/CollectionUtilities";
 
 export interface TaskReduxState {
-    tasks?: Dictionary<TaskUpdate>;
+    tasks?: Record<string ,TaskUpdate>;
 }
 
 interface TaskUpdateAction extends Action<"TASK_UPDATE"> {

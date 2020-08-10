@@ -13,6 +13,7 @@ import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.kClass
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
@@ -94,7 +95,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         ctx: OutgoingHttpCall
     ): IngoingCallResponse<S, E> {
         val callId = Random.nextInt(10000) // A non unique call ID for logging purposes only
-        val start = System.currentTimeMillis()
+        val start = Time.now()
         val shortRequestMessage = request.toString().take(100)
 
         var attempts = 0
@@ -159,7 +160,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             }
 
             val result = parseResponse(resp, call, callId)
-            val end = System.currentTimeMillis()
+            val end = Time.now()
 
             val responseDebug =
                 "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"

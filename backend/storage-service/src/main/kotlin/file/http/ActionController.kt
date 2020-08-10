@@ -21,7 +21,7 @@ class ActionController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
     private val fileLookupService: FileLookupService<Ctx>,
-    private val limitChecker: LimitChecker
+    private val limitChecker: LimitChecker<Ctx>
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.createPersonalRepository) {

@@ -9,7 +9,8 @@ import io.lettuce.core.RedisClient
 import org.slf4j.Logger
 
 data class RedisConfiguration(
-    val hostname: String? = null
+    val hostname: String? = null,
+    val port: Int? = null
 )
 
 class RedisFeature : MicroFeature {
@@ -32,7 +33,8 @@ class RedisFeature : MicroFeature {
 
         log.info("Connected to redis")
 
-        ctx.redisConnectionManager = RedisConnectionManager(RedisClient.create("redis://$hostname"))
+        val port = userConfig.port ?: 6379
+        ctx.redisConnectionManager = RedisConnectionManager(RedisClient.create("redis://$hostname:$port"))
 
         ctx.eventStreamService = RedisStreamService(
             ctx.redisConnectionManager,

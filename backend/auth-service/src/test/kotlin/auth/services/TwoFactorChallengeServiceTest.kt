@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
@@ -197,7 +198,7 @@ class TwoFactorChallengeServiceTest {
                     TwoFactorChallenge(
                         TwoFactorChallengeType.LOGIN.name,
                         "123456",
-                        System.currentTimeMillis() + 10_000,
+                        Time.now() + 10_000,
                         TwoFactorCredentials(user, secret, true, 42),
                         "local-dev"
                     )
@@ -348,7 +349,7 @@ class TwoFactorChallengeServiceTest {
             TwoFactorChallenge(
                 TwoFactorChallengeType.LOGIN.name,
                 "id",
-                System.currentTimeMillis(),
+                Time.now(),
                 TwoFactorCredentials(user, "secret", false, 42),
                 "service"
             )
@@ -362,7 +363,7 @@ class TwoFactorChallengeServiceTest {
             TwoFactorChallenge(
                 TwoFactorChallengeType.LOGIN.name,
                 "id",
-                System.currentTimeMillis(),
+                Time.now(),
                 TwoFactorCredentials(user, "secret", true, 42),
                 "service"
             )
@@ -376,7 +377,7 @@ class TwoFactorChallengeServiceTest {
             TwoFactorChallenge(
                 TwoFactorChallengeType.SETUP.name,
                 "id",
-                System.currentTimeMillis(),
+                Time.now(),
                 TwoFactorCredentials(user, "secret", true, 42)
             )
         }
@@ -389,7 +390,7 @@ class TwoFactorChallengeServiceTest {
             TwoFactorChallenge(
                 TwoFactorChallengeType.SETUP.name,
                 "id",
-                System.currentTimeMillis(),
+                Time.now(),
                 TwoFactorCredentials(user, "secret", false, 42)
             )
         }
