@@ -20,8 +20,8 @@ class FavoriteService {
                     """
                         delete from project_favorite
                         where 
-                            username = ?username and 
-                            project_id = ?projectID
+                            username = :username and 
+                            project_id = :projectID
                     """
                 )
             } else {
@@ -41,7 +41,7 @@ class FavoriteService {
                         setParameter("username", username)
                         setParameter("projectID", projectID)
                     },
-                    "select is_favorite(?username, ?projectID)"
+                    "select is_favorite(:username, :projectID)"
                 )
                 .rows
                 .map { it.getBoolean(0)!! }

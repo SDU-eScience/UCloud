@@ -425,7 +425,7 @@ class QueryService(
                 },
                 """
                     select count(*) from project.project_members where project_id = :projectId
-                """.trimIndent()
+                """
             ).rows.singleOrNull()?.getLong(0) ?: 0
         }
     }
@@ -937,14 +937,17 @@ class QueryService(
         projectId: String
     ): Long {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("projectId", projectId)
-                },
-                """
-                    select count(*) from project.projects where parent = :projectId
-                """.trimIndent()
-            ).rows.singleOrNull()?.getLong(0) ?: 0
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        select count(*) from project.projects where parent = :projectId
+                    """
+                ).rows
+                .singleOrNull()
+                ?.getLong(0) ?: 0
         }
     }
 

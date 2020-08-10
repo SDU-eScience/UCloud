@@ -43,59 +43,64 @@ class NotificationDao {
         paginationRequest: NormalizedPaginationRequest = FIRST_PAGE
     ): Page<Notification> {
         return ctx.withSession { session ->
-            val itemsInTotal = session.sendPreparedStatement(
-                {
-                    setParameter("owner", user)
-                    setParameter("since", since?.let { it/1000 })
-                    setParameter("type", type)
-                },
-                """
-                    SELECT COUNT(*)
-                    FROM notifications
-                    WHERE (
-                        (owner = ?owner) 
-                        AND
-                        (
-                            ?since::bigint is null or
-                            created_at >= to_timestamp(?since)
+            val itemsInTotal = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("owner", user)
+                        setParameter("since", since?.let { it/1000 })
+                        setParameter("type", type)
+                    },
+                    """
+                        SELECT COUNT(*)
+                        FROM notifications
+                        WHERE (
+                            (owner = :owner) 
+                            AND
+                            (
+                                :since::bigint is null or
+                                created_at >= to_timestamp(:since)
+                            )
+                            AND
+                            (
+                                :type::text is null or
+                                type = :type 
+                            )
                         )
-                        AND
-                        (
-                            ?type::text is null or
-                            type = ?type 
+                    """
+                )
+            val items = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("owner", user)
+                        setParameter("since", since?.let { it/1000 })
+                        setParameter("type", type)
+                        setParameter("limit", paginationRequest.itemsPerPage)
+                        setParameter("offset", paginationRequest.offset)
+                    },
+                    """
+                        SELECT *
+                        FROM notifications
+                        WHERE (
+                            (owner = :owner) 
+                            AND
+                            (
+                                :since::bigint is null or
+                                created_at >= to_timestamp(:since)
+                            )
+                            AND
+                            (
+                                :type::text is null or
+                                type = :type 
+                            )
                         )
-                    )
-                """.trimIndent()
-            )
-            val items = session.sendPreparedStatement(
-                {
-                    setParameter("owner", user)
-                    setParameter("since", since?.let { it/1000 })
-                    setParameter("type", type)
-                    setParameter("limit", paginationRequest.itemsPerPage)
-                    setParameter("offset", paginationRequest.offset)
-                },
-                """
-                    SELECT *
-                    FROM notifications
-                    WHERE (
-                        (owner = ?owner) 
-                        AND
-                        (
-                            ?since::bigint is null or
-                            created_at >= to_timestamp(?since)
-                        )
-                        AND
-                        (
-                            ?type::text is null or
-                            type = ?type 
-                        )
-                    )
-                    ORDER BY created_at DESC
-                    LIMIT ?limit
-                    OFFSET ?offset
-                """.trimIndent()
-            ).rows.map { it.toNotification() }
+                        ORDER BY created_at DESC
+                        LIMIT :limit
+                        OFFSET :offset
+                    """
+                ).rows
+                .map {
+                    it.toNotification()
+                }
             Page(
                 itemsInTotal.rows.singleOrNull()?.getLong(0)?.toInt() ?: 0,
                 paginationRequest.itemsPerPage,
@@ -129,43 +134,45 @@ class NotificationDao {
                     setParameter("id", id)
                 },
                 """
-                    DELETE FROM notifications where id=?id
+                    DELETE FROM notifications where id=:id
                     
-                """.trimIndent()
+                """
             )
         }.rowsAffected > 0
     }
 
     suspend fun markAsRead(ctx: DBContext, user: String, id: NotificationId): Boolean {
         return ctx.withSession{ session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("read", true)
-                    setParameter("id", id)
-                    setParameter("owner", user)
-                },
-                """
-                    UPDATE notifications
-                    SET read = ?read
-                    WHERE id = ?id and owner = ?owner
-                """.trimIndent()
-            ).rowsAffected > 0
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("read", true)
+                        setParameter("id", id)
+                        setParameter("owner", user)
+                    },
+                    """
+                        UPDATE notifications
+                        SET read = :read
+                        WHERE id = :id and owner = :owner
+                    """
+                ).rowsAffected > 0
         }
     }
 
     suspend fun markAllAsRead(ctx: DBContext, user: String) {
         ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("read", true)
-                    setParameter("owner", user)
-                },
-                """
-                    UPDATE notifications
-                    SET read = ?read
-                    WHERE owner = ?owner
-                """.trimIndent()
-            )
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("read", true)
+                        setParameter("owner", user)
+                    },
+                    """
+                        UPDATE notifications
+                        SET read = :read
+                        WHERE owner = :owner
+                    """
+                )
         }
     }
 

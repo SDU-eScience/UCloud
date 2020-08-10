@@ -46,9 +46,10 @@ class ResetRequestsAsyncDao {
                     """
                         SELECT * 
                         FROM password_reset_requests
-                        WHERE token = ?token
-                    """.trimIndent()
-                ).rows.singleOrNull()
+                        WHERE token = :token
+                    """
+                ).rows
+                .singleOrNull()
         }?.toResetRequest()
     }
 

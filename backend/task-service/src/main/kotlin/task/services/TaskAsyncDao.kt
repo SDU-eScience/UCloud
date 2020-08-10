@@ -44,9 +44,10 @@ class TaskAsyncDao {
                     """
                         SELECT * 
                         FROM tasks
-                        WHERE job_id = ?jid
-                    """.trimIndent()
-                ).rows.firstOrNull()
+                        WHERE job_id = :jid
+                    """
+                ).rows
+                .firstOrNull()
         }?.toTask()
     }
 
@@ -77,9 +78,10 @@ class TaskAsyncDao {
                     """
                         SELECT * 
                         FROM tasks
-                        WHERE job_id = ?jid
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                        WHERE job_id = :jid
+                    """
+                ).rows
+                .singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }.toTask()
         if (foundTask.owner != user && foundTask.processor != user) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         return foundTask
@@ -98,9 +100,9 @@ class TaskAsyncDao {
                     },
                     """
                         UPDATE tasks
-                        SET status_message = ?message, modified_at = to_timestamp(?modified)
-                        WHERE (job_id = ?jid) AND (owner = ?user)
-                    """.trimIndent()
+                        SET status_message = :message, modified_at = to_timestamp(:modified)
+                        WHERE (job_id = :jid) AND (owner = :user)
+                    """
                 ).rowsAffected > 0L
         }
     }
@@ -117,9 +119,9 @@ class TaskAsyncDao {
                     },
                     """
                         UPDATE tasks
-                        SET modified_at = to_timestamp(?modified)
-                        WHERE (job_id = ?jid) AND (processor = ?processor) 
-                    """.trimIndent()
+                        SET modified_at = to_timestamp(:modified)
+                        WHERE (job_id = :jid) AND (processor = :processor) 
+                    """
                 )
         }
     }
@@ -161,9 +163,9 @@ class TaskAsyncDao {
                     },
                     """
                         UPDATE tasks
-                        SET complete = ?complete
-                        WHERE (job_id = ?jid) AND (processor = ?processor) 
-                    """.trimIndent()
+                        SET complete = :complete
+                        WHERE (job_id = :jid) AND (processor = :processor) 
+                    """
                 ).rowsAffected > 0
         }
     }
@@ -185,10 +187,10 @@ class TaskAsyncDao {
                     """
                         SELECT *
                         FROM tasks
-                        WHERE (owner = ?owner) AND 
-                            (complete = ?complete) AND 
-                            (modified_at > to_timestamp(?modified))
-                    """.trimIndent()
+                        WHERE (owner = :owner) AND 
+                            (complete = :complete) AND 
+                            (modified_at > to_timestamp(:modified))
+                    """
                 )
         }.rows.paginate(pagination)
             .mapItems { it.toTask() }

@@ -114,8 +114,8 @@ class MailCooldownDao {
                     select max(timestamp) as timestamp
                     from cooldowns
                     where
-                        username = ?username and
-                        project = ?project
+                        username = :username and
+                        project = :project
                 """
             )
             .rows

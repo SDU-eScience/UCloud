@@ -54,8 +54,8 @@ class SubscriptionDao {
                 },
                 """
                     DELETE FROM subscriptions
-                    WHERE id = ?id
-                """.trimIndent()
+                    WHERE id = :id
+                """
             )
         }
     }
@@ -63,16 +63,17 @@ class SubscriptionDao {
     suspend fun findConnections(ctx: DBContext, username: String): List<Subscription> {
         val earliestAllowedPing = Time.now() - SubscriptionService.MAX_MS_SINCE_LAST_PING
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", username)
-                    setParameter("earliest", earliestAllowedPing)
-                },
-                """
-                    SELECT * FROM subscriptions
-                    WHERE (username = ?username) AND (last_ping >= to_timestamp(?earliest))
-                """.trimIndent()
-            ).rows.map {
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", username)
+                        setParameter("earliest", earliestAllowedPing)
+                    },
+                    """
+                        SELECT * FROM subscriptions
+                        WHERE (username = :username) AND (last_ping >= to_timestamp(:earliest))
+                    """
+                ).rows.map {
                 Subscription(
                     HostInfo(
                         host = it.getField(SubscriptionsTable.hostname),
@@ -88,18 +89,19 @@ class SubscriptionDao {
 
     suspend fun refreshSessions(ctx: DBContext, hostname: String, port: Int) {
         ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("newPing", Time.now())
-                    setParameter("hostname", hostname)
-                    setParameter("port", port)
-                },
-                """
-                    UPDATE subscriptions
-                    SET last_ping = to_timestamp(?newPing)
-                    WHERE (hostname = ?hostname) AND (port = ?port)
-                """.trimIndent()
-            )
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("newPing", Time.now())
+                        setParameter("hostname", hostname)
+                        setParameter("port", port)
+                    },
+                    """
+                        UPDATE subscriptions
+                        SET last_ping = to_timestamp(:newPing)
+                        WHERE (hostname = :hostname) AND (port = :port)
+                    """
+                )
         }
     }
 }
