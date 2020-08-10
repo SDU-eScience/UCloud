@@ -17,10 +17,12 @@ data class ProjectMember(
     val role: ProjectRole
 )
 
-enum class ProjectRole {
-    PI,
-    ADMIN,
-    USER;
+enum class ProjectRole(val uiFriendly: String) {
+    PI("PI"),
+    ADMIN("Admin"),
+    USER("User");
+
+    override fun toString() = uiFriendly
 
     fun isAdmin(): Boolean {
         return this == PI || this == ADMIN

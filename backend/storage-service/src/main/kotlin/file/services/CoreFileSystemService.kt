@@ -335,6 +335,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
+    suspend fun estimateRecursiveStorageUsedMakeItFast(ctx: Ctx, path: String): Long {
+        return fs.estimateRecursiveStorageUsedMakeItFast(ctx, path)
+    }
+
     companion object : Loggable {
         override val log = logger()
     }
