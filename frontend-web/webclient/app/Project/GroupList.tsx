@@ -95,9 +95,10 @@ const GroupList: React.FunctionComponent = () => {
                                 />
                             )
                         }
-                        navigate={() => {renamingGroup !== g.groupId ?
-                            history.push(`/project/members/${encodeURIComponent(g.groupId)}/${membersPage ?? ""}`)
-                            : null
+                        navigate={() => {
+                            if (renamingGroup !== g.groupId) {
+                                history.push(`/project/members/${encodeURIComponent(g.groupId)}/${membersPage ?? ""}`);
+                            }
                         }}
                         leftSub={<div />}
                         right={
@@ -288,12 +289,13 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
         if (op.disabled(props.selectedGroups, Client)) return null;
         return (
             <Box
+                onClick={() => op.onClick(props.selectedGroups, Client)}
                 key={op.text}
                 ml="-17px"
                 mr="-17px"
                 cursor="pointer"
                 pl="15px">
-                <span onClick={() => op.onClick(props.selectedGroups, Client)}>
+                <span>
                     <Icon size={16} mr="1em" color={op.color} name={op.icon} />{op.text}
                 </span>
             </Box>

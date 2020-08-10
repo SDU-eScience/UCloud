@@ -127,10 +127,6 @@ const TwoColumnLayout = styled.div`
     & > * {
         flex-basis: 100%;
     }
-
-    & > .groups {
-        overflow: auto;
-    }
     
     @media screen and (min-width: 1200px) {
         & {
@@ -149,6 +145,8 @@ const TwoColumnLayout = styled.div`
         & > .groups {
             flex: 1;
             height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
     }
 `;
