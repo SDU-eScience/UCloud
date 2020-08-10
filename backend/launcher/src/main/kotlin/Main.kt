@@ -46,7 +46,6 @@ suspend fun main(args: Array<String>) {
     )
 
     val loader = Launcher::class.java.classLoader
-    println(loader)
 
     ClassDiscovery(listOf("dk.sdu.cloud"), Launcher::class.java.classLoader) {
         val objectInstance = it.objectInstance

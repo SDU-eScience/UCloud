@@ -4,11 +4,8 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.*
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 
 object AllowApplicationsFromTable : SQLTable("allow_applications_from") {
@@ -260,9 +257,10 @@ class SettingsService(
                             (a.type = 'email' and a.applicant_id = :emailDomain::text and :emailDomain::text is not null)
                     """
                 )
-                .mapItems { row ->
+                .mapItemsNotNull { row ->
                     val projectId = row.getField(AllowApplicationsFromTable.projectId)
-                    ProjectWithTitle(projectId, projects.ancestors.get(projectId)?.last()?.title ?: projectId)
+                    val title = projects.ancestors.get(projectId)?.last()?.title ?: return@mapItemsNotNull null
+                    ProjectWithTitle(projectId, title)
                 }
         }
     }

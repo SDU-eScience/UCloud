@@ -953,9 +953,11 @@ class QueryService(
         actor: Actor,
         projectId: String
     ): List<Project> {
+        log.debug("viewAncestors($actor, $projectId)")
         val resultList = ArrayList<Project>()
         ctx.withSession { session ->
             var currentProject: Result<Project> = runCatching { findProject(session, actor, projectId) }
+            currentProject.getOrThrow() // Throw immediately if the initial project is not found
             while (currentProject.isSuccess) {
                 val nextProject = currentProject.getOrThrow()
                 resultList.add(nextProject)

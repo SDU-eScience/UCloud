@@ -198,24 +198,6 @@ fun DatabaseConfig.migrateAll() {
 
 }
 
-
-fun main() {
-    repeat(10) {
-        run {
-            val loader =
-                URLClassLoader(arrayOf(URL("file:/home/dan/work/sducloud/backend/app-orchestrator-service/out/production/classes/")))
-            loader.loadClass("db.migration.V13__MigrateMetadata").annotations.filterIsInstance<Schema>()
-                .forEach { println(it) }
-        }
-        run {
-            val loader =
-                URLClassLoader(arrayOf(URL("file:/home/dan/work/sducloud/backend/app-store-service/out/production/classes/")))
-            loader.loadClass("db.migration.V13__MigrateMetadata").annotations.filterIsInstance<Schema>()
-                .forEach { println(it) }
-        }
-    }
-}
-
 // https://stackoverflow.com/a/6424879 (with modifications)
 class ChildFirstURLClassLoader(classpath: Array<URL?>?, parent: ClassLoader?) :
     URLClassLoader(classpath, parent) {

@@ -331,10 +331,6 @@ class UserAsyncDAO(
         }
         val twoFactorStatus = twoFactorDAO.findStatusBatched(db, users.map { it.getField(PrincipalTable.id) })
 
-        users.forEach {
-            println(it.toPrincipal(false))
-        }
-
         val usersWeFound = users
             .map { rowData ->
                 rowData.toPrincipal(twoFactorStatus.getValue(rowData.getField(PrincipalTable.id)))

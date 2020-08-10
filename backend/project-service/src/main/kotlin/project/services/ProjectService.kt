@@ -512,7 +512,7 @@ class ProjectService(
                     )
                 }),
                 serviceClient
-            ).orThrow()
+            )
         }
     }
 

@@ -2,10 +2,7 @@ package dk.sdu.cloud.grant.services
 
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Cache
@@ -34,7 +31,7 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
         Projects.viewAncestors.call(
             ViewAncestorsRequest,
             serviceClient.withProject(project)
-        ).orThrow()
+        ).orNull()
     }
 
     val principalInvestigators: Cache<String, String> = SimpleCache<String, String> { project ->

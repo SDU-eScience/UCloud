@@ -63,7 +63,7 @@ const GroupList: React.FunctionComponent = () => {
     const [trashOp] = operations;
     const content = (
         <>
-            {groupList.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
+            {groupList.data.items.length === 0 ? <Heading.h4>You have no groups to manage.</Heading.h4> : null}
             <List>
                 {creatingGroup ?
                     <ListRow
@@ -97,7 +97,7 @@ const GroupList: React.FunctionComponent = () => {
                         }
                         navigate={() => {renamingGroup !== g.groupId ?
                             history.push(`/project/members/${encodeURIComponent(g.groupId)}/${membersPage ?? ""}`)
-                            : (null)
+                            : null
                         }}
                         leftSub={<div />}
                         right={
