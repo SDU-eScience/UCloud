@@ -36,7 +36,6 @@ import kotlinx.coroutines.runBlocking
 import org.joda.time.LocalDateTime
 import org.junit.AfterClass
 import org.junit.BeforeClass
-import java.lang.Exception
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -108,7 +107,7 @@ class WalletServiceTest {
         val client = ClientMock.authenticatedClient
         val pCache = ProjectCache(client)
         val verificationService = VerificationService(client)
-        val walletService = BalanceService(pCache, verificationService)
+        val walletService = BalanceService(pCache, verificationService, client)
 
         ClientMock.mockCallSuccess(
             UserDescriptions.lookupUsers,
@@ -208,7 +207,7 @@ class WalletServiceTest {
         val client = ClientMock.authenticatedClient
         val pCache = ProjectCache(client)
         val verificationService = VerificationService(client)
-        val walletService = BalanceService(pCache, verificationService)
+        val walletService = BalanceService(pCache, verificationService, client)
 
         runBlocking {
             val balance = walletService.getBalance(db, Actor.SystemOnBehalfOfUser(user.username), walletUserGpu, false)
@@ -230,7 +229,7 @@ class WalletServiceTest {
         val client = ClientMock.authenticatedClient
         val pCache = ProjectCache(client)
         val verificationService = VerificationService(client)
-        val walletService = BalanceService(pCache, verificationService)
+        val walletService = BalanceService(pCache, verificationService, client)
 
         runBlocking {
             try {
@@ -249,7 +248,7 @@ class WalletServiceTest {
         val client = ClientMock.authenticatedClient
         val pCache = ProjectCache(client)
         val verificationService = VerificationService(client)
-        val walletService = BalanceService(pCache, verificationService)
+        val walletService = BalanceService(pCache, verificationService, client)
 
         ClientMock.mockCallSuccess(
             Projects.viewAncestors,
@@ -284,7 +283,7 @@ class WalletServiceTest {
         val client = ClientMock.authenticatedClient
         val pCache = ProjectCache(client)
         val verificationService = VerificationService(client)
-        val walletService = BalanceService(pCache, verificationService)
+        val walletService = BalanceService(pCache, verificationService, client)
 
         runBlocking {
             walletService.requirePermissionToReadBalance(
