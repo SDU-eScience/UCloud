@@ -72,13 +72,6 @@ data class SetBalanceRequest(
 
 typealias SetBalanceResponse = Unit
 
-data class SetNotificationSentRequest(
-    val wallet: Wallet,
-    val sent: Boolean
-)
-
-typealias SetNotificationSentResponse = Unit
-
 data class ReserveCreditsRequest(
     val jobId: String,
     val amount: Long,
@@ -110,6 +103,12 @@ data class ReserveCreditsRequest(
 }
 
 typealias ReserveCreditsResponse = Unit
+
+data class ReserveCreditsBulkRequest(
+    val reservations: List<ReserveCreditsRequest>
+)
+
+typealias ReserveCreditsBulkResponse = Unit
 
 data class ChargeReservationRequest(
     val name: String,
@@ -237,6 +236,25 @@ object Wallets : CallDescriptionContainer("wallets") {
             body { bindEntireRequestFromBody() }
         }
     }
+
+    val reserveCreditsBulk = call<ReserveCreditsBulkRequest, ReserveCreditsBulkResponse, CommonErrorMessage>("reserveCreditsBulk") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"reserve-credits-bulk"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
 
     val chargeReservation = call<ChargeReservationRequest, ChargeReservationResponse, CommonErrorMessage>(
         "chargeReservation"

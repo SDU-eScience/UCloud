@@ -18,7 +18,6 @@ data class StorageConfiguration(
 data class ProductConfiguration(
     val id: String = "u1-cephfs",
     val category: String = "cephfs",
-    val pricePerGb: Long = 0L,
     val provider: String = UCLOUD_PROVIDER,
     val defaultQuota: Long = NO_QUOTA
 )

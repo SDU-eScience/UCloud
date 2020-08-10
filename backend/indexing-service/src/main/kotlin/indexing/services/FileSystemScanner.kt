@@ -9,6 +9,8 @@ import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.ProductCategory
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.ReserveCreditsBulkRequest
+import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.api.Wallets
@@ -50,6 +52,7 @@ import java.io.File
 import java.util.concurrent.Executors
 import kotlin.math.abs
 import dk.sdu.cloud.indexing.services.ElasticIndexedFile
+import dk.sdu.cloud.service.Actor
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import mbuhot.eskotlin.query.fulltext.match
@@ -59,6 +62,7 @@ import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchScrollRequest
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.search.builder.SearchSourceBuilder
+import java.util.*
 
 
 @Suppress("BlockingMethodInNonBlockingContext")
@@ -258,7 +262,7 @@ class FileSystemScanner(
             return
         }
         while (true) {
-            val balanceRequests = mutableListOf<AddToBalanceRequest>()
+            val reserveCreditsRequests = mutableListOf<ReserveCreditsRequest>()
             hits.forEach {
                 val file = defaultMapper.readValue<ElasticIndexedFile>(it.sourceAsString)
                 val size = query.calculateSize(setOf(file.path))
@@ -282,8 +286,11 @@ class FileSystemScanner(
                         val pricePerUnit = product.items.find { item -> item.category.id == "cephfs"}?.pricePerUnit ?:
                             throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                         val cost = -(pricePerUnit * (size / 1000))
-                        balanceRequests.add(
-                            AddToBalanceRequest(
+                        reserveCreditsRequests.add(
+                            ReserveCreditsRequest(
+                                id,
+                                cost,
+                                Long.MAX_VALUE,
                                 Wallet(
                                     id,
                                     WalletOwnerType.USER,
@@ -292,16 +299,23 @@ class FileSystemScanner(
                                         "ucloud"
                                     )
                                 ),
-                                cost
+                                "_indexing",
+                                "cephfs",
+                                size,
+                                discardAfterLimitCheck = false,
+                                chargeImmediately = true
                             )
                         )
                     }
                     file.path.startsWith("/project") -> {
                         val pricePerUnit = product.items.find {item -> item.category.id == "cephfs"}?.pricePerUnit ?:
                             throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                        val cost = -(pricePerUnit * (size / 1000))
-                        balanceRequests.add(
-                            AddToBalanceRequest(
+                        val cost = pricePerUnit * (size / 1000)
+                        reserveCreditsRequests.add(
+                            ReserveCreditsRequest(
+                                id,
+                                cost,
+                                Long.MAX_VALUE,
                                 Wallet(
                                     id,
                                     WalletOwnerType.PROJECT,
@@ -310,7 +324,11 @@ class FileSystemScanner(
                                         "ucloud"
                                     )
                                 ),
-                                cost
+                                "_indexing",
+                                "cephfs",
+                                size,
+                                discardAfterLimitCheck = false,
+                                chargeImmediately = true
                             )
                         )
                     }
@@ -320,8 +338,8 @@ class FileSystemScanner(
                 }
             }
             runBlocking {
-                Wallets.addToBalanceBulk.call(
-                    AddToBalanceBulkRequest(balanceRequests),
+                Wallets.reserveCreditsBulk.call(
+                    ReserveCreditsBulkRequest(reserveCreditsRequests),
                     client
                 )
             }

@@ -63,12 +63,7 @@ class Server(
                     FileSystemScanner(
                         elastic,
                         queryService,
-                        run {
-                            if (micro.developmentModeEnabled) TODO()
-                            else {
-                                cephFsRoot
-                            }
-                        },
+                        cephFsRoot,
                         stats,
                         client
                     ).runAccountingStorage()
