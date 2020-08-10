@@ -12,7 +12,7 @@ import {
     rejectInvite,
     ListFavoriteProjectsRequest,
     listFavoriteProjects,
-    ProjectRole
+    ProjectRole, projectRoleToString
 } from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -428,7 +428,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     />
                                 )}
                             >
-                                <Text fontSize={2}>{e.whoami.role}</Text>
+                                <Text fontSize={2}>{projectRoleToString(e.whoami.role)}</Text>
                             </Tooltip>
 
                             <Toggle
