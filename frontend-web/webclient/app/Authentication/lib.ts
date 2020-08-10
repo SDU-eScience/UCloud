@@ -341,6 +341,14 @@ export default class HttpClient {
         return `/projects/${this.projectId}`;
     }
 
+    public get activeHomeFolder(): string {
+        if (!this.hasActiveProject) {
+            return this.homeFolder;
+        } else {
+            return this.currentProjectFolder;
+        }
+    }
+
     public get sharesFolder(): string {
         return `${this.homeFolder}Shares`;
     }

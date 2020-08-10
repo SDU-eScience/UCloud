@@ -5,7 +5,7 @@ import {
   minHeight, MinHeightProps, minWidth, MinWidthProps,
   overflow, OverflowProps, space, SpaceProps,
   textAlign, TextAlignProps, TopProps, width, WidthProps,
-  zIndex, ZIndexProps, background, BackgroundProps, flexGrow, flexShrink
+  zIndex, ZIndexProps, background, BackgroundProps, flexGrow, flexShrink, JustifyContentProps, justifyContent
 } from "styled-system";
 import {cursor} from "Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
@@ -17,6 +17,7 @@ export type BoxProps =
   ColorProps &
   BackgroundProps &
   AlignItemsProps &
+  JustifyContentProps &
   TopProps &
   HeightProps &
   MinHeightProps &
@@ -38,6 +39,7 @@ interface FlexShrinkProps {
 }
 
 const Box = styled.div<BoxProps>`
+  ${justifyContent}
   ${cursor}
   ${zIndex}
   ${flexGrow}

@@ -269,10 +269,12 @@ export function transformUsageChartForCharting(
 
 export interface RetrieveQuotaRequest {
     path: string;
+    includeUsage?: boolean;
 }
 
 export interface RetrieveQuotaResponse {
     quotaInBytes: number;
+    quotaUsed?: number;
 }
 
 export function retrieveQuota(request: RetrieveQuotaRequest): APICallParameters<RetrieveQuotaRequest> {

@@ -114,7 +114,7 @@ const SelectableWallet: React.FunctionComponent<{
                     <tbody>
                         <tr>
                             <th>Product</th>
-                            <td>{props.wallet.wallet.paysFor.id} / {props.wallet.wallet.paysFor.provider}</td>
+                            <td>{props.wallet.wallet.paysFor.provider} / {props.wallet.wallet.paysFor.id}</td>
                         </tr>
                         <tr>
                             <th>Balance</th>
