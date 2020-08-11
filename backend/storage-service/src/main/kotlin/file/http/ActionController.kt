@@ -149,5 +149,9 @@ class ActionController<Ctx : FSUserContext>(
             )
             ok(Unit)
         }
+
+        implement(FileDescriptions.retrieveFolderSize) {
+            ok(limitChecker.checkStorageUsage(request.path))
+        }
     }
 }

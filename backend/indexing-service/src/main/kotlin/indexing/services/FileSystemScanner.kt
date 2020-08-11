@@ -19,10 +19,14 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.ListDirectoryRequest
+import dk.sdu.cloud.file.api.RetrieveFolderSizeRequest
 import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.ownerName
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
 import dk.sdu.cloud.indexing.api.ComparisonOperator
@@ -237,55 +241,49 @@ class FileSystemScanner(
     }
 
     private fun scanAccounting(path: File) {
-        val request = SearchRequest(FILES_INDEX)
-        val source = SearchSourceBuilder()
-        source.query(
-            QueryBuilders.boolQuery()
-                .must(
-                    QueryBuilders.matchQuery(
-                        "fileDepth", 2
-                    )
-                )
-                .must(
-                    QueryBuilders.matchPhraseQuery(
-                        "_id",
-                        path.toCloudPath()
-                    )
-                )
-        ).size(500)
-        request.source(source)
-        request.scroll(TimeValue.timeValueMinutes(10))
-        var response = elastic.search(request, RequestOptions.DEFAULT)
-        var scrollId = response.scrollId
-        var hits = response.hits.hits
-        if (hits.isEmpty()) {
+        var page = 0
+        var content = runBlocking {
+            FileDescriptions.listAtPath.call(
+                ListDirectoryRequest(path.toCloudPath(), 100, page),
+                client
+            ).orThrow()
+        }
+
+        if (content.itemsInTotal == 0) {
+            log.info("No folders found in ${path.toCloudPath()}")
             return
         }
+
+        //TODO() change when more types are available than ucloud. BUT we do not have the info yet
+        val product = runBlocking {
+            Products.listProductsByType.call(
+                ListProductsByAreaRequest(
+                    "ucloud",
+                    ProductArea.STORAGE,
+                    null,
+                    null
+                ),
+                client
+            ).orThrow()
+        }
+
         while (true) {
             val reserveCreditsRequests = mutableListOf<ReserveCreditsRequest>()
-            hits.forEach {
-                val file = defaultMapper.readValue<ElasticIndexedFile>(it.sourceAsString)
-                val size = query.calculateSize(setOf(file.path))
-                //TODO() change when more types are available than ucloud. BUT we do not have the info yet
-                val product = runBlocking {
-                    Products.listProductsByType.call(
-                        ListProductsByAreaRequest(
-                            "ucloud",
-                            ProductArea.STORAGE,
-                            null,
-                            null
-                        ),
+            content.items.forEach { storageFile ->
+                val size = runBlocking {
+                    FileDescriptions.retrieveFolderSize.call(
+                        RetrieveFolderSizeRequest(storageFile.path),
                         client
                     ).orThrow()
                 }
-                val id = file.path.components().getOrElse(1) {throw RPCException.fromStatusCode(
+                val id = storageFile.path.components().getOrElse(1) {throw RPCException.fromStatusCode(
                     HttpStatusCode.InternalServerError, "no second component of filepath")}
                 //Assuming that storage unit price is per KB
                 when {
-                    file.path.startsWith("/home") -> {
+                    storageFile.path.startsWith("/home") -> {
                         val pricePerUnit = product.items.find { item -> item.category.id == "cephfs"}?.pricePerUnit ?:
                             throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                        val cost = -(pricePerUnit * (size / 1000))
+                        val cost = pricePerUnit * (size / 1000)
                         reserveCreditsRequests.add(
                             ReserveCreditsRequest(
                                 id,
@@ -307,7 +305,7 @@ class FileSystemScanner(
                             )
                         )
                     }
-                    file.path.startsWith("/project") -> {
+                    storageFile.path.startsWith("/project") -> {
                         val pricePerUnit = product.items.find {item -> item.category.id == "cephfs"}?.pricePerUnit ?:
                             throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                         val cost = pricePerUnit * (size / 1000)
@@ -343,18 +341,19 @@ class FileSystemScanner(
                     client
                 )
             }
-            val scrollRequest = SearchScrollRequest(scrollId)
-            scrollRequest.scroll(TimeValue.timeValueMinutes(10))
-            response = elastic.scroll(scrollRequest, RequestOptions.DEFAULT)
-            scrollId = response.scrollId
-            hits = response.hits.hits
-            if (hits.isEmpty()) {
+            if(content.pageNumber == content.pagesInTotal) {
                 break
             }
+            else {
+                page++
+                runBlocking {
+                    content = FileDescriptions.listAtPath.call(
+                        ListDirectoryRequest(path.toCloudPath(), 100, page),
+                        client
+                    ).orThrow()
+                }
+            }
         }
-        val clearRequest = ClearScrollRequest()
-        clearRequest.addScrollId(scrollId)
-        elastic.clearScroll(clearRequest, RequestOptions.DEFAULT)
     }
 
     data class ShouldContinue(val shouldContinue: Boolean, val newUpperLimitOfEntries: Long)

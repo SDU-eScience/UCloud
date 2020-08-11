@@ -2,7 +2,10 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.api.ListProductsByAreaRequest
+import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
@@ -27,6 +30,7 @@ import dk.sdu.cloud.service.db.async.long
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.runBlocking
 import java.util.*
 import kotlin.math.ceil
 
@@ -39,6 +43,14 @@ class LimitChecker<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val runnerFactory: FSCommandRunnerFactory<Ctx>
 ) {
+    suspend fun checkStorageUsage(path: String): Long {
+        runnerFactory.withContext(SERVICE_USER) { fsCtx ->
+            val homeDir = findHomeDirectoryFromPath(path)
+            return fs.calculateRecursiveStorageUsed(fsCtx, homeDir)
+
+        }
+    }
+
     suspend fun checkLimitAndQuota(path: String) {
         runnerFactory.withContext(SERVICE_USER) { fsCtx ->
             val homeDir = findHomeDirectoryFromPath(path)
@@ -345,8 +357,21 @@ class LimitChecker<Ctx : FSUserContext>(
 
     private suspend fun internalPerformLimitCheck(homeDirectory: String, estimatedUsage: Long) {
         val homeDirectoryComponents = homeDirectory.components()
-
-        if (productConfiguration.pricePerGb == 0L) {
+        //TODO() change when more types are available than ucloud. BUT we do not have the info yet
+        val products = runBlocking {
+            Products.listProductsByType.call(
+                ListProductsByAreaRequest(
+                    "ucloud",
+                    ProductArea.STORAGE,
+                    null,
+                    null
+                ),
+                serviceClient
+            ).orThrow()
+        }
+        val pricePerUnit = products.items.find { item -> item.category.id == "cephfs"}?.pricePerUnit ?:
+        throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        if (pricePerUnit == 0L) {
             log.info("Storage is free. Skipping credit check...")
             return
         }
@@ -363,7 +388,7 @@ class LimitChecker<Ctx : FSUserContext>(
         Wallets.reserveCredits.call(
             ReserveCreditsRequest(
                 "ucloud-storage-limitchk-" + UUID.randomUUID().toString(),
-                productConfiguration.pricePerGb * gigabytes,
+                pricePerUnit * gigabytes,
                 Time.now(),
                 Wallet(
                     walletId,
