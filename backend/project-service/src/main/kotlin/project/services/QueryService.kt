@@ -401,6 +401,25 @@ class QueryService(
                 """
             )
 
+            val membersOfAnyGroup = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("users", items.rows.map { it.getString("username")!! })
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        with members as (select unnest(:users::text[]) as username)
+                        select m.username
+                        from members m, group_members gm join groups g on (gm.group_id = g.id)
+                        where
+                            m.username = gm.username and
+                            g.project = :projectId
+                    """
+                )
+                .rows
+                .map { it.getString(0)!! }
+                .toSet()
+
             Page(
                 itemsInTotal.toInt(),
                 pagination.itemsPerPage,
@@ -408,7 +427,7 @@ class QueryService(
                 items.rows.map { row ->
                     val username = row.getString("username")!!
                     val role = row.getString("role")!!.let { ProjectRole.valueOf(it) }
-                    ProjectMember(username, role)
+                    ProjectMember(username, role, username in membersOfAnyGroup)
                 }
             )
         }
