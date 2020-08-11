@@ -23,6 +23,7 @@ import {
     UserInProject
 } from "Project";
 import {GroupWithSummary} from "Project/GroupList";
+import {ListProductsResponse, Product} from "Accounting";
 
 export enum KeyCode {
     ENTER = 13,
@@ -142,6 +143,8 @@ export interface HookStore {
     projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>;
     projectManagementQuery?: string;
     projectManagementOutgoingInvites?: APICallStateWithParams<Page<OutgoingInvite>, ListOutgoingInvitesRequest>;
+    computeProducts?: APICallStateWithParams<Page<Product>>;
+    storageProducts?: APICallStateWithParams<Page<Product>>;
 }
 
 interface LegacyReduxObject {

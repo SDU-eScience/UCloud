@@ -202,22 +202,10 @@ export interface UsageResponse {
     charts: UsageChart[];
 }
 
-export type CumulativeUsageRequest = UsageRequest;
-export type CumulativeUsageResponse = UsageResponse;
-
 export function usage(request: UsageRequest): APICallParameters<UsageRequest> {
     return {
         method: "GET",
         path: buildQueryString("/accounting/visualization/usage", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
-}
-
-export function cumulativeUsage(request: CumulativeUsageRequest): APICallParameters<CumulativeUsageRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/accounting/visualization/cumulative-usage", request),
         parameters: request,
         reloadId: Math.random()
     };

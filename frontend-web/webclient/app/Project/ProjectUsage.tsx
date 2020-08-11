@@ -106,26 +106,30 @@ export function creditFormatter(credits: number, precision: number = 2): string 
     }
 
     // Thousand separator
-    let beforeFormatted = "";
-    {
-        const chunksInTotal = Math.ceil(before.length / 3);
-        let offset = 0;
-        for (let i = 0; i < chunksInTotal; i++) {
-            if (i === 0) {
-                let firstChunkSize = before.length % 3;
-                if (firstChunkSize === 0) firstChunkSize = 3;
-                beforeFormatted += before.substr(0, firstChunkSize);
-                offset += firstChunkSize;
-            } else {
-                beforeFormatted += '.';
-                beforeFormatted += before.substr(offset, 3);
-                offset += 3;
-            }
-        }
-    }
+    const beforeFormatted = addThousandSeparators(before);
 
     if (after === "") return `${beforeFormatted} DKK`;
     else return `${beforeFormatted},${after} DKK`;
+}
+
+export function addThousandSeparators(numberOrString: string | number): string {
+    const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
+    let result = "";
+    const chunksInTotal = Math.ceil(numberAsString.length / 3);
+    let offset = 0;
+    for (let i = 0; i < chunksInTotal; i++) {
+        if (i === 0) {
+            let firstChunkSize = numberAsString.length % 3;
+            if (firstChunkSize === 0) firstChunkSize = 3;
+            result += numberAsString.substr(0, firstChunkSize);
+            offset += firstChunkSize;
+        } else {
+            result += '.';
+            result += numberAsString.substr(offset, 3);
+            offset += 3;
+        }
+    }
+    return result;
 }
 
 interface Duration {
@@ -303,9 +307,9 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         <MainContainer
             header={
                 <Flex>
-                    <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]} />
+                    <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]}/>
                     <ClickableDropdown
-                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16} /></Heading.h4>}
+                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16}/></Heading.h4>}
                         onChange={opt => setDurationOption(durationOptions[parseInt(opt)])}
                         options={durationOptions.map((it, idx) => {
                             return {text: it.text, value: `${idx}`};
@@ -405,11 +409,11 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 top: 10, right: 30, left: 0, bottom: 0,
                                             }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)} />
-                                            <YAxis width={150} tickFormatter={creditFormatter} />
+                                            <CartesianGrid strokeDasharray="3 3"/>
+                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)}/>
+                                            <YAxis width={150} tickFormatter={creditFormatter}/>
                                             <Tooltip labelFormatter={getDateFormatter(durationOption)}
-                                                formatter={n => creditFormatter(n as number, 2)}
+                                                     formatter={n => creditFormatter(n as number, 2)}
                                             />
                                             {chart.lineNames.map((id, idx) => {
                                                 if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
@@ -431,8 +435,8 @@ const VisualizationForArea: React.FunctionComponent<{
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHeaderCell width={30} />
-                                                <TableHeaderCell />
+                                                <TableHeaderCell width={30}/>
+                                                <TableHeaderCell/>
                                                 <TableHeaderCell textAlign="right">
                                                     Credits Used In Period
                                                 </TableHeaderCell>
@@ -441,35 +445,35 @@ const VisualizationForArea: React.FunctionComponent<{
                                             </TableRow>
                                         </TableHeader>
                                         <tbody>
-                                            {chart.lineNames.map((p, idx) => (
-                                                <TableRow key={p}>
-                                                    <TableCell>
-                                                        <Box width={20} height={20}
-                                                            backgroundColor={theme.chartColors[idx]} />
-                                                    </TableCell>
-                                                    <TableCell>{p}</TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
-                                                    </TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {creditFormatter(
-                                                            balance.data.wallets.find(it =>
-                                                                it.wallet.id === chart.lineNameToWallet[p].id &&
-                                                                it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
-                                                                it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
-                                                            )?.balance ?? 0
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell textAlign={"right"}>
-                                                        <Toggle
-                                                            onChange={() => onIncludeInChart(chart.provider, p)}
-                                                            scale={1.5}
-                                                            activeColor={"green"}
-                                                            checked={(includeInCharts[chart.provider] ?? {})[p] ?? true}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
+                                        {chart.lineNames.map((p, idx) => (
+                                            <TableRow key={p}>
+                                                <TableCell>
+                                                    <Box width={20} height={20}
+                                                         backgroundColor={theme.chartColors[idx]}/>
+                                                </TableCell>
+                                                <TableCell>{p}</TableCell>
+                                                <TableCell textAlign="right">
+                                                    {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
+                                                </TableCell>
+                                                <TableCell textAlign="right">
+                                                    {creditFormatter(
+                                                        balance.data.wallets.find(it =>
+                                                            it.wallet.id === chart.lineNameToWallet[p].id &&
+                                                            it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
+                                                            it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
+                                                        )?.balance ?? 0
+                                                    )}
+                                                </TableCell>
+                                                <TableCell textAlign={"right"}>
+                                                    <Toggle
+                                                        onChange={() => onIncludeInChart(chart.provider, p)}
+                                                        scale={1.5}
+                                                        activeColor={"green"}
+                                                        checked={(includeInCharts[chart.provider] ?? {})[p] ?? true}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                         </tbody>
                                     </Table>
                                 </Box>
@@ -512,7 +516,7 @@ const PercentageDisplay: React.FunctionComponent<{
     numerator: number,
     denominator: number,
     // Note this must be sorted ascending by breakpoint
-    colorRanges: {breakpoint: number, color: ThemeColor}[]
+    colorRanges: { breakpoint: number, color: ThemeColor }[]
 }> = props => {
     if (props.denominator === 0) {
         return null;

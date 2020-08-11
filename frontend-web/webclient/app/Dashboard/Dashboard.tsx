@@ -55,6 +55,7 @@ import {dateToString} from "Utilities/DateUtilities";
 import theme, {ThemeColor} from "ui-components/theme";
 import {dispatchSetProjectAction} from "Project/Redux";
 import Table, {TableCell, TableRow} from "ui-components/Table";
+import {Balance} from "Accounting/Balance";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -427,7 +428,13 @@ function DashboardResources({wallets, loading, quota}: {
                                     wallets.slice(0, 7).map((n, i) => (
                                         <TableRow key={i}>
                                             <TableCell>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</TableCell>
-                                            <TableCell textAlign={"right"}>{creditFormatter(n.balance)}</TableCell>
+                                            <TableCell>
+                                                <Balance
+                                                    textAlign={"right"}
+                                                    amount={n.balance}
+                                                    productCategory={n.wallet.paysFor}
+                                                />
+                                            </TableCell>
                                         </TableRow>
                                     ))
                                 }

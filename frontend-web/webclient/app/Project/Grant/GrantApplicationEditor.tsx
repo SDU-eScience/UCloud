@@ -52,6 +52,7 @@ import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
+import {Balance, BalanceExplainer} from "Accounting/Balance";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -611,9 +612,13 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                 <tr>
                                                     <th>Product</th>
                                                     <td>
-                                                        {it.wallet.paysFor.id} / {it.wallet.paysFor.provider}
+                                                        {it.wallet.paysFor.provider} / {it.wallet.paysFor.id}
                                                         <Icon
-                                                            name={it.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
+                                                            name={
+                                                                it.area === ProductArea.COMPUTE ?
+                                                                    "cpu" :
+                                                                    "ftFileSystem"
+                                                            }
                                                             size={32}
                                                         />
                                                     </td>
@@ -621,7 +626,12 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                 {state.editingApplication !== undefined ? null : (
                                                     <tr>
                                                         <th>Current balance</th>
-                                                        <td>{creditFormatter(it.balance)}</td>
+                                                        <td>
+                                                            <Balance
+                                                                amount={it.balance}
+                                                                productCategory={it.wallet.paysFor}
+                                                            />
+                                                        </td>
                                                     </tr>
                                                 )}
                                                 <tr>
@@ -668,6 +678,18 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         </td>
                                                     </tr>
                                                 </> : null}
+                                                <tr>
+                                                    <th/>
+                                                    <td>
+                                                        <HelpText>
+                                                            1.000 DKK ={" "}
+                                                            <BalanceExplainer
+                                                                amount={1_000_000_000}
+                                                                productCategory={it.wallet.paysFor}
+                                                            />
+                                                        </HelpText>
+                                                    </td>
+                                                </tr>
                                             </tbody>
                                         </table>
                                     </DashboardCard>
@@ -802,6 +824,12 @@ const PostCommentWrapper = styled.form`
         margin-top: 6px;
         justify-content: flex-end;
     }
+`;
+
+const HelpText = styled.p`
+    margin: 0;
+    font-size: ${theme.fontSizes[1]}px;
+    color: var(--gray, #f00);
 `;
 
 const PostCommentWidget: React.FunctionComponent<{

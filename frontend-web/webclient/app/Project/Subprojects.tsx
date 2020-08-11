@@ -27,6 +27,7 @@ import {sizeToString} from "Utilities/FileUtilities";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+import {Balance} from "Accounting/Balance";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -118,7 +119,9 @@ const SelectableWallet: React.FunctionComponent<{
                         </tr>
                         <tr>
                             <th>Balance</th>
-                            <td>{creditFormatter(props.wallet.balance)}</td>
+                            <td>
+                                <Balance amount={props.wallet.balance} productCategory={props.wallet.wallet.paysFor}/>
+                            </td>
                         </tr>
                         {!props.allocated ? null : (
                             <tr>
