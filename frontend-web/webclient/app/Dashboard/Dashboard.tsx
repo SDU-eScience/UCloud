@@ -48,7 +48,6 @@ import {
     RetrieveQuotaResponse,
     WalletBalance
 } from "Accounting";
-import {creditFormatter} from "Project/ProjectUsage";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {dateToString} from "Utilities/DateUtilities";

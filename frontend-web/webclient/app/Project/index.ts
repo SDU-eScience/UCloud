@@ -208,6 +208,7 @@ export function deleteGroup(request: DeleteGroupRequest): APICallParameters<Dele
 export interface ProjectMember {
     username: string;
     role: ProjectRole;
+    memberOfAnyGroup?: boolean;
 }
 
 export interface Project {
@@ -422,7 +423,7 @@ export function renameProject(request: RenameProjectRequest): APICallParameters<
         method: "POST",
         path: "/projects/rename",
         payload: request,
-        parameters: request 
+        parameters: request
     };
 }
 

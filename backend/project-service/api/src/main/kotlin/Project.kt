@@ -14,7 +14,8 @@ data class ProjectGroup(
 
 data class ProjectMember(
     val username: String,
-    val role: ProjectRole
+    val role: ProjectRole,
+    val memberOfAnyGroup: Boolean? = null
 )
 
 enum class ProjectRole(val uiFriendly: String) {

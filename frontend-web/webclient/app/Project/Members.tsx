@@ -135,11 +135,12 @@ const TwoColumnLayout = styled.div`
         }
         
         & > .members {
-            border-right: 2px solid var(--black, #f00);
+            border-right: 2px solid var(--gray, #f00);
             height: 100%;
             flex: 1;
             overflow-y: auto;
-            margin-right: 32px;
+            margin-right: 16px;
+            padding-right: 16px;
         }
         
         & > .groups {

@@ -15,6 +15,7 @@ const LandingPageContainer = styled.div`
     max-width: 1300px;
     grid-template-columns: repeat(auto-fill, minmax(200px, 400px));
     grid-gap: 32px;
+    justify-content: center;
 `;
 
 const LandingPageCard: React.FunctionComponent<{
