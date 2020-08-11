@@ -681,6 +681,6 @@ export const ImagePlaceholder = styled.div<WidthProps & HeightProps & PaddingPro
     background-color: var(--purple, #f00);
 `;
 
-export const Center = styled.div`
+export const Center = styled(Box)`
     text-align: center;
 `;

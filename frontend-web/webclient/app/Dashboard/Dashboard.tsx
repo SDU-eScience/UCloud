@@ -398,11 +398,9 @@ function DashboardResources({wallets, loading, quota}: {
     loading: boolean
 }): JSX.Element | null {
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
-    let applyLink = "/projects/browser/personal";
-    if (Client.hasActiveProject) {
-        applyLink = "/project/grants/existing";
-    }
-    const applyLinkButton = <Link to={applyLink}><Button fullWidth mt={8}>Apply for resources</Button></Link>
+    const applyLinkButton = <Link to={"/project/grants-landing"}>
+        <Button fullWidth mt={8}>Apply for resources</Button>
+    </Link>;
 
     return (
         <DashboardCard
