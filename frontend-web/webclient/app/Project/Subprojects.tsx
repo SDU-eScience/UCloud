@@ -178,7 +178,7 @@ const Subprojects: React.FunctionComponent = () => {
         setSubprojectSearchQuery,
         projectRole,
         reloadProjectStatus
-    } = useProjectManagementStatus(true);
+    } = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
         {noop: true},

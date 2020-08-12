@@ -66,7 +66,11 @@ export function useGlobalWithMerge<Property extends keyof HookStore>(
 const reducer = (state: HookStore = {}, action: Action): HookStore => {
     switch (action.type) {
         case "GENERIC_SET":
-            const newState = {...state};
+            const newState = {};
+            for (const kv of Object.entries(state)) {
+                const [key, val] = kv;
+                newState[key] = val;
+            }
             if (typeof action.newValue === "function") {
                 newState[action.property] = action.newValue(newState[action.property] ?? action.defaultValue);
             } else {
@@ -75,7 +79,11 @@ const reducer = (state: HookStore = {}, action: Action): HookStore => {
             return newState;
 
         case "GENERIC_MERGE":
-            const stateCopy = {...state};
+            const stateCopy = {};
+            for (const kv of Object.entries(state)) {
+                const [key, val] = kv;
+                stateCopy[key] = val;
+            }
             stateCopy[action.property] = {...stateCopy[action.property], ...action.newValue};
             return stateCopy;
 

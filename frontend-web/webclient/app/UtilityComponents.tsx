@@ -21,6 +21,7 @@ import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {useCloudAPI} from "Authentication/DataHook";
 import {ProjectName} from "Project";
 import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "styled-system";
+import {useEffect, useRef} from "react";
 
 interface StandardDialog {
     title?: string;
@@ -684,3 +685,22 @@ export const ImagePlaceholder = styled.div<WidthProps & HeightProps & PaddingPro
 export const Center = styled(Box)`
     text-align: center;
 `;
+
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+export function useTraceUpdate(props: any, msg?: string): void {
+    const prev = useRef(props);
+    useEffect(() => {
+        const changedProps = Object.entries(props).reduce((ps, [k, v]) => {
+            if (prev.current[k] !== v) {
+                ps[k] = [prev.current[k], v];
+            }
+            return ps;
+        }, {});
+        if (Object.keys(changedProps).length > 0) {
+            // This should only be used for debugging
+            // eslint-disable-next-line no-console
+            console.log('Changed props:', msg, changedProps);
+        }
+        prev.current = props;
+    });
+}

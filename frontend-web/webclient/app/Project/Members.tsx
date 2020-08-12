@@ -34,7 +34,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
         membersPage,
         reload,
         projectDetails
-    } = useProjectManagementStatus();
+    } = useProjectManagementStatus({isRootComponent: true});
 
     const shouldVerify = projectDetails.data.needsVerification;
 
@@ -49,7 +49,8 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
                 notInGroup: groupId
             })
         );
-    }, [projectId, groupId, groupMembers.data, memberSearchQuery]);
+        // Note: We are not triggering a change on groupId because groupMembers.data is already doing this
+    }, [projectId, groupMembers.data, memberSearchQuery]);
 
     useEffect(() => {
         props.setLoading(projectMembers.loading || groupMembers.loading);

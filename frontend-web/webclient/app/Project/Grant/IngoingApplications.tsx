@@ -21,7 +21,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {dateToString} from "Utilities/DateUtilities";
 
 export const IngoingApplications: React.FunctionComponent = () => {
-    const {projectId} = useProjectManagementStatus();
+    const {projectId} = useProjectManagementStatus({isRootComponent: true});
     const dispatch = useDispatch();
     const [ingoingApplications, fetchIngoingApplications] = useCloudAPI<IngoingGrantApplicationsResponse>(
         {noop: true},

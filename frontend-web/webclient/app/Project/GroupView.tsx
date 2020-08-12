@@ -17,8 +17,8 @@ import { snackbarStore } from "Snackbar/SnackbarStore";
 const GroupView: React.FunctionComponent = () => {
     const {
         projectId, groupId, groupMembers, groupDetails, fetchGroupMembers, groupMembersParams,
-        membersPage, projectRole, projectDetails, fetchGroupDetails, groupDetailsParams 
-    } = useProjectManagementStatus();
+        membersPage, projectRole, projectDetails, fetchGroupDetails, groupDetailsParams
+    } = useProjectManagementStatus({isRootComponent: false});
     const activeGroup = groupMembers;
     const renameRef = React.useRef<HTMLInputElement>(null);
     const fetchActiveGroup = fetchGroupMembers;

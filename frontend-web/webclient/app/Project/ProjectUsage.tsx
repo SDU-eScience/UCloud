@@ -179,7 +179,7 @@ export const durationOptions: Duration[] = [
 ];
 
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
-    const {projectId, reload} = useProjectManagementStatus(true);
+    const {projectId, reload} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);

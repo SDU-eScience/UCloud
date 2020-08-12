@@ -21,7 +21,10 @@ const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
 `;
 
 export const ProjectBreadcrumbs: React.FunctionComponent<ProjectBreadcrumbsProps> = props => {
-    const {projectDetails, projectId} = useProjectManagementStatus(props.allowPersonalProject);
+    const {projectDetails, projectId} = useProjectManagementStatus({
+        isRootComponent: false,
+        allowPersonalProject: props.allowPersonalProject
+    });
     let projectNameComponent = <Spinner />;
     if (!projectDetails.loading) {
         const title = projectDetails.data.title;

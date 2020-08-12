@@ -264,7 +264,7 @@ const DashboardAnalyses = ({analyses, isLoading, error,}: {
     error?: string
 }): JSX.Element => (
     <DashboardCard
-        title={<Link to={"/applications/overview"}><Heading.h3>Recent Runs</Heading.h3></Link>}
+        title={<Link to={"/applications/results"}><Heading.h3>Recent Runs</Heading.h3></Link>}
         color="purple"
         isLoading={isLoading}
         icon={"apps"}

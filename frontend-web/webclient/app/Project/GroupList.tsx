@@ -32,7 +32,7 @@ const baseContext = "/projects/groups";
 const GroupList: React.FunctionComponent = () => {
     const history = useHistory();
     const {allowManagement, groupId, groupList, fetchGroupList, groupListParams,
-        membersPage} = useProjectManagementStatus();
+        membersPage} = useProjectManagementStatus({isRootComponent: false});
 
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [, setLoading] = useState(false);

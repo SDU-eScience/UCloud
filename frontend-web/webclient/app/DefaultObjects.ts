@@ -136,7 +136,6 @@ interface LegacyReducers {
 export interface HookStore {
     fileFavoriteCache?: Record<string, boolean>;
     projectCache?: ProjectCache;
-    avatarCache?: Record<string, AvatarType>;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
     projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
     projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;

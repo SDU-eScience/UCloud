@@ -25,7 +25,7 @@ import {creditFormatter} from "Project/ProjectUsage";
 const wayfIdpsPairs = wayfIdps.map(it => ({value: it, content: it}));
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
-    const {projectId} = useProjectManagementStatus();
+    const {projectId} = useProjectManagementStatus({isRootComponent: false});
     const [, runWork] = useAsyncCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},

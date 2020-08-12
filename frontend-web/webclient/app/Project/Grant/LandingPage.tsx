@@ -36,7 +36,7 @@ const LandingPageCard: React.FunctionComponent<{
 export const LandingPage: React.FunctionComponent = () => {
     useTitle("Apply for Resources");
     useSidebarPage(SidebarPages.None);
-    const projects = useProjectManagementStatus(true);
+    const projects = useProjectManagementStatus({allowPersonalProject: true, isRootComponent: true});
 
     return <MainContainer
         main={

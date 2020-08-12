@@ -528,7 +528,16 @@ export function areProjectsEnabled(): boolean {
 }
 
 // eslint-disable-next-line
-export function useProjectManagementStatus(allowPersonalProject?: true) {
+export function useProjectManagementStatus(args: {
+    /**
+     * isRootComponent controls if this component should pull in new information when the project changes.
+     * Rule of thumb: If the component uses a MainContainer then this should be true otherwise it should probably be
+     * false.
+     */
+    isRootComponent: boolean,
+    allowPersonalProject?: true
+}) {
+    const {isRootComponent, allowPersonalProject} = args;
     const history = useHistory();
     const promises = usePromiseKeeper();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
@@ -600,6 +609,7 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
     const reloadProjectStatus = projects.reload;
 
     useEffect(() => {
+        if (!isRootComponent) return;
         if (promises.canceledKeeper) return;
         if (groupId !== undefined) {
             fetchGroupMembers(listGroupMembersRequest({group: groupId, itemsPerPage: 25, page: 0}));
@@ -621,15 +631,15 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
         fetchProjectDetails(projectDetailsParams);
         if (groupId !== undefined) {
             fetchGroupMembers(groupMembersParams);
-            fetchGroupDetails(groupDetailsParams)
+            fetchGroupDetails(groupDetailsParams);
         }
     }, [projectMemberParams, groupMembersParams, setProjectMemberParams, groupId]);
 
     return {
-        locationParams, projectId: projectId ?? "", groupId, groupDetails, fetchGroupDetails, groupDetailsParams, projectMembers, setProjectMemberParams, groupMembers,
-        fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
-        projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
+        locationParams, projectId: projectId ?? "", groupId, groupDetails, fetchGroupDetails, groupDetailsParams,
+        projectMembers, setProjectMemberParams, groupMembers, fetchGroupMembers, groupMembersParams, groupList,
+        fetchGroupList, groupListParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
+        reloadProjectStatus, outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
         projectDetails, projectDetailsParams, fetchProjectDetails, subprojectSearchQuery, setSubprojectSearchQuery,
         reload
     };

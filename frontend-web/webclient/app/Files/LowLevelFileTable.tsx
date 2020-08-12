@@ -239,7 +239,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         throw Error("page is not currently supported in non-embedded mode without a path");
     }
 
-    const {projectRole} = useProjectManagementStatus(true);
+    const {projectRole} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     // Hooks
     const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());

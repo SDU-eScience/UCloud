@@ -154,7 +154,7 @@ function useRequestInformation(target: RequestTarget) {
 
     switch (target) {
         case RequestTarget.EXISTING_PROJECT: {
-            const {projectId, projectDetails} = useProjectManagementStatus();
+            const {projectId, projectDetails} = useProjectManagementStatus({isRootComponent: true});
             targetProject = projectDetails.data.parent;
             const [w, fetchWallets] = useCloudAPI<RetrieveBalanceResponse>(
                 {noop: true},

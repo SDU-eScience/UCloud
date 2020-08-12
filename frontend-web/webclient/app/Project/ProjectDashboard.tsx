@@ -51,7 +51,8 @@ function computeUsageInPeriod(charts: NativeChart[]): number {
 }
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
-    const {projectId, projectDetails, projectRole} = useProjectManagementStatus(true);
+    const {projectId, projectDetails, projectRole} =
+        useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     function isPersonalProjectActive(id: string): boolean {
         return id === undefined || id === "";
