@@ -14,6 +14,11 @@ import {DashboardCard} from "Dashboard/Dashboard";
 import {ImagePlaceholder, Lorem} from "UtilityComponents";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {useState} from "react";
+import {Client} from "Authentication/HttpClientInstance";
+import {AppLogo, hashF} from "Applications/Card";
+import {AppOrTool} from "Applications/api";
 
 export const ProjectBrowser: React.FunctionComponent = () => {
     const {action} = useParams();
@@ -66,13 +71,44 @@ export const ProjectBrowser: React.FunctionComponent = () => {
     />;
 };
 
+interface LogoProps {
+    projectId: string;
+    size?: string;
+    cacheBust?: string;
+}
+
+export const Logo: React.FunctionComponent<LogoProps> = props => {
+    const [hasLoadedImage, setLoadedImage] = useState(true);
+    const size = props.size !== undefined ? props.size : "40px";
+
+    const url = Client.computeURL("/api", `/grant/logo/${props.projectId}`);
+
+    return (
+        <>
+            <img
+                onErrorCapture={() => {
+                    setLoadedImage(false);
+                    // For some reason the state is not always correctly set. This is the worst possible work around.
+                    setTimeout(() => setLoadedImage(false), 50);
+                }}
+                key={url}
+                style={hasLoadedImage ? {width: size, height: size, objectFit: "contain"} : {display: "none"}}
+                src={url}
+                alt={props.projectId}
+            />
+
+            {hasLoadedImage ? null : <AppLogo size={size} hash={hashF(props.projectId)} />}
+        </>
+    );
+};
+
 const AffiliationLink: React.FunctionComponent<{ action: string, projectId: string, title: string }> = props => {
     const history = useHistory();
     return <DashboardCard
         color={"purple"}
         isLoading={false}
         title={<>
-            <ImagePlaceholder height={40} width={40} />
+            <Logo projectId={props.projectId} size={"40px"} />
             <Heading.h3 ml={8}>{props.title}</Heading.h3>
         </>}
         subtitle={<Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />}
