@@ -81,7 +81,11 @@ inline fun <T, R : Any> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
     )
 }
 
-fun <T> List<T>.paginate(request: NormalizedPaginationRequest): Page<T> {
+fun <T> List<T>.paginate(request: NormalizedPaginationRequest?): Page<T> {
+    if (request == null) {
+        return Page(size, size, 0, this)
+    }
+
     val startIndex = request.itemsPerPage * request.page
     val items =
         if (startIndex > size) {

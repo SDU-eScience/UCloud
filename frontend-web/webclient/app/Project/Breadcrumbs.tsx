@@ -41,6 +41,7 @@ export const ProjectBreadcrumbs: React.FunctionComponent<ProjectBreadcrumbsProps
             if (crumb.link) {
                 return <span key={idx}><Link to={crumb.link}>{crumb.title}</Link></span>;
             } else {
+
                 return <span key={idx}>{crumb.title}</span>;
             }
         })}

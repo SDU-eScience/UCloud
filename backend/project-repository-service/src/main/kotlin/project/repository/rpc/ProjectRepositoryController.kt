@@ -82,7 +82,7 @@ class ProjectRepositoryController(
             ok(
                 service
                     .listFiles(ctx.securityPrincipal.username, project, userClient())
-                    .paginate(request.normalize())
+                    .paginate(request.normalizeWithFullReadEnabled(ctx.securityPrincipal.toActor(), false))
             )
         }
 

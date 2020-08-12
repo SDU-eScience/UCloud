@@ -148,12 +148,15 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
             ).orThrow().items
         }
 
-        val myFiles = FileDescriptions.stat.call(
-            StatRequest("/projects/$project/Personal/${username}"),
+        val myPersonalFiles = FileDescriptions.stat.call(
+            StatRequest(joinPath(projectHomeDirectory(project), PERSONAL_REPOSITORY, username)),
             userClient
-        ).orNull()?.let { listOf(it) } ?: emptyList()
+        ).orNull()
 
-        return myFiles + filesFromRepo
+        return listOfNotNull(
+            myPersonalFiles,
+            filesFromRepo.find { it.path.fileName() == PERSONAL_REPOSITORY }
+        ) + filesFromRepo.filter { it.path.fileName() != PERSONAL_REPOSITORY }
     }
 
     suspend fun updatePermissions(

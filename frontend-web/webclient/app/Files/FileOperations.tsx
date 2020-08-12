@@ -20,7 +20,7 @@ import {
     getParentPath,
     isAnyFixedFolder,
     isAnyMockFile,
-    isArchiveExtension, isPartOfProject,
+    isArchiveExtension, isPartOfProject, isPartOfSomePersonalFolder, isPersonalRootFolder,
     isTrashFolder,
     moveToTrash,
     shareFiles,
@@ -29,7 +29,12 @@ import {
 import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {promptDeleteRepository, repositoryName, updatePermissionsPrompt} from "Utilities/ProjectUtilities";
+import {
+    explainPersonalRepo,
+    promptDeleteRepository,
+    repositoryName,
+    updatePermissionsPrompt
+} from "Utilities/ProjectUtilities";
 import {FilePermissions} from "Files/permissions";
 import {ProjectName} from "Project";
 
@@ -95,6 +100,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (files.length !== 1) return true;
             else if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
+            else if (isPartOfSomePersonalFolder(files[0].path)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "rename"
@@ -155,6 +161,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
+            else if (files.find(it => isPartOfSomePersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "sensitivity"
@@ -176,6 +183,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
+            else if (files.find(it => isPartOfSomePersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "copy",
@@ -197,6 +205,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
+            else if (files.find(it => isPartOfSomePersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "move",
@@ -283,7 +292,13 @@ export const defaultFileOperations: FileOperation[] = [
         /* Rename project repo */
         text: "Rename",
         disabled: files => files.length !== 1,
-        onClick: ([file], cb) => cb.startRenaming(file),
+        onClick: ([file], cb) => {
+            if (isPersonalRootFolder(file.path)) {
+                explainPersonalRepo();
+            } else {
+                cb.startRenaming(file);
+            }
+        },
         icon: "rename",
         repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
@@ -291,14 +306,26 @@ export const defaultFileOperations: FileOperation[] = [
         /* Update repo permissions */
         text: "Permissions",
         disabled: files => files.length !== 1,
-        onClick: ([file], cb) => updatePermissionsPrompt(Client, file, cb.requestReload),
+        onClick: ([file], cb) => {
+            if (isPersonalRootFolder(file.path)) {
+                explainPersonalRepo();
+            } else {
+            updatePermissionsPrompt(Client, file, cb.requestReload);
+            }
+        },
         icon: "properties",
         repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
     {
         /* Delete repo permission */
         text: "Delete",
-        onClick: ([file], cb) => promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload),
+        onClick: ([file], cb) => {
+            if (isPersonalRootFolder(file.path)) {
+                explainPersonalRepo();
+            } else {
+                promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload);
+            }
+        },
         disabled: files => files.length !== 1,
         icon: "trash",
         color: "red",
