@@ -107,7 +107,8 @@ config("app-orchestrator") { ctx ->
         "svensson@imada.sdu.dk",
         "dthrane@imada.sdu.dk",
         "jakoj17@student.sdu.dk",
-        "alfal19@student.sdu.dk"
+        "alfal19@student.sdu.dk",
+        "greisager@imada.sdu.dk"
     ))
 
     when (ctx.environment) {
