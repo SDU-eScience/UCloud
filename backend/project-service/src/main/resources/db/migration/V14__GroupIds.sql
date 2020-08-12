@@ -1,6 +1,6 @@
 alter table groups
     add column id varchar(255)
-        default uuid_in(md5(random()::text || clock_timestamp()::text)::cstring)
+        default uuid_in(md5(random()::text || clock_timestamp()::text)::cstring)::text
         not null;
 
 alter table group_members add column group_id varchar(255) null;
