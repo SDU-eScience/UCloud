@@ -98,19 +98,17 @@ fun DatabaseConfig.migrateAll() {
                 }
             }
 
-            var classLoader: ClassLoader? = null
-            val schema = try {
+            var schema: String? = try {
                 URL("$migrationUrl/schema.txt").readText()
             } catch (ex: Throwable) {
-                // Attempt to load a class and retrieve the schema
-                val elements = URL(migrationUrl.toString().substringBefore("db/migration").removeSuffix("/") + "/")
-                println(elements)
+                null
+            }
+
+            if (potentialClassNames.isNotEmpty()) {
                 val newClassLoader = ChildFirstURLClassLoader(
-                    arrayOf(elements),
+                    arrayOf(URL(migrationUrl.toString().substringBefore("db/migration").removeSuffix("/") + "/")),
                     javaClass.classLoader
                 )
-                require(potentialClassNames.isNotEmpty()) { "Could not find schema $migrationUrl" }
-                var schema: String? = null
                 for (className in potentialClassNames) {
                     val s = "db.migration.${className}"
                     val loadedClass = newClassLoader.loadClass(s)
@@ -123,12 +121,13 @@ fun DatabaseConfig.migrateAll() {
                     loadedClasses.add(loadedClass)
                     schema = schemaAnnotation.name
                 }
-                classLoader = newClassLoader
-
-                schema!!
             }
 
-            SchemaMigrations(schema, Location(Location.FILESYSTEM_PREFIX + tempDirectory.absolutePath), loadedClasses)
+            SchemaMigrations(
+                schema ?: error("Could not find schema: $migrationUrl"),
+                Location(Location.FILESYSTEM_PREFIX + tempDirectory.absolutePath),
+                loadedClasses
+            )
         }
         .groupBy { it.schema }
         .forEach { (schema, migrations) ->
@@ -175,13 +174,12 @@ fun DatabaseConfig.migrateAll() {
                                     }
 
                                     override fun getChecksum(): Int {
-                                        return 0
+                                        return 1337
                                     }
 
                                     override fun getScript(): String {
                                         return "" // I have no idea
                                     }
-
                                 }
                             }
                             .toMutableList()
