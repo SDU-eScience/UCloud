@@ -5,6 +5,7 @@ import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import HttpClient from "Authentication/lib";
 import {pathComponents} from "Utilities/FileUtilities";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
+import {Center} from "UtilityComponents";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
@@ -80,11 +81,11 @@ export const BreadCrumbs = ({
         <>
             {addHomeFolderLink ? (
                 <>
-                    <Box ml="15px">
+                    <Box>
                         <Icon test-tag="to_home" size="30px" cursor="pointer" name="home" onClick={toHome} />
-                        <Text cursor="pointer" ml="-15px" fontSize="11px" onClick={toHome}>
-                            Go to home
-                        </Text>
+                        <Center>
+                            <Text cursor="pointer" fontSize="11px" onClick={toHome}>Home</Text>
+                        </Center>
                     </Box>
                     <Text ml="6px" mr="6px" fontSize="24px">|</Text>
                 </>

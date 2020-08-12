@@ -48,6 +48,7 @@ import {ProjectStatus, useProjectStatus} from "Project/cache";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useAppQuickLaunch} from "Utilities/ApplicationUtilities";
 import {isAnyMockFile, MOCK_RENAME_TAG, MOCK_REPO_CREATE_TAG} from "Utilities/FileUtilities";
+import {fakeProjectListPath} from "Files/FileSelector";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -397,73 +398,55 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
             embedded={isEmbedded}
 
             header={(
-                <Spacer
-                    left={(
-                        <BreadCrumbs
-                            embedded={!!props.embedded}
-                            currentPath={props.path ?? ""}
-                            navigate={onFileNavigation}
-                            client={Client}
-                        />
-                    )}
+                <>
+                    <Spacer
+                        left={(
+                            <BreadCrumbs
+                                embedded={!!props.embedded}
+                                currentPath={props.path ?? ""}
+                                navigate={onFileNavigation}
+                                client={Client}
+                            />
+                        )}
 
-                    right={(
-                        <>
-                            {(!isEmbedded && props.path) || props.disableNavigationButtons === true ? null : (
-                                <>
-                                    <Card
-                                        onClick={() => onFileNavigation(Client.homeFolder)}
-                                        cursor="pointer"
-                                        height="auto"
-                                        mr="8px"
-                                        pb="4px"
-                                        alignItems="center"
-                                        width="100px"
-                                        textAlign="center"
-                                        boxShadow="sm"
-                                        borderWidth={0}
-                                        borderRadius={6}
-                                    >
-                                        <Icon color="iconColor" color2="iconColor2" name="home"/>
-                                        <Text fontSize={0}>Personal Home</Text>
-                                    </Card>
-                                    <Card
-                                        onClick={() => onFileNavigation(`${Client.homeFolder}Project List`)}
-                                        cursor="pointer"
-                                        height="auto"
-                                        mr="8px"
-                                        pb="4px"
-                                        alignItems="center"
-                                        width="100px"
-                                        textAlign="center"
-                                        boxShadow="sm"
-                                        borderWidth={0}
-                                        borderRadius={6}
-                                    >
-                                        <Icon color="iconColor" color2="iconColor2" name="projects"/>
-                                        <Text fontSize={0}>Project List</Text>
-                                    </Card>
-                                    <Box mt="9px" ml="6px">
-                                        <Refresh
-                                            spin={isAnyLoading}
-                                            onClick={callbacks.requestReload}
+                        right={(
+                            <>
+                                {(!isEmbedded && props.path) || props.disableNavigationButtons === true ? null : (
+                                    <>
+                                        <Box mt="9px" ml="6px">
+                                            <Refresh
+                                                spin={isAnyLoading}
+                                                onClick={callbacks.requestReload}
+                                            />
+                                        </Box>
+                                    </>
+                                )}
+
+                                {isEmbedded ? null : (
+                                    <Flex minWidth="160px">
+                                        <Pagination.EntriesPerPageSelector
+                                            content="Files per page"
+                                            entriesPerPage={page.itemsPerPage}
+                                            onChange={amount => onPageChanged(0, amount)}
                                         />
-                                    </Box>
-                                </>
-                            )}
-
-                            {isEmbedded ? null : (
-                                <Flex minWidth="160px">
-                                    <Pagination.EntriesPerPageSelector
-                                        content="Files per page"
-                                        entriesPerPage={page.itemsPerPage}
-                                        onChange={amount => onPageChanged(0, amount)}
-                                    />
-                                </Flex>
-                            )}
-                        </>
+                                    </Flex>
+                                )}
+                            </>
+                        )}
+                    />
+                    {(!isEmbedded && props.path) || props.disableNavigationButtons === true ? null : (
+                        <Box my={8}>
+                            <Button onClick={() => onFileNavigation(Client.homeFolder)} mr={8}>
+                                <Icon color="white" color2="gray" name="home" mr={"4px"}/>
+                                Personal Home
+                            </Button>
+                            <Button onClick={() => onFileNavigation(fakeProjectListPath)}>
+                                <Icon color="white" color2="gray" name="projects" mr={"4px"}/>
+                                Project List
+                            </Button>
+                        </Box>
                     )}
-                />
+                </>
             )}
 
             sidebar={(
