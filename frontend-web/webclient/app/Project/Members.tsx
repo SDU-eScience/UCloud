@@ -49,8 +49,8 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
                 notInGroup: groupId
             })
         );
-        // Note: We are not triggering a change on groupId because groupMembers.data is already doing this
-    }, [projectId, groupMembers.data, memberSearchQuery]);
+        // TODO: This is currently triggering twice in certain situations (group page for example)
+    }, [projectId, groupId, groupMembers.data, memberSearchQuery]);
 
     useEffect(() => {
         props.setLoading(projectMembers.loading || groupMembers.loading);

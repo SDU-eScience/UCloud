@@ -11,6 +11,7 @@ export interface ProjectBreadcrumbsProps {
 }
 
 const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
+    width: 100%;
     max-width: unset;
     flex-grow: 1;
     

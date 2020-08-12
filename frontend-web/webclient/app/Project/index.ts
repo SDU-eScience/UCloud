@@ -617,12 +617,18 @@ export function useProjectManagementStatus(args: {
             fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
         }
 
+        if (groupId) fetchGroupDetails(viewGroup({id: groupId}));
+    }, [projectId, groupId, projectRole]);
+
+    useEffect(() => {
+        if (!isRootComponent) return;
+        if (promises.canceledKeeper) return;
+
         // noinspection JSIgnoredPromiseFromCall
         reloadProjectStatus();
         fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
         if (projectId) fetchProjectDetails(viewProject({id: projectId}));
-        if (groupId) fetchGroupDetails(viewGroup({id: groupId}));
-    }, [projectId, groupId, projectRole]);
+    }, [projectId, projectRole]);
 
     const reload = useCallback(() => {
         if (promises.canceledKeeper) return;

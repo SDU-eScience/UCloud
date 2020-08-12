@@ -5,7 +5,7 @@ import {SortOrder} from "Files";
 import * as React from "react";
 import List from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled from "styled-components";
+import styled, {keyframes, css} from "styled-components";
 import {
     Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text, ButtonGroup
 } from "ui-components";
@@ -704,3 +704,34 @@ export function useTraceUpdate(props: any, msg?: string): void {
         prev.current = props;
     });
 }
+
+const shakeKeyframes = keyframes`
+    10%, 90% {
+        transform: translate3d(-1px, 0, 0);
+    }
+      
+    20%, 80% {
+        transform: translate3d(2px, 0, 0);
+    }
+
+    30%, 50%, 70% {
+        transform: translate3d(-4px, 0, 0);
+    }
+
+    40%, 60% {
+        transform: translate3d(4px, 0, 0);
+    }
+`;
+
+export const shakeAnimation = css`
+    &.shaking {
+        transform: translate3d(0, 0, 0); 
+        animation: ${shakeKeyframes} 0.82s cubic-bezier(.36,.07,.19,.97) both;
+    }
+`;
+
+export const shakingClassName = "shaking";
+
+export const ShakingBox = styled(Box)`
+    ${shakeAnimation}
+`;

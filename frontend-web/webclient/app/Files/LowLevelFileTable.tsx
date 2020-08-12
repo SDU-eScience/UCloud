@@ -74,6 +74,7 @@ export interface LowLevelFileTableProps {
     permissionAlertEnabled?: boolean;
 
     asyncWorker?: AsyncWorker;
+    disableNavigationButtons?: boolean;
 }
 
 export interface ListDirectoryRequest {
@@ -239,7 +240,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         throw Error("page is not currently supported in non-embedded mode without a path");
     }
 
-    const {projectRole} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    const {projectRole} = useProjectManagementStatus({isRootComponent: !props.embedded, allowPersonalProject: true});
 
     // Hooks
     const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
@@ -408,7 +409,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
 
                     right={(
                         <>
-                            {!isEmbedded && props.path ? null : (
+                            {(!isEmbedded && props.path) || props.disableNavigationButtons === true ? null : (
                                 <>
                                     <Card
                                         onClick={() => onFileNavigation(Client.homeFolder)}
