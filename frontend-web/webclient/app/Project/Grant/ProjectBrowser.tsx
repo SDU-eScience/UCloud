@@ -4,7 +4,7 @@ import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import {useCloudAPI} from "Authentication/DataHook";
-import {browseProjects, BrowseProjectsResponse} from "Project/Grant/index";
+import {browseProjects, BrowseProjectsResponse, readTemplates} from "Project/Grant/index";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -15,10 +15,10 @@ import {ImagePlaceholder, Lorem} from "UtilityComponents";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {Client} from "Authentication/HttpClientInstance";
 import {AppLogo, hashF} from "Applications/Card";
-import {AppOrTool} from "Applications/api";
+import {retrieveFromProvider, UCLOUD_PROVIDER} from "Accounting";
 
 export const ProjectBrowser: React.FunctionComponent = () => {
     const {action} = useParams();
@@ -77,6 +77,23 @@ interface LogoProps {
     cacheBust?: string;
 }
 
+interface RetrieveDescriptionRequest {
+    projectId?: string;
+}
+
+interface RetrieveDescriptionResponse {
+    description: string;
+}
+
+function retrieveDescription(request: RetrieveDescriptionRequest): APICallParameters<RetrieveDescriptionRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/description/", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
 export const Logo: React.FunctionComponent<LogoProps> = props => {
     const [hasLoadedImage, setLoadedImage] = useState(true);
     const size = props.size !== undefined ? props.size : "40px";
@@ -104,9 +121,16 @@ export const Logo: React.FunctionComponent<LogoProps> = props => {
 
 const AffiliationLink: React.FunctionComponent<{ action: string, projectId: string, title: string }> = props => {
     const history = useHistory();
+
+    const [description, setDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+        retrieveDescription({
+            projectId: props.projectId,
+        }), {description: ""}
+    );
+
     return <DashboardCard
         color={"purple"}
-        isLoading={false}
+        isLoading={description.loading}
         title={<>
             <Logo projectId={props.projectId} size={"40px"} />
             <Heading.h3 ml={8}>{props.title}</Heading.h3>
@@ -115,7 +139,7 @@ const AffiliationLink: React.FunctionComponent<{ action: string, projectId: stri
         onClick={() => history.push(`/project/grants/${props.action}/${props.projectId}`)}
     >
         <Box pt={8} pb={16}>
-            <Lorem/>
+            {description.data.description}
         </Box>
     </DashboardCard>;
 };

@@ -182,7 +182,9 @@ class GrantController(
         }
 
         implement(Grants.fetchDescription) {
-            ok(settings.fetchDescription(db, request.projectId))
+            ok(FetchDescriptionResponse(
+                settings.fetchDescription(db, request.projectId)
+            ))
         }
 
         return@with

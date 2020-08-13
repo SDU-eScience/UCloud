@@ -49,7 +49,9 @@ typealias UploadDescriptionResponse = Unit
 data class FetchDescriptionRequest(
     val projectId: String
 )
-typealias FetchDescriptionResponse = String
+data class FetchDescriptionResponse(
+    val description: String
+)
 
 data class ReadTemplatesRequest(val projectId: String)
 typealias ReadTemplatesResponse = UploadTemplatesRequest
@@ -266,7 +268,10 @@ object Grants : CallDescriptionContainer("grant") {
 
             path {
                 using(baseContext)
-                +"logo"
+                +"description"
+            }
+
+            params {
                 +boundTo(FetchDescriptionRequest::projectId)
             }
         }
