@@ -21,7 +21,7 @@ system:
    - macOS: https://postgresapp.com/
  - Kubernetes
    - Minikube: https://kubernetes.io/docs/tasks/tools/install-minikube/
-     - macOS: `minikube start -p hyperkit`
+     - macOS: `minikube start -p hyperkit --kubernetes-version v1.15.5`
    
 ## Configuring Minikube to Run Applications
 
@@ -72,7 +72,7 @@ From `sducloud/backend/launcher` run the following command:
 
 ```
 mkdir -p fs/{home,projects}
-minikube -p hyperkit mount fs/:/hosthome
+minikube -p hyperkit mount fs/:/hosthome --uid=11042 --gid=11042
 ```
    
 ### Preparing Configuration
