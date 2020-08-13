@@ -14,14 +14,14 @@ system:
  - Docker
    - macOS: https://www.docker.com/products/docker-desktop
  - Redis 
-   - Docker: `docker run -p 6379:6379 redis:5.0.9`
+   - Docker: `docker run --name redis -d -p 6379:6379 redis:5.0.9`
  - Elasticsearch
-   - Docker: `docker run -p 9200:9200 -e discovery.type=single-node docker.elastic.co/elasticsearch/elasticsearch:7.6.0`
+   - Docker: `docker run --name elastic -d -p 9200:9200 -e discovery.type=single-node docker.elastic.co/elasticsearch/elasticsearch:7.6.0`
  - PostgreSQL 10
    - macOS: https://postgresapp.com/
  - Kubernetes
    - Minikube: https://kubernetes.io/docs/tasks/tools/install-minikube/
-     - macOS: `minikube start --driver=hyperkit`
+     - macOS: `minikube start -p hyperkit`
    
 ## Configuring Minikube to Run Applications
 
@@ -63,12 +63,15 @@ spec:
 
 Then run:
 
-`kubectl --context hyperkit create -f /tmp/pvcs.yml`
+```
+kubectl --context hyperkit create ns app-kubernetes
+kubectl --context hyperkit create -f /tmp/pvcs.yml
+```
 
 From `sducloud/backend/launcher` run the following command:
 
 ```
-minikube mount fs/:/hosthome
+minikube -p hyperkit mount fs/:/hosthome
 ```
    
 ### Preparing Configuration
@@ -77,8 +80,8 @@ Create the file `~/sducloud/tokenvalidation.yml` with the following content:
 
 ```yaml
 ---
+refreshToken: theverysecretadmintoken
 tokenValidation:
-  refreshToken: theverysecretadmintoken
   jwt:
     sharedSecret: notverysecret
 ```
@@ -110,6 +113,14 @@ From `sducloud/backend` run the following:
 ./gradlew :launcher:run --args='--dev --run-script migrate-db'
 ```
 
+Compiling the project from scratch takes approximately 3 minutes. If you get a compilation error similar to this:
+
+```
+e: sdu-cloud/backend/service-common/src/main/kotlin/micro/FlywayFeature.kt: (79, 27): Unresolved reference: resources
+```
+
+Then make sure you are currently running Java 11 (`java -version`).
+
 ### Running Elasticsearch Migrations
 
 We still don't have a good solution for this. At the moment the following is required to be run from `sducloud/backend`:
@@ -125,18 +136,18 @@ __NOTE: DATABASE MIGRATIONS MUST HAVE BEEN RUN AT THIS POINT__
 Run the following commands in your postgres database:
 
 ```sql
-insert into principals 
+insert into auth.principals 
     (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
     phone_number, title, hashed_password, salt, org_id, email) 
 values 
     ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
     E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
 
-insert into refresh_tokens
+insert into auth.refresh_tokens
     (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
     expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
 values
-    ('theverysercretadmintoken', 'admin@dev', 'csrf', 'initial', null, '["all:write"]'::jsonb, 
+    ('theverysecretadmintoken', 'admin@dev', 'csrf', 'initial', null, '["all:write"]'::jsonb, 
     31536000000, null, '[]'::jsonb, now(), '127.0.0.1', 'UCloud');
 ```
 
@@ -169,11 +180,11 @@ ADMINTOK=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMSIsInVpZCI6MTAsIm
 USERNAME=user
 PASSWORD=mypassword
 
-curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/auth/users/register' \
+USERTOK=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/auth/users/register' \
     -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '[{"username": "${USERNAME}", "password": "${PASSWORD}", "role": "ADMIN"}]'
+    -d '[{"username": "'"${USERNAME}"'", "password": "'"${PASSWORD}"'", "role": "ADMIN", "email": "user@example.com"}]' | jq .[0].accessToken -r`
 
-FIGLET_TOOL="
+FIGLET_TOOL='
 ---
 tool: v1
 
@@ -195,9 +206,9 @@ defaultTimeAllocation:
   seconds: 0
 
 backend: DOCKER
-"
+'
 
-FIGLET_APP="
+FIGLET_APP='
 ---
 application: v1
 
@@ -224,7 +235,7 @@ parameters:
   file:
     title: "A file to render with figlet"
     type: input_file
-"
+'
 
 curl 'http://localhost:8080/api/hpc/tools' -X PUT -H "Authorization: Bearer ${ADMINTOK}" \
     -H 'Content-Type: application/x-yaml' -d "${FIGLET_TOOL}"
@@ -242,24 +253,33 @@ curl -XPUT -H 'Content-Type: application/json' 'http://localhost:8080/api/produc
 
 projectId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects' \
     -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "title": "UCloud" , "principalInvestigator": "${USERNAME}" }' | jq .id -r`
+    -d '{ "title": "UCloud" , "principalInvestigator": "'"${USERNAME}"'" }' | jq .id -r`
 
 curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/accounting/wallets/set-balance' \
     -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "wallet": { "id": "${projectId}", "type": "PROJECT", "paysFor": { "id": "u1-cephfs", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
+    -d '{ "wallet": { "id": "'"${projectId}"'", "type": "PROJECT", "paysFor": { "id": "u1-cephfs", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
 
 curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/accounting/wallets/set-balance' \
     -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "wallet": { "id": "${projectId}", "type": "PROJECT", "paysFor": { "id": "u1-standard", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
+    -d '{ "wallet": { "id": "'"${projectId}"'", "type": "PROJECT", "paysFor": { "id": "u1-standard", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
 
 curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/grant/set-enabled' \
     -H "Authorization: Bearer ${ADMINTOK}" \
-    -d '{ "projectId": "${projectId}", "enabledStatus": true }'
+    -d '{ "projectId": "'"${projectId}"'", "enabledStatus": true }'
 
 curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/grant/request-settings' \
-    -H "Authorization: Bearer ${ADMINTOK}" \
+    -H "Authorization: Bearer ${USERTOK}" \
     -H "Project: ${projectId}" \
     -d '{ "allowRequestsFrom": [{"type": "anyone"}], "automaticApproval": { "from": [], "maxResources": [] } }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/files/quota' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "path": "/projects/'"${projectId}"'/", "quotaInBytes": 1000000000000000 }'
+
+curl 'http://localhost:8080/api/hpc/apps/createTag' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -H 'Content-Type: application/json; charset=utf-8' \
+    -d '{"applicationName":"figlet","tags":["Featured"]}'
 ```
 
 This will create the user:
