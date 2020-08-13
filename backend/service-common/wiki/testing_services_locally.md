@@ -71,6 +71,7 @@ kubectl --context hyperkit create -f /tmp/pvcs.yml
 From `sducloud/backend/launcher` run the following command:
 
 ```
+mkdir -p fs/{home,projects}
 minikube -p hyperkit mount fs/:/hosthome
 ```
    
