@@ -23,6 +23,7 @@ export const InputFileParameter = (props: InputFileParameterProps): JSX.Element 
                 key={props.parameter.name}
                 path={props.parameterRef.current?.value ?? ""}
                 onFileSelect={file => {
+                    props.parameterRef.current!.dataset.path = file.path;
                     props.parameterRef.current!.value = resolvePath(replaceHomeOrProjectFolder(file.path, Client, projectNames));
                 }}
                 inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
@@ -44,6 +45,7 @@ export const InputDirectoryParameter = (props: InputFileParameterProps): JSX.Ele
                 key={props.parameter.name}
                 path={props.parameterRef.current?.value ?? ""}
                 onFileSelect={file => {
+                    props.parameterRef.current!.dataset.path = file.path;
                     props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeOrProjectFolder(file.path, Client, projectNames)));
                 }}
                 inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}

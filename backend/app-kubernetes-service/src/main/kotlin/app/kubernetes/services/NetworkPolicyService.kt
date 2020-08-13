@@ -95,7 +95,6 @@ class NetworkPolicyService(private val k8: K8Dependencies) {
 
         log.debug("Creating network policy with name: policy-$jobId")
         log.info(defaultMapper.writeValueAsString(networkPolicy))
-
     }
 
     fun deletePolicy(jobId: String) {

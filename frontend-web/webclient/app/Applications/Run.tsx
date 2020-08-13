@@ -47,7 +47,7 @@ import {
     checkIfFileExists,
     expandHomeOrProjectFolder,
     fetchFileContent,
-    fileTablePage, getFilenameFromPath,
+    fileTablePage, getFilenameFromPath
     statFileQuery
 } from "Utilities/FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
@@ -77,7 +77,7 @@ import {Product, retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
-    "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
+    "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$"
 );
 const NO_WALLET_FOUND_VALUE = 0;
 
@@ -581,7 +581,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         }
 
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
-            const expandedValue = expandHomeOrProjectFolder(it.ref.current!.value, Client);
+            const expandedValue = it.ref.current!.dataset.path as string;
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!
@@ -795,6 +795,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     for (const paramKey in fileParams) {
                         const param = fileParams[paramKey];
                         if (userInputValues[param.name]) {
+                            // Defensive use of expandHomeOrProjectFolder. I am not sure if any parameter files
+                            // contain these paths (they shouldn't)
                             const path = expandHomeOrProjectFolder(userInputValues[param.name], Client);
                             if (!await checkIfFileExists(path, Client)) {
                                 invalidFiles.push(userInputValues[param.name]);
@@ -838,12 +840,20 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                 {
                     // Initialize widget values
                     parametersFromUser.forEach(key => {
-                        thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
+                        const param = thisApp.invocation.parameters.find(it => it.name === key)!;
+                        param.visible = true;
                         const ref = this.state.parameterValues.get(key);
                         if (ref?.current) {
-                            if ("value" in ref.current) ref.current.value = userInputValues[key];
-                            else (ref.current.setState(() => ({bounds: userInputValues[key] as any})));
                             this.state.parameterValues.set(key, ref);
+
+                            if (param.type === "input_directory" || param.type === "input_file") {
+                                const input = ref.current! as HTMLInputElement;
+                                input.value = userInputValues[key];
+                                input.dataset.path = userInputValues[key];
+                            } else {
+                                if ("value" in ref.current) ref.current.value = userInputValues[key];
+                                else (ref.current.setState(() => ({bounds: userInputValues[key] as any})));
+                            }
                         }
                     });
                 }

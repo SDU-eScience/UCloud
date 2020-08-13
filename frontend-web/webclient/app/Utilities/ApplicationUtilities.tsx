@@ -200,7 +200,7 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
             switch (parameter.type) {
                 case ParameterTypes.InputDirectory:
                 case ParameterTypes.InputFile:
-                    const expandedValue = expandHomeOrProjectFolder(r.current.value, client);
+                    const expandedValue = r.current.dataset.path as string;
                     extracted[key] = {
                         source: expandedValue,
                         destination: removeTrailingSlash(expandedValue).split("/").pop()!
