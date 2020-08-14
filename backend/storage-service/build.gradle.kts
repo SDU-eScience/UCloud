@@ -1,4 +1,4 @@
-version = "4.1.0"
+version = "4.2.0"
 
 application {
     mainClassName = "dk.sdu.cloud.file.MainKt"

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "downtime-management"
-    version = "0.1.6"
+    version = "0.2.0"
 
     withAmbassador("/api/downtime") {}
 

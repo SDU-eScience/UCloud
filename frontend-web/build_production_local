@@ -26,7 +26,6 @@ npm run build
 cd ../
 
 docker build \
-    --build-arg GRADLE_PROPS="`cat ~/.gradle/esci.properties`" \
     --build-arg SERVICE_NAME="${name}" \
     -t "${name}:${version}" \
     -f Dockerfile \

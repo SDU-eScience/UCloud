@@ -1,4 +1,4 @@
-version = "0.1.18"
+version = "0.2.0"
 
 application {
     mainClassName = "dk.sdu.cloud.contact.book.MainKt"

@@ -1,4 +1,4 @@
-version = "1.0.29"
+version = "1.1.0"
 
 application {
     mainClassName = "dk.sdu.cloud.elastic.management.MainKt"

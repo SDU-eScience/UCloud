@@ -6,7 +6,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "auth"
-    version = "1.27.11"
+    version = "1.28.0"
 
     val host = config<String>("host", "Host name (no schema). E.g. 'cloud.sdu.dk'")
     val scheme = config<String>("scheme", "Scheme (http or https)", "https")

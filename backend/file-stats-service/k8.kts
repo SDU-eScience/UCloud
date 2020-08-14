@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-stats"
-    version = "2.1.0"
+    version = "2.2.0"
 
     withAmbassador(null) {
         services.add(
