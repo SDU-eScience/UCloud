@@ -644,6 +644,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     val retrieveQuota = call<RetrieveQuotaRequest, RetrieveQuotaResponse, CommonErrorMessage>("retrieveQuota") {
         auth {
             access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         websocket(wsBaseContext)
@@ -668,6 +669,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     val updateQuota = call<UpdateQuotaRequest, UpdateQuotaResponse, CommonErrorMessage>("updateQuota") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         websocket(wsBaseContext)
@@ -690,6 +692,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     val transferQuota = call<TransferQuotaRequest, TransferQuotaResponse, CommonErrorMessage>("transferQuota") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
