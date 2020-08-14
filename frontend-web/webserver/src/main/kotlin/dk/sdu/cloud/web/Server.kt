@@ -21,7 +21,7 @@ import java.io.File
 
 class Server {
     fun start() {
-        embeddedServer(Netty) {
+        embeddedServer(Netty, port = 8080) {
             install(CachingHeaders) {
                 options { outgoingContent ->
                     when (outgoingContent.contentType?.withoutParameters()) {
@@ -46,6 +46,10 @@ class Server {
                 }
 
                 file("/favicon.ico", File(staticContent, "favicon.ico"))
+
+                get("/status") {
+                    call.respondText("OK")
+                }
 
                 get("/app") {
                     call.respondRedirect("/app/dashboard", false)

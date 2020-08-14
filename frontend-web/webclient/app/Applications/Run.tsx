@@ -47,7 +47,7 @@ import {
     checkIfFileExists,
     expandHomeOrProjectFolder,
     fetchFileContent,
-    fileTablePage, getFilenameFromPath
+    fileTablePage, getFilenameFromPath,
     statFileQuery
 } from "Utilities/FileUtilities";
 import {addStandardDialog} from "UtilityComponents";

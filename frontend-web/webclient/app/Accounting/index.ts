@@ -294,5 +294,5 @@ export function updateQuota(request: UpdateQuotaRequest): APICallParameters<Upda
 export const UCLOUD_PROVIDER = "ucloud";
 
 export function isQuotaSupported(category: ProductCategoryId): boolean {
-    return category.provider === UCLOUD_PROVIDER && category.id === "cephfs";
+    return category.provider === UCLOUD_PROVIDER && category.id === "u1-cephfs";
 }
