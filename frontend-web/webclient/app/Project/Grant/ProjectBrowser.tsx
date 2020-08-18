@@ -4,7 +4,13 @@ import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import {useCloudAPI} from "Authentication/DataHook";
-import {browseProjects, BrowseProjectsResponse, readTemplates} from "Project/Grant/index";
+import {
+    browseProjects,
+    BrowseProjectsResponse,
+    readTemplates,
+    retrieveDescription,
+    RetrieveDescriptionResponse
+} from "Project/Grant/index";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -77,22 +83,6 @@ interface LogoProps {
     cacheBust?: string;
 }
 
-interface RetrieveDescriptionRequest {
-    projectId?: string;
-}
-
-interface RetrieveDescriptionResponse {
-    description: string;
-}
-
-function retrieveDescription(request: RetrieveDescriptionRequest): APICallParameters<RetrieveDescriptionRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/grant/description/", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
-}
 
 export const Logo: React.FunctionComponent<LogoProps> = props => {
     const [hasLoadedImage, setLoadedImage] = useState(true);

@@ -322,6 +322,38 @@ export function uploadTemplates(request: UploadTemplatesRequest): APICallParamet
     };
 }
 
+export interface RetrieveDescriptionRequest {
+    projectId?: string;
+}
+
+export interface RetrieveDescriptionResponse {
+    description: string;
+}
+
+export function retrieveDescription(request: RetrieveDescriptionRequest): APICallParameters<RetrieveDescriptionRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/description/", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface UploadDescriptionRequest {
+    projectId: string,
+    description: string
+}
+
+export function uploadDescription(request: UploadDescriptionRequest): APICallParameters<UploadDescriptionRequest> {
+    return {
+        method: "POST",
+        path: "/grant/uploadDescription",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    }
+}
+
 export type BrowseProjectsRequest = PaginationRequest;
 export type BrowseProjectsResponse = Page<{projectId: string, title: string}>;
 

@@ -247,13 +247,8 @@ object Grants : CallDescriptionContainer("grant") {
                 +"uploadDescription"
             }
 
-            headers {
-                +boundTo("Upload-Name", UploadDescriptionRequest::projectId)
-            }
+            body { bindEntireRequestFromBody() }
 
-            body {
-                bindToSubProperty(UploadDescriptionRequest::description)
-            }
         }
     }
 

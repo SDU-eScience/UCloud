@@ -6,7 +6,7 @@ import {
     ProjectGrantSettings,
     readGrantRequestSettings,
     readTemplates,
-    ReadTemplatesResponse,
+    ReadTemplatesResponse, retrieveDescription, RetrieveDescriptionResponse, uploadDescription,
     uploadGrantRequestSettings, uploadTemplates,
     UserCriteria
 } from "Project/Grant/index";
@@ -46,14 +46,22 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         {existingProject: "", newProject: "", personalProject: ""}
     );
 
+    const [description, fetchDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+        retrieveDescription({projectId: projectId}),
+        {description: ""}
+    )
+
     const templatePersonal = useRef<HTMLTextAreaElement>(null);
     const templateExisting = useRef<HTMLTextAreaElement>(null);
     const templateNew = useRef<HTMLTextAreaElement>(null);
+
+    const descriptionField = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
         fetchSettings(readGrantRequestSettings({projectId}));
         fetchTemplates(readTemplates({projectId}));
+        fetchDescription(retrieveDescription( {projectId}))
     }, [projectId]);
 
     useEffect(() => {
@@ -66,7 +74,10 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         if (templateNew.current) {
             templateNew.current.value = templates.data.newProject;
         }
-    }, [templates, templatePersonal, templateExisting, templateNew]);
+        if (descriptionField.current) {
+            descriptionField.current.value = description.data.description;
+        }
+    }, [templates, templatePersonal, templateExisting, templateNew, descriptionField, description]);
 
     const onUploadTemplate = useCallback(async () => {
         await runWork(uploadTemplates({
@@ -76,6 +87,16 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         }));
         fetchTemplates(readTemplates({projectId}));
     }, [templates, templatePersonal, templateExisting, templateNew, projectId]);
+
+    const onUploadDescription = useCallback(async () => {
+        await runWork(uploadDescription({
+            description: descriptionField.current!.value,
+            projectId: projectId
+        }));
+        fetchDescription(retrieveDescription({
+            projectId: projectId
+        }));
+    }, [projectId, descriptionField, description])
 
     const addAllowFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
@@ -137,6 +158,8 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             templateNew={templateNew}
             onUploadTemplate={onUploadTemplate}
         />
+        <Heading.h4>Description for Project</Heading.h4>
+        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription}/>
     </Box>;
 };
 
@@ -420,6 +443,23 @@ const TemplateEditor: React.FunctionComponent<{
         </Grid>
         <Flex justifyContent={"center"} mt={32}>
             <Button width={"350px"} onClick={onUploadTemplate}>Update Templates</Button>
+        </Flex>
+    </>;
+};
+
+const DescriptionEditor: React.FunctionComponent<{
+    templateDescription: React.Ref<HTMLTextAreaElement>,
+    onUploadDescription: () => Promise<void>
+}> = ({templateDescription, onUploadDescription}) => {
+    return <>
+        <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
+            <Box>
+                <Heading.h5>Description</Heading.h5>
+                <TextArea width={"100%"} rows={15} ref={templateDescription}/>
+            </Box>
+        </Grid>
+        <Flex justifyContent={"center"} mt={32}>
+            <Button width={"350px"} onClick={onUploadDescription}>Update Description</Button>
         </Flex>
     </>;
 };

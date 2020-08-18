@@ -305,12 +305,13 @@ class SettingsService(
             session
                 .sendPreparedStatement(
                     {
-
+                        setParameter("projectId", projectId)
+                        setParameter("description", description)
                     },
                     """
                        INSERT INTO descriptions (project_id, description)
                        VALUES (:projectId, :description)
-                       ON CONFLICT DO UPDATE SET description = :description
+                       ON CONFLICT (project_id) DO UPDATE SET description = :description
                     """
                 )
         }
@@ -357,7 +358,7 @@ class SettingsService(
                     """
                         INSERT INTO logos (project_id, data) 
                         VALUES (:projectId , :data)
-                        ON CONFLICT DO UPDATE SET data = :data
+                        ON CONFLICT (project_id) DO UPDATE SET data = :data
                     """
                 )
         }
