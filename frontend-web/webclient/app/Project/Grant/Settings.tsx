@@ -21,6 +21,51 @@ import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
 import {ConfirmCancelButtons} from "UtilityComponents";
 import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
 import {creditFormatter} from "Project/ProjectUsage";
+import {HiddenInputField} from "ui-components/Input";
+import {AppOrTool, uploadLogo} from "Applications/api";
+import {dialogStore} from "Dialog/DialogStore";
+import {Client} from "Authentication/HttpClientInstance";
+import {b64EncodeUnicode} from "Utilities/XHRUtils";
+import {inSuccessRange} from "UtilityFunctions";
+import {Logo} from "Project/Grant/ProjectBrowser";
+
+export interface UploadLogoProps {
+    file: File;
+    projectId: string;
+}
+
+export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean> {
+    const token = await Client.receiveAccessTokenOrRefreshIt();
+
+    return new Promise((resolve) => {
+        const request = new XMLHttpRequest();
+        request.open("POST", Client.computeURL("/api", `/grant/uploadLogo`));
+        request.setRequestHeader("Authorization", `Bearer ${token}`);
+        request.responseType = "text";
+        request.setRequestHeader("Upload-Name", b64EncodeUnicode(props.projectId));
+        request.onreadystatechange = () => {
+            if (request.status !== 0) {
+                if (!inSuccessRange(request.status)) {
+                    let message: string = "Logo upload failed";
+                    try {
+                        message = JSON.parse(request.responseText).why;
+                    } catch (e) {
+                        // tslint:disable-next-line: no-console
+                        console.log(e);
+                        // Do nothing
+                    }
+
+                    snackbarStore.addFailure(message, false);
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            }
+        };
+
+        request.send(props.file);
+    });
+}
 
 const wayfIdpsPairs = wayfIdps.map(it => ({value: it, content: it}));
 
@@ -126,9 +171,37 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
+    const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
+
     if (!enabled.data.enabled) return null;
 
     return <Box>
+        <Heading.h4>Logo for Project</Heading.h4>
+        Current Logo: <Logo projectId={projectId} size={"40px"}/> <br/>
+        <Button width={"350px"} as="label">
+            Upload Logo
+            <HiddenInputField
+                type="file"
+                onChange={async e => {
+                    const target = e.target;
+                    if (target.files) {
+                        const file = target.files[0];
+                        target.value = "";
+                        if (file.size > 1024 * 512) {
+                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                        } else {
+                            if (await uploadProjectLogo({file, projectId: projectId})) {
+                                setLogoCacheBust("" + Date.now());
+                                snackbarStore.addSuccess("Logo changed, refresh to see changes", false);
+                            }
+                        }
+                        dialogStore.success();
+                    }
+                }}
+            />
+        </Button>
+        <Heading.h4>Description for Project</Heading.h4>
+        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription}/>
         <Heading.h4>Allow Grant Applications From</Heading.h4>
         <UserCriteriaEditor
             criteria={settings.data.allowRequestsFrom}
@@ -158,8 +231,6 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             templateNew={templateNew}
             onUploadTemplate={onUploadTemplate}
         />
-        <Heading.h4>Description for Project</Heading.h4>
-        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription}/>
     </Box>;
 };
 

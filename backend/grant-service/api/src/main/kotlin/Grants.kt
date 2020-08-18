@@ -29,7 +29,7 @@ typealias UploadTemplatesResponse = Unit
 
 data class UploadLogoRequest(
     val projectId: String,
-    val logo: BinaryStream
+    val data: BinaryStream
 )
 
 typealias UploadLogoResponse = Unit
@@ -290,7 +290,7 @@ object Grants : CallDescriptionContainer("grant") {
             }
 
             body {
-                bindToSubProperty(UploadLogoRequest::logo)
+                bindToSubProperty(UploadLogoRequest::data)
             }
         }
     }

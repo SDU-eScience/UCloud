@@ -162,7 +162,7 @@ class GrantController(
         }
 
         implement(Grants.uploadLogo) {
-            ok(settings.uploadLogo(db, ctx.securityPrincipal.toActor(), request.projectId, request.logo.asIngoing()))
+            ok(settings.uploadLogo(db, ctx.securityPrincipal.toActor(), request.projectId, request.data.asIngoing()))
         }
 
         implement(Grants.fetchLogo) {

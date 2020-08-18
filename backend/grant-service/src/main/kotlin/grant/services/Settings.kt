@@ -16,7 +16,7 @@ import java.io.ByteArrayOutputStream
 
 object GrantLogos : SQLTable("logos") {
     val projectId = text("project_id", notNull = true)
-    val logo = byteArray("logo")
+    val logo = byteArray("data")
 }
 
 object GrantDescriptions : SQLTable("descriptions") {
