@@ -13,6 +13,8 @@ volumes: [
   hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock')
 ]) {
     node (label) {
+        def jdk = tool name: 'JDK11'
+        env.JAVA_HOME = "${jdk}"
         if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup' || env.BRANCH_NAME == 'accounting') {
             stage('Checkout') {
                 checkout(
