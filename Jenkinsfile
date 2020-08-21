@@ -15,6 +15,7 @@ volumes: [
     node (label) {
         def jdk = tool name: 'JDK11'
         env.JAVA_HOME = "${jdk}"
+        sh label: '', script: 'java -version'
         if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup' || env.BRANCH_NAME == 'accounting') {
             stage('Checkout') {
                 checkout(
