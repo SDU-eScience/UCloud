@@ -19,6 +19,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
   height: auto;
   color: #000;
   background-color: #fcc;
+  padding: 1em 1em 1em 1em;
   height: auto;
   border: 1px solid #c00;
   border-radius: 0.5em;
@@ -91,6 +92,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   height: auto;
   color: #000;
   background-color: #fcc;
+  padding: 1em 1em 1em 1em;
   height: auto;
   border: 1px solid #c00;
   border-radius: 0.5em;

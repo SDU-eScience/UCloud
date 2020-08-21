@@ -3,18 +3,14 @@
 exports[`UpdatePermissionsDialog Mount 1`] = `
 .c0 {
   width: auto;
-  min-width: 300px;
+  min-width: 450px;
 }
 
-.c4 {
-  width: 4px;
-}
-
-.c6 {
+.c14 {
   margin-left: auto;
 }
 
-.c12 {
+.c13 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -46,21 +42,21 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c12:disabled {
+.c13:disabled {
   opacity: 0.25;
 }
 
-.c12:focus {
+.c13:focus {
   outline: none;
 }
 
-.c12:hover {
+.c13:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c13 {
+.c15 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -92,38 +88,41 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c13:disabled {
+.c15:disabled {
   opacity: 0.25;
 }
 
-.c13:focus {
+.c15:focus {
   outline: none;
 }
 
-.c13:hover {
+.c15:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c10 {
+.c9 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
   vertical-align: middle;
   cursor: inherit;
-  margin-left: .7em;
 }
 
-.c7 {
+.c2 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  margin-right: 8px;
+  margin-bottom: 16px;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
 }
 
-.c11 {
+.c12 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -131,11 +130,115 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   margin-top: 25px;
 }
 
-.c9 {
-  cursor: pointer;
+.c4 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-flex-wrap: nowrap;
+  -ms-flex-wrap: nowrap;
+  flex-wrap: nowrap;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.c8 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  border: 1px solid var(--borderGray,#f00);
+  color: var(--borderGray,#f00);
+  -webkit-transition: all 300ms ease;
+  transition: all 300ms ease;
 }
 
 .c5 {
+  position: relative;
+  height: 40px;
+  width: 40px;
+  margin: 5px;
+  -webkit-transition: -webkit-transform 300ms ease;
+  -webkit-transition: transform 300ms ease;
+  transition: transform 300ms ease;
+}
+
+.c11 {
+  position: relative;
+  height: 40px;
+  width: 40px;
+  margin: 5px;
+  -webkit-transition: -webkit-transform 300ms ease;
+  -webkit-transition: transform 300ms ease;
+  transition: transform 300ms ease;
+}
+
+.c11:hover {
+  -webkit-transform: scale(1.2,1.2);
+  -ms-transform: scale(1.2,1.2);
+  transform: scale(1.2,1.2);
+}
+
+.c11:hover:hover > .c7 {
+  color: var(--blue,#f00);
+  border: 1px solid var(--blue,#f00);
+}
+
+.c6 {
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.c6:checked + .c7 {
+  background-color: var(--blue,#f00);
+  border: 0px solid white;
+  color: white;
+  -webkit-transform: scale(1.2,1.2);
+  -ms-transform: scale(1.2,1.2);
+  transform: scale(1.2,1.2);
+}
+
+.c10 {
+  text-align: center;
+  font-size: 0.5em;
+  font-weight: 600;
+  text-transform: uppercase;
+  -webkit-letter-spacing: 1px;
+  -moz-letter-spacing: 1px;
+  -ms-letter-spacing: 1px;
+  letter-spacing: 1px;
+  line-height: 1;
+  padding-top: 0.1rem;
+}
+
+.c3 {
   cursor: inherit;
   width: 300px;
   margin-right: 16px;
@@ -145,49 +248,6 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.c2 {
-  height: 100%;
-  font-size: large;
-}
-
-.c2 > * {
-  border-bottom: 1px solid lightGrey;
-}
-
-.c2 > *:last-child {
-  border-bottom: 0px;
-}
-
-.c3 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  width: 100%;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  -webkit-transition: background-color 0.3s;
-  transition: background-color 0.3s;
-  background-color: var(--white);
-}
-
-.c3:hover {
-  background-color: var(--lightBlue,#f00);
-}
-
-.c8 {
-  position: relative;
-  display: inline-block;
-}
-
-.c8:hover > div {
-  display: block;
 }
 
 .c1 {
@@ -204,185 +264,443 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   >
     <div
       className="c2"
-      fontSize="large"
-      height="100%"
     >
       <div
-        className="c3"
-        onClick={[Function]}
-        width="100%"
+        className="sc-fznKkj c3"
+        cursor="inherit"
+        title="Group 0"
+        width="300px"
+      >
+        Group 0
+      </div>
+      <div
+        className="c4"
       >
         <div
-          className="c4"
-          width="4px"
-        />
-        <div
+          checked={true}
           className="c5"
-          cursor="inherit"
-          title="0"
-          width="300px"
+          height={40}
         >
-          0
-        </div>
-        <div
-          className="c6"
-        />
-        <div
-          className="c7"
-        >
+          <input
+            checked={true}
+            className="c6"
+            id="None"
+            name="0"
+            onChange={[Function]}
+            type="radio"
+            value="None"
+          />
           <div
-            className="c8"
-            data-tag="dropdown"
+            className="c7 c8"
           >
-            <span
+            <svg
               className="c9"
-              cursor="pointer"
-              onClick={[Function]}
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height="65%"
+              viewBox="0 0 25 24"
+              width="65%"
+            >
+              <path
+                d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                fillRule="nonzero"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="None"
             >
               None
-              <svg
-                className="c10"
-                clipRule="evenodd"
-                cursor="inherit"
+            </label>
+          </div>
+        </div>
+        <div
+          checked={false}
+          className="c11"
+          height={40}
+        >
+          <input
+            checked={false}
+            className="c6"
+            id="Read"
+            name="0"
+            onChange={[Function]}
+            type="radio"
+            value="Read"
+          />
+          <div
+            className="c7 c8"
+          >
+            <svg
+              className="c9"
+              cursor="inherit"
+              fill="currentcolor"
+              height="65%"
+              viewBox="0 0 24 24"
+              width="65%"
+            >
+              <path
+                d="M15.5 14h-.8l-.3-.3c1-1.1 1.6-2.6 1.6-4.2C16 5.9 13.1 3 9.5 3S3 5.9 3 9.5 5.9 16 9.5 16c1.6 0 3.1-.6 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="Read"
+            >
+              Read
+            </label>
+          </div>
+        </div>
+        <div
+          checked={false}
+          className="c11"
+          height={40}
+        >
+          <input
+            checked={false}
+            className="c6"
+            id="Edit"
+            name="0"
+            onChange={[Function]}
+            type="radio"
+            value="Edit"
+          />
+          <div
+            className="c7 c8"
+          >
+            <svg
+              className="c9"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height="65%"
+              viewBox="0 0 24 24"
+              width="65%"
+            >
+              <path
+                d="M23.6 5.4a1.289 1.289 0 000-1.867L20.467.4A1.289 1.289 0 0018.6.4l-2.467 2.467 5 5L23.6 5.4z"
                 fill="currentcolor"
-                fillRule="evenodd"
-                height=".7em"
-                ml=".7em"
-                viewBox="0 0 24 20"
-                width=".7em"
-              >
-                <path
-                  d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
-                  fillRule="nonzero"
-                />
-              </svg>
-            </span>
+                fillRule="nonzero"
+              />
+              <path
+                d="M0 19v5h5L19.733 9.267l-5-5L0 19z"
+                fillRule="nonzero"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="Edit"
+            >
+              Edit
+            </label>
           </div>
         </div>
       </div>
+    </div>
+    <div
+      className="c2"
+    >
       <div
-        className="c3"
-        onClick={[Function]}
-        width="100%"
+        className="sc-fznKkj c3"
+        cursor="inherit"
+        title="Group 1"
+        width="300px"
+      >
+        Group 1
+      </div>
+      <div
+        className="c4"
       >
         <div
-          className="c4"
-          width="4px"
-        />
-        <div
+          checked={true}
           className="c5"
-          cursor="inherit"
-          title="1"
-          width="300px"
+          height={40}
         >
-          1
-        </div>
-        <div
-          className="c6"
-        />
-        <div
-          className="c7"
-        >
+          <input
+            checked={true}
+            className="c6"
+            id="None"
+            name="1"
+            onChange={[Function]}
+            type="radio"
+            value="None"
+          />
           <div
-            className="c8"
-            data-tag="dropdown"
+            className="c7 c8"
           >
-            <span
+            <svg
               className="c9"
-              cursor="pointer"
-              onClick={[Function]}
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height="65%"
+              viewBox="0 0 25 24"
+              width="65%"
+            >
+              <path
+                d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                fillRule="nonzero"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="None"
             >
               None
-              <svg
-                className="c10"
-                clipRule="evenodd"
-                cursor="inherit"
+            </label>
+          </div>
+        </div>
+        <div
+          checked={false}
+          className="c11"
+          height={40}
+        >
+          <input
+            checked={false}
+            className="c6"
+            id="Read"
+            name="1"
+            onChange={[Function]}
+            type="radio"
+            value="Read"
+          />
+          <div
+            className="c7 c8"
+          >
+            <svg
+              className="c9"
+              cursor="inherit"
+              fill="currentcolor"
+              height="65%"
+              viewBox="0 0 24 24"
+              width="65%"
+            >
+              <path
+                d="M15.5 14h-.8l-.3-.3c1-1.1 1.6-2.6 1.6-4.2C16 5.9 13.1 3 9.5 3S3 5.9 3 9.5 5.9 16 9.5 16c1.6 0 3.1-.6 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="Read"
+            >
+              Read
+            </label>
+          </div>
+        </div>
+        <div
+          checked={false}
+          className="c11"
+          height={40}
+        >
+          <input
+            checked={false}
+            className="c6"
+            id="Edit"
+            name="1"
+            onChange={[Function]}
+            type="radio"
+            value="Edit"
+          />
+          <div
+            className="c7 c8"
+          >
+            <svg
+              className="c9"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height="65%"
+              viewBox="0 0 24 24"
+              width="65%"
+            >
+              <path
+                d="M23.6 5.4a1.289 1.289 0 000-1.867L20.467.4A1.289 1.289 0 0018.6.4l-2.467 2.467 5 5L23.6 5.4z"
                 fill="currentcolor"
-                fillRule="evenodd"
-                height=".7em"
-                ml=".7em"
-                viewBox="0 0 24 20"
-                width=".7em"
-              >
-                <path
-                  d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
-                  fillRule="nonzero"
-                />
-              </svg>
-            </span>
+                fillRule="nonzero"
+              />
+              <path
+                d="M0 19v5h5L19.733 9.267l-5-5L0 19z"
+                fillRule="nonzero"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="Edit"
+            >
+              Edit
+            </label>
           </div>
         </div>
       </div>
+    </div>
+    <div
+      className="c2"
+    >
       <div
-        className="c3"
-        onClick={[Function]}
-        width="100%"
+        className="sc-fznKkj c3"
+        cursor="inherit"
+        title="Group 2"
+        width="300px"
+      >
+        Group 2
+      </div>
+      <div
+        className="c4"
       >
         <div
-          className="c4"
-          width="4px"
-        />
-        <div
+          checked={true}
           className="c5"
-          cursor="inherit"
-          title="2"
-          width="300px"
+          height={40}
         >
-          2
-        </div>
-        <div
-          className="c6"
-        />
-        <div
-          className="c7"
-        >
+          <input
+            checked={true}
+            className="c6"
+            id="None"
+            name="2"
+            onChange={[Function]}
+            type="radio"
+            value="None"
+          />
           <div
-            className="c8"
-            data-tag="dropdown"
+            className="c7 c8"
           >
-            <span
+            <svg
               className="c9"
-              cursor="pointer"
-              onClick={[Function]}
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height="65%"
+              viewBox="0 0 25 24"
+              width="65%"
+            >
+              <path
+                d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+                fillRule="nonzero"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="None"
             >
               None
-              <svg
-                className="c10"
-                clipRule="evenodd"
-                cursor="inherit"
+            </label>
+          </div>
+        </div>
+        <div
+          checked={false}
+          className="c11"
+          height={40}
+        >
+          <input
+            checked={false}
+            className="c6"
+            id="Read"
+            name="2"
+            onChange={[Function]}
+            type="radio"
+            value="Read"
+          />
+          <div
+            className="c7 c8"
+          >
+            <svg
+              className="c9"
+              cursor="inherit"
+              fill="currentcolor"
+              height="65%"
+              viewBox="0 0 24 24"
+              width="65%"
+            >
+              <path
+                d="M15.5 14h-.8l-.3-.3c1-1.1 1.6-2.6 1.6-4.2C16 5.9 13.1 3 9.5 3S3 5.9 3 9.5 5.9 16 9.5 16c1.6 0 3.1-.6 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="Read"
+            >
+              Read
+            </label>
+          </div>
+        </div>
+        <div
+          checked={false}
+          className="c11"
+          height={40}
+        >
+          <input
+            checked={false}
+            className="c6"
+            id="Edit"
+            name="2"
+            onChange={[Function]}
+            type="radio"
+            value="Edit"
+          />
+          <div
+            className="c7 c8"
+          >
+            <svg
+              className="c9"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height="65%"
+              viewBox="0 0 24 24"
+              width="65%"
+            >
+              <path
+                d="M23.6 5.4a1.289 1.289 0 000-1.867L20.467.4A1.289 1.289 0 0018.6.4l-2.467 2.467 5 5L23.6 5.4z"
                 fill="currentcolor"
-                fillRule="evenodd"
-                height=".7em"
-                ml=".7em"
-                viewBox="0 0 24 20"
-                width=".7em"
-              >
-                <path
-                  d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
-                  fillRule="nonzero"
-                />
-              </svg>
-            </span>
+                fillRule="nonzero"
+              />
+              <path
+                d="M0 19v5h5L19.733 9.267l-5-5L0 19z"
+                fillRule="nonzero"
+              />
+            </svg>
+            <label
+              className="c10"
+              fontSize="0.5em"
+              htmlFor="Edit"
+            >
+              Edit
+            </label>
           </div>
         </div>
       </div>
     </div>
   </div>
   <div
-    className="c11"
+    className="c12"
   >
     <button
-      className="c12"
+      className="c13"
       color="red"
       onClick={[Function]}
     >
       Cancel
     </button>
     <div
-      className="c6"
+      className="c14"
     />
     <button
-      className="c13"
+      className="c15"
       color="blue"
       disabled={true}
       onClick={[Function]}

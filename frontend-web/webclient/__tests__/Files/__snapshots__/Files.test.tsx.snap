@@ -159,10 +159,6 @@ exports[`Mount Files component 1`] = `
   background-color: #fff;
 }
 
-.c3 {
-  margin-left: 15px;
-}
-
 .c8 {
   margin-left: auto;
 }
@@ -290,7 +286,7 @@ exports[`Mount Files component 1`] = `
   transition: ease 0.1s;
 }
 
-.c4 {
+.c3 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -322,7 +318,6 @@ exports[`Mount Files component 1`] = `
 .c5 {
   cursor: pointer;
   font-size: 11px;
-  margin-left: -15px;
 }
 
 .c6 {
@@ -394,6 +389,10 @@ exports[`Mount Files component 1`] = `
   overflow-y: auto;
   position: fixed;
   z-index: 45;
+}
+
+.c4 {
+  text-align: center;
 }
 
 .c7 {
@@ -494,10 +493,10 @@ exports[`Mount Files component 1`] = `
       className="c2"
     >
       <div
-        className="c3"
+        className=""
       >
         <svg
-          className="c4"
+          className="c3"
           cursor="pointer"
           fill="currentcolor"
           height="30px"
@@ -514,12 +513,16 @@ exports[`Mount Files component 1`] = `
           />
         </svg>
         <div
-          className="c5"
-          cursor="pointer"
-          fontSize="11px"
-          onClick={[Function]}
+          className="c4"
         >
-          Go to home
+          <div
+            className="c5"
+            cursor="pointer"
+            fontSize="11px"
+            onClick={[Function]}
+          >
+            Home
+          </div>
         </div>
       </div>
       <div

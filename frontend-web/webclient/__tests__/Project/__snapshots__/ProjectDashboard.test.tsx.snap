@@ -15,25 +15,26 @@ exports[`Mount ProjectDashboard 1`] = `
   padding-right: 14px;
 }
 
-.c14 {
+.c11 {
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  height: 100%;
+}
+
+.c15 {
   -webkit-box-flex: 1;
   -webkit-flex-grow: 1;
   -ms-flex-positive: 1;
   flex-grow: 1;
 }
 
-.c15 {
+.c16 {
   color: #8393A7;
 }
 
-.c17 {
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
-.c12 {
+.c13 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -44,7 +45,7 @@ exports[`Mount ProjectDashboard 1`] = `
   color: #53657d;
 }
 
-.c16 {
+.c17 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -73,15 +74,11 @@ exports[`Mount ProjectDashboard 1`] = `
   display: flex;
 }
 
-.c11 {
+.c12 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-top: 8px;
-  padding-bottom: 8px;
   -webkit-align-items: center;
   -webkit-box-align: center;
   -ms-flex-align: center;
@@ -96,7 +93,7 @@ exports[`Mount ProjectDashboard 1`] = `
   grid-template-columns: repeat(auto-fill,minmax(300px,1fr) );
 }
 
-.c13 {
+.c14 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
@@ -174,6 +171,7 @@ exports[`Mount ProjectDashboard 1`] = `
   display: flex;
   margin-bottom: 12px;
   width: calc(100% - 180px);
+  width: 100%;
   max-width: unset;
   -webkit-box-flex: 1;
   -webkit-flex-grow: 1;
@@ -265,7 +263,7 @@ exports[`Mount ProjectDashboard 1`] = `
       className="c2"
     >
       <div
-        className="sc-fzpdyU c3"
+        className="sc-fznNvL c3"
       >
         <span>
           <a
@@ -309,71 +307,75 @@ exports[`Mount ProjectDashboard 1`] = `
         width={1}
       >
         <div
-          className="c11"
+          className=""
           style={
             Object {
               "borderTop": "5px solid var(--blue, #f00)",
             }
           }
+        />
+        <div
+          className="c11"
+          height="100%"
         >
-          <svg
+          <div
             className="c12"
-            clipRule="evenodd"
-            color="#53657d"
-            cursor="inherit"
-            fill="currentcolor"
-            fillRule="evenodd"
-            height="20"
-            m={8}
-            ml={0}
-            viewBox="0 0 24 24"
-            width="20"
-          >
-            <path
-              d="M9.293 14.795a1.848 1.848 0 00-.278-.649l-.15-.228c-.835-.959-1.292-2.353-1.534-4.07l.018-.008c.198-.077.386-.157.57-.24 4.687-2.088 5.765-5.764 5.765-5.764s1.238 2.082 2.115 4.086l.08.185.008.02c-.153 2.526-.607 4.53-1.705 5.791l-.15.229a1.84 1.84 0 00-.281.661c-.041.225-.055.45-.055.674a30.352 30.352 0 005.029-1.231c0-17.284-7.202-14.002-7.202-14.002S4.322-3.033 4.322 14.251a30.337 30.337 0 005.03 1.23 3.838 3.838 0 00-.059-.686zM21.4 19.743c-.927-.795-3.649-1.372-5.472-1.683-.139 2.322-2.047 4.168-4.405 4.168s-4.265-1.846-4.405-4.168c-1.823.311-4.545.888-5.472 1.683C.207 20.98 0 24 0 24h23.045s-.207-3.02-1.646-4.257z"
-              fillRule="nonzero"
-            />
-            <path
-              d="M11.523 21.341c-1.862 0-3.408-1.464-3.52-3.334l-.006-.088c.528-.08.867-.123.867-.123s.496-1.094.488-2.314a3.838 3.838 0 00-.059-.687 1.848 1.848 0 00-.278-.649l-.15-.228c-.835-.959-1.292-2.353-1.534-4.07l.018-.008c.198-.077.386-.157.57-.24 4.687-2.088 5.765-5.764 5.765-5.764s1.238 2.082 2.115 4.086l.08.185.008.02c-.153 2.526-.607 4.53-1.705 5.791l-.15.229a1.84 1.84 0 00-.281.661c-.041.225-.055.45-.055.674-.008 1.22.486 2.314.486 2.314s.34.043.867.123l-.005.088c-.113 1.87-1.659 3.334-3.52 3.334z"
-              fill="currentcolor"
-              fillRule="nonzero"
-            />
-          </svg>
-          <h3
-            className="c13"
-            cursor="inherit"
-            fontSize={4}
-          >
-            Members
-          </h3>
-          <div
-            className="c14"
-          />
-          <div
-            className="c15"
-            color="#8393A7"
           >
             <svg
-              className="c16"
+              className="c13"
               clipRule="evenodd"
-              color="darkGray"
+              color="#53657d"
               cursor="inherit"
               fill="currentcolor"
               fillRule="evenodd"
-              height={18}
-              rotation={-90}
-              viewBox="0 0 18 24"
-              width={18}
+              height="20"
+              m={8}
+              ml={0}
+              viewBox="0 0 24 24"
+              width="20"
             >
               <path
-                d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+                d="M9.293 14.795a1.848 1.848 0 00-.278-.649l-.15-.228c-.835-.959-1.292-2.353-1.534-4.07l.018-.008c.198-.077.386-.157.57-.24 4.687-2.088 5.765-5.764 5.765-5.764s1.238 2.082 2.115 4.086l.08.185.008.02c-.153 2.526-.607 4.53-1.705 5.791l-.15.229a1.84 1.84 0 00-.281.661c-.041.225-.055.45-.055.674a30.352 30.352 0 005.029-1.231c0-17.284-7.202-14.002-7.202-14.002S4.322-3.033 4.322 14.251a30.337 30.337 0 005.03 1.23 3.838 3.838 0 00-.059-.686zM21.4 19.743c-.927-.795-3.649-1.372-5.472-1.683-.139 2.322-2.047 4.168-4.405 4.168s-4.265-1.846-4.405-4.168c-1.823.311-4.545.888-5.472 1.683C.207 20.98 0 24 0 24h23.045s-.207-3.02-1.646-4.257z"
+                fillRule="nonzero"
+              />
+              <path
+                d="M11.523 21.341c-1.862 0-3.408-1.464-3.52-3.334l-.006-.088c.528-.08.867-.123.867-.123s.496-1.094.488-2.314a3.838 3.838 0 00-.059-.687 1.848 1.848 0 00-.278-.649l-.15-.228c-.835-.959-1.292-2.353-1.534-4.07l.018-.008c.198-.077.386-.157.57-.24 4.687-2.088 5.765-5.764 5.765-5.764s1.238 2.082 2.115 4.086l.08.185.008.02c-.153 2.526-.607 4.53-1.705 5.791l-.15.229a1.84 1.84 0 00-.281.661c-.041.225-.055.45-.055.674-.008 1.22.486 2.314.486 2.314s.34.043.867.123l-.005.088c-.113 1.87-1.659 3.334-3.52 3.334z"
+                fill="currentcolor"
+                fillRule="nonzero"
               />
             </svg>
+            <h3
+              className="c14"
+              cursor="inherit"
+              fontSize={4}
+            >
+              Members
+            </h3>
+            <div
+              className="c15"
+            />
+            <div
+              className="c16"
+              color="#8393A7"
+            >
+              <svg
+                className="c17"
+                clipRule="evenodd"
+                color="darkGray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={18}
+                rotation={-90}
+                viewBox="0 0 18 24"
+                width={18}
+              >
+                <path
+                  d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+                />
+              </svg>
+            </div>
           </div>
-        </div>
-        <div
-          className="c17"
-        >
           <table
             className="c18"
             width="100%"
@@ -421,69 +423,74 @@ exports[`Mount ProjectDashboard 1`] = `
         width={1}
       >
         <div
-          className="c11"
+          className=""
           style={
             Object {
               "borderTop": "5px solid var(--purple, #f00)",
             }
           }
+        />
+        <div
+          className="c11"
+          height="100%"
         >
-          <svg
+          <div
             className="c12"
-            clipRule="evenodd"
-            color="#53657d"
-            cursor="inherit"
-            fill="currentcolor"
-            fillRule="evenodd"
-            height="20"
-            m={8}
-            ml={0}
-            viewBox="0 0 21 24"
-            width="20"
-          >
-            <path
-              d="M10.394-.002l10.392 6v12l-10.392 6-10.392-6v-12l10.392-6z"
-            />
-            <path
-              d="M10.393 6l5.196 3v6l-5.196 3-5.196-3V9l5.196-3z"
-              fill="currentcolor"
-            />
-          </svg>
-          <h3
-            className="c13"
-            cursor="inherit"
-            fontSize={4}
-          >
-            Resource Allocation
-          </h3>
-          <div
-            className="c14"
-          />
-          <div
-            className="c15"
-            color="#8393A7"
           >
             <svg
-              className="c16"
+              className="c13"
               clipRule="evenodd"
-              color="darkGray"
+              color="#53657d"
               cursor="inherit"
               fill="currentcolor"
               fillRule="evenodd"
-              height={18}
-              rotation={-90}
-              viewBox="0 0 18 24"
-              width={18}
+              height="20"
+              m={8}
+              ml={0}
+              viewBox="0 0 21 24"
+              width="20"
             >
               <path
-                d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+                d="M10.394-.002l10.392 6v12l-10.392 6-10.392-6v-12l10.392-6z"
+              />
+              <path
+                d="M10.393 6l5.196 3v6l-5.196 3-5.196-3V9l5.196-3z"
+                fill="currentcolor"
               />
             </svg>
+            <h3
+              className="c14"
+              cursor="inherit"
+              fontSize={4}
+            >
+              Resource Allocation
+            </h3>
+            <div
+              className="c15"
+            />
+            <div
+              className="c16"
+              color="#8393A7"
+            >
+              <svg
+                className="c17"
+                clipRule="evenodd"
+                color="darkGray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={18}
+                rotation={-90}
+                viewBox="0 0 18 24"
+                width={18}
+              >
+                <path
+                  d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+                />
+              </svg>
+            </div>
           </div>
         </div>
-        <div
-          className="c17"
-        />
       </div>
       <div
         className="c9 c10"
@@ -493,74 +500,78 @@ exports[`Mount ProjectDashboard 1`] = `
         width={1}
       >
         <div
-          className="c11"
+          className=""
           style={
             Object {
               "borderTop": "5px solid var(--green, #f00)",
             }
           }
+        />
+        <div
+          className="c11"
+          height="100%"
         >
-          <svg
+          <div
             className="c12"
-            clipRule="evenodd"
-            color="#53657d"
-            cursor="inherit"
-            fill="currentcolor"
-            fillRule="evenodd"
-            height="20"
-            m={8}
-            ml={0}
-            viewBox="0 0 16 24"
-            width="20"
-          >
-            <path
-              d="M1.501 0a1.5 1.5 0 00-1.5 1.5v4.718A2 2 0 00.647 7.69L5.332 12 .645 16.32a2 2 0 00-.644 1.47V22.5a1.5 1.5 0 001.5 1.5h13a1.5 1.5 0 001.5-1.5V17.79a2 2 0 00-.644-1.47L10.67 12l4.685-4.31a2 2 0 00.646-1.472V1.5a1.5 1.5 0 00-1.5-1.5h-13zm11.831 17.532v4.125H2.67v-4.125L8 12.617l5.331 4.915zm-5.331-6.144L2.67 6.473V2.284h10.668v4.183l-5.337 4.921z"
-              fillRule="nonzero"
-            />
-            <path
-              d="M2.67 6.472l10.669-.006L8 11.388 2.67 6.472zM2.67 18.533h10.662v3.125H2.67z"
-              fill="currentcolor"
-            />
-            <path
-              d="M8 12.618l1 6.915H7l1-6.915z"
-              fill="currentcolor"
-            />
-          </svg>
-          <h3
-            className="c13"
-            cursor="inherit"
-            fontSize={4}
-          >
-            Usage
-          </h3>
-          <div
-            className="c14"
-          />
-          <div
-            className="c15"
-            color="#8393A7"
           >
             <svg
-              className="c16"
+              className="c13"
               clipRule="evenodd"
-              color="darkGray"
+              color="#53657d"
               cursor="inherit"
               fill="currentcolor"
               fillRule="evenodd"
-              height={18}
-              rotation={-90}
-              viewBox="0 0 18 24"
-              width={18}
+              height="20"
+              m={8}
+              ml={0}
+              viewBox="0 0 16 24"
+              width="20"
             >
               <path
-                d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+                d="M1.501 0a1.5 1.5 0 00-1.5 1.5v4.718A2 2 0 00.647 7.69L5.332 12 .645 16.32a2 2 0 00-.644 1.47V22.5a1.5 1.5 0 001.5 1.5h13a1.5 1.5 0 001.5-1.5V17.79a2 2 0 00-.644-1.47L10.67 12l4.685-4.31a2 2 0 00.646-1.472V1.5a1.5 1.5 0 00-1.5-1.5h-13zm11.831 17.532v4.125H2.67v-4.125L8 12.617l5.331 4.915zm-5.331-6.144L2.67 6.473V2.284h10.668v4.183l-5.337 4.921z"
+                fillRule="nonzero"
+              />
+              <path
+                d="M2.67 6.472l10.669-.006L8 11.388 2.67 6.472zM2.67 18.533h10.662v3.125H2.67z"
+                fill="currentcolor"
+              />
+              <path
+                d="M8 12.618l1 6.915H7l1-6.915z"
+                fill="currentcolor"
               />
             </svg>
+            <h3
+              className="c14"
+              cursor="inherit"
+              fontSize={4}
+            >
+              Usage
+            </h3>
+            <div
+              className="c15"
+            />
+            <div
+              className="c16"
+              color="#8393A7"
+            >
+              <svg
+                className="c17"
+                clipRule="evenodd"
+                color="darkGray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={18}
+                rotation={-90}
+                viewBox="0 0 18 24"
+                width={18}
+              >
+                <path
+                  d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+                />
+              </svg>
+            </div>
           </div>
-        </div>
-        <div
-          className="c17"
-        >
           <div
             className="c23"
             color="darkGray"
