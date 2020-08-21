@@ -13,7 +13,7 @@ volumes: [
   hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock')
 ]) {
     node (label) {
-        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup') {
+        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup' || env.BRANCH_NAME == 'accounting') {
             stage('Checkout') {
                 checkout(
                     [
@@ -64,19 +64,17 @@ volumes: [
 
 String runBuild(String item) {
     def loaded = load(item)
-    withCredentials(
-        [usernamePassword(
-            credentialsId: "archiva",
-            usernameVariable: "ESCIENCE_MVN_USER",
-            passwordVariable: "ESCIENCE_MVN_PASSWORD"
-        )]
-    ) {
-        return loaded.initialize()
-    }
+    return loaded.initialize()
 }
 
 def sendAlert(String alertMessage) {
     withCredentials(
+        [string(credentialsId: "slackToken", variable: "slackToken")]
+    ) {
+        slackSend(channel: "devalerts", message: alertMessage, tokenCredentialId: 'slackToken')
+    }
+}
+s(
         [string(credentialsId: "slackToken", variable: "slackToken")]
     ) {
         slackSend(channel: "devalerts", message: alertMessage, tokenCredentialId: 'slackToken')
