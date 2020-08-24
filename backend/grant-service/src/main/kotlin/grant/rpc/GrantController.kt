@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.grant.services.ApplicationService
 import dk.sdu.cloud.grant.services.CommentService
@@ -17,7 +18,10 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.toActor
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
+import java.io.ByteArrayInputStream
 
 class GrantController(
     private val applications: ApplicationService,
@@ -155,6 +159,32 @@ class GrantController(
 
         implement(Grants.browseProjects) {
             ok(settings.browse(db, ctx.securityPrincipal.toActor(), request.normalize()))
+        }
+
+        implement(Grants.uploadLogo) {
+            ok(settings.uploadLogo(db, ctx.securityPrincipal.toActor(), request.projectId, request.data.asIngoing()))
+        }
+
+        implement(Grants.fetchLogo) {
+            val logo = settings.fetchLogo(db, request.projectId)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            ok(
+                BinaryStream.outgoingFromChannel(
+                    ByteArrayInputStream(logo).toByteReadChannel(),
+                    logo.size.toLong(),
+                    ContentType.Image.Any
+                )
+            )
+        }
+
+        implement(Grants.uploadDescription) {
+            ok(settings.uploadDescription(db, ctx.securityPrincipal.toActor(), request.projectId, request.description))
+        }
+
+        implement(Grants.fetchDescription) {
+            ok(FetchDescriptionResponse(
+                settings.fetchDescription(db, request.projectId)
+            ))
         }
 
         return@with
