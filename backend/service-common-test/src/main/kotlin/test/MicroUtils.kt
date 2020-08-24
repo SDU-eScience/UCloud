@@ -19,6 +19,25 @@ private val tokenValidationConfig by lazy {
     }
 }
 
+private val dbConfig by lazy {
+    Files.createTempFile("config", ".yml").toFile().also {
+        //ignoring DB because it is using embedded DB
+        // language=yaml
+        it.writeText(
+            """
+            hibernate:
+              database:
+                profile: PERSISTENT_POSTGRES
+                credentials:
+                  username: development
+                  password: development
+                database: development
+                hostname: localhost
+            """.trimIndent()
+        )
+    }
+}
+
 /**
  * Initializes Micro with all default features. Certain services are mocked.
  *
@@ -34,7 +53,7 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
 
     // This function is required to initialize all default features
     return Micro().apply {
-        val configFiles = listOf(tokenValidationConfig)
+        val configFiles = listOf(tokenValidationConfig, dbConfig)
         val configArgs = configFiles.flatMap { listOf("--config", it.absolutePath) }
 
         init(serviceDescription, (listOf("--dev") + configArgs + additionalArgs).toTypedArray())
