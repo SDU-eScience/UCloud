@@ -255,7 +255,7 @@ exports[`Mount ProjectDashboard 1`] = `
   className="c0"
 >
   <div
-    className="sc-AxiKw c1"
+    className="c1"
     height={96}
     width={1}
   >
@@ -263,7 +263,7 @@ exports[`Mount ProjectDashboard 1`] = `
       className="c2"
     >
       <div
-        className="sc-fznNvL c3"
+        className="c3"
       >
         <span>
           <a

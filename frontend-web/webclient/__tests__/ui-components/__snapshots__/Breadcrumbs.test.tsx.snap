@@ -113,7 +113,7 @@ Array [
 }
 
 <div
-    className="sc-fzpans c0"
+    className="c0"
   >
     <span
       onClick={[Function]}
@@ -240,7 +240,7 @@ Array [
 }
 
 <div
-    className="sc-fzpans c0"
+    className="c0"
   >
     <span
       onClick={[Function]}

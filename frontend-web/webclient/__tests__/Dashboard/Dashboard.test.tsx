@@ -33,7 +33,9 @@ jest.mock("Authentication/HttpClientInstance", () => ({
             }
             return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage});
         },
-        homeFolder: "/home/test@test/"
+        homeFolder: "/home/test@test/",
+        favoritesFolder: "/home/test@test/favorites",
+        activeHomeFolder: "/home/test@test/"
     }
 }));
 

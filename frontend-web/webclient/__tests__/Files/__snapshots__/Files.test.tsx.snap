@@ -485,7 +485,7 @@ exports[`Mount Files component 1`] = `
   className="c0"
 >
   <div
-    className="sc-AxgMl c1"
+    className="c1"
     height={96}
     width={1}
   >
@@ -588,7 +588,7 @@ exports[`Mount Files component 1`] = `
     className="c14"
   >
     <div
-      className="sc-AxgMl c15"
+      className="c15"
       data-tag="sidebar"
       height="100%"
       width={240}

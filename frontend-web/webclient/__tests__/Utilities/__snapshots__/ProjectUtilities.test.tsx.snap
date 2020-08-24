@@ -266,7 +266,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
       className="c2"
     >
       <div
-        className="sc-fznKkj c3"
+        className="c3"
         cursor="inherit"
         title="Group 0"
         width="300px"
@@ -407,7 +407,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
       className="c2"
     >
       <div
-        className="sc-fznKkj c3"
+        className="c3"
         cursor="inherit"
         title="Group 1"
         width="300px"
@@ -548,7 +548,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
       className="c2"
     >
       <div
-        className="sc-fznKkj c3"
+        className="c3"
         cursor="inherit"
         title="Group 2"
         width="300px"

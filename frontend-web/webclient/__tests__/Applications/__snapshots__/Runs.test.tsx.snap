@@ -445,7 +445,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 sc-AxiKw c2"
+    className="c0 c2"
     height={48}
     width={1}
   >
@@ -500,7 +500,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
     className="c0 c10"
   >
     <div
-      className="c0 sc-AxiKw c11"
+      className="c0 c11"
       data-tag="sidebar"
       height="100%"
       width={340}

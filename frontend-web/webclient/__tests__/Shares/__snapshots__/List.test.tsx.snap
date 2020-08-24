@@ -82,12 +82,12 @@ exports[`Shares List Shares component 1`] = `
   className="c0"
 >
   <div
-    className="sc-AxirZ c1"
+    className="c1"
     height={55}
     width={1}
   >
     <div
-      className="sc-fzpans c2"
+      className="c2"
     >
       <div
         className="c3"
