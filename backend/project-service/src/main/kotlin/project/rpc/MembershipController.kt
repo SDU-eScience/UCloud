@@ -49,6 +49,7 @@ class MembershipController(
             ok(
                 queries.membersCount(
                     db,
+                    ctx.securityPrincipal,
                     project
                 )
             )
