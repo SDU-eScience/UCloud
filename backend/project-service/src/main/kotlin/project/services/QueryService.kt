@@ -2,6 +2,7 @@ package dk.sdu.cloud.project.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
@@ -99,17 +100,19 @@ class QueryService(
         }
     }
 
-    suspend fun groupsCount(ctx: DBContext, projectId: String): Long {
-        return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("project", projectId)
-                },
-                """
+    suspend fun groupsCount(ctx: DBContext, user: SecurityPrincipal, projectId: String): Long {
+        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+            return ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("project", projectId)
+                    },
+                    """
                     select count(*) from project.groups where project = :project
                 """
-            ).rows.singleOrNull()?.getLong(0) ?: 0
-        }
+                ).rows.singleOrNull()?.getLong(0) ?: 0
+            }
+        } else throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
     suspend fun viewGroup(ctx: DBContext, requestedBy: String, projectId: String, groupId: String): GroupWithSummary {
@@ -435,18 +438,21 @@ class QueryService(
 
     suspend fun membersCount(
         ctx: DBContext,
+        user: SecurityPrincipal,
         projectId: String
     ): Long {
-        return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("projectId", projectId)
-                },
-                """
+        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+            return ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
                     select count(*) from project.project_members where project_id = :projectId
                 """
-            ).rows.singleOrNull()?.getLong(0) ?: 0
-        }
+                ).rows.singleOrNull()?.getLong(0) ?: 0
+            }
+        } else throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
     suspend fun summarizeMembershipForUser(
@@ -951,22 +957,36 @@ class QueryService(
         }
     }
 
+    suspend fun isAdminOrPIOfProject(ctx: DBContext, username: String, projectId: String): Boolean {
+        val piAndAdmins = projects.getPIAndAdminsOfProject(ctx, projectId)
+        when {
+            piAndAdmins.first == username -> return true
+            piAndAdmins.second.contains(username) -> return true
+            else -> return false
+        }
+    }
+
     suspend fun subProjectsCount(
         ctx: DBContext,
+        user: SecurityPrincipal,
         projectId: String
     ): Long {
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("projectId", projectId)
-                    },
-                    """
+        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+            return ctx.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("projectId", projectId)
+                        },
+                        """
                         select count(*) from project.projects where parent = :projectId
                     """
-                ).rows
-                .singleOrNull()
-                ?.getLong(0) ?: 0
+                    ).rows
+                    .singleOrNull()
+                    ?.getLong(0) ?: 0
+            }
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
     }
 

@@ -4,7 +4,13 @@ import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import {useCloudAPI} from "Authentication/DataHook";
-import {browseProjects, BrowseProjectsResponse} from "Project/Grant/index";
+import {
+    browseProjects,
+    BrowseProjectsResponse,
+    readTemplates,
+    retrieveDescription,
+    RetrieveDescriptionResponse
+} from "Project/Grant/index";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -14,6 +20,11 @@ import {DashboardCard} from "Dashboard/Dashboard";
 import {ImagePlaceholder, Lorem} from "UtilityComponents";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {useCallback, useEffect, useState} from "react";
+import {Client} from "Authentication/HttpClientInstance";
+import {AppLogo, hashF} from "Applications/Card";
+import {retrieveFromProvider, UCLOUD_PROVIDER} from "Accounting";
 
 export const ProjectBrowser: React.FunctionComponent = () => {
     const {action} = useParams<{action: string}>();
@@ -66,20 +77,59 @@ export const ProjectBrowser: React.FunctionComponent = () => {
     />;
 };
 
+interface LogoProps {
+    projectId: string;
+    size?: string;
+    cacheBust?: string;
+}
+
+
+export const Logo: React.FunctionComponent<LogoProps> = props => {
+    const [hasLoadedImage, setLoadedImage] = useState(true);
+    const size = props.size !== undefined ? props.size : "40px";
+
+    const url = Client.computeURL("/api", `/grant/logo/${props.projectId}`);
+
+    return (
+        <>
+            <img
+                onErrorCapture={() => {
+                    setLoadedImage(false);
+                    // For some reason the state is not always correctly set. This is the worst possible work around.
+                    setTimeout(() => setLoadedImage(false), 50);
+                }}
+                key={url}
+                style={hasLoadedImage ? {width: size, height: size, objectFit: "contain"} : {display: "none"}}
+                src={url}
+                alt={props.projectId}
+            />
+
+            {hasLoadedImage ? null : <AppLogo size={size} hash={hashF(props.projectId)} />}
+        </>
+    );
+};
+
 const AffiliationLink: React.FunctionComponent<{ action: string, projectId: string, title: string }> = props => {
     const history = useHistory();
+
+    const [description, setDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+        retrieveDescription({
+            projectId: props.projectId,
+        }), {description: ""}
+    );
+
     return <DashboardCard
         color={"purple"}
-        isLoading={false}
+        isLoading={description.loading}
         title={<>
-            <ImagePlaceholder height={40} width={40} />
+            <Logo projectId={props.projectId} size={"40px"} />
             <Heading.h3 ml={8}>{props.title}</Heading.h3>
         </>}
         subtitle={<Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />}
         onClick={() => history.push(`/project/grants/${props.action}/${props.projectId}`)}
     >
         <Box pt={8} pb={16}>
-            <Lorem/>
+            {description.data.description}
         </Box>
     </DashboardCard>;
 };

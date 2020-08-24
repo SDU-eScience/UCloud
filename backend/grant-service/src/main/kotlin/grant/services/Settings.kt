@@ -3,10 +3,26 @@ package dk.sdu.cloud.grant.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.grant.api.*
+import dk.sdu.cloud.project.api.LookupAdminsRequest
+import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.io.jvm.javaio.copyTo
+import java.io.ByteArrayOutputStream
+
+object GrantLogos : SQLTable("logos") {
+    val projectId = text("project_id", notNull = true)
+    val logo = byteArray("data")
+}
+
+object GrantDescriptions : SQLTable("descriptions") {
+    val projectId = text("project_id", notNull = true)
+    val description = text("description")
+}
 
 object AllowApplicationsFromTable : SQLTable("allow_applications_from") {
     val projectId = text("project_id", notNull = true)
@@ -265,6 +281,89 @@ class SettingsService(
         }
     }
 
+    suspend fun fetchLogo(db: DBContext, projectId: String): ByteArray? {
+        return db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        SELECT data
+                        FROM logos
+                        WHERE project_id = :projectId
+                    """
+                ).rows.singleOrNull()?.getField(GrantLogos.logo)
+        }
+    }
+
+    suspend fun uploadDescription(db: DBContext, user: Actor, projectId: String, description: String) {
+        if (!projects.isAdminOfProject(projectId, user)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        }
+        db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                        setParameter("description", description)
+                    },
+                    """
+                       INSERT INTO descriptions (project_id, description)
+                       VALUES (:projectId, :description)
+                       ON CONFLICT (project_id) DO UPDATE SET description = :description
+                    """
+                )
+        }
+    }
+
+    suspend fun fetchDescription(db: DBContext, projectId: String): String {
+        return db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        SELECT description
+                        FROM descriptions
+                        WHERE project_id = :projectId
+                    """
+                ).rows
+                .singleOrNull()
+                ?.getField(GrantDescriptions.description) ?: "No Description"
+        }
+    }
+
+    suspend fun uploadLogo(db: DBContext, user: Actor, projectId: String, stream: BinaryStream.Ingoing) {
+        if (!projects.isAdminOfProject(projectId, user)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        }
+
+        val streamLength = stream.length
+        if (streamLength == null || streamLength > LOGO_MAX_SIZE) {
+            throw RPCException("Logo is too large", HttpStatusCode.BadRequest)
+        }
+        val imageBytesStream = ByteArrayOutputStream(streamLength.toInt())
+        stream.channel.copyTo(imageBytesStream)
+        val imageBytes = imageBytesStream.toByteArray()
+
+        db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                        setParameter("data", imageBytes)
+                    },
+                    """
+                        INSERT INTO logos (project_id, data) 
+                        VALUES (:projectId , :data)
+                        ON CONFLICT (project_id) DO UPDATE SET data = :data
+                    """
+                )
+        }
+    }
+
    private fun RowData.toUserCriteria(): UserCriteria {
         val id = getField(AllowApplicationsFromTable.applicantId)
         return when (getField(AllowApplicationsFromTable.type)) {
@@ -300,3 +399,5 @@ fun UserCriteria.toSqlType(): String {
         is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
     }
 }
+
+const val LOGO_MAX_SIZE = 1024 * 512

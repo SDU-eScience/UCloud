@@ -8,6 +8,7 @@ import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
@@ -25,6 +26,32 @@ data class UploadTemplatesRequest(
 )
 
 typealias UploadTemplatesResponse = Unit
+
+data class UploadLogoRequest(
+    val projectId: String,
+    val data: BinaryStream
+)
+
+typealias UploadLogoResponse = Unit
+
+data class FetchLogoRequest(
+    val projectId: String
+)
+
+typealias FetchLogoResponse = BinaryStream
+
+data class UploadDescriptionRequest(
+    val projectId: String,
+    val description: String
+)
+typealias UploadDescriptionResponse = Unit
+
+data class FetchDescriptionRequest(
+    val projectId: String
+)
+data class FetchDescriptionResponse(
+    val description: String
+)
 
 data class ReadTemplatesRequest(val projectId: String)
 typealias ReadTemplatesResponse = UploadTemplatesRequest
@@ -206,6 +233,84 @@ data class ProjectWithTitle(val projectId: String, val title: String)
 
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
+
+    val uploadDescription = call<UploadDescriptionRequest, UploadDescriptionResponse, CommonErrorMessage>("uploadDescription") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"uploadDescription"
+            }
+
+            body { bindEntireRequestFromBody() }
+
+        }
+    }
+
+    val fetchDescription = call<FetchDescriptionRequest, FetchDescriptionResponse, CommonErrorMessage>("fetchDescription") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PUBLIC
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"description"
+            }
+
+            params {
+                +boundTo(FetchDescriptionRequest::projectId)
+            }
+        }
+    }
+
+    val uploadLogo = call<UploadLogoRequest, UploadLogoResponse, CommonErrorMessage>("uploadLogo") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"uploadLogo"
+            }
+
+            headers {
+                +boundTo("Upload-Name", UploadLogoRequest::projectId)
+            }
+
+            body {
+                bindToSubProperty(UploadLogoRequest::data)
+            }
+        }
+    }
+
+    val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PUBLIC
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"logo"
+                +boundTo(FetchLogoRequest::projectId)
+            }
+        }
+    }
 
     val uploadTemplates = call<UploadTemplatesRequest, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
         auth {
