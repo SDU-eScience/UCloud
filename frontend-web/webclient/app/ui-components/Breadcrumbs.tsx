@@ -64,7 +64,7 @@ export const BreadCrumbs = ({
     if (!currentPath) return null;
     const projectStatus = useProjectStatus();
 
-    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, client.projectId ?? "", projectStatus);
+    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, projectStatus);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map(p => (
@@ -107,7 +107,6 @@ export const BreadCrumbs = ({
 function buildBreadCrumbs(
     path: string,
     homeFolder: string,
-    activeProject: string,
     projectStatus: ProjectStatus
 ): BreadCrumbMapping[] {
     const paths = pathComponents(path);
@@ -132,8 +131,7 @@ function buildBreadCrumbs(
 
     // Handle starts with project
     if (addTrailingSlash(path).startsWith("/projects/")) {
-        const [, projectInPath] = pathComponents(path);
-        const project = activeProject !== "" && path.includes(projectInPath) ? activeProject : projectInPath;
+        const [, project] = pathComponents(path);
 
         let localName = project;
         const membership = projectStatus.fetch().membership.find(it => it.projectId === project);

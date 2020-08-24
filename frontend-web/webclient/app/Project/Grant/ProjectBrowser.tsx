@@ -16,7 +16,7 @@ import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
 
 export const ProjectBrowser: React.FunctionComponent = () => {
-    const {action} = useParams();
+    const {action} = useParams<{action: string}>();
     useTitle("Project Browser");
     useSidebarPage(SidebarPages.Projects);
 
