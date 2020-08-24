@@ -255,7 +255,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                                 this.state.schedulingOptions.maxTime.hours * 60 +
                                                 this.state.schedulingOptions.maxTime.minutes +
                                                 (this.state.schedulingOptions.maxTime.seconds > 0 ? 1 : 0)
-                                            ),
+                                            ) * this.state.schedulingOptions.numberOfNodes,
                                             3
                                         )
                                     }
@@ -1055,7 +1055,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     Job name
                     <Input
                         ref={name}
-                        placeholder={"Example: Analysis with parameters XYZ"}
+                        placeholder="Example: Analysis with parameters XYZ"
                     />
                 </Label>
             </Flex>

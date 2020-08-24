@@ -421,20 +421,18 @@ function DashboardResources({wallets, loading, quota}: {
                         <Box mx="8px" my="5px">
                             <Table>
                                 <tbody>
-                                    {
-                                        wallets.slice(0, 7).map((n, i) => (
-                                            <TableRow key={i}>
-                                                <TableCell>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</TableCell>
-                                                <TableCell>
-                                                    <Balance
-                                                        textAlign={"right"}
-                                                        amount={n.balance}
-                                                        productCategory={n.wallet.paysFor}
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    }
+                                    {wallets.slice(0, 7).map((n, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</TableCell>
+                                            <TableCell>
+                                                <Balance
+                                                    textAlign="right"
+                                                    amount={n.balance}
+                                                    productCategory={n.wallet.paysFor}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
                                     <TableRow>
                                         {/* This is hardcoded for now (pending issue #1246) */}
                                         <TableCell>ucloud / cephfs (Quota)</TableCell>
@@ -445,7 +443,7 @@ function DashboardResources({wallets, loading, quota}: {
                                             {" "}({(100 * (quota.quotaInBytes !== 0 ?
                                                 (quota.quotaUsed ?? 0 / quota.quotaInBytes) : 1
                                             )).toFixed(2)}%)
-                                    </TableCell>
+                                        </TableCell>
                                     </TableRow>
                                 </tbody>
                             </Table>
