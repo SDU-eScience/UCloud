@@ -170,7 +170,7 @@ function useRequestInformation(target: RequestTarget) {
 
         case RequestTarget.NEW_PROJECT:
         case RequestTarget.PERSONAL_PROJECT: {
-            const {projectId} = useParams();
+            const {projectId} = useParams<{projectId: string}>();
             targetProject = projectId;
 
             if (target === RequestTarget.NEW_PROJECT) {
@@ -182,7 +182,7 @@ function useRequestInformation(target: RequestTarget) {
         }
 
         case RequestTarget.VIEW_APPLICATION:
-            const {appId} = useParams();
+            const {appId} = useParams<{appId: string}>();
 
             const [grantApplication, fetchGrantApplication] = useCloudAPI<ViewGrantApplicationResponse>(
                 {noop: true},

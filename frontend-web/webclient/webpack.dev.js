@@ -24,7 +24,7 @@ module.exports = merge(commonConfig, {
 
     plugins: [
         // Enables Hot Module Replacement, otherwise known as HMR.
-        // Note: HMR should never be used in production. 
+        // Note: HMR should never be used in production.
         new webpack.HotModuleReplacementPlugin(),
         // new MiniCSSExtractPlugin({
         //     filename: "[name].css",
