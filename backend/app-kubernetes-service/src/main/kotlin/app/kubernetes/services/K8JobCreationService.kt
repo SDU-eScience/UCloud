@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
 import kotlinx.coroutines.launch
+import kotlin.math.min
 
 const val WORKING_DIRECTORY = "/work"
 const val MULTI_NODE_DIRECTORY = "/etc/ucloud"
@@ -117,7 +118,7 @@ class K8JobCreationService(
                         }
 
                         if (reservation.memoryInGigs != null) {
-                            limits += "memory" to Quantity("${reservation.memoryInGigs!! - if (enableKataContainers) 6 else 0}Gi")
+                            limits += "memory" to Quantity("${min(1, reservation.memoryInGigs!! - if (enableKataContainers) 6 else 0)}Gi")
                         }
 
                         if (reservation.gpu != null) {
