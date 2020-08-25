@@ -16,6 +16,7 @@ import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.webdav.services.UserClient
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
+import org.junit.Ignore
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -89,7 +90,7 @@ suspend fun reserveCredits(
     ).orThrow()
     return id
 }
-
+@Ignore
 class AccountingTest : IntegrationTest() {
     @Test
     fun `test simple case accounting`() = t {

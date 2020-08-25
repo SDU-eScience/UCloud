@@ -135,7 +135,7 @@ object SampleApplications {
         ).orThrow()
     }
 }
-
+@Ignore
 class ApplicationTest : IntegrationTest() {
     @Test
     fun `test figlet`() = t {

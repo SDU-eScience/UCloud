@@ -28,6 +28,7 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.io.ByteReadChannel
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -54,7 +55,7 @@ suspend fun setProjectQuota(
         serviceClient
     ).orThrow()
 }
-
+@Ignore
 class LimitCheckerTest : IntegrationTest() {
     @Test
     fun `test normal upload with quota and credits`() = t {
