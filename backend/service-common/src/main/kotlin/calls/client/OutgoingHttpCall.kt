@@ -19,18 +19,13 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.call.receive
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.request.header
-import io.ktor.client.request.url
-import io.ktor.client.response.HttpResponse
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.client.utils.EmptyContent
-import io.ktor.http.ContentType
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
-import io.ktor.http.isSuccess
-import io.ktor.http.withCharset
-import kotlinx.coroutines.io.jvm.javaio.toInputStream
+import io.ktor.utils.io.jvm.javaio.*
 import okhttp3.ConnectionPool
 import java.net.ConnectException
 import java.net.URLEncoder
@@ -148,7 +143,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             }
 
             val resp = try {
-                httpClient.call(ctx.builder).receive<HttpResponse>()
+                httpClient.request<HttpResponse>(ctx.builder)
             } catch (ex: ConnectException) {
                 log.debug("[$callId] ConnectException: ${ex.message}")
                 continue

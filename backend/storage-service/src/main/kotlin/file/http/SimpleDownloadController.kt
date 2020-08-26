@@ -28,8 +28,8 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.defaultForFilePath
 import io.ktor.request.ranges
 import io.ktor.response.header
-import kotlinx.coroutines.io.ByteWriteChannel
-import kotlinx.coroutines.io.jvm.javaio.toOutputStream
+import io.ktor.utils.io.*
+import io.ktor.utils.io.jvm.javaio.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 

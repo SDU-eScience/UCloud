@@ -120,7 +120,7 @@ class RealTaskContext @PublishedApi internal constructor(
                     setNextUpdate()
                 }
 
-                // We don't want the co-routine to never exit so we loop at least once every 500ms
+                // We want the co-routine to exit in a timely manner so we loop at least once every 500ms
                 delay(min(500, updateFrequencyMs))
             }
 

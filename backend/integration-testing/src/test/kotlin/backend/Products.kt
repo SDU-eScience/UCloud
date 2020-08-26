@@ -9,6 +9,7 @@ import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -39,7 +40,7 @@ suspend fun createSampleProducts() {
         ).orThrow()
     }
 }
-
+@Ignore
 class ProductTest : IntegrationTest() {
     @Test
     fun `test product cru`() = t {

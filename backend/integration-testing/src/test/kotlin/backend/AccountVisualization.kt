@@ -13,9 +13,10 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.math.abs
-
+@Ignore
 class AccountVisualizationTest : IntegrationTest() {
     @Test
     fun `test usage (no data)`() = t {

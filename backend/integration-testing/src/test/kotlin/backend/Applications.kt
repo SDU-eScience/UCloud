@@ -23,6 +23,7 @@ import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
+import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatProperty
@@ -135,7 +136,7 @@ object SampleApplications {
         ).orThrow()
     }
 }
-
+@Ignore
 class ApplicationTest : IntegrationTest() {
     @Test
     fun `test figlet`() = t {

@@ -20,8 +20,28 @@ val Int.DKK: Long get() = toLong() * 1_000_000
 fun Long.creditsToDKK(): Long = this / 1_000_000
 
 data class UploadTemplatesRequest(
+    /**
+     * The template provided for new grant applications when the grant requester is a personal project
+     *
+     * @see Application.grantRecipient
+     * @see GrantRecipient.PersonalProject
+     */
     val personalProject: String,
+
+    /**
+     * The template provided for new grant applications when the grant requester is a new project
+     *
+     * @see Application.grantRecipient
+     * @see GrantRecipient.NewProject
+     */
     val newProject: String,
+
+    /**
+     * The template provided for new grant applications when the grant requester is an existing project
+     *
+     * @see Application.grantRecipient
+     * @see GrantRecipient.ExistingProject
+     */
     val existingProject: String
 )
 
@@ -66,9 +86,30 @@ typealias ReadTemplatesResponse = UploadTemplatesRequest
     JsonSubTypes.Type(value = UserCriteria.EmailDomain::class, name = UserCriteria.EMAIL_TYPE),
     JsonSubTypes.Type(value = UserCriteria.WayfOrganization::class, name = UserCriteria.WAYF_TYPE)
 )
+/**
+ * A [UserCriteria] describes some criteria that matches a user. This is used in conjunction with actions that need
+ * authorization.
+ *
+ * @see UserCriteria.Anyone
+ * @see UserCriteria.EmailDomain
+ * @see UserCriteria.WayfOrganization
+ */
 sealed class UserCriteria {
+    /**
+     * Matches any user
+     */
     class Anyone : UserCriteria()
+
+    /**
+     * Matches any user with an email domain equal to [domain]
+     */
     data class EmailDomain(val domain: String) : UserCriteria()
+
+    /**
+     * Matches any user with an organization matching [org]
+     *
+     * The organization is currently derived from the information we receive from WAYF.
+     */
     data class WayfOrganization(val org: String) : UserCriteria()
 
     companion object {
@@ -78,11 +119,27 @@ sealed class UserCriteria {
     }
 }
 
+/**
+ * Settings which control if an [Application] should be automatically approved
+ *
+ * The [Application] will be automatically approved if the all of the following is true:
+ *  - The requesting user matches any of the criteria in [from]
+ *  - The user has only requested resources ([Application.requestedResources]) which are present in [maxResources]
+ *  - None of the resource requests exceed the numbers specified in [maxResources]
+ */
 data class AutomaticApprovalSettings(
     val from: List<UserCriteria>,
     val maxResources: List<ResourceRequest>
 )
 
+/**
+ * Settings for grant [Application]s
+ *
+ * A user will be allowed to apply for grants to this project if they match any of the criteria listed in
+ * [allowRequestsFrom].
+ *
+ * @see AutomaticApprovalSettings
+ */
 data class ProjectApplicationSettings(
     val automaticApproval: AutomaticApprovalSettings,
     val allowRequestsFrom: List<UserCriteria>
@@ -231,9 +288,35 @@ data class BrowseProjectsRequest(
 typealias BrowseProjectsResponse = Page<ProjectWithTitle>
 data class ProjectWithTitle(val projectId: String, val title: String)
 
+/**
+ * [Grants] provide a way for users of UCloud to apply for resources ([ResourceRequest]) for any [GrantRecipient]
+ *
+ * In order for any user to use UCloud they must have resources. Resources, see [dk.sdu.cloud.accounting.api.Wallets],
+ * are required for use of any compute or storage. There are only two ways of receiving any credits, either through
+ * an admin directly granting you the credits or by receiving them from a project
+ * (see [dk.sdu.cloud.accounting.api.Wallets.setBalance] and [dk.sdu.cloud.accounting.api.Wallets.transferToPersonal]).
+ *
+ * The [Grants] service acts as a more user-friendly gateway to receiving resources from a project. Every [Application]
+ * goes through the following steps:
+ *
+ * 1. User submits application to relevant project using [Grants.submitApplication]
+ * 2. Project administrator of [Application.resourcesOwnedBy] reviews the application
+ *    - User and reviewer can comment on the application via [Grants.commentOnApplication]
+ *    - User and reviewer can perform edits to the application via [Grants.editApplication]
+ * 3. Reviewer either performs [Grants.closeApplication] or [Grants.approveApplication]
+ * 4. If the [Application] was approved then resources are granted to the [Application.grantRecipient]
+ */
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
 
+    /**
+     * Uploads a description of a project which is enabled
+     *
+     * Only project administrators of the project can upload a description
+     *
+     * @see setEnabledStatus
+     * @see isEnabled
+     */
     val uploadDescription = call<UploadDescriptionRequest, UploadDescriptionResponse, CommonErrorMessage>("uploadDescription") {
         auth {
             access = AccessRight.READ_WRITE
@@ -252,6 +335,9 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Fetches a description of a project
+     */
     val fetchDescription = call<FetchDescriptionRequest, FetchDescriptionResponse, CommonErrorMessage>("fetchDescription") {
         auth {
             access = AccessRight.READ
@@ -272,6 +358,14 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Uploads a logo for a project which is enabled
+     *
+     * Only project administrators of the project can upload a logo
+     *
+     * @see setEnabledStatus
+     * @see isEnabled
+     */
     val uploadLogo = call<UploadLogoRequest, UploadLogoResponse, CommonErrorMessage>("uploadLogo") {
         auth {
             access = AccessRight.READ_WRITE
@@ -295,6 +389,9 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Fetches a logo for a project
+     */
     val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
         auth {
             access = AccessRight.READ
@@ -312,6 +409,14 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Uploads templates used for new grant [Application]s
+     *
+     * Only project administrators of the project can upload new templates. The project needs to be enabled.
+     *
+     * @see isEnabled
+     * @see setEnabledStatus
+     */
     val uploadTemplates = call<UploadTemplatesRequest, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
         auth {
             access = AccessRight.READ_WRITE
@@ -329,25 +434,11 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
-    val readTemplates = call<ReadTemplatesRequest, ReadTemplatesResponse, CommonErrorMessage>("readTemplates") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"read-templates"
-            }
-
-            params {
-                +boundTo(ReadTemplatesRequest::projectId)
-            }
-        }
-    }
-
+    /**
+     * Uploads [ProjectApplicationSettings] to be associated with a project. The project must be enabled.
+     *
+     * @see isEnabled
+     */
     val uploadRequestSettings =
         call<UploadRequestSettingsRequest, UploadRequestSettingsResponse, CommonErrorMessage>("uploadRequestSettings") {
             auth {
@@ -386,6 +477,37 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
+    /**
+     * Reads the templates for a new grant [Application]
+     *
+     * User interfaces should display the relevant template, based on who will be the [Application.grantRecipient].
+     */
+    val readTemplates = call<ReadTemplatesRequest, ReadTemplatesResponse, CommonErrorMessage>("readTemplates") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"read-templates"
+            }
+
+            params {
+                +boundTo(ReadTemplatesRequest::projectId)
+            }
+        }
+    }
+
+
+    /**
+     * Submits an [Application] to a project
+     *
+     * In order for the user to submit an application they must match any criteria in
+     * [ProjectApplicationSettings.allowRequestsFrom]. If they are not the request will fail.
+     */
     val submitApplication =
         call<SubmitApplicationRequest, SubmitApplicationResponse, CommonErrorMessage>("submitApplication") {
             auth {
@@ -404,6 +526,11 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
+    /**
+     * Adds a comment to an existing [Application]
+     *
+     * Only the [Application] creator and [Application] reviewers are allowed to comment on the [Application].
+     */
     val commentOnApplication =
         call<CommentOnApplicationRequest, CommentOnApplicationResponse, CommonErrorMessage>("commentOnApplication") {
             auth {
@@ -422,6 +549,11 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
+    /**
+     * Deletes a comment from an existing [Application]
+     *
+     * The comment can only be deleted by the author of the comment.
+     */
     val deleteComment = call<DeleteCommentRequest, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
         auth {
             access = AccessRight.READ_WRITE
@@ -439,6 +571,11 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Approves an existing [Application] this will trigger granting of resources to the [Application.grantRecipient]
+     *
+     * Only the grant reviewer can perform this action.
+     */
     val approveApplication = call<ApproveApplicationRequest, ApproveApplicationResponse, CommonErrorMessage>("approveApplication") {
         auth {
             access = AccessRight.READ_WRITE
@@ -456,6 +593,14 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Rejects an [Application]
+     *
+     * The [Application] cannot receive any new change to it and the [Application] creator must re-submit the
+     * [Application].
+     *
+     * Only the grant reviewer can perform this action.
+     */
     val rejectApplication = call<RejectApplicationRequest, RejectApplicationResponse, CommonErrorMessage>("rejectApplication") {
         auth {
             access = AccessRight.READ_WRITE
@@ -473,6 +618,11 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Performs an edit to an existing [Application]
+     *
+     * Both the creator and any of the grant reviewers are allowed to edit the application.
+     */
     val editApplication = call<EditApplicationRequest, EditApplicationResponse, CommonErrorMessage>(
         "editApplication"
     ) {
@@ -492,6 +642,11 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Closes an existing [Application]
+     *
+     * This action is identical to [rejectApplication] except it can be performed by the [Application] creator.
+     */
     val closeApplication = call<CloseApplicationRequest, CloseApplicationResponse, CommonErrorMessage>(
         "closeApplication"
     ) {
@@ -511,6 +666,9 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Lists active [Application]s which are 'ingoing' (received by) to a project
+     */
     val ingoingApplications =
         call<IngoingApplicationsRequest, IngoingApplicationsResponse, CommonErrorMessage>("ingoingApplications") {
             auth {
@@ -532,6 +690,9 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
+    /**
+     * Lists all active [Application]s made by the calling user
+     */
     val outgoingApplications =
         call<OutgoingApplicationsRequest, OutgoingApplicationsResponse, CommonErrorMessage>("outgoingApplications") {
             auth {
@@ -553,6 +714,12 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
+    /**
+     * Enables a project to receive [Application]
+     *
+     * Note that a project will not be able to receive any applications until its
+     * [ProjectApplicationSettings.allowRequestsFrom] allow for it.
+     */
     val setEnabledStatus =
         call<SetEnabledStatusRequest, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
             auth {
@@ -572,6 +739,10 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
+    /**
+     * If this returns true then the project (as specified by [IsEnabledRequest.projectId]) can receive grant
+     * [Application]s.
+     */
     val isEnabled = call<IsEnabledRequest, IsEnabledResponse, CommonErrorMessage>("isEnabled") {
         auth {
             access = AccessRight.READ
@@ -591,6 +762,12 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
+    /**
+     * Endpoint for users to browse projects which they can send grant [Application]s to
+     *
+     * Concretely, this will return a list for which the user matches the criteria listed in
+     * [ProjectApplicationSettings.allowRequestsFrom].
+     */
     val browseProjects = call<BrowseProjectsRequest, BrowseProjectsResponse, CommonErrorMessage>("browseProjects") {
         auth {
             access = AccessRight.READ
@@ -612,6 +789,11 @@ object Grants : CallDescriptionContainer("grant") {
     }
 
     // This needs to be last
+    /**
+     * Retrieves an active [Application]
+     *
+     * Only the creator and grant reviewers are allowed to view any given [Application].
+     */
     val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
         auth {
             access = AccessRight.READ_WRITE

@@ -19,6 +19,7 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -127,7 +128,7 @@ suspend fun approveGrantApplication(
         assertThatInstance(wallet, "has enough credits") { it.balance >= request.creditsRequested!! }
     }
 }
-
+@Ignore
 class GrantTest : IntegrationTest() {
     @Test
     fun `test simple application and core assumptions`() = t {

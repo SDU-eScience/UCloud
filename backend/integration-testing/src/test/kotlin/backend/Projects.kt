@@ -22,6 +22,7 @@ import dk.sdu.cloud.project.favorite.api.ToggleFavoriteRequest
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -167,7 +168,7 @@ suspend fun addMemberToProject(
     ).orThrow()
 
 }
-
+@Ignore
 class ProjectTests : IntegrationTest() {
     @Test
     fun `initialization of root project`() = t {

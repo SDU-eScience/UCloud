@@ -22,7 +22,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
-import dk.sdu.cloud.downtime.management.DowntimeManagementService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.StorageService
 import dk.sdu.cloud.file.favorite.FileFavoriteService
@@ -38,6 +37,7 @@ import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.Log4j2ConfigFactory
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.PlaceholderServiceDescription
 import dk.sdu.cloud.micro.ServiceRegistry
 import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.install
@@ -452,7 +452,8 @@ object UCloudLauncher : Loggable {
                     createConfiguration().absolutePath,
                     "--config-dir",
                     File(System.getProperty("user.home"), "sducloud-integration").absolutePath
-                )
+                ),
+                PlaceholderServiceDescription
             )
 
             micro = reg.rootMicro
@@ -516,7 +517,6 @@ object UCloudLauncher : Loggable {
                 AuthService,
                 AvatarService,
                 ContactBookService,
-                DowntimeManagementService,
                 ElasticManagementService,
                 FileFavoriteService,
                 FileStatsService,

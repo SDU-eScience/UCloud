@@ -19,8 +19,7 @@ import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocketRawSession
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.URLBuilder
-import io.ktor.http.cio.websocket.Frame
-import io.ktor.http.cio.websocket.readText
+import io.ktor.http.cio.websocket.*
 import io.ktor.http.fullPath
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.CancellationException
@@ -142,7 +141,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                 runCatching {
                     // Make sure the underlying session is also closed. Otherwise we risk that the connection
                     // pool won't renew this session.
-                    session.underlyingSession.close(cause = ex)
+                    session.underlyingSession.close()
                 }
 
                 if (ex is ClosedReceiveChannelException || ex is CancellationException) {

@@ -15,11 +15,7 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.cio.websocket.CloseReason
-import io.ktor.http.cio.websocket.Frame
-import io.ktor.http.cio.websocket.close
-import io.ktor.http.cio.websocket.readText
-import io.ktor.http.cio.websocket.send
+import io.ktor.http.cio.websocket.*
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.cio.ChannelReadException

@@ -7,11 +7,14 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.call.receive
 import io.ktor.client.engine.cio.FailToConnectException
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
+import io.ktor.util.*
 import org.slf4j.Logger
 
 private data class SlackMessage(val text: String)
@@ -21,6 +24,7 @@ class SlackNotifier(
 ) : AlertNotifier {
     private val httpClient = HttpClient()
 
+    @OptIn(KtorExperimentalAPI::class)
     override suspend fun onAlert(alert: Alert) {
         val message = alert.message.lines().joinToString("\n") { "> $it" }
 
@@ -31,7 +35,7 @@ class SlackNotifier(
                 throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
             }
             val postResult = try {
-                httpClient.call(hook) {
+                httpClient.request<HttpResponse>(hook) {
                     method = HttpMethod.Post
                     body = TextContent(
                         defaultMapper.writeValueAsString(SlackMessage(message)),

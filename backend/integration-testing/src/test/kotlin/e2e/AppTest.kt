@@ -9,6 +9,7 @@ import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.backend.*
 import dk.sdu.cloud.integration.clickAppCard
 import dk.sdu.cloud.integration.findAppCard
+import dk.sdu.cloud.integration.retrySection
 import org.junit.Test
 import org.openqa.selenium.By
 

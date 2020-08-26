@@ -1,4 +1,4 @@
-version = "0.2.0"
+version = "0.2.2"
 
 application {
     mainClassName = "dk.sdu.cloud.app.kubernetes.watcher.MainKt"

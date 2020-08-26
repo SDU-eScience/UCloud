@@ -50,7 +50,6 @@ import {Toggle} from "ui-components/Toggle";
 import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {Balance, BalanceExplainer} from "Accounting/Balance";
 

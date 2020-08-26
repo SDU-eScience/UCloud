@@ -3,7 +3,6 @@ package dk.sdu.cloud.webdav
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
@@ -12,11 +11,10 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.ListProjectsRequest
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.repository.api.ListFilesRequest
 import dk.sdu.cloud.project.repository.api.ProjectRepository
-import dk.sdu.cloud.project.repository.api.RepositoryListRequest
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.webdav.services.CloudToDavConverter
 import dk.sdu.cloud.webdav.services.UserClient
@@ -35,8 +33,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
-import io.ktor.http.content.files
-import io.ktor.http.content.static
 import io.ktor.request.header
 import io.ktor.request.httpMethod
 import io.ktor.request.path
@@ -49,12 +45,9 @@ import io.ktor.routing.method
 import io.ktor.routing.options
 import io.ktor.routing.route
 import io.ktor.routing.routing
-import io.ktor.util.decodeBase64Bytes
-import io.ktor.util.decodeBase64String
 import io.ktor.util.flattenEntries
 import io.ktor.util.pipeline.PipelineContext
-import kotlinx.coroutines.io.ByteWriteChannel
-import kotlinx.coroutines.io.copyAndClose
+import io.ktor.utils.io.*
 import java.net.URL
 import java.net.URLDecoder
 import java.util.*
@@ -181,9 +174,9 @@ class Server(override val micro: Micro) : CommonServer {
 
                                         components.size == 2 && components[0].equals("projects", ignoreCase = true) -> {
                                             val projectId = components[1]
-                                            ProjectRepository.list
+                                            ProjectRepository.listFiles
                                                 .call(
-                                                    RepositoryListRequest(
+                                                    ListFilesRequest(
                                                         username,
                                                         null,
                                                         null
@@ -192,12 +185,6 @@ class Server(override val micro: Micro) : CommonServer {
                                                 )
                                                 .orThrow()
                                                 .items
-                                                .map {
-                                                    StorageFile(
-                                                        FileType.DIRECTORY,
-                                                        "/projects/$projectId/${it.name}"
-                                                    )
-                                                }
                                         }
 
                                         else -> {
@@ -582,7 +569,7 @@ class Server(override val micro: Micro) : CommonServer {
     }
 
     private fun PipelineContext<Unit, ApplicationCall>.logCall() {
-        log.info("${call.request.httpMethod} ${requestPath}")
+        log.info("${call.request.httpMethod} $requestPath")
         log.debug(call.request.headers.flattenEntries().toString())
     }
 

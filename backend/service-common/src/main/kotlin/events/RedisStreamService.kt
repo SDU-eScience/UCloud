@@ -139,7 +139,7 @@ class RedisStreamService(
                             }
                         }
                     } else {
-                        messagesNotYetAcknowledged.addAll(messages.map { it.id })
+                        messagesNotYetAcknowledged.addAll(messages.mapNotNull { it.id })
                         @Suppress("TooGenericExceptionCaught")
                         try {
                             if (consumer.accept(events)) {

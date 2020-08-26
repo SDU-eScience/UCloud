@@ -70,7 +70,7 @@ class JobFileTest {
                 verifiedJobWithAccessToken,
                 "/filepath",
                 2000,
-                ByteReadChannel.Empty
+                io.ktor.utils.io.ByteReadChannel.Empty
             )
 
         }
@@ -101,7 +101,7 @@ class JobFileTest {
                 verifiedJobWithAccessToken,
                 "filepath",
                 2000,
-                ByteReadChannel.Empty
+                io.ktor.utils.io.ByteReadChannel.Empty
             )
 
         }

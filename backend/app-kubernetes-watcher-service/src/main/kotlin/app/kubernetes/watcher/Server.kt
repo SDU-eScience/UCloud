@@ -25,7 +25,7 @@ class Server(
             "sducloud-app"
         }
 
-        val watcher = JobWatcher(k8sClient, micro.eventStreamService, appRole, "app-kubernetes")
+        val watcher = JobWatcher(k8sClient, micro.eventStreamService, micro.backgroundScope, appRole, "app-kubernetes")
         if (!k8sClient.allowReloading) { // lazily initialized for testing to prevent errors during startup
             watcher.startWatch()
         }

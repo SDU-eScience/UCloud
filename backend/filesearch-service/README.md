@@ -17,4 +17,3 @@ The following query parameters can be used to search the file system:
 - Time range for creation
 - Time range for last modification
 - Sensitivity
-- ~Annotations~ (Deprecated)

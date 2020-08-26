@@ -3,12 +3,10 @@ package dk.sdu.cloud.app.store.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.io.jvm.javaio.copyTo
+import io.ktor.utils.io.jvm.javaio.*
 import java.io.ByteArrayOutputStream
 
 enum class LogoType {

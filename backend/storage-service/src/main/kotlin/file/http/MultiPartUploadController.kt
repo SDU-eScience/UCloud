@@ -14,7 +14,7 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.io.jvm.javaio.copyTo
+import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import java.nio.file.Files

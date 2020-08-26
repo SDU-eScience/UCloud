@@ -19,7 +19,6 @@ import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.service.test.retrySection
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk

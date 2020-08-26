@@ -39,7 +39,7 @@ class AppLicenseController(appLicenseService: AppLicenseService) : Controller {
             ok(licenseService.listAcl(request, ctx.securityPrincipal))
         }
 
-        implement(AppLicenseDescriptions.list) {
+        implement(AppLicenseDescriptions.findByTag) {
             ok(licenseService.listServers(request.tags, ctx.securityPrincipal))
         }
 

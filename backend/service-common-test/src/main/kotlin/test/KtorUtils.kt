@@ -153,6 +153,6 @@ fun withKtorTest(
         serverFeature.server.start()
         KtorApplicationTestContext(engine, micro).test()
     } finally {
-        engine.stop(0L, 0L, TimeUnit.SECONDS)
+        engine.stop(0L, 0L)
     }
 }
