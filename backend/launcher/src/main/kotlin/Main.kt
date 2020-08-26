@@ -3,6 +3,7 @@ package dk.sdu.cloud
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.PlaceholderServiceDescription
 import dk.sdu.cloud.micro.Service
 import dk.sdu.cloud.micro.ServiceRegistry
 import dk.sdu.cloud.micro.databaseConfig
@@ -32,7 +33,7 @@ suspend fun main(args: Array<String>) {
         exitProcess(0)
     }
 
-    val reg = ServiceRegistry(args)
+    val reg = ServiceRegistry(args, PlaceholderServiceDescription)
     val blacklist = setOf(
         // WebDav needs to run as a standalone server
         WebdavService,

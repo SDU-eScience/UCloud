@@ -37,6 +37,7 @@ import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.Log4j2ConfigFactory
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.PlaceholderServiceDescription
 import dk.sdu.cloud.micro.ServiceRegistry
 import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.install
@@ -447,7 +448,8 @@ object UCloudLauncher : Loggable {
                     createConfiguration().absolutePath,
                     "--config-dir",
                     File(System.getProperty("user.home"), "sducloud-integration").absolutePath
-                )
+                ),
+                PlaceholderServiceDescription
             )
 
             micro = reg.rootMicro
