@@ -26,7 +26,7 @@ import {
     sizeToString,
     isFilePreviewSupported,
     isDirectory,
-    statFileQuery
+    statFileQuery, isPartOfProject
 } from "Utilities/FileUtilities";
 import {capitalized, removeTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
 import FilePreview from "./FilePreview";
@@ -92,7 +92,9 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                             </Card>
                         </Flex>
                     ) : null}
-                    <Box width={0.88}><ShareList innerComponent byPath={file.path} /></Box>
+                    {isPartOfProject(file.path) ? null :
+                        <Box width={0.88}><ShareList innerComponent byPath={file.path} /></Box>
+                    }
                     {loading ? <LoadingIcon size={18} /> : null}
                 </>
             )}
