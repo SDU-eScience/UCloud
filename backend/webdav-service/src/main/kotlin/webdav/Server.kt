@@ -3,7 +3,6 @@ package dk.sdu.cloud.webdav
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
@@ -12,11 +11,10 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.ListProjectsRequest
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.repository.api.ListFilesRequest
 import dk.sdu.cloud.project.repository.api.ProjectRepository
-import dk.sdu.cloud.project.repository.api.RepositoryListRequest
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.webdav.services.CloudToDavConverter
 import dk.sdu.cloud.webdav.services.UserClient
@@ -176,9 +174,9 @@ class Server(override val micro: Micro) : CommonServer {
 
                                         components.size == 2 && components[0].equals("projects", ignoreCase = true) -> {
                                             val projectId = components[1]
-                                            ProjectRepository.list
+                                            ProjectRepository.listFiles
                                                 .call(
-                                                    RepositoryListRequest(
+                                                    ListFilesRequest(
                                                         username,
                                                         null,
                                                         null
@@ -187,12 +185,6 @@ class Server(override val micro: Micro) : CommonServer {
                                                 )
                                                 .orThrow()
                                                 .items
-                                                .map {
-                                                    StorageFile(
-                                                        FileType.DIRECTORY,
-                                                        "/projects/$projectId/${it.name}"
-                                                    )
-                                                }
                                         }
 
                                         else -> {
@@ -577,7 +569,7 @@ class Server(override val micro: Micro) : CommonServer {
     }
 
     private fun PipelineContext<Unit, ApplicationCall>.logCall() {
-        log.info("${call.request.httpMethod} ${requestPath}")
+        log.info("${call.request.httpMethod} $requestPath")
         log.debug(call.request.headers.flattenEntries().toString())
     }
 
