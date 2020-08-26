@@ -74,6 +74,7 @@ import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import * as PublicLinks from "Applications/PublicLinks/Management";
 import {creditFormatter} from "Project/ProjectUsage";
 import {Product, retrieveBalance, RetrieveBalanceResponse} from "Accounting";
+import {MandatoryField} from "Applications/Widgets/BaseParameter";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -477,7 +478,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                                         this.connectToJob();
                                                     }}
                                                 >
-                                                    "Connect to job".
+                                                    &quot;Connect to job&quot;.
                                                 </BaseLink>
                                                 {" "}
                                                 This includes networking.
@@ -577,6 +578,12 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
             snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", false, 5000);
+            return;
+        }
+
+        // Validate machine type is set
+        if (this.state.reservationMachine === undefined) {
+            snackbarStore.addFailure("You must select a machine type", false, 5000);
             return;
         }
 
@@ -1047,7 +1054,7 @@ function urlify(text: string): string {
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
     if (!props.app) return null;
-    const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
+    const {maxTime, numberOfNodes, name} = props.options;
     return (
         <>
             <Flex mb="4px" mt="4px">
@@ -1080,16 +1087,6 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     value={maxTime.minutes}
                     onChange={props.onChange}
                 />
-                <Box ml="4px"/>
-                <SchedulingField
-                    min={0}
-                    max={59}
-                    field="maxTime"
-                    subField="seconds"
-                    text="Seconds"
-                    value={maxTime.seconds}
-                    onChange={props.onChange}
-                />
             </Flex>
 
             {!props.app.invocation.allowMultiNode ? null : (
@@ -1105,7 +1102,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
             )}
 
             <div>
-                <Label>Machine type</Label>
+                <Label>Machine type <MandatoryField/></Label>
                 <MachineTypes
                     reservation={props.reservation}
                     setReservation={props.setReservation}

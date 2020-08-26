@@ -62,7 +62,6 @@ class ToolTest {
         NameAndVersion("name", "2.2"),
         "container",
         2,
-        2,
         SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("auther"),

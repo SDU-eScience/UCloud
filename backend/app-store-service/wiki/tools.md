@@ -32,7 +32,6 @@ defaultMaxTime:
 
 description: It is a tool # (Optional) Description of tool
 defaultNumberOfNodes: 1 # Optional
-defaultTasksPerNode: 1 # Optional
 ```
 
 ## Reference
@@ -94,7 +93,7 @@ minutes: int (0-59)
 seconds: int (0-59)
 ```
 
-### `defaultNumberOfNodes` and `defaultTasksPerNode`
+### `defaultNumberOfNodes`
 
 Optional.
 

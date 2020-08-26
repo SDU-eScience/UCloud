@@ -260,7 +260,6 @@ class AppsAndToolsTest {
             ToolBackend.SINGULARITY,
             listOf("Authors"),
             2,
-            2,
             SimpleDuration(1, 2, 30),
             listOf("modules"),
             "description",
@@ -274,7 +273,6 @@ class AppsAndToolsTest {
         assertEquals(ToolBackend.SINGULARITY, v1.backend)
         assertEquals("Authors", v1.authors.first())
         assertEquals(2, v1.defaultNumberOfNodes)
-        assertEquals(2, v1.defaultTasksPerNode)
         assertEquals(1, v1.defaultTimeAllocation.hours)
         assertEquals(2, v1.defaultTimeAllocation.minutes)
         assertEquals(30, v1.defaultTimeAllocation.seconds)
@@ -291,7 +289,6 @@ class AppsAndToolsTest {
         assertEquals(ToolBackend.SINGULARITY, normTool.backend)
         assertEquals("Authors", normTool.authors.first())
         assertEquals(2, normTool.defaultNumberOfNodes)
-        assertEquals(2, normTool.defaultTasksPerNode)
         assertEquals(1, normTool.defaultTimeAllocation.hours)
         assertEquals(2, normTool.defaultTimeAllocation.minutes)
         assertEquals(30, normTool.defaultTimeAllocation.seconds)
@@ -319,7 +316,6 @@ class AppsAndToolsTest {
         assertEquals(ToolBackend.SINGULARITY, v1.backend)
         assertEquals("Authors", v1.authors.first())
         assertEquals(1, v1.defaultNumberOfNodes)
-        assertEquals(1, v1.defaultTasksPerNode)
         assertEquals(1, v1.defaultTimeAllocation.hours)
         assertEquals(0, v1.defaultTimeAllocation.minutes)
         assertEquals(0, v1.defaultTimeAllocation.seconds)
@@ -336,7 +332,6 @@ class AppsAndToolsTest {
         assertEquals(ToolBackend.SINGULARITY, normTool.backend)
         assertEquals("Authors", normTool.authors.first())
         assertEquals(1, normTool.defaultNumberOfNodes)
-        assertEquals(1, normTool.defaultTasksPerNode)
         assertEquals(1, normTool.defaultTimeAllocation.hours)
         assertEquals(0, normTool.defaultTimeAllocation.minutes)
         assertEquals(0, normTool.defaultTimeAllocation.seconds)
@@ -386,7 +381,6 @@ class AppsAndToolsTest {
             ToolBackend.SINGULARITY,
             listOf("Authors"),
             2,
-            2,
             SimpleDuration(1, 2, 30),
             listOf("modules"),
             "description"
@@ -404,7 +398,6 @@ class AppsAndToolsTest {
             ToolBackend.SINGULARITY,
             listOf("Authors"),
             2,
-            2,
             SimpleDuration(1, 2, 30),
             listOf("modules"),
             "description"
@@ -421,7 +414,6 @@ class AppsAndToolsTest {
             "container",
             ToolBackend.SINGULARITY,
             listOf("Authors\n", "author"),
-            2,
             2,
             SimpleDuration(1, 2, 30),
             listOf("modules"),

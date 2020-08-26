@@ -161,16 +161,15 @@ class JobTest{
                     user = TestUsers.user,
                     request = StartJobRequest(
                         NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version),
+                        "ReservationName",
                         "name",
                         mapOf("value" to 1),
-                        1,
                         1,
                         SimpleDuration(1,0,0),
                         "backend",
                         null,
                         emptyList(),
-                        emptyList(),
-                        "ReservationName"
+                        emptyList()
                     )
                 )
 

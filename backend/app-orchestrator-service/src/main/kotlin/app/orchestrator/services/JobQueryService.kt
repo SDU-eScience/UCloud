@@ -390,7 +390,6 @@ class JobQueryService(
                 backend = getField(backendName),
                 nodes = getField(nodes),
                 maxTime = SimpleDuration(getField(maxTimeHours), getField(maxTimeMinutes), getField(maxTimeSeconds)),
-                tasksPerNode = getField(tasksPerNode),
                 reservation = Product.Compute(
                     getField(reservationType),
                     getField(reservedPricePerUnit),

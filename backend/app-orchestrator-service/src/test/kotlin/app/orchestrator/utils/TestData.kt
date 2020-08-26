@@ -82,7 +82,6 @@ val normToolDesc = NormalizedToolDescription(
     NameAndVersion("tool", "1.0.0"),
     "container",
     2,
-    2,
     SimpleDuration(1, 0, 0),
     listOf(""),
     listOf("Author"),
@@ -101,7 +100,6 @@ fun verifiedJobForTestGenerator(
     id: String = "verifiedId",
     owner: String = "owner",
     nodes: Int = 1,
-    tasksPerNode: Int = 1,
     maxTime: SimpleDuration = SimpleDuration(0, 1, 0),
     jobInput: VerifiedJobInput = VerifiedJobInput(emptyMap()),
     backend: String = "backend",
@@ -123,7 +121,6 @@ fun verifiedJobForTestGenerator(
         id = id,
         owner = owner,
         nodes = nodes,
-        tasksPerNode = tasksPerNode,
         maxTime = maxTime,
         jobInput = jobInput,
         backend = backend,
@@ -159,11 +156,11 @@ val verifiedJobWithAccessToken2 = VerifiedJobWithAccessToken(
 
 val startJobRequest = StartJobRequest(
     NameAndVersion("name", "2.2"),
-    null,
-    emptyMap(),
-    1,
-    1,
-    SimpleDuration(1, 0, 0)
+    "u1-standard-1",
+    name = null,
+    parameters = emptyMap(),
+    numberOfNodes = 1,
+    maxTime = SimpleDuration(1, 0, 0)
 )
 
 val jobStateChangeCancelling = JobStateChange(
