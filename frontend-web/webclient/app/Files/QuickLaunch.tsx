@@ -46,9 +46,8 @@ export async function quickLaunchCallback(
             readOnly: false
         }],
         numberOfNodes: 1,
-        tasksPerNode: 0,
         peers: [],
-        reservation: null,
+        reservation: "u1-standard-1",
         type: "start",
         name: null,
         parameters: {}
