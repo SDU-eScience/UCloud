@@ -101,8 +101,11 @@ class IngoingHttpInterceptor(
     }
 
     private fun defaultStringConverter(ctx: HttpCall, name: String, value: String, returnType: KType): Any? {
-        try {
-            return defaultMapper.readValue("\"$value\"", returnType.javaType as Class<Any?>)
+        if (returnType.classifier == String::class) {
+            value
+        } else {
+            try {
+                return defaultMapper.readValue("\"$value\"", returnType.javaType as Class<Any?>)
         } catch (ignored: Throwable) {
             try {
                 return ctx.call.application.conversionService.fromValues(listOf(value), returnType.javaType)
