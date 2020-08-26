@@ -15,8 +15,8 @@ import io.ktor.http.cio.parseMultipart
 import io.ktor.util.InternalAPI
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.pipeline.PipelineContext
+import io.ktor.utils.io.*
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.io.ByteReadChannel
 import org.slf4j.Logger
 import java.io.Closeable
 import kotlin.coroutines.CoroutineContext
@@ -27,7 +27,7 @@ class StreamingMultipart private constructor(
     contentLength: Long?,
     channel: ByteReadChannel
 ) : CoroutineScope {
-    @UseExperimental(KtorExperimentalAPI::class) // Bad idea
+    @OptIn(KtorExperimentalAPI::class) // Bad idea
     private val eventChannel = parseMultipart(channel, contentType, contentLength)
 
     private suspend fun readNextEvent(): MultipartEvent.MultipartPart? {

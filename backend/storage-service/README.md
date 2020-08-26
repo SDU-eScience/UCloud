@@ -11,16 +11,5 @@ can read more about files in UCloud [here](backend/storage-service/wiki/files.ht
 .. figure:: /backend/storage-service/wiki/storage_arch.png
    :align: center
    :width: 80%
-
-## Backends
-
-The file system can use a variety of different backends (all implemented in
-this service). Each backend implement a common set of low-level operations,
-e.g. reading and writing files.
-
-The table below summarizes the list of supported backends:
-
-| **Name**                  | **Description**                                                                                                  |
-|---------------------------|--------------------------------------------------------------------------------------------------------------|
-| [LinuxFS](backend/storage-service/wiki/linuxfs/README.html) | Mounts a POSIX compatible distributed filesystem. The implementation depends on Linux specific system calls. |
-
+   
+You can read more about the storage backend [here](backend/storage-service/wiki/linuxfs/README.html).

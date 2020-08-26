@@ -6,7 +6,7 @@ import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.api.Project
 import dk.sdu.cloud.app.license.api.ProjectAndGroup
 import dk.sdu.cloud.app.license.api.ProjectGroup
-import dk.sdu.cloud.app.license.services.acl.*
+import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -34,7 +34,7 @@ class AppLicenseService(
             ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
     }
 
-    suspend fun updateAcl(serverId: String, changes: List<AclEntryRequest>, principal: SecurityPrincipal) {
+    suspend fun updateAcl(serverId: String, changes: List<AclChange>, principal: SecurityPrincipal) {
         val accessEntity = AccessEntity(principal.username, null, null)
         aclService.updatePermissions(serverId, changes, accessEntity)
     }
@@ -135,14 +135,14 @@ class AppLicenseService(
 
     suspend fun updateLicenseServer(securityPrincipal: SecurityPrincipal, request: UpdateServerRequest, accessEntity: AccessEntity): String {
         if (
-            aclService.hasPermission(request.withId, accessEntity, ServerAccessRight.READ_WRITE) ||
+            aclService.hasPermission(request.id, accessEntity, ServerAccessRight.READ_WRITE) ||
             securityPrincipal.role in Roles.PRIVILEGED
         ) {
             // Save information for existing license server
             appLicenseDao.update(
                 db,
                 LicenseServerWithId(
-                    request.withId,
+                    request.id,
                     request.name,
                     request.address,
                     request.port,
@@ -151,7 +151,7 @@ class AppLicenseService(
             )
 
 
-            return request.withId
+            return request.id
         } else {
             throw RPCException("Not authorized to change license server details", HttpStatusCode.Unauthorized)
         }

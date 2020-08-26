@@ -231,7 +231,7 @@ export function licenseServers(props: ListLicenseServersProps): APICallParameter
     return {
         reloadId: Math.random(),
         method: "GET",
-        path: "/api/app/license/list",
+        path: "/api/app/license/by-tag",
         payload: props,
         parameters: props
     };

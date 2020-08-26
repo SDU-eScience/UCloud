@@ -11,7 +11,7 @@ import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.io.jvm.javaio.copyTo
+import io.ktor.utils.io.jvm.javaio.*
 import java.io.ByteArrayOutputStream
 
 object GrantLogos : SQLTable("logos") {

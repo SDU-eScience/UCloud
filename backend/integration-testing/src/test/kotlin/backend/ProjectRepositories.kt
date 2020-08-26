@@ -6,11 +6,11 @@ import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AccessRights
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.repository.api.*
 import dk.sdu.cloud.service.test.assertThatInstance
-import dk.sdu.cloud.service.test.retrySection
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import org.junit.Ignore

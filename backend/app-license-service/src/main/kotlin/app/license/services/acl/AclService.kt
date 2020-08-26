@@ -2,10 +2,10 @@ package dk.sdu.cloud.app.license.services.acl
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.license.api.AccessEntity
-import dk.sdu.cloud.app.license.api.AccessEntityWithPermission
-import dk.sdu.cloud.app.license.api.AclEntryRequest
+import dk.sdu.cloud.app.license.api.AclChange
 import dk.sdu.cloud.app.license.api.ServerAccessRight
 import dk.sdu.cloud.app.license.rpc.AppLicenseController
+import dk.sdu.cloud.app.license.services.AccessEntityWithPermission
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -26,7 +26,7 @@ class AclService(
         return dao.hasPermission(db, serverId, accessEntity, permission)
     }
 
-    suspend fun updatePermissions(serverId: String, changes: List<AclEntryRequest>, accessEntity: AccessEntity) {
+    suspend fun updatePermissions(serverId: String, changes: List<AclChange>, accessEntity: AccessEntity) {
         if (dao.hasPermission(db, serverId, accessEntity, ServerAccessRight.READ_WRITE)) {
             changes.forEach { change ->
                 if (accessEntity.user == change.entity.user) {

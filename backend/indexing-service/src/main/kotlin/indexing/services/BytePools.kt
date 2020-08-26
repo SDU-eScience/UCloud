@@ -1,7 +1,6 @@
 package dk.sdu.cloud.indexing.services
 
-import kotlinx.io.pool.DefaultPool
-import java.nio.ByteBuffer
+import io.ktor.utils.io.pool.*
 import java.util.*
 
 val DefaultByteArrayPool = ByteArrayPool()

@@ -1,4 +1,5 @@
 tasks {
+    /*
     val dokka by getting(org.jetbrains.dokka.gradle.DokkaTask::class) {
         outputFormat = "gfm"
         outputDirectory = "$projectDir/../wiki"
@@ -6,4 +7,6 @@ tasks {
             includes = listOf("README.md")
         }
     }
+
+     */
 }

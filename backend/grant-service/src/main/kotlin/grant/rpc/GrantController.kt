@@ -20,7 +20,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.toActor
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
+import io.ktor.util.cio.*
 import java.io.ByteArrayInputStream
 
 class GrantController(

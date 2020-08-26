@@ -19,8 +19,8 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
-import kotlinx.coroutines.io.readFully
+import io.ktor.util.cio.*
+import io.ktor.utils.io.*
 import org.yaml.snakeyaml.reader.ReaderException
 import java.io.ByteArrayInputStream
 

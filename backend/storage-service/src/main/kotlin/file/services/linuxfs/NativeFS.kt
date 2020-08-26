@@ -6,7 +6,7 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
 import dk.sdu.cloud.service.Loggable
-import kotlinx.io.pool.useInstance
+import io.ktor.utils.io.pool.*
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream

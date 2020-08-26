@@ -22,7 +22,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
-import dk.sdu.cloud.downtime.management.DowntimeManagementService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.StorageService
 import dk.sdu.cloud.file.favorite.FileFavoriteService
@@ -512,7 +511,6 @@ object UCloudLauncher : Loggable {
                 AuthService,
                 AvatarService,
                 ContactBookService,
-                DowntimeManagementService,
                 ElasticManagementService,
                 FileFavoriteService,
                 FileStatsService,

@@ -9,7 +9,6 @@ import dk.sdu.cloud.integration.e2e.await
 import dk.sdu.cloud.integration.e2e.awaitElement
 import dk.sdu.cloud.integration.e2e.awaitElements
 import dk.sdu.cloud.integration.e2e.awaitNoElements
-import dk.sdu.cloud.service.test.retrySection
 import org.openqa.selenium.By
 import org.openqa.selenium.WebDriver
 import java.io.File
