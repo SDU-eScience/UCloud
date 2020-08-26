@@ -30,6 +30,7 @@ export const /* Admiral */ Snackbar = styled(Box) <{visible: boolean}>`
     left: 50%;
     transform: translate(-50%);
     bottom: 30px;
+    user-select: none;
 
     ${visibility}
 `;

@@ -100,7 +100,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     seconds: 0
                 },
                 numberOfNodes: 1,
-                tasksPerNode: 1,
                 name: React.createRef(),
             },
 
@@ -645,7 +644,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             parameters,
             url: urlName,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
-            tasksPerNode: this.state.schedulingOptions.tasksPerNode,
             maxTime,
             mounts,
             peers,
@@ -738,7 +736,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                 schedulingOptions: {
                     maxTime: toolDescription.defaultTimeAllocation,
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
-                    tasksPerNode: toolDescription.defaultTasksPerNode,
                     name: this.state.schedulingOptions.name,
                 },
                 useUrl: this.state.useUrl,
@@ -764,7 +761,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     parameters,
                     numberOfNodes,
                     mountedFolders,
-                    tasksPerNode,
                     maxTime,
                     siteVersion,
                     machineType,
@@ -874,7 +870,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     schedulingOptions: extractJobInfo({
                         maxTime,
                         numberOfNodes,
-                        tasksPerNode,
                         name: this.state.schedulingOptions.name,
                     }),
                     useUrl: this.state.useUrl,
@@ -1129,15 +1124,13 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
     const extractedJobInfo = {
         maxTime: {hours: 0, minutes: 0, seconds: 0},
         numberOfNodes: 1,
-        tasksPerNode: 1,
         name: jobInfo.name
     };
-    const {maxTime, numberOfNodes, tasksPerNode} = jobInfo;
+    const {maxTime, numberOfNodes} = jobInfo;
     extractedJobInfo.maxTime.hours = Math.abs(maxTime.hours);
     extractedJobInfo.maxTime.minutes = Math.abs(maxTime.minutes);
     extractedJobInfo.maxTime.seconds = Math.abs(maxTime.seconds);
     extractedJobInfo.numberOfNodes = numberOfNodes;
-    extractedJobInfo.tasksPerNode = tasksPerNode;
     return extractedJobInfo;
 }
 
