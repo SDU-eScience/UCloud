@@ -112,11 +112,9 @@ export const GrantApplicationList: React.FunctionComponent<{applications: GrantA
                             <ListRowStat
                                 icon={app.grantRecipient.type === "personal" ? "user" : "projects"}
                             >
-                                {
-                                    app.grantRecipient.type === "personal" ? "Personal" :
-                                        app.grantRecipient.type === "new_project" ? "New project" :
-                                            "Existing project"
-                                }
+                                {app.grantRecipient.type === "personal" ? "Personal" :
+                                    app.grantRecipient.type === "new_project" ? "New project" :
+                                        "Existing project"}
                             </ListRowStat>
                         </>
                     }

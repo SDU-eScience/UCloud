@@ -109,10 +109,10 @@ export const Logo: React.FunctionComponent<LogoProps> = props => {
     );
 };
 
-const AffiliationLink: React.FunctionComponent<{ action: string, projectId: string, title: string }> = props => {
+const AffiliationLink: React.FunctionComponent<{action: string, projectId: string, title: string}> = props => {
     const history = useHistory();
 
-    const [description, setDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+    const [description,] = useCloudAPI<RetrieveDescriptionResponse>(
         retrieveDescription({
             projectId: props.projectId,
         }), {description: ""}

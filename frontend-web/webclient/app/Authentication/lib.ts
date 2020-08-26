@@ -574,7 +574,7 @@ export default class HttpClient {
         return window.localStorage.getItem("csrfToken") ?? "";
     }
 
-    static set storedCsrfToken(value) {
+    static set storedCsrfToken(value: string) {
         window.localStorage.setItem("csrfToken", value);
     }
 

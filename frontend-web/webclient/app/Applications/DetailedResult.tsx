@@ -91,19 +91,6 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         }
     }
 
-    async function onCancelJob(): Promise<void> {
-        cancelJobDialog({
-            jobId,
-            onConfirm: async () => {
-                try {
-                    await cancelJob(Client, jobId);
-                } catch (e) {
-                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"), false);
-                }
-            }
-        });
-    }
-
     useEffect(() => {
         // Re-initialize most stuff when the job id changes
         props.setPageTitle(shortUUID(jobId));
@@ -254,7 +241,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                             )}
                         right={
                             !inCancelableState(appState) ? null :
-                                <Button ml="8px" color="red" onClick={() => onCancelJob()}>Cancel job</Button>
+                                <Button ml="8px" color="red" onClick={() => onCancelJob(jobId)}>Cancel job</Button>
                         }
                     />
 
@@ -408,6 +395,19 @@ const StepTrackerItem: React.FunctionComponent<{
         </Step>
     );
 };
+
+async function onCancelJob(jobId: string): Promise<void> {
+    cancelJobDialog({
+        jobId,
+        onConfirm: async () => {
+            try {
+                await cancelJob(Client, jobId);
+            } catch (e) {
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"), false);
+            }
+        }
+    });
+}
 
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),

@@ -85,7 +85,9 @@ export type SubmitGrantApplicationRequest = CreateGrantApplication;
 
 export type SubmitGrantApplicationResponse = {};
 
-export function submitGrantApplication(request: SubmitGrantApplicationRequest): APICallParameters<SubmitGrantApplicationRequest> {
+export function submitGrantApplication(
+    request: SubmitGrantApplicationRequest
+): APICallParameters<SubmitGrantApplicationRequest> {
     return {
         method: "POST",
         path: "/grant/submit-application",
@@ -330,7 +332,9 @@ export interface RetrieveDescriptionResponse {
     description: string;
 }
 
-export function retrieveDescription(request: RetrieveDescriptionRequest): APICallParameters<RetrieveDescriptionRequest> {
+export function retrieveDescription(
+    request: RetrieveDescriptionRequest
+): APICallParameters<RetrieveDescriptionRequest> {
     return {
         method: "GET",
         path: buildQueryString("/grant/description/", request),

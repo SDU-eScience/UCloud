@@ -26,7 +26,7 @@ const LandingPageCard: React.FunctionComponent<{
 }> = props => {
     return <DashboardCard color={props.color} isLoading={false} title={props.title} height={"700px"}>
         <Center my={16}>
-            <Icon color={"iconColor"} color2={"iconColor2"} name={props.icon} size={"128px"}/>
+            <Icon color="iconColor" color2="iconColor2" name={props.icon} size="128px" />
         </Center>
         <Link to={props.linkLocation}><Button fullWidth mb={16}>Apply for resources</Button></Link>
         {props.children}

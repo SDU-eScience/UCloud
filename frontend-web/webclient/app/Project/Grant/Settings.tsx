@@ -22,7 +22,6 @@ import {ConfirmCancelButtons} from "UtilityComponents";
 import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
 import {creditFormatter} from "Project/ProjectUsage";
 import {HiddenInputField} from "ui-components/Input";
-import {AppOrTool, uploadLogo} from "Applications/api";
 import {dialogStore} from "Dialog/DialogStore";
 import {Client} from "Authentication/HttpClientInstance";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
@@ -92,9 +91,9 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     );
 
     const [description, fetchDescription] = useCloudAPI<RetrieveDescriptionResponse>(
-        retrieveDescription({projectId: projectId}),
+        retrieveDescription({projectId}),
         {description: ""}
-    )
+    );
 
     const templatePersonal = useRef<HTMLTextAreaElement>(null);
     const templateExisting = useRef<HTMLTextAreaElement>(null);
@@ -106,7 +105,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
         fetchSettings(readGrantRequestSettings({projectId}));
         fetchTemplates(readTemplates({projectId}));
-        fetchDescription(retrieveDescription({projectId}))
+        fetchDescription(retrieveDescription({projectId}));
     }, [projectId]);
 
     useEffect(() => {
@@ -136,12 +135,12 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     const onUploadDescription = useCallback(async () => {
         await runWork(uploadDescription({
             description: descriptionField.current!.value,
-            projectId: projectId
+            projectId
         }));
         fetchDescription(retrieveDescription({
-            projectId: projectId
+            projectId
         }));
-    }, [projectId, descriptionField, description])
+    }, [projectId, descriptionField, description]);
 
     const addAllowFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
@@ -171,7 +170,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
-    const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
+    const [, setLogoCacheBust] = useState("" + Date.now());
 
     if (!enabled.data.enabled) return null;
 

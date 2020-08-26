@@ -411,7 +411,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                                             this.addFolder();
                                                         }}
                                                     >
-                                                        "Add folder"
+                                                        &quot;Add folder&quot;
                                                     </BaseLink>
                                                     {" "}
                                                     to select the relevant
@@ -820,7 +820,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                 {
                     // Verify and load additional mounts
                     const validMountFolders = [] as AdditionalMountedFolder[];
-                    // tslint:disable-next-line:prefer-for-of
+
                     for (let i = 0; i < mountedFolders.length; i++) {
                         if (await checkIfFileExists(expandHomeOrProjectFolder(mountedFolders[i].ref, Client), Client)) {
                             const ref = React.createRef<HTMLInputElement>();
@@ -1049,7 +1049,7 @@ interface JobSchedulingOptionsProps {
 }
 
 function urlify(text: string): string {
-    return encodeURIComponent(text.substr(0, 32)).replace(new RegExp('%20', 'g'), '-').toLowerCase()
+    return encodeURIComponent(text.substr(0, 32)).replace(new RegExp('%20', 'g'), '-').toLowerCase();
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
