@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
+import org.apache.http.HttpStatus
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
@@ -67,14 +68,20 @@ class CommentService(
         commentId: Long
     ) {
         ctx.withSession { session ->
-            val projectId = session
+            val row = session
                 .sendPreparedStatement(
                     { setParameter("commentId", commentId) },
-                    "delete from comments where id = :commentId returning application_id"
+                    "delete from comments where id = :commentId returning application_id, posted_by"
                 )
-                .rows.singleOrNull()?.getLong(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                .rows.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            val projectId = row.getLong(0)!!
+            val postedBy = row.getString(1)!!
 
             checkPermissions(session, projectId, actor)
+            if (actor !is Actor.System && actor.safeUsername() != postedBy) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
         }
     }
 
