@@ -102,18 +102,19 @@ class IngoingHttpInterceptor(
 
     private fun defaultStringConverter(ctx: HttpCall, name: String, value: String, returnType: KType): Any? {
         if (returnType.classifier == String::class) {
-            value
+            return value
         } else {
             try {
                 return defaultMapper.readValue("\"$value\"", returnType.javaType as Class<Any?>)
-        } catch (ignored: Throwable) {
-            try {
-                return ctx.call.application.conversionService.fromValues(listOf(value), returnType.javaType)
-            } catch (ex: DataConversionException) {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
-            } catch (ex: NoSuchElementException) {
-                // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+            } catch (ignored: Throwable) {
+                try {
+                    return ctx.call.application.conversionService.fromValues(listOf(value), returnType.javaType)
+                } catch (ex: DataConversionException) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+                } catch (ex: NoSuchElementException) {
+                    // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+                }
             }
         }
     }
