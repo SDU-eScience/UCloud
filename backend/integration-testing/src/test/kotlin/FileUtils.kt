@@ -4,8 +4,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.integration.backend.CreatedUser
-
-import dk.sdu.cloud.integration.e2e.await
 import dk.sdu.cloud.integration.e2e.awaitElement
 import dk.sdu.cloud.integration.e2e.awaitElements
 import dk.sdu.cloud.integration.e2e.awaitNoElements
@@ -13,16 +11,6 @@ import dk.sdu.cloud.service.test.retrySection
 import org.openqa.selenium.By
 import org.openqa.selenium.WebDriver
 import java.io.File
-
-fun uploadFile(homeFolder: String, fileName: String) {
-    //MultiPartUploadDescriptions.simpleUpload.call(
-    //    SimpleUploadRequest(
-    //        joinPath(homeFolder, testId, FileTesting.Companion.SmallFileUpload.DIR, FileTesting.Companion.SmallFileUpload.NAME),
-    //        BinaryStream.outgoingFromChannel(fileToUpload.readChannel(), fileToUpload.length())
-    //    ),
-    //    client
-    //).orThrow()
-}
 
 suspend fun WebDriver.createFolder(folderName: String) {
     retrySection {
@@ -82,21 +70,6 @@ suspend fun WebDriver.uploadFile(fileName: String) {
     awaitElement(By.xpath("//div[text()='$fileName']"))
 }
 
-suspend fun WebDriver.selectFolder(folderName: String) {
-    await {
-        findElements(By.tagName("a")).find {
-            it.text == folderName
-        } != null
-    }
-
-    findElements(By.tagName("a")).find {
-        it.text == folderName && it.isDisplayed
-    }?.click()
-}
-
 suspend fun createDir(directoryPath: String, user: CreatedUser) {
-    val foo = FileDescriptions.createDirectory.call(CreateDirectoryRequest(directoryPath, user.username), user.client)
-    println("-----------------------------------")
-    println(foo.statusCode)
-    println("-----------------------------------")
+    FileDescriptions.createDirectory.call(CreateDirectoryRequest(directoryPath, user.username), user.client)
 }

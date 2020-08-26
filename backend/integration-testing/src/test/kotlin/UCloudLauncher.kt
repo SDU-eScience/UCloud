@@ -144,7 +144,11 @@ object UCloudLauncher : Loggable {
         private set
     private lateinit var k3sContainer: K3sContainer
 
-    private val tempDir = Files.createTempDirectory("integration").toFile().also { it.deleteOnExit() }
+    private val tempDir = if (Platform.isMac()) {
+        File(System.getProperty("user.home"), "temp-integration").also { it.deleteOnExit() }
+    } else {
+        Files.createTempDirectory("integration").toFile().also { it.deleteOnExit() }
+    }
     val cephfsHome = File(tempDir, "cephfs").absolutePath
     private const val REDIS_PORT = 44231
     lateinit var micro: Micro

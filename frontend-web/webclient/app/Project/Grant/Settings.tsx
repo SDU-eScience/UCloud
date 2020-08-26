@@ -106,7 +106,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
         fetchSettings(readGrantRequestSettings({projectId}));
         fetchTemplates(readTemplates({projectId}));
-        fetchDescription(retrieveDescription( {projectId}))
+        fetchDescription(retrieveDescription({projectId}))
     }, [projectId]);
 
     useEffect(() => {
@@ -177,7 +177,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
 
     return <Box>
         <Heading.h4>Logo for Project</Heading.h4>
-        Current Logo: <Logo projectId={projectId} size={"40px"}/> <br/>
+        Current Logo: <Logo projectId={projectId} size={"40px"} /> <br />
         <Button width={"350px"} as="label">
             Upload Logo
             <HiddenInputField
@@ -201,7 +201,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             />
         </Button>
         <Heading.h4>Description for Project</Heading.h4>
-        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription}/>
+        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription} />
         <Heading.h4>Allow Grant Applications From</Heading.h4>
         <UserCriteriaEditor
             criteria={settings.data.allowRequestsFrom}
@@ -306,7 +306,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
                                 Edit
                             </Button> : null}
 
-                        <Input type={editingLimit !== key ? "hidden" : "text"} id={key} width={328}/>
+                        <Input type={editingLimit !== key ? "hidden" : "text"} id={key} width={328} />
 
                         {editingLimit === key ? (
                             <>
@@ -338,52 +338,52 @@ const UserCriteriaEditor: React.FunctionComponent<{
     return <>
         <Table mb={16}>
             <thead>
-            <TableRow>
-                <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
-                <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
-                <TableHeaderCell/>
-            </TableRow>
+                <TableRow>
+                    <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
+                    <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
+                    <TableHeaderCell />
+                </TableRow>
             </thead>
             <tbody>
-            {!props.showSubprojects ? null :
-                <TableRow>
-                    <TableCell>Subprojects</TableCell>
-                    <TableCell>None</TableCell>
-                    <TableCell/>
-                </TableRow>
-            }
-            {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
-                <TableRow>
-                    <TableCell>No one</TableCell>
-                    <TableCell>None</TableCell>
-                    <TableCell/>
-                </TableRow>
-            </> : null}
+                {!props.showSubprojects ? null :
+                    <TableRow>
+                        <TableCell>Subprojects</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                }
+                {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
+                    <TableRow>
+                        <TableCell>No one</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                </> : null}
 
-            {props.criteria.map((it, idx) => <>
-                <TableRow>
-                    <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
-                    <TableCell textAlign={"left"}>
-                        {it.type === "wayf" ? it.org : null}
-                        {it.type === "email" ? it.domain : null}
-                        {it.type === "anyone" ? "None" : null}
-                    </TableCell>
-                    <TableCell textAlign={"right"}>
-                        <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)}/>
-                    </TableCell>
-                </TableRow>
-            </>)}
-            {showRequestFromEditor ?
-                <UserCriteriaRowEditor
-                    onSubmit={(c) => {
-                        props.onSubmit(c);
-                        setShowRequestFromEditor(false);
-                    }}
-                    onCancel={() => setShowRequestFromEditor(false)}
-                    allowAnyone={props.criteria.find(it => it.type === "anyone") === undefined}
-                /> :
-                null
-            }
+                {props.criteria.map((it, idx) => <>
+                    <TableRow>
+                        <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
+                        <TableCell textAlign={"left"}>
+                            {it.type === "wayf" ? it.org : null}
+                            {it.type === "email" ? it.domain : null}
+                            {it.type === "anyone" ? "None" : null}
+                        </TableCell>
+                        <TableCell textAlign={"right"}>
+                            <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                        </TableCell>
+                    </TableRow>
+                </>)}
+                {showRequestFromEditor ?
+                    <UserCriteriaRowEditor
+                        onSubmit={(c) => {
+                            props.onSubmit(c);
+                            setShowRequestFromEditor(false);
+                        }}
+                        onCancel={() => setShowRequestFromEditor(false)}
+                        allowAnyone={props.criteria.find(it => it.type === "anyone") === undefined}
+                    /> :
+                    null
+                }
             </tbody>
         </Table>
         <Flex justifyContent={"center"} mb={32}>
@@ -446,7 +446,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
         }
     }, [props.onSubmit, type, selectedWayfOrg]);
 
-    const options: { text: string, value: string }[] = [];
+    const options: {text: string, value: string}[] = [];
     if (props.allowAnyone) {
         options.push({text: "Anyone", value: "anyone"});
     }
@@ -468,7 +468,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                 <Flex height={47}>
                     {type.type !== "anyone" ? null : null}
                     {type.type !== "email" ? null : <>
-                        <Input ref={inputRef} placeholder={"Email domain"}/>
+                        <Input ref={inputRef} placeholder={"Email domain"} />
                     </>}
                     {type.type !== "wayf" ? null : <>
                         {/* WAYF idps extracted from https://metadata.wayf.dk/idps.js*/}
@@ -479,11 +479,11 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                             placeholder={"Type to search..."}
                         />
                     </>}
-                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel}/>
+                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel} />
                 </Flex>
             </form>
         </TableCell>
-        <TableCell/>
+        <TableCell />
     </TableRow>;
 };
 
@@ -501,15 +501,15 @@ const TemplateEditor: React.FunctionComponent<{
         <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
             <Box>
                 <Heading.h5>Personal</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templatePersonal}/>
+                <TextArea width={"100%"} rows={15} ref={templatePersonal} />
             </Box>
             <Box>
                 <Heading.h5>Existing Project</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templateExisting}/>
+                <TextArea width={"100%"} rows={15} ref={templateExisting} />
             </Box>
             <Box>
                 <Heading.h5>New Project</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templateNew}/>
+                <TextArea width={"100%"} rows={15} ref={templateNew} />
             </Box>
         </Grid>
         <Flex justifyContent={"center"} mt={32}>
@@ -521,16 +521,15 @@ const TemplateEditor: React.FunctionComponent<{
 const DescriptionEditor: React.FunctionComponent<{
     templateDescription: React.Ref<HTMLTextAreaElement>,
     onUploadDescription: () => Promise<void>
-}> = ({templateDescription, onUploadDescription}) => {
-    return <>
-        <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
-            <Box>
-                <Heading.h5>Description</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templateDescription}/>
-            </Box>
-        </Grid>
-        <Flex justifyContent={"center"} mt={32}>
-            <Button width={"350px"} onClick={onUploadDescription}>Update Description</Button>
-        </Flex>
-    </>;
-};
+}> = ({templateDescription, onUploadDescription}) =>
+        <>
+            <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
+                <Box>
+                    <Heading.h5>Description</Heading.h5>
+                    <TextArea width={"100%"} rows={15} ref={templateDescription} />
+                </Box>
+            </Grid>
+            <Flex justifyContent={"center"} mt={32}>
+                <Button width={"350px"} onClick={onUploadDescription}>Update Description</Button>
+            </Flex>
+        </>;
