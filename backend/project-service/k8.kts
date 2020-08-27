@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "project"
-    version = "3.2.2"
+    version = "3.2.3"
 
     val enabled: Boolean = config("enabled", "Should projects be enabled", false)
 

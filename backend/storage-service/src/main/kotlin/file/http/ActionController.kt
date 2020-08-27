@@ -26,7 +26,8 @@ class ActionController<Ctx : FSUserContext>(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.createPersonalRepository) {
             commandRunnerFactory.withCtx(this, SERVICE_USER) {
-                coreFs.makeDirectory(it, "/projects/${request.project}/${PERSONAL_REPOSITORY}/${request.username}")
+                runCatching { coreFs.makeDirectory(it, joinPath("/projects", request.project, PERSONAL_REPOSITORY)) }
+                coreFs.makeDirectory(it, joinPath("/projects", request.project, PERSONAL_REPOSITORY, request.username))
             }
             ok(Unit)
         }

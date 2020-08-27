@@ -47,9 +47,11 @@ class Server {
 
                 file("/favicon.ico", File(staticContent, "favicon.ico"))
 
+                /*
                 get("/status") {
                     call.respondText("OK")
                 }
+                */
 
                 get("/app") {
                     call.respondRedirect("/app/dashboard", false)
