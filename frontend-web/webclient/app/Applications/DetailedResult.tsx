@@ -105,7 +105,10 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
                     handler: message => {
                         const streamEntry = message.payload as FollowStdStreamResponse;
-                        if (streamEntry.state !== null) setAppState(streamEntry.state);
+                        if (streamEntry.state !== null) {
+                            if (streamEntry.state !== JobState.RUNNING && timeLeft !== -1) setTimeLeft(-1);
+                            setAppState(streamEntry.state);
+                        }
                         if (streamEntry.status !== null) setStatus(streamEntry.status);
                         if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
                         if (streamEntry.stdout !== null) appendToXterm(streamEntry.stdout);
@@ -255,7 +258,13 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     {isJobStateFinal(appState) ? null : (
                         <Box width={1} mt={24}>
                             <Flex flexDirection="column">
-                                <Box width={1} backgroundColor="midGray" mt={"12px"} pl={"12px"} style={{borderRadius: "5px 5px 0px 0px"}}>
+                                <Box
+                                    width={1}
+                                    backgroundColor="midGray"
+                                    mt="12px"
+                                    pl="12px"
+                                    style={{borderRadius: "5px 5px 0px 0px"}}
+                                >
                                     <Heading.h4>
                                         Output
                                         &nbsp;
