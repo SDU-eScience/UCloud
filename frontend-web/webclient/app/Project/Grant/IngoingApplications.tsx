@@ -40,55 +40,64 @@ export const IngoingApplications: React.FunctionComponent = () => {
     }, []);
 
     return <MainContainer
-        header={<ProjectBreadcrumbs crumbs={[{title: "Ingoing Applications"}]} />}
+        header={<ProjectBreadcrumbs crumbs={[{title: "Ingoing Applications"}]}/>}
         sidebar={null}
         main={
             <Pagination.List
                 page={ingoingApplications.data}
                 loading={ingoingApplications.loading}
-                onPageChanged={() => 42}
-                pageRenderer={page => <GrantApplicationList applications={page.items} />}
+                onPageChanged={(newPage) => {
+                    fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: newPage}));
+                }}
+                pageRenderer={page => <GrantApplicationList applications={page.items}/>}
             />
         }
     />;
 };
 
-export const GrantApplicationList: React.FunctionComponent<{applications: GrantApplication[]}> = props => {
+export const GrantApplicationList: React.FunctionComponent<{
+    applications: GrantApplication[],
+    slim?: boolean
+}> = ({applications, slim = false}) => {
     const history = useHistory();
     const avatars = useAvatars();
     useEffect(() => {
-        avatars.updateCache(props.applications.map(it => it.requestedBy));
-    }, [props.applications]);
+        avatars.updateCache(applications.map(it => it.requestedBy));
+    }, [applications]);
     return (
         <List>
-            {props.applications.map(app => {
+            {applications.map(app => {
                 return <ListRow
                     key={app.id}
                     navigate={() => history.push(`/project/grants/view/${app.id}`)}
                     icon={
-                        <UserAvatar
-                            avatar={avatars.cache[app.requestedBy] ?? defaultAvatar}
-                            width={"45px"}
-                        />
+                        slim ? null : (
+                            <UserAvatar
+                                avatar={avatars.cache[app.requestedBy] ?? defaultAvatar}
+                                width={"45px"}
+                            />
+                        )
                     }
                     left={
                         <Flex>
                             <Text mr={16}><strong>{app.grantRecipientTitle}</strong></Text>
-                            <EllipsedText maxWidth={420}>
-                                {/*
-                                    Is small the correct tag to use here?
-                                    Does it have the correct semantic meaning or should we just use
-                                    <Text> with smaller font?
-                                */}
-                                <small>{app.document}</small>
-                            </EllipsedText>
+                            {slim ? null : (
+                                <EllipsedText maxWidth={420}>
+                                    {/*
+                                        Is small the correct tag to use here?
+                                        Does it have the correct semantic meaning or should we just use
+                                        <Text> with smaller font?
+                                    */}
+                                    <small>{app.document}</small>
+                                </EllipsedText>
+                            )}
                         </Flex>
                     }
                     right={(
                         <Tooltip
                             trigger={
                                 <Flex width={170} alignItems={"center"}>
-                                    <Icon name={"grant"} mr={8} />
+                                    {slim ? null : <Icon name={"grant"} mr={8}/>}
                                     <Flex flexGrow={1} justifyContent={"flex-end"}>
                                         {creditFormatter(
                                             app.requestedResources.reduce(
@@ -103,9 +112,10 @@ export const GrantApplicationList: React.FunctionComponent<{applications: GrantA
                     )}
                     leftSub={
                         <>
-                            <ListRowStat icon={"calendar"}>
-                                {dateToString(app.createdAt)}
-                            </ListRowStat>
+                            {slim ? null : (
+                                <ListRowStat icon={"calendar"}>{dateToString(app.createdAt)}</ListRowStat>
+                            )}
+
                             <ListRowStat icon={"edit"}>
                                 {dateToString(app.updatedAt)}
                             </ListRowStat>

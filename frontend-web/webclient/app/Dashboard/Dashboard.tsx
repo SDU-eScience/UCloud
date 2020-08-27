@@ -36,7 +36,7 @@ import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
 import {IconName} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
-import {useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
@@ -55,6 +55,11 @@ import theme, {ThemeColor} from "ui-components/theme";
 import {dispatchSetProjectAction} from "Project/Redux";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {Balance} from "Accounting/Balance";
+import {
+    GrantApplication,
+    listOutgoingApplications
+} from "Project/Grant";
+import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -128,6 +133,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         }), {wallets: []}
     );
 
+    const [outgoingApps, fetchOutgoingApps] = useCloudAPI<Page<GrantApplication>>(
+        listOutgoingApplications({itemsPerPage: 10, page: 0}),
+        emptyPage
+    );
+
     React.useEffect(() => {
         props.onInit();
         reload(true);
@@ -147,6 +157,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             type: undefined,
             includeChildren: false
         }));
+        fetchOutgoingApps(listOutgoingApplications({itemsPerPage: 10, page: 0}));
         props.fetchRecentAnalyses();
     }
 
@@ -192,6 +203,8 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 quota={quota.data}
                 loading={wallets.loading || quota.loading}
             />
+
+            <DashboardGrantApplications outgoingApps={outgoingApps}/>
         </DashboardGrid>
     );
 
@@ -456,6 +469,37 @@ function DashboardResources({wallets, loading, quota}: {
         </DashboardCard>
     );
 }
+
+const DashboardGrantApplications: React.FunctionComponent<{
+    outgoingApps: APICallState<Page<GrantApplication>>
+}> = ({outgoingApps}) => {
+    return <DashboardCard
+        title={<Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>}
+        color={"green"}
+        isLoading={outgoingApps.loading}
+        icon={"search"}
+    >
+        {outgoingApps.error !== undefined ? null : (
+            <Error error={outgoingApps.error} />
+        )}
+
+        {outgoingApps.error ? null : (
+            <>
+                {outgoingApps.data.items.length !== 0 ? null : (
+                        <NoResultsCardBody title={"No recent grant applications"}>
+                            <Text>
+                                Apply for resources to use storage and compute on UCloud.
+                                <Link to={"/project/grants-landing"}>
+                                    <Button fullWidth mt={8}>Apply for resources</Button>
+                                </Link>
+                            </Text>
+                        </NoResultsCardBody>
+                    )}
+                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
+            </>
+        )}
+    </DashboardCard>;
+};
 
 function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
     return (

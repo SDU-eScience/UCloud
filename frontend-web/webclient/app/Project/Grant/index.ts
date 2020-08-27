@@ -369,3 +369,9 @@ export function browseProjects(request: BrowseProjectsRequest): APICallParameter
         reloadId: Math.random()
     };
 }
+
+export const listOutgoingApplications = (payload: PaginationRequest): APICallParameters<PaginationRequest> => ({
+    path: "/grant/outgoing",
+    method: "GET",
+    payload
+});

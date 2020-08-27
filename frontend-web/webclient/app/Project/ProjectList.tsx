@@ -345,7 +345,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             sidebar={(<>
                 <VerticalButtonGroup>
                     <Box height={58}/>
-                    <Link to="/project/grants/outgoing"><Button color="green">Resource Applications</Button></Link>
                     <Link to={`/projects/browser/new`}><Button>Create Project Application</Button></Link>
                     <Label fontSize={"100%"}>
                         <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />

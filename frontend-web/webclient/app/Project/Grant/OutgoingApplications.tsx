@@ -5,7 +5,7 @@ import * as Heading from "ui-components/Heading";
 import {listOutgoingInvites} from "Project";
 import {List as PaginationList} from "Pagination";
 import {MainContainer} from "MainContainer/MainContainer";
-import {GrantApplication} from ".";
+import {GrantApplication, listOutgoingApplications} from ".";
 import {GrantApplicationList} from "./IngoingApplications";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
@@ -13,12 +13,6 @@ import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {Box, Button, Flex, Link} from "ui-components";
 import {Center} from "UtilityComponents";
 import {TextP} from "ui-components/Text";
-
-const listOutgoingApplications = (payload: PaginationRequest): APICallParameters<PaginationRequest> => ({
-    path: "/grant/outgoing",
-    method: "GET",
-    payload
-});
 
 export const OutgoingApplications: React.FunctionComponent = () => {
     const [outgoingInvites, setParams] =

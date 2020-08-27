@@ -527,6 +527,10 @@ export function areProjectsEnabled(): boolean {
     return Client.userRole === "ADMIN";
 }
 
+export function useProjectId(): string | undefined {
+    return useSelector<ReduxObject, string | undefined>(it => it.project.project);
+}
+
 // eslint-disable-next-line
 export function useProjectManagementStatus(args: {
     /**
