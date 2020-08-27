@@ -68,6 +68,10 @@ class ShareService(
             val file = statJob.await() ?: throw ShareException.NotFound()
 
             // Verify results.
+            if (file.fileType != FileType.DIRECTORY) {
+                throw ShareException.BadRequest("You can only share directories")
+            }
+
             if (file.ownerName != user) {
                 throw ShareException.NotAllowed()
             }
