@@ -248,42 +248,49 @@ class ApplicationService(
         newResources: List<ResourceRequest>
     ) {
         ctx.withSession { session ->
-            val projectId = session
+            val (projectId, requestedBy) = session
                 .sendPreparedStatement(
                     { setParameter("id", id) },
-                    """select resources_owned_by from "grant".applications where id = :id"""
+                    """
+                        select resources_owned_by, requested_by
+                        from "grant".applications 
+                        where id = :id
+                    """
                 )
-                .rows.singleOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                .rows
+                .singleOrNull()
+                ?.let { Pair(it.getString(0)!!, it.getString(1)!!) }
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             val isProjectAdmin = projects.isAdminOfProject(projectId, actor)
-            val success = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("requestedBy", actor.safeUsername())
-                        setParameter("isProjectAdmin", isProjectAdmin)
-                        setParameter("id", id)
-                        setParameter("document", newDocument)
-                    },
+            val isCreator = actor.safeUsername() == requestedBy
+            if (!isCreator && !isProjectAdmin) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
 
-                    //language=sql
-                    """
-                        update applications 
-                        set document = :document 
-                        where 
-                            id = :id and
-                            (:isProjectAdmin or requested_by = :requestedBy)
-                    """
-                )
-                .rowsAffected > 0L
+            if (isCreator) {
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("requestedBy", actor.safeUsername())
+                            setParameter("isProjectAdmin", isProjectAdmin)
+                            setParameter("id", id)
+                            setParameter("document", newDocument)
+                        },
 
-            if (!success) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            // At this point we are authorized to make changes
+                        """
+                            update applications 
+                            set document = :document 
+                            where 
+                                id = :id and
+                                (:isProjectAdmin or requested_by = :requestedBy)
+                        """
+                    )
+            }
 
             session
                 .sendPreparedStatement(
                     { setParameter("id", id) },
-                    //language=sql
                     "delete from requested_resources where application_id = :id"
                 )
 
