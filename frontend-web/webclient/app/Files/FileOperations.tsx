@@ -106,34 +106,6 @@ export const defaultFileOperations: FileOperation[] = [
         icon: "rename"
     },
     {
-        text: "Upload",
-        onClick: (files, cb) => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.onchange = () => {
-                const inputFiles = input.files;
-                if (!inputFiles) return;
-
-                const file = inputFiles.item(0);
-                if (!file) return;
-
-                const upload = newUpload(file, files[0].path);
-                upload.resolution = UploadPolicy.OVERWRITE;
-                upload.sensitivity = files[0].ownSensitivityLevel ?? "INHERIT";
-                cb.createNewUpload(upload);
-            };
-
-            input.click();
-        },
-        disabled: (files, cb) => {
-            if (files.length !== 1) return true;
-            else if (files[0].fileType !== "FILE") return true;
-            else if (isAnyMockFile(files)) return true;
-            else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
-        },
-        icon: "upload"
-    },
-    {
         text: "Download",
         onClick: files => downloadFiles(files, Client),
         disabled: (files, cb) => {
