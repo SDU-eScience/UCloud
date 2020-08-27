@@ -588,7 +588,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         {target === RequestTarget.VIEW_APPLICATION && !state.approver &&
                                                             state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
                                                             <>
-                                                                <Button color="red" onClick={closeRequest}>Close</Button>
+                                                                <Button color="red" onClick={closeRequest}>Withdraw</Button>
                                                             </> : null
                                                         }
                                                     </ButtonGroup>
