@@ -331,7 +331,7 @@ class SettingsService(
                     """
                 ).rows
                 .singleOrNull()
-                ?.getField(GrantDescriptions.description) ?: "No Description"
+                ?.getField(GrantDescriptions.description) ?: "No description"
         }
     }
 
