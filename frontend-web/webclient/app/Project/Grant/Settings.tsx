@@ -240,6 +240,18 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
 }> = ({products, settings, reload}) => {
     const [editingLimit, setEditingLimit] = useState<string | null>(null);
     const [, runWork] = useAsyncCommand();
+    const categories: ProductCategoryId[] = [];
+
+    {
+        const categoriesStringified = new Set<string>();
+        for (const product of products.data) {
+            const stringified = `${product.category.id}/${product.category.provider}`;
+            if (!categoriesStringified.has(stringified)) {
+                categoriesStringified.add(stringified);
+                categories.push(product.category);
+            }
+        }
+    }
 
     const updateApprovalLimit = useCallback(async (category: ProductCategoryId, e?: React.SyntheticEvent) => {
         e?.preventDefault();
@@ -271,20 +283,20 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
     }, [settings]);
 
     return <Grid gridGap={"32px"} gridTemplateColumns={"repeat(auto-fit, 500px)"} mb={32}>
-        {products.data.map(it => {
-            const key = productCategoryId(it.category);
+        {categories.map(it => {
+            const key = productCategoryId(it);
 
             const credits = settings.data.automaticApproval
                 .maxResources
                 .find(
-                    mr => mr.productCategory === it.category.id &&
-                        mr.productProvider === it.category.provider
+                    mr => mr.productCategory === it.id &&
+                        mr.productProvider === it.provider
                 )
                 ?.creditsRequested ?? 0;
             return <React.Fragment key={key}>
-                <form onSubmit={(e) => updateApprovalLimit(it.category, e)}>
+                <form onSubmit={(e) => updateApprovalLimit(it, e)}>
                     <Label htmlFor={key}>
-                        {it.category.id} / {it.category.provider}
+                        {it.id} / {it.provider}
                     </Label>
                     <Flex alignItems={"center"}>
                         {editingLimit !== key ?
@@ -312,7 +324,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
                                 <Text ml={8} mr={8}>DKK</Text>
                                 <ConfirmCancelButtons
                                     onConfirm={() => {
-                                        updateApprovalLimit(it.category);
+                                        updateApprovalLimit(it);
                                     }}
                                     onCancel={() => {
                                         setEditingLimit(null);
