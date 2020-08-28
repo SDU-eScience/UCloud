@@ -76,7 +76,8 @@ data class UserProjectSummary(
     val needsVerification: Boolean,
     val isFavorite: Boolean,
     val archived: Boolean,
-    val parent: String?
+    val parent: String?,
+    val ancestorPath: String? = null
 )
 
 data class UserGroupSummary(
@@ -90,7 +91,8 @@ data class ListProjectsRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null,
     val archived: Boolean? = null,
-    val noFavorites: Boolean? = null
+    val noFavorites: Boolean? = null,
+    val showAncestorPath: Boolean? = null
 ) : WithPaginationRequest
 
 typealias ListProjectsResponse = Page<UserProjectSummary>
@@ -99,7 +101,8 @@ data class ListFavoriteProjectsRequest(
     val user: String?,
     override val itemsPerPage: Int,
     override val page: Int,
-    val archived: Boolean
+    val archived: Boolean,
+    val showAncestorPath: Boolean? = null
 ) : WithPaginationRequest
 
 typealias ListFavoriteProjectsResponse = ListProjectsResponse
@@ -466,6 +469,7 @@ object Projects : CallDescriptionContainer("project") {
                 +boundTo(ListFavoriteProjectsRequest::page)
                 +boundTo(ListFavoriteProjectsRequest::user)
                 +boundTo(ListFavoriteProjectsRequest::archived)
+                +boundTo(ListFavoriteProjectsRequest::showAncestorPath)
             }
         }
     }
@@ -493,6 +497,7 @@ object Projects : CallDescriptionContainer("project") {
                 +boundTo(ListProjectsRequest::user)
                 +boundTo(ListProjectsRequest::archived)
                 +boundTo(ListProjectsRequest::noFavorites)
+                +boundTo(ListProjectsRequest::showAncestorPath)
             }
         }
     }

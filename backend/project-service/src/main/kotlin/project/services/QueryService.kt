@@ -4,6 +4,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
@@ -1134,6 +1135,24 @@ class QueryService(
         }
 
         return projectWithAdmins
+    }
+
+    suspend fun addAncestors(
+        ctx: DBContext,
+        actor: Actor,
+        projects: Collection<UserProjectSummary>
+    ): List<UserProjectSummary> {
+        return ctx.withSession { session ->
+            projects.map { p ->
+                p.copy(
+                    ancestorPath = viewAncestors(
+                        session,
+                        actor,
+                        p.projectId
+                    ).dropLast(1).joinToString("/") { it.title }
+                )
+            }
+        }
     }
 
     companion object : Loggable {
