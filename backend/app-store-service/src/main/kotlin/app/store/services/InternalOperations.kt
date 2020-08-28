@@ -81,26 +81,26 @@ internal suspend fun internalFindAllByName(
                 },
                 """
                     SELECT * FROM applications AS A
-                    WHERE A.name = ?name AND (
+                    WHERE A.name = :name AND (
                         (
                             A.is_public = TRUE
                         ) OR (
-                            cast(?project as text) is null AND ?user IN (
+                            cast(:project as text) is null AND :user IN (
                                 SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                             )
                         ) OR (
-                            cast(?project as text) is not null and exists (
+                            cast(:project as text) is not null and exists (
                                 SELECT P2.project_group FROM permissions AS P2 WHERE
                                     P2.application_name = A.name AND
-                                    P2.project = cast(?project as text) AND
-                                    P2.project_group in (?groups)
+                                    P2.project = cast(:project as text) AND
+                                    P2.project_group in (select unnest(:groups::text[]))
                             )
                         ) OR (
-                            ?role in (?privileged)
+                            :role in (select unnest(:privileged::text[]))
                         ) 
                     )
                     ORDER BY A.created_at DESC
-                """.trimIndent()
+                """
             ).rows.paginate(paging).mapItems { it.toApplicationWithInvocation() }
         )
     }
