@@ -263,7 +263,13 @@ data class CreateApplication(
     val grantRecipient: GrantRecipient,
     val document: String,
     val requestedResources: List<ResourceRequest> // This is _always_ additive to existing resources
-)
+) {
+    init {
+        if (requestedResources.isEmpty()) {
+            throw RPCException("You must request at least one resource", HttpStatusCode.BadRequest)
+        }
+    }
+}
 
 data class Application(
     val status: ApplicationStatus,
