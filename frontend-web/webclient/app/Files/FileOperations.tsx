@@ -5,8 +5,6 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {AccessRight} from "Types";
 import {IconName} from "ui-components/Icon";
 import {Upload} from "Uploader";
-import {UploadPolicy} from "Uploader/api";
-import {newUpload} from "Uploader/Uploader";
 import {
     clearTrash,
     CopyOrMove,
@@ -20,7 +18,7 @@ import {
     getParentPath,
     isAnyFixedFolder,
     isAnyMockFile,
-    isArchiveExtension, isPartOfProject, isPartOfSomePersonalFolder, isPersonalRootFolder,
+    isArchiveExtension, isAUserPersonalFolder, isPartOfProject, isPersonalRootFolder,
     isTrashFolder,
     moveToTrash,
     shareFiles,
@@ -100,7 +98,8 @@ export const defaultFileOperations: FileOperation[] = [
             if (files.length !== 1) return true;
             else if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
-            else if (isPartOfSomePersonalFolder(files[0].path)) return true;
+            else if (isPersonalRootFolder(files[0].path)) return true;
+            else if (isAUserPersonalFolder(files[0].path)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "rename"
@@ -119,6 +118,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Share",
         onClick: (files) => shareFiles({files, client: Client}),
         disabled: (files, cb) => {
+            if (files.find(it => it.fileType !== "DIRECTORY") !== undefined) return true;
             if (files.find(it => isPartOfProject(it.path)) !== undefined) return true;
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
@@ -131,9 +131,11 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) =>
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: (files, cb) => {
+            console.log("Before crash", files);
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
-            else if (files.find(it => isPartOfSomePersonalFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isPersonalRootFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "sensitivity"
@@ -155,7 +157,8 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
-            else if (files.find(it => isPartOfSomePersonalFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isPersonalRootFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "copy",
@@ -177,7 +180,8 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
-            else if (files.find(it => isPartOfSomePersonalFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isPersonalRootFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "move",
@@ -282,7 +286,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (isPersonalRootFolder(file.path)) {
                 explainPersonalRepo();
             } else {
-            updatePermissionsPrompt(Client, file, cb.requestReload);
+                updatePermissionsPrompt(Client, file, cb.requestReload);
             }
         },
         icon: "properties",

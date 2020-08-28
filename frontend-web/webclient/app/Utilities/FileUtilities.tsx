@@ -621,6 +621,11 @@ export function isMyPersonalFolder(path: string): boolean {
         components[3] === Client.username;
 }
 
+export function isAUserPersonalFolder(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length === 4 && components[0] === "projects" && components[2] === "Personal";
+}
+
 export function isPartOfSomePersonalFolder(path: string): boolean {
     const components = pathComponents(path);
     return components.length >= 4 && components[0] === "projects" && components[2] === "Personal";
