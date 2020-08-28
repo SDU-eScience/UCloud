@@ -244,6 +244,7 @@ export interface UserInProject {
     favorite: boolean;
     archived: boolean;
     parent?: string;
+    ancestorPath?: string;
 }
 
 export interface UserGroupSummary {
@@ -285,6 +286,7 @@ export const changeRoleInProject = (
 export interface ListProjectsRequest extends PaginationRequest {
     archived?: boolean;
     noFavorites?: boolean;
+    showAncestorPath?: boolean;
 }
 
 export const listProjects = (parameters: ListProjectsRequest): APICallParameters<ListProjectsRequest> => ({
@@ -309,6 +311,7 @@ export const listSubprojects = (parameters: ListSubprojectsRequest): APICallPara
 
 export interface ListFavoriteProjectsRequest extends PaginationRequest {
     archived: boolean;
+    showAncestorPath?: boolean;
 }
 
 export const listFavoriteProjects = (parameters: ListFavoriteProjectsRequest): APICallParameters<ListFavoriteProjectsRequest> => ({

@@ -61,7 +61,7 @@ export const OutgoingApplications: React.FunctionComponent = () => {
                 <PaginationList
                     loading={outgoingInvites.loading}
                     onPageChanged={(newPage, oldPage) =>
-                        setParams(listOutgoingInvites({itemsPerPage: oldPage.itemsPerPage, page: newPage}))}
+                        setParams(listOutgoingApplications({itemsPerPage: oldPage.itemsPerPage, page: newPage, filter}))}
                     page={outgoingInvites.data}
                     pageRenderer={pageRenderer}
                     customEmptyPage={
