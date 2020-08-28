@@ -1,9 +1,6 @@
 package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
@@ -13,7 +10,6 @@ import dk.sdu.cloud.grant.services.ApplicationService
 import dk.sdu.cloud.grant.services.CommentService
 import dk.sdu.cloud.grant.services.SettingsService
 import dk.sdu.cloud.grant.services.TemplateService
-import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
@@ -132,7 +128,8 @@ class GrantController(
                 db,
                 ctx.securityPrincipal.toActor(),
                 ctx.project ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                request.normalize()
+                request.normalize(),
+                request.filter
             ))
         }
 
@@ -140,7 +137,8 @@ class GrantController(
             ok(applications.listOutgoingApplications(
                 db,
                 ctx.securityPrincipal.toActor(),
-                request.normalize()
+                request.normalize(),
+                request.filter
             ))
         }
 

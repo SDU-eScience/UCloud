@@ -166,9 +166,16 @@ typealias CommentOnApplicationResponse = Unit
 data class DeleteCommentRequest(val commentId: Long)
 typealias DeleteCommentResponse = Unit
 
+enum class GrantApplicationFilter {
+    SHOW_ALL,
+    ACTIVE,
+    INACTIVE
+}
+
 data class IngoingApplicationsRequest(
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
+    override val page: Int? = null,
+    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE
 ) : WithPaginationRequest
 typealias IngoingApplicationsResponse = Page<Application>
 
@@ -177,7 +184,8 @@ data class ApplicationWithComments(val application: Application, val comments: L
 
 data class OutgoingApplicationsRequest(
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
+    override val page: Int? = null,
+    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE
 ) : WithPaginationRequest
 typealias OutgoingApplicationsResponse = Page<Application>
 
@@ -686,6 +694,7 @@ object Grants : CallDescriptionContainer("grant") {
                 params {
                     +boundTo(IngoingApplicationsRequest::itemsPerPage)
                     +boundTo(IngoingApplicationsRequest::page)
+                    +boundTo(IngoingApplicationsRequest::filter)
                 }
             }
         }
@@ -710,6 +719,7 @@ object Grants : CallDescriptionContainer("grant") {
                 params {
                     +boundTo(OutgoingApplicationsRequest::itemsPerPage)
                     +boundTo(OutgoingApplicationsRequest::page)
+                    +boundTo(OutgoingApplicationsRequest::filter)
                 }
             }
         }

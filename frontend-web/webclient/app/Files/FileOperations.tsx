@@ -131,7 +131,6 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) =>
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: (files, cb) => {
-            console.log("Before crash", files);
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
             else if (files.find(it => isPersonalRootFolder(it.path)) !== undefined) return true;

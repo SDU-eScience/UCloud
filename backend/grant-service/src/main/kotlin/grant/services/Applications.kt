@@ -11,6 +11,7 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.CreateApplication
+import dk.sdu.cloud.grant.api.GrantApplicationFilter
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.utils.autoApproveTemplate
@@ -443,7 +444,8 @@ class ApplicationService(
         ctx: DBContext,
         actor: Actor,
         projectId: String,
-        pagination: NormalizedPaginationRequest?
+        pagination: NormalizedPaginationRequest?,
+        filter: GrantApplicationFilter
     ): Page<Application> {
         if (!projects.isAdminOfProject(projectId, actor)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
@@ -455,11 +457,21 @@ class ApplicationService(
             } else {
                 session
                     .sendPreparedStatement(
-                        { setParameter("projectId", projectId) },
+                        {
+                            setParameter("projectId", projectId)
+                            setParameter("statusFilter", when (filter) {
+                                GrantApplicationFilter.SHOW_ALL -> ApplicationStatus.values().toList()
+                                GrantApplicationFilter.ACTIVE -> listOf(ApplicationStatus.IN_PROGRESS)
+                                GrantApplicationFilter.INACTIVE -> listOf(
+                                    ApplicationStatus.CLOSED,
+                                    ApplicationStatus.APPROVED
+                                )
+                            }.map { it.name })
+                        },
 
                         """
                             select count(id)::bigint from "grant".applications 
-                            where resources_owned_by = :projectId and status = 'IN_PROGRESS'
+                            where resources_owned_by = :projectId and status in (select unnest(:statusFilter::text[]))
                         """
                     ).rows.singleOrNull()?.getLong(0) ?: 0L
             }
@@ -470,6 +482,14 @@ class ApplicationService(
                         setParameter("projectId", projectId)
                         setParameter("o", pagination?.offset ?: 0)
                         setParameter("l", pagination?.itemsPerPage ?: Int.MAX_VALUE)
+                        setParameter("statusFilter", when (filter) {
+                            GrantApplicationFilter.SHOW_ALL -> ApplicationStatus.values().toList()
+                            GrantApplicationFilter.ACTIVE -> listOf(ApplicationStatus.IN_PROGRESS)
+                            GrantApplicationFilter.INACTIVE -> listOf(
+                                ApplicationStatus.CLOSED,
+                                ApplicationStatus.APPROVED
+                            )
+                        }.map { it.name })
                     },
 
                     """
@@ -477,8 +497,8 @@ class ApplicationService(
                         from "grant".applications a left outer join requested_resources r on (a.id = r.application_id)
                         where 
                             a.resources_owned_by = :projectId and 
-                            a.status = 'IN_PROGRESS'
-                        order by a.updated_at
+                            a.status in (select unnest(:statusFilter::text[]))
+                        order by a.updated_at desc
                         limit :l
                         offset :o
                     """
@@ -492,7 +512,8 @@ class ApplicationService(
     suspend fun listOutgoingApplications(
         ctx: DBContext,
         actor: Actor,
-        pagination: NormalizedPaginationRequest?
+        pagination: NormalizedPaginationRequest?,
+        filter: GrantApplicationFilter
     ): Page<Application> {
         return ctx.withSession { session ->
             val itemsInTotal = if (pagination == null) {
@@ -500,11 +521,23 @@ class ApplicationService(
             } else {
                 session
                     .sendPreparedStatement(
-                        { setParameter("requestedBy", actor.safeUsername()) },
+                        {
+                            setParameter("requestedBy", actor.safeUsername())
+                            setParameter("statusFilter", when (filter) {
+                                GrantApplicationFilter.SHOW_ALL -> ApplicationStatus.values().toList()
+                                GrantApplicationFilter.ACTIVE -> listOf(ApplicationStatus.IN_PROGRESS)
+                                GrantApplicationFilter.INACTIVE -> listOf(
+                                    ApplicationStatus.CLOSED,
+                                    ApplicationStatus.APPROVED
+                                )
+                            }.map { it.name })
+                        },
 
                         """
                             select count(id)::bigint from "grant".applications 
-                            where requested_by = :requestedBy and status = 'IN_PROGRESS'
+                            where 
+                                requested_by = :requestedBy and 
+                                status in (select unnest(:statusFilter::text[]))
                         """
                     ).rows.singleOrNull()?.getLong(0) ?: 0L
             }
@@ -515,6 +548,15 @@ class ApplicationService(
                         setParameter("requestedBy", actor.safeUsername())
                         setParameter("o", pagination?.offset ?: 0)
                         setParameter("l", pagination?.itemsPerPage ?: Int.MAX_VALUE)
+                        setParameter("statusFilter", when (filter) {
+                            GrantApplicationFilter.SHOW_ALL -> ApplicationStatus.values().toList()
+                            GrantApplicationFilter.ACTIVE -> listOf(ApplicationStatus.IN_PROGRESS)
+                            GrantApplicationFilter.INACTIVE -> listOf(
+                                ApplicationStatus.CLOSED,
+                                ApplicationStatus.APPROVED,
+                                ApplicationStatus.REJECTED
+                            )
+                        }.map { it.name })
                     },
 
                     """
@@ -522,9 +564,9 @@ class ApplicationService(
                         from "grant".applications a, requested_resources r
                         where 
                             a.requested_by = :requestedBy and 
-                            a.status = 'IN_PROGRESS' and 
+                            a.status in (select unnest(:statusFilter::text[])) and 
                             a.id = r.application_id
-                        order by a.updated_at
+                        order by a.updated_at desc
                         limit :l
                         offset :o
                     """
