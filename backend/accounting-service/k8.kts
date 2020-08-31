@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "accounting"
-    version = "1.4.3"
+    version = "1.4.7"
 
     withAmbassador("/api/accounting") {
         addSimpleMapping("/api/products")

@@ -1,7 +1,7 @@
 package dk.sdu.cloud.news.services
 
 import dk.sdu.cloud.news.api.NewsServiceDescription
-import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -66,7 +66,7 @@ class NewsServiceTest {
     @Test
     fun `create, find, toggle, list test`() {
         val newsService = NewsService()
-        val now = System.currentTimeMillis()
+        val now = Time.now()
         runBlocking {
             db.withSession { session ->
                 newsService.createNewsPost(

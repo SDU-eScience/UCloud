@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "4.2.2"
+    version = "4.2.6"
 
     val mountLocation: String = config("mountLocation", "Sub path in volume (e.g. 'test')", "")
 
@@ -89,35 +89,18 @@ bundle { ctx ->
 
     withAdHocJob(
         deployment,
-        nameSuffix = "migrate-workspaces",
+        nameSuffix = "scan-now",
         additionalArgs = {
-            listOf("--migrate-workspaces") + remainingArgs
+            listOf("--scan-accounting") + remainingArgs
         }
     )
 
-    withAdHocJob(
+    withCronJob(
         deployment,
-        nameSuffix = "migrate-permissions",
-        additionalArgs = {
-            listOf("--migrate-permissions")
-        }
-    )
-
-    withAdHocJob(
-        deployment,
-        nameSuffix = "migrate-favorites",
-        additionalArgs = {
-            listOf("--migrate-favorites")
-        }
-    )
-
-    withAdHocJob(
-        deployment,
-        nameSuffix = "migrate-shares",
-        additionalArgs = {
-            listOf("--migrate-shares")
-        }
-    )
+        "0 3 * * *",
+        listOf("--scan-accounting"),
+        name = "accounting-scan"
+    ) {}
 
     withConfigMap("storage-config") {
         addConfig(
