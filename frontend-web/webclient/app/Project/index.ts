@@ -494,6 +494,22 @@ export function setProjectArchiveStatus(
     };
 }
 
+export interface ArchiveProjectRequestBulk {
+    projects: UserInProject[];
+}
+
+export function setProjectArchiveStatusBulk(
+    request: ArchiveProjectRequestBulk
+): APICallParameters<ArchiveProjectRequestBulk> {
+    return {
+        method: "POST",
+        path: "/projects/archiveBulk",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random(),
+    };
+}
+
 export interface ViewProjectRequest {
     id: string;
 }

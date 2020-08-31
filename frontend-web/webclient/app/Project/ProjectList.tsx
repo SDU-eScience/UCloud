@@ -110,32 +110,35 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         {
             text: "Archive",
             disabled: projects =>
-                projects.length !== 1 ||
-                projects.every(it => it.archived) ||
+                projects.length < 1 ||
+                projects.some(it => it.archived) ||
                 projects.some(it => !isAdminOrPI(it.whoami.role)),
             icon: "tags",
-            onClick: ([project]) => dialogStore.addDialog(
-                <ArchiveProject
-                    onSuccess={() => dialogStore.success()}
-                    isArchived={project.archived}
-                    title={project.title}
-                    projectId={project.projectId}
-                    projectRole={project.whoami.role}
-                />,
-                () => undefined
-            )
+            onClick: (projects) =>
+                dialogStore.addDialog(
+                    <ArchiveProject
+                        onSuccess={() => {
+                            dialogStore.success();
+                            setSelectedProjects(new Set())
+                            reload();
+                        }}
+                        projects={projects}
+                    />,
+                    () => undefined
+                )
         },
         {
             text: "Unarchive",
-            disabled: projects => projects.length !== 1 || projects.every(it => !it.archived),
+            disabled: projects => projects.length < 1 || projects.some(it => !it.archived),
             icon: "tags",
-            onClick: ([project]) => dialogStore.addDialog(
+            onClick: (projects) => dialogStore.addDialog(
                 <ArchiveProject
-                    onSuccess={() => dialogStore.success()}
-                    isArchived={project.archived}
-                    projectId={project.projectId}
-                    title={project.title}
-                    projectRole={project.whoami.role}
+                    onSuccess={() => {
+                        dialogStore.success()
+                        setSelectedProjects(new Set())
+                        reload();
+                    }}
+                    projects={projects}
                 />,
                 () => undefined
             )
@@ -397,7 +400,12 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 height="30px"
                             >
                                 <Link to="/project/dashboard">
-                                    {e.title}
+                                    {e.title} {e.archived ?
+                                        <Icon
+                                            name={"tags"}
+                                            hoverColor={"black"}
+                                        /> : null
+                                    }
                                 </Link>
                             </Box>
                         </>

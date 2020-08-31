@@ -66,6 +66,9 @@ typealias TransferPiRoleResponse = Unit
 data class ArchiveRequest(val archiveStatus: Boolean)
 typealias ArchiveResponse = Unit
 
+data class ArchiveBulkRequest(val projects: List<UserProjectSummary>)
+typealias ArchiveBulkResponse = Unit
+
 /**
  * A project summary from a user's perspective
  */
@@ -565,6 +568,24 @@ object Projects : CallDescriptionContainer("project") {
             path {
                 using(baseContext)
                 +"archive"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val archiveBulk = call<ArchiveBulkRequest, ArchiveBulkResponse, CommonErrorMessage>("archiveBulk") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"archiveBulk"
             }
 
             body { bindEntireRequestFromBody() }

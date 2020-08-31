@@ -167,6 +167,19 @@ class ProjectController(
             ok(Unit)
         }
 
+        implement(Projects.archiveBulk) {
+            request.projects.forEach {
+                projects.setArchiveStatus(
+                    db,
+                    ctx.securityPrincipal.username,
+                    it.projectId,
+                    !it.archived
+                )
+            }
+
+            ok(Unit)
+        }
+
         implement(Projects.viewProject) {
             ok(
                 queries.listProjects(
