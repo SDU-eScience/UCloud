@@ -52,6 +52,9 @@ import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {Balance, BalanceExplainer} from "Accounting/Balance";
+import {useDispatch} from "react-redux";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {loadingAction} from "Loading";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -118,6 +121,7 @@ function useRequestInformation(target: RequestTarget) {
     let approver: boolean = false;
     let comments: Comment[] = [];
     const avatars = useAvatars();
+    let loading: boolean = false;
 
     let availableProducts: {area: ProductArea, category: ProductCategoryId}[];
     let reloadProducts: () => void;
@@ -234,6 +238,7 @@ function useRequestInformation(target: RequestTarget) {
                 reloadWallets();
             }, [appId]);
 
+            loading = loading || grantApplication.loading;
             break;
     }
 
@@ -301,7 +306,7 @@ function useRequestInformation(target: RequestTarget) {
 
     return {
         wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, editingApplication,
-        comments, avatars, reload, approver
+        comments, avatars, reload, approver, loading
     };
 }
 
@@ -327,6 +332,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     const [loading, runWork] = useAsyncCommand();
     const projectTitleRef = useRef<HTMLInputElement>(null);
     const history = useHistory();
+    const dispatch = useDispatch();
     const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
 
     switch (target) {
@@ -343,6 +349,14 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             useTitle("Viewing Application");
             break;
     }
+
+    dispatch(setRefreshFunction(state.reload));
+    dispatch(loadingAction(state.loading));
+    useEffect(() => {
+        return () => {
+            dispatch(setRefreshFunction(undefined));
+        };
+    }, []);
 
     const discardChanges = useCallback(async () => {
         state.reload();

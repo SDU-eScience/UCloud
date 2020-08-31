@@ -56,7 +56,9 @@ class JobWatcher(
             var nextScan = Time.now()
             while (isActive) {
                 if (Time.now() >= nextScan) {
-                    ourJobs().list().items.forEach {
+                    val list = ourJobs().list()
+                    log.debug("Scan found ${list.items.size} jobs")
+                    list.items.forEach {
                         handleJobEvent(it)
                     }
 
