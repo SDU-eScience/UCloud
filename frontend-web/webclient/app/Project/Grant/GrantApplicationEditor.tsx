@@ -849,7 +849,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 </Button>
                                 ) : null
                             }
-                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                            {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
                                 isLocked ? (
                                     <Button fullWidth onClick={() => setIsLocked(false)} disabled={loading}>
                                         Edit this request
