@@ -70,14 +70,14 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Upload Files",
         onClick: (_, cb) => cb.requestFileUpload(),
-        disabled: dir => isTrashFolder(dir[0].path),
+        disabled: dir => isTrashFolder(dir[0].path) || isPersonalRootFolder(dir[0].path),
         color: "blue",
         currentDirectoryMode: true
     },
     {
         text: "New Folder",
         onClick: (_, cb) => cb.requestFolderCreation(),
-        disabled: ([file]) => isTrashFolder(file.path),
+        disabled: ([file]) => isTrashFolder(file.path) || isPersonalRootFolder(file.path),
         color: "blue",
         outline: true,
         currentDirectoryMode: true
@@ -228,6 +228,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
             else if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
+            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
             else return files.every(({path}) => isTrashFolder(path) || isTrashFolder(getParentPath(path)));
         },
         icon: "trash",
