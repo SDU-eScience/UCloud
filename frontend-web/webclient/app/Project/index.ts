@@ -592,13 +592,13 @@ export function useProjectManagementStatus(args: {
 
     const [groupList, fetchGroupList, groupListParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
         "projectManagementGroupSummary",
-        groupSummaryRequest({itemsPerPage: 10, page: 0}),
+        Client.hasActiveProject ? groupSummaryRequest({itemsPerPage: 10, page: 0}) : {noop: true},
         emptyPage
     );
 
     const [outgoingInvites, fetchOutgoingInvites, outgoingInvitesParams] = useGlobalCloudAPI<Page<OutgoingInvite>>(
         "projectManagementOutgoingInvites",
-        listOutgoingInvites({itemsPerPage: 10, page: 0}),
+        Client.hasActiveProject ? listOutgoingInvites({itemsPerPage: 10, page: 0}) : {noop: true},
         emptyPage
     );
 
@@ -620,7 +620,7 @@ export function useProjectManagementStatus(args: {
         if (promises.canceledKeeper) return;
         if (groupId !== undefined) {
             fetchGroupMembers(listGroupMembersRequest({group: groupId, itemsPerPage: 25, page: 0}));
-        } else {
+        } else if (Client.hasActiveProject) {
             fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
         }
 
@@ -633,7 +633,7 @@ export function useProjectManagementStatus(args: {
 
         // noinspection JSIgnoredPromiseFromCall
         reloadProjectStatus();
-        fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
+        if (Client.hasActiveProject) fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
         if (projectId) fetchProjectDetails(viewProject({id: projectId}));
     }, [projectId, projectRole]);
 
