@@ -21,7 +21,7 @@ class AccountingScan(
 ) {
     suspend fun scan() {
         val product = Products.listProductsByType.call(
-            ListProductsByAreaRequest("ucloud", ProductArea.STORAGE),
+            ListProductsByAreaRequest(UCLOUD_PROVIDER, ProductArea.STORAGE),
             client
         ).orThrow().items.singleOrNull() ?: throw IllegalStateException("Could not find the UCloud storage product")
 
