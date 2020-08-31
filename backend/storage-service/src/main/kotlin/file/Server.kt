@@ -21,13 +21,6 @@ import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.databaseConfig
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.TokenValidationJWT
@@ -35,9 +28,11 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.file.processors.ProjectProcessor
+import dk.sdu.cloud.micro.*
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
+import kotlin.system.*
 
 class Server(
     private val config: StorageConfiguration,
@@ -83,6 +78,16 @@ class Server(
         // RPC services
         val wsService = WSFileSessionService(processRunner)
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
+
+        if (micro.commandLineArguments.contains("--scan-accounting")) {
+            try {
+                AccountingScan(fs, processRunner, client, db).scan()
+                exitProcess(0)
+            } catch (throwable: Throwable){
+                throwable.printStackTrace()
+                exitProcess(1)
+            }
+        }
 
         log.info("Core services constructed!")
 

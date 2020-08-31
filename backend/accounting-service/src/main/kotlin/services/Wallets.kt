@@ -464,6 +464,27 @@ class BalanceService(
                     throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
                 }
 
+                if (request.skipIfExists) {
+                    val exists = (session
+                        .sendPreparedStatement(
+                            {
+                                setParameter("id", jobId)
+                                setParameter("accId", wallet.id)
+                                setParameter("accType", wallet.type.name)
+                            },
+
+                            """
+                                select count(id)::bigint from transactions 
+                                where id = :id and account_id = :accId and account_type = :accType
+                            """
+                        )
+                        .rows.single().getLong(0) ?: 0L) > 0L
+
+                    if (exists) {
+                        return@withSession // bail out
+                    }
+                }
+
                 session.insert(TransactionTable) {
                     set(TransactionTable.accountId, wallet.id)
                     set(TransactionTable.accountType, wallet.type.name)
@@ -483,10 +504,13 @@ class BalanceService(
                 ancestorWallets.forEach { ancestor ->
                     // discardAfterLimitCheck should not be true for children since it would cause an exception to be
                     // thrown too early
+                    //
+                    // skipIfExists should only be true for the initial reservation since if it passes then none of
+                    // the parents should have it
                     reserveCredits(
                         session,
                         Actor.System,
-                        request.copy(account = ancestor, discardAfterLimitCheck = false),
+                        request.copy(account = ancestor, discardAfterLimitCheck = false, skipIfExists = false),
                         reserveForAncestors = false,
                         origWallet = wallet,
                         initiatedByUsername = initiatedByUsername ?: initiatedBy.safeUsername()

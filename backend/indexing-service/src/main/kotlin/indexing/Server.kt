@@ -46,27 +46,8 @@ class Server(
                                 cephFsRoot
                             }
                         },
-                        stats,
-                        client
+                        stats
                     ).runScan()
-                } catch (ex: Throwable) {
-                    log.error(ex.stackTraceToString())
-                    exitProcess(1)
-                }
-            }
-            exitProcess(0)
-        }
-
-        if (micro.commandLineArguments.contains("--scan-accounting")) {
-            runBlocking {
-                try {
-                    FileSystemScanner(
-                        elastic,
-                        queryService,
-                        cephFsRoot,
-                        stats,
-                        client
-                    ).runAccountingStorage()
                 } catch (ex: Throwable) {
                     log.error(ex.stackTraceToString())
                     exitProcess(1)

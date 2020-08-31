@@ -1,81 +1,32 @@
 package dk.sdu.cloud.indexing.services
 
-import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.accounting.api.AddToBalanceBulkRequest
-import dk.sdu.cloud.accounting.api.AddToBalanceRequest
-import dk.sdu.cloud.accounting.api.FindProductRequest
-import dk.sdu.cloud.accounting.api.ListProductsByAreaRequest
-import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.api.ProductCategory
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.ReserveCreditsBulkRequest
-import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.ListDirectoryRequest
-import dk.sdu.cloud.file.api.RetrieveFolderSizeRequest
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.ownerName
-import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.indexing.api.AnyOf
-import dk.sdu.cloud.indexing.api.Comparison
-import dk.sdu.cloud.indexing.api.ComparisonOperator
-import dk.sdu.cloud.indexing.api.FileQuery
-import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
-import dk.sdu.cloud.indexing.api.StatisticsRequest
-import dk.sdu.cloud.indexing.util.depth
-import dk.sdu.cloud.service.Loggable
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.elasticsearch.action.ActionListener
-import org.elasticsearch.action.bulk.BulkRequest
-import org.elasticsearch.action.delete.DeleteRequest
-import org.elasticsearch.action.get.GetRequest
-import org.elasticsearch.action.update.UpdateRequest
-import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.common.xcontent.XContentType
-import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.index.reindex.BulkByScrollResponse
-import org.elasticsearch.index.reindex.DeleteByQueryAction
-import org.elasticsearch.index.reindex.DeleteByQueryRequest
-import org.slf4j.Logger
-import java.io.File
-import java.util.concurrent.Executors
-import kotlin.math.abs
-import dk.sdu.cloud.indexing.services.ElasticIndexedFile
-import dk.sdu.cloud.service.Actor
-import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.runBlocking
-import mbuhot.eskotlin.query.fulltext.match
-import org.elasticsearch.ElasticsearchException
-import org.elasticsearch.action.search.ClearScrollRequest
-import org.elasticsearch.action.search.SearchRequest
-import org.elasticsearch.action.search.SearchScrollRequest
-import org.elasticsearch.common.unit.TimeValue
-import org.elasticsearch.search.builder.SearchSourceBuilder
-import java.util.*
-
+import com.fasterxml.jackson.module.kotlin.*
+import dk.sdu.cloud.*
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.indexing.api.*
+import dk.sdu.cloud.indexing.util.*
+import dk.sdu.cloud.service.*
+import kotlinx.coroutines.*
+import org.elasticsearch.*
+import org.elasticsearch.action.bulk.*
+import org.elasticsearch.action.delete.*
+import org.elasticsearch.action.get.*
+import org.elasticsearch.action.update.*
+import org.elasticsearch.client.*
+import org.elasticsearch.common.xcontent.*
+import org.elasticsearch.index.query.*
+import org.elasticsearch.index.reindex.*
+import org.slf4j.*
+import java.io.*
+import java.util.concurrent.*
+import kotlin.math.*
 
 @Suppress("BlockingMethodInNonBlockingContext")
 class FileSystemScanner(
     private val elastic: RestHighLevelClient,
     private val query: ElasticQueryService,
     private val cephFsRoot: String,
-    private val stats: FastDirectoryStats?,
-    private val client: AuthenticatedClient
+    private val stats: FastDirectoryStats?
 ) {
     private val pool = Executors.newFixedThreadPool(16).asCoroutineDispatcher()
 
@@ -98,17 +49,6 @@ class FileSystemScanner(
             }.join()
             launch {
                 submitScan(File(cephFsRoot, "projects").absoluteFile)
-            }.join()
-        }
-    }
-
-    suspend fun runAccountingStorage() {
-        withContext(pool) {
-            launch {
-                scanAccounting(File(cephFsRoot, "home").absoluteFile)
-            }.join()
-            launch {
-                scanAccounting(File(cephFsRoot, "projects").absoluteFile)
             }.join()
         }
     }
@@ -238,122 +178,6 @@ class FileSystemScanner(
             if (isDirectory) FileType.DIRECTORY else FileType.FILE,
             runCatching { stats?.getRecursiveTime(absolutePath) }.getOrNull()
         )
-    }
-
-    private fun scanAccounting(path: File) {
-        var page = 0
-        var content = runBlocking {
-            FileDescriptions.listAtPath.call(
-                ListDirectoryRequest(path.toCloudPath(), 100, page),
-                client
-            ).orThrow()
-        }
-
-        if (content.itemsInTotal == 0) {
-            log.info("No folders found in ${path.toCloudPath()}")
-            return
-        }
-
-        //TODO() change when more types are available than ucloud. BUT we do not have the info yet
-        val product = runBlocking {
-            Products.listProductsByType.call(
-                ListProductsByAreaRequest(
-                    "ucloud",
-                    ProductArea.STORAGE,
-                    null,
-                    null
-                ),
-                client
-            ).orThrow()
-        }
-
-        while (true) {
-            val reserveCreditsRequests = mutableListOf<ReserveCreditsRequest>()
-            content.items.forEach { storageFile ->
-                val size = runBlocking {
-                    FileDescriptions.retrieveFolderSize.call(
-                        RetrieveFolderSizeRequest(storageFile.path),
-                        client
-                    ).orThrow()
-                }
-                val id = storageFile.path.components().getOrElse(1) {throw RPCException.fromStatusCode(
-                    HttpStatusCode.InternalServerError, "no second component of filepath")}
-                //Assuming that storage unit price is per KB
-                when {
-                    storageFile.path.startsWith("/home") -> {
-                        val pricePerUnit = product.items.find { item -> item.category.id == "cephfs"}?.pricePerUnit ?:
-                            throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                        val cost = pricePerUnit * (size / 1000)
-                        reserveCreditsRequests.add(
-                            ReserveCreditsRequest(
-                                id,
-                                cost,
-                                Long.MAX_VALUE,
-                                Wallet(
-                                    id,
-                                    WalletOwnerType.USER,
-                                    ProductCategoryId(
-                                        "cephfs",
-                                        "ucloud"
-                                    )
-                                ),
-                                "_indexing",
-                                "cephfs",
-                                size,
-                                discardAfterLimitCheck = false,
-                                chargeImmediately = true
-                            )
-                        )
-                    }
-                    storageFile.path.startsWith("/project") -> {
-                        val pricePerUnit = product.items.find {item -> item.category.id == "cephfs"}?.pricePerUnit ?:
-                            throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                        val cost = pricePerUnit * (size / 1000)
-                        reserveCreditsRequests.add(
-                            ReserveCreditsRequest(
-                                id,
-                                cost,
-                                Long.MAX_VALUE,
-                                Wallet(
-                                    id,
-                                    WalletOwnerType.PROJECT,
-                                    ProductCategoryId(
-                                        "cephfs",
-                                        "ucloud"
-                                    )
-                                ),
-                                "_indexing",
-                                "cephfs",
-                                size,
-                                discardAfterLimitCheck = false,
-                                chargeImmediately = true
-                            )
-                        )
-                    }
-                    else -> {
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Not project or user")
-                    }
-                }
-            }
-            runBlocking {
-                Wallets.reserveCreditsBulk.call(
-                    ReserveCreditsBulkRequest(reserveCreditsRequests),
-                    client
-                )
-            }
-            if(content.pageNumber == content.pagesInTotal) {
-                break
-            }
-            else {
-                page++
-                runBlocking {
-                    content = FileDescriptions.listAtPath.call(
-                        ListDirectoryRequest(path.toCloudPath(), 100, page),
-                        client
-                    ).orThrow()
-                }
-            }
-        }
     }
 
     data class ShouldContinue(val shouldContinue: Boolean, val newUpperLimitOfEntries: Long)

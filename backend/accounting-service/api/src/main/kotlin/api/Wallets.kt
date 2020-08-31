@@ -92,7 +92,12 @@ data class ReserveCreditsRequest(
     /**
      * Immediately charge the wallet for the [amount] specified.
      */
-    val chargeImmediately: Boolean = false
+    val chargeImmediately: Boolean = false,
+
+    /**
+     * Ignore any errors if an entry with this [jobId] already exists
+     */
+    val skipIfExists: Boolean = false
 ) {
     init {
         if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)

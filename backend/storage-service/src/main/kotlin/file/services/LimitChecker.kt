@@ -384,7 +384,7 @@ class LimitChecker<Ctx : FSUserContext>(
 
         val walletId = homeDirectoryComponents[1]
 
-        val gigabytes = ceil(estimatedUsage / (1000.0 * 1000 * 1000)).toLong()
+        val gigabytes = ceil(estimatedUsage.toDouble() / 1.GiB).toLong()
         Wallets.reserveCredits.call(
             ReserveCreditsRequest(
                 "ucloud-storage-limitchk-" + UUID.randomUUID().toString(),
