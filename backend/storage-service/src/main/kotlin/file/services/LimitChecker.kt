@@ -1,38 +1,19 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.api.ListProductsByAreaRequest
-import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.ProductConfiguration
-import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.file.*
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.project.api.Project
-import dk.sdu.cloud.project.api.UserStatusResponse
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.SimpleCache
-import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.long
-import dk.sdu.cloud.service.db.async.text
-import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.runBlocking
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.services.acl.*
+import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.async.*
+import io.ktor.http.*
 import java.util.*
-import kotlin.math.ceil
+import kotlin.math.*
 
 class LimitChecker<Ctx : FSUserContext>(
     private val db: DBContext,
@@ -43,14 +24,6 @@ class LimitChecker<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val runnerFactory: FSCommandRunnerFactory<Ctx>
 ) {
-    suspend fun checkStorageUsage(path: String): Long {
-        runnerFactory.withContext(SERVICE_USER) { fsCtx ->
-            val homeDir = findHomeDirectoryFromPath(path)
-            return fs.calculateRecursiveStorageUsed(fsCtx, homeDir)
-
-        }
-    }
-
     suspend fun checkLimitAndQuota(path: String) {
         runnerFactory.withContext(SERVICE_USER) { fsCtx ->
             val homeDir = findHomeDirectoryFromPath(path)
@@ -86,7 +59,7 @@ class LimitChecker<Ctx : FSUserContext>(
 
                             val memberStatus = projectCache.memberStatus.get(actor.username)
                             if (
-                                // Membership check is needed for users requesting the project home dir
+                            // Membership check is needed for users requesting the project home dir
                                 memberStatus?.membership?.any { it.projectId == projectId } != true &&
 
                                 // Admins of the parent are also allowed to view the quota (since they can change it)
@@ -267,8 +240,8 @@ class LimitChecker<Ctx : FSUserContext>(
         if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) return null
         val projectId = projectIdFromPath(homeDirectory) ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val memberStatus = projectCache.memberStatus.get(actor.username)
-        return fetchParentIfAdministrator(projectId, memberStatus) ?:
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        return fetchParentIfAdministrator(projectId, memberStatus)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
     private suspend fun fetchParentIfAdministrator(
@@ -287,6 +260,7 @@ class LimitChecker<Ctx : FSUserContext>(
     }
 
     private data class ChildAndParentProject(val child: Project, val parent: Project?)
+
     private suspend fun fetchProjectWithParent(projectId: String): ChildAndParentProject {
         val ancestors = projectCache.ancestors.get(projectId)
             ?: throw RPCException("Could not retrieve ancestors", HttpStatusCode.BadGateway)
@@ -357,20 +331,12 @@ class LimitChecker<Ctx : FSUserContext>(
 
     private suspend fun internalPerformLimitCheck(homeDirectory: String, estimatedUsage: Long) {
         val homeDirectoryComponents = homeDirectory.components()
-        //TODO() change when more types are available than ucloud. BUT we do not have the info yet
-        val products = runBlocking {
-            Products.listProductsByType.call(
-                ListProductsByAreaRequest(
-                    "ucloud",
-                    ProductArea.STORAGE,
-                    null,
-                    null
-                ),
-                serviceClient
-            ).orThrow()
-        }
-        val pricePerUnit = products.items.find { item -> item.category.id == "cephfs"}?.pricePerUnit ?:
-        throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        // TODO change when more types are available than ucloud. BUT we do not have the info yet
+        val product = Products.listProductsByType.call(
+            ListProductsByAreaRequest(UCLOUD_PROVIDER, ProductArea.STORAGE),
+            serviceClient
+        ).orThrow().items.singleOrNull() ?: throw IllegalStateException("Could not find the UCloud storage product")
+        val pricePerUnit = product.pricePerUnit
         if (pricePerUnit == 0L) {
             log.info("Storage is free. Skipping credit check...")
             return

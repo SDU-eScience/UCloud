@@ -257,9 +257,6 @@ typealias CreatePersonalRepositoryResponse = Unit
 data class RetrieveQuotaRequest(val path: String, val includeUsage: Boolean = false)
 typealias RetrieveQuotaResponse = Quota
 
-data class RetrieveFolderSizeRequest(val path: String)
-typealias RetrieveFolderSizeResponse = Long
-
 data class Quota(
     val quotaInTotal: Long,
     val quotaInBytes: Long,
@@ -662,31 +659,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
 
             params {
                 +boundTo(RetrieveQuotaRequest::path)
-            }
-        }
-    }
-
-    val retrieveFolderSize = call<
-            RetrieveFolderSizeRequest,
-            RetrieveFolderSizeResponse,
-            CommonErrorMessage>("retrieveFolderSize") {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ
-        }
-
-        websocket(wsBaseContext)
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"folderSize"
-            }
-
-            params {
-                +boundTo(RetrieveFolderSizeRequest::path)
             }
         }
     }
