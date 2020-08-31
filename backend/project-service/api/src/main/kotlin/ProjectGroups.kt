@@ -24,6 +24,7 @@ data class CreateGroupRequest(val group: String) {
         if (group == "-") throw RPCException("Group cannot be '-'", HttpStatusCode.BadRequest)
     }
 }
+
 typealias CreateGroupResponse = FindByStringId
 
 data class ListGroupsWithSummaryRequest(
@@ -57,6 +58,9 @@ data class ListGroupMembersRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
+
+typealias ListAllGroupIdsAndTitlesRequest = Unit
+data class ListAllGroupIdsAndTitlesResponse(val groups: Map<String, String>)
 
 typealias ListGroupMembersResponse = Page<String>
 
@@ -409,6 +413,22 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             params {
                 +boundTo(LookupProjectAndGroupRequest::project)
                 +boundTo(LookupProjectAndGroupRequest::group)
+            }
+        }
+    }
+
+    val listAllGroupIdsAndTitles = call<ListAllGroupIdsAndTitlesRequest, ListAllGroupIdsAndTitlesResponse, CommonErrorMessage>("listAllGroupIdsAndTitles") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"list-all-groups"
             }
         }
     }
