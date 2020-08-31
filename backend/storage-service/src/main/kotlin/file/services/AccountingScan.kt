@@ -45,6 +45,7 @@ class AccountingScan(
                 var success = false
                 retries@ for (attempt in 1..10) {
                     log.info("[$path] Processing chunk ${index + 1} of $numberOfChunks (attempt: $attempt)")
+                    log.info("Determining usage of users")
                     val charges = ArrayList<ReserveCreditsRequest>()
                     for (homeFolder in chunk) {
                         val wallet = Wallet(
@@ -66,12 +67,18 @@ class AccountingScan(
                                 productId = product.id,
                                 productUnits = gigabytes,
                                 chargeImmediately = true,
+
                                 // We ask the accounting system to ignore our request if we have already charged today
-                                skipIfExists = true
+                                skipIfExists = true,
+
+                                // This resource has already been consumed, don't check if we are reaching the limit
+                                // just charge the amount they have used.
+                                skipLimitCheck = true
                             )
                         )
                     }
 
+                    log.info("Charging users")
                     val chargeResult = Wallets.reserveCreditsBulk.call(
                         ReserveCreditsBulkRequest(charges),
                         client
@@ -82,6 +89,7 @@ class AccountingScan(
 
                         // This is done mostly for debugging purposes in case we get a failed run. This will allow us
                         // to actually clean up after ourselves.
+                        log.info("Successfully charged chunk")
                         markAsScanned(chunk.map { it.path.fileName() }, type, dateString)
                         break@retries
                     } else {

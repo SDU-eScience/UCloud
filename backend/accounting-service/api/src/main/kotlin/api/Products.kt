@@ -197,6 +197,7 @@ object Products : CallDescriptionContainer("products") {
     val findProduct = call<FindProductRequest, FindProductResponse, CommonErrorMessage>("findProduct") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -218,21 +219,22 @@ object Products : CallDescriptionContainer("products") {
         call<ListProductsByAreaRequest, ListProductsByAreaResponse, CommonErrorMessage>("listProductionsByType") {
             auth {
                 access = AccessRight.READ
+                roles = Roles.AUTHENTICATED
+            }
 
-                http {
-                    method = HttpMethod.Get
+            http {
+                method = HttpMethod.Get
 
-                    path {
-                        using(baseContext)
-                        +"listByArea"
-                    }
+                path {
+                    using(baseContext)
+                    +"listByArea"
+                }
 
-                    params {
-                        +boundTo(ListProductsByAreaRequest::provider)
-                        +boundTo(ListProductsByAreaRequest::area)
-                        +boundTo(ListProductsByAreaRequest::itemsPerPage)
-                        +boundTo(ListProductsByAreaRequest::page)
-                    }
+                params {
+                    +boundTo(ListProductsByAreaRequest::provider)
+                    +boundTo(ListProductsByAreaRequest::area)
+                    +boundTo(ListProductsByAreaRequest::itemsPerPage)
+                    +boundTo(ListProductsByAreaRequest::page)
                 }
             }
         }
@@ -240,6 +242,7 @@ object Products : CallDescriptionContainer("products") {
     val listProducts = call<ListProductsRequest, ListProductsResponse, CommonErrorMessage>("listProducts") {
         auth {
             access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         http {

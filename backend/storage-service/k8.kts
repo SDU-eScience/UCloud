@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "4.2.2"
+    version = "4.2.6"
 
     val mountLocation: String = config("mountLocation", "Sub path in volume (e.g. 'test')", "")
 
@@ -98,7 +98,7 @@ bundle { ctx ->
     withCronJob(
         deployment,
         "0 3 * * *",
-        listOf("--scan-accounting") + remainingArgs
+        listOf("--scan-accounting"),
         name = "accounting-scan"
     ) {}
 

@@ -458,10 +458,16 @@ class BalanceService(
             ctx.withSession { session ->
                 val ancestorWallets = if (reserveForAncestors) wallet.ancestors() else emptyList()
 
-                val (balance, _) = getBalance(ctx, initiatedBy, wallet, true)
-                val reserved = getReservedCredits(ctx, wallet)
-                if (reserved + amount > balance) {
-                    throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
+                val (balance, walletExists) = getBalance(ctx, initiatedBy, wallet, true)
+                if (!walletExists) {
+                    setBalance(session, Actor.System, request.account, 0L, 0L)
+                }
+
+                if (!request.skipLimitCheck) {
+                    val reserved = getReservedCredits(ctx, wallet)
+                    if (reserved + amount > balance) {
+                        throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
+                    }
                 }
 
                 if (request.skipIfExists) {
@@ -585,7 +591,7 @@ class BalanceService(
 
                     """
                         update wallets
-                        set balance = balance - :amount
+                        set balance = greatest(0, balance - :amount)
                         where
                             (account_id, account_type, product_category, product_provider) in (
                                 select t.account_id, t.account_type, t.product_category, t.product_provider
@@ -646,5 +652,99 @@ class BalanceService(
 
     companion object : Loggable {
         override val log = logger()
+    }
+}
+
+fun main() {
+    val allUsers = """
+        0aaa0b15-5525-447c-a7d0-5141aab90c16
+        11537ebc-d919-43d8-9b37-e7dc69c4e6ec
+        1#2138
+        17#1361
+        1f999d2f-4b98-4ea4-89ee-ec2721487e01
+        40243bbf-44f8-4ecc-9a5e-7ef4536f8002
+        4dec34df-12e6-4456-86de-ae9a34ff7a42
+        58145e02-5bb1-4d9f-99a8-e80495d2b153
+        596c4c14-97c2-4171-b322-3bcfe226eba5
+        5b7bbe14-5a08-42c5-9bae-ea9250f84077
+        5e18642f-042f-4cbd-beb9-d6335c10d29a
+        62a7bea7-dcd4-4b1c-8535-940b1867366e
+        65fdb6e5-9e43-4257-828a-3bc76da10667
+        75be867d-e72f-4710-b8fc-b8667fcf68ac
+        853e5aac-c6ae-4869-a112-646453b6680c
+        8a23a24c-7130-4489-a4b2-65ebd426e9f5
+        8a7e90aa-2920-4abf-a601-cd9b99e07444
+        8f6f4f5d-6a65-4066-a0a2-2ae3eef2173d
+        910c443e-d364-4954-bfa1-f97c0426a670
+        abb56186-c31e-4fc6-8cc8-5b7aae477b18
+        b2cae915-c495-41df-8e9c-39052599aa2e
+        bb72b9af-6a5c-4f82-9e15-7b4b15838271
+        bcbd11bc-6f5b-4005-bec6-28c17d283735
+        c1abb7dd-fd9c-43ba-ba19-b185f622b802
+        c4780725-9f06-46ea-8fa3-e6c9b5fb7d2e
+        ce00c21e-d2a7-4934-bfbf-6cf16d721645
+        'Class 2020'
+        d5ea0121-cb66-4d04-a287-8ae2d43d0746
+        DevOps
+        ec13e046-1275-429b-ade1-ed6d8a01a1eb
+        f564edfb-7dac-47c9-a17d-355829b03468
+        f61da441-1258-4c5a-8ab6-0f28b9b1db1e
+        fa49ed4a-bd00-4d29-a7ab-f48bb84222fe
+        Fie
+        geez#4942
+        {GET:host:dev.cloud.sdu.dk}
+        {GET:query:itemsPerPage:25}
+        {GET:query:order:ASCENDING}
+        {GET:query:page:0}
+        {GET:query:sortBy:path}
+        {GET:remote:{Address:10.135.0.200:443}}
+        {GET:scheme:https}
+        'Hansens Awesome World-renowend Test Problem'
+        Hello#8832
+        HenrikProject#7559
+        'My project'
+        Test
+        Test-12-05-14:25
+        Test#9224
+    """.trimIndent()
+
+    val realUsers = """
+        596c4c14-97c2-4171-b322-3bcfe226eba5
+        ec13e046-1275-429b-ade1-ed6d8a01a1eb
+        65fdb6e5-9e43-4257-828a-3bc76da10667
+        c1abb7dd-fd9c-43ba-ba19-b185f622b802
+        abb56186-c31e-4fc6-8cc8-5b7aae477b18
+        5e18642f-042f-4cbd-beb9-d6335c10d29a
+        8a23a24c-7130-4489-a4b2-65ebd426e9f5
+        ce00c21e-d2a7-4934-bfbf-6cf16d721645
+        f61da441-1258-4c5a-8ab6-0f28b9b1db1e
+        75be867d-e72f-4710-b8fc-b8667fcf68ac
+        1f999d2f-4b98-4ea4-89ee-ec2721487e01
+        853e5aac-c6ae-4869-a112-646453b6680c
+        5b7bbe14-5a08-42c5-9bae-ea9250f84077
+        4dec34df-12e6-4456-86de-ae9a34ff7a42
+        b2cae915-c495-41df-8e9c-39052599aa2e
+        58145e02-5bb1-4d9f-99a8-e80495d2b153
+        8a7e90aa-2920-4abf-a601-cd9b99e07444
+        11537ebc-d919-43d8-9b37-e7dc69c4e6ec
+        d5ea0121-cb66-4d04-a287-8ae2d43d0746
+        c4780725-9f06-46ea-8fa3-e6c9b5fb7d2e
+        8f6f4f5d-6a65-4066-a0a2-2ae3eef2173d
+        62a7bea7-dcd4-4b1c-8535-940b1867366e
+        fa49ed4a-bd00-4d29-a7ab-f48bb84222fe
+        bcbd11bc-6f5b-4005-bec6-28c17d283735
+        910c443e-d364-4954-bfa1-f97c0426a670
+        40243bbf-44f8-4ecc-9a5e-7ef4536f8002
+        bb72b9af-6a5c-4f82-9e15-7b4b15838271
+        0aaa0b15-5525-447c-a7d0-5141aab90c16
+    """.trimIndent()
+
+    val realUserList = realUsers.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    val allUserList = allUsers.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+
+    for (user in allUserList) {
+        if (user !in realUserList) {
+            println("mv \"/mnt/cephfs/projects/$user\" \"/mnt/cephfs/old_dev_projects/$user\"")
+        }
     }
 }

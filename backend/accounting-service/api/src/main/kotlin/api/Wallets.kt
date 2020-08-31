@@ -97,7 +97,16 @@ data class ReserveCreditsRequest(
     /**
      * Ignore any errors if an entry with this [jobId] already exists
      */
-    val skipIfExists: Boolean = false
+    val skipIfExists: Boolean = false,
+
+    /**
+     * `true` if we should skip the limit check otherwise `false` (default) if limit checking should be active
+     *
+     * Setting this to `true` will allow the account to go into negative balance. This should be `true` only if we
+     * are charging for a resource which has already been consumed. It should be set to `false` if we are reserving
+     * credits for a resource which is going to be consumed.
+     */
+    val skipLimitCheck: Boolean = false
 ) {
     init {
         if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
