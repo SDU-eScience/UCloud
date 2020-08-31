@@ -29,10 +29,10 @@ import io.ktor.response.respond
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.*
 import io.ktor.util.DataConversionException
 import io.ktor.util.pipeline.PipelineContext
-import kotlinx.io.errors.IOException
+import io.ktor.utils.io.errors.*
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KFunction
@@ -101,16 +101,20 @@ class IngoingHttpInterceptor(
     }
 
     private fun defaultStringConverter(ctx: HttpCall, name: String, value: String, returnType: KType): Any? {
-        try {
-            return defaultMapper.readValue("\"$value\"", returnType.javaType as Class<Any?>)
-        } catch (ignored: Throwable) {
+        if (returnType.classifier == String::class) {
+            return value
+        } else {
             try {
-                return ctx.call.application.conversionService.fromValues(listOf(value), returnType.javaType)
-            } catch (ex: DataConversionException) {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
-            } catch (ex: NoSuchElementException) {
-                // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+                return defaultMapper.readValue("\"$value\"", returnType.javaType as Class<Any?>)
+            } catch (ignored: Throwable) {
+                try {
+                    return ctx.call.application.conversionService.fromValues(listOf(value), returnType.javaType)
+                } catch (ex: DataConversionException) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+                } catch (ex: NoSuchElementException) {
+                    // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+                }
             }
         }
     }

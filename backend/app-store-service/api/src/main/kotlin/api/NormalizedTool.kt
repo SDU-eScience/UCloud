@@ -7,7 +7,6 @@ data class NormalizedToolDescription(
     val info: NameAndVersion,
     val container: String,
     val defaultNumberOfNodes: Int,
-    val defaultTasksPerNode: Int,
     val defaultTimeAllocation: SimpleDuration,
     val requiredModules: List<String>,
     val authors: List<String>,

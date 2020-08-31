@@ -1,23 +1,23 @@
 package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.grant.services.ApplicationService
 import dk.sdu.cloud.grant.services.CommentService
 import dk.sdu.cloud.grant.services.SettingsService
 import dk.sdu.cloud.grant.services.TemplateService
-import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.toActor
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.util.cio.*
+import java.io.ByteArrayInputStream
 
 class GrantController(
     private val applications: ApplicationService,
@@ -128,7 +128,8 @@ class GrantController(
                 db,
                 ctx.securityPrincipal.toActor(),
                 ctx.project ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                request.normalize()
+                request.normalize(),
+                request.filter
             ))
         }
 
@@ -136,7 +137,8 @@ class GrantController(
             ok(applications.listOutgoingApplications(
                 db,
                 ctx.securityPrincipal.toActor(),
-                request.normalize()
+                request.normalize(),
+                request.filter
             ))
         }
 
@@ -155,6 +157,32 @@ class GrantController(
 
         implement(Grants.browseProjects) {
             ok(settings.browse(db, ctx.securityPrincipal.toActor(), request.normalize()))
+        }
+
+        implement(Grants.uploadLogo) {
+            ok(settings.uploadLogo(db, ctx.securityPrincipal.toActor(), request.projectId, request.data.asIngoing()))
+        }
+
+        implement(Grants.fetchLogo) {
+            val logo = settings.fetchLogo(db, request.projectId)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            ok(
+                BinaryStream.outgoingFromChannel(
+                    ByteArrayInputStream(logo).toByteReadChannel(),
+                    logo.size.toLong(),
+                    ContentType.Image.Any
+                )
+            )
+        }
+
+        implement(Grants.uploadDescription) {
+            ok(settings.uploadDescription(db, ctx.securityPrincipal.toActor(), request.projectId, request.description))
+        }
+
+        implement(Grants.fetchDescription) {
+            ok(FetchDescriptionResponse(
+                settings.fetchDescription(db, request.projectId)
+            ))
         }
 
         return@with

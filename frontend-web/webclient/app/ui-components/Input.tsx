@@ -61,7 +61,7 @@ const Input = styled.input<InputProps>`
     }
 
     &:disabled {
-        background-color: var(--FtFolderColor2, #f00);
+        background-color: var(--lightGray, #f00);
     }
 
     ${borders} ${space} ${borderRadius}

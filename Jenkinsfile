@@ -5,6 +5,7 @@ properties([
 def label = "worker-${UUID.randomUUID().toString()}"
 
 podTemplate(label: label, containers: [
+containerTemplate(name: 'jnlp', image: 'jenkins/jnlp-slave:latest-jdk11', args: '${computer.jnlpmac} ${computer.name}'),
 containerTemplate(name: 'docker', image: 'docker', command: 'cat', ttyEnabled: true),
 containerTemplate(name: 'node', image: 'node:11-alpine', command: 'cat', ttyEnabled: true),
 containerTemplate(name: 'centos', image: 'ubuntu', command: 'cat', ttyEnabled: true)
@@ -13,7 +14,8 @@ volumes: [
   hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock')
 ]) {
     node (label) {
-        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup') {
+        sh label: '', script: 'java -version'
+        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup' || env.BRANCH_NAME == 'accounting') {
             stage('Checkout') {
                 checkout(
                     [
@@ -64,15 +66,7 @@ volumes: [
 
 String runBuild(String item) {
     def loaded = load(item)
-    withCredentials(
-        [usernamePassword(
-            credentialsId: "archiva",
-            usernameVariable: "ESCIENCE_MVN_USER",
-            passwordVariable: "ESCIENCE_MVN_PASSWORD"
-        )]
-    ) {
-        return loaded.initialize()
-    }
+    return loaded.initialize()
 }
 
 def sendAlert(String alertMessage) {

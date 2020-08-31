@@ -1,10 +1,8 @@
 package dk.sdu.cloud.integration.e2e
 
-import dk.sdu.cloud.file.api.FileDescriptions.transferQuota
 import dk.sdu.cloud.integration.*
 import dk.sdu.cloud.integration.backend.*
 import org.junit.Test
-import org.openqa.selenium.By
 
 class FilesTest : EndToEndTest() {
 

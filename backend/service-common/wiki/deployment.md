@@ -7,8 +7,7 @@ the deployment of UCloud services.
 
 All services are deployed as a Docker container in Kubernetes.
 
-We host a private Docker registry at https://registry.cloud.sdu.dk (SDU
-network required). Access is currently a bit of a manual process see #258.
+We host a private Docker registry at https://dreg.cloud.sdu.dk. Contact @hschu12 or @DanThrane for access.
 
 ## Kubernetes
 
@@ -31,16 +30,10 @@ Access to Kubernetes is done through Rancher.
 [Rancher](https://rancher.com) is the software we use to manage our Kubernetes
 cluster. Visit their [webpage](https://rancher.com) for more information.
 
-Our Rancher instance is hosted at https://rancher.cloud.sdu.dk (SDU network
-required). You can access Rancher using your GitHub account.
-
 ## Jenkins
 
 Jenkins is our CI system and is responsible for building and testing code. This
 includes the automatic building of Docker containers.
-
-Our Jenkins instance is hosted https://jenkins.cloud.sdu.dk (SDU network
-required). You can access Jenkins using your GitHub account.
 
 ## Procedure and Backwards Compatibility
 

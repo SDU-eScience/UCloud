@@ -26,7 +26,8 @@ class ActionController<Ctx : FSUserContext>(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.createPersonalRepository) {
             commandRunnerFactory.withCtx(this, SERVICE_USER) {
-                coreFs.makeDirectory(it, "/projects/${request.project}/${PERSONAL_REPOSITORY}/${request.username}")
+                runCatching { coreFs.makeDirectory(it, joinPath("/projects", request.project, PERSONAL_REPOSITORY)) }
+                coreFs.makeDirectory(it, joinPath("/projects", request.project, PERSONAL_REPOSITORY, request.username))
             }
             ok(Unit)
         }
@@ -137,7 +138,16 @@ class ActionController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.retrieveQuota) {
-            ok(limitChecker.retrieveQuota(ctx.securityPrincipal.toActor(), request.path))
+            val quota = limitChecker.retrieveQuota(ctx.securityPrincipal.toActor(), request.path)
+            var usage: Long? = null
+            if (request.includeUsage) {
+                commandRunnerFactory.withCtx(this, SERVICE_USER) {
+                    // Use service user since we have already passed permission check for reading quota
+                    usage = coreFs.estimateRecursiveStorageUsedMakeItFast(it, request.path)
+                }
+            }
+
+            ok(quota.copy(quotaUsed = usage))
         }
 
         implement(FileDescriptions.transferQuota) {

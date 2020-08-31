@@ -6,7 +6,7 @@ import {
     ProjectGrantSettings,
     readGrantRequestSettings,
     readTemplates,
-    ReadTemplatesResponse,
+    ReadTemplatesResponse, retrieveDescription, RetrieveDescriptionResponse, uploadDescription,
     uploadGrantRequestSettings, uploadTemplates,
     UserCriteria
 } from "Project/Grant/index";
@@ -21,11 +21,55 @@ import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
 import {ConfirmCancelButtons} from "UtilityComponents";
 import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
 import {creditFormatter} from "Project/ProjectUsage";
+import {HiddenInputField} from "ui-components/Input";
+import {dialogStore} from "Dialog/DialogStore";
+import {Client} from "Authentication/HttpClientInstance";
+import {b64EncodeUnicode} from "Utilities/XHRUtils";
+import {inSuccessRange} from "UtilityFunctions";
+import {Logo} from "Project/Grant/ProjectBrowser";
+
+export interface UploadLogoProps {
+    file: File;
+    projectId: string;
+}
+
+export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean> {
+    const token = await Client.receiveAccessTokenOrRefreshIt();
+
+    return new Promise((resolve) => {
+        const request = new XMLHttpRequest();
+        request.open("POST", Client.computeURL("/api", `/grant/uploadLogo`));
+        request.setRequestHeader("Authorization", `Bearer ${token}`);
+        request.responseType = "text";
+        request.setRequestHeader("Upload-Name", b64EncodeUnicode(props.projectId));
+        request.onreadystatechange = () => {
+            if (request.status !== 0) {
+                if (!inSuccessRange(request.status)) {
+                    let message: string = "Logo upload failed";
+                    try {
+                        message = JSON.parse(request.responseText).why;
+                    } catch (e) {
+                        // tslint:disable-next-line: no-console
+                        console.log(e);
+                        // Do nothing
+                    }
+
+                    snackbarStore.addFailure(message, false);
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            }
+        };
+
+        request.send(props.file);
+    });
+}
 
 const wayfIdpsPairs = wayfIdps.map(it => ({value: it, content: it}));
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
-    const {projectId} = useProjectManagementStatus();
+    const {projectId} = useProjectManagementStatus({isRootComponent: false});
     const [, runWork] = useAsyncCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
@@ -46,14 +90,22 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         {existingProject: "", newProject: "", personalProject: ""}
     );
 
+    const [description, fetchDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+        retrieveDescription({projectId}),
+        {description: ""}
+    );
+
     const templatePersonal = useRef<HTMLTextAreaElement>(null);
     const templateExisting = useRef<HTMLTextAreaElement>(null);
     const templateNew = useRef<HTMLTextAreaElement>(null);
+
+    const descriptionField = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
         fetchSettings(readGrantRequestSettings({projectId}));
         fetchTemplates(readTemplates({projectId}));
+        fetchDescription(retrieveDescription({projectId}));
     }, [projectId]);
 
     useEffect(() => {
@@ -66,7 +118,10 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         if (templateNew.current) {
             templateNew.current.value = templates.data.newProject;
         }
-    }, [templates, templatePersonal, templateExisting, templateNew]);
+        if (descriptionField.current) {
+            descriptionField.current.value = description.data.description;
+        }
+    }, [templates, templatePersonal, templateExisting, templateNew, descriptionField, description]);
 
     const onUploadTemplate = useCallback(async () => {
         await runWork(uploadTemplates({
@@ -76,6 +131,16 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         }));
         fetchTemplates(readTemplates({projectId}));
     }, [templates, templatePersonal, templateExisting, templateNew, projectId]);
+
+    const onUploadDescription = useCallback(async () => {
+        await runWork(uploadDescription({
+            description: descriptionField.current!.value,
+            projectId
+        }));
+        fetchDescription(retrieveDescription({
+            projectId
+        }));
+    }, [projectId, descriptionField, description]);
 
     const addAllowFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
@@ -105,9 +170,37 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
+    const [, setLogoCacheBust] = useState("" + Date.now());
+
     if (!enabled.data.enabled) return null;
 
     return <Box>
+        <Heading.h4>Logo for Project</Heading.h4>
+        Current Logo: <Logo projectId={projectId} size={"40px"} /> <br />
+        <Button width={"350px"} as="label">
+            Upload Logo
+            <HiddenInputField
+                type="file"
+                onChange={async e => {
+                    const target = e.target;
+                    if (target.files) {
+                        const file = target.files[0];
+                        target.value = "";
+                        if (file.size > 1024 * 512) {
+                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                        } else {
+                            if (await uploadProjectLogo({file, projectId: projectId})) {
+                                setLogoCacheBust("" + Date.now());
+                                snackbarStore.addSuccess("Logo changed, refresh to see changes", false);
+                            }
+                        }
+                        dialogStore.success();
+                    }
+                }}
+            />
+        </Button>
+        <Heading.h4>Description for Project</Heading.h4>
+        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription} />
         <Heading.h4>Allow Grant Applications From</Heading.h4>
         <UserCriteriaEditor
             criteria={settings.data.allowRequestsFrom}
@@ -147,6 +240,18 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
 }> = ({products, settings, reload}) => {
     const [editingLimit, setEditingLimit] = useState<string | null>(null);
     const [, runWork] = useAsyncCommand();
+    const categories: ProductCategoryId[] = [];
+
+    {
+        const categoriesStringified = new Set<string>();
+        for (const product of products.data) {
+            const stringified = `${product.category.id}/${product.category.provider}`;
+            if (!categoriesStringified.has(stringified)) {
+                categoriesStringified.add(stringified);
+                categories.push(product.category);
+            }
+        }
+    }
 
     const updateApprovalLimit = useCallback(async (category: ProductCategoryId, e?: React.SyntheticEvent) => {
         e?.preventDefault();
@@ -178,20 +283,20 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
     }, [settings]);
 
     return <Grid gridGap={"32px"} gridTemplateColumns={"repeat(auto-fit, 500px)"} mb={32}>
-        {products.data.map(it => {
-            const key = productCategoryId(it.category);
+        {categories.map(it => {
+            const key = productCategoryId(it);
 
             const credits = settings.data.automaticApproval
                 .maxResources
                 .find(
-                    mr => mr.productCategory === it.category.id &&
-                        mr.productProvider === it.category.provider
+                    mr => mr.productCategory === it.id &&
+                        mr.productProvider === it.provider
                 )
                 ?.creditsRequested ?? 0;
             return <React.Fragment key={key}>
-                <form onSubmit={(e) => updateApprovalLimit(it.category, e)}>
+                <form onSubmit={(e) => updateApprovalLimit(it, e)}>
                     <Label htmlFor={key}>
-                        {it.category.id} / {it.category.provider}
+                        {it.id} / {it.provider}
                     </Label>
                     <Flex alignItems={"center"}>
                         {editingLimit !== key ?
@@ -212,14 +317,14 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
                                 Edit
                             </Button> : null}
 
-                        <Input type={editingLimit !== key ? "hidden" : "text"} id={key} width={328}/>
+                        <Input type={editingLimit !== key ? "hidden" : "text"} id={key} width={328} />
 
                         {editingLimit === key ? (
                             <>
                                 <Text ml={8} mr={8}>DKK</Text>
                                 <ConfirmCancelButtons
                                     onConfirm={() => {
-                                        updateApprovalLimit(it.category);
+                                        updateApprovalLimit(it);
                                     }}
                                     onCancel={() => {
                                         setEditingLimit(null);
@@ -244,52 +349,52 @@ const UserCriteriaEditor: React.FunctionComponent<{
     return <>
         <Table mb={16}>
             <thead>
-            <TableRow>
-                <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
-                <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
-                <TableHeaderCell/>
-            </TableRow>
+                <TableRow>
+                    <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
+                    <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
+                    <TableHeaderCell />
+                </TableRow>
             </thead>
             <tbody>
-            {!props.showSubprojects ? null :
-                <TableRow>
-                    <TableCell>Subprojects</TableCell>
-                    <TableCell>None</TableCell>
-                    <TableCell/>
-                </TableRow>
-            }
-            {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
-                <TableRow>
-                    <TableCell>No one</TableCell>
-                    <TableCell>None</TableCell>
-                    <TableCell/>
-                </TableRow>
-            </> : null}
+                {!props.showSubprojects ? null :
+                    <TableRow>
+                        <TableCell>Subprojects</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                }
+                {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
+                    <TableRow>
+                        <TableCell>No one</TableCell>
+                        <TableCell>None</TableCell>
+                        <TableCell />
+                    </TableRow>
+                </> : null}
 
-            {props.criteria.map((it, idx) => <>
-                <TableRow>
-                    <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
-                    <TableCell textAlign={"left"}>
-                        {it.type === "wayf" ? it.org : null}
-                        {it.type === "email" ? it.domain : null}
-                        {it.type === "anyone" ? "None" : null}
-                    </TableCell>
-                    <TableCell textAlign={"right"}>
-                        <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)}/>
-                    </TableCell>
-                </TableRow>
-            </>)}
-            {showRequestFromEditor ?
-                <UserCriteriaRowEditor
-                    onSubmit={(c) => {
-                        props.onSubmit(c);
-                        setShowRequestFromEditor(false);
-                    }}
-                    onCancel={() => setShowRequestFromEditor(false)}
-                    allowAnyone={props.criteria.find(it => it.type === "anyone") === undefined}
-                /> :
-                null
-            }
+                {props.criteria.map((it, idx) => <>
+                    <TableRow>
+                        <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
+                        <TableCell textAlign={"left"}>
+                            {it.type === "wayf" ? it.org : null}
+                            {it.type === "email" ? it.domain : null}
+                            {it.type === "anyone" ? "None" : null}
+                        </TableCell>
+                        <TableCell textAlign={"right"}>
+                            <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                        </TableCell>
+                    </TableRow>
+                </>)}
+                {showRequestFromEditor ?
+                    <UserCriteriaRowEditor
+                        onSubmit={(c) => {
+                            props.onSubmit(c);
+                            setShowRequestFromEditor(false);
+                        }}
+                        onCancel={() => setShowRequestFromEditor(false)}
+                        allowAnyone={props.criteria.find(it => it.type === "anyone") === undefined}
+                    /> :
+                    null
+                }
             </tbody>
         </Table>
         <Flex justifyContent={"center"} mb={32}>
@@ -352,7 +457,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
         }
     }, [props.onSubmit, type, selectedWayfOrg]);
 
-    const options: { text: string, value: string }[] = [];
+    const options: {text: string, value: string}[] = [];
     if (props.allowAnyone) {
         options.push({text: "Anyone", value: "anyone"});
     }
@@ -374,7 +479,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                 <Flex height={47}>
                     {type.type !== "anyone" ? null : null}
                     {type.type !== "email" ? null : <>
-                        <Input ref={inputRef} placeholder={"Email domain"}/>
+                        <Input ref={inputRef} placeholder={"Email domain"} />
                     </>}
                     {type.type !== "wayf" ? null : <>
                         {/* WAYF idps extracted from https://metadata.wayf.dk/idps.js*/}
@@ -385,11 +490,11 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                             placeholder={"Type to search..."}
                         />
                     </>}
-                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel}/>
+                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel} />
                 </Flex>
             </form>
         </TableCell>
-        <TableCell/>
+        <TableCell />
     </TableRow>;
 };
 
@@ -407,15 +512,15 @@ const TemplateEditor: React.FunctionComponent<{
         <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
             <Box>
                 <Heading.h5>Personal</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templatePersonal}/>
+                <TextArea width={"100%"} rows={15} ref={templatePersonal} />
             </Box>
             <Box>
                 <Heading.h5>Existing Project</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templateExisting}/>
+                <TextArea width={"100%"} rows={15} ref={templateExisting} />
             </Box>
             <Box>
                 <Heading.h5>New Project</Heading.h5>
-                <TextArea width={"100%"} rows={15} ref={templateNew}/>
+                <TextArea width={"100%"} rows={15} ref={templateNew} />
             </Box>
         </Grid>
         <Flex justifyContent={"center"} mt={32}>
@@ -423,3 +528,19 @@ const TemplateEditor: React.FunctionComponent<{
         </Flex>
     </>;
 };
+
+const DescriptionEditor: React.FunctionComponent<{
+    templateDescription: React.Ref<HTMLTextAreaElement>,
+    onUploadDescription: () => Promise<void>
+}> = ({templateDescription, onUploadDescription}) =>
+        <>
+            <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
+                <Box>
+                    <Heading.h5>Description</Heading.h5>
+                    <TextArea width={"100%"} rows={15} ref={templateDescription} />
+                </Box>
+            </Grid>
+            <Flex justifyContent={"center"} mt={32}>
+                <Button width={"350px"} onClick={onUploadDescription}>Update Description</Button>
+            </Flex>
+        </>;

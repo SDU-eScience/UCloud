@@ -162,7 +162,7 @@ exports[`FileIcon FileIcon, shared 1`] = `
 }
 
 <div
-  className="sc-AxjAm c0"
+  className="c0"
 >
   <svg
     className="c1"
@@ -185,7 +185,7 @@ exports[`FileIcon FileIcon, shared 1`] = `
     />
   </svg>
   <div
-    className="sc-AxhUy c2"
+    className="c2"
   >
     <div
       className="c3"

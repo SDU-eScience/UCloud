@@ -52,6 +52,7 @@ import {NewsList} from "NewsPost/NewsList";
 import {IngoingApplications} from "Project/Grant/IngoingApplications";
 import {OutgoingApplications} from "Project/Grant/OutgoingApplications";
 import {ProjectBrowser} from "Project/Grant/ProjectBrowser";
+import {LandingPage} from "Project/Grant/LandingPage";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -125,6 +126,11 @@ const Core = (): JSX.Element => (
                         <Route exact path="/project/settings" component={requireAuth(ProjectSettings)} />
                         <Route exact path="/project/usage" component={requireAuth(ProjectUsage)} />
                         <Route exact path="/project/subprojects" component={requireAuth(Subprojects)} />
+                        <Route
+                            exact
+                            path="/project/grants-landing"
+                            component={requireAuth(LandingPage)}
+                        />
                         <Route
                             exact
                             path="/project/grants/existing"

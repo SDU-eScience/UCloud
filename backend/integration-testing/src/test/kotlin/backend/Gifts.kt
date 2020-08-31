@@ -12,6 +12,7 @@ import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.isSuccess
+import org.junit.Ignore
 import org.junit.Test
 
 suspend fun createGift(
@@ -30,7 +31,7 @@ suspend fun createGift(
         client
     )
 }
-
+@Ignore
 class GiftTests : IntegrationTest() {
     @Test
     fun `test permissions for createGift`() = t {

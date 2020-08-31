@@ -6,7 +6,7 @@ import dk.sdu.cloud.calls.client.HttpClientConverter
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.HttpServerConverter
 import io.ktor.application.call
-import io.ktor.client.response.HttpResponse
+import io.ktor.client.statement.*
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.content.OutgoingContent
@@ -14,7 +14,7 @@ import io.ktor.http.contentLength
 import io.ktor.http.contentType
 import io.ktor.request.contentType
 import io.ktor.request.receiveChannel
-import kotlinx.coroutines.io.ByteReadChannel
+import io.ktor.utils.io.*
 import java.nio.charset.Charset
 
 sealed class BinaryStream {

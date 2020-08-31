@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "mail"
-    version = "0.1.2"
+    version = "0.2.2"
 
     withAmbassador {}
 
@@ -21,6 +21,8 @@ bundle {
                   whitelist:
                   - "_password-reset"
                   - "_project"
+                  - "_grant"
+                  - "_accounting"
                   fromAddress: "support@escience.sdu.dk"
             """.trimIndent()
         )

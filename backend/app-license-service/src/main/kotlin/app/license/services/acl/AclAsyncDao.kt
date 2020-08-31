@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.license.services.acl
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.app.license.api.*
+import dk.sdu.cloud.app.license.services.AccessEntityWithPermission
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField

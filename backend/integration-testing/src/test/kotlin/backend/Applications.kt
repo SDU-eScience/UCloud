@@ -1,12 +1,7 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.accounting.api.RetrieveBalanceRequest
-import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.accounting.api.Wallets
-import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
-import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobWithStatus
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.store.api.AppStore
@@ -23,12 +18,11 @@ import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
+import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
-import dk.sdu.cloud.service.test.assertThatProperty
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.toByteArray
-import kotlinx.coroutines.io.ByteReadChannel
 import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -135,7 +129,7 @@ object SampleApplications {
         ).orThrow()
     }
 }
-
+@Ignore
 class ApplicationTest : IntegrationTest() {
     @Test
     fun `test figlet`() = t {
@@ -149,8 +143,8 @@ class ApplicationTest : IntegrationTest() {
         val jobId = JobDescriptions.start.call(
             StartJobRequest(
                 SampleApplications.figlet,
-                parameters = SampleApplications.figletParams("Hello, World!"),
-                reservation = sampleCompute.id
+                reservation = sampleCompute.id,
+                parameters = SampleApplications.figletParams("Hello, World!")
             ),
             user.client
         ).orThrow().jobId
@@ -203,8 +197,8 @@ class ApplicationTest : IntegrationTest() {
         val jobId = JobDescriptions.start.call(
             StartJobRequest(
                 SampleApplications.longRunning,
-                parameters = emptyMap(),
                 reservation = sampleCompute.id,
+                parameters = emptyMap(),
                 maxTime = SimpleDuration(0, 0, 30)
             ),
             user.client
@@ -232,8 +226,8 @@ class ApplicationTest : IntegrationTest() {
         val jobId = JobDescriptions.start.call(
             StartJobRequest(
                 SampleApplications.figlet,
-                parameters = SampleApplications.figletParams("Hello"),
-                reservation = sampleCompute.id
+                reservation = sampleCompute.id,
+                parameters = SampleApplications.figletParams("Hello")
             ),
             project.piClient.withProject(project.projectId)
         ).orThrow().jobId
@@ -276,8 +270,8 @@ class ApplicationTest : IntegrationTest() {
         val jobId = JobDescriptions.start.call(
             StartJobRequest(
                 SampleApplications.figlet,
-                parameters = SampleApplications.figletParams("Hello"),
-                reservation = sampleCompute.id
+                reservation = sampleCompute.id,
+                parameters = SampleApplications.figletParams("Hello")
             ),
             user.client.withProject(project.projectId)
         ).orThrow().jobId
@@ -314,8 +308,8 @@ class ApplicationTest : IntegrationTest() {
             JobDescriptions.start.call(
                 StartJobRequest(
                     SampleApplications.figlet,
-                    parameters = SampleApplications.figletParams("Hello"),
-                    reservation = sampleCompute.id
+                    reservation = sampleCompute.id,
+                    parameters = SampleApplications.figletParams("Hello")
                 ),
                 user.client
             ),
@@ -336,8 +330,8 @@ class ApplicationTest : IntegrationTest() {
             JobDescriptions.start.call(
                 StartJobRequest(
                     SampleApplications.figlet,
-                    parameters = SampleApplications.figletParams("Hello"),
-                    reservation = sampleCompute.id
+                    reservation = sampleCompute.id,
+                    parameters = SampleApplications.figletParams("Hello")
                 ),
                 user.client
             ),

@@ -208,6 +208,11 @@ The table below shows the global roles in UCloud:
 | `ADMIN`   | An administrator of system. Has access to certain privileged actions. |
 | `SERVICE` | An internal (micro)service. Has access to certain privileged actions. |
 
+The deployment script (see `k8-manager`) is responsible for the creation of service accounts. Service accounts can only
+authenticate via their `refreshToken`/`accessToken`. Compromised `refreshToken`s can manually be regenerated. Note that
+the same restrictions apply for `accessToken`s as normal users, they need to expire before access is denied. This
+happens within 30 minutes. Every microservice has an associated service account.
+
 #### Security Scopes
 
 A security scope in UCloud puts a limit on which calls a JWT can be used

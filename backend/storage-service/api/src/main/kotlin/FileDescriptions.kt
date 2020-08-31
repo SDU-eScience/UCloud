@@ -254,7 +254,7 @@ data class CreatePersonalRepositoryRequest(val project: String, val username: St
 
 typealias CreatePersonalRepositoryResponse = Unit
 
-data class RetrieveQuotaRequest(val path: String)
+data class RetrieveQuotaRequest(val path: String, val includeUsage: Boolean = false)
 typealias RetrieveQuotaResponse = Quota
 
 data class RetrieveFolderSizeRequest(val path: String)
@@ -263,7 +263,8 @@ typealias RetrieveFolderSizeResponse = Long
 data class Quota(
     val quotaInTotal: Long,
     val quotaInBytes: Long,
-    val allocated: Long
+    val allocated: Long,
+    val quotaUsed: Long? = null
 )
 
 data class UpdateQuotaRequest(val path: String, val quotaInBytes: Long, val additive: Boolean = false)
@@ -646,6 +647,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     val retrieveQuota = call<RetrieveQuotaRequest, RetrieveQuotaResponse, CommonErrorMessage>("retrieveQuota") {
         auth {
             access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         websocket(wsBaseContext)
@@ -695,6 +697,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     val updateQuota = call<UpdateQuotaRequest, UpdateQuotaResponse, CommonErrorMessage>("updateQuota") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         websocket(wsBaseContext)
@@ -717,6 +720,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     val transferQuota = call<TransferQuotaRequest, TransferQuotaResponse, CommonErrorMessage>("transferQuota") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {

@@ -32,7 +32,6 @@ class ToolHibernateDaoTest {
         NameAndVersion("name", "1.2"),
         "container",
         2,
-        2,
         SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("author"),
@@ -45,7 +44,6 @@ class ToolHibernateDaoTest {
     private val normToolDesc2 = NormalizedToolDescription(
         NameAndVersion("name", "2.2"),
         "container",
-        2,
         2,
         SimpleDuration(1, 0, 0),
         listOf(""),
@@ -60,7 +58,6 @@ class ToolHibernateDaoTest {
         NameAndVersion("anothername", "5.2"),
         "container",
         2,
-        2,
         SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("author"),
@@ -73,7 +70,6 @@ class ToolHibernateDaoTest {
     private val normToolDesc4 = NormalizedToolDescription(
         NameAndVersion("anothername", "8.2"),
         "container",
-        2,
         2,
         SimpleDuration(1, 0, 0),
         listOf(""),

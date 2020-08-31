@@ -9,8 +9,29 @@ import org.slf4j.Logger
 
 var Micro.isEmbeddedService: Boolean by delegate("isRootContainer")
 
-class ServiceRegistry(val args: Array<String>) {
-    private data class ConfiguredService(val description: ServiceDescription, val service: Service, val scope: Micro, val server: CommonServer)
+object PlaceholderServiceDescription : ServiceDescription {
+    override val name = "UCloud"
+    override val version = "unspecified-this-should-not-show-up-in-production"
+}
+
+class ServiceRegistry(
+    val args: Array<String>,
+
+    /**
+     * [ServiceDescription] used for [rootMicro]
+     *
+     * Certain features should only exist once and use this information, for example, for auditing purposes. For
+     * local development/testing systems this should be set to [PlaceholderServiceDescription] otherwise this should
+     * be set to the correct microservice's [ServiceDescription] (done by [runAsStandalone]).
+     */
+    val serviceDescription: ServiceDescription
+) {
+    private data class ConfiguredService(
+        val description: ServiceDescription,
+        val service: Service,
+        val scope: Micro,
+        val server: CommonServer
+    )
 
     val rootMicro = Micro()
     private val services = ArrayList<ConfiguredService>()
@@ -27,10 +48,7 @@ class ServiceRegistry(val args: Array<String>) {
     init {
         rootMicro.isEmbeddedService = false
         rootMicro.commandLineArguments = args.toList()
-        rootMicro.serviceDescription = object : ServiceDescription {
-            override val name = "UCloud"
-            override val version = "unspecified"
-        }
+        rootMicro.serviceDescription = serviceDescription
 
         with(rootMicro) {
             install(DeinitFeature)
@@ -108,7 +126,7 @@ interface Service {
 }
 
 fun Service.runAsStandalone(args: Array<String>) {
-    ServiceRegistry(args).apply {
+    ServiceRegistry(args, description).apply {
         register(this@runAsStandalone)
         start()
     }

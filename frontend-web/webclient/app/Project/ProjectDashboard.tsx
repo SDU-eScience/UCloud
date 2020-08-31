@@ -51,7 +51,8 @@ function computeUsageInPeriod(charts: NativeChart[]): number {
 }
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
-    const {projectId, projectDetails, projectRole} = useProjectManagementStatus(true);
+    const {projectId, projectDetails, projectRole} =
+        useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     function isPersonalProjectActive(id: string): boolean {
         return id === undefined || id === "";
@@ -113,6 +114,16 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.STORAGE));
     const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
+    function isAdmin(): boolean {
+        if (membersCount.error?.statusCode == 403) {
+            return false;
+        } else if (groupsCount.error?.statusCode == 403) {
+            return false;
+        } else if (subprojectsCount.error?.statusCode == 403) {
+            return false;
+        } else { return true }
+    }
+
     return (
         <MainContainer
             header={<Flex>
@@ -132,6 +143,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 isLoading={false}
                             >
                                 <Table>
+                                    {isAdmin() ? (
                                     <tbody>
                                     <TableRow cursor="pointer">
                                         <TableCell>Members</TableCell>
@@ -141,7 +153,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                         <TableCell>Groups</TableCell>
                                         <TableCell textAlign="right">{groupsCount.data}</TableCell>
                                     </TableRow>
-                                    </tbody>
+                                    </tbody> ) : null }
                                 </Table>
                                 {projectDetails.data.needsVerification ?
                                     <Box mt={16}><Icon name={"warning"} mr={"4px"}/> Attention required</Box> :
@@ -158,12 +170,13 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             subtitle={<RightArrow/>}
                         >
                             {Client.hasActiveProject ? <Table>
+                                {isAdmin() ? (
                                 <tbody>
                                 <TableRow cursor="pointer">
                                     <TableCell>Subprojects</TableCell>
                                     <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
                                 </TableRow>
-                                </tbody>
+                                </tbody> ) : null }
                             </Table> : null}
                         </DashboardCard>
 

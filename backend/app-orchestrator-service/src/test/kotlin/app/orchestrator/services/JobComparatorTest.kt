@@ -20,14 +20,12 @@ class JobComparatorTest {
 
     @Test
     fun `compare different jobs`() {
-        //Test compare with different maxTime, nodes, tasksPerNode.
+        //Test compare with different maxTime, nodes
         run {
             val jobNodes = verifiedJobForTestGenerator(nodes = 2)
-            val jobTasksPerNode = verifiedJobForTestGenerator(tasksPerNode = 2)
             val jobTime = verifiedJobForTestGenerator(maxTime = SimpleDuration(1,1,0))
             assertEquals(verifiedJob, verifiedJob)
             assertNotEquals(verifiedJob, jobNodes)
-            assertNotEquals(verifiedJob, jobTasksPerNode)
             assertNotEquals(verifiedJob, jobTime)
         }
 

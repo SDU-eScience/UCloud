@@ -79,4 +79,4 @@ const colors = [
     "tableRowHighlight",
     "appCard",
     "wayfGreen",
-]
+];

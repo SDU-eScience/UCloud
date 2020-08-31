@@ -132,9 +132,13 @@ class LoginResponder(
         call.response.cookies.append(
             name = CoreAuthController.REFRESH_WEB_AUTH_STATE_COOKIE,
             value = defaultMapper.writeValueAsString(value),
+            secure = call.request.origin.scheme == "https",
             httpOnly = false,
             expires = GMTDate(Time.now() + 1000L * 60 * 5),
-            path = "/"
+            path = "/",
+            extensions = mapOf(
+                "SameSite" to "strict"
+            )
         )
     }
 

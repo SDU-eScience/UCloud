@@ -49,7 +49,8 @@ const ActionBox = styled.div`
 `;
 
 export const ProjectSettings: React.FunctionComponent = () => {
-    const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails} = useProjectManagementStatus();
+    const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails} =
+        useProjectManagementStatus({isRootComponent: true});
 
     useTitle("Project Settings");
     useSidebarPage(SidebarPages.Projects);

@@ -7,7 +7,7 @@ private val bytesToStringFormat: DecimalFormat by lazy { DecimalFormat("#0.00") 
 /**
  * Converts an amount of [bytes] to a human readable string.
  *
- * The format is: "$bytes $unit". Example: 10MB.
+ * The format is: "$bytes $unit". Example: 10 MB.
  *
  * For any unit, except bytes, the value is converted to floating point with a precision of two decimal points.
  */
@@ -27,7 +27,7 @@ fun bytesToString(bytes: Long): String {
 /**
  * Converts an amount of [bytes] to a human readable string.
  *
- * The format is: "$bytes $unit". Example: 10MB.
+ * The format is: "$bytes $unit". Example: 10 MB.
  *
  * For any unit, except bytes, the value is converted to floating point with a precision of two decimal points.
  */

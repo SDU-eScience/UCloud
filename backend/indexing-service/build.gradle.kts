@@ -1,4 +1,4 @@
-version = "1.16.5-3"
+version = "1.17.1"
 
 application {
     mainClassName = "dk.sdu.cloud.indexing.MainKt"

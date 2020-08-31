@@ -191,11 +191,11 @@ class AppLicenseTest {
         appLicenseService.updateLicenseServer(
             TestUsers.admin,
             UpdateServerRequest(
+                serverId,
                 "testName",
                 newAddress,
                 1234,
-                null,
-                serverId
+                null
             ),
             user
         )
@@ -226,11 +226,11 @@ class AppLicenseTest {
             appLicenseService.updateLicenseServer(
                 TestUsers.user,
                 UpdateServerRequest(
+                    serverId,
                     "testName",
                     newAddress,
                     1234,
-                    null,
-                    serverId
+                    null
                 ),
                 user2
             )

@@ -29,7 +29,7 @@ const MembersPanel: React.FunctionComponent = () => {
         projectId, projectMembers, groupId, fetchGroupMembers, groupMembersParams,
         setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
         outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, projectRole, reloadProjectStatus
-    } = useProjectManagementStatus();
+    } = useProjectManagementStatus({isRootComponent: false});
     const [isLoading, runCommand] = useAsyncCommand();
     const reloadMembers = (): void => {
         setProjectMemberParams(projectMemberParams);

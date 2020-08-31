@@ -202,22 +202,10 @@ export interface UsageResponse {
     charts: UsageChart[];
 }
 
-export type CumulativeUsageRequest = UsageRequest;
-export type CumulativeUsageResponse = UsageResponse;
-
 export function usage(request: UsageRequest): APICallParameters<UsageRequest> {
     return {
         method: "GET",
         path: buildQueryString("/accounting/visualization/usage", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
-}
-
-export function cumulativeUsage(request: CumulativeUsageRequest): APICallParameters<CumulativeUsageRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/accounting/visualization/cumulative-usage", request),
         parameters: request,
         reloadId: Math.random()
     };
@@ -269,10 +257,12 @@ export function transformUsageChartForCharting(
 
 export interface RetrieveQuotaRequest {
     path: string;
+    includeUsage?: boolean;
 }
 
 export interface RetrieveQuotaResponse {
     quotaInBytes: number;
+    quotaUsed?: number;
 }
 
 export function retrieveQuota(request: RetrieveQuotaRequest): APICallParameters<RetrieveQuotaRequest> {
@@ -304,5 +294,5 @@ export function updateQuota(request: UpdateQuotaRequest): APICallParameters<Upda
 export const UCLOUD_PROVIDER = "ucloud";
 
 export function isQuotaSupported(category: ProductCategoryId): boolean {
-    return category.provider === UCLOUD_PROVIDER && category.id === "cephfs";
+    return category.provider === UCLOUD_PROVIDER && category.id === "u1-cephfs";
 }

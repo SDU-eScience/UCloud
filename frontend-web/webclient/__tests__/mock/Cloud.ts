@@ -1,6 +1,6 @@
 import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
-import HttpClient, {MissingAuthError, Override} from "../../app/Authentication/lib";
+import HttpClient, {MissingAuthError} from "../../app/Authentication/lib";
 import {emptyPage} from "../../app/DefaultObjects";
 
 interface JWT {
@@ -89,6 +89,14 @@ class MockHttpClient {
         return `${this.homeFolder}Favorites`;
     }
 
+    public get activeHomeFolder(): string {
+        if (!this.hasActiveProject) {
+            return this.homeFolder;
+        } else {
+            return this.currentProjectFolder;
+        }
+    }
+
     public get fakeFolders(): string[] {
         return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.currentProjectFolder] : []);
     }
@@ -120,8 +128,6 @@ class MockHttpClient {
     private projectId: string | undefined = undefined;
     private projectAccessToken: string | undefined = undefined;
     private projectDecodedToken: any | undefined = undefined;
-
-    private overrides: Override[] = [];
 
     constructor() {
         this.decodedToken = jwt.decode("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
@@ -219,19 +225,6 @@ class MockHttpClient {
 
     public computeURL(context: string, path: string): string {
         const absolutePath = context + path;
-        for (let i = 0; i < this.overrides.length; i++) {
-            const override = this.overrides[i];
-            if (absolutePath.indexOf(override.path) === 0) {
-                const scheme = override.destination.scheme ?
-                    override.destination.scheme : "http";
-                const host = override.destination.host ?
-                    override.destination.host : "localhost";
-                const port = override.destination.port;
-
-                return scheme + "://" + host + ":" + port + absolutePath;
-            }
-        }
-
         return this.context + absolutePath;
     }
 

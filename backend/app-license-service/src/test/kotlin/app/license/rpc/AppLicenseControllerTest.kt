@@ -2,20 +2,20 @@ package dk.sdu.cloud.app.license.rpc
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.license.api.AccessEntity
-import dk.sdu.cloud.app.license.api.AccessEntityWithPermission
-import dk.sdu.cloud.app.license.api.AclEntryRequest
+import dk.sdu.cloud.app.license.api.AclChange
 import dk.sdu.cloud.app.license.api.AddTagRequest
 import dk.sdu.cloud.app.license.api.AppLicenseServiceDescription
 import dk.sdu.cloud.app.license.api.DeleteTagRequest
 import dk.sdu.cloud.app.license.api.LicenseServerId
 import dk.sdu.cloud.app.license.api.LicenseServerWithId
-import dk.sdu.cloud.app.license.api.ListLicenseServersRequest
+import dk.sdu.cloud.app.license.api.FindByTagRequest
 import dk.sdu.cloud.app.license.api.ListTagsResponse
 import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.api.NewServerResponse
 import dk.sdu.cloud.app.license.api.ServerAccessRight
 import dk.sdu.cloud.app.license.api.UpdateAclRequest
 import dk.sdu.cloud.app.license.api.UpdateServerRequest
+import dk.sdu.cloud.app.license.services.AccessEntityWithPermission
 import dk.sdu.cloud.app.license.services.AppLicenseAsyncDao
 import dk.sdu.cloud.app.license.services.AppLicenseService
 import dk.sdu.cloud.app.license.services.acl.AclAsyncDao
@@ -204,11 +204,11 @@ class AppLicenseControllerTest {
                     path = "$baseContext/update",
                     user = TestUsers.admin,
                     request = UpdateServerRequest(
+                        serverId.serverId,
                         "newName",
                         "newAddress",
                         5678,
-                        "NewLicense",
-                        serverId.serverId
+                        "NewLicense"
                     )
                 )
                 updateRequest.assertSuccess()
@@ -241,7 +241,7 @@ class AppLicenseControllerTest {
                     request = UpdateAclRequest(
                         serverId.serverId,
                         listOf(
-                            AclEntryRequest(
+                            AclChange(
                                 AccessEntity(
                                     TestUsers.user.username,
                                     null,
@@ -305,7 +305,7 @@ class AppLicenseControllerTest {
                     method = HttpMethod.Post,
                     path = "$baseContext/list",
                     user = TestUsers.admin,
-                    request = ListLicenseServersRequest(
+                    request = FindByTagRequest(
                         listOf("tag1")
                     )
                 )

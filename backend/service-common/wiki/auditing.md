@@ -98,3 +98,8 @@ audit<AuditType>()
 It other cases the request type itself might not contain enough information
 to be useful. In these cases you should also use `audit()` to ensure that
 additional useful information is attached to the audit message.
+
+## Verification Procedure
+
+The following document describes how to verify that auditing works as intended:
+[auditing-scenario.md](auditing-scenario.md).

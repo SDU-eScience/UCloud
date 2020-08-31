@@ -32,7 +32,7 @@ const baseContext = "/projects/groups";
 const GroupList: React.FunctionComponent = () => {
     const history = useHistory();
     const {allowManagement, groupId, groupList, fetchGroupList, groupListParams,
-        membersPage} = useProjectManagementStatus();
+        membersPage} = useProjectManagementStatus({isRootComponent: false});
 
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [, setLoading] = useState(false);
@@ -63,7 +63,15 @@ const GroupList: React.FunctionComponent = () => {
     const [trashOp] = operations;
     const content = (
         <>
-            {groupList.data.items.length === 0 ? <Heading.h4>You have no groups to manage.</Heading.h4> : null}
+            {groupList.data.items.length !== 0 || creatingGroup ? null : (
+                <Flex justifyContent={"center"} alignItems={"center"} minHeight={"300px"} flexDirection={"column"}>
+                    <Heading.h4>You have no groups to manage.</Heading.h4>
+                    <ul>
+                        <li>Groups are used to manage permissions in your project</li>
+                        <li>You must create a group to grant members access to the project&#039;s files</li>
+                    </ul>
+                </Flex>
+            )}
             <List>
                 {creatingGroup ?
                     <ListRow

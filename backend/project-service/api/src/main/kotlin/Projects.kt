@@ -76,7 +76,8 @@ data class UserProjectSummary(
     val needsVerification: Boolean,
     val isFavorite: Boolean,
     val archived: Boolean,
-    val parent: String?
+    val parent: String?,
+    val ancestorPath: String? = null
 )
 
 data class UserGroupSummary(
@@ -90,7 +91,8 @@ data class ListProjectsRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null,
     val archived: Boolean? = null,
-    val noFavorites: Boolean? = null
+    val noFavorites: Boolean? = null,
+    val showAncestorPath: Boolean? = null
 ) : WithPaginationRequest
 
 typealias ListProjectsResponse = Page<UserProjectSummary>
@@ -99,7 +101,8 @@ data class ListFavoriteProjectsRequest(
     val user: String?,
     override val itemsPerPage: Int,
     override val page: Int,
-    val archived: Boolean
+    val archived: Boolean,
+    val showAncestorPath: Boolean? = null
 ) : WithPaginationRequest
 
 typealias ListFavoriteProjectsResponse = ListProjectsResponse
@@ -183,6 +186,7 @@ object Projects : CallDescriptionContainer("project") {
     val create = call<CreateProjectRequest, CreateProjectResponse, CommonErrorMessage>("create") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -232,6 +236,7 @@ object Projects : CallDescriptionContainer("project") {
     val invite = call<InviteRequest, InviteResponse, CommonErrorMessage>("invite") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -255,6 +260,7 @@ object Projects : CallDescriptionContainer("project") {
     val acceptInvite = call<AcceptInviteRequest, AcceptInviteResponse, CommonErrorMessage>("acceptInvite") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -279,6 +285,7 @@ object Projects : CallDescriptionContainer("project") {
     val rejectInvite = call<RejectInviteRequest, RejectInviteResponse, CommonErrorMessage>("rejectInvite") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -302,6 +309,7 @@ object Projects : CallDescriptionContainer("project") {
     ) {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -328,6 +336,7 @@ object Projects : CallDescriptionContainer("project") {
     ) {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -354,6 +363,7 @@ object Projects : CallDescriptionContainer("project") {
     val transferPiRole = call<TransferPiRoleRequest, TransferPiRoleResponse, CommonErrorMessage>("transferPiRole") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -377,6 +387,7 @@ object Projects : CallDescriptionContainer("project") {
     val leaveProject = call<LeaveProjectRequest, LeaveProjectResponse, CommonErrorMessage>("leaveProject") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -397,6 +408,7 @@ object Projects : CallDescriptionContainer("project") {
     val deleteMember = call<DeleteMemberRequest, DeleteMemberResponse, CommonErrorMessage>("deleteMember") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -420,6 +432,7 @@ object Projects : CallDescriptionContainer("project") {
     val changeUserRole = call<ChangeUserRoleRequest, ChangeUserRoleResponse, CommonErrorMessage>("changeUserRole") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -440,6 +453,7 @@ object Projects : CallDescriptionContainer("project") {
     val listFavoriteProjects = call<ListFavoriteProjectsRequest, ListFavoriteProjectsResponse, CommonErrorMessage>("listFavoriteProjects") {
         auth {
             access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -455,6 +469,7 @@ object Projects : CallDescriptionContainer("project") {
                 +boundTo(ListFavoriteProjectsRequest::page)
                 +boundTo(ListFavoriteProjectsRequest::user)
                 +boundTo(ListFavoriteProjectsRequest::archived)
+                +boundTo(ListFavoriteProjectsRequest::showAncestorPath)
             }
         }
     }
@@ -465,6 +480,7 @@ object Projects : CallDescriptionContainer("project") {
     val listProjects = call<ListProjectsRequest, ListProjectsResponse, CommonErrorMessage>("listProjects") {
         auth {
             access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -481,6 +497,7 @@ object Projects : CallDescriptionContainer("project") {
                 +boundTo(ListProjectsRequest::user)
                 +boundTo(ListProjectsRequest::archived)
                 +boundTo(ListProjectsRequest::noFavorites)
+                +boundTo(ListProjectsRequest::showAncestorPath)
             }
         }
     }
@@ -493,6 +510,7 @@ object Projects : CallDescriptionContainer("project") {
     val viewProject = call<ViewProjectRequest, ViewProjectResponse, CommonErrorMessage>("viewProject") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -519,6 +537,7 @@ object Projects : CallDescriptionContainer("project") {
         call<Unit, Unit, CommonErrorMessage>("verifyMembership") {
             auth {
                 access = AccessRight.READ_WRITE
+                roles = Roles.AUTHENTICATED
             }
 
             http {
@@ -542,6 +561,7 @@ object Projects : CallDescriptionContainer("project") {
     val archive = call<ArchiveRequest, ArchiveResponse, CommonErrorMessage>("archive") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -586,6 +606,7 @@ object Projects : CallDescriptionContainer("project") {
     val listSubProjects = call<ListSubProjectsRequest, ListSubProjectsResponse, CommonErrorMessage>("listSubProjects") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -610,6 +631,7 @@ object Projects : CallDescriptionContainer("project") {
     val countSubProjects = call<CountSubProjectsRequest, CountSubProjectsResponse, CommonErrorMessage>("countSubProjects") {
         auth {
             access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -628,6 +650,7 @@ object Projects : CallDescriptionContainer("project") {
     val viewAncestors = call<ViewAncestorsRequest, ViewAncestorsResponse, CommonErrorMessage>("viewAncestors") {
         auth {
             access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -726,6 +749,7 @@ object Projects : CallDescriptionContainer("project") {
     val rename = call<RenameProjectRequest, RenameProjectResponse, CommonErrorMessage>("rename") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {

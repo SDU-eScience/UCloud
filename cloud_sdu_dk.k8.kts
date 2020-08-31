@@ -1,6 +1,5 @@
 config("ceph") { ctx ->
-    configure("enabled", ctx.environment != "production")
-    if (ctx.environment == "test") configure("fsSubFolder", "staging")
+    configure("enabled", false)
 
     if (ctx.environment in setOf("test", "development")) {
         configure("monitors", "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789")
@@ -76,7 +75,7 @@ config("elasticsearch") { ctx ->
             configure("masterCount", 3)
             configure("clientCount", 2)
             configure("dataCount", 3)
-            configure("dataStorage", "5000Gi")
+            configure("dataStorage", "500Gi")
         }
     }
 }
@@ -107,7 +106,8 @@ config("app-orchestrator") { ctx ->
         "svensson@imada.sdu.dk",
         "dthrane@imada.sdu.dk",
         "jakoj17@student.sdu.dk",
-        "alfal19@student.sdu.dk"
+        "alfal19@student.sdu.dk",
+        "greisager@imada.sdu.dk"
     ))
 
     when (ctx.environment) {

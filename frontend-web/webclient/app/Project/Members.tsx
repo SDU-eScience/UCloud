@@ -34,7 +34,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
         membersPage,
         reload,
         projectDetails
-    } = useProjectManagementStatus();
+    } = useProjectManagementStatus({isRootComponent: true});
 
     const shouldVerify = projectDetails.data.needsVerification;
 
@@ -49,6 +49,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
                 notInGroup: groupId
             })
         );
+        // TODO: This is currently triggering twice in certain situations (group page for example)
     }, [projectId, groupId, groupMembers.data, memberSearchQuery]);
 
     useEffect(() => {
@@ -135,11 +136,12 @@ const TwoColumnLayout = styled.div`
         }
         
         & > .members {
-            border-right: 2px solid var(--black, #f00);
+            border-right: 2px solid var(--gray, #f00);
             height: 100%;
             flex: 1;
             overflow-y: auto;
-            margin-right: 32px;
+            margin-right: 16px;
+            padding-right: 16px;
         }
         
         & > .groups {

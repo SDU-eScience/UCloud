@@ -3,7 +3,6 @@ import {width} from "styled-system";
 import {borders} from "./Input";
 import theme from "./theme";
 
-
 export const TextArea = styled.textarea<{width?: string | number}>`
     ${width}; ${borders};
     border-radius: 5px;
@@ -18,7 +17,7 @@ export const TextArea = styled.textarea<{width?: string | number}>`
     }
 
     &:disabled {
-        background-color: var(--FtFolderColor2, #f00);
+        background-color: var(--lightGray, #f00);
     }
 `;
 

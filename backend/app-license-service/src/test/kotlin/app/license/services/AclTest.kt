@@ -114,7 +114,7 @@ class AclTest {
             user
         )
 
-        val changes = listOf(AclEntryRequest(user2, ServerAccessRight.READ))
+        val changes = listOf(AclChange(user2, ServerAccessRight.READ))
 
         aclService.updatePermissions(serverId, changes, user)
         assertTrue(aclService.hasPermission(serverId, user2, ServerAccessRight.READ))
@@ -140,7 +140,7 @@ class AclTest {
         println(embDb.getJdbcUrl("postgres", "postgres"))
         assertFalse(aclService.hasPermission(serverId, userEntity2, ServerAccessRight.READ))
 
-        val changes = listOf(AclEntryRequest(userEntity2, ServerAccessRight.READ))
+        val changes = listOf(AclChange(userEntity2, ServerAccessRight.READ))
 
         aclService.updatePermissions(serverId, changes, userEntity)
 
@@ -162,7 +162,7 @@ class AclTest {
             user
         )
 
-        val changes = listOf(AclEntryRequest(user2, ServerAccessRight.READ))
+        val changes = listOf(AclChange(user2, ServerAccessRight.READ))
 
         repeat(10) {
             aclService.updatePermissions(serverId, changes, user)

@@ -46,11 +46,6 @@ data class VerifiedJob(
      */
     val maxTime: SimpleDuration,
 
-    /**
-     * The number of tasks per node requested.
-     */
-    val tasksPerNode: Int,
-
     val reservation: Product.Compute = Product.Compute(
         "u1-standard-burst",
         0,
@@ -151,7 +146,6 @@ data class VerifiedJob(
 
         if (files != other.files) return false
         if (nodes != other.nodes) return false
-        if (tasksPerNode != other.tasksPerNode) return false
         if (maxTime != other.maxTime) return false
         if (jobInput != other.jobInput) return false
         if (_mounts != other._mounts) return false
@@ -164,7 +158,6 @@ data class VerifiedJob(
     override fun hashCode(): Int {
         var result = files.hashCode()
         result = 31 * result + nodes
-        result = 31 * result + tasksPerNode
         result = 31 * result + maxTime.hashCode()
         result = 31 * result + jobInput.hashCode()
         result = 31 * result + (_mounts?.hashCode() ?: 0)

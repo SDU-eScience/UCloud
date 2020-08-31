@@ -47,7 +47,16 @@ export function MembersList(props: Readonly<{
             <React.Fragment key={member.username}>
                 <Flex alignItems="center" mb="16px">
                     <UserAvatar avatar={avatars.cache[member.username] ?? defaultAvatar} mr="10px" />
-                    {!props.isOutgoingInvites ? <Text bold>{member.username}</Text> :
+                    {!props.isOutgoingInvites ?
+                        <div>
+                            <Text bold>{member.username}</Text>
+                            {member.memberOfAnyGroup !== false ? null : (
+                                <Text color={"red"}>
+                                    <Icon name={"warning"} size={20} mr={"6px"} />
+                                    Not a member of any group
+                                </Text>
+                            )}
+                        </div>:
                         <div>
                             <Text bold>{member.username}</Text>
                             Invited to join

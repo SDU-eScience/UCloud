@@ -150,6 +150,7 @@ object Wallets : CallDescriptionContainer("wallets") {
     val retrieveBalance = call<RetrieveBalanceRequest, RetrieveBalanceResponse, CommonErrorMessage>("retrieveBalance") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -171,6 +172,7 @@ object Wallets : CallDescriptionContainer("wallets") {
     val addToBalance = call<AddToBalanceRequest, AddToBalanceResponse, CommonErrorMessage>("addToBalance") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -188,6 +190,7 @@ object Wallets : CallDescriptionContainer("wallets") {
     val addToBalanceBulk = call<AddToBalanceBulkRequest, AddToBalanceBulkResponse, CommonErrorMessage>("addToBalanceBulk") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {
@@ -205,6 +208,7 @@ object Wallets : CallDescriptionContainer("wallets") {
     val setBalance = call<SetBalanceRequest, SetBalanceResponse, CommonErrorMessage>("setBalance") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {

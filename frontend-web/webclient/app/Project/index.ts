@@ -208,6 +208,7 @@ export function deleteGroup(request: DeleteGroupRequest): APICallParameters<Dele
 export interface ProjectMember {
     username: string;
     role: ProjectRole;
+    memberOfAnyGroup?: boolean;
 }
 
 export interface Project {
@@ -243,6 +244,7 @@ export interface UserInProject {
     favorite: boolean;
     archived: boolean;
     parent?: string;
+    ancestorPath?: string;
 }
 
 export interface UserGroupSummary {
@@ -284,6 +286,7 @@ export const changeRoleInProject = (
 export interface ListProjectsRequest extends PaginationRequest {
     archived?: boolean;
     noFavorites?: boolean;
+    showAncestorPath?: boolean;
 }
 
 export const listProjects = (parameters: ListProjectsRequest): APICallParameters<ListProjectsRequest> => ({
@@ -308,6 +311,7 @@ export const listSubprojects = (parameters: ListSubprojectsRequest): APICallPara
 
 export interface ListFavoriteProjectsRequest extends PaginationRequest {
     archived: boolean;
+    showAncestorPath?: boolean;
 }
 
 export const listFavoriteProjects = (parameters: ListFavoriteProjectsRequest): APICallParameters<ListFavoriteProjectsRequest> => ({
@@ -422,7 +426,7 @@ export function renameProject(request: RenameProjectRequest): APICallParameters<
         method: "POST",
         path: "/projects/rename",
         payload: request,
-        parameters: request 
+        parameters: request
     };
 }
 
@@ -526,8 +530,21 @@ export function areProjectsEnabled(): boolean {
     return Client.userRole === "ADMIN";
 }
 
+export function useProjectId(): string | undefined {
+    return useSelector<ReduxObject, string | undefined>(it => it.project.project);
+}
+
 // eslint-disable-next-line
-export function useProjectManagementStatus(allowPersonalProject?: true) {
+export function useProjectManagementStatus(args: {
+    /**
+     * isRootComponent controls if this component should pull in new information when the project changes.
+     * Rule of thumb: If the component uses a MainContainer then this should be true otherwise it should probably be
+     * false.
+     */
+    isRootComponent: boolean,
+    allowPersonalProject?: true
+}) {
+    const {isRootComponent, allowPersonalProject} = args;
     const history = useHistory();
     const promises = usePromiseKeeper();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
@@ -599,6 +616,7 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
     const reloadProjectStatus = projects.reload;
 
     useEffect(() => {
+        if (!isRootComponent) return;
         if (promises.canceledKeeper) return;
         if (groupId !== undefined) {
             fetchGroupMembers(listGroupMembersRequest({group: groupId, itemsPerPage: 25, page: 0}));
@@ -606,12 +624,18 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
             fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
         }
 
+        if (groupId) fetchGroupDetails(viewGroup({id: groupId}));
+    }, [projectId, groupId, projectRole]);
+
+    useEffect(() => {
+        if (!isRootComponent) return;
+        if (promises.canceledKeeper) return;
+
         // noinspection JSIgnoredPromiseFromCall
         reloadProjectStatus();
         fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
         if (projectId) fetchProjectDetails(viewProject({id: projectId}));
-        if (groupId) fetchGroupDetails(viewGroup({id: groupId}));
-    }, [projectId, groupId, projectRole]);
+    }, [projectId, projectRole]);
 
     const reload = useCallback(() => {
         if (promises.canceledKeeper) return;
@@ -620,15 +644,15 @@ export function useProjectManagementStatus(allowPersonalProject?: true) {
         fetchProjectDetails(projectDetailsParams);
         if (groupId !== undefined) {
             fetchGroupMembers(groupMembersParams);
-            fetchGroupDetails(groupDetailsParams)
+            fetchGroupDetails(groupDetailsParams);
         }
     }, [projectMemberParams, groupMembersParams, setProjectMemberParams, groupId]);
 
     return {
-        locationParams, projectId: projectId ?? "", groupId, groupDetails, fetchGroupDetails, groupDetailsParams, projectMembers, setProjectMemberParams, groupMembers,
-        fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
-        projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
+        locationParams, projectId: projectId ?? "", groupId, groupDetails, fetchGroupDetails, groupDetailsParams,
+        projectMembers, setProjectMemberParams, groupMembers, fetchGroupMembers, groupMembersParams, groupList,
+        fetchGroupList, groupListParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
+        reloadProjectStatus, outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
         projectDetails, projectDetailsParams, fetchProjectDetails, subprojectSearchQuery, setSubprojectSearchQuery,
         reload
     };

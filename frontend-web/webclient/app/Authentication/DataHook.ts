@@ -1,5 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {useEffect, useReducer, useState} from "react";
+import {useCallback, useEffect, useMemo, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {useGlobal, ValueOrSetter} from "Utilities/ReduxHooks";
 import {HookStore} from "DefaultObjects";
@@ -171,7 +171,7 @@ export function useGlobalCloudAPI<T, Parameters = any>(
     const state = globalState as unknown as APICallStateWithParams<T, Parameters>;
     const setState = setGlobalState as unknown as (value: ValueOrSetter<APICallStateWithParams<T, Parameters>>) => void;
 
-    async function doFetch(parameters: APICallParameters): Promise<void> {
+    const doFetch = useCallback(async (parameters: APICallParameters) => {
         if (promises.canceledKeeper) return;
         setState(old => ({...old, parameters}));
         if (parameters.noop !== true) {
@@ -196,7 +196,7 @@ export function useGlobalCloudAPI<T, Parameters = any>(
                 }
             }
         }
-    }
+    }, [promises, setState]);
 
     return [state.call, doFetch, state.parameters];
 }
@@ -204,7 +204,8 @@ export function useGlobalCloudAPI<T, Parameters = any>(
 export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
     const [isLoading, setIsLoading] = useState(false);
     let didCancel = false;
-    const sendCommand = <T>(call: APICallParameters): Promise<T | null> => {
+    const sendCommand = useCallback(<T>(call: APICallParameters): Promise<T | null> => {
+        // eslint-disable-next-line no-async-promise-executor
         return new Promise<T | null>(async (resolve, reject) => {
             if (didCancel) return;
 
@@ -222,7 +223,7 @@ export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) 
 
             setIsLoading(false);
         });
-    };
+    }, [setIsLoading]);
 
     useEffect(() => {
         return () => {

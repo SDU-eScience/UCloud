@@ -85,7 +85,9 @@ export type SubmitGrantApplicationRequest = CreateGrantApplication;
 
 export type SubmitGrantApplicationResponse = {};
 
-export function submitGrantApplication(request: SubmitGrantApplicationRequest): APICallParameters<SubmitGrantApplicationRequest> {
+export function submitGrantApplication(
+    request: SubmitGrantApplicationRequest
+): APICallParameters<SubmitGrantApplicationRequest> {
     return {
         method: "POST",
         path: "/grant/submit-application",
@@ -239,7 +241,26 @@ export function externalApplicationsEnabled(
     };
 }
 
-export type IngoingGrantApplicationsRequest = PaginationRequest;
+export enum GrantApplicationFilter {
+    SHOW_ALL = "SHOW_ALL",
+    INACTIVE = "INACTIVE",
+    ACTIVE = "ACTIVE"
+}
+
+export function grantApplicationFilterPrettify(filter: GrantApplicationFilter): string {
+    switch (filter) {
+        case GrantApplicationFilter.ACTIVE:
+            return "Active";
+        case GrantApplicationFilter.SHOW_ALL:
+            return "Show all";
+        case GrantApplicationFilter.INACTIVE:
+            return "Inactive";
+    }
+}
+
+export interface IngoingGrantApplicationsRequest extends PaginationRequest {
+    filter?: GrantApplicationFilter;
+}
 export type IngoingGrantApplicationsResponse = Page<GrantApplication>;
 
 export function ingoingGrantApplications(
@@ -322,6 +343,40 @@ export function uploadTemplates(request: UploadTemplatesRequest): APICallParamet
     };
 }
 
+export interface RetrieveDescriptionRequest {
+    projectId?: string;
+}
+
+export interface RetrieveDescriptionResponse {
+    description: string;
+}
+
+export function retrieveDescription(
+    request: RetrieveDescriptionRequest
+): APICallParameters<RetrieveDescriptionRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/description/", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface UploadDescriptionRequest {
+    projectId: string,
+    description: string
+}
+
+export function uploadDescription(request: UploadDescriptionRequest): APICallParameters<UploadDescriptionRequest> {
+    return {
+        method: "POST",
+        path: "/grant/uploadDescription",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
 export type BrowseProjectsRequest = PaginationRequest;
 export type BrowseProjectsResponse = Page<{projectId: string, title: string}>;
 
@@ -331,5 +386,19 @@ export function browseProjects(request: BrowseProjectsRequest): APICallParameter
         path: buildQueryString("/grant/browse-projects", request),
         parameters: request,
         reloadId: Math.random()
+    };
+}
+
+export interface ListOutgoingApplications extends PaginationRequest {
+    filter?: GrantApplicationFilter;
+}
+
+export function listOutgoingApplications(
+    request: ListOutgoingApplications
+): APICallParameters<ListOutgoingApplications> {
+    return {
+        path: buildQueryString("/grant/outgoing", request),
+        method: "GET",
+        parameters: request
     };
 }

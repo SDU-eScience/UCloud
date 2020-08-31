@@ -46,7 +46,7 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     size?: string | number;
     squared?: boolean;
     spin?: boolean;
-    hoverColor?: ResponsiveValue<CSS.ColorProperty>;
+    hoverColor?: ResponsiveValue<CSS.Property.Color>;
     title?: string;
 }
 

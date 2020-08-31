@@ -165,7 +165,6 @@ class JobVerificationService(
                 backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
                 nodes = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes,
                 maxTime = unverifiedJob.request.maxTime ?: tool.description.defaultTimeAllocation,
-                tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode,
                 reservation = reservation,
                 jobInput = verifiedParameters,
                 files = files,

@@ -27,6 +27,8 @@ import {sizeToString} from "Utilities/FileUtilities";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+import {Balance} from "Accounting/Balance";
+import {shakeAnimation, shakingClassName} from "UtilityComponents";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -35,10 +37,7 @@ const WalletContainer = styled.div`
     
     margin: 32px 0;
     
-    &.shaking {
-        transform: translate3d(0, 0, 0); 
-        animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
-    }
+    ${shakeAnimation}
     
     .request-resources {
         grid-column-start: span 2;
@@ -46,24 +45,6 @@ const WalletContainer = styled.div`
     
     .request-resources ${Card} {
         height: 100%;
-    }
-    
-    @keyframes shake {
-      10%, 90% {
-        transform: translate3d(-1px, 0, 0);
-      }
-      
-      20%, 80% {
-        transform: translate3d(2px, 0, 0);
-      }
-
-      30%, 50%, 70% {
-        transform: translate3d(-4px, 0, 0);
-      }
-
-      40%, 60% {
-        transform: translate3d(4px, 0, 0);
-      }
     }
 `;
 
@@ -114,11 +95,13 @@ const SelectableWallet: React.FunctionComponent<{
                     <tbody>
                         <tr>
                             <th>Product</th>
-                            <td>{props.wallet.wallet.paysFor.id} / {props.wallet.wallet.paysFor.provider}</td>
+                            <td>{props.wallet.wallet.paysFor.provider} / {props.wallet.wallet.paysFor.id}</td>
                         </tr>
                         <tr>
                             <th>Balance</th>
-                            <td>{creditFormatter(props.wallet.balance)}</td>
+                            <td>
+                                <Balance amount={props.wallet.balance} productCategory={props.wallet.wallet.paysFor}/>
+                            </td>
                         </tr>
                         {!props.allocated ? null : (
                             <tr>
@@ -175,7 +158,7 @@ const Subprojects: React.FunctionComponent = () => {
         setSubprojectSearchQuery,
         projectRole,
         reloadProjectStatus
-    } = useProjectManagementStatus(true);
+    } = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
         {noop: true},
@@ -197,9 +180,9 @@ const Subprojects: React.FunctionComponent = () => {
     const shakeWallets = useCallback(() => {
         const container = walletContainer.current;
         if (container) {
-            container.classList.add("shaking");
+            container.classList.add(shakingClassName);
             window.setTimeout(() => {
-                container.classList.remove("shaking");
+                container.classList.remove(shakingClassName);
             }, 820);
         }
     }, [walletContainer.current]);

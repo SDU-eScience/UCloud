@@ -97,7 +97,6 @@ interface ApplicationTool {
         info: ApplicationInfo;
         container: string;
         defaultNumberOfNodes: number;
-        defaultTasksPerNode: number;
         defaultAllocationTime: MaxTime;
         requiredModules: string[];
         authors: string[];
@@ -142,7 +141,6 @@ export interface MaxTimeForInput {
 export interface JobSchedulingOptionsForInput {
     maxTime: MaxTimeForInput;
     numberOfNodes: number;
-    tasksPerNode: number;
     name: React.RefObject<HTMLInputElement>;
 }
 
@@ -376,7 +374,6 @@ export interface ToolDescription {
     info: NameAndVersion;
     container: string;
     defaultNumberOfNodes: number;
-    defaultTasksPerNode: number;
     defaultTimeAllocation: MaxTime;
     requiredModules: string[];
     authors: string[];

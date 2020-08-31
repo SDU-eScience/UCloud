@@ -22,16 +22,12 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.defaultForFile
 import io.ktor.util.KtorExperimentalAPI
-import io.ktor.util.cio.readChannel
+import io.ktor.util.cio.*
+import io.ktor.util.cio.toByteReadChannel
 import io.ktor.util.pipeline.PipelineContext
-import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.io.ByteWriteChannel
-import kotlinx.coroutines.io.copyTo
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
-import kotlinx.coroutines.io.jvm.javaio.toInputStream
-import kotlinx.coroutines.io.readRemaining
-import kotlinx.io.core.ExperimentalIoApi
-import kotlinx.io.core.IoBuffer
+import io.ktor.utils.io.*
+import io.ktor.utils.io.core.*
+import io.ktor.utils.io.jvm.javaio.*
 import java.io.File
 import java.io.InputStream
 import java.lang.reflect.ParameterizedType
@@ -48,7 +44,7 @@ class StreamingFile(
     val channel: ByteReadChannel
 ) {
     @Deprecated("use channel instead")
-    @UseExperimental(ExperimentalIoApi::class)
+    @OptIn(ExperimentalIoApi::class, KtorExperimentalAPI::class)
     constructor(
         contentType: ContentType,
         length: Long?,
@@ -61,7 +57,7 @@ class StreamingFile(
         get() = channel.toInputStream()
 
     companion object {
-        @UseExperimental(KtorExperimentalAPI::class)
+        @OptIn(KtorExperimentalAPI::class)
         fun fromFile(file: File): StreamingFile = StreamingFile(
             ContentType.defaultForFile(file),
             file.length(),

@@ -1,8 +1,8 @@
 # Getting Started
 
-In this guide we will go through creating your first micro-service for SDUCloud.
+In this guide we will go through creating your first micro-service for UCloud.
 At the end of this guide you will have created a small Twitter-like service,
-where users of SDUCloud can post small messages.
+where users of UCloud can post small messages.
 
 We assume that you are already familiar with the
 [Kotlin](https://kotlinlang.org/) programming language.
@@ -11,16 +11,8 @@ We assume that you are already familiar with the
 
 We expect that you have the following tools installed:
 
-- Kotlin development tools. Easily installed with [sdkman](https://sdkman.io/)
-  - JDK 1.8+
-  - Gradle 5
-  - kotlin (`sdk install kotlin`)
-  - kscript (`sdk install kscript`)
-- [Docker](https://www.docker.com/)
-- [IntelliJ IDEA](https://www.jetbrains.com/idea/)
-- A local instance of Redis
-
-You should add `infrastructure/scripts` to your `PATH`.
+You should add `infrastructure/scripts` to your `PATH`. Before you can test services you should also follow 
+[this guide](testing_services_locally.md).
 
 ## Creating the Service
 
@@ -228,11 +220,11 @@ implement(MicroblogDescriptions.createPost) {
 Before we continue with our implementation let's take a quick side-track and
 start the micro-service.
 
-All SDUCloud micro-services assume that they run in an environment where
+All UCloud micro-services assume that they run in an environment where
 certain pieces of information is always available. As a result we must
 configure some basics before we continue.
 
-Start by creating a configuration folder for SDUCloud.
+Start by creating a configuration folder for UCloud.
 
 ```bash
 mkdir ~/sducloud
@@ -249,7 +241,7 @@ tokenValidation:
 refreshToken: not-used-yet
 ```
 
-This configures the authentication for your development system. SDUCloud uses
+This configures the authentication for your development system. UCloud uses
 [JWT](https://jwt.io) based authentication. This configuration contains very
 weak authentication, but it is suitable for your own local machine. You can use
 the following tokens in the coming examples:
@@ -298,52 +290,47 @@ One of the common types of services you have to write is for database-access.
 We will be writing a small DAO for accessing the tables associated with
 saving the posts.
 
-We first create an interface that describes the actions we wish to perform
-on our data. This interface should speak in the same data model we expose to our
-clients.
+We can now implement the `PostDao`.
 
 ```kotlin
-interface PostDao<Session> {
-    fun create(session: Session, username: String, contents: String, important: Boolean): String
-    // Later we will implement another function for listing posts
-}
-```
-
-Note the interface has a single generic, the `Session`, this allows for clients
-to be passed a database session. The database session are implemented in
-`DBSessionFactory`, but the `Session` object itself can be anything.
-
-Since we want to implement this interface with PostgreSQL and Hibernate we start
-by creating a normal Hibernate model which can contain this data. This is just
-ordinary Hibernate code written in Kotlin.
-
-```kotlin
-@Entity
-@Table(name = "posts")
-class PostEntity(
-    var username: String,
-
-    @Column(length = 1024)
-    var contents: String,
-
-    var important: Boolean,
-
-    @Id
-    @GeneratedValue
-    var id: Long? = null
-)
-```
-
-Next we can implement the `PostDao` for Hibernate.
-
-```kotlin
-class PostHibernateDao : PostDao<HibernateSession> {
-    override fun create(session: HibernateSession, username: String, contents: String, important: Boolean): String {
+class PostDao {
+    suspend fun create(ctx: DBContext, username: String, contents: String, important: Boolean): String {
         if (contents.length >= 1024) throw RPCException("Post is too long", HttpStatusCode.BadRequest)
-        val entity = PostEntity(username, contents, important)
-        return (session.save(entity) as Long).toString()
+
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", username)
+                        setParameter("contents", contents)
+                        setParameter("important", important)
+                    },
+                    """
+                        insert into post (id, username, contents, important) 
+                        values (nextval('post_sequence'), :username, :contents, :important)
+                        returning id
+                    """
+                )
+                .rows
+                .single()
+                .getLong(0)!!
+                .toString()
+        }
     }
 }
+```
+
+In `src/main/resources/db/migration` add the following file `V1__Initial.sql`:
+
+```sql
+create sequence post_sequence start 0 increment 1;
+
+create table post(
+    id bigint,
+    username text,
+    contents text,
+    important bool
+);
 ```
 
 Next we will be implementing a service wrapping the DAO itself. In this service
@@ -351,19 +338,19 @@ we should expose logic that more closely matches the logic of endpoints. If we
 want to impose additional constraints (such as security) we should do it here.
 
 ```kotlin
-class PostService<Session>(
-    private val db: DBSessionFactory<Session>,
-    private val postDao: PostDao<Session>
+class PostService(
+    private val db: DBContext,
+    private val postDao: PostDao
 ) {
-    fun create(user: SecurityPrincipal, contents: String, important: Boolean): String {
+    suspend fun create(user: Actor, contents: String, important: Boolean): String {
         if (contents.length >= 1024) throw RPCException("Post too long", HttpStatusCode.BadRequest)
-        if (user.role !in Roles.ADMIN && important) {
-            throw RPCException("Only admins can create important posts", HttpStatusCode.Forbidden)
+        if (important) {
+            if (user !is Actor.System && !(user is Actor.User && user.principal.role !in Roles.ADMIN)) {
+                throw RPCException("Only admins can create important posts", HttpStatusCode.Forbidden)
+            }
         }
 
-        return db.withTransaction { session ->
-            postDao.create(session, user.username, contents, important)
-        }
+        return postDao.create(db, user.username, contents, important)
     }
 }
 ```
@@ -374,19 +361,19 @@ We will also be updating the `implement` call (in the controller):
 implement(MicroblogDescriptions.createPost) {
     ok(
         CreatePostResponse(
-            postService.create(ctx.securityPrincipal, request.post, request.important)
+            postService.create(ctx.securityPrincipal.toActor(), request.post, request.important)
         )
     )
 }
 ```
 
-Finally we have to setup the correct dependencies for each service. Go to
+Finally, we have to setup the correct dependencies for each service. Go to
 `Server.kt` and create our services:
 
 ```kotlin
 override fun start() {
-    val db = micro.hibernateDatabase
-    val postDao = PostHibernateDao()
+    val db = AsyncDBSessionFactory(micro.databaseConfig)
+    val postDao = PostDao()
     val postService = PostService(db, postDao)
 
     with(micro.server) {
@@ -400,8 +387,7 @@ override fun start() {
 ```
 
 You should now be able to restart the service and make posts using the call
-instructions from before. By default the micro-service will be using a
-non-persistent databases, so no changes will be saved between restarts.
+instructions from before.
 
 If you did it all correctly, you should now see that the ID increments slowly
 as you create new posts. Additionally, if you try running with the important
@@ -508,5 +494,3 @@ Server: ktor-server-core/1.1.2 ktor-server-core/1.1.2
     "pagesInTotal": 1
 }
 ```
-
-If you get stuck, you can look [here](solution.html) for a solution.

@@ -6,6 +6,7 @@ import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.findPreferredOutgoingIp
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.micro.configuration
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.rules.ExternalResource
 import org.openqa.selenium.Dimension
@@ -31,7 +32,7 @@ enum class E2EDrivers {
 }
 
 data class E2EConfig(val useLocalDriver: Boolean = false)
-
+@Ignore
 abstract class EndToEndTest : IntegrationTest() {
     val config = UCloudLauncher.micro.configuration.requestChunkAtOrNull("e2e") ?: E2EConfig()
 

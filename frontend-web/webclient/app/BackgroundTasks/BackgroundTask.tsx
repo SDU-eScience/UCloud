@@ -218,7 +218,7 @@ const mapStateToProps = (state: ReduxObject) => ({
 });
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
+    showUploader: () => dispatch(setUploaderVisible(true, Client.activeHomeFolder)),
     onTaskUpdate: (update: TaskUpdate) => dispatch(taskUpdateAction(update)),
     loadInitialTasks: async () => {
         try {

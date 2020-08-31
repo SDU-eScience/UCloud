@@ -12,13 +12,14 @@ import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Acl, File, ProjectEntity} from "Files";
 import {Spacer} from "ui-components/Spacer";
 import {groupSummaryRequest, ProjectName, ProjectRole} from "Project";
-import {pathComponents} from "Utilities/FileUtilities";
+import {isPartOfSomePersonalFolder, isPersonalRootFolder, pathComponents} from "Utilities/FileUtilities";
 import styled from "styled-components";
 import {useHistory} from "react-router";
 import {GroupWithSummary} from "Project/GroupList";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import {ProjectStatus} from "Project/cache";
+import * as Heading from "ui-components/Heading";
 
 export function repositoryName(path: string): string {
     const components = pathComponents(path);
@@ -104,11 +105,28 @@ const InnerProjectPermissionBox = styled.div`
     overflow-y: auto;
 `;
 
+export function explainPersonalRepo(): void {
+    dialogStore.addDialog(
+        <Box width="auto" minWidth="450px">
+            <Heading.h3>You cannot change this directory</Heading.h3>
+            <ul>
+                <li>The &#039;Personal&#039; directory is a special directory</li>
+                <li>It contains a folder for every member (current or previous) of the project</li>
+                <li>These folders act as the home for every member of the project</li>
+                <li>Only project administrators can access the &#039;Personal&#039; directory</li>
+            </ul>
+            <Button fullWidth onClick={() => dialogStore.failure()}>OK</Button>
+        </Box>,
+        () => undefined,
+        true
+    );
+}
+
 export function UpdatePermissionsDialog(props: {
     client: HttpClient;
     repository: string;
     rights: Acl[];
-    reload: () => void
+    reload: () => void;
 }): JSX.Element {
     const [groups, fetchGroups, groupParams] = useCloudAPI<Page<GroupWithSummary>>(
         groupSummaryRequest({itemsPerPage: 25, page: 0}),
@@ -125,7 +143,7 @@ export function UpdatePermissionsDialog(props: {
 
     return (
         <Box width="auto" minWidth="450px">
-            {groups.loading ? <LoadingSpinner size={24} /> : null}
+            {groups.loading ? <LoadingSpinner size={24}/> : null}
             <InnerProjectPermissionBox>
                 <Pagination.List
                     loading={groups.loading}
@@ -133,7 +151,7 @@ export function UpdatePermissionsDialog(props: {
                     onPageChanged={(page) => fetchGroups(groupSummaryRequest({...groupParams.parameters, page}))}
                     customEmptyPage={(
                         <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
-                            flexDirection={"column"}>
+                              flexDirection={"column"}>
                             <Box>
                                 No groups exist for this project.
                             </Box>

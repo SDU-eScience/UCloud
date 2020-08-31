@@ -2,7 +2,9 @@ package dk.sdu.cloud.project.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
@@ -99,17 +101,19 @@ class QueryService(
         }
     }
 
-    suspend fun groupsCount(ctx: DBContext, projectId: String): Long {
-        return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("project", projectId)
-                },
-                """
+    suspend fun groupsCount(ctx: DBContext, user: SecurityPrincipal, projectId: String): Long {
+        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+            return ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("project", projectId)
+                    },
+                    """
                     select count(*) from project.groups where project = :project
                 """
-            ).rows.singleOrNull()?.getLong(0) ?: 0
-        }
+                ).rows.singleOrNull()?.getLong(0) ?: 0
+            }
+        } else throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
     suspend fun viewGroup(ctx: DBContext, requestedBy: String, projectId: String, groupId: String): GroupWithSummary {
@@ -401,6 +405,25 @@ class QueryService(
                 """
             )
 
+            val membersOfAnyGroup = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("users", items.rows.map { it.getString("username")!! })
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        with members as (select unnest(:users::text[]) as username)
+                        select m.username
+                        from members m, group_members gm join groups g on (gm.group_id = g.id)
+                        where
+                            m.username = gm.username and
+                            g.project = :projectId
+                    """
+                )
+                .rows
+                .map { it.getString(0)!! }
+                .toSet()
+
             Page(
                 itemsInTotal.toInt(),
                 pagination.itemsPerPage,
@@ -408,7 +431,7 @@ class QueryService(
                 items.rows.map { row ->
                     val username = row.getString("username")!!
                     val role = row.getString("role")!!.let { ProjectRole.valueOf(it) }
-                    ProjectMember(username, role)
+                    ProjectMember(username, role, username in membersOfAnyGroup)
                 }
             )
         }
@@ -416,18 +439,21 @@ class QueryService(
 
     suspend fun membersCount(
         ctx: DBContext,
+        user: SecurityPrincipal,
         projectId: String
     ): Long {
-        return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("projectId", projectId)
-                },
-                """
+        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+            return ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
                     select count(*) from project.project_members where project_id = :projectId
                 """
-            ).rows.singleOrNull()?.getLong(0) ?: 0
-        }
+                ).rows.singleOrNull()?.getLong(0) ?: 0
+            }
+        } else throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
     suspend fun summarizeMembershipForUser(
@@ -932,22 +958,36 @@ class QueryService(
         }
     }
 
+    suspend fun isAdminOrPIOfProject(ctx: DBContext, username: String, projectId: String): Boolean {
+        val piAndAdmins = projects.getPIAndAdminsOfProject(ctx, projectId)
+        when {
+            piAndAdmins.first == username -> return true
+            piAndAdmins.second.contains(username) -> return true
+            else -> return false
+        }
+    }
+
     suspend fun subProjectsCount(
         ctx: DBContext,
+        user: SecurityPrincipal,
         projectId: String
     ): Long {
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("projectId", projectId)
-                    },
-                    """
+        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+            return ctx.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("projectId", projectId)
+                        },
+                        """
                         select count(*) from project.projects where parent = :projectId
                     """
-                ).rows
-                .singleOrNull()
-                ?.getLong(0) ?: 0
+                    ).rows
+                    .singleOrNull()
+                    ?.getLong(0) ?: 0
+            }
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
     }
 
@@ -1095,6 +1135,24 @@ class QueryService(
         }
 
         return projectWithAdmins
+    }
+
+    suspend fun addAncestors(
+        ctx: DBContext,
+        actor: Actor,
+        projects: Collection<UserProjectSummary>
+    ): List<UserProjectSummary> {
+        return ctx.withSession { session ->
+            projects.map { p ->
+                p.copy(
+                    ancestorPath = viewAncestors(
+                        session,
+                        actor,
+                        p.projectId
+                    ).dropLast(1).joinToString("/") { it.title }
+                )
+            }
+        }
     }
 
     companion object : Loggable {

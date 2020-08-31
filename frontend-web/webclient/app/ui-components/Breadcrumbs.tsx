@@ -5,6 +5,7 @@ import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import HttpClient from "Authentication/lib";
 import {pathComponents} from "Utilities/FileUtilities";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
+import {Center} from "UtilityComponents";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
@@ -63,7 +64,7 @@ export const BreadCrumbs = ({
     if (!currentPath) return null;
     const projectStatus = useProjectStatus();
 
-    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, client.projectId ?? "", projectStatus);
+    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, projectStatus);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map(p => (
@@ -80,11 +81,11 @@ export const BreadCrumbs = ({
         <>
             {addHomeFolderLink ? (
                 <>
-                    <Box ml="15px">
+                    <Box>
                         <Icon test-tag="to_home" size="30px" cursor="pointer" name="home" onClick={toHome} />
-                        <Text cursor="pointer" ml="-15px" fontSize="11px" onClick={toHome}>
-                            Go to home
-                        </Text>
+                        <Center>
+                            <Text cursor="pointer" fontSize="11px" onClick={toHome}>Home</Text>
+                        </Center>
                     </Box>
                     <Text ml="6px" mr="6px" fontSize="24px">|</Text>
                 </>
@@ -106,7 +107,6 @@ export const BreadCrumbs = ({
 function buildBreadCrumbs(
     path: string,
     homeFolder: string,
-    activeProject: string,
     projectStatus: ProjectStatus
 ): BreadCrumbMapping[] {
     const paths = pathComponents(path);
@@ -131,8 +131,7 @@ function buildBreadCrumbs(
 
     // Handle starts with project
     if (addTrailingSlash(path).startsWith("/projects/")) {
-        const [, projectInPath] = pathComponents(path);
-        const project = activeProject !== "" && path.includes(projectInPath) ? activeProject : projectInPath;
+        const [, project] = pathComponents(path);
 
         let localName = project;
         const membership = projectStatus.fetch().membership.find(it => it.projectId === project);

@@ -62,7 +62,7 @@ exports[`Detailed File Search Mount file search 1`] = `
 }
 
 <button
-  className="sc-AxmLO c0"
+  className="c0"
   color="darkGreen"
   onClick={[Function]}
 >

@@ -53,7 +53,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         emptyPage
     );
     const [favorites, setFavoriteParams] = useCloudAPI<Page<UserInProject>, ListFavoriteProjectsRequest>(
-        listFavoriteProjects({page: 0, itemsPerPage: 25, archived}),
+        listFavoriteProjects({page: 0, itemsPerPage: 25, archived, showAncestorPath: true}),
         emptyPage
     );
 
@@ -82,13 +82,15 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         setFavoriteParams(listFavoriteProjects({
             page: favorites.data.pageNumber,
             itemsPerPage: response.data.itemsPerPage,
-            archived
+            archived,
+            showAncestorPath: true
         }));
         setFetchParams(listProjects({
             page: response.data.pageNumber,
             itemsPerPage: response.data.itemsPerPage,
             archived,
-            noFavorites: true
+            noFavorites: true,
+            showAncestorPath: true
         }));
         fetchIngoingInvites(listIngoingInvites({page: 0, itemsPerPage: 10}));
     };
@@ -103,7 +105,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     }, [reload]);
 
     useEffect(() => {
-        setFetchParams(listProjects({page: 0, itemsPerPage: 50, archived, noFavorites: true}));
+        setFetchParams(listProjects({page: 0, itemsPerPage: 50, archived, noFavorites: true, showAncestorPath: true}));
     }, [archived]);
 
     const projectOperations: ProjectOperation[] = [
@@ -260,7 +262,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         listFavoriteProjects({
                                             page: newPage,
                                             itemsPerPage: response.data.itemsPerPage,
-                                            archived
+                                            archived,
+                                            showAncestorPath: true
                                         })
                                     );
                                 }}
@@ -333,7 +336,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     listProjects({
                                         page: newPage,
                                         itemsPerPage: response.data.itemsPerPage,
-                                        archived
+                                        archived,
+                                        showAncestorPath: true,
+                                        noFavorites: true
                                     })
                                 );
                             }}
@@ -345,7 +350,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             sidebar={(<>
                 <VerticalButtonGroup>
                     <Box height={58}/>
-                    <Link to="/project/grants/outgoing"><Button color="green">Resource Applications</Button></Link>
                     <Link to={`/projects/browser/new`}><Button>Create Project Application</Button></Link>
                     <Label fontSize={"100%"}>
                         <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />
@@ -398,7 +402,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 height="30px"
                             >
                                 <Link to="/project/dashboard">
-                                    {e.title}
+                                    {e.ancestorPath ? e.ancestorPath + "/" : null}{e.title}
                                 </Link>
                             </Box>
                         </>
