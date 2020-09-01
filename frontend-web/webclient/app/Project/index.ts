@@ -314,15 +314,19 @@ export interface ListFavoriteProjectsRequest extends PaginationRequest {
     showAncestorPath?: boolean;
 }
 
-export const listFavoriteProjects = (parameters: ListFavoriteProjectsRequest): APICallParameters<ListFavoriteProjectsRequest> => ({
-    method: "GET",
-    path: buildQueryString(
-        "/projects/listFavorites",
-        parameters
-    ),
-    parameters,
-    reloadId: Math.random()
-});
+export function listFavoriteProjects(
+    parameters: ListFavoriteProjectsRequest
+): APICallParameters<ListFavoriteProjectsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString(
+            "/projects/listFavorites",
+            parameters
+        ),
+        parameters,
+        reloadId: Math.random()
+    };
+}
 
 export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined => {
     const member = project.find(m => {
@@ -353,15 +357,12 @@ export interface OutgoingInvite {
     timestamp: number;
 }
 
-export interface ListOutgoingInvitesRequest extends PaginationRequest {
+export type ListOutgoingInvitesRequest = PaginationRequest;
+export type ListSubprojectsRequest = PaginationRequest;
 
-}
-
-export interface ListSubprojectsRequest extends PaginationRequest {
-
-}
-
-export function listOutgoingInvites(request: ListOutgoingInvitesRequest): APICallParameters<ListOutgoingInvitesRequest> {
+export function listOutgoingInvites(
+    request: ListOutgoingInvitesRequest
+): APICallParameters<ListOutgoingInvitesRequest> {
     return {
         method: "GET",
         path: buildQueryString("/projects/invites/outgoing", request),
@@ -376,9 +377,7 @@ export interface IngoingInvite {
     timestamp: string;
 }
 
-export interface ListIngoingInvitesRequest extends PaginationRequest {
-
-}
+export type ListIngoingInvitesRequest = PaginationRequest;
 
 export function listIngoingInvites(request: ListIngoingInvitesRequest): APICallParameters<ListIngoingInvitesRequest> {
     return {

@@ -111,7 +111,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             previousRuns: emptyPage,
             reservation: "",
             unknownParameters: [],
-            balance: NO_WALLET_FOUND_VALUE
+            balance: NO_WALLET_FOUND_VALUE,
+            inlineError: undefined
         };
     }
 
@@ -256,7 +257,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                     <Icon name={"grant"} />{" "}
                                     Estimated cost: <br />
 
-                                    {creditFormatter(estimatedCost, 3 )}
+                                    {creditFormatter(estimatedCost, 3)}
                                 </>
                             )}
                         </Box>
@@ -332,6 +333,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                             )}
 
                             <RunSection>
+                                <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
@@ -681,11 +683,15 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     }
                 });
             } else {
-                snackbarStore.addFailure(
-                    errorMessageOrDefault(err, "An error occurred submitting the job."),
-                    false
-                );
-                this.setState(() => ({jobSubmitted: false}));
+                if (err.request.status === 402) {
+                    this.setState(({inlineError: err.response.why}));
+                } else {
+                    snackbarStore.addFailure(
+                        errorMessageOrDefault(err, "An error occurred submitting the job."),
+                        false
+                    );
+                    this.setState(() => ({jobSubmitted: false}));
+                }
             }
         } finally {
             this.props.setLoading(false);
