@@ -265,7 +265,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                             {!this.state.reservationMachine ? null : (
                                 <>
                                     <Icon name="grant" />{" "}
-                                    Credits Available: <br />
+                                    Current balance: <br />
 
                                     {creditFormatter(this.state.balance)}
                                 </>
@@ -830,7 +830,10 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     const emptyMountedFolders = this.state.mountedFolders.slice(
                         this.state.mountedFolders.length - mountedFolders.length
                     );
-                    emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
+                    emptyMountedFolders.forEach((it, index) => {
+                        it.ref.current!.value = mountedFolders[index].ref;
+                        it.ref.current!.dataset.path = mountedFolders[index].ref;
+                    });
                 }
 
                 {
@@ -876,7 +879,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     }),
                     useUrl: this.state.useUrl,
                     url: this.state.url,
-                    reservation: machineType.name ?? this.state.reservation
+                    reservation: machineType.id ?? this.state.reservation
                 }));
             } catch (e) {
                 console.warn(e);
