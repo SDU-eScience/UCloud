@@ -54,7 +54,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         <Icon name={"chevronDown"} size={"12px"} ml={"4px"}/>
                     </HoverBox>
                 }
-                onTriggerClick={() => setFetchParams({...params})}
+                onTriggerClick={() => (setFetchParams({...params}), projectStatus.reload())}
                 left="0px"
                 width="250px"
             >
