@@ -189,6 +189,7 @@ export interface RunAppProps extends RunOperations {
     match: match<{appName: string; appVersion: string}>;
     history: History;
     updatePageTitle: () => void;
+    project?: string;
 }
 
 export interface NumberParameter extends BaseParameter {
