@@ -152,14 +152,11 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         }
 
         if (this.props.project !== prevProps.project && this.state.reservationMachine !== undefined) {
-            this.getBalance(this.state.reservationMachine.category.id, this.state.reservationMachine.category.id);
+            this.getBalance(this.state.reservationMachine.category.id, this.state.reservationMachine.category.provider);
         }
     }
 
-    private async getBalance(
-        productCategory: string,
-        productProvider: string
-    ): Promise<void> {
+    private async getBalance(productCategory: string, productProvider: string): Promise<void> {
         const req = retrieveBalance({
             id: undefined,
             type: undefined,
