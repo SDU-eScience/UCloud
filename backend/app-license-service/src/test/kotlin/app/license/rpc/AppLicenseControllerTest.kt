@@ -24,6 +24,7 @@ import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.ProjectRole
@@ -37,6 +38,7 @@ import dk.sdu.cloud.service.test.*
 import io.ktor.http.HttpMethod
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.apache.logging.log4j.core.config.*
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
@@ -45,8 +47,15 @@ import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
 class AppLicenseControllerTest {
+    init {
+        ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
+    }
 
     companion object {
+        init {
+            ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
+        }
+
         private lateinit var embDb: EmbeddedPostgres
         private lateinit var db: AsyncDBSessionFactory
 
@@ -303,7 +312,7 @@ class AppLicenseControllerTest {
 
                 val listRequest = sendJson(
                     method = HttpMethod.Post,
-                    path = "$baseContext/list",
+                    path = "$baseContext/by-tag",
                     user = TestUsers.admin,
                     request = FindByTagRequest(
                         listOf("tag1")

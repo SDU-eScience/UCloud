@@ -1,37 +1,23 @@
 package dk.sdu.cloud.activity.http
 
-import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.activity.api.ActivityEvent
-import dk.sdu.cloud.activity.api.ActivityEventType
-import dk.sdu.cloud.activity.api.ActivityForFrontend
-import dk.sdu.cloud.activity.api.ListActivityByPathResponse
-import dk.sdu.cloud.activity.services.ActivityEventElasticDao
-import dk.sdu.cloud.activity.services.ActivityService
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.ElasticFeature
-import dk.sdu.cloud.micro.elasticHighLevelClient
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.ScrollResult
-import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.service.test.sendRequest
-import dk.sdu.cloud.service.test.withKtorTest
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.TestApplicationRequest
-import io.ktor.server.testing.handleRequest
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
+import dk.sdu.cloud.activity.api.*
+import dk.sdu.cloud.activity.services.*
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.test.*
+import io.ktor.http.*
+import io.ktor.server.testing.*
+import io.mockk.*
+import org.apache.logging.log4j.core.config.*
 import org.junit.Test
 import java.util.*
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class ActivityControllerTest {
+    init {
+        ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
+    }
+
     private fun TestApplicationRequest.addJobID() {
         addHeader("Job-Id", UUID.randomUUID().toString())
     }

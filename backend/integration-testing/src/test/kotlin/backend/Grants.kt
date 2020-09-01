@@ -263,18 +263,7 @@ class GrantTest : IntegrationTest() {
             GrantRecipient.ExistingProject(childProject.projectId)
         )
 
-        // PI and grant approver should be the only ones who can edit the document
-        val newDoc = "a"
-        Grants.editApplication.call(
-            EditApplicationRequest(id, newDoc, listOf(ResourceRequest.fromProduct(sampleCompute, 1000.DKK))),
-            serviceClient
-        ).orThrow()
-        assertEquals(
-            newDoc,
-            Grants.viewApplication.call(ViewApplicationRequest(id), childProject.piClient).orThrow()
-                .application.document
-        )
-
+        // PI should be the only ones who can edit the document
         val newDoc2 = "a"
         Grants.editApplication.call(
             EditApplicationRequest(id, newDoc2, listOf(ResourceRequest.fromProduct(sampleCompute, 1000.DKK))),

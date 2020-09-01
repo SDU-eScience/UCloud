@@ -2,8 +2,9 @@ package dk.sdu.cloud.integration.e2e
 
 import dk.sdu.cloud.integration.*
 import dk.sdu.cloud.integration.backend.*
-import org.junit.Test
+import org.junit.*
 
+@Ignore
 class FilesTest : EndToEndTest() {
 
     @Test

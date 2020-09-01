@@ -22,7 +22,6 @@ import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import org.junit.Ignore
 import org.junit.Test

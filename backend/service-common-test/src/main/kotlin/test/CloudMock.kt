@@ -11,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import kotlin.reflect.*
 
 @Deprecated("Renamed", ReplaceWith("ClientMock"))
 typealias CloudMock = ClientMock
@@ -24,7 +25,10 @@ object ClientMock {
     }
 
     val client = mockk<RpcClient>()
-    val authenticatedClient = AuthenticatedClient(client, mockk(relaxed = true)) {}
+    val authenticatedClient = AuthenticatedClient(client, object : OutgoingCallCompanion<OutgoingCall> {
+        override val klass: KClass<OutgoingCall> = OutgoingCall::class
+        override val attributes: AttributeContainer = AttributeContainer()
+    }) {}
 
     @Suppress("UNCHECKED_CAST")
     inline fun <reified R : Any, S : Any, E : Any> mockCall(

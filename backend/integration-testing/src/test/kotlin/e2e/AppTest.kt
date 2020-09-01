@@ -10,9 +10,10 @@ import dk.sdu.cloud.integration.backend.*
 import dk.sdu.cloud.integration.clickAppCard
 import dk.sdu.cloud.integration.findAppCard
 import dk.sdu.cloud.integration.retrySection
-import org.junit.Test
+import org.junit.*
 import org.openqa.selenium.By
 
+@Ignore
 class AppTest : EndToEndTest() {
     @Test
     fun `View apps`() = e2e {

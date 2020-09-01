@@ -18,7 +18,7 @@ val sampleCompute = Product.Compute(
     100_000,
     ProductCategoryId("standard", UCLOUD_PROVIDER),
     cpu = 1,
-    memoryInGigs = 4
+    memoryInGigs = 1
 )
 
 val sampleStorage = Product.Storage(

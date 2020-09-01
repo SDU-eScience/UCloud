@@ -87,10 +87,12 @@ class WalletServiceTest {
 
     @BeforeTest
     fun before() {
+        println("BEFORE")
         truncateAccountingDB()
         runBlocking {
             insertAll(db)
         }
+        println("READY TO GO!")
     }
 
     @AfterTest
@@ -104,11 +106,17 @@ class WalletServiceTest {
     @Test
     fun `Test get wallets`() {
 
+        println(1)
         val client = ClientMock.authenticatedClient
+        println(2)
         val pCache = ProjectCache(client)
+        println(2)
         val verificationService = VerificationService(client)
+        println(2)
         val walletService = BalanceService(pCache, verificationService, client)
+        println(2)
 
+        println(2)
         ClientMock.mockCallSuccess(
             UserDescriptions.lookupUsers,
             LookupUsersResponse(mapOf(
@@ -116,7 +124,9 @@ class WalletServiceTest {
             )
         )
 
+        println(3)
         runBlocking {
+            println(4)
             val wallets = walletService.getWalletsForAccount(
                 db,
                 onBehalfofUser,
@@ -124,10 +134,12 @@ class WalletServiceTest {
                 WalletOwnerType.USER,
                 false
             )
+            println(5)
             val gpuWallet = wallets.find { it.wallet.paysFor.id == "gpu" }
             val standardWallet = wallets.find { it.wallet.paysFor.id == "standard" }
             val cephfs = wallets.find { it.wallet.paysFor.id == "cephfs" }
 
+            println(6)
             assertNotNull(gpuWallet)
             assertNotNull(standardWallet)
             assertNotNull(cephfs)
@@ -143,8 +155,10 @@ class WalletServiceTest {
                 cephfs.balance,
                 5000000
             )
+            println(7)
         }
 
+        println(8)
         ClientMock.mockCallSuccess(
             ProjectMembers.userStatus,
             UserStatusResponse(
@@ -170,6 +184,7 @@ class WalletServiceTest {
             Projects.exists,
             ExistsResponse(true)
         )
+        println(9)
 
         runBlocking {
             val wallets = walletService.getWalletsForAccount(
@@ -200,6 +215,7 @@ class WalletServiceTest {
                 10000000
             )
         }
+        println(10)
     }
 
     @Test
