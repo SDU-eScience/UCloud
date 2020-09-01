@@ -244,7 +244,9 @@ function useRequestInformation(target: RequestTarget) {
 
     const reload = useCallback(() => {
         if (targetProject) {
-            fetchTemplates(readTemplates({projectId: targetProject}));
+            if (targetProject !== "unknown") {
+                fetchTemplates(readTemplates({projectId: targetProject}));
+            }
             reloadWallets();
             reloadProducts();
         }
