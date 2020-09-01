@@ -72,13 +72,6 @@ data class SetBalanceRequest(
 
 typealias SetBalanceResponse = Unit
 
-data class SetNotificationSentRequest(
-    val wallet: Wallet,
-    val sent: Boolean
-)
-
-typealias SetNotificationSentResponse = Unit
-
 data class ReserveCreditsRequest(
     val jobId: String,
     val amount: Long,
@@ -99,7 +92,17 @@ data class ReserveCreditsRequest(
     /**
      * Immediately charge the wallet for the [amount] specified.
      */
-    val chargeImmediately: Boolean = false
+    val chargeImmediately: Boolean = false,
+
+    /**
+     * Ignore any errors if an entry with this [jobId] already exists
+     */
+    val skipIfExists: Boolean = false,
+
+    /**
+     * `true` if we should skip the limit check otherwise `false` (default) if limit checking should be active
+     */
+    val skipLimitCheck: Boolean = false
 ) {
     init {
         if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
@@ -110,6 +113,12 @@ data class ReserveCreditsRequest(
 }
 
 typealias ReserveCreditsResponse = Unit
+
+data class ReserveCreditsBulkRequest(
+    val reservations: List<ReserveCreditsRequest>
+)
+
+typealias ReserveCreditsBulkResponse = Unit
 
 data class ChargeReservationRequest(
     val name: String,
@@ -241,6 +250,25 @@ object Wallets : CallDescriptionContainer("wallets") {
             body { bindEntireRequestFromBody() }
         }
     }
+
+    val reserveCreditsBulk = call<ReserveCreditsBulkRequest, ReserveCreditsBulkResponse, CommonErrorMessage>("reserveCreditsBulk") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"reserve-credits-bulk"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
 
     val chargeReservation = call<ChargeReservationRequest, ChargeReservationResponse, CommonErrorMessage>(
         "chargeReservation"

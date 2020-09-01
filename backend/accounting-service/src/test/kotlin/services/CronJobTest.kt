@@ -17,9 +17,7 @@ import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestDB
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
-import org.junit.AfterClass
-import org.junit.BeforeClass
-import org.junit.Test
+import org.junit.*
 import kotlin.test.BeforeTest
 
 class CronJobTest {

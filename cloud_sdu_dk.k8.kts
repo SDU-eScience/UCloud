@@ -1,5 +1,5 @@
 config("ceph") { ctx ->
-    configure("enabled", false)
+    configure("enabled", true)
 
     if (ctx.environment in setOf("test", "development")) {
         configure("monitors", "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789")

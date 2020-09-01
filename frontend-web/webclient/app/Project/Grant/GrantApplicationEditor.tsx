@@ -52,6 +52,9 @@ import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {Balance, BalanceExplainer} from "Accounting/Balance";
+import {useDispatch} from "react-redux";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {loadingAction} from "Loading";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -118,6 +121,7 @@ function useRequestInformation(target: RequestTarget) {
     let approver: boolean = false;
     let comments: Comment[] = [];
     const avatars = useAvatars();
+    let loading: boolean = false;
 
     let availableProducts: {area: ProductArea, category: ProductCategoryId}[];
     let reloadProducts: () => void;
@@ -234,12 +238,15 @@ function useRequestInformation(target: RequestTarget) {
                 reloadWallets();
             }, [appId]);
 
+            loading = loading || grantApplication.loading;
             break;
     }
 
     const reload = useCallback(() => {
         if (targetProject) {
-            fetchTemplates(readTemplates({projectId: targetProject}));
+            if (targetProject !== "unknown") {
+                fetchTemplates(readTemplates({projectId: targetProject}));
+            }
             reloadWallets();
             reloadProducts();
         }
@@ -301,7 +308,7 @@ function useRequestInformation(target: RequestTarget) {
 
     return {
         wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, editingApplication,
-        comments, avatars, reload, approver
+        comments, avatars, reload, approver, loading
     };
 }
 
@@ -327,6 +334,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     const [loading, runWork] = useAsyncCommand();
     const projectTitleRef = useRef<HTMLInputElement>(null);
     const history = useHistory();
+    const dispatch = useDispatch();
     const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
 
     switch (target) {
@@ -343,6 +351,14 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             useTitle("Viewing Application");
             break;
     }
+
+    dispatch(setRefreshFunction(state.reload));
+    dispatch(loadingAction(state.loading));
+    useEffect(() => {
+        return () => {
+            dispatch(setRefreshFunction(undefined));
+        };
+    }, []);
 
     const discardChanges = useCallback(async () => {
         state.reload();
@@ -632,10 +648,12 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         )}
 
 
-                        <Heading.h4 mt={32}>Resources Requested</Heading.h4>
+                        <Heading.h3 mt={32}>Resources Requested</Heading.h3>
 
+                        <Heading.h4 mt={32}>Storage</Heading.h4>
                         <ResourceContainer>
                             {state.wallets.map((it, idx) => (
+                                it.area === ProductArea.STORAGE ? (
                                 <RequestForSingleResourceWrapper key={idx}>
                                     <DashboardCard color="blue" isLoading={false}>
                                         <table>
@@ -645,11 +663,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                     <td>
                                                         {it.wallet.paysFor.provider} / {it.wallet.paysFor.id}
                                                         <Icon
-                                                            name={
-                                                                it.area === ProductArea.COMPUTE ?
-                                                                    "cpu" :
-                                                                    "ftFileSystem"
-                                                            }
+                                                            name={"ftFileSystem"}
                                                             size={32}
                                                         />
                                                     </td>
@@ -685,30 +699,28 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         </Flex>
                                                     </td>
                                                 </tr>
-                                                {it.area === ProductArea.STORAGE ? <>
-                                                    <tr>
-                                                        <th>
-                                                            {state.editingApplication !== undefined ?
-                                                                "Additional quota requested" :
-                                                                "Request additional quota"
-                                                            }
-                                                        </th>
-                                                        <td>
-                                                            <Flex alignItems={"center"}>
-                                                                <Input
-                                                                    placeholder={"0"}
-                                                                    disabled={grantFinalized || isLocked}
-                                                                    data-target={
-                                                                        "quota-" + productCategoryId(it.wallet.paysFor)
-                                                                    }
-                                                                    autoComplete="off"
-                                                                    type="number"
-                                                                />
-                                                                <Box ml={10} width={32} flexShrink={0}>GB</Box>
-                                                            </Flex>
-                                                        </td>
-                                                    </tr>
-                                                </> : null}
+                                                <tr>
+                                                    <th>
+                                                        {state.editingApplication !== undefined ?
+                                                            "Additional quota requested" :
+                                                            "Request additional quota"
+                                                        }
+                                                    </th>
+                                                    <td>
+                                                        <Flex alignItems={"center"}>
+                                                            <Input
+                                                                placeholder={"0"}
+                                                                disabled={grantFinalized || isLocked}
+                                                                data-target={
+                                                                    "quota-" + productCategoryId(it.wallet.paysFor)
+                                                                }
+                                                                autoComplete="off"
+                                                                type="number"
+                                                            />
+                                                            <Box ml={10} width={32} flexShrink={0}>GB</Box>
+                                                        </Flex>
+                                                    </td>
+                                                </tr>
                                                 <tr>
                                                     <th/>
                                                     <td>
@@ -725,7 +737,75 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                         </table>
                                     </DashboardCard>
                                 </RequestForSingleResourceWrapper>
-                            ))}
+                                ) : null ))}
+                        </ResourceContainer>
+
+                        <Heading.h4 mt={32}>Compute</Heading.h4>
+                        <ResourceContainer>
+                            {state.wallets.map((it, idx) => (
+                                it.area === ProductArea.COMPUTE ? (
+                                    <RequestForSingleResourceWrapper key={idx}>
+                                        <DashboardCard color="blue" isLoading={false}>
+                                            <table>
+                                                <tbody>
+                                                <tr>
+                                                    <th>Product</th>
+                                                    <td>
+                                                        {it.wallet.paysFor.provider} / {it.wallet.paysFor.id}
+                                                        <Icon
+                                                            name={"cpu"}
+                                                            size={32}
+                                                        />
+                                                    </td>
+                                                </tr>
+                                                {state.editingApplication !== undefined ? null : (
+                                                    <tr>
+                                                        <th>Current balance</th>
+                                                        <td>
+                                                            <Balance
+                                                                amount={it.balance}
+                                                                productCategory={it.wallet.paysFor}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                                <tr>
+                                                    <th>
+                                                        {state.editingApplication !== undefined ?
+                                                            "Resources requested" :
+                                                            "Request additional resources"
+                                                        }
+                                                    </th>
+                                                    <td>
+                                                        <Flex alignItems={"center"}>
+                                                            <Input
+                                                                placeholder={"0"}
+                                                                disabled={grantFinalized || isLocked}
+                                                                data-target={productCategoryId(it.wallet.paysFor)}
+                                                                autoComplete="off"
+                                                                type="number"
+                                                            />
+                                                            <Box ml={10} width={32} flexShrink={0}>DKK</Box>
+                                                        </Flex>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th/>
+                                                    <td>
+                                                        <HelpText>
+                                                            1.000 DKK ={" "}
+                                                            <BalanceExplainer
+                                                                amount={1_000_000_000}
+                                                                productCategory={it.wallet.paysFor}
+                                                            />
+                                                        </HelpText>
+                                                    </td>
+                                                </tr>
+                                                </tbody>
+                                            </table>
+                                        </DashboardCard>
+                                    </RequestForSingleResourceWrapper>
+                                ) : null ))}
                         </ResourceContainer>
 
                         <CommentApplicationWrapper>
@@ -771,7 +851,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 </Button>
                                 ) : null
                             }
-                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                            {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
                                 isLocked ? (
                                     <Button fullWidth onClick={() => setIsLocked(false)} disabled={loading}>
                                         Edit this request

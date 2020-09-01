@@ -7,7 +7,6 @@ import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.services.GroupService
-import dk.sdu.cloud.project.services.ProjectException
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.project.services.QueryService
@@ -125,6 +124,10 @@ class GroupController(
             ok(
                 queries.lookupProjectAndGroup(db, request.project, request.group)
             )
+        }
+
+        implement(ProjectGroups.listAllGroupIdsAndTitles) {
+            ok(ListAllGroupIdsAndTitlesResponse(queries.listAllGroupIdsAndTitles(db, ctx.securityPrincipal)))
         }
     }
 }

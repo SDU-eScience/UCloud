@@ -370,10 +370,12 @@ const toFileName = (path: string): string => {
 
 export function getFilenameFromPath(path: string, projects: ProjectName[]): string {
     const replacedHome = replaceHomeOrProjectFolder(path, Client, projects);
-    const fileName = toFileName(replacedHome);
-    if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`;
-    if (fileName === ".") return `. (Current folder)`;
-    return fileName;
+    const baseName: string = toFileName(replacedHome);
+
+    if (baseName === "..") return `.. (${getFilenameFromPath(goUpDirectory(2, replacedHome), projects)})`;
+    if (baseName === ".") return `. (Current folder)`;
+    if (isMyPersonalFolder(path)) return `Personal Files (${Client.username})`;
+    return baseName;
 }
 
 export function downloadFiles(files: Array<{path: string}>, client: HttpClient): void {

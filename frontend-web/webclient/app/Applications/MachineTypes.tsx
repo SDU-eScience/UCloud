@@ -6,7 +6,7 @@ import {theme} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
-import {listByProductArea, Product} from "Accounting";
+import {listByProductArea, Product, UCLOUD_PROVIDER} from "Accounting";
 import {emptyPage} from "DefaultObjects";
 import {creditFormatter} from "Project/ProjectUsage";
 import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
@@ -32,13 +32,17 @@ export const MachineTypes: React.FunctionComponent<{
     setReservation: (name: string, machine: Product) => void;
 }> = props => {
     const [machines] = useCloudAPI<Page<Product>>(
-        listByProductArea({itemsPerPage: 100, page: 0, provider: "ucloud", area: "COMPUTE"}),
+        listByProductArea({itemsPerPage: 100, page: 0, provider: UCLOUD_PROVIDER, area: "COMPUTE"}),
         emptyPage
     );
     const [selected, setSelected] = useState<Product | null>(null);
 
     useEffect(() => {
-        setSelected(machines.data.items.find(it => it.id === props.reservation) ?? null);
+        const newMachine = machines.data.items.find(it => it.id === props.reservation) ?? null;
+        setSelected(newMachine);
+        // TODO This is causing double updates because this is now how you React. The entire Run.tsx component and
+        //  partners need to be massively refactored regardless.
+        if (newMachine) props.setReservation(props.reservation, newMachine);
     }, [props.reservation]);
 
     return (

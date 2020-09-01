@@ -34,6 +34,8 @@ import {fetchFileActivity, setLoading} from "./Redux/FileInfoActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {useFavoriteStatus} from "Files/favorite";
 import {useCallback} from "react";
+import {useCloudAPI} from "Authentication/DataHook";
+import {listAllGroupsRequest} from "Activity/Page";
 
 interface FileInfoOperations {
     updatePageTitle: () => void;
@@ -50,6 +52,10 @@ interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
 function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
     const [previewShown, setPreviewShown] = React.useState(false);
     const [file, setFile] = React.useState<File | undefined>(undefined);
+
+    const [groups] = useCloudAPI<Record<string, string>>(
+        Client.hasActiveProject ? listAllGroupsRequest() : {noop: true}, {}
+    );
 
     React.useEffect(() => {
         props.setActivePage();
@@ -88,7 +94,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                     {activity.items.length ? (
                         <Flex flexDirection="row" justifyContent="center">
                             <Card mt="1em" maxWidth="75%" mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
-                                <ActivityFeed activity={activity.items} />
+                                <ActivityFeed activity={activity.items} groups={groups.data} />
                             </Card>
                         </Flex>
                     ) : null}

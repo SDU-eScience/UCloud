@@ -58,7 +58,6 @@ bundle { ctx ->
     withPostgresMigration(deployment)
     withCronJob(deploymentWithMount, "0 */12 * * *", listOf("--scan")) {
     }
-
     withAdHocJob(deploymentWithMount, "scan-now", { listOf("--scan", "--debug") }) {
     }
 

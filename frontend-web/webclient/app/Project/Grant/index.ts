@@ -241,7 +241,26 @@ export function externalApplicationsEnabled(
     };
 }
 
-export type IngoingGrantApplicationsRequest = PaginationRequest;
+export enum GrantApplicationFilter {
+    SHOW_ALL = "SHOW_ALL",
+    INACTIVE = "INACTIVE",
+    ACTIVE = "ACTIVE"
+}
+
+export function grantApplicationFilterPrettify(filter: GrantApplicationFilter): string {
+    switch (filter) {
+        case GrantApplicationFilter.ACTIVE:
+            return "Active";
+        case GrantApplicationFilter.SHOW_ALL:
+            return "Show all";
+        case GrantApplicationFilter.INACTIVE:
+            return "Inactive";
+    }
+}
+
+export interface IngoingGrantApplicationsRequest extends PaginationRequest {
+    filter?: GrantApplicationFilter;
+}
 export type IngoingGrantApplicationsResponse = Page<GrantApplication>;
 
 export function ingoingGrantApplications(
@@ -355,7 +374,7 @@ export function uploadDescription(request: UploadDescriptionRequest): APICallPar
         parameters: request,
         payload: request,
         reloadId: Math.random()
-    }
+    };
 }
 
 export type BrowseProjectsRequest = PaginationRequest;
@@ -370,8 +389,16 @@ export function browseProjects(request: BrowseProjectsRequest): APICallParameter
     };
 }
 
-export const listOutgoingApplications = (payload: PaginationRequest): APICallParameters<PaginationRequest> => ({
-    path: "/grant/outgoing",
-    method: "GET",
-    payload
-});
+export interface ListOutgoingApplications extends PaginationRequest {
+    filter?: GrantApplicationFilter;
+}
+
+export function listOutgoingApplications(
+    request: ListOutgoingApplications
+): APICallParameters<ListOutgoingApplications> {
+    return {
+        path: buildQueryString("/grant/outgoing", request),
+        method: "GET",
+        parameters: request
+    };
+}

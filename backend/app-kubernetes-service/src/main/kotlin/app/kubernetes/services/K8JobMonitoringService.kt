@@ -90,10 +90,14 @@ class K8JobMonitoringService(
                 val startAt = ZonedDateTime.parse(containerState.startedAt).toInstant().toEpochMilli()
                 val finishedAt =
                     ZonedDateTime.parse(containerState.finishedAt).toInstant().toEpochMilli()
+                val duration = if (startAt == 0L)  {
+                    0L
+                } else {
+                    ((finishedAt - startAt) + 5_000)
+                }
 
                 // We add 5 seconds for just running the application.
                 // It seems unfair that a job completing instantly is accounted for nothing.
-                val duration = ((finishedAt - startAt) + 5_000)
                 if (duration > maxDurationInMillis) {
                     maxDurationInMillis = duration
                 }

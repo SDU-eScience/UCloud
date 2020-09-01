@@ -1,18 +1,14 @@
 package dk.sdu.cloud.alerting.services
 
-import dk.sdu.cloud.alerting.Configuration
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.toUtf8Bytes
 import org.apache.http.Header
 import org.apache.http.HttpEntity
-import org.elasticsearch.ElasticsearchTimeoutException
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse
-import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsResponse
 import org.elasticsearch.client.ClusterClient
 import org.elasticsearch.client.Response
 import org.elasticsearch.client.RestClient
@@ -216,7 +212,7 @@ class ElasticAlertingTest {
                 }
                 every { entity.contentLength } returns "index 1600000000".length.toLong()
                 every { entity.content } answers {
-                    ByteArrayInputStream( "index 1600000000".toUtf8Bytes())
+                    ByteArrayInputStream( "index 1600000000".toByteArray())
                 }
                 entity
             }
@@ -248,7 +244,7 @@ class ElasticAlertingTest {
                 }
                 every { entity.contentLength } returns "index 2000000000".length.toLong()
                 every { entity.content } answers {
-                    ByteArrayInputStream( "index 2000000000".toUtf8Bytes())
+                    ByteArrayInputStream( "index 2000000000".toByteArray())
                 }
                 entity
             }
@@ -280,7 +276,7 @@ class ElasticAlertingTest {
                 }
                 every { entity.contentLength } returns "index 84".length.toLong()
                 every { entity.content } answers {
-                    ByteArrayInputStream( "index 84".toUtf8Bytes())
+                    ByteArrayInputStream( "index 84".toByteArray())
                 }
                 entity
             }

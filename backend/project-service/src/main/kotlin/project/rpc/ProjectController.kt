@@ -3,19 +3,26 @@ package dk.sdu.cloud.project.rpc
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.Configuration
-import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.api.ExistsResponse
+import dk.sdu.cloud.project.api.ProjectMember
+import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
 import dk.sdu.cloud.project.services.ProjectException
 import dk.sdu.cloud.project.services.ProjectService
+import dk.sdu.cloud.project.services.QueryService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.project.services.QueryService
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.normalizeWithFullReadEnabled
 import dk.sdu.cloud.service.toActor
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.service.withNewItems
+import io.ktor.http.*
 
 class ProjectController(
     private val db: DBContext,
@@ -63,7 +70,7 @@ class ProjectController(
         }
 
         implement(Projects.listFavoriteProjects) {
-            val showArchived = request.archived ?: true
+            val showArchived = request.archived
 
             val user = when (ctx.securityPrincipal.role) {
                 in Roles.PRIVILEGED -> {
@@ -72,7 +79,14 @@ class ProjectController(
                 else -> ctx.securityPrincipal.username
             }
 
-            ok(queries.listFavoriteProjects(db, user, showArchived, request.normalize()))
+            val result = queries.listFavoriteProjects(db, user, showArchived, request.normalize())
+            ok(
+                if (request.showAncestorPath == true) {
+                    result.withNewItems(queries.addAncestors(db, ctx.securityPrincipal.toActor(), result.items))
+                } else {
+                    result
+                }
+            )
         }
 
         implement(Projects.listProjects) {
@@ -87,12 +101,19 @@ class ProjectController(
 
             val pagination = when {
                 request.itemsPerPage == null && request.page == null &&
-                    ctx.securityPrincipal.role in Roles.PRIVILEGED -> null
+                        ctx.securityPrincipal.role in Roles.PRIVILEGED -> null
 
                 else -> request.normalize()
             }
 
-            ok(queries.listProjects(db, user, showArchived, pagination, noFavorites = noFavorites))
+            val projects = queries.listProjects(db, user, showArchived, pagination, noFavorites = noFavorites)
+            ok(
+                if (request.showAncestorPath == true) {
+                    projects.withNewItems(queries.addAncestors(db, ctx.securityPrincipal.toActor(), projects.items))
+                } else {
+                    projects
+                }
+            )
         }
 
         implement(Projects.verifyMembership) {
@@ -183,16 +204,16 @@ class ProjectController(
         }
 
         implement(Projects.viewProject) {
-            ok(
-                queries.listProjects(
-                    db,
-                    ctx.securityPrincipal.username,
-                    true,
-                    null,
-                    request.id,
-                    false
-                ).items.singleOrNull() ?: throw ProjectException.NotFound()
-            )
+            val project = queries.listProjects(
+                db,
+                ctx.securityPrincipal.username,
+                true,
+                null,
+                request.id,
+                false
+            ).items.singleOrNull() ?: throw ProjectException.NotFound()
+
+            ok(queries.addAncestors(db, ctx.securityPrincipal.toActor(), listOf(project)).single())
         }
 
         implement(Projects.listSubProjects) {
@@ -227,11 +248,21 @@ class ProjectController(
         }
 
         implement(Projects.lookupByTitle) {
-            ok(queries.lookupByTitle(db, request.title) ?: throw RPCException("No project with that name", HttpStatusCode.BadRequest))
+            ok(
+                queries.lookupByTitle(db, request.title) ?: throw RPCException(
+                    "No project with that name",
+                    HttpStatusCode.BadRequest
+                )
+            )
         }
 
         implement(Projects.lookupById) {
-            ok(queries.lookupById(db, request.id) ?: throw RPCException("No project with that id", HttpStatusCode.BadRequest))
+            ok(
+                queries.lookupById(db, request.id) ?: throw RPCException(
+                    "No project with that id",
+                    HttpStatusCode.BadRequest
+                )
+            )
         }
 
         implement(Projects.lookupByIdBulk) {

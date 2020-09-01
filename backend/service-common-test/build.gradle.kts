@@ -1,5 +1,5 @@
 dependencies {
-    val ktorVersion = "1.2.3"
+    val ktorVersion = "1.4.0"
 
     api(project(":service-common"))
 

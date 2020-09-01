@@ -78,7 +78,10 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("com.zaxxer.hikari", Level.INFO)
             configureLogLevelForPackage("io.mockk.impl", Level.INFO)
             configureLogLevelForPackage("com.github.jasync.sql.db.postgresql.codec.PostgreSQLConnectionHandler", Level.WARN)
-        }.build()
+        }.build().also {
+            initializeFn?.invoke()
+            initializeFn = null
+        }
     }
 
     private fun ConfigurationBuilder<*>.configureLogLevelForPackage(packageName: String, level: Level) {
@@ -106,12 +109,24 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
         )
     }
 
+    private var initializeFn: (() -> Unit)? = null
+
     fun initialize(ctx: Micro) {
-        if (ctx.developmentModeEnabled || ctx.commandLineArguments.contains("--debug")) {
-            loggerContext.configuration.getLoggerConfig(LogManager.ROOT_LOGGER_NAME).level = Level.DEBUG
+        if (!this::loggerContext.isInitialized) {
+            ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
+        }
+        initializeFn = {
+            if (ctx.developmentModeEnabled || ctx.commandLineArguments.contains("--debug")) {
+                loggerContext.configuration.getLoggerConfig(LogManager.ROOT_LOGGER_NAME).level = Level.DEBUG
+            }
+
+            loggerContext.updateLoggers()
         }
 
-        loggerContext.updateLoggers()
+        if (this::loggerContext.isInitialized) {
+            initializeFn!!()
+            initializeFn = null
+        }
     }
 
     fun configureLevels(levels: Map<String, Level>) {

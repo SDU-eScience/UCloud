@@ -2,7 +2,12 @@ import * as React from "react";
 import {useEffect} from "react";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI} from "Authentication/DataHook";
-import {ingoingGrantApplications, IngoingGrantApplicationsResponse, GrantApplication} from "Project/Grant/index";
+import {
+    GrantApplication,
+    GrantApplicationStatus,
+    ingoingGrantApplications,
+    IngoingGrantApplicationsResponse
+} from "Project/Grant/index";
 import {emptyPage} from "DefaultObjects";
 import {useProjectManagementStatus} from "Project";
 import * as Pagination from "Pagination";
@@ -19,6 +24,8 @@ import {useDispatch} from "react-redux";
 import {setActivePage} from "Navigation/Redux/StatusActions";
 import {SidebarPages} from "ui-components/Sidebar";
 import {dateToString} from "Utilities/DateUtilities";
+import {IconName} from "ui-components/Icon";
+import {ThemeColor} from "ui-components/theme";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
@@ -67,6 +74,24 @@ export const GrantApplicationList: React.FunctionComponent<{
     return (
         <List>
             {applications.map(app => {
+                let icon: IconName;
+                let iconColor: ThemeColor;
+                switch (app.status) {
+                    case GrantApplicationStatus.APPROVED:
+                        icon = "check";
+                        iconColor = "green";
+                        break;
+                    case GrantApplicationStatus.CLOSED:
+                    case GrantApplicationStatus.REJECTED:
+                        icon = "close";
+                        iconColor = "red";
+                        break;
+                    case GrantApplicationStatus.IN_PROGRESS:
+                        icon = "ellipsis";
+                        iconColor = "black";
+                        break;
+                }
+
                 return <ListRow
                     key={app.id}
                     navigate={() => history.push(`/project/grants/view/${app.id}`)}
@@ -97,13 +122,13 @@ export const GrantApplicationList: React.FunctionComponent<{
                         <Tooltip
                             trigger={
                                 <Flex width={170} alignItems={"center"}>
-                                    {slim ? null : <Icon name={"grant"} mr={8}/>}
                                     <Flex flexGrow={1} justifyContent={"flex-end"}>
                                         {creditFormatter(
                                             app.requestedResources.reduce(
                                                 (prev, curr) => prev + (curr.creditsRequested ?? 0), 0
                                             ), 0)}
                                     </Flex>
+                                    <Icon name={icon} color={iconColor} ml={8}/>
                                 </Flex>
                             }
                         >

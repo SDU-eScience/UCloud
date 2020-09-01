@@ -111,7 +111,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             previousRuns: emptyPage,
             reservation: "",
             unknownParameters: [],
-            balance: NO_WALLET_FOUND_VALUE
+            balance: NO_WALLET_FOUND_VALUE,
+            inlineError: undefined
         };
     }
 
@@ -149,6 +150,26 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         if (paramsFile !== prevParamsFile && paramsFile !== null) {
             this.fetchAndImportParameters({path: paramsFile});
         }
+
+        if (this.props.project !== prevProps.project && this.state.reservationMachine !== undefined) {
+            this.getBalance(this.state.reservationMachine.category.id, this.state.reservationMachine.category.id);
+        }
+    }
+
+    private async getBalance(
+        productCategory: string,
+        productProvider: string
+    ): Promise<void> {
+        const req = retrieveBalance({
+            id: undefined,
+            type: undefined,
+            includeChildren: false
+        });
+        const {response} = await Client.get<RetrieveBalanceResponse>(req.path!);
+        const balance = response.wallets.find(({wallet}) =>
+            wallet.paysFor.provider === productProvider && wallet.paysFor.id === productCategory
+        )?.balance ?? NO_WALLET_FOUND_VALUE;
+        this.setState({balance});
     }
 
     public render(): JSX.Element {
@@ -193,22 +214,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         const mandatoryParams = mandatory.map(mapParamToComponent);
         const visibleParams = visible.map(mapParamToComponent);
         const {unknownParameters} = this.state;
-
-        const getBalance = async (
-            productCategory: string,
-            productProvider: string
-        ): Promise<void> => {
-            const req = retrieveBalance({
-                id: undefined,
-                type: undefined,
-                includeChildren: false
-            });
-            const {response} = await Client.get<RetrieveBalanceResponse>(req.path!);
-            const balance = response.wallets.find(({wallet}) =>
-                wallet.paysFor.provider === productProvider && wallet.paysFor.id === productCategory
-            )?.balance ?? NO_WALLET_FOUND_VALUE;
-            this.setState({balance});
-        };
 
         const estimatedCost = (
             (this.state.reservationMachine?.pricePerUnit ?? 0) * (
@@ -256,7 +261,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                     <Icon name={"grant"} />{" "}
                                     Estimated cost: <br />
 
-                                    {creditFormatter(estimatedCost, 3 )}
+                                    {creditFormatter(estimatedCost, 3)}
                                 </>
                             )}
                         </Box>
@@ -264,7 +269,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                             {!this.state.reservationMachine ? null : (
                                 <>
                                     <Icon name="grant" />{" "}
-                                    Credits Available: <br />
+                                    Current balance: <br />
 
                                     {creditFormatter(this.state.balance)}
                                 </>
@@ -332,12 +337,13 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                             )}
 
                             <RunSection>
+                                <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
                                     reservation={this.state.reservation}
                                     setReservation={(reservation, reservationMachine) => {
-                                        getBalance(
+                                        this.getBalance(
                                             reservationMachine.category.id,
                                             reservationMachine.category.provider
                                         );
@@ -681,11 +687,15 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     }
                 });
             } else {
-                snackbarStore.addFailure(
-                    errorMessageOrDefault(err, "An error occurred submitting the job."),
-                    false
-                );
-                this.setState(() => ({jobSubmitted: false}));
+                if (err.request.status === 402) {
+                    this.setState(({inlineError: err.response.why}));
+                } else {
+                    snackbarStore.addFailure(
+                        errorMessageOrDefault(err, "An error occurred submitting the job."),
+                        false
+                    );
+                    this.setState(() => ({jobSubmitted: false}));
+                }
             }
         } finally {
             this.props.setLoading(false);
@@ -824,7 +834,10 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     const emptyMountedFolders = this.state.mountedFolders.slice(
                         this.state.mountedFolders.length - mountedFolders.length
                     );
-                    emptyMountedFolders.forEach((it, index) => it.ref.current!.value = mountedFolders[index].ref);
+                    emptyMountedFolders.forEach((it, index) => {
+                        it.ref.current!.value = mountedFolders[index].ref;
+                        it.ref.current!.dataset.path = mountedFolders[index].ref;
+                    });
                 }
 
                 {
@@ -870,7 +883,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     }),
                     useUrl: this.state.useUrl,
                     url: this.state.url,
-                    reservation: machineType.name ?? this.state.reservation
+                    reservation: machineType.id ?? this.state.reservation
                 }));
             } catch (e) {
                 console.warn(e);
@@ -1135,7 +1148,11 @@ const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     setLoading: loading => dispatch(setLoading(loading))
 });
 
-export default connect(null, mapDispatchToProps)(Run);
+const mapStateToProps = (redux: ReduxObject): {project?: string} => ({
+    project: redux.project.project
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(Run);
 
 export function importParameterDialog(importParameters: (file: File) => void, showFileSelector: () => void): void {
     dialogStore.addDialog((

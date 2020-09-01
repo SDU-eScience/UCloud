@@ -10,7 +10,7 @@ import dk.sdu.cloud.news.api.NewPostRequest
 import dk.sdu.cloud.news.api.NewsServiceDescription
 import dk.sdu.cloud.news.api.TogglePostHiddenRequest
 import dk.sdu.cloud.news.services.NewsService
-import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestDB
@@ -59,7 +59,7 @@ class NewsControllerTest {
         listOf(NewsController(db, service))
     }
 
-    private val now = System.currentTimeMillis()
+    private val now = Time.now()
 
     @Test
     fun `only admins can create test`() {

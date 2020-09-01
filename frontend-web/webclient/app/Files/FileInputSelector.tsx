@@ -89,5 +89,5 @@ interface FileSelectorButton {
 export const RemoveButton = ({
     onClick, ...props
 }: FileSelectorButton & SpaceProps & WidthProps & HeightProps): JSX.Element => (
-    <Button color="red" ml="8px" onClick={onClick} {...props}><Icon name="close" size="1em" /></Button>
+    <Button type={"button"} color="red" ml="8px" onClick={onClick} {...props}><Icon name="close" size="1em" /></Button>
 );

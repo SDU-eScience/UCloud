@@ -17,7 +17,7 @@ data class SimpleDuration(val hours: Int, val minutes: Int, val seconds: Int) {
     }.toString()
 
     fun toMillis(): Long {
-        return (hours * 60 * 60 * 1000 + minutes * 60 * 1000 + seconds * 1000).toLong()
+        return (hours * 60L * 60 * 1000 + minutes * 60 * 1000 + seconds * 1000)
     }
 
     companion object {
@@ -26,10 +26,7 @@ data class SimpleDuration(val hours: Int, val minutes: Int, val seconds: Int) {
             val minutes = (durationMs % (1000 * 60 * 60)) / (1000 * 60)
             val seconds = ((durationMs % (1000 * 60 * 60)) % (1000 * 60)) / 1000
 
-
             return SimpleDuration(hours.toInt(), minutes.toInt(), seconds.toInt())
         }
-
-
     }
 }

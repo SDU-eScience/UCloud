@@ -27,14 +27,20 @@ export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTab
     );
 };
 
-export const ActivityFeed = ({activity}: {activity: Module.ActivityForFrontend[]}): JSX.Element => (
-    <ActivityFeedFrame>
-        {activity.map((a, i) => <ActivityFeedItem key={i} activity={a} />)}
-    </ActivityFeedFrame>
-);
+export const ActivityFeed = ({activity, groups}: {
+    activity: Module.ActivityForFrontend[];
+    groups: Record<string, string>;
+}): JSX.Element => (
+        <ActivityFeedFrame>
+            {activity.map((a, i) => <ActivityFeedItem key={i} activity={a} groups={groups} />)}
+        </ActivityFeedFrame>
+    );
 
 // Performance note: Don't use styled components here.
-const ActivityEvent: React.FunctionComponent<{event: Module.ActivityForFrontend}> = props => {
+const ActivityEvent: React.FunctionComponent<{
+    event: Module.ActivityForFrontend;
+    groups: Record<string, string>;
+}> = props => {
     /* NOTE: This might be a major performance issue */
     const projects = getProjectNames(useProjectStatus());
     /* NOTEEND */
@@ -48,13 +54,16 @@ const ActivityEvent: React.FunctionComponent<{event: Module.ActivityForFrontend}
                 </ReactRouterLink>
             </b>
             {" "}
-            <OperationText event={props.event} />
+            <OperationText event={props.event} groups={props.groups} />
         </div>
     );
 }
 
 // Performance note: Don't use styled components here.
-const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}> = props => {
+const OperationText: React.FunctionComponent<{
+    event: Module.ActivityForFrontend;
+    groups: Record<string, string>;
+}> = props => {
     const projects = useProjectStatus();
     const projectNames = getProjectNames(projects);
     switch (props.event.type) {
@@ -112,7 +121,7 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
                     if (it.rights.length === 0) return "none";
                     return `(${it.rights.map(r => r.toLowerCase()).join(", ")})`;
                 }).join(", ");
-                return <span> had ACL for {update.acl.map(it => it.group).join(", ")} updated to {rightText} by {update.username}</span>;
+                return <span> had ACL for {update.acl.map(it => props.groups[it.group] ?? it.group).join(", ")} updated to {rightText} by {update.username}</span>;
             } else {
                 if (Client.hasActiveProject) {
                     return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights} by {update.username}</span>;
@@ -186,6 +195,7 @@ export const ActivityFeedSpacer = (props: {height: number}): JSX.Element => (
 
 interface ActivityFeedProps {
     activity: Module.ActivityForFrontend;
+    groups: Record<string, string>
 }
 
 export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
@@ -207,7 +217,7 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
                 <TableCell>
                     <Flex>
                         <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
-                        <ActivityEvent key={activity.type} event={activity} />
+                        <ActivityEvent key={activity.type} groups={this.props.groups} event={activity} />
                     </Flex>
                 </TableCell>
             </TFRow>

@@ -20,7 +20,7 @@ import {useHistory} from "react-router";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {
-    Button, Box, Flex, Card, Checkbox, Divider, Hide, Icon, Input,
+    Button, Box, Flex, Checkbox, Divider, Hide, Icon, Input,
     Label, Link, List, OutlineButton, Text, Tooltip, Truncate
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
@@ -47,7 +47,7 @@ import {useFilePermissions} from "Files/permissions";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useAppQuickLaunch} from "Utilities/ApplicationUtilities";
-import {isAnyMockFile, MOCK_RENAME_TAG, MOCK_REPO_CREATE_TAG} from "Utilities/FileUtilities";
+import {MOCK_REPO_CREATE_TAG} from "Utilities/FileUtilities";
 import {fakeProjectListPath} from "Files/FileSelector";
 
 export interface LowLevelFileTableProps {
@@ -838,15 +838,7 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
 
 
 function getFileNameForNameBox(path: string, projectStatus: ProjectStatus): string {
-    if (FUtils.isMyPersonalFolder(path)) {
-        return `Personal Files (${Client.username})`;
-    } else if (FUtils.isProjectHome(path)) {
-        const projectId = FUtils.projectIdFromPath(path);
-        return projectStatus.fetch().membership.find(it => it.projectId === projectId)?.title
-            ?? FUtils.getFilenameFromPath(path, []);
-    }
-
-    return FUtils.getFilenameFromPath(path, []);
+    return FUtils.getFilenameFromPath(path, getProjectNames(projectStatus));
 }
 
 const RenameBox = (props: { file: File; onRenameFile: (keycode: number, value: string) => void }): JSX.Element => {

@@ -13,25 +13,17 @@ import {notificationRead, readAllNotifications} from "Notifications/Redux/Notifi
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Card, Flex, Icon, Link, Text, Markdown} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Link, Markdown, Text} from "ui-components";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
 import {EllipsedText} from "ui-components/Text";
-import {fileTablePage, sizeToString} from "Utilities/FileUtilities";
-import {
-    getFilenameFromPath,
-    getParentPath,
-    isDirectory
-} from "Utilities/FileUtilities";
+import {fileTablePage, getFilenameFromPath, getParentPath, isDirectory, sizeToString} from "Utilities/FileUtilities";
 import {FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
-import {
-    fetchRecentAnalyses,
-    setAllLoading
-} from "./Redux/DashboardActions";
+import {fetchRecentAnalyses, setAllLoading} from "./Redux/DashboardActions";
 import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
 import {IconName} from "ui-components/Icon";
@@ -55,10 +47,7 @@ import theme, {ThemeColor} from "ui-components/theme";
 import {dispatchSetProjectAction} from "Project/Redux";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {Balance} from "Accounting/Balance";
-import {
-    GrantApplication,
-    listOutgoingApplications
-} from "Project/Grant";
+import {GrantApplication, GrantApplicationFilter, listOutgoingApplications} from "Project/Grant";
 import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 
 export const DashboardCard: React.FunctionComponent<{
@@ -105,7 +94,7 @@ export const DashboardCard: React.FunctionComponent<{
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     const favorites = useFavoriteStatus();
     const [favoritePage, setFavoriteParams] = useCloudAPI<Page<File>>(
-        listFavorites({itemsPerPage: 10, page: 0}),
+        {noop: true},
         emptyPage
     );
 
@@ -118,23 +107,16 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     }), emptyPage);
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
-        retrieveQuota({
-            path: Client.activeHomeFolder,
-            includeUsage: true
-        }),
+        {noop: true},
         {quotaInBytes: 0, quotaUsed: 0}
     );
 
     const [wallets, setWalletsParams] = useCloudAPI<RetrieveBalanceResponse>(
-        retrieveBalance({
-            id: undefined,
-            type: undefined,
-            includeChildren: false
-        }), {wallets: []}
+        {noop: true}, {wallets: []}
     );
 
     const [outgoingApps, fetchOutgoingApps] = useCloudAPI<Page<GrantApplication>>(
-        listOutgoingApplications({itemsPerPage: 10, page: 0}),
+        {noop: true},
         emptyPage
     );
 
@@ -157,7 +139,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             type: undefined,
             includeChildren: false
         }));
-        fetchOutgoingApps(listOutgoingApplications({itemsPerPage: 10, page: 0}));
+        fetchOutgoingApps(listOutgoingApplications({
+            itemsPerPage: 10,
+            page: 0,
+            filter: GrantApplicationFilter.SHOW_ALL
+        }));
         props.fetchRecentAnalyses();
     }
 

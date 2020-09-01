@@ -6,14 +6,8 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.getFieldNullable
-import dk.sdu.cloud.service.db.async.paginatedQuery
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.service.db.async.*
+import io.ktor.http.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -64,7 +58,7 @@ class QueryService(
 
                     val idx = queries.indexOfFirst {
                         it.group == summary.group &&
-                            it.username == summary.username
+                                it.username == summary.username
                     }
 
                     if (idx == -1) {
@@ -101,7 +95,7 @@ class QueryService(
     }
 
     suspend fun groupsCount(ctx: DBContext, user: SecurityPrincipal, projectId: String): Long {
-        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+        if (isAdminOrPIOfProject(ctx, user.username, projectId)) {
             return ctx.withSession { session ->
                 session.sendPreparedStatement(
                     {
@@ -441,7 +435,7 @@ class QueryService(
         user: SecurityPrincipal,
         projectId: String
     ): Long {
-        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+        if (isAdminOrPIOfProject(ctx, user.username, projectId)) {
             return ctx.withSession { session ->
                 session.sendPreparedStatement(
                     {
@@ -703,7 +697,7 @@ class QueryService(
             }
 
             return@withSession (Time.now() - latestVerification.toTimestamp()) >
-                VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
+                    VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
         }
     }
 
@@ -971,7 +965,7 @@ class QueryService(
         user: SecurityPrincipal,
         projectId: String
     ): Long {
-        if(isAdminOrPIOfProject(ctx, user.username, projectId)) {
+        if (isAdminOrPIOfProject(ctx, user.username, projectId)) {
             return ctx.withSession { session ->
                 session
                     .sendPreparedStatement(
@@ -1120,7 +1114,7 @@ class QueryService(
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        val projectWithAdmins = mutableListOf<Pair<String,List<ProjectMember>>>()
+        val projectWithAdmins = mutableListOf<Pair<String, List<ProjectMember>>>()
         ctx.withSession { session ->
             projectIds.forEach { projectId ->
                 val (pi, admins) = projects.getPIAndAdminsOfProject(session, projectId)
@@ -1134,6 +1128,40 @@ class QueryService(
         }
 
         return projectWithAdmins
+    }
+
+    suspend fun addAncestors(
+        ctx: DBContext,
+        actor: Actor,
+        projects: Collection<UserProjectSummary>
+    ): List<UserProjectSummary> {
+        return ctx.withSession { session ->
+            projects.map { p ->
+                p.copy(
+                    ancestorPath = viewAncestors(
+                        session,
+                        actor,
+                        p.projectId
+                    ).dropLast(1).joinToString("/") { it.title }
+                )
+            }
+        }
+    }
+
+    suspend fun listAllGroupIdsAndTitles(ctx: DBContext, user: SecurityPrincipal): Map<String, String> {
+        return ctx.withSession { session ->
+            val map = mutableMapOf<String, String>()
+            session.sendPreparedStatement(
+                { setParameter("username", user.username) },
+                """
+                    SELECT g.id, g.title
+                    FROM groups g
+                    INNER JOIN group_members gm on g.id = gm.group_id
+                    WHERE gm.username = :username
+                """
+            ).rows.forEach { row -> map[row.getField(GroupTable.id)] = row.getField(GroupTable.title) }
+            map
+        }
     }
 
     companion object : Loggable {

@@ -2,7 +2,7 @@ import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
 import {NotificationsReduxObject} from "DefaultObjects";
 import * as React from "react";
-import {connect} from "react-redux";
+import {connect, useSelector} from "react-redux";
 import {Redirect, useHistory} from "react-router";
 import {Dispatch} from "redux";
 import {Snack} from "Snackbar/Snackbars";
@@ -40,6 +40,7 @@ function Notifications(props: Notifications): JSX.Element {
 
     const history = useHistory();
     const projectNames = getProjectNames(useProjectStatus());
+    const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
 
     React.useEffect(() => {
         reload();
@@ -80,6 +81,7 @@ function Notifications(props: Notifications): JSX.Element {
     function onNotificationAction(notification: Notification): void {
         reload();
         UF.onNotificationAction(history, props.setActiveProject, notification, projectNames);
+        if (globalRefresh) globalRefresh();
     }
 
     const entries: JSX.Element[] = props.items.map((notification, index) => (

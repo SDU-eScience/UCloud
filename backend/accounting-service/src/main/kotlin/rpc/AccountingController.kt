@@ -40,6 +40,20 @@ class AccountingController(
             ok(Unit)
         }
 
+        implement(Wallets.reserveCreditsBulk) {
+            db.withSession { session ->
+                request.reservations.forEach { reservation ->
+                    balance.reserveCredits(
+                        session,
+                        Actor.SystemOnBehalfOfUser(reservation.jobInitiatedBy),
+                        reservation
+                    )
+                }
+            }
+
+            ok(Unit)
+        }
+
         implement(Wallets.chargeReservation) {
             balance.chargeFromReservation(
                 db,

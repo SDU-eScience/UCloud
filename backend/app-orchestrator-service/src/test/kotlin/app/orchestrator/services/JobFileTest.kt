@@ -4,7 +4,6 @@ import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken2
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.test.ClientMock
-import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
