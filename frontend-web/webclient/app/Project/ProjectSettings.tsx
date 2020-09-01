@@ -2,16 +2,17 @@ import * as React from "react";
 import {
     leaveProject,
     ProjectRole,
+    renameProject,
     setProjectArchiveStatus,
+    setProjectArchiveStatusBulk,
     useProjectManagementStatus,
-    UserInProject,
-    renameProject
+    UserInProject
 } from "Project/index";
-import {Box, Button, Flex, Text, Input} from "ui-components";
+import {Box, Button, Flex, Input, Text} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
-import {callAPIWithErrorHandler, useCloudAPI, useAsyncCommand} from "Authentication/DataHook";
+import {callAPIWithErrorHandler, useAsyncCommand} from "Authentication/DataHook";
 import {useHistory} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
@@ -20,8 +21,8 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {GrantProjectSettings} from "Project/Grant/Settings";
 import {useTitle} from "Navigation/Redux/StatusActions";
-import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import { snackbarStore } from "Snackbar/SnackbarStore";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const ActionContainer = styled.div`
     & > * {
@@ -66,7 +67,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         projectDetails={projectDetails.data}
                         onSuccess={() => fetchProjectDetails(projectDetailsParams)}
                     />
-                    <ArchiveProject
+                    <ArchiveSingleProject
                         isArchived={projectDetails.data.archived}
                         projectId={projectId}
                         projectRole={projectRole}
@@ -155,8 +156,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     );
 };
 
-
-interface ArchiveProjectProps {
+interface ArchiveSingleProjectProps {
     isArchived: boolean;
     projectRole: ProjectRole;
     projectId: string;
@@ -164,7 +164,7 @@ interface ArchiveProjectProps {
     onSuccess: () => void;
 }
 
-export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
+export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props => {
     return <>
         {props.projectRole === ProjectRole.USER ? null : (
             <ActionBox>
@@ -174,11 +174,11 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
                         {!props.isArchived ? null : (
                             <>
                                 Unarchiving a project will reverse the effects of archival.
-                            <ul>
+                                <ul>
                                     <li>
                                         Your projects will, once again, by visible to you and project
                                         collaborators
-                                </li>
+                                    </li>
                                     <li>This action <i>is</i> reversible</li>
                                 </ul>
                             </>
@@ -224,6 +224,86 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
                         }}
                     >
                         {props.isArchived ? "Unarchive" : "Archive"}
+                    </Button>
+                </Flex>
+            </ActionBox>
+        )}
+    </>;
+}
+
+interface ArchiveProjectProps {
+    projects: UserInProject[]
+    onSuccess: () => void;
+}
+
+export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
+    const multipleProjects = props.projects.length > 1;
+    const archived = props.projects.every( it => it.archived);
+    let projectTitles = "";
+    props.projects.forEach( project =>
+        projectTitles += project.title + ","
+    );
+    const anyUserRoles = props.projects.some(it => it.whoami.role === ProjectRole.USER);
+    projectTitles = projectTitles.substr(0, projectTitles.length-1);
+    return <>
+        {anyUserRoles ? null : (
+            <ActionBox>
+                <Box flexGrow={1}>
+                    <Heading.h4>Project Archival</Heading.h4>
+                    <Text>
+                        {!archived ? null : (
+                            <>
+                                Unarchiving {multipleProjects ? "projects" : "a project"} will reverse the effects of archival.
+                                <ul>
+                                    <li>
+                                        Your project{multipleProjects ? "s" : ""} will, once again, be visible to you and project
+                                        collaborators
+                                    </li>
+                                    <li>This action <i>is</i> reversible</li>
+                                </ul>
+                            </>
+                        )}
+                        {archived ? null : (
+                            <>
+                                You can archive {multipleProjects ? "projects" : "a project"} if it is no longer relevant for your day-to-day work.
+
+                                <ul>
+                                    <li>
+                                        The project{multipleProjects ? "s" : ""} will, by default, be hidden for you and project
+                                        collaborators
+                                    </li>
+                                    <li>No data will be deleted from the project{multipleProjects ? "s" : ""}</li>
+                                    <li>This action <i>is</i> reversible</li>
+                                </ul>
+                            </>
+                        )}
+                    </Text>
+                </Box>
+                <Flex>
+                    <Button
+                        color={"orange"}
+                        onClick={() => {
+                            addStandardDialog({
+                                title: "Are you sure?",
+                                message: `Are you sure you wish to ` +
+                                    `${archived ? "unarchive" : "archive"} ${projectTitles}?`,
+                                onConfirm: async () => {
+                                    const success = await callAPIWithErrorHandler(
+                                        setProjectArchiveStatusBulk({
+                                            projects: props.projects,
+                                        })
+                                    );
+                                    if (success) {
+                                        props.onSuccess();
+                                        dialogStore.success();
+                                    }
+                                },
+                                addToFront: true,
+                                confirmText: `${archived ? "Unarchive" : "Archive"} project${multipleProjects ? "s" : ""}`
+                            });
+                        }}
+                    >
+                        {archived ? "Unarchive" : "Archive"}
                     </Button>
                 </Flex>
             </ActionBox>

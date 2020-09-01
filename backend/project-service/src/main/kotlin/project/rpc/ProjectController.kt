@@ -1,28 +1,14 @@
 package dk.sdu.cloud.project.rpc
 
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.project
-import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.project.Configuration
-import dk.sdu.cloud.project.api.ExistsResponse
-import dk.sdu.cloud.project.api.ProjectMember
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
-import dk.sdu.cloud.project.services.ProjectException
+import dk.sdu.cloud.*
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.project.*
+import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.services.*
 import dk.sdu.cloud.project.services.ProjectService
-import dk.sdu.cloud.project.services.QueryService
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.normalizeWithFullReadEnabled
-import dk.sdu.cloud.service.toActor
-import dk.sdu.cloud.service.withNewItems
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 
 class ProjectController(
@@ -187,6 +173,20 @@ class ProjectController(
                 request.archiveStatus
             )
 
+            ok(Unit)
+        }
+
+        implement(Projects.archiveBulk) {
+            db.withSession { session ->
+                request.projects.forEach {
+                    projects.setArchiveStatus(
+                        session,
+                        ctx.securityPrincipal.username,
+                        it.projectId,
+                        !it.archived
+                    )
+                }
+            }
             ok(Unit)
         }
 
