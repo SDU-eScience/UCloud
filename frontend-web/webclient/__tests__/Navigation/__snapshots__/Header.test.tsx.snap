@@ -165,7 +165,7 @@ exports[`Header Mount header 1`] = `
 }
 
 .c10:disabled {
-  background-color: var(--FtFolderColor2,#f00);
+  background-color: var(--lightGray,#f00);
 }
 
 .c12 {
