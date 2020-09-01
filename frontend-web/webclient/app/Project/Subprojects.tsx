@@ -28,7 +28,7 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Balance} from "Accounting/Balance";
-import {shakeAnimation, shakingClassName} from "UtilityComponents";
+import {Center, shakeAnimation, shakingClassName} from "UtilityComponents";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -37,15 +37,11 @@ const WalletContainer = styled.div`
     
     margin: 32px 0;
     
+    & > * {
+        min-height: 145px;
+    }
+    
     ${shakeAnimation}
-    
-    .request-resources {
-        grid-column-start: span 2;
-    }
-    
-    .request-resources ${Card} {
-        height: 100%;
-    }
 `;
 
 const SelectableWalletWrapper = styled.div`
@@ -254,24 +250,19 @@ const Subprojects: React.FunctionComponent = () => {
                             )}
 
                             {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
-                                <div className="request-resources">
                                     <DashboardCard color="blue" isLoading={false}>
-                                        <Box m={8} mt={0}>
-                                            <Heading.h3>Need more resources?</Heading.h3>
-                                            <p>
-                                                You can request more resources from your parent project.
-                                                Click the button below to get started.
-                                        </p>
-                                            <Flex justifyContent={"flex-end"}>
+                                        <Flex height={"140px"} justifyContent={"center"} alignItems={"center"} flexDirection={"column"}>
+                                            <Heading.h4>Need more resources?</Heading.h4>
+                                            <Box mt={8}>
                                                 <Link to={
                                                     !Client.hasActiveProject ?
                                                         "/projects/browser/personal" :
                                                         "/project/grants/existing"
-                                                }><Button>Request resources</Button></Link>
-                                            </Flex>
-                                        </Box>
+                                                }><Button>Apply for more resources</Button></Link>
+                                            </Box>
+                                        </Flex>
                                     </DashboardCard>
-                                </div> : null}
+                                 : null}
                         </WalletContainer>
                     </LoadingBox>
 
