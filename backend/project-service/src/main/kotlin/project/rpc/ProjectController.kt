@@ -12,6 +12,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.project.services.QueryService
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.normalizeWithFullReadEnabled
 import dk.sdu.cloud.service.toActor
 import io.ktor.http.HttpStatusCode
@@ -168,15 +169,16 @@ class ProjectController(
         }
 
         implement(Projects.archiveBulk) {
-            request.projects.forEach {
-                projects.setArchiveStatus(
-                    db,
-                    ctx.securityPrincipal.username,
-                    it.projectId,
-                    !it.archived
-                )
+            db.withSession { session ->
+                request.projects.forEach {
+                    projects.setArchiveStatus(
+                        session,
+                        ctx.securityPrincipal.username,
+                        it.projectId,
+                        !it.archived
+                    )
+                }
             }
-
             ok(Unit)
         }
 
