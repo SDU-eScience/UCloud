@@ -30,6 +30,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+import {Dropdown} from "ui-components/Dropdown";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -178,6 +179,12 @@ export const durationOptions: Duration[] = [
     },
 ];
 
+const UsageHeader = styled(Flex)`
+    ${Dropdown} {
+        flex-shrink: 0;
+    }
+`;
+
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const {projectId, reload} = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
@@ -306,16 +313,21 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     return (
         <MainContainer
             header={
-                <Flex>
+                <UsageHeader>
                     <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]}/>
                     <ClickableDropdown
-                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16}/></Heading.h4>}
+                        trigger={
+                            <Flex alignItems={"center"}>
+                                <Heading.h4 mr={8}>{durationOption.text}</Heading.h4>
+                                <Icon name={"chevronDown"} size={16}/>
+                            </Flex>
+                        }
                         onChange={opt => setDurationOption(durationOptions[parseInt(opt)])}
                         options={durationOptions.map((it, idx) => {
                             return {text: it.text, value: `${idx}`};
                         })}
                     />
-                </Flex>
+                </UsageHeader>
             }
             sidebar={null}
             main={(
