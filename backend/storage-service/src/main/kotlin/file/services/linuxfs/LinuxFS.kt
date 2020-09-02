@@ -463,6 +463,10 @@ class LinuxFS(
         }
     }
 
+    override suspend fun checkWritePermissions(ctx: LinuxFSRunner, path: String) {
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+    }
+
     override suspend fun write(
         ctx: LinuxFSRunner,
         writer: suspend (OutputStream) -> Unit

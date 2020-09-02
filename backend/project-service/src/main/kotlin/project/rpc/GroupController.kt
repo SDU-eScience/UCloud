@@ -36,7 +36,12 @@ class GroupController(
 
         implement(ProjectGroups.listGroupsWithSummary) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            ok(queries.listGroups(db, ctx.securityPrincipal.username, project, request.normalize()))
+            ok(queries.listGroups(
+                db,
+                ctx.securityPrincipal.username,
+                project,
+                request.normalizeWithFullReadEnabled(ctx.securityPrincipal.toActor(), false)
+            ))
         }
 
         implement(ProjectGroups.addGroupMember) {
@@ -124,10 +129,6 @@ class GroupController(
             ok(
                 queries.lookupProjectAndGroup(db, request.project, request.group)
             )
-        }
-
-        implement(ProjectGroups.listAllGroupIdsAndTitles) {
-            ok(ListAllGroupIdsAndTitlesResponse(queries.listAllGroupIdsAndTitles(db, ctx.securityPrincipal)))
         }
     }
 }

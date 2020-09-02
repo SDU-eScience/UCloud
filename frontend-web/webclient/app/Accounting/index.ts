@@ -262,6 +262,7 @@ export interface RetrieveQuotaRequest {
 
 export interface RetrieveQuotaResponse {
     quotaInBytes: number;
+    quotaInTotal: number;
     quotaUsed?: number;
 }
 

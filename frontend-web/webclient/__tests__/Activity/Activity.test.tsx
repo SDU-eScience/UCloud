@@ -1,5 +1,6 @@
 import * as React from "react";
 import {Provider} from "react-redux";
+import {MemoryRouter} from "react-router";
 import {create, act} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
 import Activity from "../../app/Activity/Page";
@@ -41,9 +42,14 @@ const result = {
 
 jest.mock("Authentication/HttpClientInstance", () => ({
     Client: {
-        get: () => result,
+        get: () => ({request: {status: 401}, response: result}),
+        call: () => ({request: {status: 401}, response: result}),
         hasActiveProject: () => false
     }
+}));
+
+jest.mock("Utilities/ProjectUtilities", () => ({
+    getProjectNames: () => []
 }));
 
 describe("Activity Page", () => {
@@ -53,7 +59,9 @@ describe("Activity Page", () => {
             container = await create(
                 <Provider store={store}>
                     <ThemeProvider theme={theme}>
-                        <Activity />
+                        <MemoryRouter>
+                            <Activity />
+                        </MemoryRouter>
                     </ThemeProvider>
                 </Provider>
             );

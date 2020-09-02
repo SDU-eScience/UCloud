@@ -112,6 +112,8 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         allowOverwrite: Boolean
     )
 
+    suspend fun checkWritePermissions(ctx: Ctx, path: String)
+
     /**
      * Writes to the file opened by [openForWriting].
      *

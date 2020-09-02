@@ -44,6 +44,7 @@ import {useAvatars} from "AvataaarLib/hook";
 import {dialogStore} from "Dialog/DialogStore";
 import {ArchiveProject, LeaveProject} from "./ProjectSettings";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {useProjectStatus} from "./cache";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -64,6 +65,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
 
     const usernames = ingoingInvites.data.items.map(it => it.invitedBy);
     const avatars = useAvatars();
+    const projectStatus = useProjectStatus();
 
     useEffect(() => {
         avatars.updateCache(usernames);
@@ -121,7 +123,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     <ArchiveProject
                         onSuccess={() => {
                             dialogStore.success();
-                            setSelectedProjects(new Set())
+                            setSelectedProjects(new Set());
                             reload();
                         }}
                         projects={projects}
@@ -151,7 +153,12 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             icon: "open",
             onClick: ([project]) => dialogStore.addDialog(
                 <LeaveProject
-                    onSuccess={() => dialogStore.success()}
+                    onSuccess={() => {
+                        if (project.projectId === Client.projectId) {
+                            props.setProject();
+                        }
+                        reload();
+                    }}
                     projectId={project.projectId}
                     projectRole={project.whoami.role}
                     projectDetails={project}
@@ -453,6 +460,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         `${e.title} is now the active project`,
                                         false
                                     );
+                                    projectStatus.reload();
                                     props.setProject(e.projectId);
                                 }}
                             />

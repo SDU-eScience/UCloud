@@ -1,6 +1,6 @@
 import {ActivityDispatchProps, ActivityFilter, ActivityProps} from "Activity";
 import * as Module from "Activity";
-import {ActivityReduxObject} from "DefaultObjects";
+import {ActivityReduxObject, emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -21,6 +21,8 @@ import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {useCloudAPI} from "Authentication/DataHook";
+import {groupSummaryRequest} from "Project";
+import {GroupWithSummary} from "Project/GroupList";
 
 const scrollSize = 250;
 
@@ -51,8 +53,8 @@ function Activity(props: ActivityProps): JSX.Element {
         return () => props.setRefresh();
     }, []);
 
-    const [groups] = useCloudAPI<Record<string, string>>(
-        Client.hasActiveProject ? listAllGroupsRequest() : {noop: true}, {}
+    const [groups] = useCloudAPI<Page<GroupWithSummary>>(
+        Client.hasActiveProject ? groupSummaryRequest({itemsPerPage: -1, page: 0}) : {noop: true}, emptyPage
     );
 
     function renderHeader(): React.ReactNode {
@@ -180,13 +182,6 @@ function Activity(props: ActivityProps): JSX.Element {
             sidebarSize={340}
         />
     );
-}
-
-export function listAllGroupsRequest(): APICallParameters<{}> {
-    return {
-        path: "/projects/groups/list-all-groups",
-        method: "GET"
-    };
 }
 
 export const getStartOfDay = (d: Date): Date => {

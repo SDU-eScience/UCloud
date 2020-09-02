@@ -23,7 +23,7 @@ data class CreateProjectRequest(
     }
 
     companion object {
-        val regex = Regex("[a-zA-Z0-9 _-]+")
+        val regex = Regex("[a-zA-Z0-9 _-æøåÆØÅ]+")
         const val TITLE_MAX_LENGTH = 128
     }
 }

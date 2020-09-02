@@ -121,6 +121,7 @@ function Search(props: SearchProps): JSX.Element {
                     {entriesPerPage}
                 </Hide>
                 <EmbeddedFileTable
+                    disableNavigationButtons
                     onPageChanged={page => props.searchFiles(
                         fileSearchBody(props.fileSearch, props.search, props.files.itemsPerPage, page)
                     )}

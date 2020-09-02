@@ -37,7 +37,6 @@ interface NotificationProps {
 type Notifications = NotificationProps & NotificationsOperations;
 
 function Notifications(props: Notifications): JSX.Element {
-
     const history = useHistory();
     const projectNames = getProjectNames(useProjectStatus());
     const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
@@ -80,8 +79,12 @@ function Notifications(props: Notifications): JSX.Element {
 
     function onNotificationAction(notification: Notification): void {
         reload();
+        const before = history.location.pathname;
         UF.onNotificationAction(history, props.setActiveProject, notification, projectNames);
-        if (globalRefresh) globalRefresh();
+        const after = history.location.pathname;
+        if (before === after) {
+            if (globalRefresh) globalRefresh();
+        }
     }
 
     const entries: JSX.Element[] = props.items.map((notification, index) => (

@@ -271,7 +271,7 @@ class QueryService(
         ctx: DBContext,
         requestedBy: String,
         projectId: String,
-        pagination: NormalizedPaginationRequest
+        pagination: NormalizedPaginationRequest?
     ): Page<GroupWithSummary> {
         return ctx.withSession { session ->
             val requestedByRole = projects.requireRole(session, requestedBy, projectId, ProjectRole.ALL)
@@ -283,27 +283,30 @@ class QueryService(
             }
 
             // Count how many groups there are. We will use this for pagination
-            val groupCount = session
-                .sendPreparedStatement(
-                    params,
-                    """
-                        select count(g.id)
-                        from groups g
-                        where
-                            g.project = :project and
-                            check_group_acl(:username, :userIsAdmin, g.id)
-                    """
-                )
-                .rows
-                .map { it.getLong(0)!!.toInt() }
-                .singleOrNull() ?: 0
+            val groupCount =
+                if (pagination == null) null
+                else
+                    session
+                    .sendPreparedStatement(
+                        params,
+                        """
+                            select count(g.id)
+                            from groups g
+                            where
+                                g.project = :project and
+                                check_group_acl(:username, :userIsAdmin, g.id)
+                        """
+                    )
+                    .rows
+                    .map { it.getLong(0)!!.toInt() }
+                    .singleOrNull() ?: 0
 
             val items = session
                 .sendPreparedStatement(
                     {
                         params()
-                        setParameter("limit", pagination.itemsPerPage)
-                        setParameter("offset", pagination.itemsPerPage * pagination.page)
+                        setParameter("limit", pagination?.itemsPerPage ?: Int.MAX_VALUE)
+                        setParameter("offset", if (pagination == null) 0 else pagination.itemsPerPage * pagination.page)
                     },
                     """
                         select g.id, g.title, count(gm.username)
@@ -326,7 +329,12 @@ class QueryService(
                     GroupWithSummary(groupId, groupTitle, memberCount)
                 }
 
-            Page(groupCount, pagination.itemsPerPage, pagination.page, items)
+            Page(
+                groupCount ?: items.size,
+                pagination?.itemsPerPage ?: items.size,
+                pagination?.page ?: 0,
+                items
+            )
         }
     }
 

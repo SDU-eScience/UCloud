@@ -82,7 +82,7 @@ const SelectableWallet: React.FunctionComponent<{
     allocated?: number,
     selected?: boolean,
     onClick?: () => void,
-    quotaInBytes?: number
+    quotaInTotal?: number
 }> = props => {
     return (
         <SelectableWalletWrapper className={props.selected === true ? "selected" : ""} onClick={props.onClick}>
@@ -105,10 +105,10 @@ const SelectableWallet: React.FunctionComponent<{
                                 <td>{creditFormatter(props.allocated)}</td>
                             </tr>
                         )}
-                        {props.quotaInBytes === undefined ? null : (
+                        {props.quotaInTotal === undefined ? null : (
                             <tr>
                                 <th>Quota</th>
-                                <td>{props.quotaInBytes === -1 ? "No quota" : sizeToString(props.quotaInBytes)}</td>
+                                <td>{props.quotaInTotal === -1 ? "No quota" : sizeToString(props.quotaInTotal)}</td>
                             </tr>
                         )}
                         <tr>
@@ -158,7 +158,7 @@ const Subprojects: React.FunctionComponent = () => {
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
         {noop: true},
-        {quotaInBytes: 0}
+        {quotaInBytes: 0, quotaInTotal: 0}
     );
 
     const [wallets, setWalletParams] = useCloudAPI<RetrieveBalanceResponse>(
@@ -243,8 +243,8 @@ const Subprojects: React.FunctionComponent = () => {
                                                 prev + it.balance : prev
                                         ), 0)
                                     }
-                                    quotaInBytes={isQuotaSupported(w.wallet.paysFor) ?
-                                        quota.data.quotaInBytes : undefined
+                                    quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
+                                        quota.data.quotaInTotal : undefined
                                     }
                                     onClick={() => setSelectedWallet(w)} />
                             )}
@@ -423,10 +423,10 @@ const SubprojectRow: React.FunctionComponent<{
     const [loading, runCommand] = useAsyncCommand();
     const [quota, fetchQuota, quotaParams] = useCloudAPI<RetrieveQuotaResponse>(
         {noop: true},
-        {quotaInBytes: 0}
+        {quotaInBytes: 0, quotaInTotal: 0}
     );
-    const quotaInBytes = walletBalance && isQuotaSupported(walletBalance.wallet.paysFor) ?
-        quota.data.quotaInBytes : undefined;
+    const quotaInTotal = walletBalance && isQuotaSupported(walletBalance.wallet.paysFor) ?
+        quota.data.quotaInTotal : undefined;
 
     useEffect(() => {
         if (walletBalance && isQuotaSupported(walletBalance.wallet.paysFor)) {
@@ -485,10 +485,10 @@ const SubprojectRow: React.FunctionComponent<{
 
     useEffect(() => {
         if (quotaRef.current && isEditingQuota) {
-            if (quotaInBytes === -1) {
+            if (quotaInTotal === -1) {
                 quotaRef.current!.value = "0";
             } else {
-                quotaRef.current!.value = ((quotaInBytes ?? 0) / 1000000000).toString();
+                quotaRef.current!.value = ((quotaInTotal ?? 0) / 1000000000).toString();
             }
         }
     }, [quotaRef.current, isEditingQuota]);
@@ -552,12 +552,12 @@ const SubprojectRow: React.FunctionComponent<{
                                 )}
                         </Flex>
 
-                        {quotaInBytes === undefined ? null : (
+                        {quotaInTotal === undefined ? null : (
                             <Flex alignItems={"center"} justifyContent={"flex-end"} mt={16}>
                                 {!isEditingQuota ? (
                                     <>
                                         <AllocationEditor>
-                                            {quotaInBytes === -1 ? "No quota" : sizeToString(quotaInBytes)}
+                                            {quotaInTotal === -1 ? "No quota" : sizeToString(quotaInTotal)}
                                         </AllocationEditor>
                                         <Button height="35px" width="135px" onClick={() => setIsEditingQuota(true)}>
                                             Edit quota
