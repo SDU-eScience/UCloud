@@ -73,24 +73,31 @@ class QueryService(
         }
     }
 
-    suspend fun groupExists(ctx: DBContext, projectId: String, groupId: String): Boolean {
+    suspend fun groupExists(ctx: DBContext, projectId: String, groupIds: List<String>): List<Boolean> {
         return ctx.withSession { session ->
+            val exists = HashMap<String, Boolean>()
+            groupIds.forEach { exists[it] = false }
+
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("group", groupId)
+                        setParameter("groups", groupIds)
                         setParameter("project", projectId)
                     },
                     """
-                        select *
+                        select id
                         from groups
                         where
-                            id = :group and
+                            id in (select(unnest(:groups::text[]))) and
                             project = :project
                     """
                 )
                 .rows
-                .size > 0
+                .forEach {
+                    exists[it.getString(0)!!] = true
+                }
+
+            groupIds.map { exists[it] ?: false }
         }
     }
 

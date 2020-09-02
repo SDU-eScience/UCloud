@@ -81,7 +81,25 @@ class ProjectRepositoryController(
         implement(ProjectRepository.listFiles) {
             ok(
                 service
-                    .listFiles(ctx.securityPrincipal.username, project, userClient())
+                    .listFiles(
+                        ctx.securityPrincipal.username,
+                        project,
+                        userClient(),
+                        userClientForCleanUp = {
+                            val newAccessToken = AuthDescriptions.tokenExtension.call(
+                                TokenExtensionRequest(
+                                    ctx.bearer!!,
+                                    listOf(
+                                        FileDescriptions.updateProjectAcl.requiredAuthScope.toString()
+                                    ),
+                                    expiresIn = 1000L * 120,
+                                    allowRefreshes = false
+                                ),
+                                serviceClient
+                            ).orThrow().accessToken
+                            userClientFactory(newAccessToken)
+                        }
+                    )
                     .paginate(request.normalizeWithFullReadEnabled(ctx.securityPrincipal.toActor(), false))
             )
         }

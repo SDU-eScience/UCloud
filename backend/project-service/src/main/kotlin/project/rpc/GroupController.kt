@@ -95,7 +95,7 @@ class GroupController(
         }
 
         implement(ProjectGroups.groupExists) {
-            ok(GroupExistsResponse(queries.groupExists(db, request.project, request.group)))
+            ok(GroupExistsResponse(queries.groupExists(db, request.project, request.groups)))
         }
 
         implement(ProjectGroups.count) {

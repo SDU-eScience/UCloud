@@ -131,7 +131,8 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
     suspend fun listFiles(
         username: String,
         project: String,
-        userClient: AuthenticatedClient
+        userClient: AuthenticatedClient,
+        userClientForCleanUp: (suspend () -> AuthenticatedClient)? = null
     ): List<StorageFile> {
         val status = Projects.viewMemberInProject.call(
             ViewMemberInProjectRequest(project, username),
@@ -145,7 +146,9 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
             FileDescriptions.listAtPath.call(
                 ListDirectoryRequest("/projects/$project", -1, -1, null, null),
                 userClient
-            ).orThrow().items
+            ).orThrow().items.also {
+                verifyReturnedAcl(it, project, userClientForCleanUp)
+            }
         }
 
         val myPersonalFiles = FileDescriptions.stat.call(
@@ -159,6 +162,72 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
         ) + filesFromRepo.filter { it.path.fileName() != PERSONAL_REPOSITORY }
     }
 
+    private suspend fun verifyReturnedAcl(
+        files: List<StorageFile>,
+        project: String,
+        userClientForCleanUp: (suspend () -> AuthenticatedClient)?
+    ) {
+        if (userClientForCleanUp == null) return
+
+        val groups = files
+            .flatMap { file ->
+                (file.acl ?: emptyList())
+                    .map { it.entity }
+                    .filterIsInstance<ACLEntity.ProjectAndGroup>()
+                    .filter { it.projectId == project }
+                    .map { it.group }
+            }
+            .toSet()
+            .toList()
+
+        val exists = ProjectGroups.groupExists.call(
+            GroupExistsRequest(project, groups),
+            serviceClient
+        ).orThrow().exists
+
+        val deadGroups = ArrayList<String>()
+        for ((index, e) in exists.withIndex()) {
+            if (!e) {
+                deadGroups.add(groups[index])
+            }
+        }
+
+        if (deadGroups.isNotEmpty()) {
+            var userClient: AuthenticatedClient? = null
+            for (file in files) {
+                val acl = file.acl ?: emptyList()
+                val newAcl = acl.filter { (entity, _) ->
+                    if (entity is ACLEntity.ProjectAndGroup) {
+                        entity.group !in deadGroups
+                    } else {
+                        true
+                    }
+                }
+
+                if (newAcl.size != acl.size) {
+                    FileDescriptions.updateProjectAcl.call(
+                        UpdateProjectAclRequest(
+                            file.path,
+                            project,
+                            newAcl.map {
+                                ProjectAclEntryRequest(
+                                    (it.entity as ACLEntity.ProjectAndGroup).group,
+                                    it.rights
+                                )
+                            }
+                        ),
+                        if (userClient == null) {
+                            userClient = userClientForCleanUp()
+                            userClient
+                        } else {
+                            userClient
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     suspend fun updatePermissions(
         userClient: AuthenticatedClient,
         project: String,
@@ -167,9 +236,9 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
     ) {
         newAcl.map { it.group }.toSet().forEach { group ->
             val groupExists = ProjectGroups.groupExists.call(
-                GroupExistsRequest(project, group),
+                GroupExistsRequest(project, listOf(group)),
                 serviceClient
-            ).orThrow().exists
+            ).orThrow().exists.single()
 
             if (!groupExists) {
                 throw RPCException("Group not found", HttpStatusCode.BadRequest)

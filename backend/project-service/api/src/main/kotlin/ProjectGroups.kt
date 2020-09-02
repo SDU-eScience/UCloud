@@ -69,8 +69,8 @@ data class IsMemberQuery(val project: String, val group: String, val username: S
 data class IsMemberRequest(val queries: List<IsMemberQuery>)
 data class IsMemberResponse(val responses: List<Boolean>)
 
-data class GroupExistsRequest(val project: String, val group: String)
-data class GroupExistsResponse(val exists: Boolean)
+data class GroupExistsRequest(val project: String, val groups: List<String>)
+data class GroupExistsResponse(val exists: List<Boolean>)
 
 data class ListAllGroupMembersRequest(val project: String, val group: String)
 typealias ListAllGroupMembersResponse = List<String>
