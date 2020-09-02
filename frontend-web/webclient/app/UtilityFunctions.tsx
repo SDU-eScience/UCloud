@@ -498,7 +498,8 @@ export function onNotificationAction(
     history: History,
     setProject: (projectId: string) => void,
     notification: Notification,
-    projectNames: ProjectName[]
+    projectNames: ProjectName[],
+    markAsRead: (id: number) => void
 ): void {
     const currentProject = getStoredProject();
     switch (notification.type) {
@@ -533,4 +534,5 @@ export function onNotificationAction(
             console.warn(notification);
             break;
     }
+    markAsRead(notification.id);
 }

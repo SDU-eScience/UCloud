@@ -80,7 +80,7 @@ function Notifications(props: Notifications): JSX.Element {
     function onNotificationAction(notification: Notification): void {
         reload();
         const before = history.location.pathname;
-        UF.onNotificationAction(history, props.setActiveProject, notification, projectNames);
+        UF.onNotificationAction(history, props.setActiveProject, notification, projectNames, props.notificationRead);
         const after = history.location.pathname;
         if (before === after) {
             if (globalRefresh) globalRefresh();

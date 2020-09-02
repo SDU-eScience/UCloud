@@ -160,7 +160,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     } = props;
 
     const onNotificationAction = (notification: Notification): void =>
-        UF.onNotificationAction(props.history, props.setActiveProject, notification, projectNames);
+        UF.onNotificationAction(props.history, props.setActiveProject, notification, projectNames, props.notificationRead);
 
     const main = (
         <DashboardGrid minmax={435} gridGap={16}>
@@ -313,10 +313,10 @@ interface DashboardNotificationProps {
 
 const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
     <DashboardCard
-        color={"darkGreen"}
+        color="darkGreen"
         isLoading={false}
-        icon={"notification"}
-        title={"Recent Notifications"}
+        icon="notification"
+        title="Recent Notifications"
         subtitle={
             <Icon
                 name="checkDouble"
@@ -377,13 +377,13 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
 
 export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props => {
     return <Flex
-        alignItems={"center"}
-        justifyContent={"center"}
-        height={"calc(100% - 60px)"}
-        minHeight={"250px"}
-        mt={"-30px"}
-        width={"100%"}
-        flexDirection={"column"}
+        alignItems="center"
+        justifyContent="center"
+        height="calc(100% - 60px)"
+        minHeight="250px"
+        mt="-30px"
+        width="100%"
+        flexDirection="column"
     >
         <Heading.h4>{props.title}</Heading.h4>
         {props.children}
