@@ -1,6 +1,45 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Runs component Mount component with non-empty page 1`] = `
+.c3 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c34 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: 4px;
+}
+
+.c38 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-right: 8px;
+}
+
+.c39 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  width: 110px;
+}
+
+.c41 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: -3px;
+}
+
 .c1 {
   margin-left: 190px;
   padding-top: 48px;
@@ -118,45 +157,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   color: #00C05A;
 }
 
-.c3 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-}
-
-.c34 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-top: 4px;
-}
-
-.c38 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-right: 8px;
-}
-
-.c39 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  width: 110px;
-}
-
-.c41 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-top: -3px;
-}
-
 .c7 {
   cursor: pointer;
 }
@@ -215,15 +215,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   width: auto;
 }
 
-.c6 {
-  position: relative;
-  display: inline-block;
-}
-
-.c6:hover > div {
-  display: block;
-}
-
 .c18 {
   display: -webkit-box;
   display: -webkit-flex;
@@ -246,7 +237,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   flex: 1 1 auto;
 }
 
-.c18 .sc-fzokOt {
+.c18 .sc-fzqNJr {
   border: 0;
   box-shadow: none;
 }
@@ -325,6 +316,15 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 
 .c30:hover {
   background-color: var(--lightBlue,#f00);
+}
+
+.c6 {
+  position: relative;
+  display: inline-block;
+}
+
+.c6:hover > div {
+  display: block;
 }
 
 .c2 {

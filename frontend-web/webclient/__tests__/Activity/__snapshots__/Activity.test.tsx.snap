@@ -1,6 +1,24 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Activity Page Mount Activity Page, without project 1`] = `
+.c30 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+}
+
+.c27 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
 .c1 {
   margin-left: 190px;
   padding-top: 48px;
@@ -81,24 +99,6 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   vertical-align: middle;
   cursor: inherit;
   margin-right: 0.5em;
-}
-
-.c30 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-pack: center;
-  -webkit-justify-content: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-}
-
-.c27 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
 }
 
 .c3 {
@@ -191,15 +191,6 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   width: 100%;
 }
 
-.c10 {
-  position: relative;
-  display: inline-block;
-}
-
-.c10:hover > div {
-  display: block;
-}
-
 .c8 {
   cursor: pointer;
   -webkit-text-decoration: none;
@@ -236,6 +227,15 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
 .c13 .c14 {
   border: 0;
   box-shadow: none;
+}
+
+.c10 {
+  position: relative;
+  display: inline-block;
+}
+
+.c10:hover > div {
+  display: block;
 }
 
 .c2 {
