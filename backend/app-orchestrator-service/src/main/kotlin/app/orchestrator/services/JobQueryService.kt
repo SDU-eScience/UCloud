@@ -198,8 +198,13 @@ class JobQueryService(
 
                             -- Permissions
                             (
-                                (owner = :owner and :project::text is null) or
-                                (:isProjectAdmin and :project::text is not null and project = :project)
+                                :project::text is null and (
+                                    owner =  :owner and project is null
+                                ) or 
+                                :project::text is not null and (
+                                    (owner = :owner and project = :project) or 
+                                    (:isProjectAdmin and project = :project)
+                                ) 
                             )
                     """,
                     """
