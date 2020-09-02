@@ -231,23 +231,28 @@ const Subprojects: React.FunctionComponent = () => {
                     <Heading.h3>Resources</Heading.h3>
                     <LoadingBox height="233px" isLoading={wallets.loading}>
                         <WalletContainer ref={walletContainer}>
-
-                            {mainWallets.map((w, i) =>
-                                <SelectableWallet
-                                    key={i}
-                                    wallet={w}
-                                    selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
-                                    allocated={
-                                        wallets.data.wallets.reduce((prev, it) => (
-                                            it.wallet.id !== projectId && productCategoryEquals(w.wallet.paysFor, it.wallet.paysFor) ?
-                                                prev + it.balance : prev
-                                        ), 0)
-                                    }
-                                    quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
-                                        quota.data.quotaInTotal : undefined
-                                    }
-                                    onClick={() => setSelectedWallet(w)} />
-                            )}
+                            {mainWallets.length === 0 ? <>
+                                {isAdminOrPI(projectRole) ? null :
+                                    <Heading.h4>No resources attached to project. Contact project PI</Heading.h4>
+                                } </>
+                                : <>{mainWallets.map((w, i) =>
+                                        <SelectableWallet
+                                            key={i}
+                                            wallet={w}
+                                            selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
+                                            allocated={
+                                                wallets.data.wallets.reduce((prev, it) => (
+                                                    it.wallet.id !== projectId && productCategoryEquals(w.wallet.paysFor, it.wallet.paysFor) ?
+                                                        prev + it.balance : prev
+                                                ), 0)
+                                            }
+                                            quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
+                                                quota.data.quotaInTotal : undefined
+                                            }
+                                            onClick={() => setSelectedWallet(w)}/>
+                                        )
+                                    }</>
+                            }
 
                             {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
                                     <DashboardCard color="blue" isLoading={false}>
@@ -267,68 +272,70 @@ const Subprojects: React.FunctionComponent = () => {
                     </LoadingBox>
 
                     {!Client.hasActiveProject ? null : <>
-                        <Heading.h3>Subprojects</Heading.h3>
-                        <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
-                            <Box ml={8} mr={8}>
-                                <SearchContainer>
-                                    {!allowManagement ? null : (
-                                        <form onSubmit={onSubmit}>
+                        {isAdminOrPI(projectRole) ? <>
+                            <Heading.h3>Subprojects</Heading.h3>
+                            <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
+                                <Box ml={8} mr={8}>
+                                    <SearchContainer>
+                                        {!allowManagement ? null : (
+                                            <form onSubmit={onSubmit}>
+                                                <Input
+                                                    id="new-project-subproject"
+                                                    placeholder="Title of new project"
+                                                    disabled={isLoading}
+                                                    ref={newSubprojectRef}
+                                                    onChange={e => {
+                                                        newSubprojectRef.current!.value = e.target.value;
+                                                    }}
+                                                    rightLabel
+                                                />
+                                                <Button attached type={"submit"}>Create</Button>
+                                            </form>
+                                        )}
+                                        <form onSubmit={preventDefault}>
                                             <Input
-                                                id="new-project-subproject"
-                                                placeholder="Title of new project"
+                                                id="subproject-search"
+                                                placeholder="Filter this page..."
+                                                pr="30px"
+                                                autoComplete="off"
                                                 disabled={isLoading}
-                                                ref={newSubprojectRef}
                                                 onChange={e => {
-                                                    newSubprojectRef.current!.value = e.target.value;
+                                                    setSubprojectSearchQuery(e.target.value);
                                                 }}
-                                                rightLabel
                                             />
-                                            <Button attached type={"submit"}>Create</Button>
+                                            <Relative>
+                                                <Absolute right="6px" top="10px">
+                                                    <Label htmlFor="subproject-search">
+                                                        <Icon name="search" size="24" />
+                                                    </Label>
+                                                </Absolute>
+                                            </Relative>
                                         </form>
-                                    )}
-                                    <form onSubmit={preventDefault}>
-                                        <Input
-                                            id="subproject-search"
-                                            placeholder="Filter this page..."
-                                            pr="30px"
-                                            autoComplete="off"
-                                            disabled={isLoading}
-                                            onChange={e => {
-                                                setSubprojectSearchQuery(e.target.value);
+                                    </SearchContainer>
+                                    <Box mt={20}>
+                                        <Pagination.List
+                                            page={subprojects.data}
+                                            pageRenderer={pageRenderer}
+                                            loading={subprojects.loading}
+                                            onPageChanged={newPage => {
+                                                setSubprojectParams(
+                                                    listSubprojects({
+                                                        page: newPage,
+                                                        itemsPerPage: 50,
+                                                    })
+                                                );
                                             }}
+                                            customEmptyPage={
+                                                <Flex justifyContent="center" alignItems="center" height="200px">
+                                                    This project doesn&apos;t have any subprojects.
+                                                    {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
+                                                </Flex>
+                                            }
                                         />
-                                        <Relative>
-                                            <Absolute right="6px" top="10px">
-                                                <Label htmlFor="subproject-search">
-                                                    <Icon name="search" size="24" />
-                                                </Label>
-                                            </Absolute>
-                                        </Relative>
-                                    </form>
-                                </SearchContainer>
-                                <Box mt={20}>
-                                    <Pagination.List
-                                        page={subprojects.data}
-                                        pageRenderer={pageRenderer}
-                                        loading={subprojects.loading}
-                                        onPageChanged={newPage => {
-                                            setSubprojectParams(
-                                                listSubprojects({
-                                                    page: newPage,
-                                                    itemsPerPage: 50,
-                                                })
-                                            );
-                                        }}
-                                        customEmptyPage={
-                                            <Flex justifyContent="center" alignItems="center" height="200px">
-                                                This project doesn&apos;t have any subprojects.
-                                                {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
-                                            </Flex>
-                                        }
-                                    />
+                                    </Box>
                                 </Box>
                             </Box>
-                        </Box>
+                            </> : null}
                     </>}
                 </>
             )}
