@@ -23,6 +23,7 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
+import java.util.*
 
 object ApplicationTable : SQLTable("applications") {
     val id = long("id", notNull = true)
@@ -438,8 +439,6 @@ class ApplicationService(
         }
     }
 
-
-
     suspend fun listIngoingApplications(
         ctx: DBContext,
         actor: Actor,
@@ -577,32 +576,6 @@ class ApplicationService(
         }
     }
 
-    suspend fun findActiveApplication(
-        ctx: DBContext,
-        actor: Actor,
-        projectId: String
-    ): Application? {
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("projectId", projectId)
-                        setParameter("requestedBy", actor.safeUsername())
-                    },
-                    """
-                        select * 
-                        from "grant".applications a, requested_resources r
-                        where
-                            a.resources_owned_by = :projectId and
-                            a.requested_by = :requestedBy and
-                            a.status = 'IN_PROGRESS' and
-                            a.id = r.application_id
-                    """
-                )
-                .rows.toApplications().singleOrNull()
-        }
-    }
-
     suspend fun viewApplicationById(ctx: DBContext, actor: Actor, id: Long): Pair<Application, Boolean> {
         return ctx.withSession { session ->
             val application = session
@@ -706,6 +679,44 @@ suspend fun grantResourcesToProject(
     serviceClient: AuthenticatedClient,
     initiatedBy: String = "_ucloud"
 ) {
+    // Start by verifying this project has enough resources
+    // TODO This isn't really enough since we still have potential race conditions but this is
+    //  extremely hard to deal with this under this microservice architecture.
+    val limitCheckId = UUID.randomUUID().toString()
+    val later = Time.now() + (1000 * 60 * 60)
+    Wallets.reserveCreditsBulk.call(
+        ReserveCreditsBulkRequest(
+            resources.mapIndexedNotNull { idx, resource ->
+                val creditsRequested = resource.creditsRequested ?: return@mapIndexedNotNull null
+                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
+                ReserveCreditsRequest(
+                    limitCheckId + idx,
+                    creditsRequested,
+                    later,
+                    Wallet(sourceProject, WalletOwnerType.PROJECT, paysFor),
+                    productId = "",
+                    productUnits = 0,
+                    jobInitiatedBy = "_ucloud",
+                    discardAfterLimitCheck = true
+                )
+            }
+        ),
+        serviceClient
+    ).orThrow()
+
+    val usage = FileDescriptions.retrieveQuota.call(
+        RetrieveQuotaRequest(projectHomeDirectory(sourceProject)),
+        serviceClient
+    ).orThrow()
+
+    val quotaRequested = resources.asSequence()
+        .map { resource -> resource.quotaRequested ?: 0L }
+        .sum()
+
+    if (usage.quotaInBytes - quotaRequested < 0L) {
+        throw RPCException("Insufficient quota available from source project", HttpStatusCode.PaymentRequired)
+    }
+
     when (targetWalletType) {
         WalletOwnerType.PROJECT -> {
             Wallets.addToBalanceBulk.call(

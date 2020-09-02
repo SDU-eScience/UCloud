@@ -83,7 +83,7 @@ class K8JobCreationService(
 
     @Suppress("LongMethod", "ComplexMethod") // Just a DSL
     private fun createJobs(verifiedJob: VerifiedJob) {
-        val enableKataContainers = verifiedJob.application.invocation.container?.runAsRoot == true &&
+        val enableKataContainers = false && verifiedJob.application.invocation.container?.runAsRoot == true &&
                 (verifiedJob.reservation.gpu ?: 0) <= 0
 
         // We need to create and prepare some other resources as well

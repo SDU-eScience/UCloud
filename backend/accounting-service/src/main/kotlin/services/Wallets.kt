@@ -491,20 +491,22 @@ class BalanceService(
                     }
                 }
 
-                session.insert(TransactionTable) {
-                    set(TransactionTable.accountId, wallet.id)
-                    set(TransactionTable.accountType, wallet.type.name)
-                    set(TransactionTable.productCategory, wallet.paysFor.id)
-                    set(TransactionTable.productProvider, wallet.paysFor.provider)
-                    set(TransactionTable.amount, amount)
-                    set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
-                    set(TransactionTable.initiatedBy, initiatedByUsername ?: initiatedBy.safeUsername())
-                    set(TransactionTable.isReserved, true)
-                    set(TransactionTable.productId, productId)
-                    set(TransactionTable.units, productUnits)
-                    set(TransactionTable.completedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                    set(TransactionTable.originalAccountId, originalWallet.id)
-                    set(TransactionTable.id, jobId)
+                if (!discardAfterLimitCheck) {
+                    session.insert(TransactionTable) {
+                        set(TransactionTable.accountId, wallet.id)
+                        set(TransactionTable.accountType, wallet.type.name)
+                        set(TransactionTable.productCategory, wallet.paysFor.id)
+                        set(TransactionTable.productProvider, wallet.paysFor.provider)
+                        set(TransactionTable.amount, amount)
+                        set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
+                        set(TransactionTable.initiatedBy, initiatedByUsername ?: initiatedBy.safeUsername())
+                        set(TransactionTable.isReserved, true)
+                        set(TransactionTable.productId, productId)
+                        set(TransactionTable.units, productUnits)
+                        set(TransactionTable.completedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                        set(TransactionTable.originalAccountId, originalWallet.id)
+                        set(TransactionTable.id, jobId)
+                    }
                 }
 
                 ancestorWallets.forEach { ancestor ->

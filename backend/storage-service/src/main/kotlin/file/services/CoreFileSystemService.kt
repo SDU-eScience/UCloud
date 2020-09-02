@@ -1,12 +1,9 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.MetadataService
-import dk.sdu.cloud.file.services.acl.requirePermission
-import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.micro.BackgroundScope
@@ -16,7 +13,6 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import dk.sdu.cloud.task.api.Progress
 import dk.sdu.cloud.task.api.runTask
-import io.ktor.http.HttpStatusCode
 import java.io.InputStream
 import java.io.OutputStream
 

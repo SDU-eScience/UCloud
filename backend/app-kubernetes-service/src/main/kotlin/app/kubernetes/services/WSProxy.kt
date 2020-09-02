@@ -5,12 +5,12 @@ import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.request.header
-import io.ktor.websocket.DefaultWebSocketServerSession
+import io.ktor.websocket.*
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
-suspend fun DefaultWebSocketServerSession.runWSProxy(
+suspend fun WebSocketServerSession.runWSProxy(
     tunnel: Tunnel,
     uri: String = "/",
     cookies: Map<String, String> = emptyMap()
