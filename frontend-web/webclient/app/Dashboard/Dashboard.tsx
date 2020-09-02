@@ -47,7 +47,13 @@ import theme, {ThemeColor} from "ui-components/theme";
 import {dispatchSetProjectAction} from "Project/Redux";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {Balance} from "Accounting/Balance";
-import {GrantApplication, GrantApplicationFilter, listOutgoingApplications} from "Project/Grant";
+import {
+    GrantApplication,
+    GrantApplicationFilter,
+    ingoingGrantApplications,
+    IngoingGrantApplicationsResponse,
+    listOutgoingApplications
+} from "Project/Grant";
 import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 
 export const DashboardCard: React.FunctionComponent<{
@@ -120,6 +126,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         emptyPage
     );
 
+    const [ingoingApps, fetchIngoingApps] = useCloudAPI<IngoingGrantApplicationsResponse>(
+        {noop: true},
+        emptyPage
+    );
+
     React.useEffect(() => {
         props.onInit();
         reload(true);
@@ -143,6 +154,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             itemsPerPage: 10,
             page: 0,
             filter: GrantApplicationFilter.SHOW_ALL
+        }));
+        fetchIngoingApps(ingoingGrantApplications({
+            itemsPerPage: 10,
+            page: 0,
+            filter: GrantApplicationFilter.ACTIVE
         }));
         props.fetchRecentAnalyses();
     }
@@ -190,7 +206,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 loading={wallets.loading || quota.loading}
             />
 
-            <DashboardGrantApplications outgoingApps={outgoingApps}/>
+            <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
         </DashboardGrid>
     );
 
@@ -457,30 +473,49 @@ function DashboardResources({wallets, loading, quota}: {
 }
 
 const DashboardGrantApplications: React.FunctionComponent<{
-    outgoingApps: APICallState<Page<GrantApplication>>
-}> = ({outgoingApps}) => {
+    outgoingApps: APICallState<Page<GrantApplication>>,
+    ingoingApps: APICallState<Page<GrantApplication>>
+}> = ({outgoingApps, ingoingApps}) => {
+    const none = outgoingApps.data.itemsInTotal === 0 && ingoingApps.data.itemsPerPage === 0;
+    const both = outgoingApps.data.itemsInTotal > 0 && ingoingApps.data.itemsInTotal > 0;
+    const anyOutgoing = outgoingApps.data.itemsInTotal > 0;
+
+    const title = (none ? <Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>
+        : both ? <Heading.h3>Grant Applications</Heading.h3>
+            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
+                <Heading.h3>Grant Applications</Heading.h3>
+            </Link>
+    );
+
     return <DashboardCard
-        title={<Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>}
+        title={title}
         color={"green"}
         isLoading={outgoingApps.loading}
         icon={"search"}
     >
+        {ingoingApps.error !== undefined ? null : (
+            <Error error={ingoingApps.error} />
+        )}
+
         {outgoingApps.error !== undefined ? null : (
             <Error error={outgoingApps.error} />
         )}
+        {both ? <Heading.h5 color="gray" my="4px">Ingoing</Heading.h5> : null}
+        {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim />)}
 
+        {both ? <Heading.h5 color="gray" my="4px">Outgoing</Heading.h5> : null}
         {outgoingApps.error ? null : (
             <>
                 {outgoingApps.data.items.length !== 0 ? null : (
-                        <NoResultsCardBody title={"No recent grant applications"}>
-                            <Text>
-                                Apply for resources to use storage and compute on UCloud.
+                    <NoResultsCardBody title={"No recent outgoing grant applications"}>
+                        <Text>
+                            Apply for resources to use storage and compute on UCloud.
                                 <Link to={"/project/grants-landing"}>
-                                    <Button fullWidth mt={8}>Apply for resources</Button>
-                                </Link>
-                            </Text>
-                        </NoResultsCardBody>
-                    )}
+                                <Button fullWidth mt={8}>Apply for resources</Button>
+                            </Link>
+                        </Text>
+                    </NoResultsCardBody>
+                )}
                 <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
             </>
         )}
