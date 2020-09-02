@@ -1,6 +1,6 @@
 import {ActivityFeed} from "Activity/Feed";
 import {Client} from "Authentication/HttpClientInstance";
-import {FileInfoReduxObject} from "DefaultObjects";
+import {emptyPage, FileInfoReduxObject} from "DefaultObjects";
 import {SensitivityLevel, SensitivityLevelMap} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
@@ -35,7 +35,8 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {useFavoriteStatus} from "Files/favorite";
 import {useCallback} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
-import {listAllGroupsRequest} from "Activity/Page";
+import {groupSummaryRequest} from "Project";
+import {GroupWithSummary} from "Project/GroupList";
 
 interface FileInfoOperations {
     updatePageTitle: () => void;
@@ -53,8 +54,8 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
     const [previewShown, setPreviewShown] = React.useState(false);
     const [file, setFile] = React.useState<File | undefined>(undefined);
 
-    const [groups] = useCloudAPI<Record<string, string>>(
-        Client.hasActiveProject ? listAllGroupsRequest() : {noop: true}, {}
+    const [groups] = useCloudAPI<Page<GroupWithSummary>>(
+        Client.hasActiveProject ? groupSummaryRequest({itemsPerPage: -1, page: 0}) : {noop: true}, emptyPage
     );
 
     React.useEffect(() => {

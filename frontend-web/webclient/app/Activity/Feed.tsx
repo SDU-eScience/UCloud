@@ -10,6 +10,7 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-compo
 import {fileInfoPage, getFilenameFromPath, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {useProjectStatus} from "Project/cache";
 import {getProjectNames} from "Utilities/ProjectUtilities";
+import {GroupWithSummary} from "Project/GroupList";
 
 export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTableSectionElement>}> = props => {
     return (
@@ -29,7 +30,7 @@ export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTab
 
 export const ActivityFeed = ({activity, groups}: {
     activity: Module.ActivityForFrontend[];
-    groups: Record<string, string>;
+    groups: Page<GroupWithSummary>;
 }): JSX.Element => (
         <ActivityFeedFrame>
             {activity.map((a, i) => <ActivityFeedItem key={i} activity={a} groups={groups} />)}
@@ -39,7 +40,7 @@ export const ActivityFeed = ({activity, groups}: {
 // Performance note: Don't use styled components here.
 const ActivityEvent: React.FunctionComponent<{
     event: Module.ActivityForFrontend;
-    groups: Record<string, string>;
+    groups: Page<GroupWithSummary>;
 }> = props => {
     /* NOTE: This might be a major performance issue */
     const projects = getProjectNames(useProjectStatus());
@@ -62,7 +63,7 @@ const ActivityEvent: React.FunctionComponent<{
 // Performance note: Don't use styled components here.
 const OperationText: React.FunctionComponent<{
     event: Module.ActivityForFrontend;
-    groups: Record<string, string>;
+    groups: Page<GroupWithSummary>;
 }> = props => {
     const projects = useProjectStatus();
     const projectNames = getProjectNames(projects);
@@ -121,7 +122,7 @@ const OperationText: React.FunctionComponent<{
                     if (it.rights.length === 0) return "none";
                     return `(${it.rights.map(r => r.toLowerCase()).join(", ")})`;
                 }).join(", ");
-                return <span> had ACL for {update.acl.map(it => props.groups[it.group] ?? it.group).join(", ")} updated to {rightText} by {update.username}</span>;
+                return <span> had ACL for {update.acl.map(it => props.groups.items.find(g => g.groupId === it.group)?.groupTitle ?? it.group).join(", ")} updated to {rightText} by {update.username}</span>;
             } else {
                 if (Client.hasActiveProject) {
                     return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights} by {update.username}</span>;
@@ -195,7 +196,7 @@ export const ActivityFeedSpacer = (props: {height: number}): JSX.Element => (
 
 interface ActivityFeedProps {
     activity: Module.ActivityForFrontend;
-    groups: Record<string, string>
+    groups: Page<GroupWithSummary>
 }
 
 export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
