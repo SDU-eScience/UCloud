@@ -33,8 +33,7 @@ function Search(props: SearchProps): JSX.Element {
         const q = query(props);
         props.setSearch(q);
         props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
-        props.setRefresh(() => fetchAll());
-        fetchAll();
+        props.setRefresh(fetchAll);
         return () => {
             props.toggleAdvancedSearch();
             props.clear();
@@ -42,16 +41,11 @@ function Search(props: SearchProps): JSX.Element {
         };
     }, []);
 
-    useTitle("Search");
-
     React.useEffect(() => {
         props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
     }, [props.match.params.priority]);
 
-    React.useEffect(() => {
-        props.setSearch(props.search);
-        fetchAll();
-    }, [query(props)]);
+    useTitle("Search");
 
     const setPath = (text: string): void => props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
 
