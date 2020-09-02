@@ -108,7 +108,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
         {noop: true},
-        {quotaInBytes: 0, quotaUsed: 0}
+        {quotaInBytes: 0, quotaUsed: 0, quotaInTotal: 0}
     );
 
     const [wallets, setWalletsParams] = useCloudAPI<RetrieveBalanceResponse>(
