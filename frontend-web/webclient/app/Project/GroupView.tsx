@@ -162,6 +162,7 @@ const GroupView: React.FunctionComponent = () => {
 };
 
 const GroupPermissions: React.FunctionComponent<{ projectId: string, groupId: string }> = props => {
+    const {allowManagement} = useProjectManagementStatus({isRootComponent: false});
     const [repoFiles, fetchRepoFiles, repoParams] = useCloudAPI<Page<File>>(
         {noop: true},
         emptyPage
@@ -187,9 +188,9 @@ const GroupPermissions: React.FunctionComponent<{ projectId: string, groupId: st
     }
 
     return <Box mt={32}>
-        <Heading.h4>File Permissions</Heading.h4>
-        {repoFiles.loading ? <Spinner/> : null}
-        {reposWithPermissions.length > 0 || repoFiles.loading || repoParams.noop ? null : (
+        {!allowManagement ? null : <Heading.h4>File Permissions</Heading.h4>}
+        {repoFiles.loading && allowManagement ? <Spinner/> : null}
+        {reposWithPermissions.length > 0 || repoFiles.loading || repoParams.noop || !allowManagement ? null : (
             <>
                 <ShakingBox className={"shaking"}>
                     <Heading.h5>This group cannot use any files!</Heading.h5>

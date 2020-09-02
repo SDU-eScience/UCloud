@@ -197,7 +197,9 @@ config("app-kubernetes") { ctx ->
         "10.144.4.169/32",
 
         // coumputational biology server SDU (requested by Emiliano)
-        "10.137.1.93/32"
+        "10.137.1.93/32",
+
+        "172.16.0.101/32"
     ))
 }
 
