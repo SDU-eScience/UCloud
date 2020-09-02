@@ -36,7 +36,8 @@ function NoVNCClient(): JSX.Element | null {
         try {
             const protocol = window.location.protocol === "http:" ? "ws:" : "wss:";
             const rfbClient = new RFB(document.getElementsByClassName("noVNC")[0], `${protocol}//${window.location.host}${path}`, {
-                credentials: {password}
+                credentials: {password},
+                wsProtocols: ["binary"]
             });
 
             /* FIXME: Doesn't seem to work properly, e.g. if connection fails */
