@@ -63,7 +63,13 @@ typealias FetchLogoResponse = BinaryStream
 data class UploadDescriptionRequest(
     val projectId: String,
     val description: String
-)
+) {
+    init {
+        if (description.length > 240) {
+            throw RPCException("Description must not exceed 240 characters", HttpStatusCode.BadRequest)
+        }
+    }
+}
 typealias UploadDescriptionResponse = Unit
 
 data class FetchDescriptionRequest(
