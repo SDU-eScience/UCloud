@@ -974,14 +974,15 @@ const MembersFileRowStat: React.FunctionComponent<{
     const aclLength = (file.acl ?? []).filter(it => it.rights.length > 0).length;
     if (aclLength === 0) {
         if (!FUtils.isPartOfProject(file.path)) return null;
+        if (FUtils.isPartOfProject && FUtils.pathComponents(file.path).length >= 4) return null;
         if (FUtils.isPartOfSomePersonalFolder(file.path)) return null;
         if (projectRole === undefined) return null;
         if (!isAdminOrPI(projectRole)) return null;
         if (file.mockTag === MOCK_REPO_CREATE_TAG) return null;
         if (FUtils.isPersonalRootFolder(file.path)) {
             return (
-                <Text title={"members"} fontSize={0} mr={"12px"} color={"gray"}>
-                    <Icon name={"info"} color={"white"} color2={"iconColor"} size={13} mr={"3px"} />
+                <Text title="members" fontSize={0} mr="12px" color="gray">
+                    <Icon name="info" color="white" color2="iconColor" size={13} mr={"3px"} />
                     Admins only
                 </Text>
             );
@@ -989,9 +990,9 @@ const MembersFileRowStat: React.FunctionComponent<{
         return (
             <Text
                 fontSize={0}
-                mr={"12px"}
-                color={"red"}
-                cursor={"pointer"}
+                mr="12px"
+                color="red"
+                cursor="pointer"
                 onClick={e => {
                     e.stopPropagation();
                     updatePermissionsPrompt(Client, file, requestReload);
