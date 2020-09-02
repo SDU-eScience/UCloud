@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.MetadataService
+import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
@@ -36,8 +37,19 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val targetPath =
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
+        val limitCheckResult = runCatching {
+            limitChecker.checkLimitAndQuota(targetPath)
+        }
+
+        if (limitCheckResult.isFailure) {
+            // This will ensure that the permissions are checked before we leak
+            // that we don't have quota
+            fs.checkWritePermissions(ctx, targetPath)
+            limitCheckResult.getOrThrow()
+        }
+
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite())
-        limitChecker.checkLimitAndQuota(path)
+
         fs.write(ctx, writer)
         return targetPath
     }
