@@ -574,8 +574,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
         // Validate max time
         const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
-        if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
-            snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", false, 5000);
+        if (maxTime.hours === 0 && maxTime.minutes === 0) {
+            snackbarStore.addFailure("Scheduling times must be more than 0 minutes.", false, 5000);
             return;
         }
 
