@@ -294,7 +294,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 snackbarStore.addInformation("Personal project is now the active.", false);
                                             }
                                         }}
-                                        height="30px"
+                                        height="45px"
                                     >
                                         <Link to="/project/dashboard">
                                             Personal project
@@ -359,7 +359,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             )}
             sidebar={(<>
                 <VerticalButtonGroup>
-                    <Box height={58}/>
+                    <Box height={58} />
                     <Link to={`/projects/browser/new`}><Button>Create Project Application</Button></Link>
                     <Label fontSize={"100%"}>
                         <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />
@@ -412,16 +412,17 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 height="30px"
                             >
                                 <Link to="/project/dashboard">
-                                    {e.ancestorPath ? e.ancestorPath + "/" : null}{e.title}{e.archived ?
-                                    <Icon
-                                        name={"tags"}
-                                        hoverColor={"black"}
-                                    /> : null
-                                }
+                                    {e.title}{e.archived ?
+                                        <Icon
+                                            name={"tags"}
+                                            hoverColor={"black"}
+                                        /> : null
+                                    }
                                 </Link>
                             </Box>
                         </>
                     }
+                    leftSub={<Text color="gray" fontSize={0}>{e.ancestorPath ? e.ancestorPath + "/" : null}</Text>}
                     right={
                         <Flex alignItems="center" height="36.25px">
                             {!e.needsVerification ? null : (
