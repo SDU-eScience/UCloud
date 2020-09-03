@@ -23,7 +23,7 @@ import {EmbeddedFileTable} from "Files/FileTable";
 
 const GroupView: React.FunctionComponent = () => {
     const {
-        projectId, groupId, groupMembers, groupDetails, fetchGroupMembers, groupMembersParams,
+        allowManagement, projectId, groupId, groupMembers, groupDetails, fetchGroupMembers, groupMembersParams,
         membersPage, projectRole, projectDetails, fetchGroupDetails, groupDetailsParams
     } = useProjectManagementStatus({isRootComponent: false});
     const activeGroup = groupMembers;
@@ -81,22 +81,24 @@ const GroupView: React.FunctionComponent = () => {
                     </Flex>
                 )}
 
-                {renamingGroup ? (
-                    <Box mt={1}>
-                        <ConfirmCancelButtons
-                            confirmText="Save"
-                            cancelText="Cancel"
-                            onConfirm={() => {
-                                renameGroup();
-                            }}
-                            onCancel={() => {
-                                setRenamingGroup(false);
-                            }}
-                        />
-                    </Box>
-                ) : (
-                    <Button onClick={() => setRenamingGroup(true)}>Rename</Button>
-                )}
+                {allowManagement ?
+                    renamingGroup ? (
+                        <Box mt={1}>
+                            <ConfirmCancelButtons
+                                confirmText="Save"
+                                cancelText="Cancel"
+                                onConfirm={() => {
+                                    renameGroup();
+                                }}
+                                onCancel={() => {
+                                    setRenamingGroup(false);
+                                }}
+                            />
+                        </Box>
+                    ) : (
+                        <Button onClick={() => setRenamingGroup(true)}>Rename</Button>
+                    )
+                : null}
             </Flex>
         </form>
     );

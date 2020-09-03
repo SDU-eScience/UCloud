@@ -44,7 +44,7 @@ const GroupList: React.FunctionComponent = () => {
 
     const operations: GroupOperation[] = [
         {
-            disabled: groups => groups.length !== 1,
+            disabled: groups => groups.length !== 1 || !allowManagement,
             onClick: ([group]) => setRenamingGroup(group.groupId),
             icon: "rename",
             text: "Rename"
@@ -116,7 +116,7 @@ const GroupList: React.FunctionComponent = () => {
                                         <Icon mt="4px" mr="4px" size="18" name="user" /> {g.numberOfMembers}
                                     </Flex>
                                 }
-                                {operations.length === 0 ? null :
+                                {operations.length === 0 || !allowManagement ? null :
                                     operations.length > 1 ? <ClickableDropdown
                                         width="125px"
                                         left="-105px"
