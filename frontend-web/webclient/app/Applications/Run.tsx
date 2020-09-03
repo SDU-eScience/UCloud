@@ -691,8 +691,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                         errorMessageOrDefault(err, "An error occurred submitting the job."),
                         false
                     );
-                    this.setState(() => ({jobSubmitted: false}));
                 }
+                this.setState(() => ({jobSubmitted: false}));
             }
         } finally {
             this.props.setLoading(false);
