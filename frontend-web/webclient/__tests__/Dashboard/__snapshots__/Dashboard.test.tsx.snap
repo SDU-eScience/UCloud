@@ -837,7 +837,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             <a
               className="c8"
               color="text"
-              href="/project/grants/outgoing"
+              href="/project/grants/ingoing"
               onClick={[Function]}
             >
               <h3
@@ -853,6 +853,10 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
+            className="c18"
+            fontSize="large"
+          />
+          <div
             className="c13"
             height="calc(100% - 60px)"
             width="100%"
@@ -862,7 +866,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               cursor="inherit"
               fontSize={3}
             >
-              No recent grant applications
+              No recent outgoing grant applications
             </h4>
             <div
               className="c15"
