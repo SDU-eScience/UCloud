@@ -199,10 +199,10 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const computeIncludeInCharts: Record<string, Record<string, boolean>> = includeInCharts[ProductArea.COMPUTE] ?? {};
     const storageIncludeInCharts: Record<string, Record<string, boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
 
-    const onIncludeInChart = (area: ProductArea) => (provider: string, lineName: string) => {
+    const onIncludeInChart = (area: ProductArea) => (provider: string, lineName: string, id: number) => {
         const existingAtProvider: Record<string, boolean> = (includeInCharts[area] ?? {})[provider] ?? {};
         const newIncludeAtProvider: Record<string, boolean> = {...existingAtProvider};
-        newIncludeAtProvider[lineName] = !(existingAtProvider[lineName] ?? true);
+        newIncludeAtProvider[lineName] = !(existingAtProvider[lineName] ?? id < 10);
 
         const newComputeInclude = {...computeIncludeInCharts};
         newComputeInclude[provider] = newIncludeAtProvider;
@@ -363,7 +363,7 @@ const VisualizationForArea: React.FunctionComponent<{
     balance: APICallState<RetrieveBalanceResponse>,
     durationOption: Duration,
     includeInCharts: Record<string, Record<string, boolean>>,
-    onIncludeInChart: (provider: string, lineName: string) => void
+    onIncludeInChart: (provider: string, lineName: string, id: number) => void
 }> = ({area, projectId, usageResponse, balance, durationOption, includeInCharts, onIncludeInChart}) => {
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
 
@@ -428,7 +428,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 formatter={n => creditFormatter(n as number, 2)}
                                             />
                                             {chart.lineNames.map((id, idx) => {
-                                                if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
+                                                if ((includeInCharts[chart.provider] ?? {})[id] ?? idx < 10) {
                                                     return <Bar
                                                         key={id}
                                                         dataKey={id}
@@ -478,10 +478,10 @@ const VisualizationForArea: React.FunctionComponent<{
                                                     </TableCell>
                                                     <TableCell textAlign={"right"}>
                                                         <Toggle
-                                                            onChange={() => onIncludeInChart(chart.provider, p)}
+                                                            onChange={() => onIncludeInChart(chart.provider, p, idx)}
                                                             scale={1.5}
                                                             activeColor={"green"}
-                                                            checked={(includeInCharts[chart.provider] ?? {})[p] ?? true}
+                                                            checked={(includeInCharts[chart.provider] ?? {})[p] ?? idx < 10}
                                                         />
                                                     </TableCell>
                                                 </TableRow>
