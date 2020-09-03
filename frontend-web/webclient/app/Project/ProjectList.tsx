@@ -388,14 +388,18 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         setSelectedProjects(new Set(selectedProjects));
                     }}
                     isSelected={selectedProjects.has(e.projectId)}
-                    icon={<Icon
-                        cursor="pointer"
-                        size="24"
-                        name={isFavorite ? "starFilled" : "starEmpty"}
-                        color={isFavorite ? "blue" : "midGray"}
-                        onClick={() => onToggleFavorite(e.projectId)}
-                        hoverColor="blue"
-                    />}
+                    icon={
+                        <Box mt="-6px">
+                            <Icon
+                                cursor="pointer"
+                                size="24"
+                                name={isFavorite ? "starFilled" : "starEmpty"}
+                                color={isFavorite ? "blue" : "midGray"}
+                                onClick={() => onToggleFavorite(e.projectId)}
+                                hoverColor="blue"
+                            />
+                        </Box>
+                    }
                     left={
                         <>
                             <Box

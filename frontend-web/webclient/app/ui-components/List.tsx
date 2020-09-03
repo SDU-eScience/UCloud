@@ -74,7 +74,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
             width="100%"
             alignItems="center"
         >
-            {props.icon ? <Box onClick={stopPropagationAndPreventDefault} mx="8px" mt={props.leftSub ? "4px" : "-4px"}>{props.icon}</Box> : <Box width="4px" />}
+            {props.icon ? <Box onClick={stopPropagationAndPreventDefault} mx="8px">{props.icon}</Box> : <Box width="4px" />}
             {left}
             <Box ml="auto" />
             <Flex mr="8px">
