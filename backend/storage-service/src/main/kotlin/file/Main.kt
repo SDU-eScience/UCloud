@@ -19,7 +19,7 @@ data class ProductConfiguration(
     val id: String = "u1-cephfs",
     val category: String = "u1-cephfs",
     val provider: String = UCLOUD_PROVIDER,
-    val defaultQuota: Long = NO_QUOTA
+    val defaultQuota: Long = 1024 * 1024 * 5
 )
 
 data class CephConfiguration(

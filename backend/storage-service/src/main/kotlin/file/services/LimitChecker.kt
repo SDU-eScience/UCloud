@@ -312,7 +312,7 @@ class LimitChecker<Ctx : FSUserContext>(
     }
 
     private val limitCheckCache = SimpleCache<LimitCheckKey, Maybe>(
-        maxAge = 30 * 60 * 1000,
+        maxAge = 1 * 60 * 1000,
         lookup = {
             Maybe.fromResult(runCatching {
                 internalPerformLimitCheck(it.homeDirectory, it.estimatedUsage)
@@ -396,7 +396,7 @@ class LimitChecker<Ctx : FSUserContext>(
     }
 
     private val quotaCheckCache = SimpleCache<QuotaCheckKey, Maybe>(
-        maxAge = 30 * 60 * 1000,
+        maxAge = 1 * 60 * 1000,
         lookup = { Maybe.fromResult(runCatching { internalPerformQuotaCheck(it.homeDirectory, it.usage) }) }
     )
 
