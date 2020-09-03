@@ -280,6 +280,23 @@ class ProjectController(
                 )
             )
         }
+
+        implement(Projects.updateDataManagementPlan) {
+            projects.updateDataManagementPlan(db, ctx.securityPrincipal.toActor(), request.id, request.dmp)
+            ok(Unit)
+        }
+
+        implement(Projects.fetchDataManagementPlan) {
+            ok(
+                FetchDataManagementPlanResponse(
+                    projects.fetchDataManagementPlan(
+                        db,
+                        ctx.securityPrincipal.toActor(),
+                        ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                    )
+                )
+            )
+        }
     }
 
     companion object : Loggable {

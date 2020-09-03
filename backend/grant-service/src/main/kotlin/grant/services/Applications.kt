@@ -134,7 +134,7 @@ class ApplicationService(
             GrantNotification(
                 returnedApplication,
                 adminMessage = GrantNotificationMessage(
-                    "New Grant Application",
+                    { title -> "New grant application to $title" },
                     "NEW_GRANT_APPLICATION",
                     message = { user, projectTitle ->
                         newIngoingApplicationTemplate(user, actor.safeUsername(), projectTitle)
@@ -204,14 +204,14 @@ class ApplicationService(
             GrantNotification(
                 application,
                 adminMessage = GrantNotificationMessage(
-                    "Grant Application for Subproject Automatically Approved",
+                    { "Grant application for subproject automatically approved" },
                     GRANT_APP_RESPONSE,
                     message = { user, title ->
                         autoApproveTemplate(user, application.requestedBy, title)
                     }
                 ),
                 userMessage = GrantNotificationMessage(
-                    "Grant Application Approved",
+                    { "Grant application approved" },
                     GRANT_APP_RESPONSE,
                     message = { user, title ->
                         responseTemplate(ApplicationStatus.APPROVED, user, "UCloud", title)
@@ -255,7 +255,7 @@ class ApplicationService(
                     { setParameter("id", id) },
                     """
                         select resources_owned_by, requested_by
-                        from "grant".applications 
+                        from "grant".applications
                         where id = :id
                     """
                 )
@@ -281,9 +281,9 @@ class ApplicationService(
                         },
 
                         """
-                            update applications 
-                            set document = :document 
-                            where 
+                            update applications
+                            set document = :document
+                            where
                                 id = :id and
                                 (:isProjectAdmin or requested_by = :requestedBy)
                         """
@@ -307,7 +307,7 @@ class ApplicationService(
             GrantNotification(
                 application,
                 GrantNotificationMessage(
-                    "Grant Application Updated",
+                    { "Grant application updated" },
                     "GRANT_APPLICATION_UPDATED",
                     message = { user, projectTitle ->
                         updatedTemplate(projectTitle, user, actor.safeUsername())
@@ -335,7 +335,7 @@ class ApplicationService(
                         setParameter("status", newStatus.name)
                     },
                     """
-                        update "grant".applications 
+                        update "grant".applications
                         set status = :status
                         where id = :id
                         returning resources_owned_by, requested_by
@@ -373,7 +373,7 @@ class ApplicationService(
             GrantNotification(
                 application,
                 GrantNotificationMessage(
-                    "Grant Application $statusTitle",
+                    { "Grant application updated ($statusTitle)" },
                     GRANT_APP_RESPONSE,
                     message = { user, projectTitle ->
                         responseTemplate(
@@ -469,7 +469,7 @@ class ApplicationService(
                         },
 
                         """
-                            select count(id)::bigint from "grant".applications 
+                            select count(id)::bigint from "grant".applications
                             where resources_owned_by = :projectId and status in (select unnest(:statusFilter::text[]))
                         """
                     ).rows.singleOrNull()?.getLong(0) ?: 0L
@@ -492,10 +492,10 @@ class ApplicationService(
                     },
 
                     """
-                        select *    
+                        select *
                         from "grant".applications a left outer join requested_resources r on (a.id = r.application_id)
-                        where 
-                            a.resources_owned_by = :projectId and 
+                        where
+                            a.resources_owned_by = :projectId and
                             a.status in (select unnest(:statusFilter::text[]))
                         order by a.updated_at desc
                         limit :l
@@ -533,9 +533,9 @@ class ApplicationService(
                         },
 
                         """
-                            select count(id)::bigint from "grant".applications 
-                            where 
-                                requested_by = :requestedBy and 
+                            select count(id)::bigint from "grant".applications
+                            where
+                                requested_by = :requestedBy and
                                 status in (select unnest(:statusFilter::text[]))
                         """
                     ).rows.singleOrNull()?.getLong(0) ?: 0L
@@ -559,11 +559,11 @@ class ApplicationService(
                     },
 
                     """
-                        select *    
+                        select *
                         from "grant".applications a, requested_resources r
-                        where 
-                            a.requested_by = :requestedBy and 
-                            a.status in (select unnest(:statusFilter::text[])) and 
+                        where
+                            a.requested_by = :requestedBy and
+                            a.status in (select unnest(:statusFilter::text[])) and
                             a.id = r.application_id
                         order by a.updated_at desc
                         limit :l
@@ -582,7 +582,7 @@ class ApplicationService(
                 .sendPreparedStatement(
                     { setParameter("id", id) },
                     """
-                        select * 
+                        select *
                         from "grant".applications a left outer join "grant".requested_resources r on a.id = r.application_id
                         where a.id = :id
                     """

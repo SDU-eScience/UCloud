@@ -175,6 +175,12 @@ data class RenameProjectRequest(
 
 typealias RenameProjectResponse = Unit
 
+data class UpdateDataManagementPlanRequest(val id: String, val dmp: String?)
+typealias UpdateDataManagementPlanResponse = Unit
+
+typealias FetchDataManagementPlanRequest = Unit
+data class FetchDataManagementPlanResponse(val dmp: String?)
+
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
 
@@ -784,4 +790,38 @@ object Projects : CallDescriptionContainer("project") {
             body { bindEntireRequestFromBody() }
         }
     }
+
+    val updateDataManagementPlan =
+        call<UpdateDataManagementPlanRequest, UpdateDataManagementPlanResponse, CommonErrorMessage>("updateDataManagementPlan") {
+            auth {
+                access = AccessRight.READ_WRITE
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"update-dmp"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
+
+    val fetchDataManagementPlan =
+        call<FetchDataManagementPlanRequest, FetchDataManagementPlanResponse, CommonErrorMessage>("fetchDataManagementPlan") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                method = HttpMethod.Get
+
+                path {
+                    using(baseContext)
+                    +"dmp"
+                }
+            }
+        }
 }

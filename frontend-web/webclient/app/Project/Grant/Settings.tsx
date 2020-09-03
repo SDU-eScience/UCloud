@@ -27,6 +27,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
 import {inSuccessRange} from "UtilityFunctions";
 import {Logo} from "Project/Grant/ProjectBrowser";
+import Divider from "ui-components/Divider";
 
 export interface UploadLogoProps {
     file: File;
@@ -199,8 +200,10 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
                 }}
             />
         </Button>
+        <Divider/>
         <Heading.h4>Description for Project</Heading.h4>
         <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription} />
+        <Divider/>
         <Heading.h4>Allow Grant Applications From</Heading.h4>
         <UserCriteriaEditor
             criteria={settings.data.allowRequestsFrom}
@@ -209,6 +212,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             showSubprojects={true}
         />
 
+        <Divider/>
         <Heading.h4>Automatic Approval of Grant Applications</Heading.h4>
         <AutomaticApprovalLimits
             products={products}
@@ -223,6 +227,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             onRemove={removeAutomaticApproval}
         />
 
+        <Divider/>
         <Heading.h4>Default Template for Grant Applications</Heading.h4>
         <TemplateEditor
             templatePersonal={templatePersonal}

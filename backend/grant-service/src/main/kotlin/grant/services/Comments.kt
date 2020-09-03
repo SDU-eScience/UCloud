@@ -50,7 +50,7 @@ class CommentService(
             GrantNotification(
                 application,
                 GrantNotificationMessage(
-                    subject = "Comment on Application",
+                    subject = { "Comment on Application" },
                     type = "COMMENT_GRANT_APPLICATION",
                     message = { user, projectTitle ->
                         newCommentTemplate(user, actor.safeUsername(), projectTitle)

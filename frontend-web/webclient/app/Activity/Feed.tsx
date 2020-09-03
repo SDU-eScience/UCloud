@@ -174,9 +174,9 @@ const OperationText: React.FunctionComponent<{
             const copy = (props.event.activityEvent as Module.CopyActivity);
             const replaced = replaceHomeOrProjectFolder(copy.copyFilePath, Client, projectNames);
             if (Client.hasActiveProject) {
-                return <span> was copied by {copy.username}. Copy name: {replaced}</span>;
+                return <span> was copied to {replaced} by {copy.username}</span>;
             } else {
-                return <span> was copied. Copy name: {replaced}</span>;
+                return <span> was copied to {replaced}</span>;
             }
         }
 

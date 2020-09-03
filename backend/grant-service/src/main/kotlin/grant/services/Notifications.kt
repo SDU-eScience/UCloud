@@ -11,7 +11,7 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 
 data class GrantNotificationMessage(
-    val subject: String,
+    val subject: (projectTitle: String) -> String,
     val type: String,
     val message: (receiver: String, projectTitle: String) -> String
 )
@@ -42,7 +42,7 @@ class NotificationService(
                         NotificationDescriptions.create.call(
                             CreateNotification(
                                 admin.username,
-                                Notification(adminMessage.type, adminMessage.subject, meta = meta)
+                                Notification(adminMessage.type, adminMessage.subject(title), meta = meta)
                             ),
                             serviceClient
                         )
@@ -50,7 +50,7 @@ class NotificationService(
                         sendRequests.add(
                             SendRequest(
                                 admin.username,
-                                adminMessage.subject,
+                                adminMessage.subject(title),
                                 adminMessage.message(admin.username, title)
                             )
                         )
@@ -62,7 +62,7 @@ class NotificationService(
                 sendRequests.add(
                     SendRequest(
                         application.requestedBy,
-                        userMessage.subject,
+                        userMessage.subject(title),
                         userMessage.message(application.requestedBy, title)
                     )
                 )
@@ -70,7 +70,7 @@ class NotificationService(
                 NotificationDescriptions.create.call(
                     CreateNotification(
                         application.requestedBy,
-                        Notification(userMessage.type, userMessage.subject, meta = meta)
+                        Notification(userMessage.type, userMessage.subject(title), meta = meta)
                     ),
                     serviceClient
                 )

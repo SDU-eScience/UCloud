@@ -538,6 +538,35 @@ export function viewGroup(request: ViewGroupRequest): APICallParameters<ViewGrou
     };
 }
 
+export interface FetchDataManagementPlanResponse {
+    dmp?: string;
+}
+
+export function fetchDataManagementPlan(request: unknown): APICallParameters<unknown> {
+    return {
+        method: "GET",
+        path: "/projects/dmp",
+        reloadId: Math.random()
+    };
+}
+
+export interface UpdateDataManagementPlanRequest {
+    id: string;
+    dmp?: string;
+}
+
+export function updateDataManagementPlan(
+    request: UpdateDataManagementPlanRequest
+): APICallParameters<UpdateDataManagementPlanRequest> {
+    return {
+        method: "POST",
+        path: "/projects/update-dmp",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
 export function areProjectsEnabled(): boolean {
     if ([DEV_SITE, STAGING_SITE].includes(window.location.host) || inDevEnvironment()) {
         return true;

@@ -1,18 +1,21 @@
 import * as React from "react";
+import Divider from "ui-components/Divider";
 import {
+    fetchDataManagementPlan,
+    FetchDataManagementPlanResponse,
     leaveProject,
     ProjectRole,
     renameProject,
     setProjectArchiveStatus,
-    setProjectArchiveStatusBulk,
+    setProjectArchiveStatusBulk, updateDataManagementPlan,
     useProjectManagementStatus,
     UserInProject
 } from "Project/index";
-import {Box, Button, Flex, Input, Text} from "ui-components";
+import {Box, Button, Flex, Input, Label, Text, TextArea} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
-import {callAPIWithErrorHandler, useAsyncCommand} from "Authentication/DataHook";
+import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {useHistory} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
@@ -23,6 +26,9 @@ import {GrantProjectSettings} from "Project/Grant/Settings";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Toggle} from "ui-components/Toggle";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {TextSpan} from "ui-components/Text";
 
 const ActionContainer = styled.div`
     & > * {
@@ -67,6 +73,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         projectDetails={projectDetails.data}
                         onSuccess={() => fetchProjectDetails(projectDetailsParams)}
                     />
+                    <Divider/>
                     <ArchiveSingleProject
                         isArchived={projectDetails.data.archived}
                         projectId={projectId}
@@ -74,12 +81,16 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         title={projectDetails.data.title}
                         onSuccess={() => history.push("/projects")}
                     />
+                    <Divider/>
                     <LeaveProject
                         onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
                         projectDetails={projectDetails.data}
                         projectId={projectId}
                         projectRole={projectRole}
                     />
+                    <Divider/>
+                    <DataManagementPlan />
+                    <Divider/>
                     <GrantProjectSettings />
                 </ActionContainer>
             }
@@ -93,6 +104,69 @@ interface ChangeProjectTitleProps {
     projectDetails: UserInProject;
     onSuccess: () => void;
 }
+
+const DataManagementPlan: React.FunctionComponent = props => {
+    const [dmpResponse, fetchDmp] = useCloudAPI<FetchDataManagementPlanResponse>({noop: true}, {});
+    const [, runWork] = useAsyncCommand();
+    const projectManagement = useProjectManagementStatus({isRootComponent: false});
+    const [hasDmp, setHasDmp] = useState<boolean>(false);
+    const dmpRef = useRef<HTMLTextAreaElement>(null);
+
+    const reload = () => {
+        if (projectManagement.allowManagement && Client.hasActiveProject) {
+            fetchDmp(fetchDataManagementPlan({}));
+        }
+    };
+
+    useEffect(() => {
+        reload();
+    }, [projectManagement.projectId, projectManagement.allowManagement]);
+
+    useEffect(() => {
+        if (dmpResponse.data.dmp) {
+            setHasDmp(true);
+            if (dmpRef.current) {
+                dmpRef.current.value = dmpResponse.data.dmp;
+            }
+        }
+    }, [dmpResponse]);
+
+    const updateDmp = useCallback(async () => {
+        const res = await runWork(updateDataManagementPlan({ id: projectManagement.projectId, dmp: dmpRef.current!.value }));
+        if (res) {
+            snackbarStore.addSuccess("Your data management plan has been updated", false);
+        }
+        reload();
+    }, [projectManagement.projectId, runWork, dmpRef.current]);
+
+    if (!Client.hasActiveProject || !projectManagement.allowManagement) return null;
+
+    return <Box>
+        <Heading.h4>Data Management Plan</Heading.h4>
+        If you have a data management plan then you can attach it to the project here.
+        <TextSpan bold>
+            You still need to follow your organization&apos;s policies regarding data management plans.
+        </TextSpan>
+        <br />
+
+        <Label>
+            Store a copy of this project&apos;s data management plan in UCloud?{" "}
+            <Toggle onChange={() => setHasDmp(!hasDmp)} checked={hasDmp} scale={1.5} />
+        </Label>
+
+        {!hasDmp ? null : (
+            <Box>
+                <TextArea
+                    placeholder={"Data management plan."}
+                    rows={5}
+                    width={"100%"}
+                    ref={dmpRef}
+                />
+                <Button type={"button"} mt={8} onClick={updateDmp}>Save Data Management Plan</Button>
+            </Box>
+        )}
+    </Box>;
+};
 
 export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     const newProjectTitle = React.useRef<HTMLInputElement>(null);

@@ -662,6 +662,61 @@ class ProjectService(
         projectId: String,
         newTitle: String
     ) {
+        ctx.withSession { session ->
+            requireAdmin(session, projectId, actor)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("newTitle", newTitle)
+                },
+                """update projects set title = :newTitle where id = :project"""
+            )
+        }
+    }
+
+    suspend fun fetchDataManagementPlan(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String
+    ): String? {
+        return ctx.withSession { session ->
+            requireAdmin(session, projectId, actor)
+
+            (session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        select dmp from projects where id = :projectId
+                    """
+                )
+                .rows
+                .singleOrNull() ?: throw RPCException("Project not found", HttpStatusCode.NotFound))
+                .getString(0)
+        }
+    }
+
+    suspend fun updateDataManagementPlan(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String,
+        dmp: String?
+    ) {
+        ctx.withSession { session ->
+            requireAdmin(session, projectId, actor)
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("dmp", dmp)
+                },
+                """update projects set dmp = :dmp where id = :project"""
+            )
+        }
+    }
+
+    private suspend fun requireAdmin(ctx: DBContext, projectId: String, actor: Actor) {
         val isAdmin = when (actor) {
             Actor.System -> true
 
@@ -674,17 +729,8 @@ class ProjectService(
             }
         }
 
-        if (!isAdmin) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        if (!isAdmin) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
-        ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("project", projectId)
-                    setParameter("newTitle", newTitle)
-                },
-                """update projects set title = :newTitle where id = :project"""
-            )
-        }
     }
 
     companion object : Loggable {
