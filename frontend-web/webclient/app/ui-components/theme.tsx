@@ -180,9 +180,10 @@ const chartColors = [
     purple,
     yellow,
     gray,
-    white,
     "#9065d1",
-    "#e98c33"
+    "#e98c33",
+    "#0c95b7",
+    purple
 ];
 
 // Color Themes

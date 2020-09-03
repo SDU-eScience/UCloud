@@ -421,18 +421,18 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 top: 10, right: 30, left: 0, bottom: 0,
                                             }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3"/>
-                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)}/>
-                                            <YAxis width={150} tickFormatter={creditFormatter}/>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)} />
+                                            <YAxis width={150} tickFormatter={creditFormatter} />
                                             <Tooltip labelFormatter={getDateFormatter(durationOption)}
-                                                     formatter={n => creditFormatter(n as number, 2)}
+                                                formatter={n => creditFormatter(n as number, 2)}
                                             />
                                             {chart.lineNames.map((id, idx) => {
                                                 if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
                                                     return <Bar
                                                         key={id}
                                                         dataKey={id}
-                                                        fill={theme.chartColors[idx]}
+                                                        fill={theme.chartColors[idx % theme.chartColors.length]}
                                                         barSize={24}
                                                     />;
                                                 } else {
@@ -447,8 +447,8 @@ const VisualizationForArea: React.FunctionComponent<{
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHeaderCell width={30}/>
-                                                <TableHeaderCell/>
+                                                <TableHeaderCell width={30} />
+                                                <TableHeaderCell />
                                                 <TableHeaderCell textAlign="right">
                                                     Credits Used In Period
                                                 </TableHeaderCell>
@@ -457,35 +457,35 @@ const VisualizationForArea: React.FunctionComponent<{
                                             </TableRow>
                                         </TableHeader>
                                         <tbody>
-                                        {chart.lineNames.map((p, idx) => (
-                                            <TableRow key={p}>
-                                                <TableCell>
-                                                    <Box width={20} height={20}
-                                                         backgroundColor={theme.chartColors[idx]}/>
-                                                </TableCell>
-                                                <TableCell>{p}</TableCell>
-                                                <TableCell textAlign="right">
-                                                    {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
-                                                </TableCell>
-                                                <TableCell textAlign="right">
-                                                    {creditFormatter(
-                                                        balance.data.wallets.find(it =>
-                                                            it.wallet.id === chart.lineNameToWallet[p].id &&
-                                                            it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
-                                                            it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
-                                                        )?.balance ?? 0
-                                                    )}
-                                                </TableCell>
-                                                <TableCell textAlign={"right"}>
-                                                    <Toggle
-                                                        onChange={() => onIncludeInChart(chart.provider, p)}
-                                                        scale={1.5}
-                                                        activeColor={"green"}
-                                                        checked={(includeInCharts[chart.provider] ?? {})[p] ?? true}
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                            {chart.lineNames.map((p, idx) => (
+                                                <TableRow key={p}>
+                                                    <TableCell>
+                                                        <Box width={20} height={20}
+                                                            backgroundColor={theme.chartColors[idx % theme.chartColors.length]} />
+                                                    </TableCell>
+                                                    <TableCell>{p}</TableCell>
+                                                    <TableCell textAlign="right">
+                                                        {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
+                                                    </TableCell>
+                                                    <TableCell textAlign="right">
+                                                        {creditFormatter(
+                                                            balance.data.wallets.find(it =>
+                                                                it.wallet.id === chart.lineNameToWallet[p].id &&
+                                                                it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
+                                                                it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
+                                                            )?.balance ?? 0
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell textAlign={"right"}>
+                                                        <Toggle
+                                                            onChange={() => onIncludeInChart(chart.provider, p)}
+                                                            scale={1.5}
+                                                            activeColor={"green"}
+                                                            checked={(includeInCharts[chart.provider] ?? {})[p] ?? true}
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
                                         </tbody>
                                     </Table>
                                 </Box>
@@ -528,7 +528,7 @@ const PercentageDisplay: React.FunctionComponent<{
     numerator: number,
     denominator: number,
     // Note this must be sorted ascending by breakpoint
-    colorRanges: { breakpoint: number, color: ThemeColor }[]
+    colorRanges: {breakpoint: number, color: ThemeColor}[]
 }> = props => {
     if (props.denominator === 0) {
         return null;
