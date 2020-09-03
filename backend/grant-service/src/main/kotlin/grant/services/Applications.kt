@@ -250,24 +250,28 @@ class ApplicationService(
         newResources: List<ResourceRequest>
     ) {
         ctx.withSession { session ->
-            val (projectId, requestedBy) = session
+            val (projectId, requestedBy, status) = session
                 .sendPreparedStatement(
                     { setParameter("id", id) },
                     """
-                        select resources_owned_by, requested_by
+                        select resources_owned_by, requested_by, status
                         from "grant".applications
                         where id = :id
                     """
                 )
                 .rows
                 .singleOrNull()
-                ?.let { Pair(it.getString(0)!!, it.getString(1)!!) }
+                ?.let { listOf(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!) }
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             val isProjectAdmin = projects.isAdminOfProject(projectId, actor)
             val isCreator = actor.safeUsername() == requestedBy
             if (!isCreator && !isProjectAdmin) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
+            if (ApplicationStatus.valueOf(status) != ApplicationStatus.IN_PROGRESS) {
+                throw RPCException("Grant application has been closed", HttpStatusCode.BadRequest)
             }
 
             if (isCreator) {
