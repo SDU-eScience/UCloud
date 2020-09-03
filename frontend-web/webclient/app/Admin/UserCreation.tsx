@@ -80,7 +80,6 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                                 autoComplete="off"
                                 value={username}
                                 error={usernameError}
-                                required
                                 onChange={e => dispatch({type: "UpdateUsername", payload: {username: e.target.value}})}
                                 placeholder="Username..."
                             />
@@ -91,7 +90,6 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                                 value={password}
                                 type="password"
                                 error={passwordError}
-                                required
                                 onChange={e => dispatch({type: "UpdatePassword", payload: {password: e.target.value}})}
                                 placeholder="Password..."
                             />
@@ -102,7 +100,6 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                                 value={repeatedPassword}
                                 type="password"
                                 error={passwordError}
-                                required
                                 onChange={e => dispatch({type: "UpdateRepeatedPassword", payload: {repeatedPassword: e.target.value}})}
                                 placeholder="Repeat password..."
                             />
@@ -113,7 +110,6 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                                 value={email}
                                 type="email"
                                 error={emailError}
-                                required
                                 onChange={e => dispatch({type: "UpdateEmail", payload: {email: e.target.value}})}
                                 placeholder="Email..."
                             />
