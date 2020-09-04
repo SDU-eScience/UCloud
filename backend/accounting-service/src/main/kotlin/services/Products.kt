@@ -178,7 +178,6 @@ class ProductService {
                         setParameter("provider", product.provider)
                         setParameter("id", product.product)
                     },
-
                     """
                         select *
                         from products
@@ -205,7 +204,9 @@ class ProductService {
 
             session
                 .sendPreparedStatement(
-                    { setParameter("provider", provider) },
+                    {
+                        setParameter("provider", provider)
+                    },
                     "select * from products where provider = :provider order by priority, id"
                 )
                 .rows
@@ -225,16 +226,13 @@ class ProductService {
             session
                 .paginatedQuery(
                     paging,
-
                     {
                         setParameter("provider", provider)
                     },
-
                     """
                         from products
                         where provider = :provider
                     """,
-
                     "order by priority, id"
                 )
                 .mapItems { it.toProduct() }
@@ -254,17 +252,14 @@ class ProductService {
             session
                 .paginatedQuery(
                     paging,
-
                     {
                         setParameter("provider", provider)
                         setParameter("area", area.name)
                     },
-
                     """
                         from products
                         where provider = :provider AND area = :area
                     """,
-
                     "order by priority, id"
                 )
                 .mapItems { it.toProduct() }
@@ -310,7 +305,6 @@ class ProductService {
                         setParameter("provider", provider)
                         setParameter("category", category)
                     },
-
                     """
                         select * 
                         from product_categories 

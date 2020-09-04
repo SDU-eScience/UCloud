@@ -67,13 +67,12 @@ class VisualizationService(
                                      ?bucketSize :: interval
                               ) as ts
                         ) as timestamps;
-                    """.trimIndent()
+                    """
                 )
                 .rows
                 .forEach { row ->
                     val timestamp = row.getLong(0)!! * 1000L
                     allTimestamps.add(timestamp)
-
                 }
             session
                 .sendPreparedStatement(
@@ -84,7 +83,6 @@ class VisualizationService(
                         setParameter("accountId", accountId)
                         setParameter("accountType", accountType.name)
                     },
-
                     """
                         select
                             t.original_account_id,
@@ -93,7 +91,6 @@ class VisualizationService(
                             sum(t.amount)::bigint,
                             extract(epoch from timestamps.ts)::bigint,
                             pc.area
-
                         from
                             (
                                 select generate_series(
@@ -109,11 +106,9 @@ class VisualizationService(
                                 t.account_type = ?accountType
                             ),
                             product_categories pc
-                            
                         where
                             pc.category = t.product_category and
                             pc.provider = t.product_provider
-
                         group by
                             timestamps.ts,
                             t.original_account_id,

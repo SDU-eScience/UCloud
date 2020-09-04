@@ -17,11 +17,7 @@ class VisualizationController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Visualization.usage) {
             val project = ctx.project
-            val accountId = if (project == null) {
-                ctx.securityPrincipal.username
-            } else {
-                project
-            }
+            val accountId = project ?: ctx.securityPrincipal.username
 
             val accountType = if (project == null) {
                 WalletOwnerType.USER

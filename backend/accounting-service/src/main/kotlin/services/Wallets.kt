@@ -168,7 +168,6 @@ class BalanceService(
                         setParameter("accountIds", accountIds)
                         setParameter("accountType", accountOwnerType.name)
                     },
-
                     """
                         select w.*, pc.area
                         from wallets w, product_categories pc
@@ -214,7 +213,6 @@ class BalanceService(
                         setParameter("productCategory", account.paysFor.id)
                         setParameter("productProvider", account.paysFor.provider)
                     },
-
                     """
                         select balance 
                         from wallets 
@@ -259,7 +257,6 @@ class BalanceService(
                     )
                 }
 
-                // TODO Verify account exists
                 session.insert(WalletTable) {
                     set(WalletTable.accountId, account.id)
                     set(WalletTable.accountType, account.type.name)
@@ -281,7 +278,6 @@ class BalanceService(
                         setParameter("productCategory", account.paysFor.id)
                         setParameter("productProvider", account.paysFor.provider)
                     },
-
                     """
                         update wallets
                         set balance = :amount
@@ -369,7 +365,6 @@ class BalanceService(
                         setParameter("productCategory", account.paysFor.id)
                         setParameter("productProvider", account.paysFor.provider)
                     },
-
                     """
                         update wallets  
                         set balance = balance + :amount
@@ -404,7 +399,6 @@ class BalanceService(
             session
                 .sendPreparedStatement(
                     params,
-
                     """
                         delete from transactions 
                         where
@@ -421,7 +415,6 @@ class BalanceService(
             session
                 .sendPreparedStatement(
                     params,
-
                     """
                         select sum(amount)::bigint
                         from transactions
@@ -478,7 +471,6 @@ class BalanceService(
                                 setParameter("accId", wallet.id)
                                 setParameter("accType", wallet.type.name)
                             },
-
                             """
                                 select count(id)::bigint from transactions 
                                 where id = :id and account_id = :accId and account_type = :accType
@@ -570,7 +562,6 @@ class BalanceService(
                         setParameter("units", units)
                         setParameter("reservationId", reservationId)
                     },
-
                     """
                         update transactions     
                         set
@@ -590,7 +581,6 @@ class BalanceService(
                         setParameter("amount", amount)
                         setParameter("reservationId", reservationId)
                     },
-
                     """
                         update wallets
                         set balance = greatest(0, balance - :amount)
@@ -638,7 +628,6 @@ class BalanceService(
                         setParameter("prodProvider", request.destinationAccount.paysFor.provider)
                         setParameter("sent", false)
                     },
-
                     """
                         insert into wallets (account_id, account_type, product_category, product_provider, balance, low_funds_notifications_send) 
                         values (:destId, 'USER', :prodCategory, :prodProvider, :amount, :sent)

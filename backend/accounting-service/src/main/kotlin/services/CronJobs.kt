@@ -51,9 +51,7 @@ class CronJobs(
             while (true) {
                 val rows = session
                     .sendPreparedStatement(
-                        {
-
-                        },
+                        //language=sql
                         """
                         FETCH FORWARD 1000 FROM curs
                         """
@@ -144,7 +142,7 @@ class CronJobs(
 
             session
                 .sendPreparedStatement(
-                    {},
+                    //language=sql
                     """
                         CLOSE curs
                     """
