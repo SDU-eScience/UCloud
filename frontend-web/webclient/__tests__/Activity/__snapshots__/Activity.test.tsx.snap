@@ -1029,10 +1029,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                 </b>
                  
                 <span>
-                   was copied by 
-                  jonas
-                  . Copy name: 
+                   was copied to 
                   Project 2/Repo/IMG_20191206_091915.jpg
+                   by 
+                  jonas
                 </span>
               </div>
             </div>
@@ -1268,10 +1268,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                 </b>
                  
                 <span>
-                   was copied by 
-                  jonas
-                  . Copy name: 
+                   was copied to 
                   Project 2/Repo/IMG_20191206_091915.jpg
+                   by 
+                  jonas
                 </span>
               </div>
             </div>
