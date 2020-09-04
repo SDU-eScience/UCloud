@@ -28,7 +28,7 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Balance} from "Accounting/Balance";
-import {Center, shakeAnimation, shakingClassName} from "UtilityComponents";
+import {shakeAnimation, shakingClassName} from "UtilityComponents";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -96,7 +96,7 @@ const SelectableWallet: React.FunctionComponent<{
                         <tr>
                             <th>Balance</th>
                             <td>
-                                <Balance amount={props.wallet.balance} productCategory={props.wallet.wallet.paysFor}/>
+                                <Balance amount={props.wallet.balance} productCategory={props.wallet.wallet.paysFor} />
                             </td>
                         </tr>
                         {!props.allocated ? null : (
@@ -115,6 +115,7 @@ const SelectableWallet: React.FunctionComponent<{
                             <th />
                             <td>
                                 <Icon
+                                    color2={props.wallet.area === ProductArea.COMPUTE ? undefined : "white"}
                                     name={props.wallet.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
                                     size={32}
                                 />
@@ -236,38 +237,38 @@ const Subprojects: React.FunctionComponent = () => {
                                     <Heading.h4>No resources attached to project. Contact project PI</Heading.h4>
                                 } </>
                                 : <>{mainWallets.map((w, i) =>
-                                        <SelectableWallet
-                                            key={i}
-                                            wallet={w}
-                                            selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
-                                            allocated={
-                                                wallets.data.wallets.reduce((prev, it) => (
-                                                    it.wallet.id !== projectId && productCategoryEquals(w.wallet.paysFor, it.wallet.paysFor) ?
-                                                        prev + it.balance : prev
-                                                ), 0)
-                                            }
-                                            quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
-                                                quota.data.quotaInTotal : undefined
-                                            }
-                                            onClick={() => setSelectedWallet(w)}/>
-                                        )
-                                    }</>
+                                    <SelectableWallet
+                                        key={i}
+                                        wallet={w}
+                                        selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
+                                        allocated={
+                                            wallets.data.wallets.reduce((prev, it) => (
+                                                it.wallet.id !== projectId && productCategoryEquals(w.wallet.paysFor, it.wallet.paysFor) ?
+                                                    prev + it.balance : prev
+                                            ), 0)
+                                        }
+                                        quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
+                                            quota.data.quotaInTotal : undefined
+                                        }
+                                        onClick={() => setSelectedWallet(w)} />
+                                )
+                                }</>
                             }
 
                             {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
-                                    <DashboardCard color="blue" isLoading={false}>
-                                        <Flex height={"140px"} justifyContent={"center"} alignItems={"center"} flexDirection={"column"}>
-                                            <Heading.h4>Need more resources?</Heading.h4>
-                                            <Box mt={8}>
-                                                <Link to={
-                                                    !Client.hasActiveProject ?
-                                                        "/projects/browser/personal" :
-                                                        "/project/grants/existing"
-                                                }><Button>Apply for more resources</Button></Link>
-                                            </Box>
-                                        </Flex>
-                                    </DashboardCard>
-                                 : null}
+                                <DashboardCard color="blue" isLoading={false}>
+                                    <Flex height={"140px"} justifyContent={"center"} alignItems={"center"} flexDirection={"column"}>
+                                        <Heading.h4>Need more resources?</Heading.h4>
+                                        <Box mt={8}>
+                                            <Link to={
+                                                !Client.hasActiveProject ?
+                                                    "/projects/browser/personal" :
+                                                    "/project/grants/existing"
+                                            }><Button>Apply for more resources</Button></Link>
+                                        </Box>
+                                    </Flex>
+                                </DashboardCard>
+                                : null}
                         </WalletContainer>
                     </LoadingBox>
 
@@ -335,7 +336,7 @@ const Subprojects: React.FunctionComponent = () => {
                                     </Box>
                                 </Box>
                             </Box>
-                            </> : null}
+                        </> : null}
                     </>}
                 </>
             )}
