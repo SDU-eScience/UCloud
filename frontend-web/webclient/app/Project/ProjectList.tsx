@@ -54,7 +54,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         emptyPage
     );
     const [favorites, setFavoriteParams] = useCloudAPI<Page<UserInProject>, ListFavoriteProjectsRequest>(
-        listFavoriteProjects({page: 0, itemsPerPage: 25, archived, showAncestorPath: true}),
+        listFavoriteProjects({page: 0, itemsPerPage: 25, archived: true, showAncestorPath: true}),
         emptyPage
     );
 
@@ -84,7 +84,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         setFavoriteParams(listFavoriteProjects({
             page: favorites.data.pageNumber,
             itemsPerPage: response.data.itemsPerPage,
-            archived,
+            archived: true,
             showAncestorPath: true
         }));
         setFetchParams(listProjects({
@@ -104,10 +104,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     useEffect(() => {
         props.setRefresh(reload);
         return () => props.setRefresh();
-    }, [reload]);
+    }, [reload, archived]);
 
     useEffect(() => {
-        setFetchParams(listProjects({page: 0, itemsPerPage: 50, archived, noFavorites: true, showAncestorPath: true}));
+        reload();
     }, [archived]);
 
     const projectOperations: ProjectOperation[] = [
@@ -418,6 +418,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 <Link to="/project/dashboard">
                                     {e.title}{e.archived ?
                                         <Icon
+                                            ml="6px"
                                             name={"tags"}
                                             hoverColor={"black"}
                                         /> : null

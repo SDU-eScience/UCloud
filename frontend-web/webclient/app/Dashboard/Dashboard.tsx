@@ -450,7 +450,7 @@ function DashboardResources({wallets, loading, quota}: {
                                     ))}
                                     <TableRow>
                                         {/* This is hardcoded for now (pending issue #1246) */}
-                                        <TableCell>ucloud / cephfs (Quota)</TableCell>
+                                        <TableCell>ucloud / u1-cephfs (Quota)</TableCell>
                                         <TableCell textAlign={"right"}>
                                             {sizeToString(quota.quotaUsed ?? 0)}
                                             {" "}of{" "}
