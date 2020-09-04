@@ -13,6 +13,8 @@ import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
 import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
+import {SnackType} from "Snackbar/Snackbars.js";
+import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
 const bg2 = require("Assets/Images/bg2.svg");
 const wayfLogo = require("Assets/Images/WAYFLogo.svg");
@@ -85,7 +87,12 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
             ).promise;
 
             if (!response.ok) { // noinspection ExceptionCaughtLocallyJS
-                throw response;
+                if (response.status === 401) {
+                    throw response;
+                }
+
+                snackbarStore.addFailure(response.statusText, false);
+                return;
             }
 
             handleAuthState(await response.json());
