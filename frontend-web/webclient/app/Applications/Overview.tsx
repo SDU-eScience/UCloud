@@ -1,5 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {emptyPage, ReduxObject} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
 import {MainContainer} from "MainContainer/MainContainer";
 import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -10,7 +10,6 @@ import * as React from "react";
 import {connect, useSelector} from "react-redux";
 import {Dispatch} from "redux";
 import styled from "styled-components";
-import {Page} from "Types";
 import {Box, Flex, Link, Card} from "ui-components";
 import Grid from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
