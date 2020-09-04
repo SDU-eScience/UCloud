@@ -16,6 +16,7 @@ interface ApplicationCardProps {
     app: WithAppMetadata & WithAllAppTags;
     isFavorite?: boolean;
     linkToRun?: boolean;
+    colorBySpecificTag?: string;
     tags: string[];
 }
 
@@ -281,9 +282,10 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     app,
     onFavorite,
     isFavorite,
+    colorBySpecificTag,
     linkToRun
 }: ApplicationCardProps) => {
-    const hash = hashF(app.metadata.name);
+    const hash = hashF(colorBySpecificTag ?? app.tags[0] ?? "fallback");
     const {metadata} = app;
     const appC = appColor(hash);
     return (

@@ -49,6 +49,7 @@ export interface JobWithStatus {
     expiresAt: number | null;
     maxTime: number | null;
     outputFolder: string | null;
+    creditsCharged?: number;
 
     metadata: ApplicationMetadata;
 

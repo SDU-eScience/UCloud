@@ -38,10 +38,11 @@ class PaymentService(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient
 ) {
+    data class ChargeResult(val amountCharged: Long, val pricePerUnit: Long)
     suspend fun charge(
         job: VerifiedJob,
         timeUsedInMillis: Long
-    ) {
+    ): ChargeResult {
         val pricePerUnit = job.reservation.pricePerUnit
 
         val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * job.nodes
@@ -65,6 +66,8 @@ class PaymentService(
                 }
             }
         }
+
+        return ChargeResult(price, pricePerUnit)
     }
 
     suspend fun reserve(job: VerifiedJob) {

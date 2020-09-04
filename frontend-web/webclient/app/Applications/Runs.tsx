@@ -37,7 +37,8 @@ import {JobStateIcon} from "./JobStateIcon";
 import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
 import {AppToolLogo} from "./AppToolLogo";
 import styled from "styled-components";
-import {ListRow} from "ui-components/List";
+import {ListRow, ListRowStat} from "ui-components/List";
+import {creditFormatter} from "Project/ProjectUsage";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -174,14 +175,17 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                     select={() => props.checkAnalysis(it.jobId, !it.checked)}
                                     left={<Text cursor="pointer">{it.name ? it.name : shortUUID(it.jobId)}</Text>}
                                     leftSub={<>
-                                        <Text color="gray" fontSize={0}>
-                                            <Icon color="gray" mr="5px" size="10px" name="id" />
+                                        <ListRowStat color={"gray"} icon={"id"}>
                                             {it.metadata.title} v{it.metadata.version}
-                                        </Text>
-                                        <Text color="gray" fontSize={0}>
-                                            <Icon color="gray" ml="4px" mr="2px" size="10px" name="chrono" />
+                                        </ListRowStat>
+                                        <ListRowStat color={"gray"} color2={"gray"} icon={"chrono"}>
                                             Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}
-                                        </Text>
+                                        </ListRowStat>
+                                        {!it.creditsCharged ? null : (
+                                            <ListRowStat color={"gray"} icon={"grant"}>
+                                                Price: {creditFormatter(it.creditsCharged)}
+                                            </ListRowStat>
+                                        )}
                                     </>}
                                     right={<>
                                         {hideExpiration ? null : (

@@ -85,6 +85,7 @@ config("app-orchestrator") { ctx ->
         mapOf<String, Any?>("name" to name, "cpu" to cpu, "memoryInGigs" to memoryInGigs, "gpu" to gpu)
 
     configure("gpuWhitelist", listOf(
+        "kln@cas.au.dk",
         "marin@imada.sdu.dk",
         "boegebjerg@imada.sdu.dk",
         "tochr15@student.sdu.dk",
