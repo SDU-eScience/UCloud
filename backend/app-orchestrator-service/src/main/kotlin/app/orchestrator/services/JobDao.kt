@@ -43,6 +43,7 @@ object JobInformationTable : SQLTable("job_information") {
     val outputFolder = text("output_folder")
     val url = text("url")
     val project = text("project")
+    val creditsCharged = long("credits_charged")
 }
 
 class JobDao {
@@ -96,9 +97,10 @@ class JobDao {
         systemId: String,
         status: String? = null,
         state: JobState? = null,
-        failedState: JobState? = null
+        failedState: JobState? = null,
+        creditsCharged: Long? = null
     ) {
-        if (status == null && state == null && failedState == null) {
+        if (status == null && state == null && failedState == null && creditsCharged == null) {
             throw IllegalArgumentException("No changes are going to be made!")
         }
 
@@ -110,6 +112,7 @@ class JobDao {
                         setParameter("status", status)
                         setParameter("failedState", failedState?.name)
                         setParameter("state", state?.name)
+                        setParameter("creditsCharged", creditsCharged)
                     },
                     """
                         update job_information
@@ -118,6 +121,7 @@ class JobDao {
                             status = coalesce(:status::text, status),
                             state = coalesce(:state::text, state),
                             failed_state = coalesce(:failedState::text, failed_state),
+                            credits_charged = coalesce(:creditsCharged::bigint, credits_charged),
                             started_at = (case
                                 when :state::text = 'RUNNING' then timezone('utc', now())
                                 else started_at

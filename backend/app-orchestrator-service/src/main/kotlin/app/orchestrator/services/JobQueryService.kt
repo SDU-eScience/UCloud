@@ -86,6 +86,7 @@ class JobQueryService(
             expiresAt,
             job.maxTime.toMillis(),
             jobFileService.jobFolder(verifiedJobWithAccessToken),
+            job.creditsCharged,
             job.application.metadata
         )
     }
@@ -418,7 +419,8 @@ class JobQueryService(
                 modifiedAt = getField(modifiedAt).toTimestamp(),
                 startedAt = getFieldNullable(startedAt)?.toTimestamp(),
                 url = getFieldNullable(url),
-                project = getFieldNullable(project)
+                project = getFieldNullable(project),
+                creditsCharged = getFieldNullable(creditsCharged)
             )
 
             val withoutTool = VerifiedJobWithAccessToken(

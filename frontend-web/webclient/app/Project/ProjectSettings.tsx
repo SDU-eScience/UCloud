@@ -11,7 +11,7 @@ import {
     useProjectManagementStatus,
     UserInProject
 } from "Project/index";
-import {Box, Button, Flex, Input, Label, Text, TextArea} from "ui-components";
+import {Box, Button, ButtonGroup, Flex, Input, Label, Text, TextArea} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
@@ -29,6 +29,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Toggle} from "ui-components/Toggle";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {TextSpan} from "ui-components/Text";
+import {doNothing} from "UtilityFunctions";
 
 const ActionContainer = styled.div`
     & > * {
@@ -128,15 +129,39 @@ const DataManagementPlan: React.FunctionComponent = props => {
             if (dmpRef.current) {
                 dmpRef.current.value = dmpResponse.data.dmp;
             }
+        } else {
+            setHasDmp(false);
+            if (dmpRef.current) {
+                dmpRef.current.value = "";
+            }
         }
-    }, [dmpResponse]);
+    }, [dmpResponse.data.dmp]);
 
     const updateDmp = useCallback(async () => {
-        const res = await runWork(updateDataManagementPlan({ id: projectManagement.projectId, dmp: dmpRef.current!.value }));
+        const res = await runWork(updateDataManagementPlan({
+            id: projectManagement.projectId,
+            dmp: dmpRef.current!.value
+        }));
         if (res) {
             snackbarStore.addSuccess("Your data management plan has been updated", false);
         }
         reload();
+    }, [projectManagement.projectId, runWork, dmpRef.current]);
+
+    const deleteDmp = useCallback(async () => {
+        addStandardDialog({
+            title: "Confirm deleting data management plan",
+            message: "",
+            confirmText: "Delete",
+            onCancel: doNothing,
+            onConfirm: async () => {
+                const res = await runWork(updateDataManagementPlan({ id: projectManagement.projectId }));
+                if (res) {
+                    snackbarStore.addSuccess("Your data management plan has been updated", false);
+                }
+                reload();
+            }
+        });
     }, [projectManagement.projectId, runWork, dmpRef.current]);
 
     if (!Client.hasActiveProject || !projectManagement.allowManagement) return null;
@@ -151,7 +176,7 @@ const DataManagementPlan: React.FunctionComponent = props => {
 
         <Label>
             Store a copy of this project&apos;s data management plan in UCloud?{" "}
-            <Toggle onChange={() => setHasDmp(!hasDmp)} checked={hasDmp} scale={1.5} />
+            <Toggle onChange={() => { console.log("...", hasDmp); setHasDmp(!hasDmp); }} checked={hasDmp} scale={1.5} />
         </Label>
 
         {!hasDmp ? null : (
@@ -162,7 +187,10 @@ const DataManagementPlan: React.FunctionComponent = props => {
                     width={"100%"}
                     ref={dmpRef}
                 />
-                <Button type={"button"} mt={8} onClick={updateDmp}>Save Data Management Plan</Button>
+                <ButtonGroup mt={8}>
+                    <Button type={"button"} onClick={updateDmp}>Save Data Management Plan</Button>
+                    <Button type={"button"} onClick={deleteDmp} color={"red"}>Delete Data Management Plan</Button>
+                </ButtonGroup>
             </Box>
         )}
     </Box>;

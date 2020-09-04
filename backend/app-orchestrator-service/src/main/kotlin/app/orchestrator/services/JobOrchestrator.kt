@@ -275,7 +275,8 @@ class JobOrchestrator(
                 securityPrincipal
             )
 
-            paymentService.charge(job, actualDuration.toMillis())
+            val charge = paymentService.charge(job, actualDuration.toMillis())
+            jobDao.updateStatus(db, jobId, creditsCharged = charge.amountCharged)
         }
     }
 

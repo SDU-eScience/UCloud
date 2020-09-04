@@ -118,7 +118,9 @@ data class VerifiedJob(
      */
     val url: String? = null,
 
-    val project: String? = null
+    val project: String? = null,
+
+    val creditsCharged: Long? = null
 ) {
     @get:JsonIgnore val mounts: Set<ValidatedFileForUpload>
         get() = _mounts ?: emptySet()

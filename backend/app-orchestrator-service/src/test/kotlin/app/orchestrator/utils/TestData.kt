@@ -180,6 +180,7 @@ val jobWithStatus = JobWithStatus(
     12345,
     20000,
     null,
+    null,
     normAppDesc.metadata
 )
 

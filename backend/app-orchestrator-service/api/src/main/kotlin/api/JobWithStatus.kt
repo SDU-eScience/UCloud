@@ -16,6 +16,7 @@ data class JobWithStatus(
     val expiresAt: Long?,
     val maxTime: Long,
     val outputFolder: String?,
+    val creditsCharged: Long?,
 
     override val metadata: ApplicationMetadata
 ) : WithAppMetadata
