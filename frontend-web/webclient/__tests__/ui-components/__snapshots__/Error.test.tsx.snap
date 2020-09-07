@@ -1,11 +1,18 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Error component Error with error and dismiss button 1`] = `
-.c3 {
+.c0 {
+  padding: 1em 1em 1em 1em;
+  height: auto;
+  color: #000;
+  background-color: #fcc;
+}
+
+.c5 {
   margin-left: auto;
 }
 
-.c4 {
+.c6 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -14,18 +21,14 @@ exports[`Error component Error with error and dismiss button 1`] = `
   color: #000;
 }
 
-.c0 {
-  padding: 1em 1em 1em 1em;
-  height: auto;
-  color: #000;
-  background-color: #fcc;
+.c1 {
   padding: 1em 1em 1em 1em;
   height: auto;
   border: 1px solid #c00;
   border-radius: 0.5em;
 }
 
-.c1 {
+.c2 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -36,24 +39,27 @@ exports[`Error component Error with error and dismiss button 1`] = `
   align-items: center;
 }
 
-.c2 {
+.c3 {
   cursor: inherit;
   font-size: 14px;
   color: #c00;
+}
+
+.c4 {
   white-space: pre;
 }
 
 <div
-  className="c0"
+  className="c0 c1"
   color="black"
   height="auto"
 >
   <div
-    className="c1"
+    className="c2"
   >
     <div>
       <div
-        className="c2"
+        className="c3 c4"
         color="red"
         cursor="inherit"
         fontSize={1}
@@ -62,10 +68,10 @@ exports[`Error component Error with error and dismiss button 1`] = `
       </div>
     </div>
     <div
-      className="c3"
+      className="c5"
     >
       <svg
-        className="c4"
+        className="c6"
         clipRule="evenodd"
         color="black"
         cursor="inherit"
@@ -92,13 +98,16 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   height: auto;
   color: #000;
   background-color: #fcc;
+}
+
+.c1 {
   padding: 1em 1em 1em 1em;
   height: auto;
   border: 1px solid #c00;
   border-radius: 0.5em;
 }
 
-.c1 {
+.c2 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -109,24 +118,27 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   align-items: center;
 }
 
-.c2 {
+.c3 {
   cursor: inherit;
   font-size: 14px;
   color: #c00;
+}
+
+.c4 {
   white-space: pre;
 }
 
 <div
-  className="c0"
+  className="c0 c1"
   color="black"
   height="auto"
 >
   <div
-    className="c1"
+    className="c2"
   >
     <div>
       <div
-        className="c2"
+        className="c3 c4"
         color="red"
         cursor="inherit"
         fontSize={1}

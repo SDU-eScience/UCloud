@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Activity Page Mount Activity Page, without project 1`] = `
-.c30 {
+.c35 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -12,7 +12,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   justify-content: center;
 }
 
-.c27 {
+.c32 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -28,16 +28,46 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   background-color: #fff;
 }
 
-.c6 {
+.c2 {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 204px;
+  padding-right: 14px;
+  width: 100%;
+  height: 96px;
+  background-color: #fff;
+}
+
+.c7 {
+  padding-top: 144px;
+  padding-left: 14px;
+  padding-right: 14px;
+  width: 340px;
+  height: 100%;
+}
+
+.c10 {
   margin-bottom: 16px;
 }
 
-.c17 {
+.c21 {
   padding-top: 96px;
   padding-right: 340px;
 }
 
-.c31 {
+.c3 {
+  position: absolute;
+  top: 48px;
+  left: 0;
+}
+
+.c8 {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.c36 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -69,21 +99,21 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   padding: 9.5px 18px;
 }
 
-.c31:disabled {
+.c36:disabled {
   opacity: 0.25;
 }
 
-.c31:focus {
+.c36:focus {
   outline: none;
 }
 
-.c31:hover {
+.c36:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c12 {
+.c16 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -92,7 +122,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   margin-left: .7em;
 }
 
-.c28 {
+.c33 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -101,36 +131,36 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   margin-right: 0.5em;
 }
 
-.c3 {
+.c5 {
   cursor: inherit;
   font-size: 32px;
   margin: 0;
   font-weight: 700;
 }
 
-.c7 {
+.c11 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
   font-weight: 400;
 }
 
-.c11 {
+.c15 {
   cursor: pointer;
 }
 
-.c26 {
+.c31 {
   cursor: inherit;
   font-size: 14px;
   color: #1e252e;
 }
 
-.c29 {
+.c34 {
   cursor: inherit;
   color: #000;
 }
 
-.c15 {
+.c19 {
   display: block;
   font-family: inherit;
   background-color: transparent;
@@ -147,37 +177,37 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   width: 100%;
 }
 
-.c15::-webkit-input-placeholder {
+.c19::-webkit-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c15::-moz-placeholder {
+.c19::-moz-placeholder {
   color: var(--gray,#f00);
 }
 
-.c15:-ms-input-placeholder {
+.c19:-ms-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c15::placeholder {
+.c19::placeholder {
   color: var(--gray,#f00);
 }
 
-.c15:focus {
+.c19:focus {
   outline: none;
   background-color: transparent;
 }
 
-.c15:disabled {
+.c19:disabled {
   background-color: var(--lightGray,#f00);
 }
 
-.c15:focus {
+.c19:focus {
   outline: 0;
   border-color: #006aff;
 }
 
-.c9 {
+.c13 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -191,18 +221,18 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   width: 100%;
 }
 
-.c8 {
+.c12 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
   color: #1e252e;
 }
 
-.c8:hover {
+.c12:hover {
   color: var(--textHighlight);
 }
 
-.c13 {
+.c17 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -217,57 +247,39 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   border-color: #c9d3df;
 }
 
-.c13 > .c0 {
+.c17 > .c0 {
   width: 100%;
   -webkit-flex: 1 1 auto;
   -ms-flex: 1 1 auto;
   flex: 1 1 auto;
 }
 
-.c13 .c14 {
+.c17 .c18 {
   border: 0;
   box-shadow: none;
 }
 
-.c10 {
+.c14 {
   position: relative;
   display: inline-block;
 }
 
-.c10:hover > div {
+.c14:hover > div {
   display: block;
 }
 
-.c2 {
-  padding-top: 14px;
-  padding-bottom: 14px;
-  padding-left: 204px;
-  padding-right: 14px;
-  width: 100%;
-  height: 96px;
-  background-color: #fff;
-  position: absolute;
-  top: 48px;
-  left: 0;
+.c4 {
   position: fixed;
   z-index: 50;
 }
 
-.c5 {
-  padding-top: 144px;
-  padding-left: 14px;
-  padding-right: 14px;
-  width: 340px;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  right: 0;
+.c9 {
   overflow-y: auto;
   position: fixed;
   z-index: 45;
 }
 
-.c16 {
+.c20 {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -288,27 +300,27 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   margin: 0;
 }
 
-.c16::-webkit-input-placeholder {
+.c20::-webkit-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c16::-moz-placeholder {
+.c20::-moz-placeholder {
   color: var(--gray,#f00);
 }
 
-.c16:-ms-input-placeholder {
+.c20:-ms-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c16::placeholder {
+.c20::placeholder {
   color: var(--gray,#f00);
 }
 
-.c16::-ms-clear {
+.c20::-ms-clear {
   display: none;
 }
 
-.c19 {
+.c23 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
@@ -318,50 +330,53 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   background-color: #fff;
 }
 
+.c30 {
+  border: 0px;
+  border-spacing: 0;
+}
+
 .c25 {
-  border: 0px;
-  border-spacing: 0;
-}
-
-.c20 {
-  background-color: var(--white,#f00);
-  padding-top: 11px;
-  padding-bottom: 11px;
-}
-
-.c22 {
-  border-spacing: 0;
-  border: 0px;
-  width: 12em;
-}
-
-.c23 {
-  border-spacing: 0;
-  border: 0px;
-  width: 99%;
-}
-
-.c21 {
   cursor: auto;
-  vertical-align: top;
 }
 
-.c21 > .c24 {
+.c25 > .c29 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
-.c21 a {
+.c24 {
+  background-color: var(--white,#f00);
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.c27 {
+  border-spacing: 0;
+  border: 0px;
+  width: 12em;
+}
+
+.c28 {
+  border-spacing: 0;
+  border: 0px;
+  width: 99%;
+}
+
+.c26 {
+  vertical-align: top;
+}
+
+.c26 a {
   color: var(--text,#f00);
 }
 
-.c21 a:hover {
+.c26 a:hover {
   color: var(--text,#f00);
 }
 
-.c21 div.ellipsis {
+.c26 div.ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
   display: inline-block;
@@ -369,37 +384,37 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
 }
 
 @media screen and (max-width:511px) {
-  .c4 {
+  .c6 {
     display: none;
   }
 }
 
 @media screen and (min-width:512px) and (max-width:639px) {
-  .c4 {
+  .c6 {
     display: none;
   }
 }
 
 @media screen and (min-width:640px) and (max-width:767px) {
-  .c4 {
+  .c6 {
     display: none;
   }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c18 {
+  .c22 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c18 {
+  .c22 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c18 {
+  .c22 {
     display: none;
   }
 }
@@ -408,12 +423,12 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 c2"
+    className="c0 c2 c3 c4"
     height={96}
     width={1}
   >
     <h2
-      className="c3"
+      className="c5"
       cursor="inherit"
       fontSize={5}
     >
@@ -421,29 +436,29 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
     </h2>
   </div>
   <div
-    className="c0 c4"
+    className="c0 c6"
   >
     <div
-      className="c0 c5"
+      className="c0 c7 c8 c9"
       data-tag="sidebar"
       height="100%"
       width={340}
     >
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <h3
-          className="c7"
+          className="c11"
           cursor="inherit"
           fontSize={4}
         >
           Quick Filters
         </h3>
         <div
-          className="c0 c6"
+          className="c0 c10"
         >
           <a
-            className="c8"
+            className="c12"
             color="text"
             href="#"
             onClick={[Function]}
@@ -456,7 +471,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             Today
           </a>
           <a
-            className="c8"
+            className="c12"
             color="text"
             href="#"
             onClick={[Function]}
@@ -469,7 +484,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             Yesterday
           </a>
           <a
-            className="c8"
+            className="c12"
             color="text"
             href="#"
             onClick={[Function]}
@@ -482,7 +497,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             This week
           </a>
           <a
-            className="c8"
+            className="c12"
             color="text"
             href="#"
             onClick={[Function]}
@@ -497,17 +512,17 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
       <h3
-        className="c7"
+        className="c11"
         cursor="inherit"
         fontSize={4}
       >
         Active Filters
       </h3>
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <label
-          className="c9"
+          className="c13"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -516,17 +531,17 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           Filter by event type
         </label>
         <div
-          className="c10"
+          className="c14"
           data-tag="dropdown"
         >
           <span
-            className="c11"
+            className="c15"
             cursor="pointer"
             onClick={[Function]}
           >
             Don't filter
             <svg
-              className="c12"
+              className="c16"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -545,10 +560,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <label
-          className="c9"
+          className="c13"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -557,10 +572,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           Filter by username
         </label>
         <div
-          className="c13"
+          className="c17"
         >
           <input
-            className="c14 c15"
+            className="c18 c19"
             id="default"
             onKeyUp={[Function]}
             placeholder="Don't filter"
@@ -569,10 +584,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <label
-          className="c9"
+          className="c13"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -581,7 +596,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           Event created after
         </label>
         <div
-          className="c13"
+          className="c17"
         >
           <div
             className="react-datepicker-wrapper"
@@ -590,7 +605,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="c16"
+                className="c20"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -607,10 +622,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <label
-          className="c9"
+          className="c13"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -619,7 +634,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           Event created before
         </label>
         <div
-          className="c13"
+          className="c17"
         >
           <div
             className="react-datepicker-wrapper"
@@ -628,7 +643,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="c16"
+                className="c20"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -647,26 +662,26 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
     </div>
   </div>
   <div
-    className="c0 c17"
+    className="c0 c21"
   >
     <div
-      className="c0 c18"
+      className="c0 c22"
     >
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <h3
-          className="c7"
+          className="c11"
           cursor="inherit"
           fontSize={4}
         >
           Quick Filters
         </h3>
         <div
-          className="c0 c6"
+          className="c0 c10"
         >
           <a
-            className="c8"
+            className="c12"
             color="text"
             href="#"
             onClick={[Function]}
@@ -679,7 +694,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             Today
           </a>
           <a
-            className="c8"
+            className="c12"
             color="text"
             href="#"
             onClick={[Function]}
@@ -692,7 +707,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             Yesterday
           </a>
           <a
-            className="c8"
+            className="c12"
             color="text"
             href="#"
             onClick={[Function]}
@@ -705,7 +720,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             This week
           </a>
           <a
-            className="c8"
+            className="c12"
             color="text"
             href="#"
             onClick={[Function]}
@@ -720,17 +735,17 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
       <h3
-        className="c7"
+        className="c11"
         cursor="inherit"
         fontSize={4}
       >
         Active Filters
       </h3>
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <label
-          className="c9"
+          className="c13"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -739,17 +754,17 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           Filter by event type
         </label>
         <div
-          className="c10"
+          className="c14"
           data-tag="dropdown"
         >
           <span
-            className="c11"
+            className="c15"
             cursor="pointer"
             onClick={[Function]}
           >
             Don't filter
             <svg
-              className="c12"
+              className="c16"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -768,10 +783,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <label
-          className="c9"
+          className="c13"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -780,10 +795,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           Filter by username
         </label>
         <div
-          className="c13"
+          className="c17"
         >
           <input
-            className="c14 c15"
+            className="c18 c19"
             id="default"
             onKeyUp={[Function]}
             placeholder="Don't filter"
@@ -792,10 +807,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <label
-          className="c9"
+          className="c13"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -804,7 +819,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           Event created after
         </label>
         <div
-          className="c13"
+          className="c17"
         >
           <div
             className="react-datepicker-wrapper"
@@ -813,7 +828,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="c16"
+                className="c20"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -830,10 +845,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
       <div
-        className="c0 c6"
+        className="c0 c10"
       >
         <label
-          className="c9"
+          className="c13"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -842,7 +857,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           Event created before
         </label>
         <div
-          className="c13"
+          className="c17"
         >
           <div
             className="react-datepicker-wrapper"
@@ -851,7 +866,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="c16"
+                className="c20"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -869,36 +884,36 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
       </div>
     </div>
     <table
-      className="c19"
+      className="c23"
       width="100%"
     >
       <thead
-        className="c20"
+        className="c24"
       >
         <tr
-          className="c21"
+          className="c25 c26"
           cursor="auto"
         >
           <th
-            className="c22"
+            className="c27"
             width="12em"
           />
           <th
-            className="c23"
+            className="c28"
             width="99%"
           />
         </tr>
       </thead>
       <tbody>
         <tr
-          className="c21"
+          className="c25 c26"
           cursor="auto"
         >
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c26"
+              className="c31"
               color="text"
               cursor="inherit"
               fontSize={1}
@@ -909,13 +924,13 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             </div>
           </td>
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c27"
+              className="c32"
             >
               <svg
-                className="c28"
+                className="c33"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -943,7 +958,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                       className="ellipsis"
                     >
                       <div
-                        className="c29"
+                        className="c34"
                         color="black"
                         cursor="inherit"
                       >
@@ -966,14 +981,14 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           </td>
         </tr>
         <tr
-          className="c21"
+          className="c25 c26"
           cursor="auto"
         >
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c26"
+              className="c31"
               color="text"
               cursor="inherit"
               fontSize={1}
@@ -984,13 +999,13 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             </div>
           </td>
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c27"
+              className="c32"
             >
               <svg
-                className="c28"
+                className="c33"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -1018,7 +1033,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                       className="ellipsis"
                     >
                       <div
-                        className="c29"
+                        className="c34"
                         color="black"
                         cursor="inherit"
                       >
@@ -1039,14 +1054,14 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           </td>
         </tr>
         <tr
-          className="c21"
+          className="c25 c26"
           cursor="auto"
         >
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c26"
+              className="c31"
               color="text"
               cursor="inherit"
               fontSize={1}
@@ -1057,13 +1072,13 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             </div>
           </td>
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c27"
+              className="c32"
             >
               <svg
-                className="c28"
+                className="c33"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -1091,7 +1106,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                       className="ellipsis"
                     >
                       <div
-                        className="c29"
+                        className="c34"
                         color="black"
                         cursor="inherit"
                       >
@@ -1113,7 +1128,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                         className="ellipsis"
                       >
                         <div
-                          className="c29"
+                          className="c34"
                           color="black"
                           cursor="inherit"
                         >
@@ -1130,14 +1145,14 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           </td>
         </tr>
         <tr
-          className="c21"
+          className="c25 c26"
           cursor="auto"
         >
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c26"
+              className="c31"
               color="text"
               cursor="inherit"
               fontSize={1}
@@ -1148,13 +1163,13 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             </div>
           </td>
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c27"
+              className="c32"
             >
               <svg
-                className="c28"
+                className="c33"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -1182,7 +1197,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                       className="ellipsis"
                     >
                       <div
-                        className="c29"
+                        className="c34"
                         color="black"
                         cursor="inherit"
                       >
@@ -1205,14 +1220,14 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           </td>
         </tr>
         <tr
-          className="c21"
+          className="c25 c26"
           cursor="auto"
         >
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c26"
+              className="c31"
               color="text"
               cursor="inherit"
               fontSize={1}
@@ -1223,13 +1238,13 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             </div>
           </td>
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c27"
+              className="c32"
             >
               <svg
-                className="c28"
+                className="c33"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -1257,7 +1272,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                       className="ellipsis"
                     >
                       <div
-                        className="c29"
+                        className="c34"
                         color="black"
                         cursor="inherit"
                       >
@@ -1278,14 +1293,14 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           </td>
         </tr>
         <tr
-          className="c21"
+          className="c25 c26"
           cursor="auto"
         >
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c26"
+              className="c31"
               color="text"
               cursor="inherit"
               fontSize={1}
@@ -1296,13 +1311,13 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             </div>
           </td>
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c27"
+              className="c32"
             >
               <svg
-                className="c28"
+                className="c33"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -1330,7 +1345,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                       className="ellipsis"
                     >
                       <div
-                        className="c29"
+                        className="c34"
                         color="black"
                         cursor="inherit"
                       >
@@ -1353,14 +1368,14 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
           </td>
         </tr>
         <tr
-          className="c21"
+          className="c25 c26"
           cursor="auto"
         >
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c26"
+              className="c31"
               color="text"
               cursor="inherit"
               fontSize={1}
@@ -1371,13 +1386,13 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
             </div>
           </td>
           <td
-            className="c24 c25"
+            className="c29 c30"
           >
             <div
-              className="c27"
+              className="c32"
             >
               <svg
-                className="c28"
+                className="c33"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -1405,7 +1420,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                       className="ellipsis"
                     >
                       <div
-                        className="c29"
+                        className="c34"
                         color="black"
                         cursor="inherit"
                       >
@@ -1430,10 +1445,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
       </tbody>
     </table>
     <div
-      className="c30"
+      className="c35"
     >
       <button
-        className="c31"
+        className="c36"
         color="blue"
         disabled={false}
         onClick={[Function]}

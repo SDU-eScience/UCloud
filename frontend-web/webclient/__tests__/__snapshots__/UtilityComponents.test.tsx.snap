@@ -93,13 +93,20 @@ exports[`FileIcon FileIcon, not shared 1`] = `
 `;
 
 exports[`FileIcon FileIcon, shared 1`] = `
-.c2 {
+.c0 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c3 {
   position: absolute;
   bottom: -6px;
   right: -2px;
 }
 
-.c1 {
+.c2 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -108,7 +115,7 @@ exports[`FileIcon FileIcon, shared 1`] = `
   color: #8393A7;
 }
 
-.c4 {
+.c5 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -116,21 +123,21 @@ exports[`FileIcon FileIcon, shared 1`] = `
   cursor: inherit;
 }
 
-.c6 {
+.c7 {
   cursor: inherit;
   font-size: 14px;
 }
 
-.c3 {
+.c4 {
   position: relative;
   display: inline-block;
 }
 
-.c3:hover > div {
+.c4:hover > div {
   display: block;
 }
 
-.c5 {
+.c6 {
   overflow-y: auto;
   overflow-x: hidden;
   border-bottom-left-radius: 5px;
@@ -153,19 +160,15 @@ exports[`FileIcon FileIcon, shared 1`] = `
   pointer-events: none;
 }
 
-.c0 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
+.c1 {
   position: relative;
 }
 
 <div
-  className="c0"
+  className="c0 c1"
 >
   <svg
-    className="c1"
+    className="c2"
     clipRule="evenodd"
     color="FtFolderColor"
     color2=""
@@ -185,13 +188,13 @@ exports[`FileIcon FileIcon, shared 1`] = `
     />
   </svg>
   <div
-    className="c2"
+    className="c3"
   >
     <div
-      className="c3"
+      className="c4"
     >
       <svg
-        className="c4"
+        className="c5"
         clipRule="evenodd"
         color2=""
         cursor="inherit"
@@ -210,14 +213,14 @@ exports[`FileIcon FileIcon, shared 1`] = `
         />
       </svg>
       <div
-        className="c5"
+        className="c6"
         color="text"
         cursor="pointer"
         disabled={false}
         width="160px"
       >
         <div
-          className="c6"
+          className="c7"
           cursor="inherit"
           fontSize={1}
         >
@@ -376,7 +379,7 @@ exports[`Share prompt 1`] = `
   margin-bottom: 8px;
 }
 
-.c14 {
+.c15 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -388,15 +391,15 @@ exports[`Share prompt 1`] = `
   width: 605px;
 }
 
-.c15 {
+.c16 {
   margin-right: auto;
 }
 
-.c17 {
+.c18 {
   margin-left: auto;
 }
 
-.c12 {
+.c13 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -429,21 +432,21 @@ exports[`Share prompt 1`] = `
   margin-left: 5px;
 }
 
-.c12:disabled {
+.c13:disabled {
   opacity: 0.25;
 }
 
-.c12:focus {
+.c13:focus {
   outline: none;
 }
 
-.c12:hover {
+.c13:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c16 {
+.c17 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -475,21 +478,21 @@ exports[`Share prompt 1`] = `
   padding: 9.5px 18px;
 }
 
-.c16:disabled {
+.c17:disabled {
   opacity: 0.25;
 }
 
-.c16:focus {
+.c17:focus {
   outline: none;
 }
 
-.c16:hover {
+.c17:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c11 {
+.c12 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -514,7 +517,12 @@ exports[`Share prompt 1`] = `
   font-weight: 400;
 }
 
-.c10 {
+.c8 {
+  cursor: inherit;
+  width: 160px;
+}
+
+.c11 {
   cursor: pointer;
 }
 
@@ -567,9 +575,7 @@ exports[`Share prompt 1`] = `
   border-color: #006aff;
 }
 
-.c8 {
-  cursor: inherit;
-  width: 160px;
+.c9 {
   border: #c9d3df solid 2px;
   border-top-right-radius: 5px;
   border-bottom-right-radius: 5px;
@@ -601,16 +607,16 @@ exports[`Share prompt 1`] = `
   width: 100%;
 }
 
-.c9 {
+.c10 {
   position: relative;
   display: inline-block;
 }
 
-.c9:hover > div {
+.c10:hover > div {
   display: block;
 }
 
-.c13 {
+.c14 {
   overflow-y: auto;
   overflow-x: hidden;
   border-bottom-left-radius: 5px;
@@ -686,22 +692,22 @@ exports[`Share prompt 1`] = `
               width="100%"
             />
             <div
-              className="c8"
+              className="c8 c9"
               cursor="inherit"
               width="160px"
             >
               <div
-                className="c9"
+                className="c10"
                 data-tag="dropdown"
               >
                 <span
-                  className="c10"
+                  className="c11"
                   cursor="pointer"
                   onClick={[Function]}
                 >
                   Can view
                   <svg
-                    className="c11"
+                    className="c12"
                     clipRule="evenodd"
                     cursor="inherit"
                     fill="currentcolor"
@@ -720,7 +726,7 @@ exports[`Share prompt 1`] = `
               </div>
             </div>
             <button
-              className="c12"
+              className="c13"
               color="blue"
               onClick={[Function]}
             >
@@ -728,7 +734,7 @@ exports[`Share prompt 1`] = `
             </button>
           </div>
           <div
-            className="c13"
+            className="c14"
             color="black"
             cursor="pointer"
             disabled={false}
@@ -744,13 +750,13 @@ exports[`Share prompt 1`] = `
       </div>
     </form>
     <div
-      className="c14"
+      className="c15"
     >
       <div
-        className="c15"
+        className="c16"
       />
       <button
-        className="c16"
+        className="c17"
         color="blue"
         onClick={[Function]}
         type="button"
@@ -758,7 +764,7 @@ exports[`Share prompt 1`] = `
         Close
       </button>
       <div
-        className="c17"
+        className="c18"
       />
     </div>
   </div>

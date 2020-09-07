@@ -7,6 +7,16 @@ import Header from "../../app/Navigation/Header";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
 
+jest.mock("Authentication/HttpClientInstance", () => ({
+    Client: {
+        isLoggedIn: true
+    },
+    WSFactory: {
+        open: (path, settings) => undefined
+    }
+}));
+
+
 describe("Header", () => {
     test("Mount header", () => {
         expect(create(

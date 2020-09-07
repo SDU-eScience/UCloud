@@ -1,7 +1,16 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Header Mount header 1`] = `
-.c2 {
+.c0 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  color: #fff;
+  background-color: #006aff;
+}
+
+.c3 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -13,7 +22,14 @@ exports[`Header Mount header 1`] = `
   align-items: center;
 }
 
-.c21 {
+.c10 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c23 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -25,14 +41,7 @@ exports[`Header Mount header 1`] = `
   justify-content: center;
 }
 
-.c24 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-}
-
-.c27 {
+.c28 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -45,28 +54,31 @@ exports[`Header Mount header 1`] = `
   -webkit-box-align: center;
   -ms-flex-align: center;
   align-items: center;
+}
+
+.c29 {
   overflow: hidden;
 }
 
-.c6 {
+.c7 {
   margin-left: auto;
 }
 
-.c20 {
+.c22 {
   margin-right: auto;
 }
 
-.c22 {
+.c24 {
   width: 24px;
 }
 
-.c11 {
+.c13 {
   position: absolute;
   top: 7px;
   left: 6px;
 }
 
-.c16 {
+.c18 {
   position: absolute;
   top: -12.5px;
   bottom: 0;
@@ -74,20 +86,12 @@ exports[`Header Mount header 1`] = `
   right: 12px;
 }
 
-.c3 {
+.c4 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
   vertical-align: middle;
   cursor: inherit;
-}
-
-.c17 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: pointer;
 }
 
 .c19 {
@@ -96,10 +100,18 @@ exports[`Header Mount header 1`] = `
   flex: none;
   vertical-align: middle;
   cursor: pointer;
+}
+
+.c21 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: pointer;
   margin-right: 3px;
 }
 
-.c23 {
+.c25 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -108,7 +120,7 @@ exports[`Header Mount header 1`] = `
   color: #fff;
 }
 
-.c26 {
+.c27 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -117,18 +129,18 @@ exports[`Header Mount header 1`] = `
   color: #fff;
 }
 
-.c5 {
+.c6 {
   cursor: inherit;
   font-size: 24px;
   margin-left: 8px;
   color: #fff;
 }
 
-.c15 {
+.c17 {
   cursor: pointer;
 }
 
-.c10 {
+.c12 {
   display: block;
   font-family: inherit;
   background-color: transparent;
@@ -143,32 +155,32 @@ exports[`Header Mount header 1`] = `
   width: 100%;
 }
 
-.c10::-webkit-input-placeholder {
+.c12::-webkit-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c10::-moz-placeholder {
+.c12::-moz-placeholder {
   color: var(--gray,#f00);
 }
 
-.c10:-ms-input-placeholder {
+.c12:-ms-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c10::placeholder {
+.c12::placeholder {
   color: var(--gray,#f00);
 }
 
-.c10:focus {
+.c12:focus {
   outline: none;
   background-color: transparent;
 }
 
-.c10:disabled {
+.c12:disabled {
   background-color: var(--lightGray,#f00);
 }
 
-.c12 {
+.c14 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -182,43 +194,37 @@ exports[`Header Mount header 1`] = `
   width: 100%;
 }
 
-.c1 {
+.c2 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
   color: #1e252e;
 }
 
-.c1:hover {
+.c2:hover {
   color: var(--textHighlight);
 }
 
-.c8 {
+.c9 {
   position: relative;
 }
 
-.c25 {
+.c26 {
   position: relative;
   top: 0;
   left: 0;
 }
 
-.c14 {
+.c16 {
   position: relative;
   display: inline-block;
 }
 
-.c14:hover > div {
+.c16:hover > div {
   display: block;
 }
 
-.c0 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  color: #fff;
-  background-color: #006aff;
+.c1 {
   height: 48px;
   -webkit-align-items: center;
   -webkit-box-align: center;
@@ -231,11 +237,7 @@ exports[`Header Mount header 1`] = `
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
 }
 
-.c9 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
+.c11 {
   min-width: 250px;
   width: 425px;
   max-width: 425px;
@@ -249,44 +251,44 @@ exports[`Header Mount header 1`] = `
   border-radius: 5px;
 }
 
-.c9 > input::-webkit-input-placeholder,
-.c9 input::-moz-placeholder,
-.c9 input::-ms-input-placeholder,
-.c9 input:-moz-placeholder {
+.c11 > input::-webkit-input-placeholder,
+.c11 input::-moz-placeholder,
+.c11 input::-ms-input-placeholder,
+.c11 input:-moz-placeholder {
   color: white;
 }
 
-.c9 > input:focus::-webkit-input-placeholder,
-.c9 input:focus::-moz-placeholder,
-.c9 input:focus::-ms-input-placeholder,
-.c9 input:focus::-moz-placeholder {
+.c11 > input:focus::-webkit-input-placeholder,
+.c11 input:focus::-moz-placeholder,
+.c11 input:focus::-ms-input-placeholder,
+.c11 input:focus::-moz-placeholder {
   color: black;
 }
 
-.c9 > input:focus ~ div > span > div > svg,
-.c9 input:focus + div > label > svg {
+.c11 > input:focus ~ div > span > div > svg,
+.c11 input:focus + div > label > svg {
   color: black;
 }
 
-.c9 > input ~ div > span > div > svg,
-.c9 input + div > label > svg {
+.c11 > input ~ div > span > div > svg,
+.c11 input + div > label > svg {
   color: white;
 }
 
-.c9 > input:focus {
+.c11 > input:focus {
   color: black;
   background-color: white;
   -webkit-transition: 150ms;
   transition: 150ms;
 }
 
-.c9 > input {
+.c11 > input {
   color: white;
   -webkit-transition: 150ms;
   transition: 150ms;
 }
 
-.c9 > .c13 > .c4 > input {
+.c11 > .c15 > .c5 > input {
   width: 350px;
   height: 36px;
 }
@@ -308,53 +310,53 @@ exports[`Header Mount header 1`] = `
 }
 
 @media screen and (min-width:1280px) {
-  .c1 {
+  .c2 {
     width: 190px;
   }
 }
 
 @media screen and (max-width:511px) {
-  .c7 {
+  .c8 {
     display: none;
   }
 }
 
 @media screen and (min-width:512px) and (max-width:639px) {
-  .c7 {
+  .c8 {
     display: none;
   }
 }
 
 @media screen and (min-width:640px) and (max-width:767px) {
-  .c7 {
+  .c8 {
     display: none;
   }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c7 {
+  .c8 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c18 {
+  .c20 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c18 {
+  .c20 {
     display: none;
   }
 }
 
 <div
-  className="c0"
+  className="c0 c1"
   color="headerText"
 >
   <a
-    className="c1"
+    className="c2"
     color="text"
     href="/"
     onClick={[Function]}
@@ -370,10 +372,10 @@ exports[`Header Mount header 1`] = `
     }
   >
     <div
-      className="c2"
+      className="c3"
     >
       <svg
-        className="c3"
+        className="c4"
         clipRule="evenodd"
         cursor="inherit"
         fill="currentcolor"
@@ -719,7 +721,7 @@ exports[`Header Mount header 1`] = `
         </defs>
       </svg>
       <div
-        className="c4 c5"
+        className="c5 c6"
         color="headerText"
         cursor="inherit"
         fontSize={4}
@@ -729,19 +731,19 @@ exports[`Header Mount header 1`] = `
     </div>
   </a>
   <div
-    className="c6"
+    className="c7"
   />
   <div
-    className="c7"
+    className="c8"
   >
     <div
-      className="c8"
+      className="c9"
     >
       <div
-        className="c9"
+        className="c10 c11"
       >
         <input
-          className="c10"
+          className="c12"
           id="search_input"
           onChange={[Function]}
           onKeyDown={[Function]}
@@ -750,10 +752,10 @@ exports[`Header Mount header 1`] = `
           width="100%"
         />
         <div
-          className="c11"
+          className="c13"
         >
           <label
-            className="c12"
+            className="c14"
             color="black"
             fontSize={1}
             fontWeight="bold"
@@ -761,7 +763,7 @@ exports[`Header Mount header 1`] = `
             width="100%"
           >
             <svg
-              className="c3"
+              className="c4"
               cursor="inherit"
               fill="currentcolor"
               height="20"
@@ -775,19 +777,19 @@ exports[`Header Mount header 1`] = `
           </label>
         </div>
         <div
-          className="c13 c14"
+          className="c15 c16"
           data-tag="dropdown"
         >
           <span
-            className="c4 c15"
+            className="c5 c17"
             cursor="pointer"
             onClick={[Function]}
           >
             <div
-              className="c16"
+              className="c18"
             >
               <svg
-                className="c17"
+                className="c19"
                 clipRule="evenodd"
                 cursor="pointer"
                 fill="currentcolor"
@@ -808,10 +810,10 @@ exports[`Header Mount header 1`] = `
     </div>
   </div>
   <div
-    className="c18"
+    className="c20"
   >
     <svg
-      className="c19"
+      className="c21"
       cursor="pointer"
       fill="currentcolor"
       height="32"
@@ -826,35 +828,35 @@ exports[`Header Mount header 1`] = `
     </svg>
   </div>
   <div
-    className="c20"
+    className="c22"
   />
   <div
-    className="c7"
+    className="c8"
   />
   <div
-    className="c21"
+    className="c23"
     width="48px"
   >
     <div
-      className="c22"
+      className="c24"
       width="24px"
     />
   </div>
   <div
-    className="c13 c14"
+    className="c15 c16"
     data-tag="dropdown"
   >
     <span
-      className="c4 c15"
+      className="c5 c17"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c21"
+        className="c23"
         width="48px"
       >
         <svg
-          className="c23"
+          className="c25"
           clipRule="evenodd"
           color="headerIconColor"
           color2=""
@@ -879,26 +881,26 @@ exports[`Header Mount header 1`] = `
     </span>
   </div>
   <div
-    className="c13 c14"
+    className="c15 c16"
     data-tag="dropdown"
   >
     <span
-      className="c4 c15"
+      className="c5 c17"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c24"
+        className="c10"
       >
         <div
-          className="c25"
+          className="c26"
         >
           <div
-            className="c21"
+            className="c23"
             width="48px"
           >
             <svg
-              className="c26"
+              className="c27"
               clipRule="evenodd"
               color="headerIconColor"
               color2=""
@@ -925,19 +927,19 @@ exports[`Header Mount header 1`] = `
     </span>
   </div>
   <div
-    className="c13 c14"
+    className="c15 c16"
     data-tag="dropdown"
   >
     <span
-      className="c4 c15"
+      className="c5 c17"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c24"
+        className="c10"
       >
         <div
-          className="c27"
+          className="c28 c29"
           height="48px"
           width="60px"
         >

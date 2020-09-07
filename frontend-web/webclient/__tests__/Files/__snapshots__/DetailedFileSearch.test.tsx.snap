@@ -32,12 +32,6 @@ exports[`Detailed File Search Mount file search 1`] = `
   width: 100%;
   font-size: 14px;
   padding: 9.5px 18px;
-  color: var(--darkGreen,#f00);
-  border: 2px solid var(--darkGreen,#f00);
-  border-radius: 5px;
-  background-color: transparent;
-  font-size: 14px;
-  padding: 7.5px 18px;
 }
 
 .c0:disabled {
@@ -54,7 +48,16 @@ exports[`Detailed File Search Mount file search 1`] = `
   transform: scale(1.03);
 }
 
-.c0:hover {
+.c1 {
+  color: var(--darkGreen,#f00);
+  border: 2px solid var(--darkGreen,#f00);
+  border-radius: 5px;
+  background-color: transparent;
+  font-size: 14px;
+  padding: 7.5px 18px;
+}
+
+.c1:hover {
   border: 2px solid;
   background-color: transparent;
   -webkit-transition: ease 0.1s;
@@ -62,7 +65,7 @@ exports[`Detailed File Search Mount file search 1`] = `
 }
 
 <button
-  className="c0"
+  className="c0 c1"
   color="darkGreen"
   onClick={[Function]}
 >

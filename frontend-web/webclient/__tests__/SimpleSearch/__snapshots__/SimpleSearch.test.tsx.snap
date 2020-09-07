@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Search mount 1`] = `
-.c5 {
+.c4 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -17,61 +17,6 @@ exports[`Search mount 1`] = `
   background-color: #fff;
 }
 
-.c6 {
-  margin-left: auto;
-}
-
-.c7 {
-  margin-top: 8px;
-  margin-bottom: 8px;
-}
-
-.c12 {
-  padding-top: 96px;
-  padding-right: 14px;
-}
-
-.c11 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-left: .7em;
-}
-
-.c9 {
-  cursor: pointer;
-}
-
-.c10 {
-  cursor: inherit;
-}
-
-.c8 {
-  position: relative;
-  display: inline-block;
-}
-
-.c8:hover > div {
-  display: block;
-}
-
-.c2 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  border-bottom: 2px solid #c9d3df;
-  cursor: pointer;
-}
-
-.c3 {
-  cursor: pointer;
-  font-size: 20px;
-  margin-right: 1em;
-}
-
 .c1 {
   padding-top: 14px;
   padding-bottom: 14px;
@@ -80,45 +25,102 @@ exports[`Search mount 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
+}
+
+.c8 {
+  margin-left: auto;
+}
+
+.c9 {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.c14 {
+  padding-top: 96px;
+  padding-right: 14px;
+}
+
+.c2 {
   position: absolute;
   top: 48px;
   left: 0;
+}
+
+.c13 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c6 {
+  cursor: pointer;
+  font-size: 20px;
+  margin-right: 1em;
+}
+
+.c11 {
+  cursor: pointer;
+}
+
+.c12 {
+  cursor: inherit;
+}
+
+.c10 {
+  position: relative;
+  display: inline-block;
+}
+
+.c10:hover > div {
+  display: block;
+}
+
+.c5 {
+  border-bottom: 2px solid #c9d3df;
+  cursor: pointer;
+}
+
+.c3 {
   position: fixed;
   z-index: 50;
 }
 
 @media screen and (max-width:511px) {
-  .c4 {
+  .c7 {
     display: none;
   }
 }
 
 @media screen and (min-width:512px) and (max-width:639px) {
-  .c4 {
+  .c7 {
     display: none;
   }
 }
 
 @media screen and (min-width:640px) and (max-width:767px) {
-  .c4 {
+  .c7 {
     display: none;
   }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c13 {
+  .c15 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c13 {
+  .c15 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c13 {
+  .c15 {
     display: none;
   }
 }
@@ -127,15 +129,15 @@ exports[`Search mount 1`] = `
   className="c0"
 >
   <div
-    className="c1"
+    className="c1 c2 c3"
     height={96}
     width={1}
   >
     <div
-      className="c2"
+      className="c4 c5"
     >
       <div
-        className="c3"
+        className="c6 "
         cursor="pointer"
         fontSize={3}
         onClick={[Function]}
@@ -144,7 +146,7 @@ exports[`Search mount 1`] = `
         Files
       </div>
       <div
-        className="c3"
+        className="c6 "
         cursor="pointer"
         fontSize={3}
         onClick={[Function]}
@@ -154,41 +156,41 @@ exports[`Search mount 1`] = `
       </div>
     </div>
     <div
-      className="c4"
+      className="c7"
     >
       <div
-        className="c5"
+        className="c4"
       >
         <div
-          className="c6"
+          className="c8"
         />
         <div
-          className="c7"
+          className="c9"
         >
           <div
-            className="c5"
+            className="c4"
           >
             <div
-              className="c6"
+              className="c8"
             />
             <div
-              className="c8"
+              className="c10"
               data-tag="dropdown"
             >
               <span
-                className="c9"
+                className="c11"
                 cursor="pointer"
                 onClick={[Function]}
               >
                 <span
-                  className="c10"
+                  className="c12"
                   cursor="inherit"
                 >
                    
                   Files per page 25
                 </span>
                 <svg
-                  className="c11"
+                  className="c13"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -211,10 +213,10 @@ exports[`Search mount 1`] = `
     </div>
   </div>
   <div
-    className="c12"
+    className="c14"
   >
     <div
-      className="c13"
+      className="c15"
     />
   </div>
 </div>

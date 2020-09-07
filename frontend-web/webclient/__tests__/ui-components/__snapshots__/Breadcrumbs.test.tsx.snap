@@ -75,10 +75,13 @@ Array [
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
+}
+
+.c1 {
   width: calc(100% - 50px);
 }
 
-.c0 > span {
+.c1 > span {
   width: 1;
   font-size: 25px;
   display: inline-block;
@@ -87,33 +90,33 @@ Array [
   overflow: hidden;
 }
 
-.c0 > span + span:before {
+.c1 > span + span:before {
   padding: 0 8px;
   vertical-align: top;
   color: var(--text,#f00);
   content: "/";
 }
 
-.c0 > span {
+.c1 > span {
   color: var(--text,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
-.c0 > span:hover {
+.c1 > span:hover {
   cursor: pointer;
   color: var(--blue,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
-.c0 > span:last-child:hover {
+.c1 > span:last-child:hover {
   color: var(--text,#f00);
   cursor: default;
 }
 
 <div
-    className="c0"
+    className="c0 c1"
   >
     <span
       onClick={[Function]}
@@ -202,10 +205,13 @@ Array [
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
+}
+
+.c1 {
   width: calc(100% - 180px);
 }
 
-.c0 > span {
+.c1 > span {
   width: 1;
   font-size: 25px;
   display: inline-block;
@@ -214,33 +220,33 @@ Array [
   overflow: hidden;
 }
 
-.c0 > span + span:before {
+.c1 > span + span:before {
   padding: 0 8px;
   vertical-align: top;
   color: var(--text,#f00);
   content: "/";
 }
 
-.c0 > span {
+.c1 > span {
   color: var(--text,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
-.c0 > span:hover {
+.c1 > span:hover {
   cursor: pointer;
   color: var(--blue,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
-.c0 > span:last-child:hover {
+.c1 > span:last-child:hover {
   color: var(--text,#f00);
   cursor: default;
 }
 
 <div
-    className="c0"
+    className="c0 c1"
   >
     <span
       onClick={[Function]}

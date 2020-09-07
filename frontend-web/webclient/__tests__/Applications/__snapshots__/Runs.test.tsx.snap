@@ -1,14 +1,28 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Runs component Mount component with non-empty page 1`] = `
-.c3 {
+.c5 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
 }
 
-.c34 {
+.c35 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  width: 100%;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.c41 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -16,7 +30,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   margin-top: 4px;
 }
 
-.c37 {
+.c44 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -24,7 +38,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   margin-right: 8px;
 }
 
-.c38 {
+.c45 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -32,7 +46,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   width: 110px;
 }
 
-.c40 {
+.c47 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -49,47 +63,81 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   background-color: #fff;
 }
 
-.c4 {
+.c2 {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 204px;
+  padding-right: 14px;
+  width: 100%;
+  height: 48px;
+  background-color: #fff;
+}
+
+.c6 {
   margin-left: auto;
 }
 
-.c5 {
+.c7 {
   width: 170px;
 }
 
-.c12 {
+.c13 {
+  padding-top: 96px;
+  padding-left: 14px;
+  padding-right: 14px;
+  width: 340px;
+  height: 100%;
+}
+
+.c16 {
   padding-top: 48px;
 }
 
-.c14 {
+.c18 {
   cursor: pointer;
 }
 
-.c17 {
+.c21 {
   margin-bottom: 16px;
   margin-top: 16px;
 }
 
-.c20 {
+.c24 {
   margin-bottom: 16px;
 }
 
-.c21 {
+.c25 {
   padding-top: 48px;
   padding-right: 340px;
 }
 
-.c31 {
+.c27 {
+  background-color: #fff;
+}
+
+.c37 {
   margin-left: 8px;
   margin-right: 8px;
 }
 
-.c32 {
+.c38 {
   width: auto;
   max-width: calc(100% - 180px);
 }
 
-.c9 {
+.c3 {
+  position: absolute;
+  top: 48px;
+  left: 0;
+}
+
+.c14 {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.c11 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -98,7 +146,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   margin-left: .7em;
 }
 
-.c27 {
+.c32 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -106,7 +154,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   cursor: inherit;
 }
 
-.c28 {
+.c33 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -115,7 +163,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   margin-right: .4em;
 }
 
-.c36 {
+.c43 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -125,7 +173,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   color: #8393A7;
 }
 
-.c39 {
+.c46 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -135,7 +183,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   color: #c00;
 }
 
-.c41 {
+.c48 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -145,22 +193,22 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   color: #00C05A;
 }
 
-.c7 {
+.c9 {
   cursor: pointer;
 }
 
-.c8 {
+.c10 {
   cursor: inherit;
 }
 
-.c13 {
+.c17 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
   font-weight: 400;
 }
 
-.c15 {
+.c19 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
@@ -168,14 +216,21 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   font-weight: 400;
 }
 
-.c35 {
+.c39 {
+  cursor: pointer;
+  width: 100%;
+  font-size: 20px;
+  margin-bottom: -4px;
+}
+
+.c42 {
   cursor: inherit;
   font-size: 10px;
   margin-right: 4px;
   color: #8393A7;
 }
 
-.c16 {
+.c20 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -189,7 +244,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   width: 100%;
 }
 
-.c24 {
+.c29 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -204,7 +259,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   width: auto;
 }
 
-.c18 {
+.c22 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -219,23 +274,19 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   border-color: #c9d3df;
 }
 
-.c18 > .c0 {
+.c22 > .c0 {
   width: 100%;
   -webkit-flex: 1 1 auto;
   -ms-flex: 1 1 auto;
   flex: 1 1 auto;
 }
 
-.c18 .sc-fzqNJr {
+.c22 .sc-fnVYJo {
   border: 0;
   box-shadow: none;
 }
 
-.c33 {
-  cursor: pointer;
-  width: 100%;
-  font-size: 20px;
-  margin-bottom: -4px;
+.c40 {
   -webkit-flex: 1;
   -ms-flex: 1;
   flex: 1;
@@ -244,7 +295,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   text-overflow: ellipsis;
 }
 
-.c25 {
+.c30 {
   display: inline-block;
   position: relative;
   vertical-align: middle;
@@ -253,20 +304,20 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   margin-right: .5em;
 }
 
-.c25 svg[data-name="checked"] {
+.c30 svg[data-name="checked"] {
   display: none;
 }
 
-.c25 > input:checked ~ svg[data-name="checked"] {
+.c30 > input:checked ~ svg[data-name="checked"] {
   display: inline-block;
   color: var(--blue,#f00);
 }
 
-.c25 > input:checked ~ svg[data-name="empty"] {
+.c30 > input:checked ~ svg[data-name="empty"] {
   display: none;
 }
 
-.c26 {
+.c31 {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -274,78 +325,49 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   position: absolute;
 }
 
-.c29 {
+.c34 {
   font-size: large;
 }
 
-.c29 > * {
+.c34 > * {
   border-bottom: 1px solid lightGrey;
 }
 
-.c29 > *:last-child {
+.c34 > *:last-child {
   border-bottom: 0px;
 }
 
-.c30 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  padding-top: 5px;
-  padding-bottom: 5px;
-  width: 100%;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
+.c36 {
   -webkit-transition: background-color 0.3s;
   transition: background-color 0.3s;
   background-color: var(--white);
 }
 
-.c30:hover {
+.c36:hover {
   background-color: var(--lightBlue,#f00);
 }
 
-.c6 {
+.c8 {
   position: relative;
   display: inline-block;
 }
 
-.c6:hover > div {
+.c8:hover > div {
   display: block;
 }
 
-.c2 {
-  padding-top: 14px;
-  padding-bottom: 14px;
-  padding-left: 204px;
-  padding-right: 14px;
-  width: 100%;
-  height: 48px;
-  background-color: #fff;
-  position: absolute;
-  top: 48px;
-  left: 0;
+.c4 {
   position: fixed;
   z-index: 50;
 }
 
-.c11 {
-  padding-top: 96px;
-  padding-left: 14px;
-  padding-right: 14px;
-  width: 340px;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  right: 0;
+.c15 {
   overflow-y: auto;
   position: fixed;
   z-index: 45;
 }
 
-.c19 {
+.c23 {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -366,28 +388,27 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   margin: 0;
 }
 
-.c19::-webkit-input-placeholder {
+.c23::-webkit-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c19::-moz-placeholder {
+.c23::-moz-placeholder {
   color: var(--gray,#f00);
 }
 
-.c19:-ms-input-placeholder {
+.c23:-ms-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c19::placeholder {
+.c23::placeholder {
   color: var(--gray,#f00);
 }
 
-.c19::-ms-clear {
+.c23::-ms-clear {
   display: none;
 }
 
-.c23 {
-  background-color: #fff;
+.c28 {
   position: -webkit-sticky;
   position: sticky;
   top: 95px;
@@ -395,37 +416,37 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 }
 
 @media screen and (max-width:511px) {
-  .c10 {
+  .c12 {
     display: none;
   }
 }
 
 @media screen and (min-width:512px) and (max-width:639px) {
-  .c10 {
+  .c12 {
     display: none;
   }
 }
 
 @media screen and (min-width:640px) and (max-width:767px) {
-  .c10 {
+  .c12 {
     display: none;
   }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c22 {
+  .c26 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c22 {
+  .c26 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c22 {
+  .c26 {
     display: none;
   }
 }
@@ -434,38 +455,38 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 c2"
+    className="c0 c2 c3 c4"
     height={48}
     width={1}
   >
     <div
-      className="c3"
+      className="c5"
     >
       <div
-        className="c0 c4"
+        className="c0 c6"
       />
       <div
-        className="c0 c5"
+        className="c0 c7"
         width="170px"
       >
         <div
-          className="c6"
+          className="c8"
           data-tag="dropdown"
         >
           <span
-            className="c7"
+            className="c9"
             cursor="pointer"
             onClick={[Function]}
           >
             <span
-              className="c8"
+              className="c10"
               cursor="inherit"
             >
                
               Jobs per page 25
             </span>
             <svg
-              className="c9"
+              className="c11"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -486,81 +507,81 @@ exports[`Runs component Mount component with non-empty page 1`] = `
     </div>
   </div>
   <div
-    className="c0 c10"
+    className="c0 c12"
   >
     <div
-      className="c0 c11"
+      className="c0 c13 c14 c15"
       data-tag="sidebar"
       height="100%"
       width={340}
     >
       <div
-        className="c0 c12"
+        className="c0 c16"
       >
         <h3
-          className="c13"
+          className="c17"
           cursor="inherit"
           fontSize={4}
         >
           Quick Filters
         </h3>
         <div
-          className="c0 c14"
+          className="c0 c18"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c8"
+            className="c10"
             cursor="inherit"
           >
             Today
           </span>
         </div>
         <div
-          className="c0 c14"
+          className="c0 c18"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c8"
+            className="c10"
             cursor="inherit"
           >
             Yesterday
           </span>
         </div>
         <div
-          className="c0 c14"
+          className="c0 c18"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c8"
+            className="c10"
             cursor="inherit"
           >
             This week
           </span>
         </div>
         <div
-          className="c0 c14"
+          className="c0 c18"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c8"
+            className="c10"
             cursor="inherit"
           >
             No filter
           </span>
         </div>
         <h3
-          className="c15"
+          className="c19"
           cursor="inherit"
           fontSize={4}
         >
           Active Filters
         </h3>
         <label
-          className="c16"
+          className="c20"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -569,17 +590,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           Filter by app state
         </label>
         <div
-          className="c6"
+          className="c8"
           data-tag="dropdown"
         >
           <span
-            className="c7"
+            className="c9"
             cursor="pointer"
             onClick={[Function]}
           >
             Don't filter
             <svg
-              className="c9"
+              className="c11"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -597,10 +618,10 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </span>
         </div>
         <div
-          className="c0 c17"
+          className="c0 c21"
         >
           <label
-            className="c16"
+            className="c20"
             color="black"
             fontSize={1}
             fontWeight="bold"
@@ -609,7 +630,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
             Job created after
           </label>
           <div
-            className="c18"
+            className="c22"
           >
             <div
               className="react-datepicker-wrapper"
@@ -618,7 +639,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="react-datepicker__input-container"
               >
                 <input
-                  className="c19"
+                  className="c23"
                   disabled={false}
                   onBlur={[Function]}
                   onChange={[Function]}
@@ -635,10 +656,10 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </div>
         </div>
         <div
-          className="c0 c20"
+          className="c0 c24"
         >
           <label
-            className="c16"
+            className="c20"
             color="black"
             fontSize={1}
             fontWeight="bold"
@@ -647,7 +668,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
             Job created before
           </label>
           <div
-            className="c18"
+            className="c22"
           >
             <div
               className="react-datepicker-wrapper"
@@ -656,7 +677,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="react-datepicker__input-container"
               >
                 <input
-                  className="c19"
+                  className="c23"
                   disabled={false}
                   onBlur={[Function]}
                   onChange={[Function]}
@@ -676,78 +697,78 @@ exports[`Runs component Mount component with non-empty page 1`] = `
     </div>
   </div>
   <div
-    className="c0 c21"
+    className="c0 c25"
   >
     <div
-      className="c0 c22"
+      className="c0 c26"
     >
       <div
-        className="c0 c12"
+        className="c0 c16"
       >
         <h3
-          className="c13"
+          className="c17"
           cursor="inherit"
           fontSize={4}
         >
           Quick Filters
         </h3>
         <div
-          className="c0 c14"
+          className="c0 c18"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c8"
+            className="c10"
             cursor="inherit"
           >
             Today
           </span>
         </div>
         <div
-          className="c0 c14"
+          className="c0 c18"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c8"
+            className="c10"
             cursor="inherit"
           >
             Yesterday
           </span>
         </div>
         <div
-          className="c0 c14"
+          className="c0 c18"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c8"
+            className="c10"
             cursor="inherit"
           >
             This week
           </span>
         </div>
         <div
-          className="c0 c14"
+          className="c0 c18"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="c8"
+            className="c10"
             cursor="inherit"
           >
             No filter
           </span>
         </div>
         <h3
-          className="c15"
+          className="c19"
           cursor="inherit"
           fontSize={4}
         >
           Active Filters
         </h3>
         <label
-          className="c16"
+          className="c20"
           color="black"
           fontSize={1}
           fontWeight="bold"
@@ -756,17 +777,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           Filter by app state
         </label>
         <div
-          className="c6"
+          className="c8"
           data-tag="dropdown"
         >
           <span
-            className="c7"
+            className="c9"
             cursor="pointer"
             onClick={[Function]}
           >
             Don't filter
             <svg
-              className="c9"
+              className="c11"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -784,10 +805,10 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </span>
         </div>
         <div
-          className="c0 c17"
+          className="c0 c21"
         >
           <label
-            className="c16"
+            className="c20"
             color="black"
             fontSize={1}
             fontWeight="bold"
@@ -796,7 +817,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
             Job created after
           </label>
           <div
-            className="c18"
+            className="c22"
           >
             <div
               className="react-datepicker-wrapper"
@@ -805,7 +826,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="react-datepicker__input-container"
               >
                 <input
-                  className="c19"
+                  className="c23"
                   disabled={false}
                   onBlur={[Function]}
                   onChange={[Function]}
@@ -822,10 +843,10 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </div>
         </div>
         <div
-          className="c0 c20"
+          className="c0 c24"
         >
           <label
-            className="c16"
+            className="c20"
             color="black"
             fontSize={1}
             fontWeight="bold"
@@ -834,7 +855,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
             Job created before
           </label>
           <div
-            className="c18"
+            className="c22"
           >
             <div
               className="react-datepicker-wrapper"
@@ -843,7 +864,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="react-datepicker__input-container"
               >
                 <input
-                  className="c19"
+                  className="c23"
                   disabled={false}
                   onBlur={[Function]}
                   onChange={[Function]}
@@ -862,25 +883,25 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       </div>
     </div>
     <div
-      className="c0 c23"
+      className="c0 c27 c28"
     >
       <div
-        className="c3"
+        className="c5"
       >
         <label
-          className="c24"
+          className="c29"
           color="black"
           fontSize={1}
           fontWeight="bold"
           width="auto"
         >
           <div
-            className="c0 c25"
+            className="c0 c30"
             disabled={false}
           >
             <input
               checked={false}
-              className="c26"
+              className="c31"
               disabled={false}
               onChange={[Function]}
               onClick={[Function]}
@@ -888,7 +909,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               type="checkbox"
             />
             <svg
-              className="c27"
+              className="c32"
               cursor="inherit"
               data-name="checked"
               fill="currentcolor"
@@ -901,7 +922,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <svg
-              className="c27"
+              className="c32"
               cursor="inherit"
               data-name="empty"
               fill="currentcolor"
@@ -921,22 +942,22 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </span>
         </label>
         <div
-          className="c0 c4"
+          className="c0 c6"
         />
         <div
           className="c0 "
         >
           <div
-            className="c6"
+            className="c8"
             data-tag="dropdown"
           >
             <span
-              className="c7"
+              className="c9"
               cursor="pointer"
               onClick={[Function]}
             >
               <svg
-                className="c28"
+                className="c33"
                 clipRule="evenodd"
                 cursor="pointer"
                 fill="currentcolor"
@@ -954,7 +975,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               Sort by: 
               Created at
               <svg
-                className="c9"
+                className="c11"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -975,16 +996,16 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       </div>
     </div>
     <div
-      className="c0 c29"
+      className="c0 c34"
       fontSize="large"
     >
       <div
-        className="c30"
+        className="c35 c36"
         onClick={[Function]}
         width="100%"
       >
         <div
-          className="c0 c31"
+          className="c0 c37"
           onClick={[Function]}
         >
           <img
@@ -1001,34 +1022,34 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           />
         </div>
         <div
-          className="c0 c32"
+          className="c0 c38"
           width="auto"
         >
           <div
-            className="c33"
+            className="c39 c40"
             cursor="pointer"
             fontSize={20}
             onClick={[Function]}
             width={1}
           >
             <div
-              className="c7"
+              className="c9"
               cursor="pointer"
             >
               Thomas
             </div>
           </div>
           <div
-            className="c34"
+            className="c41"
           >
             <div
-              className="c35"
+              className="c42"
               color="gray"
               cursor="inherit"
               fontSize={0}
             >
               <svg
-                className="c36"
+                className="c43"
                 clipRule="evenodd"
                 color="gray"
                 color2=""
@@ -1050,13 +1071,13 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               
             </div>
             <div
-              className="c35"
+              className="c42"
               color="gray"
               cursor="inherit"
               fontSize={0}
             >
               <svg
-                className="c36"
+                className="c43"
                 clipRule="evenodd"
                 color="gray"
                 color2=""
@@ -1095,17 +1116,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </div>
         </div>
         <div
-          className="c0 c4"
+          className="c0 c6"
         />
         <div
-          className="c37"
+          className="c44"
         >
           <div
-            className="c38"
+            className="c45"
             width="110px"
           >
             <svg
-              className="c39"
+              className="c46"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1123,7 +1144,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c40"
+              className="c47"
             >
               Failure
             </div>
@@ -1131,12 +1152,12 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
       </div>
       <div
-        className="c30"
+        className="c35 c36"
         onClick={[Function]}
         width="100%"
       >
         <div
-          className="c0 c31"
+          className="c0 c37"
           onClick={[Function]}
         >
           <img
@@ -1153,34 +1174,34 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           />
         </div>
         <div
-          className="c0 c32"
+          className="c0 c38"
           width="auto"
         >
           <div
-            className="c33"
+            className="c39 c40"
             cursor="pointer"
             fontSize={20}
             onClick={[Function]}
             width={1}
           >
             <div
-              className="c7"
+              className="c9"
               cursor="pointer"
             >
               Johnny
             </div>
           </div>
           <div
-            className="c34"
+            className="c41"
           >
             <div
-              className="c35"
+              className="c42"
               color="gray"
               cursor="inherit"
               fontSize={0}
             >
               <svg
-                className="c36"
+                className="c43"
                 clipRule="evenodd"
                 color="gray"
                 color2=""
@@ -1202,13 +1223,13 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               
             </div>
             <div
-              className="c35"
+              className="c42"
               color="gray"
               cursor="inherit"
               fontSize={0}
             >
               <svg
-                className="c36"
+                className="c43"
                 clipRule="evenodd"
                 color="gray"
                 color2=""
@@ -1247,17 +1268,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </div>
         </div>
         <div
-          className="c0 c4"
+          className="c0 c6"
         />
         <div
-          className="c37"
+          className="c44"
         >
           <div
-            className="c38"
+            className="c45"
             width="110px"
           >
             <svg
-              className="c39"
+              className="c46"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1275,7 +1296,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c40"
+              className="c47"
             >
               Failure
             </div>
@@ -1283,12 +1304,12 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
       </div>
       <div
-        className="c30"
+        className="c35 c36"
         onClick={[Function]}
         width="100%"
       >
         <div
-          className="c0 c31"
+          className="c0 c37"
           onClick={[Function]}
         >
           <img
@@ -1305,34 +1326,34 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           />
         </div>
         <div
-          className="c0 c32"
+          className="c0 c38"
           width="auto"
         >
           <div
-            className="c33"
+            className="c39 c40"
             cursor="pointer"
             fontSize={20}
             onClick={[Function]}
             width={1}
           >
             <div
-              className="c7"
+              className="c9"
               cursor="pointer"
             >
               Fred
             </div>
           </div>
           <div
-            className="c34"
+            className="c41"
           >
             <div
-              className="c35"
+              className="c42"
               color="gray"
               cursor="inherit"
               fontSize={0}
             >
               <svg
-                className="c36"
+                className="c43"
                 clipRule="evenodd"
                 color="gray"
                 color2=""
@@ -1354,13 +1375,13 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               
             </div>
             <div
-              className="c35"
+              className="c42"
               color="gray"
               cursor="inherit"
               fontSize={0}
             >
               <svg
-                className="c36"
+                className="c43"
                 clipRule="evenodd"
                 color="gray"
                 color2=""
@@ -1399,17 +1420,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </div>
         </div>
         <div
-          className="c0 c4"
+          className="c0 c6"
         />
         <div
-          className="c37"
+          className="c44"
         >
           <div
-            className="c38"
+            className="c45"
             width="110px"
           >
             <svg
-              className="c39"
+              className="c46"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1427,7 +1448,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c40"
+              className="c47"
             >
               Failure
             </div>
@@ -1435,12 +1456,12 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
       </div>
       <div
-        className="c30"
+        className="c35 c36"
         onClick={[Function]}
         width="100%"
       >
         <div
-          className="c0 c31"
+          className="c0 c37"
           onClick={[Function]}
         >
           <img
@@ -1457,34 +1478,34 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           />
         </div>
         <div
-          className="c0 c32"
+          className="c0 c38"
           width="auto"
         >
           <div
-            className="c33"
+            className="c39 c40"
             cursor="pointer"
             fontSize={20}
             onClick={[Function]}
             width={1}
           >
             <div
-              className="c7"
+              className="c9"
               cursor="pointer"
             >
               Nathan
             </div>
           </div>
           <div
-            className="c34"
+            className="c41"
           >
             <div
-              className="c35"
+              className="c42"
               color="gray"
               cursor="inherit"
               fontSize={0}
             >
               <svg
-                className="c36"
+                className="c43"
                 clipRule="evenodd"
                 color="gray"
                 color2=""
@@ -1506,13 +1527,13 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               
             </div>
             <div
-              className="c35"
+              className="c42"
               color="gray"
               cursor="inherit"
               fontSize={0}
             >
               <svg
-                className="c36"
+                className="c43"
                 clipRule="evenodd"
                 color="gray"
                 color2=""
@@ -1551,17 +1572,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           </div>
         </div>
         <div
-          className="c0 c4"
+          className="c0 c6"
         />
         <div
-          className="c37"
+          className="c44"
         >
           <div
-            className="c38"
+            className="c45"
             width="110px"
           >
             <svg
-              className="c41"
+              className="c48"
               clipRule="evenodd"
               color="#00C05A"
               cursor="inherit"
@@ -1579,7 +1600,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c40"
+              className="c47"
             >
               Success
             </div>

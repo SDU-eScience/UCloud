@@ -10,12 +10,28 @@ exports[`Mount ProjectDashboard 1`] = `
   background-color: #fff;
 }
 
-.c5 {
+.c1 {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 204px;
+  padding-right: 14px;
+  width: 100%;
+  height: 96px;
+  background-color: #fff;
+}
+
+.c9 {
   padding-top: 96px;
   padding-right: 14px;
 }
 
-.c11 {
+.c14 {
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+}
+
+.c16 {
   padding-left: 16px;
   padding-right: 16px;
   padding-top: 4px;
@@ -23,18 +39,24 @@ exports[`Mount ProjectDashboard 1`] = `
   height: 100%;
 }
 
-.c15 {
+.c20 {
   -webkit-box-flex: 1;
   -webkit-flex-grow: 1;
   -ms-flex-positive: 1;
   flex-grow: 1;
 }
 
-.c16 {
+.c21 {
   color: #8393A7;
 }
 
-.c13 {
+.c2 {
+  position: absolute;
+  top: 48px;
+  left: 0;
+}
+
+.c18 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -45,7 +67,7 @@ exports[`Mount ProjectDashboard 1`] = `
   color: #53657d;
 }
 
-.c17 {
+.c22 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -57,24 +79,29 @@ exports[`Mount ProjectDashboard 1`] = `
   color: #53657d;
 }
 
-.c10 {
-  width: 100%;
-  height: auto;
-  overflow: hidden;
+.c15 {
   height: auto;
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
   border: 0px solid #c9d3df;
   border-radius: 6px;
 }
 
-.c2 {
+.c4 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
 }
 
-.c12 {
+.c5 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.c17 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -85,7 +112,7 @@ exports[`Mount ProjectDashboard 1`] = `
   align-items: center;
 }
 
-.c7 {
+.c11 {
   display: grid;
   margin-top: 2px;
   width: 100%;
@@ -93,46 +120,36 @@ exports[`Mount ProjectDashboard 1`] = `
   grid-template-columns: repeat(auto-fill,minmax(300px,1fr) );
 }
 
-.c14 {
+.c19 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
   font-weight: 400;
 }
 
-.c23 {
+.c28 {
   cursor: inherit;
   font-size: 14px;
   color: #53657d;
 }
 
-.c4 {
+.c8 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
   color: #1e252e;
 }
 
-.c4:hover {
+.c8:hover {
   color: var(--textHighlight);
 }
 
-.c1 {
-  padding-top: 14px;
-  padding-bottom: 14px;
-  padding-left: 204px;
-  padding-right: 14px;
-  width: 100%;
-  height: 96px;
-  background-color: #fff;
-  position: absolute;
-  top: 48px;
-  left: 0;
+.c3 {
   position: fixed;
   z-index: 50;
 }
 
-.c18 {
+.c23 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
@@ -142,44 +159,33 @@ exports[`Mount ProjectDashboard 1`] = `
   background-color: #fff;
 }
 
-.c21 {
+.c26 {
   border: 0px;
   border-spacing: 0;
 }
 
-.c22 {
+.c27 {
   border: 0px;
   border-spacing: 0;
   text-align: right;
 }
 
-.c19 {
+.c24 {
   cursor: pointer;
 }
 
-.c19 > .c20 {
+.c24 > .c25 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
   padding-bottom: 8px;
 }
 
-.c3 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-bottom: 12px;
+.c6 {
   width: calc(100% - 180px);
-  width: 100%;
-  max-width: unset;
-  -webkit-box-flex: 1;
-  -webkit-flex-grow: 1;
-  -ms-flex-positive: 1;
-  flex-grow: 1;
 }
 
-.c3 > span {
+.c6 > span {
   width: 1;
   font-size: 25px;
   display: inline-block;
@@ -188,37 +194,46 @@ exports[`Mount ProjectDashboard 1`] = `
   overflow: hidden;
 }
 
-.c3 > span + span:before {
+.c6 > span + span:before {
   padding: 0 8px;
   vertical-align: top;
   color: var(--text,#f00);
   content: "/";
 }
 
-.c3 > span {
+.c6 > span {
   color: var(--text,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
-.c3 > span:hover {
+.c6 > span:hover {
   cursor: pointer;
   color: var(--blue,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
-.c3 > span:last-child:hover {
+.c6 > span:last-child:hover {
   color: var(--text,#f00);
   cursor: default;
 }
 
-.c3 .sc-AxjAm {
+.c7 {
+  width: 100%;
+  max-width: unset;
+  -webkit-box-flex: 1;
+  -webkit-flex-grow: 1;
+  -ms-flex-positive: 1;
+  flex-grow: 1;
+}
+
+.c7 .sc-bdnylx {
   margin: 0;
   display: inline;
 }
 
-.c8 > .c9 {
+.c12 > .c13 {
   position: relative;
   min-height: 200px;
   cursor: pointer;
@@ -227,26 +242,26 @@ exports[`Mount ProjectDashboard 1`] = `
   transition: transform 0.2s;
 }
 
-.c8 > .c9:hover {
+.c12 > .c13:hover {
   -webkit-transform: scale(1.02);
   -ms-transform: scale(1.02);
   transform: scale(1.02);
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c6 {
+  .c10 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c6 {
+  .c10 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c6 {
+  .c10 {
     display: none;
   }
 }
@@ -255,19 +270,19 @@ exports[`Mount ProjectDashboard 1`] = `
   className="c0"
 >
   <div
-    className="c1"
+    className="c1 c2 c3"
     height={96}
     width={1}
   >
     <div
-      className="c2"
+      className="c4"
     >
       <div
-        className="c3"
+        className="c5 c6 c7"
       >
         <span>
           <a
-            className="c4"
+            className="c8"
             color="text"
             href="/projects"
             onClick={[Function]}
@@ -277,7 +292,7 @@ exports[`Mount ProjectDashboard 1`] = `
         </span>
         <span>
           <a
-            className="c4"
+            className="c8"
             color="text"
             href="/project/dashboard"
             onClick={[Function]}
@@ -290,17 +305,17 @@ exports[`Mount ProjectDashboard 1`] = `
     </div>
   </div>
   <div
-    className="c5"
+    className="c9"
   >
     <div
-      className="c6"
+      className="c10"
     />
     <div
-      className="c7 c8"
+      className="c11 c12"
       width="100%"
     >
       <div
-        className="c9 c10"
+        className="c13 c14 c15"
         height="auto"
         onClick={[Function]}
         overflow="hidden"
@@ -315,14 +330,14 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c11"
+          className="c16"
           height="100%"
         >
           <div
-            className="c12"
+            className="c17"
           >
             <svg
-              className="c13"
+              className="c18"
               clipRule="evenodd"
               color="#53657d"
               cursor="inherit"
@@ -345,21 +360,21 @@ exports[`Mount ProjectDashboard 1`] = `
               />
             </svg>
             <h3
-              className="c14"
+              className="c19"
               cursor="inherit"
               fontSize={4}
             >
               Members
             </h3>
             <div
-              className="c15"
+              className="c20"
             />
             <div
-              className="c16"
+              className="c21"
               color="#8393A7"
             >
               <svg
-                className="c17"
+                className="c22"
                 clipRule="evenodd"
                 color="darkGray"
                 cursor="inherit"
@@ -377,36 +392,36 @@ exports[`Mount ProjectDashboard 1`] = `
             </div>
           </div>
           <table
-            className="c18"
+            className="c23"
             width="100%"
           >
             <tbody>
               <tr
-                className="c19"
+                className="c24"
                 cursor="pointer"
               >
                 <td
-                  className="c20 c21"
+                  className="c25 c26"
                 >
                   Members
                 </td>
                 <td
-                  className="c20 c22"
+                  className="c25 c27"
                 >
                   0
                 </td>
               </tr>
               <tr
-                className="c19"
+                className="c24"
                 cursor="pointer"
               >
                 <td
-                  className="c20 c21"
+                  className="c25 c26"
                 >
                   Groups
                 </td>
                 <td
-                  className="c20 c22"
+                  className="c25 c27"
                 >
                   0
                 </td>
@@ -416,7 +431,7 @@ exports[`Mount ProjectDashboard 1`] = `
         </div>
       </div>
       <div
-        className="c9 c10"
+        className="c13 c14 c15"
         height="auto"
         onClick={[Function]}
         overflow="hidden"
@@ -431,14 +446,14 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c11"
+          className="c16"
           height="100%"
         >
           <div
-            className="c12"
+            className="c17"
           >
             <svg
-              className="c13"
+              className="c18"
               clipRule="evenodd"
               color="#53657d"
               cursor="inherit"
@@ -459,21 +474,21 @@ exports[`Mount ProjectDashboard 1`] = `
               />
             </svg>
             <h3
-              className="c14"
+              className="c19"
               cursor="inherit"
               fontSize={4}
             >
               Resource Allocation
             </h3>
             <div
-              className="c15"
+              className="c20"
             />
             <div
-              className="c16"
+              className="c21"
               color="#8393A7"
             >
               <svg
-                className="c17"
+                className="c22"
                 clipRule="evenodd"
                 color="darkGray"
                 cursor="inherit"
@@ -493,7 +508,7 @@ exports[`Mount ProjectDashboard 1`] = `
         </div>
       </div>
       <div
-        className="c9 c10"
+        className="c13 c14 c15"
         height="auto"
         onClick={[Function]}
         overflow="hidden"
@@ -508,14 +523,14 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c11"
+          className="c16"
           height="100%"
         >
           <div
-            className="c12"
+            className="c17"
           >
             <svg
-              className="c13"
+              className="c18"
               clipRule="evenodd"
               color="#53657d"
               cursor="inherit"
@@ -541,21 +556,21 @@ exports[`Mount ProjectDashboard 1`] = `
               />
             </svg>
             <h3
-              className="c14"
+              className="c19"
               cursor="inherit"
               fontSize={4}
             >
               Usage
             </h3>
             <div
-              className="c15"
+              className="c20"
             />
             <div
-              className="c16"
+              className="c21"
               color="#8393A7"
             >
               <svg
-                className="c17"
+                className="c22"
                 clipRule="evenodd"
                 color="darkGray"
                 cursor="inherit"
@@ -573,7 +588,7 @@ exports[`Mount ProjectDashboard 1`] = `
             </div>
           </div>
           <div
-            className="c23"
+            className="c28"
             color="darkGray"
             cursor="inherit"
             fontSize={1}
@@ -581,36 +596,36 @@ exports[`Mount ProjectDashboard 1`] = `
             Past 30 days
           </div>
           <table
-            className="c18"
+            className="c23"
             width="100%"
           >
             <tbody>
               <tr
-                className="c19"
+                className="c24"
                 cursor="pointer"
               >
                 <td
-                  className="c20 c21"
+                  className="c25 c26"
                 >
                   Storage
                 </td>
                 <td
-                  className="c20 c22"
+                  className="c25 c27"
                 >
                   0 DKK
                 </td>
               </tr>
               <tr
-                className="c19"
+                className="c24"
                 cursor="pointer"
               >
                 <td
-                  className="c20 c21"
+                  className="c25 c26"
                 >
                   Compute
                 </td>
                 <td
-                  className="c20 c22"
+                  className="c25 c27"
                 >
                   0 DKK
                 </td>
