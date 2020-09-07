@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.collect
 import org.joda.time.DateTimeConstants
 import org.joda.time.LocalDateTime
 import dk.sdu.cloud.project.services.QueryService.Companion.VERIFICATION_REQUIRED_EVERY_X_DAYS
+import dk.sdu.cloud.service.Time
 
 class VerificationReminder(
     private val db: AsyncDBSessionFactory,
@@ -25,7 +26,7 @@ class VerificationReminder(
 ) {
     suspend fun sendReminders() {
         db.withTransaction { session ->
-            queries.findProjectsInNeedOfVerification(session).collect { (project, user, role) ->
+            queries.findProjectsInNeedOfVerification(session).collect { (project, user, role, title) ->
                 if (mailCooldown.hasCooldown(session, user, project)) {
                     log.debug("Cooldown: $user in $project")
                     return@collect
@@ -38,7 +39,7 @@ class VerificationReminder(
                         user,
                         Notification(
                             "REVIEW_PROJECT",
-                            "Time to review your project ($project)",
+                            "Time to review your project ($title)",
                             meta = mapOf(
                                 "project" to project
                             )
@@ -55,13 +56,13 @@ class VerificationReminder(
                 val mailStatus = MailDescriptions.send.call(
                     SendRequest(
                         user,
-                        "[UCloud] Time to review your project ($project)",
+                        "[UCloud] Time to review your project ($title)",
                         //language=html
                         """
                             <p>Hello ${user},</p> 
                             
                             <p>
-                                It is time for a review of your project $project in which you are 
+                                It is time for a review of your project $title in which you are 
                                 ${if (role == ProjectRole.ADMIN) " an admin" else " a PI"}.
                             </p>
                             
@@ -113,8 +114,8 @@ class MailCooldownDao {
                     select max(timestamp) as timestamp
                     from cooldowns
                     where
-                        username = ?username and
-                        project = ?project
+                        username = :username and
+                        project = :project
                 """
             )
             .rows
@@ -122,7 +123,7 @@ class MailCooldownDao {
             ?.getField(CooldownTable.timestamp)
             ?: return false
 
-        return (System.currentTimeMillis() - lastEntry.toTimestamp()) <=
+        return (Time.now() - lastEntry.toTimestamp()) <=
                 VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
     }
 
@@ -130,7 +131,7 @@ class MailCooldownDao {
         session.insert(CooldownTable)  {
             set(CooldownTable.project, project)
             set(CooldownTable.username, username)
-            set(CooldownTable.timestamp, LocalDateTime.now())
+            set(CooldownTable.timestamp, LocalDateTime(Time.now()))
         }
     }
 

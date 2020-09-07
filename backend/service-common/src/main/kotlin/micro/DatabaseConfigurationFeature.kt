@@ -1,15 +1,23 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.micro.HibernateFeature.Feature.safeSchemaName
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.H2_DIALECT
-import dk.sdu.cloud.service.db.H2_DRIVER
-import dk.sdu.cloud.service.db.H2_TEST_JDBC_URL
-import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
-import dk.sdu.cloud.service.db.POSTGRES_DRIVER
-import dk.sdu.cloud.service.db.postgresJdbcUrl
 import dk.sdu.cloud.service.findValidHostname
+
+fun safeSchemaName(service: ServiceDescription): String = service.name.replace('-', '_')
+
+fun postgresJdbcUrl(host: String, database: String, port: Int? = null): String {
+    return StringBuilder().apply {
+        append("jdbc:postgresql://")
+        append(host)
+        if (port != null) {
+            append(':')
+            append(port)
+        }
+        append('/')
+        append(database)
+    }.toString()
+}
 
 class DatabaseConfigurationFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -31,33 +39,6 @@ class DatabaseConfigurationFeature : MicroFeature {
 
         log.info("Using ${configuration.profile} database configuration profile.")
         when (configuration.profile) {
-            Profile.PERSISTENT_H2 -> {
-                ctx.jdbcUrl = "jdbc:h2:~/${configuration.database ?: "h2-persistent"}.db"
-                ctx.databaseConfig =
-                    DatabaseConfig(
-                        driver = H2_DRIVER,
-                        dialect = H2_DIALECT,
-                        jdbcUrl = ctx.jdbcUrl,
-                        username = null,
-                        password = null,
-                        recreateSchema = false,
-                        defaultSchema = safeSchemaName(ctx.serviceDescription)
-                    )
-            }
-
-            Profile.TEST_H2 -> {
-                ctx.jdbcUrl = H2_TEST_JDBC_URL
-                ctx.databaseConfig = DatabaseConfig(
-                    driver = H2_DRIVER,
-                    dialect = H2_DIALECT,
-                    jdbcUrl = ctx.jdbcUrl,
-                    username = null,
-                    password = null,
-                    recreateSchema = true,
-                    defaultSchema = "public"
-                )
-            }
-
             Profile.PERSISTENT_POSTGRES -> {
                 val credentials = configuration.credentials
                     ?: invalidConfig("Cannot connect to postgres without credentials")
@@ -75,14 +56,9 @@ class DatabaseConfigurationFeature : MicroFeature {
                 val port = configuration.port
                 val jdbcUrl = postgresJdbcUrl(hostname, database, port)
 
-                val driver = configuration.driver ?: POSTGRES_DRIVER
-                val dialect = configuration.dialect ?: POSTGRES_9_5_DIALECT
-
                 ctx.jdbcUrl = jdbcUrl
                 ctx.databaseConfig = DatabaseConfig(
-                    driver,
                     jdbcUrl,
-                    dialect,
                     credentials.username,
                     credentials.password,
                     safeSchemaName(ctx.serviceDescription),
@@ -103,19 +79,15 @@ class DatabaseConfigurationFeature : MicroFeature {
         val CONFIG_PATH = arrayOf("database")
 
         enum class Profile {
-            TEST_H2,
-            PERSISTENT_H2,
             PERSISTENT_POSTGRES
         }
 
         data class Credentials(val username: String, val password: String)
 
         data class Config(
-            val profile: Profile = Profile.TEST_H2,
+            val profile: Profile = Profile.PERSISTENT_POSTGRES,
             val hostname: String? = null,
             val credentials: Credentials? = null,
-            val driver: String? = null,
-            val dialect: String? = null,
             val database: String? = null,
             val port: Int? = null,
             val logSql: Boolean = false
@@ -151,9 +123,7 @@ var Micro.databaseConfig: DatabaseConfig
     }
 
 data class DatabaseConfig(
-    val driver: String?,
     val jdbcUrl: String?,
-    val dialect: String?,
     val username: String?,
     val password: String?,
     val defaultSchema: String,

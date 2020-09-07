@@ -1,11 +1,11 @@
 import {ApplicationMetadata} from "Applications";
+import {QUICK_LAUNCH_PRODUCT} from "../../site.config.json";
 import {Client} from "Authentication/HttpClientInstance";
 import {History} from "history";
 import {setLoading} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {hpcJobQueryPost} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {getFilenameFromPath, getParentPath, resolvePath} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export async function quickLaunchFromParametersFile(
@@ -47,9 +47,8 @@ export async function quickLaunchCallback(
             readOnly: false
         }],
         numberOfNodes: 1,
-        tasksPerNode: 0,
         peers: [],
-        reservation: null,
+        reservation: QUICK_LAUNCH_PRODUCT,
         type: "start",
         name: null,
         parameters: {}

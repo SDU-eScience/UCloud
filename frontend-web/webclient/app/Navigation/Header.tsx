@@ -8,7 +8,7 @@ import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
 import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
-import {HeaderSearchType, KeyCode, ReduxObject} from "DefaultObjects";
+import {HeaderSearchType, KeyCode} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import {setFilename} from "Files/Redux/DetailedFileSearchActions";
@@ -23,7 +23,6 @@ import {Dispatch} from "redux";
 import * as SearchActions from "Search/Redux/SearchActions";
 import {applicationSearchBody, fileSearchBody} from "Search/Search";
 import styled from "styled-components";
-import {Page} from "Types";
 import * as ui from "ui-components";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -45,6 +44,7 @@ import {
 import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 import {ContextSwitcher} from "Project/ContextSwitcher";
 import {NewsPost} from "Dashboard/Dashboard";
+import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -121,6 +121,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             </ui.Flex>
             <ui.Support />
             <Notification />
+            <AutomaticGiftClaim/>
             <ClickableDropdown
                 colorOnHover={false}
                 width="200px"
@@ -443,8 +444,6 @@ const isAnyLoading = (rO: ReduxObject): boolean =>
     || rO.simpleSearch.applicationsLoading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.analysesLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.loading
-    || rO.applicationsFavorite.applications.loading || /* rO.applicationsBrowse.applicationsPage.loading */ false
-    || rO.accounting.resources["compute/timeUsed"].events.loading
-    || rO.accounting.resources["storage/bytesUsed"].events.loading;
+    || rO.applicationsFavorite.applications.loading || /* rO.applicationsBrowse.applicationsPage.loading */ false;
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(Header);

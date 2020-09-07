@@ -3,21 +3,33 @@ package dk.sdu.cloud.service
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class SimpleCache<K, V>(
+interface Cache<K, V : Any> {
+    suspend fun clearAll()
+
+    suspend fun remove(key: K)
+
+    suspend fun get(key: K): V?
+}
+
+class SimpleCache<K, V : Any>(
     private val maxAge: Long = 60_000,
     private val lookup: suspend (K) -> V?
-) {
+) : Cache<K, V> {
     private data class CacheEntry<V>(val timestamp: Long, val value: V)
 
     private val internalMap = HashMap<K, CacheEntry<V>>()
     private val mutex = Mutex()
-    private var nextRemoveExpired = System.currentTimeMillis() + (maxAge * 5)
+    private var nextRemoveExpired = Time.now() + (maxAge * 5)
 
-    suspend fun clearAll() {
+    override suspend fun clearAll() {
         mutex.withLock { internalMap.clear() }
     }
 
-    suspend fun get(key: K): V? {
+    override suspend fun remove(key: K) {
+        mutex.withLock { internalMap.remove(key) }
+    }
+
+    override suspend fun get(key: K): V? {
         cleanup()
 
         val existing = mutex.withLock {
@@ -27,14 +39,14 @@ class SimpleCache<K, V>(
         if (existing != null) {
             if (maxAge == DONT_EXPIRE) {
                 return existing.value
-            } else if (System.currentTimeMillis() - existing.timestamp < maxAge) {
+            } else if (Time.now() - existing.timestamp < maxAge) {
                 return existing.value
             }
         }
 
         val result = lookup(key) ?: return null
         mutex.withLock {
-            internalMap[key] = CacheEntry(System.currentTimeMillis(), result)
+            internalMap[key] = CacheEntry(Time.now(), result)
         }
 
         return result
@@ -42,7 +54,7 @@ class SimpleCache<K, V>(
 
     private suspend fun cleanup() {
         if (maxAge == DONT_EXPIRE) return
-        val now = System.currentTimeMillis()
+        val now = Time.now()
 
         mutex.withLock {
             if (now < nextRemoveExpired) return
@@ -55,10 +67,11 @@ class SimpleCache<K, V>(
             }
         }
 
-        nextRemoveExpired = System.currentTimeMillis() + (maxAge * 5)
+        nextRemoveExpired = Time.now() + (maxAge * 5)
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log = logger()
         const val DONT_EXPIRE = -1L
     }
 }

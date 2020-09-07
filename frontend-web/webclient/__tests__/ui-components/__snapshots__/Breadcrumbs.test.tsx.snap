@@ -7,10 +7,6 @@ exports[`Breadcrumbs Build breadcrumbs with empty path, unembedded 1`] = `null`;
 exports[`Breadcrumbs Build breadcrumbs, embedded 1`] = `
 Array [
   .c0 {
-  margin-left: 15px;
-}
-
-.c1 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -21,18 +17,22 @@ Array [
 .c2 {
   cursor: pointer;
   font-size: 11px;
-  margin-left: -15px;
+}
+
+.c1 {
+  text-align: center;
 }
 
 <div
-    className="c0"
+    className=""
   >
     <svg
-      className="c1"
+      className="c0"
       cursor="pointer"
       fill="currentcolor"
       height="30px"
       onClick={[Function]}
+      test-tag="to_home"
       viewBox="0 0 148.167 127.257"
       width="30px"
     >
@@ -44,12 +44,16 @@ Array [
       />
     </svg>
     <div
-      className="c2"
-      cursor="pointer"
-      fontSize="11px"
-      onClick={[Function]}
+      className="c1"
     >
-      Go to home
+      <div
+        className="c2"
+        cursor="pointer"
+        fontSize="11px"
+        onClick={[Function]}
+      >
+        Home
+      </div>
     </div>
   </div>,
   .c0 {
@@ -109,10 +113,11 @@ Array [
 }
 
 <div
-    className="sc-fzpans c0"
+    className="c0"
   >
     <span
       onClick={[Function]}
+      test-tag="Home of mail@mailhost.dk"
       title="Home of mail@mailhost.dk"
     >
       Home of mail@mailhost.dk
@@ -129,10 +134,6 @@ Array [
 exports[`Breadcrumbs Build breadcrumbs, unembedded 1`] = `
 Array [
   .c0 {
-  margin-left: 15px;
-}
-
-.c1 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -143,18 +144,22 @@ Array [
 .c2 {
   cursor: pointer;
   font-size: 11px;
-  margin-left: -15px;
+}
+
+.c1 {
+  text-align: center;
 }
 
 <div
-    className="c0"
+    className=""
   >
     <svg
-      className="c1"
+      className="c0"
       cursor="pointer"
       fill="currentcolor"
       height="30px"
       onClick={[Function]}
+      test-tag="to_home"
       viewBox="0 0 148.167 127.257"
       width="30px"
     >
@@ -166,12 +171,16 @@ Array [
       />
     </svg>
     <div
-      className="c2"
-      cursor="pointer"
-      fontSize="11px"
-      onClick={[Function]}
+      className="c1"
     >
-      Go to home
+      <div
+        className="c2"
+        cursor="pointer"
+        fontSize="11px"
+        onClick={[Function]}
+      >
+        Home
+      </div>
     </div>
   </div>,
   .c0 {
@@ -231,10 +240,11 @@ Array [
 }
 
 <div
-    className="sc-fzpans c0"
+    className="c0"
   >
     <span
       onClick={[Function]}
+      test-tag="Home of mail@mailhost.dk"
       title="Home of mail@mailhost.dk"
     >
       Home of mail@mailhost.dk

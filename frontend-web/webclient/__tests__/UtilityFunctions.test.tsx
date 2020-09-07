@@ -4,7 +4,7 @@ import {dateToString} from "../app/Utilities/DateUtilities";
 import {getFilenameFromPath, sizeToString} from "../app/Utilities/FileUtilities";
 import * as UF from "../app/UtilityFunctions";
 import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files";
-import { AccessRight } from "Types";
+import {AccessRight} from "../app/Types";
 
 // TO LOWER CASE AND CAPITALIZE
 
@@ -120,14 +120,12 @@ test("Upper 5xx range", () =>
 
 // Get owner from ACL
 
-const mockAcls: Acl[] = [
-    {
-        entity: {username: "user3@test.dk"},
-        rights: [
-            AccessRight.READ
-        ]
-    }
-];
+const mockAcls: Acl[] = [{
+    entity: {username: "user3@test.dk"},
+    rights: [
+        AccessRight.READ
+    ]
+}];
 
 test("Get multiple owners from Acls", () =>
     expect(UF.getMembersString(mockAcls)).toBe("2 members")
@@ -238,24 +236,6 @@ const highSensitivityFile = newMockFile({
 test("Download disallowed", () =>
     expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
-
-describe("sortingColumnToValue", () => {
-    const file = mockFilesSensitivityConfidential.items[0];
-    const favoritedFile = mockFilesSensitivityConfidential.items[1];
-
-    test("TYPE", () => expect(UF.sortingColumnToValue(SortBy.FILE_TYPE, file)).toBe(UF.capitalized(file.fileType)));
-    test("PATH", () => expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path)));
-    test("MODIFIED_AT", () =>
-        expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt as number)));
-    test("SIZE", () => expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size as number)));
-    test("ACL", () => expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getMembersString(file.acl as Acl[])));
-    test("ACL as null", () =>
-        expect(UF.sortingColumnToValue(SortBy.ACL, {...file, acl: null})).toBe(""));
-    test("SENSITIVITY", () =>
-        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file))
-            .toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
-    );
-});
 
 describe("If Present", () => {
     test("Present", () => {

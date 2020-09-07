@@ -14,7 +14,7 @@ interface DataListProps {
 }
 export class DataList extends React.PureComponent<DataListProps, {
     text: string;
-    fuse: Fuse<ContentValuePair, Fuse.IFuseOptions<ContentValuePair>>;
+    fuse: Fuse<ContentValuePair>;
 }> {
     private readonly totalShown = 8;
 

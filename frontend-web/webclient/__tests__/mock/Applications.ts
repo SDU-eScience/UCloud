@@ -1,5 +1,4 @@
 import {Application, ParameterTypes} from "../../app/Applications";
-import {Page} from "../../app/Types";
 
 export const applicationsPage: Page<Application> = {
     itemsInTotal: 8,
@@ -574,7 +573,6 @@ export const applicationsPage: Page<Application> = {
                     },
                     container: "parms.simg",
                     defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
                     defaultAllocationTime: {
                         hours: 0,
                         minutes: 10,
@@ -704,7 +702,6 @@ export const applicationsPage: Page<Application> = {
                     license: "FauxPL", info: {name: "bwa-sambamba", version: "3.3.0"},
                     container: "bwa-sambamba",
                     defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
                     defaultAllocationTime: {
                         hours: 1,
                         minutes: 0,
@@ -761,7 +758,6 @@ export const applicationsPage: Page<Application> = {
                     info: {name: "figlet", version: "1.0.0"},
                     container: "figlet.simg",
                     defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 0, minutes: 1, seconds: 0},
                     requiredModules: [],
                     authors: ["Don Dan <donny_dan@sdu.dk>"],
@@ -832,7 +828,6 @@ export const applicationsPage: Page<Application> = {
                     info: {name: "tqdist", version: "1.0.0"},
                     container: "tqdist.simg",
                     defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 0, minutes: 10, seconds: 0},
                     requiredModules: [],
                     authors: ["Don Dan <donny_dan@sdu.dk>"],
@@ -886,7 +881,6 @@ export const applicationsPage: Page<Application> = {
                     info: {name: "figlet", version: "1.0.0"},
                     container: "figlet.simg",
                     defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 0, minutes: 1, seconds: 0},
                     requiredModules: [],
                     authors: ["Don Dan <donny_dan@sdu.dk>"],
@@ -946,7 +940,6 @@ export const applicationsPage: Page<Application> = {
                     info: {name: "rapidnj", version: "2.3.2"},
                     container: "rapidnj.simg",
                     defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 0, minutes: 10, seconds: 0},
                     requiredModules: [],
                     authors: ["Don Dan <donny_dan@sdu.dk>"],
@@ -1063,7 +1056,6 @@ export const applicationsPage: Page<Application> = {
                     info: {name: "searchgui", version: "3.3.0"},
                     container: "sgui",
                     defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 3, minutes: 0, seconds: 0},
                     requiredModules: [],
                     authors: ["Don Dan <donny_dan@sdu.dk>"],
@@ -1122,7 +1114,6 @@ export const applicationsPage: Page<Application> = {
                     info: {name: "tqdist", version: "1.0.0"},
                     container: "tqdist.simg",
                     defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
                     defaultAllocationTime: {
                         hours: 0,
                         minutes: 10,
@@ -1186,7 +1177,6 @@ export const detailedApplication = {
             },
             container: "figlet.simg",
             defaultNumberOfNodes: 1,
-            defaultTasksPerNode: 1,
             defaultMaxTime: {
                 hours: 0,
                 minutes: 1,

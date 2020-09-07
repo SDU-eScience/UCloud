@@ -1,9 +1,11 @@
 package db.migration
 
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.Schema
 import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
 
+@Schema("app_store")
 @Suppress("ClassNaming", "NestedBlockDepth")
 class V13__MigrateMetadata : BaseJavaMigration() {
     override fun migrate(context: Context) {

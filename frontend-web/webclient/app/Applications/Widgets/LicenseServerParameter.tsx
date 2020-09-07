@@ -16,7 +16,7 @@ export const LicenseServerParameter = (props: LicenseServerParameterProps) => {
     const [availableLicenseServers, setAvailableLicenseServers] = React.useState<LicenseServerId[]>([]);
 
     async function fetchAvailableLicenseServers(tags: string[]): Promise<LicenseServerId[]> {
-        const {response} = await Client.post<LicenseServerId[]>(`/app/license/list`, {tags: tags});
+        const {response} = await Client.post<LicenseServerId[]>(`/app/license/by-tag`, {tags: tags});
         return response;
     }
 

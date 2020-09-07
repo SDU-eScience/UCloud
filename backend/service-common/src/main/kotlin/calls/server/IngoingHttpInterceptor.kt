@@ -29,10 +29,10 @@ import io.ktor.response.respond
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.*
 import io.ktor.util.DataConversionException
 import io.ktor.util.pipeline.PipelineContext
-import kotlinx.io.errors.IOException
+import io.ktor.utils.io.errors.*
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.KFunction
@@ -101,96 +101,114 @@ class IngoingHttpInterceptor(
     }
 
     private fun defaultStringConverter(ctx: HttpCall, name: String, value: String, returnType: KType): Any? {
-        try {
-            return defaultMapper.readValue("\"$value\"", returnType.javaType as Class<Any?>)
-        } catch (ignored: Throwable) {
+        if (returnType.classifier == String::class) {
+            return value
+        } else {
             try {
-                return ctx.call.application.conversionService.fromValues(listOf(value), returnType.javaType)
-            } catch (ex: DataConversionException) {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
-            } catch (ex: NoSuchElementException) {
-                // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+                return defaultMapper.readValue("\"$value\"", returnType.javaType as Class<Any?>)
+            } catch (ignored: Throwable) {
+                try {
+                    return ctx.call.application.conversionService.fromValues(listOf(value), returnType.javaType)
+                } catch (ex: DataConversionException) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+                } catch (ex: NoSuchElementException) {
+                    // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Bad value for parameter '$name'")
+                }
             }
         }
     }
 
     override suspend fun <R : Any> parseRequest(ctx: HttpCall, call: CallDescription<R, *, *>): R {
-        val http = call.http
+        try {
+            val http = call.http
 
-        if (call.requestType.type == Unit::class.java) {
-            @Suppress("UNCHECKED_CAST")
-            return Unit as R
-        }
-
-        if (http.body is HttpBody.BoundToEntireRequest<*>) {
-            val companionInstance = call.requestType.companionInstance
-
-            @Suppress("UNCHECKED_CAST")
-            return when {
-                http.body.ingoingConverter != null -> http.body.ingoingConverter.invoke(ctx.call)
-                companionInstance is HttpServerConverter.IngoingBody<*> ->
-                    companionInstance.serverIngoingBody(call, ctx)
-                else -> defaultConverterRequestBody(ctx, call.requestType)
-            } as? R ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-        }
-
-        // We need to start going through all properties and parse them
-
-        val constructor = RequestParsing.findConstructor<Any>(call.requestType.type)
-
-        val mappedQueryParameters = http
-            .params
-            ?.parameters
-            ?.mapNotNull { it.bindValuesFromCall(ctx, call, constructor) }
-            ?.toMap() ?: emptyMap()
-
-        val mappedPathParameters = http
-            .path
-            .segments
-            .mapNotNull { it.bindValuesFromCall(ctx, call, constructor) }
-            .toMap()
-
-        val mappedHeaders = http
-            .headers
-            ?.parameters
-            ?.mapNotNull { it.bindValuesFromCall(ctx, call) }
-            ?.toMap() ?: emptyMap()
-
-
-        val mappedBody = when (val body = http.body) {
-            null -> null
-            is HttpBody.BoundToEntireRequest<*> -> throw IllegalStateException("Assertion error")
-            is HttpBody.BoundToSubProperty -> {
-                val property = body.property
+            if (call.requestType.type == Unit::class.java) {
                 @Suppress("UNCHECKED_CAST")
-                val type = property.returnType.javaType as Class<Any>
-                val name = property.name
-                val companionInstance = type.kotlin.companionObjectInstance
-
-                @Suppress("UNCHECKED_CAST")
-                val converted = when {
-                    body.ingoingConverter != null -> body.ingoingConverter.invoke(ctx.call)
-                    companionInstance is HttpServerConverter.IngoingBody<*> -> companionInstance.serverIngoingBody(
-                        call,
-                        ctx
-                    )
-                    else -> defaultConverterRequestBody(ctx, type)
-                } as? R?
-
-                if (converted == null) {
-                    if (!property.returnType.isMarkedNullable && constructor.parameters.find { it.name == property.name }?.isOptional != true) {
-                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Missing parameter for '$name'")
-                    }
-                }
-
-                mapOf(name to converted)
+                return Unit as R
             }
-        } ?: emptyMap()
 
-        val values = mappedQueryParameters + mappedPathParameters + mappedHeaders + mappedBody
+            if (http.body is HttpBody.BoundToEntireRequest<*>) {
+                val companionInstance = call.requestType.companionInstance
 
-        return RequestParsing.constructFromAttributes(call.requestType.type, values)
+                @Suppress("UNCHECKED_CAST")
+                return when {
+                    http.body.ingoingConverter != null -> http.body.ingoingConverter.invoke(ctx.call)
+                    companionInstance is HttpServerConverter.IngoingBody<*> ->
+                        companionInstance.serverIngoingBody(call, ctx)
+                    else -> defaultConverterRequestBody(ctx, call.requestType)
+                } as? R ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }
+
+            // We need to start going through all properties and parse them
+
+            val constructor = RequestParsing.findConstructor<Any>(call.requestType.type)
+
+            val mappedQueryParameters = http
+                .params
+                ?.parameters
+                ?.mapNotNull { it.bindValuesFromCall(ctx, call, constructor) }
+                ?.toMap() ?: emptyMap()
+
+            val mappedPathParameters = http
+                .path
+                .segments
+                .mapNotNull { it.bindValuesFromCall(ctx, call, constructor) }
+                .toMap()
+
+            val mappedHeaders = http
+                .headers
+                ?.parameters
+                ?.mapNotNull { it.bindValuesFromCall(ctx, call) }
+                ?.toMap() ?: emptyMap()
+
+
+            val mappedBody = when (val body = http.body) {
+                null -> null
+                is HttpBody.BoundToEntireRequest<*> -> throw IllegalStateException("Assertion error")
+                is HttpBody.BoundToSubProperty -> {
+                    val property = body.property
+
+                    @Suppress("UNCHECKED_CAST")
+                    val type = property.returnType.javaType as Class<Any>
+                    val name = property.name
+                    val companionInstance = type.kotlin.companionObjectInstance
+
+                    @Suppress("UNCHECKED_CAST")
+                    val converted = when {
+                        body.ingoingConverter != null -> body.ingoingConverter.invoke(ctx.call)
+                        companionInstance is HttpServerConverter.IngoingBody<*> -> companionInstance.serverIngoingBody(
+                            call,
+                            ctx
+                        )
+                        else -> defaultConverterRequestBody(ctx, type)
+                    } as? R?
+
+                    if (converted == null) {
+                        if (!property.returnType.isMarkedNullable && constructor.parameters.find { it.name == property.name }?.isOptional != true) {
+                            throw RPCException.fromStatusCode(
+                                HttpStatusCode.BadRequest,
+                                "Missing parameter for '$name'"
+                            )
+                        }
+                    }
+
+                    mapOf(name to converted)
+                }
+            } ?: emptyMap()
+
+            val values = mappedQueryParameters + mappedPathParameters + mappedHeaders + mappedBody
+
+            return RequestParsing.constructFromAttributes(call.requestType.type, values)
+        } catch (ex: Throwable) {
+            if (ex.cause is RPCException) {
+                throw ex.cause!!
+            } else if (ex is RPCException) {
+                throw ex
+            } else {
+                throw RPCException("Bad request", HttpStatusCode.BadRequest)
+            }
+        }
     }
 
     private fun <R : Any> HttpHeaderParameter<R>.bindValuesFromCall(

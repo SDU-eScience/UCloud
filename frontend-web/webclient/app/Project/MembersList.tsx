@@ -1,4 +1,4 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "Project/index";
+import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "Project";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as React from "react";
@@ -8,10 +8,10 @@ import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "ui-
 import {IconName} from "ui-components/Icon";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {RemoveButton} from "Files/FileInputSelector";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
@@ -47,7 +47,16 @@ export function MembersList(props: Readonly<{
             <React.Fragment key={member.username}>
                 <Flex alignItems="center" mb="16px">
                     <UserAvatar avatar={avatars.cache[member.username] ?? defaultAvatar} mr="10px" />
-                    {!props.isOutgoingInvites ? <Text bold>{member.username}</Text> :
+                    {!props.isOutgoingInvites ?
+                        <div>
+                            <Text bold>{member.username}</Text>
+                            {member.memberOfAnyGroup !== false ? null : (
+                                <Text color={"red"}>
+                                    <Icon name={"warning"} size={20} mr={"6px"} />
+                                    Not a member of any group
+                                </Text>
+                            )}
+                        </div>:
                         <div>
                             <Text bold>{member.username}</Text>
                             Invited to join

@@ -4,6 +4,8 @@ import {Box, Icon, Text, Flex} from "ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import HttpClient from "Authentication/lib";
 import {pathComponents} from "Utilities/FileUtilities";
+import {ProjectStatus, useProjectStatus} from "Project/cache";
+import {Center} from "UtilityComponents";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
@@ -60,12 +62,13 @@ export const BreadCrumbs = ({
     embedded
 }: BreadcrumbsList): JSX.Element | null => {
     if (!currentPath) return null;
+    const projectStatus = useProjectStatus();
 
-    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, client.projectId ?? "");
+    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, projectStatus);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map(p => (
-        <span key={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
+        <span key={p.local} test-tag={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
             {p.local}
         </span>
     ));
@@ -78,11 +81,11 @@ export const BreadCrumbs = ({
         <>
             {addHomeFolderLink ? (
                 <>
-                    <Box ml="15px">
-                        <Icon size="30px" cursor="pointer" name="home" onClick={toHome} />
-                        <Text cursor="pointer" ml="-15px" fontSize="11px" onClick={toHome}>
-                            Go to home
-                        </Text>
+                    <Box>
+                        <Icon test-tag="to_home" size="30px" cursor="pointer" name="home" onClick={toHome} />
+                        <Center>
+                            <Text cursor="pointer" fontSize="11px" onClick={toHome}>Home</Text>
+                        </Center>
                     </Box>
                     <Text ml="6px" mr="6px" fontSize="24px">|</Text>
                 </>
@@ -101,7 +104,11 @@ export const BreadCrumbs = ({
     }
 };
 
-function buildBreadCrumbs(path: string, homeFolder: string, activeProject: string): BreadCrumbMapping[] {
+function buildBreadCrumbs(
+    path: string,
+    homeFolder: string,
+    projectStatus: ProjectStatus
+): BreadCrumbMapping[] {
     const paths = pathComponents(path);
     if (paths.length === 0) return [{actualPath: "/", local: "/"}];
 
@@ -124,10 +131,16 @@ function buildBreadCrumbs(path: string, homeFolder: string, activeProject: strin
 
     // Handle starts with project
     if (addTrailingSlash(path).startsWith("/projects/")) {
-        const [, projectInPath] = pathComponents(path);
-        const project = activeProject !== "" && path.includes(projectInPath) ? activeProject : projectInPath;
+        const [, project] = pathComponents(path);
+
+        let localName = project;
+        const membership = projectStatus.fetch().membership.find(it => it.projectId === project);
+        if (membership) {
+            localName = membership.title;
+        }
+
         return [
-            {actualPath: `/projects/${project}/`, local: project}
+            {actualPath: `/projects/${project}/`, local: localName}
         ].concat(pathsMapping.slice(2));
     }
     return pathsMapping;

@@ -58,7 +58,11 @@ enum class Role {
 object Roles {
     val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP)
     val END_USER = setOf(Role.USER, Role.ADMIN)
+    val PRIVILEGED = setOf(Role.ADMIN, Role.SERVICE)
+
+    @Deprecated("Corrected spelling", replaceWith = ReplaceWith("Roles.PRIVILEGED"))
     val PRIVILEDGED = setOf(Role.ADMIN, Role.SERVICE)
+
     val ADMIN = setOf(Role.ADMIN)
     val THIRD_PARTY_APP = setOf(Role.THIRD_PARTY_APP)
     val PUBLIC = setOf(*Role.values())
@@ -118,7 +122,9 @@ data class SecurityPrincipal(
     /**
      * A boolean indicating if the service agreement has been accepted
      */
-    val serviceAgreementAccepted: Boolean = false
+    val serviceAgreementAccepted: Boolean = false,
+
+    val organization: String? = null
 )
 
 /**

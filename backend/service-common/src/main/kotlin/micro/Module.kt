@@ -9,11 +9,33 @@ import org.slf4j.Logger
 
 var Micro.isEmbeddedService: Boolean by delegate("isRootContainer")
 
-class ServiceRegistry(val args: Array<String>) {
-    private data class ConfiguredService(val description: ServiceDescription, val service: Service, val scope: Micro, val server: CommonServer)
+object PlaceholderServiceDescription : ServiceDescription {
+    override val name = "UCloud"
+    override val version = "unspecified-this-should-not-show-up-in-production"
+}
 
-    private val rootMicro = Micro()
+class ServiceRegistry(
+    val args: Array<String>,
+
+    /**
+     * [ServiceDescription] used for [rootMicro]
+     *
+     * Certain features should only exist once and use this information, for example, for auditing purposes. For
+     * local development/testing systems this should be set to [PlaceholderServiceDescription] otherwise this should
+     * be set to the correct microservice's [ServiceDescription] (done by [runAsStandalone]).
+     */
+    val serviceDescription: ServiceDescription
+) {
+    private data class ConfiguredService(
+        val description: ServiceDescription,
+        val service: Service,
+        val scope: Micro,
+        val server: CommonServer
+    )
+
+    val rootMicro = Micro()
     private val services = ArrayList<ConfiguredService>()
+    val isRunning: Boolean get() = rootServer.isRunning
     private val rootServer  = object : CommonServer {
         override val micro: Micro = rootMicro
         override fun start() {
@@ -26,10 +48,7 @@ class ServiceRegistry(val args: Array<String>) {
     init {
         rootMicro.isEmbeddedService = false
         rootMicro.commandLineArguments = args.toList()
-        rootMicro.serviceDescription = object : ServiceDescription {
-            override val name = "UCloud"
-            override val version = "unspecified"
-        }
+        rootMicro.serviceDescription = serviceDescription
 
         with(rootMicro) {
             install(DeinitFeature)
@@ -56,16 +75,8 @@ class ServiceRegistry(val args: Array<String>) {
         scopedMicro.serviceDescription = service.description
         scopedMicro.isEmbeddedService = true
         scopedMicro.install(DatabaseConfigurationFeature)
-        scopedMicro.install(
-            HibernateFeature,
-            HibernateFeatureConfiguration(
-                listOf(
-                    "dk.sdu.cloud." +
-                        service.description.name.split("-").joinToString(".") { it.toLowerCase() }
-                )
-            )
-        )
         scopedMicro.install(FlywayFeature)
+        scopedMicro.install(RedisFeature)
         val server = service.initializeServer(scopedMicro)
         services.add(ConfiguredService(service.description, service, scopedMicro, server))
     }
@@ -115,7 +126,7 @@ interface Service {
 }
 
 fun Service.runAsStandalone(args: Array<String>) {
-    ServiceRegistry(args).apply {
+    ServiceRegistry(args, description).apply {
         register(this@runAsStandalone)
         start()
     }

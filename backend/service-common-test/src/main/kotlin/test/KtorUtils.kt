@@ -5,9 +5,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.JobId
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.feature
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import io.ktor.application.Application
@@ -16,10 +14,12 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
+import io.ktor.server.engine.*
 import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.setBody
+import org.apache.logging.log4j.core.config.*
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
@@ -141,6 +141,12 @@ fun withKtorTest(
     microArgs: List<String> = emptyList(),
     microConfigure: Micro.() -> Unit = {}
 ) {
+    /*
+    System.err.println("withKtorTest is currently broken as a result of upgrading to Kotlin 1.4 and " +
+            "corresponding ktor version. This test will be ignored!")
+    if (true) return
+     */
+
     val micro = initializeMicro(microArgs)
     micro.microConfigure()
 
@@ -153,6 +159,8 @@ fun withKtorTest(
         serverFeature.server.start()
         KtorApplicationTestContext(engine, micro).test()
     } finally {
-        engine.stop(0L, 0L, TimeUnit.SECONDS)
+        engine.stop(0, 0)
+        // TODO For some reason we no longer need to call stop? (After upgrading to Kotlin 1.4 and
+        //  associated ktor version)
     }
 }

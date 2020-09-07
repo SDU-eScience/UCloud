@@ -57,7 +57,8 @@ File(serviceDir, "Dockerfile").writeText(
 
 val kotlinSrc = File(serviceDir, "src/main/kotlin")
 kotlinSrc.mkdirs()
-File(serviceDir, "src/main/resources").mkdirs()
+File(serviceDir, "src/main/resources/db/migration").mkdirs()
+File(serviceDir, "src/main/resources/db/migration/schema.txt").writeText(service.replace('-', '_'))
 File(serviceDir, "src/test/kotlin").mkdirs()
 File(serviceDir, "src/test/resources").mkdirs()
 
@@ -137,15 +138,3 @@ File(apiSrc, "Descriptions.kt").writeText("""
     }
 """.trimIndent())
 
-
-File(serviceDir, "service.yml").writeText(
-    """
-        ---
-        name: $service
-        
-        namespaces:
-        - $packageName
-        
-        dependencies: []
-    """.trimIndent()
-)

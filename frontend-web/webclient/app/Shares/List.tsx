@@ -1,11 +1,4 @@
-import {
-    APICallParameters,
-    APICallState,
-    callAPI,
-    mapCallState,
-    useAsyncCommand,
-    useCloudAPI
-} from "Authentication/DataHook";
+import {APICallState, callAPI, mapCallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {emptyPage} from "DefaultObjects";
@@ -23,7 +16,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
+import {AccessRight, AccessRights, singletonToPage} from "Types";
 import {Box, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text} from "ui-components";
 import Button from "ui-components/Button";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -33,7 +26,6 @@ import Link from "ui-components/Link";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {TextSpan} from "ui-components/Text";
-import {colors} from "ui-components/theme";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {fileTablePage, getFilenameFromPath, getParentPath, isDirectory, statFileQuery} from "Utilities/FileUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
@@ -42,12 +34,15 @@ import {ListProps, ListSharesParams, loadAvatars, MinimalShare, SharesByPath, Sh
 import {acceptShare, createShare, findShare, listShares, revokeShare, updateShare} from "./index";
 import Warning from "ui-components/Warning";
 import {Toggle} from "ui-components/Toggle";
+import {useProjectStatus} from "Project/cache";
+import {getProjectNames} from "Utilities/ProjectUtilities";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 export const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
         listShares({sharedByMe: false, itemsPerPage: 25, page: 0}) : findShare(props.byPath);
 
-    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<{avatars: Dictionary<AvatarType>}>(
+    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<{avatars: Record<string, AvatarType>}>(
         loadAvatars({usernames: new Set([])}), {avatars: {}}
     );
 
@@ -137,13 +132,14 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
 
     const shares = page.data.items.filter(it => it.sharedByMe === sharedByMe || props.byPath !== undefined);
     const simple = !!props.simple;
+    const projectNames = getProjectNames(useProjectStatus());
     const main = (
         <Pagination.List
             loading={page.loading}
             page={page.data}
             customEmptyPage={simple ? (
                 <div>
-                    No shares for <b>{getFilenameFromPath(props.byPath!)}</b>
+                    No shares for <b>{getFilenameFromPath(props.byPath!, projectNames)}</b>
                 </div>
             ) : <NoShares sharedByMe={sharedByMe} />}
             onPageChanged={(pageNumber, {itemsPerPage}) => setFetchParams(listShares({
@@ -186,7 +182,7 @@ function GroupedShareCardWrapper(p: {
     simple: boolean;
     refresh: () => void;
     sharedByMe: boolean;
-    avatars: Dictionary<AvatarType>;
+    avatars: Record<string, AvatarType>;
 }): JSX.Element {
     const [pageNumber, setPage] = useState(0);
     const pageSize = 5;
@@ -256,6 +252,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
     const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
     const [fileType, setFileType] = useState<FileType>("DIRECTORY");
+    const project = useProjectStatus();
+    const projectNames = getProjectNames(project);
 
     const promises = usePromiseKeeper();
     const newShareUsername = useRef<HTMLInputElement>(null);
@@ -302,7 +300,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         if (!props.simple) {
             addStandardDialog({
                 title: "Revoke?",
-                message: `Remove all shares for ${getFilenameFromPath(groupedShare.path)}?`,
+                message: `Remove all shares for ${getFilenameFromPath(groupedShare.path, projectNames)}?`,
                 onConfirm: revoke
             });
         } else {
@@ -319,9 +317,9 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 Client.sharesFolder : isDirectory({fileType}) ?
                     path : getParentPath(path))}
         >
-            {getFilenameFromPath(path)}
+            {getFilenameFromPath(path, projectNames)}
         </Link>
-    ) : <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
+    ) : <Text>{getFilenameFromPath(groupedShare.path, projectNames)}</Text>;
     return (
         <ShareCardBase
             title={<>
@@ -562,10 +560,10 @@ const ShareStateRow: React.FunctionComponent<{state: ShareState}> = props => {
 
     switch (props.state) {
         case ShareState.ACCEPTED:
-            body = <><Icon size={20} color={colors.green} name={"check"} /> The share has been accepted.</>;
+            body = <><Icon size={20} color={getCssVar("green")} name="check" /> The share has been accepted.</>;
             break;
         case ShareState.UPDATING:
-            body = <><Icon size={20} color={colors.blue} name={"refresh"} /> The share is currently updating.</>;
+            body = <><Icon size={20} color={getCssVar("blue")} name="refresh" /> The share is currently updating.</>;
             break;
         case ShareState.REQUEST_SENT:
             body = <>The share has not yet been accepted.</>;

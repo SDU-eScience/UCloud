@@ -1,5 +1,8 @@
 package dk.sdu.cloud.app.orchestrator.utils
 
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.VerifiedJobWithAccessToken
@@ -79,7 +82,6 @@ val normToolDesc = NormalizedToolDescription(
     NameAndVersion("tool", "1.0.0"),
     "container",
     2,
-    2,
     SimpleDuration(1, 0, 0),
     listOf(""),
     listOf("Author"),
@@ -98,7 +100,6 @@ fun verifiedJobForTestGenerator(
     id: String = "verifiedId",
     owner: String = "owner",
     nodes: Int = 1,
-    tasksPerNode: Int = 1,
     maxTime: SimpleDuration = SimpleDuration(0, 1, 0),
     jobInput: VerifiedJobInput = VerifiedJobInput(emptyMap()),
     backend: String = "backend",
@@ -111,7 +112,7 @@ fun verifiedJobForTestGenerator(
     mounts: List<ValidatedFileForUpload>? = null,
     startedAt: Long = 123456789,
     peers: List<ApplicationPeer>? = null,
-    reservation: MachineReservation = MachineReservation.BURST
+    reservation: Product.Compute = Product.Compute("u1-standard-burst", 0L, ProductCategoryId("standard", UCLOUD_PROVIDER))
 ):VerifiedJob {
     return VerifiedJob(
         application = application ?: normAppDesc,
@@ -120,7 +121,6 @@ fun verifiedJobForTestGenerator(
         id = id,
         owner = owner,
         nodes = nodes,
-        tasksPerNode = tasksPerNode,
         maxTime = maxTime,
         jobInput = jobInput,
         backend = backend,
@@ -156,11 +156,11 @@ val verifiedJobWithAccessToken2 = VerifiedJobWithAccessToken(
 
 val startJobRequest = StartJobRequest(
     NameAndVersion("name", "2.2"),
-    null,
-    emptyMap(),
-    1,
-    1,
-    SimpleDuration(1, 0, 0)
+    "u1-standard-1",
+    name = null,
+    parameters = emptyMap(),
+    numberOfNodes = 1,
+    maxTime = SimpleDuration(1, 0, 0)
 )
 
 val jobStateChangeCancelling = JobStateChange(
@@ -179,6 +179,7 @@ val jobWithStatus = JobWithStatus(
     1234,
     12345,
     20000,
+    null,
     null,
     normAppDesc.metadata
 )

@@ -8,12 +8,14 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Controller
 import io.ktor.http.ContentType
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
+import io.ktor.util.*
+import io.ktor.util.cio.*
 import java.io.ByteArrayInputStream
 
 class AppLogoController (
     private val logoService: LogoService
 ): Controller {
+    @OptIn(KtorExperimentalAPI::class)
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppStore.uploadLogo) {
             logoService.acceptUpload(

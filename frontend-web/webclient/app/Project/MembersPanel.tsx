@@ -4,10 +4,9 @@ import * as React from "react";
 import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
-import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {Button, Flex, Icon, Input, Absolute, Label, Relative} from "ui-components";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
-import {useProjectManagementStatus} from "Project/View";
+import {useProjectManagementStatus} from "Project/index";
 import {addGroupMember} from "Project";
 import {MembersList} from "Project/MembersList";
 import * as Pagination from "Pagination";
@@ -25,21 +24,17 @@ const SearchContainer = styled(Flex)`
     }
 `;
 
-export const MembersBreadcrumbs = styled(BreadCrumbsBase)`
-    max-width: unset;
-    flex-grow: 1;
-`;
-
 const MembersPanel: React.FunctionComponent = () => {
     const {
-        projectId, projectMembers, group, fetchGroupMembers, groupMembersParams,
+        projectId, projectMembers, groupId, fetchGroupMembers, groupMembersParams,
         setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, projectRole
-    } = useProjectManagementStatus();
+        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, projectRole, reloadProjectStatus
+    } = useProjectManagementStatus({isRootComponent: false});
     const [isLoading, runCommand] = useAsyncCommand();
     const reloadMembers = (): void => {
         setProjectMemberParams(projectMemberParams);
         fetchOutgoingInvites(outgoingInvitesParams);
+        reloadProjectStatus();
     };
 
     const newMemberRef = useRef<HTMLInputElement>(null);
@@ -67,6 +62,7 @@ const MembersPanel: React.FunctionComponent = () => {
                     <Input
                         id="new-project-member"
                         placeholder="Username"
+                        autoComplete="off"
                         disabled={isLoading}
                         ref={newMemberRef}
                         onChange={e => {
@@ -135,7 +131,7 @@ const MembersPanel: React.FunctionComponent = () => {
                 message: `Remove ${member}?`,
                 onConfirm: async () => {
                     await runCommand(deleteMemberInProject({
-                        projectId,
+                        projectId: projectId,
                         member
                     }));
 
@@ -146,13 +142,13 @@ const MembersPanel: React.FunctionComponent = () => {
             projectId={projectId}
             projectRole={projectRole}
             allowRoleManagement={allowManagement}
-            onAddToGroup={!(allowManagement && !!group) ? undefined : async (memberUsername) => {
-                await runCommand(addGroupMember({group, memberUsername}));
+            onAddToGroup={!(allowManagement && !!groupId) ? undefined : async (memberUsername) => {
+                await runCommand(addGroupMember({group: groupId, memberUsername}));
                 fetchGroupMembers(groupMembersParams);
             }}
         />
 
-        {group ? null :
+        {groupId ? null :
             <Pagination.List
                 loading={outgoingInvites.loading}
                 page={outgoingInvites.data}

@@ -43,30 +43,29 @@ class AppStoreAsyncDao(
                         setParameter("project", project)
                         setParameter("groups", memberGroups)
                         setParameter("tags", tags)
-                        setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
                     },
                     """
                     SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
-                    WHERE T.application_name = A.name AND T.tag IN (select unnest(?tags::text[])) AND (
+                    WHERE T.application_name = A.name AND T.tag IN (select unnest(:tags::text[])) AND (
                         (
                             A.is_public = TRUE
                         ) OR (
-                            cast(?project as text) is null AND ?user IN (
+                            cast(:project as text) is null AND :user IN (
                                 SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                             )
                         ) OR (
-                            cast(?project as text) IS not null AND exists (
+                            cast(:project as text) IS not null AND exists (
                                 SELECT P2.project_group FROM permissions AS P2 WHERE
                                     P2.application_name = A.name AND
-                                    P2.project = cast(?project as text) AND
-                                    P2.project_group IN (select unnest (?groups::text[]))
+                                    P2.project = cast(:project as text) AND
+                                    P2.project_group IN (select unnest (:groups::text[]))
                             )
                         ) or (
-                            ?role in (select unnest(?privileged::text[]))
+                            :isAdmin
                         )
                     ) 
-                    """.trimIndent()
+                    """
                 )
                 .rows
                 .toList()
@@ -94,8 +93,7 @@ class AppStoreAsyncDao(
                         setParameter("user", user.username)
                         setParameter("project", project)
                         setParameter("groups", memberGroups)
-                        setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
                     },
                     """
                 SELECT A.*
@@ -105,25 +103,25 @@ class AppStoreAsyncDao(
                     FROM applications as B
                     WHERE (A.title = B.title)
                     GROUP BY title
-                ) AND (A.name) IN (select unnest(?applications::text[])) AND (
+                ) AND (A.name) IN (select unnest(:applications::text[])) AND (
                     (
                         A.is_public = TRUE
                     ) or (
-                        cast(?project as text) is null and ?user in (
+                        cast(:project as text) is null and :user in (
                             SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                         )
                     ) or (
-                        cast(?project as text) is not null AND exists (
+                        cast(:project as text) is not null AND exists (
                             SELECT P2.project_group FROM permissions AS P2 WHERE
                                 P2.application_name = A.name and
-                                P2.project = cast(?project as text) and
-                                P2.project_group in (select unnest(?groups::text[]))
+                                P2.project = cast(:project as text) and
+                                P2.project_group in (select unnest(:groups::text[]))
                         )
                     ) or (
-                        ?role in (select unnest (?privileged::text[]))
+                        :isAdmin
                     ) 
                 )
-                """.trimIndent()
+                """
                 )
                 .rows
                 .toList()
@@ -142,23 +140,21 @@ class AppStoreAsyncDao(
                 .sendPreparedStatement(
                     {
                         setParameter("query", "")
-                        setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
                         setParameter("user", user.username)
                     },
                     """
                     SELECT *
                     FROM applications as A
-                    WHERE LOWER(title) like '%' || ?query || '%' AND
+                    WHERE LOWER(title) like '%' || :query || '%' AND
                     (
                         is_public = TRUE OR 
-                        ?user IN (
+                        :user IN (
                             SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
-                        ) OR 
-                        ?role IN (select unnest(?privileged::text[]))
+                        ) OR :isAdmin
                     )
                     ORDER BY A.title
-                """.trimIndent()
+                """
                 )
                 .rows
                 .toList()
@@ -196,7 +192,7 @@ class AppStoreAsyncDao(
     ): Application {
         val cacheKey = NameAndVersion(appName, appVersion)
         val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
-        if (cached != null && expiry > System.currentTimeMillis()) {
+        if (cached != null && expiry > Time.now()) {
             val hasPermission = ctx.withSession { session ->
                     internalHasPermission(
                         session,
@@ -232,7 +228,7 @@ class AppStoreAsyncDao(
                 )
             }
         if (hasPermission) {
-            byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
+            byNameAndVersionCache[cacheKey] = Pair(result, Time.now() + (1000L * 60 * 60))
             return result
         } else {
             throw ApplicationException.NotFound()
@@ -246,41 +242,23 @@ class AppStoreAsyncDao(
         projectGroups: List<String>,
         fileExtensions: Set<String>
     ): List<ApplicationWithExtension> {
-        var query = ""
-        query += """
-            SELECT A.*
-            FROM favorited_by as F,
-                applications as A
-            WHERE F.the_user = ?user
-              AND F.application_name = A.name
-              AND F.application_version = A.version
-              AND (A.application -> 'applicationType' = '"WEB"'
-                OR A.application -> 'applicationType' = '"VNC"'
-              ) and (
-        """
-
-        for (index in fileExtensions.indices) {
-            query += """ A.application -> 'fileExtensions' @> jsonb_build_array(cast(?ext$index as text)) """
-            if (index != fileExtensions.size - 1) {
-                query += "OR "
-            }
-        }
-
-        query += """
-              )
-        """
-
-
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
                         setParameter("user", user.username)
-                        fileExtensions.forEachIndexed { index, ext ->
-                            setParameter("ext$index", ext)
-                        }
+                        setParameter("ext", fileExtensions.toList())
                     },
-                    query
+                    """
+                        SELECT *
+                            FROM favorited_by as F,
+                            applications as A
+                        WHERE F.the_user = :user
+                            AND F.application_name = A.name
+                            AND F.application_version = A.version
+                            AND (A.application -> 'applicationType' = '"WEB"' OR A.application -> 'applicationType' = '"VNC"') 
+                            AND (A.application -> 'fileExtensions' ??| :ext::text[])
+                    """
                 )
                 .rows
                 .toList()
@@ -356,10 +334,9 @@ class AppStoreAsyncDao(
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("role", cleanRole.toString())
                         setParameter("project", currentProject)
                         setParameter("groups", groups)
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("isAdmin", Roles.PRIVILEGED.contains(cleanRole))
                         setParameter("user", user?.username ?: "")
                     },
                     """
@@ -371,24 +348,24 @@ class AppStoreAsyncDao(
                             (
                                 B.is_public = TRUE
                             ) or (
-                                cast(?project as text) is null and ?user in (
+                                cast(:project as text) is null and :user in (
                                     SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = B.name
                                 )
                             ) or (
-                                cast(?project as text) is not null AND exists (
+                                cast(:project as text) is not null AND exists (
                                     SELECT P2.project_group FROM permissions AS P2 WHERE
                                         P2.application_name = B.name AND
-                                        P2.project = cast(?project as text) AND
-                                        P2.project_group IN ( select unnest(?groups::text[]))
+                                        P2.project = cast(:project as text) AND
+                                        P2.project_group IN ( select unnest(:groups::text[]))
                                 )
                             ) or (
-                                ?role IN (?privileged)
+                                :isAdmin
                             )
                         )
                         GROUP BY B.name
                     )
                     ORDER BY A.name
-                    """.trimIndent()
+                    """
                 )
                 .rows
         }
@@ -432,8 +409,8 @@ class AppStoreAsyncDao(
         ctx.withSession { session ->
             session.insert(ApplicationTable) {
                 set(ApplicationTable.owner, user.username)
-                set(ApplicationTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(ApplicationTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(ApplicationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(ApplicationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(ApplicationTable.authors, defaultMapper.writeValueAsString(description.metadata.authors))
                 set(ApplicationTable.title, description.metadata.title)
                 set(ApplicationTable.description, description.metadata.description)
@@ -494,8 +471,8 @@ class AppStoreAsyncDao(
                     },
                     """
                         DELETE FROM applications
-                        WHERE (name = ?appname) AND (version = ?appversion)
-                    """.trimIndent()
+                        WHERE (name = :appname) AND (version = :appversion)
+                    """
                 )
         }
     }
@@ -511,8 +488,8 @@ class AppStoreAsyncDao(
                     },
                     """
                         DELETE FROM favorited_by
-                        WHERE (application_name = ?appname) AND (application_version = ?appversion)
-                    """.trimIndent()
+                        WHERE (application_name = :appname) AND (application_version = :appversion)
+                    """
                 )
                 .rows
         }
@@ -538,24 +515,16 @@ class AppStoreAsyncDao(
             session
                 .sendPreparedStatement(
                     {
-                        if (newDescription != null) {
-                            setParameter("newdesc", newDescription)
-                        } else {
-                            setParameter("newdesc", existingApplication.metadata.description)
-                        }
-                        if (newAuthors != null) {
-                            setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors))
-                        } else {
-                            setParameter("newauthors", defaultMapper.writeValueAsString(existingApplication.metadata.authors))
-                        }
+                        setParameter("newdesc", newDescription)
+                        setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors ?: existingApplication.metadata.authors))
                         setParameter("name", appName)
                         setParameter("version", appVersion)
                     },
                     """
                         UPDATE applications
-                        SET description = ?newdesc, authors = ?newauthors
-                        WHERE (name = ?name) AND (version = ?version)
-                    """.trimIndent()
+                        SET description = COALESCE(:newdesc, description), authors = :newauthors
+                        WHERE (name = :name) AND (version = :version)
+                    """
                 )
         }
         // We allow for this to be cached for some time. But this instance might as well clear the cache now.
@@ -581,8 +550,8 @@ class AppStoreAsyncDao(
                         """
                             SELECT * 
                             FROM favorited_by
-                            WHERE the_user = ?user
-                        """.trimIndent()
+                            WHERE the_user = :user
+                        """
                     )
                     .rows
             }
@@ -598,8 +567,8 @@ class AppStoreAsyncDao(
                         """
                             SELECT *
                             FROM application_tags
-                            WHERE application_name IN (select unnest(?allapps::text[]))
-                        """.trimIndent()
+                            WHERE application_name IN (select unnest(:allapps::text[]))
+                        """
                     )
                     .rows
             }
@@ -630,8 +599,8 @@ class AppStoreAsyncDao(
                             """
                                 SELECT * 
                                 FROM application_tags
-                                WHERE application_name = ?appname
-                            """.trimIndent()
+                                WHERE application_name = :appname
+                            """
                         )
                         .rows
                         .map {
@@ -667,10 +636,9 @@ class AppStoreAsyncDao(
                     {
                         setParameter("toolName", tool)
                         setParameter("user", user.username)
-                        setParameter("role", user.role.toString())
+                        setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
                         setParameter("project", project)
                         setParameter("groups", groups)
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
                     },
                     """
                         SELECT A.*
@@ -681,28 +649,28 @@ class AppStoreAsyncDao(
                                 FROM applications AS B
                                 WHERE A.name = B.name
                                 GROUP BY name
-                            ) AND A.tool_name = ?toolName AND (
+                            ) AND A.tool_name = :toolName AND (
                                 (
                                     A.is_public = TRUE
                                 ) OR (
-                                    cast(?project as text) is null AND ?user in (
+                                    cast(:project as text) is null AND :user in (
                                         SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                                     )
                                 ) OR (
-                                    cast(?project as text) is not null AND exists (
+                                    cast(:project as text) is not null AND exists (
                                         SELECT P2.project_group
                                         FROM permissions AS P2
                                         WHERE
                                             P2.application_name = A.name AND
-                                            P2.project = cast(?project as text) AND
-                                            P2.project_group in (?groups)
+                                            P2.project = cast(:project as text) AND
+                                            P2.project_group in (:groups)
                                     )
                                 ) or (
-                                    ?role in (?privileged)
+                                    :isAdmin
                                 ) 
                             )
                         order by A.name
-                    """.trimIndent()
+                    """
                 )
                 .rows
         }
@@ -721,29 +689,21 @@ class AppStoreAsyncDao(
         if (embeddedNameAndVersionList.isEmpty()) {
             return emptyList()
         }
+        val names = embeddedNameAndVersionList.map { it.name }
+        val versions = embeddedNameAndVersionList.map { it.version }
+
         return ctx.withSession { session ->
-            var query = """
-                    SELECT *
-                    FROM applications
-                    WHERE 
-                """.trimIndent()
-
-            embeddedNameAndVersionList.forEachIndexed { index, _ ->
-                query += """ (name = ?name$index AND version = ?version$index) """
-                if (index + 1 != embeddedNameAndVersionList.size) {
-                    query += """ OR """
-                }
-            }
-
             session
                 .sendPreparedStatement(
                     {
-                        embeddedNameAndVersionList.forEachIndexed { index, embeddedNameAndVersion ->
-                            setParameter("name$index", embeddedNameAndVersion.name)
-                            setParameter("version$index", embeddedNameAndVersion.version)
-                        }
+                        setParameter("names", names)
+                        setParameter("versions", versions)
                     },
-                    query
+                    """
+                        SELECT *
+                        FROM app_store.applications
+                        WHERE (name, version) IN (select unnest(:names::text[]), unnest(:versions::text[]))
+                    """
                 )
                 .rows
                 .map { it.toApplicationWithInvocation() }

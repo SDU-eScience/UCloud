@@ -1,0 +1,5 @@
+$dokka.format:gfm
+$dokka.linkExtension:md
+
+dk.sdu.cloud.project.api
+dk.sdu.cloud.project.favorite.api

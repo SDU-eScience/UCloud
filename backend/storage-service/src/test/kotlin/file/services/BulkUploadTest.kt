@@ -12,6 +12,8 @@ import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.notification.api.FindByNotificationId
+import dk.sdu.cloud.notification.api.NotificationDescriptions
 import io.mockk.mockk
 import junit.framework.Assert.*
 import org.junit.Test
@@ -25,8 +27,7 @@ import java.util.zip.GZIPOutputStream
 import kotlin.test.*
 
 class BulkUploadTest : WithBackgroundScope() {
-    val micro = initializeMicro()
-    val cloud = AuthenticatedClient(micro.client, OutgoingHttpCall) {}
+    val cloud = ClientMock.authenticatedClient
 
     fun File.mkdir(name: String, closure: File.() -> Unit) {
         val f = File(this, name)
@@ -80,13 +81,18 @@ class BulkUploadTest : WithBackgroundScope() {
                 fs,
                 ClientMock.authenticatedClient,
                 backgroundScope,
-                mockedMetadataService
+                mockedMetadataService,
+                mockk(relaxed = true)
             )
         return Pair(runner, coreFs)
     }
 
     @Test
     fun testSimpleUpload() {
+        ClientMock.mockCallSuccess(
+            NotificationDescriptions.create,
+            FindByNotificationId(1)
+        )
         val fsRoot = createFileSystem {
             mkdir("home") {
                 mkdir("user") {
@@ -130,6 +136,10 @@ class BulkUploadTest : WithBackgroundScope() {
 
     @Test
     fun testRename() {
+        ClientMock.mockCallSuccess(
+            NotificationDescriptions.create,
+            FindByNotificationId(1)
+        )
         val originalContents = "original"
         val fsRoot = createFileSystem {
             mkdir("home") {
@@ -185,6 +195,10 @@ class BulkUploadTest : WithBackgroundScope() {
 
     @Test
     fun testOverwrite() {
+        ClientMock.mockCallSuccess(
+            NotificationDescriptions.create,
+            FindByNotificationId(1)
+        )
         val originalContents = "original"
         val fsRoot = createFileSystem {
             mkdir("home") {
@@ -286,6 +300,10 @@ class BulkUploadTest : WithBackgroundScope() {
 
     @Test
     fun testFromFileToDir() {
+        ClientMock.mockCallSuccess(
+            NotificationDescriptions.create,
+            FindByNotificationId(1)
+        )
         val originalContents = "original"
         val fsRoot = createFileSystem {
             mkdir("home") {
@@ -338,6 +356,11 @@ class BulkUploadTest : WithBackgroundScope() {
 
     @Test
     fun testFromDirToFile() {
+        ClientMock.mockCallSuccess(
+            NotificationDescriptions.create,
+            FindByNotificationId(1)
+        )
+
         val fsRoot = createFileSystem {
             mkdir("home") {
                 mkdir("user") {
@@ -389,6 +412,10 @@ class BulkUploadTest : WithBackgroundScope() {
 
     @Test
     fun testShellInjection() {
+        ClientMock.mockCallSuccess(
+            NotificationDescriptions.create,
+            FindByNotificationId(1)
+        )
         val fsRoot = createFileSystem {
             mkdir("home") {
                 mkdir("user") {}

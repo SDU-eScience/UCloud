@@ -21,22 +21,18 @@ import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.databaseConfig
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.file.processors.ProjectProcessor
+import dk.sdu.cloud.micro.*
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
+import kotlin.system.*
 
 class Server(
     private val config: StorageConfiguration,
@@ -58,10 +54,11 @@ class Server(
 
         // FS root
         val fsRootFile =
-            File("/mnt/cephfs/" + cephConfig.subfolder).takeIf { it.exists() }
+            File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
-        // Authorization
+        log.info("Serving files from ${fsRootFile.absolutePath}")
+
         val homeFolderService = HomeFolderService()
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val metadataDao = MetadataDao()
@@ -70,17 +67,27 @@ class Server(
         val newAclService = AclService(metadataService, homeFolderService, client, projectCache)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
-        val fs = LinuxFS(fsRootFile, newAclService, projectCache)
+        val fs = LinuxFS(fsRootFile, newAclService, cephConfig)
+        val limitChecker = LimitChecker(db, newAclService, projectCache, client, config.product, fs, processRunner)
         val coreFileSystem =
-            CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService)
+            CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService, limitChecker)
 
-        // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
         val indexingService = IndexingService<LinuxFSRunner>(newAclService)
 
         // RPC services
         val wsService = WSFileSessionService(processRunner)
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
+
+        if (micro.commandLineArguments.contains("--scan-accounting")) {
+            try {
+                AccountingScan(fs, processRunner, client, db).scan()
+                exitProcess(0)
+            } catch (throwable: Throwable){
+                throwable.printStackTrace()
+                exitProcess(1)
+            }
+        }
 
         log.info("Core services constructed!")
 
@@ -89,6 +96,8 @@ class Server(
             fsRootFile,
             homeFolderService
         ).init()
+
+        ProjectProcessor(streams, fsRootFile, client).init()
 
         val metadataRecovery = MetadataRecoveryService(
             micro.backgroundScope,
@@ -110,7 +119,8 @@ class Server(
                 ActionController(
                     commandRunnerForCalls,
                     coreFileSystem,
-                    fileLookupService
+                    fileLookupService,
+                    limitChecker
                 ),
 
                 LookupController(
@@ -123,7 +133,7 @@ class Server(
                     commandRunnerForCalls,
                     newAclService,
                     coreFileSystem,
-                    config.filePermissionAcl
+                    config.filePermissionAcl + if (micro.developmentModeEnabled) setOf("admin@dev") else emptySet()
                 ),
 
                 IndexingController(

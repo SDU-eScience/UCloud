@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-orchestrator"
-    version = "2.2.0"
+    version = "2.3.4"
 
     withAmbassador(null) {
         addSimpleMapping("/api/hpc/jobs")
@@ -18,22 +18,14 @@ bundle { ctx ->
 
     withPostgresMigration(deployment)
 
-    withConfigMap(name = "app-config", version = "4") {
+    withConfigMap(name = "app-config", version = "5") {
         data class ComputeBackend(val name: String, val title: String, val useWorkspaces: Boolean)
-        val gpuWhitelist = config<List<String>>("gpuWhitelist", "GPU whitelist", emptyList())
-        val machines = config<List<Map<String, Any?>>>(
-            "machines",
-            "List of machines (name: String, cpu: Int?, memoryInGigs: Int?, gpu: Int?)"
-        )
-
         val config: Map<String, Any?> = mapOf(
             "app" to mapOf(
                 "defaultBackend" to "kubernetes",
-                "gpuWhitelist" to gpuWhitelist,
                 "backends" to listOf(
                     ComputeBackend("kubernetes", "k8s", true)
-                ),
-                "machines" to machines
+                )
             )
         )
 

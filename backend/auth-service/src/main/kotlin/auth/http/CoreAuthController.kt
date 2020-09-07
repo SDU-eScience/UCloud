@@ -145,7 +145,7 @@ class CoreAuthController(
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
                 log.debug("Validating extender role versus input token")
-                if (securityPrincipal.role !in Roles.PRIVILEDGED) {
+                if (securityPrincipal.role !in Roles.PRIVILEGED) {
                     throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 }
 

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.events
 
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -42,12 +43,12 @@ sealed class EventConsumer<V> {
         private val handler: suspend (List<V>) -> Unit
     ) : EventConsumer<V>() {
         private val internalBatch = ArrayList<V>()
-        private var nextEmit = System.currentTimeMillis() + maxLatency
+        private var nextEmit = Time.now() + maxLatency
         private val lock = Mutex()
 
         private fun resetState() {
             internalBatch.clear()
-            nextEmit = System.currentTimeMillis() + maxLatency
+            nextEmit = Time.now() + maxLatency
         }
 
         override suspend fun accept(events: List<V>): Boolean {
@@ -60,7 +61,7 @@ sealed class EventConsumer<V> {
                     return true
                 }
 
-                if (System.currentTimeMillis() > nextEmit && internalBatch.isNotEmpty()) {
+                if (Time.now() > nextEmit && internalBatch.isNotEmpty()) {
                     handler(internalBatch)
                     resetState()
                     return true

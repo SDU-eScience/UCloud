@@ -90,7 +90,7 @@ class DistributedLockBestEffort(
         require(acquiredLockValue != null)
 
         mutex.withLock {
-            val now = System.currentTimeMillis()
+            val now = Time.now()
             if (now > lockCooldown) {
                 if (durationMs >= 5000) {
                     lockCooldown = now + (durationMs / 10)

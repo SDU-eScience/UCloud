@@ -1,6 +1,5 @@
 import {FullAppInfo, WithAppInvocation, WithAppMetadata} from "Applications";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import {ReduxObject} from "DefaultObjects";
 import {LoadableContent, loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
 import {updatePageTitle, UpdatePageTitleAction} from "Navigation/Redux/StatusActions";
@@ -8,7 +7,6 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import styled from "styled-components";
-import {Page} from "Types";
 import {
     ActionButton,
     Box,
@@ -320,8 +318,6 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAct
     }
 });
 
-const mapStateToProps = (state: ReduxObject): StateProps => ({
-    ...state.applicationView
-});
+const mapStateToProps = (state: ReduxObject): StateProps => state.applicationView;
 
 export default connect(mapStateToProps, mapDispatchToProps)(View);

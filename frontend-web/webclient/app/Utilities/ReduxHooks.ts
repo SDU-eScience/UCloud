@@ -1,4 +1,4 @@
-import {HookStore, ReduxObject} from "DefaultObjects";
+import {HookStore} from "DefaultObjects";
 import {useDispatch, useSelector} from "react-redux";
 import {useCallback} from "react";
 
@@ -23,10 +23,12 @@ export function useGlobal<Property extends keyof HookStore>(
     property: Property,
     defaultValue: NonNullable<HookStore[Property]>
 ): [NonNullable<HookStore[Property]>, (newValue: ValueOrSetter<HookStore[Property]>) => void] {
+    /* FIXME: this hook causes memory leaks */
     const value = useSelector<ReduxObject, HookStore[Property]>(it => {
         if (it.hookStore === undefined) return undefined;
         return it.hookStore[property];
     });
+    /* FIXME END */
     const dispatch = useDispatch();
     const setter = useCallback((newValue: HookStore[Property]) => {
         dispatch<GenericSetAction>({type: "GENERIC_SET", property, newValue, defaultValue});
@@ -64,7 +66,11 @@ export function useGlobalWithMerge<Property extends keyof HookStore>(
 const reducer = (state: HookStore = {}, action: Action): HookStore => {
     switch (action.type) {
         case "GENERIC_SET":
-            const newState = {...state};
+            const newState = {};
+            for (const kv of Object.entries(state)) {
+                const [key, val] = kv;
+                newState[key] = val;
+            }
             if (typeof action.newValue === "function") {
                 newState[action.property] = action.newValue(newState[action.property] ?? action.defaultValue);
             } else {
@@ -73,7 +79,11 @@ const reducer = (state: HookStore = {}, action: Action): HookStore => {
             return newState;
 
         case "GENERIC_MERGE":
-            const stateCopy = {...state};
+            const stateCopy = {};
+            for (const kv of Object.entries(state)) {
+                const [key, val] = kv;
+                stateCopy[key] = val;
+            }
             stateCopy[action.property] = {...stateCopy[action.property], ...action.newValue};
             return stateCopy;
 

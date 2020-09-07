@@ -245,7 +245,9 @@ class SearchTest {
                         listOf(
                             UserStatusInProject(
                                 "projectID",
-                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN)
+                                "title",
+                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN),
+                                null
                             )
                         ),
                         listOf(
@@ -298,7 +300,9 @@ class SearchTest {
                         listOf(
                             UserStatusInProject(
                                 "projectID",
-                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN)
+                                "title",
+                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN),
+                                null
                             )
                         ),
                         listOf(
@@ -348,7 +352,9 @@ class SearchTest {
                         listOf(
                             UserStatusInProject(
                                 "projectID",
-                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN)
+                                "title",
+                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN),
+                                null
                             )
                         ),
                         listOf(

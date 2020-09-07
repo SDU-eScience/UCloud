@@ -2,7 +2,8 @@ package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.QueryResult
 import dk.sdu.cloud.service.Loggable
-import java.time.LocalDateTime
+import org.intellij.lang.annotations.Language
+import org.joda.time.LocalDateTime
 
 /**
  * Provides an enhanced prepared statement adding support for named parameters.
@@ -41,7 +42,10 @@ import java.time.LocalDateTime
  * )
  * ```
  */
-class EnhancedPreparedStatement(statement: String) {
+class EnhancedPreparedStatement(
+    @Language("sql")
+    statement: String
+) {
     private val parameterNamesToIndex: Map<String, List<Int>>
     private val boundValues = HashSet<String>()
     private val preparedStatement: String
@@ -133,12 +137,13 @@ class EnhancedPreparedStatement(statement: String) {
 
     companion object : Loggable {
         override val log = logger()
-        private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9]+)")
+        private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9_]+)")
     }
 }
 
 suspend inline fun AsyncDBConnection.sendPreparedStatement(
     block: EnhancedPreparedStatement.() -> Unit,
+    @Language("sql")
     query: String,
     release: Boolean = false
 ): QueryResult {

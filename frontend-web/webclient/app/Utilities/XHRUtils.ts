@@ -1,6 +1,4 @@
-import {Dictionary} from "Types";
-
-export const HTTP_STATUS_CODES: Dictionary<string> = {
+export const HTTP_STATUS_CODES: Record<number, string> = {
     100: "Continue",
     101: "Switching Protocols",
     102: "Processing",

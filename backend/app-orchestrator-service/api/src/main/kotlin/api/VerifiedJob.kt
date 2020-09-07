@@ -2,8 +2,12 @@ package dk.sdu.cloud.app.orchestrator.api
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.service.Time
 import kotlin.math.max
 
 data class VerifiedJob(
@@ -42,12 +46,11 @@ data class VerifiedJob(
      */
     val maxTime: SimpleDuration,
 
-    /**
-     * The number of tasks per node requested.
-     */
-    val tasksPerNode: Int,
-
-    val reservation: MachineReservation = MachineReservation.BURST,
+    val reservation: Product.Compute = Product.Compute(
+        "u1-standard-burst",
+        0,
+        ProductCategoryId("standard", UCLOUD_PROVIDER)
+    ),
 
     /**
      * The input values for this job.
@@ -98,12 +101,12 @@ data class VerifiedJob(
     /**
      * Timestamp for when this job was created.
      */
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Long = Time.now(),
 
     /**
      * Timestamp for when this job was last updated.
      */
-    val modifiedAt: Long = System.currentTimeMillis(),
+    val modifiedAt: Long = Time.now(),
 
     /**
      * Timestamp for when this job started execution.
@@ -115,7 +118,9 @@ data class VerifiedJob(
      */
     val url: String? = null,
 
-    val project: String? = null
+    val project: String? = null,
+
+    val creditsCharged: Long? = null
 ) {
     @get:JsonIgnore val mounts: Set<ValidatedFileForUpload>
         get() = _mounts ?: emptySet()
@@ -128,7 +133,7 @@ data class VerifiedJob(
      * Milliseconds left of job from the job is started, null if the job is not started
      */
     val timeLeft: Long? get() = if (startedAt != null) {
-        max((startedAt + maxTime.toMillis()) - System.currentTimeMillis(), 0)
+        max((startedAt + maxTime.toMillis()) - Time.now(), 0)
     } else {
         null
     }
@@ -143,7 +148,6 @@ data class VerifiedJob(
 
         if (files != other.files) return false
         if (nodes != other.nodes) return false
-        if (tasksPerNode != other.tasksPerNode) return false
         if (maxTime != other.maxTime) return false
         if (jobInput != other.jobInput) return false
         if (_mounts != other._mounts) return false
@@ -156,7 +160,6 @@ data class VerifiedJob(
     override fun hashCode(): Int {
         var result = files.hashCode()
         result = 31 * result + nodes
-        result = 31 * result + tasksPerNode
         result = 31 * result + maxTime.hashCode()
         result = 31 * result + jobInput.hashCode()
         result = 31 * result + (_mounts?.hashCode() ?: 0)

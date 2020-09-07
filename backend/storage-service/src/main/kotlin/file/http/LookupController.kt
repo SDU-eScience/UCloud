@@ -13,6 +13,7 @@ import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -84,7 +85,7 @@ class LookupController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.findHomeFolder) {
             try {
-                val username = if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.username.isNotBlank()) {
+                val username = if (ctx.securityPrincipal.role in Roles.PRIVILEGED && request.username.isNotBlank()) {
                     request.username
                 } else {
                     ctx.securityPrincipal.username

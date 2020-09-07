@@ -7,7 +7,6 @@ import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page

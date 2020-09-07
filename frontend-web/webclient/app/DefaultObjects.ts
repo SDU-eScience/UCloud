@@ -1,4 +1,3 @@
-import * as AccountingRedux from "Accounting/Redux";
 import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
 import * as ApplicationRedux from "Applications/Redux";
@@ -10,7 +9,7 @@ import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
 import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
-import {Dictionary, Page, PaginationRequest, SidebarOption} from "Types";
+import {SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
@@ -24,6 +23,7 @@ import {
     UserInProject
 } from "Project";
 import {GroupWithSummary} from "Project/GroupList";
+import {ListProductsResponse, Product} from "Accounting";
 
 export enum KeyCode {
     ENTER = 13,
@@ -134,15 +134,16 @@ interface LegacyReducers {
  * Global state created via useGlobal() similar to ReduxObject
  */
 export interface HookStore {
-    fileFavoriteCache?: Dictionary<boolean>;
+    fileFavoriteCache?: Record<string, boolean>;
     projectCache?: ProjectCache;
-    avatarCache?: Dictionary<AvatarType>;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
     projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
     projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
-    projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>
+    projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>;
     projectManagementQuery?: string;
     projectManagementOutgoingInvites?: APICallStateWithParams<Page<OutgoingInvite>, ListOutgoingInvitesRequest>;
+    computeProducts?: APICallStateWithParams<Page<Product>>;
+    storageProducts?: APICallStateWithParams<Page<Product>>;
 }
 
 interface LegacyReduxObject {
@@ -164,12 +165,12 @@ interface LegacyReduxObject {
     project: ProjectRedux.State;
     loading?: boolean;
 }
-
-export type ReduxObject =
-    LegacyReduxObject &
-    ApplicationRedux.Objects &
-    AccountingRedux.Objects &
-    TaskReduxState;
+declare global {
+    export type ReduxObject =
+        LegacyReduxObject &
+        ApplicationRedux.Objects &
+        TaskReduxState;
+}
 
 export const initActivity = (): ActivityReduxObject => ({
     loading: false
@@ -216,7 +217,6 @@ export function initObject(): ReduxObject {
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         ...ApplicationRedux.init(),
-        ...AccountingRedux.init(),
         responsive: undefined,
     };
 }

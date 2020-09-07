@@ -1,7 +1,0 @@
----
-name: kubernetes-monitor
-
-namespaces:
-- kubernetes.monitor
-
-dependencies: []

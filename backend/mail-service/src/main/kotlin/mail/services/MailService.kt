@@ -2,6 +2,7 @@ package dk.sdu.cloud.mail.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupEmailRequest
+import dk.sdu.cloud.auth.api.LookupEmailResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.WantsEmailsRequest
 import dk.sdu.cloud.calls.RPCException
@@ -10,9 +11,13 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.nio.file.Files
-import javax.mail.*
+import javax.mail.Message
+import javax.mail.Session
+import javax.mail.Transport
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeBodyPart
 import javax.mail.internet.MimeMessage
@@ -21,7 +26,8 @@ import javax.mail.internet.MimeMultipart
 class MailService(
     private val authenticatedClient: AuthenticatedClient,
     private val fromAddress: String,
-    private val whitelist: List<String>
+    private val whitelist: List<String>,
+    private val devMode: Boolean = false
 ) {
     private val escienceLogoFile: File by lazy {
         val file = Files.createTempFile("", ".png").toFile()
@@ -38,6 +44,8 @@ class MailService(
         }
         return@lazy file
     }
+
+    private val tempDirectory by lazy { createTempDir("mails") }
 
     private fun addTemplate(text: String): String {
         return """
@@ -80,12 +88,12 @@ class MailService(
         recipient: String,
         subject: String,
         text: String,
-        emailRequestedByUser: Boolean
+        emailRequestedByUser: Boolean,
+        testMail: Boolean = false
     ) {
-        if (principal.username !in whitelist) {
+        if (principal.username !in whitelist && !devMode) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
         }
-
         if (!emailRequestedByUser) {
             //IF expanded upon it should be moved out of AUTH
             val wantEmails = UserDescriptions.wantsEmails.call(
@@ -99,10 +107,14 @@ class MailService(
             }
         }
 
-        val getEmail = UserDescriptions.lookupEmail.call(
-            LookupEmailRequest(recipient),
-            authenticatedClient
-        ).orThrow()
+        val getEmail = if (testMail) {
+            LookupEmailResponse("test@email.dk")
+        } else {
+            UserDescriptions.lookupEmail.call(
+                LookupEmailRequest(recipient),
+                authenticatedClient
+            ).orThrow()
+        }
 
         val recipientAddress = InternetAddress(getEmail.email)
 
@@ -143,11 +155,42 @@ class MailService(
             })
 
             message.setContent(multipart)
-
-            Transport.send(message)
+            if (devMode) {
+                fakeSend(message)
+            } else {
+                Transport.send(message)
+            }
         } catch (e: Throwable) {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to send email")
         }
+    }
+
+    private fun fakeSend(message: MimeMessage) {
+        val file = createTempFile(suffix = ".html", directory = tempDirectory)
+        val fileOut = FileOutputStream(file).bufferedWriter()
+        val tmpOut = ByteArrayOutputStream()
+        message.writeTo(tmpOut)
+        val messageAsString = tmpOut.toByteArray().toString(Charsets.UTF_8)
+        val lines = messageAsString.lines()
+        val boundaryLine = lines.find { it.trim().startsWith("boundary=") }!!.trim()
+        val boundary = "--" + boundaryLine.substring(
+            boundaryLine.indexOfFirst { it == '"' } + 1,
+            boundaryLine.indexOfLast { it == '"' }
+        )
+        val parts = messageAsString.split(boundary)
+        parts.forEach { part ->
+            if (part.contains("text/html")) {
+                fileOut.append(part)
+            } else {
+                fileOut.appendln("<!--")
+                fileOut.append(part)
+                fileOut.appendln("--!>")
+            }
+        }
+
+        log.info("email written to ${file.absolutePath}")
+        tmpOut.close()
+        fileOut.close()
     }
 
     companion object : Loggable {

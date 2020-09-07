@@ -82,14 +82,11 @@ class ApplicationSearchAsyncDao(
         val keywords = trimmedNormalizedQuery.split(" ").filter { it.isNotBlank() }
         if (keywords.size == 1) {
             return ctx.withSession { session ->
-                println("dosearc")
                 doSearch(session, user, currentProject, projectGroups, trimmedNormalizedQuery, paging)
             }
         }
         val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
         return ctx.withSession { session ->
-            println("dosearc multi")
-
             doMultiKeywordSearch(session, user, currentProject, projectGroups, firstTenKeywords, paging)
         }
     }
@@ -145,6 +142,7 @@ class ApplicationSearchAsyncDao(
         }
 
         return ctx.withSession { session ->
+            val isAdmin = Roles.PRIVILEGED.contains(user.role)
             session
                 .sendPreparedStatement(
                     {
@@ -154,8 +152,7 @@ class ApplicationSearchAsyncDao(
                         setParameter("user", user.username)
                         setParameter("project", project)
                         setParameter("groups", groups)
-                        setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("isAdmin", isAdmin)
                     },
                     """
                     SELECT *
@@ -167,24 +164,22 @@ class ApplicationSearchAsyncDao(
                         GROUP BY title
                     ) AND $keywordsQuery AND (
                         (A.is_public = TRUE OR (
-                            cast(?project as text) is null AND ?user IN (
+                            cast(:project as text) is null AND ?user IN (
                                 SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
                             )
                         ) OR (
-                            cast(?project as text) is not null AND exists (
+                            cast(:project as text) is not null AND exists (
                                 SELECT P2.project_group FROM permissions as P2 WHERE
                                     P2.application_name = A.name AND
-                                    P2.project = cast(?project as text) AND
-                                    P2.project_group IN (select unnest(?groups::text[]))
-                            ) or ?role IN (select unnest (?privileged::text[]))
-                        )
+                                    P2.project = cast(:project as text) AND
+                                    P2.project_group IN (select unnest(:groups::text[]))
+                            ) or :isAdmin
+                        ))
                     )
+                    ORDER BY A.title
+                    """
                 )
-                ORDER BY A.title
-                """.trimIndent()
-                )
-            }
-            .rows
+        }.rows
     }
 
     private suspend fun doMultiKeywordSearch(
@@ -237,7 +232,7 @@ class ApplicationSearchAsyncDao(
         } else {
             memberGroups
         }
-
+        val isAdmin = Roles.PRIVILEGED.contains(user.role)
         val items = ctx.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -246,8 +241,7 @@ class ApplicationSearchAsyncDao(
                         setParameter("user", user.username)
                         setParameter("project", currentProject)
                         setParameter("groups", groups)
-                        setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("isAdmin", isAdmin)
                     },
                     """
                         SELECT * 
@@ -257,27 +251,26 @@ class ApplicationSearchAsyncDao(
                             FROM applications AS B
                             WHERE A.title = B.title
                             GROUP BY title
-                        ) AND LOWER(A.title) LIKE '%' || ?query || '%' AND (
+                        ) AND LOWER(A.title) LIKE '%' || :query || '%' AND (
                             (
                                 A.is_public = TRUE
                             ) OR (
-                                cast(?project as text) is null AND ?user IN (
+                                cast(:project as text) is null AND :user IN (
                                     SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                                 )
                             ) OR (
-                                cast(?project as text) is not null AND exists (
+                                cast(:project as text) is not null AND exists (
                                     SELECT P2.project_group FROM permissions AS P2 WHERE
                                         P2.application_name = A.name AND
-                                        P2.project = cast(?project as text) AND
-                                        P2.project_group IN (select unnest(?groups::text[]))
+                                        P2.project = cast(:project as text) AND
+                                        P2.project_group IN (select unnest(:groups::text[]))
                                  )
                             ) OR (
-                                ?role IN (select unnest(?privileged::text[]))
+                                :isAdmin
                             ) 
                         )
-                       
                         ORDER BY A.title 
-                    """.trimIndent()
+                    """
                 )
             }
             .rows

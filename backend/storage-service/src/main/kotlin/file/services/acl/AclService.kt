@@ -101,6 +101,11 @@ class AclService(
             throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
         }
 
+        val pathComponents = request.path.components()
+        if (pathComponents.size == 3 && pathComponents[0] == "projects" && pathComponents[2] == PERSONAL_REPOSITORY) {
+            throw RPCException("Cannot update permissions of 'Personal' repository", HttpStatusCode.Forbidden)
+        }
+
         metadataService.updateMetadata(
             Metadata(
                 request.path.normalize(),

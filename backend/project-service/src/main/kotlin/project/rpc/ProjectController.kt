@@ -1,20 +1,15 @@
 package dk.sdu.cloud.project.rpc
 
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.project
-import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.project.Configuration
+import dk.sdu.cloud.*
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.project.*
 import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.project.services.ProjectException
+import dk.sdu.cloud.project.services.*
 import dk.sdu.cloud.project.services.ProjectService
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.project.services.QueryService
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.async.*
+import io.ktor.http.*
 
 class ProjectController(
     private val db: DBContext,
@@ -25,7 +20,8 @@ class ProjectController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
             checkEnabled(configuration)
-            ok(projects.create(db, ctx.securityPrincipal, request.title))
+            val pi = request.principalInvestigator.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEGED }
+            ok(FindByStringId(projects.create(db, ctx.securityPrincipal.toActor(), request.title, request.parent, pi)))
         }
 
         implement(Projects.invite) {
@@ -36,6 +32,11 @@ class ProjectController(
         implement(Projects.deleteMember) {
             projects.deleteMember(db, ctx.securityPrincipal.username, request.projectId, request.member)
             ok(Unit)
+        }
+
+        implement(Projects.exists) {
+            val exists = queries.exists(db, request.projectId)
+            ok(ExistsResponse(exists))
         }
 
         implement(Projects.changeUserRole) {
@@ -56,23 +57,30 @@ class ProjectController(
         }
 
         implement(Projects.listFavoriteProjects) {
-            val showArchived = request.archived ?: true
+            val showArchived = request.archived
 
             val user = when (ctx.securityPrincipal.role) {
-                in Roles.PRIVILEDGED -> {
+                in Roles.PRIVILEGED -> {
                     request.user ?: ctx.securityPrincipal.username
                 }
                 else -> ctx.securityPrincipal.username
             }
 
-            ok(queries.listFavoriteProjects(db, user, showArchived, request.normalize()))
+            val result = queries.listFavoriteProjects(db, user, showArchived, request.normalize())
+            ok(
+                if (request.showAncestorPath == true) {
+                    result.withNewItems(queries.addAncestors(db, ctx.securityPrincipal.toActor(), result.items))
+                } else {
+                    result
+                }
+            )
         }
 
         implement(Projects.listProjects) {
             val showArchived = request.archived ?: true
             val noFavorites = request.noFavorites ?: false
             val user = when (ctx.securityPrincipal.role) {
-                in Roles.PRIVILEDGED -> {
+                in Roles.PRIVILEGED -> {
                     request.user ?: ctx.securityPrincipal.username
                 }
                 else -> ctx.securityPrincipal.username
@@ -80,12 +88,19 @@ class ProjectController(
 
             val pagination = when {
                 request.itemsPerPage == null && request.page == null &&
-                    ctx.securityPrincipal.role in Roles.PRIVILEDGED -> null
+                        ctx.securityPrincipal.role in Roles.PRIVILEGED -> null
 
                 else -> request.normalize()
             }
 
-            ok(queries.listProjects(db, user, showArchived, pagination, noFavorites = noFavorites))
+            val projects = queries.listProjects(db, user, showArchived, pagination, noFavorites = noFavorites)
+            ok(
+                if (request.showAncestorPath == true) {
+                    projects.withNewItems(queries.addAncestors(db, ctx.securityPrincipal.toActor(), projects.items))
+                } else {
+                    projects
+                }
+            )
         }
 
         implement(Projects.verifyMembership) {
@@ -161,16 +176,125 @@ class ProjectController(
             ok(Unit)
         }
 
+        implement(Projects.archiveBulk) {
+            db.withSession { session ->
+                request.projects.forEach {
+                    projects.setArchiveStatus(
+                        session,
+                        ctx.securityPrincipal.username,
+                        it.projectId,
+                        !it.archived
+                    )
+                }
+            }
+            ok(Unit)
+        }
+
         implement(Projects.viewProject) {
+            val project = queries.listProjects(
+                db,
+                ctx.securityPrincipal.username,
+                true,
+                null,
+                request.id,
+                false
+            ).items.singleOrNull() ?: throw ProjectException.NotFound()
+
+            ok(queries.addAncestors(db, ctx.securityPrincipal.toActor(), listOf(project)).single())
+        }
+
+        implement(Projects.listSubProjects) {
             ok(
-                queries.listProjects(
+                queries.listSubProjects(
                     db,
-                    ctx.securityPrincipal.username,
-                    true,
-                    null,
+                    request.normalizeWithFullReadEnabled(ctx.securityPrincipal.toActor()),
+                    ctx.securityPrincipal.toActor(),
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
+        }
+
+        implement(Projects.countSubProjects) {
+            ok(
+                queries.subProjectsCount(
+                    db,
+                    ctx.securityPrincipal,
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
+        }
+
+        implement(Projects.viewAncestors) {
+            ok(
+                queries.viewAncestors(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
+        }
+
+        implement(Projects.lookupByTitle) {
+            ok(
+                queries.lookupByTitle(db, request.title) ?: throw RPCException(
+                    "No project with that name",
+                    HttpStatusCode.BadRequest
+                )
+            )
+        }
+
+        implement(Projects.lookupById) {
+            ok(
+                queries.lookupById(db, request.id) ?: throw RPCException(
+                    "No project with that id",
+                    HttpStatusCode.BadRequest
+                )
+            )
+        }
+
+        implement(Projects.lookupByIdBulk) {
+            val projects = queries.lookupByIdBulk(db, request.ids)
+            if (projects.isEmpty()) {
+                throw RPCException("No projects with those ids", HttpStatusCode.NotFound)
+            }
+            ok(projects)
+        }
+
+        implement(Projects.lookupPrincipalInvestigator) {
+            ok(
+                queries.lookupPrincipalInvestigator(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
+        }
+
+        implement(Projects.rename) {
+            ok(
+                projects.renameProject(
+                    db,
+                    ctx.securityPrincipal.toActor(),
                     request.id,
-                    false
-                ).items.singleOrNull() ?: throw ProjectException.NotFound()
+                    request.newTitle
+                )
+            )
+        }
+
+        implement(Projects.updateDataManagementPlan) {
+            projects.updateDataManagementPlan(db, ctx.securityPrincipal.toActor(), request.id, request.dmp)
+            ok(Unit)
+        }
+
+        implement(Projects.fetchDataManagementPlan) {
+            ok(
+                FetchDataManagementPlanResponse(
+                    projects.fetchDataManagementPlan(
+                        db,
+                        ctx.securityPrincipal.toActor(),
+                        ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                    )
+                )
             )
         }
     }

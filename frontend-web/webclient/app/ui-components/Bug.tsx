@@ -1,8 +1,10 @@
 import * as React from "react";
 import {IconBaseProps} from "./Icon";
 import * as icons from "./icons";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {ThemeColor} from "./theme";
 
-const randomInt = (min: number, max: number) => {
+const randomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
@@ -13,7 +15,7 @@ function Bug({size, theme, color2, spin, ...props}: Omit<IconBaseProps, "name">)
     const Component = icons[bugs[idx]];
 
     return (
-        <Component width={size} height={size} color2={color2 ? theme.colors[color2] : undefined} {...props} />
+        <Component width={size} height={size} color2={color2 ? getCssVar(color2 as ThemeColor) : undefined} {...props} />
     );
 }
 

@@ -1,7 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
-import {connect} from "react-redux";
+import {connect, useDispatch} from "react-redux";
 import styled, {css} from "styled-components";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {copyToClipboard, inDevEnvironment, shouldHideSidebarAndHeader} from "UtilityFunctions";
@@ -16,6 +15,8 @@ import RBox from "./RBox";
 import Text, {EllipsedText} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
+import {useEffect} from "react";
+import {setActivePage} from "Navigation/Redux/StatusActions";
 
 const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
@@ -313,6 +314,16 @@ export const enum SidebarPages {
     Activity,
     Admin,
     None
+}
+
+export function useSidebarPage(page: SidebarPages): void {
+    const dispatch = useDispatch();
+    useEffect(() => {
+        dispatch(setActivePage(page));
+        return () => {
+            dispatch(setActivePage(SidebarPages.None));
+        };
+    });
 }
 
 export default connect<SidebarStateProps>(mapStateToProps)(Sidebar);

@@ -2,10 +2,6 @@ package dk.sdu.cloud.avatar.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.avatar.api.*
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
@@ -13,15 +9,6 @@ import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import io.ktor.http.HttpStatusCode
-import javax.persistence.Column
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.Id
-import javax.persistence.Table
 
 object AvatarTable : SQLTable("avatars") {
     val username = text("username", notNull = true)
@@ -104,21 +91,21 @@ class AvatarAsyncDao {
                     """
                         UPDATE avatars
                         SET
-                            top = ?top,
-                            top_accessory = ?topAccessory,
-                            hair_color = ?hairColor,
-                            facial_hair = ?facialHair,
-                            facial_hair_color = ?facialHairColor,
-                            clothes = ?clothes,
-                            color_fabric = ?colorFabric,
-                            eyes = ?eyes,
-                            eyebrows = ?eyebrows,
-                            mouth_types = ?mouthTypes,
-                            skin_colors = ?skinColors,
-                            clothes_graphic = ?clothesGraphic,
-                            hat_color = ?hatColor
-                        WHERE username = ?username
-                    """.trimIndent()
+                            top = :top,
+                            top_accessory = :topAccessory,
+                            hair_color = :hairColor,
+                            facial_hair = :facialHair,
+                            facial_hair_color = :facialHairColor,
+                            clothes = :clothes,
+                            color_fabric = :colorFabric,
+                            eyes = :eyes,
+                            eyebrows = :eyebrows,
+                            mouth_types = :mouthTypes,
+                            skin_colors = :skinColors,
+                            clothes_graphic = :clothesGraphic,
+                            hat_color = :hatColor
+                        WHERE username = :username
+                    """
                 )
             } else {
                 session.insert(AvatarTable) {
@@ -146,16 +133,19 @@ class AvatarAsyncDao {
         user: String
     ): Avatar? {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", user)
-                },
-                """
-                    SELECT *
-                    FROM avatars
-                    WHERE username = ?username
-                """.trimIndent()
-            ).rows.singleOrNull()?.toAvatar()
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", user)
+                    },
+                    """
+                        SELECT *
+                        FROM avatars
+                        WHERE username = :username
+                    """
+                ).rows
+                .singleOrNull()
+                ?.toAvatar()
         }
     }
 
@@ -164,16 +154,19 @@ class AvatarAsyncDao {
         user: String
     ): Avatar {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", user)
-                },
-                """
-                    SELECT *
-                    FROM avatars
-                    WHERE username = ?username
-                """.trimIndent()
-            ).rows.singleOrNull()?.toAvatar() ?: defaultAvatar()
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", user)
+                    },
+                    """
+                        SELECT *
+                        FROM avatars
+                        WHERE username = :username
+                    """
+                ).rows
+                .singleOrNull()
+                ?.toAvatar() ?: defaultAvatar()
         }
     }
 
@@ -182,16 +175,20 @@ class AvatarAsyncDao {
         users: List<String>
     ): Map<String, SerializedAvatar> {
         return ctx.withSession { session ->
-            val avatars = session.sendPreparedStatement(
-                {
-                    setParameter("usernames", users)
-                },
-                """
-                    SELECT *
-                    FROM avatars
-                    WHERE username in (select unnest(?usernames::text[]))
-                """.trimIndent()
-            ).rows.map { it.toUserAndAvatar() }
+            val avatars = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("usernames", users)
+                    },
+                    """
+                        SELECT *
+                        FROM avatars
+                        WHERE username in (select unnest(:usernames::text[]))
+                    """
+                ).rows
+                .map {
+                    it.toUserAndAvatar()
+                }
 
             users.associateWith { user ->
                 avatars.find { it.first == user }?.second ?: defaultAvatar().toSerializedAvatar() }

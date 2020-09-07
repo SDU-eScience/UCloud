@@ -1,13 +1,15 @@
 import {Client as currentClient} from "Authentication/HttpClientInstance";
-import {SensitivityLevel} from "DefaultObjects";
 import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {dateToString} from "Utilities/DateUtilities";
+import {Notification} from "Notifications";
+import {History} from "history";
 import {
-    getFilenameFromPath, isDirectory, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
-    isSharesFolder, isTrashFolder, sizeToString
+    getFilenameFromPath, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
+    isSharesFolder, isTrashFolder
 } from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
+import {ProjectName} from "Project";
+import {getStoredProject} from "Project/Redux";
 
 export function toggleCssColors(light: boolean): void {
     if (light) {
@@ -84,33 +86,13 @@ export const getMembersString = (acls: Acl[]): string => {
     }
 };
 
-export function sortingColumnToValue(sortBy: SortBy, file: File): string {
-    switch (sortBy) {
-        case SortBy.FILE_TYPE:
-            return prettierString(file.fileType);
-        case SortBy.PATH:
-            return getFilenameFromPath(file.path);
-        case SortBy.MODIFIED_AT:
-            return dateToString(file.modifiedAt!);
-        case SortBy.SIZE:
-            return isDirectory({fileType: file.fileType}) ? "" : sizeToString(file.size!);
-        case SortBy.ACL:
-            if (file.acl !== null)
-                return getMembersString(file.acl);
-            else
-                return "";
-        case SortBy.SENSITIVITY_LEVEL:
-            return SensitivityLevel[file.sensitivityLevel!];
-    }
-}
-
 export const extensionTypeFromPath = (path: string): ExtensionType => extensionType(extensionFromPath(path));
 export const extensionFromPath = (path: string): string => {
     const splitString = path.split(".");
     return splitString[splitString.length - 1];
 };
 
-type ExtensionType =
+export type ExtensionType =
     null
     | "code"
     | "image"
@@ -122,6 +104,7 @@ type ExtensionType =
     | "binary"
     | "markdown"
     | "application";
+
 export const extensionType = (ext: string): ExtensionType => {
     switch (ext.toLowerCase()) {
         case "app":
@@ -286,7 +269,7 @@ export const iconFromFilePath = (
     filePath: string,
     type: FileType
 ): FtIconProps => {
-    const icon: FtIconProps = {type: "FILE", name: getFilenameFromPath(filePath)};
+    const icon: FtIconProps = {type: "FILE", name: getFilenameFromPath(filePath, [])};
 
     switch (type) {
         case "DIRECTORY":
@@ -310,7 +293,7 @@ export const iconFromFilePath = (
 
         case "FILE":
         default:
-            const filename = getFilenameFromPath(filePath);
+            const filename = getFilenameFromPath(filePath, []);
             if (!filename.includes(".")) {
                 return icon;
             }
@@ -324,7 +307,7 @@ export const iconFromFilePath = (
  *
  * @param params: { status, min, max } (both inclusive)
  */
-export const inRange = ({status, min, max}: { status: number; min: number; max: number }): boolean =>
+export const inRange = ({status, min, max}: {status: number; min: number; max: number}): boolean =>
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
 export const removeTrailingSlash = (path: string): string => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
@@ -352,9 +335,9 @@ export const downloadAllowed = (files: File[]): boolean => files.every(f => f.se
 export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
-    error: { request: XMLHttpRequest; response: any }
+    error: {request: XMLHttpRequest; response: any}
 ): number {
-    const request: XMLHttpRequest = error.request;
+    const {request} = error;
     // FIXME must be solvable more elegantly
     let why: string | null = error.response?.why;
 
@@ -407,9 +390,9 @@ export function requestFullScreen(el: Element, onFailure: () => void): void {
 
 export function timestampUnixMs(): number {
     return window.performance &&
-    window.performance.now &&
-    window.performance.timing &&
-    window.performance.timing.navigationStart ?
+        window.performance.now &&
+        window.performance.timing &&
+        window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
         Date.now();
 }
@@ -444,7 +427,7 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
 }
 
 export function errorMessageOrDefault(
-    err: { request: {status: number}; response: any } | { status: number; response: string } | string,
+    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string,
     defaultMessage: string
 ): string {
     if (!navigator.onLine) return "You seem to be offline.";
@@ -478,15 +461,19 @@ export const generateId = ((): (target: string) => string => {
     };
 })();
 
-export function stopPropagation(e: { stopPropagation(): void }): void {
+export function stopPropagation(e: {stopPropagation(): void}): void {
     e.stopPropagation();
 }
 
-export function preventDefault(e: { preventDefault(): void }): void {
+export function preventDefault(e: {preventDefault(): void}): void {
     e.preventDefault();
 }
 
-export function stopPropagationAndPreventDefault(e: { preventDefault(): void; stopPropagation(): void }): void {
+export function doNothing(): void {
+    return undefined;
+}
+
+export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}): void {
     preventDefault(e);
     stopPropagation(e);
 }
@@ -504,4 +491,48 @@ export function getUserThemePreference(): "light" | "dark" {
     // options: dark, light and no-preference
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
     return "light";
+}
+
+
+export function onNotificationAction(
+    history: History,
+    setProject: (projectId: string) => void,
+    notification: Notification,
+    projectNames: ProjectName[],
+    markAsRead: (id: number) => void
+): void {
+    const currentProject = getStoredProject();
+    switch (notification.type) {
+        case "APP_COMPLETE":
+            history.push(`/applications/results/${notification.meta.jobId}`);
+            break;
+        case "SHARE_REQUEST":
+            history.push("/shares");
+            break;
+        case "REVIEW_PROJECT":
+        case "PROJECT_INVITE":
+            history.push("/projects/");
+            break;
+        case "NEW_GRANT_APPLICATION":
+        case "COMMENT_GRANT_APPLICATION":
+        case "GRANT_APPLICATION_RESPONSE":
+        case "GRANT_APPLICATION_UPDATED":
+            const {meta} = notification;
+            history.push(`/project/grants/view/${meta.appId}`);
+            break;
+        case "PROJECT_ROLE_CHANGE":
+            const {projectId} = notification.meta;
+            if (currentProject !== projectId) {
+                setProject(projectId);
+                const projectName = projectNames.find(it => it.projectId === projectId)?.title ?? projectId;
+                snackbarStore.addInformation(`${projectName} is now active.`, false);
+            }
+            history.push("/project/members");
+            break;
+        default:
+            console.warn("unhandled");
+            console.warn(notification);
+            break;
+    }
+    markAsRead(notification.id);
 }

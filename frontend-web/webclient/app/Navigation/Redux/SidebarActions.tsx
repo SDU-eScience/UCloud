@@ -1,4 +1,3 @@
-import {PayloadAction} from "Types";
 import * as Types from "./SidebarReducer";
 
 export type SidebarActions = KCSuccess;

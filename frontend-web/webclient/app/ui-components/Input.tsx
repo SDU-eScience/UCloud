@@ -60,6 +60,10 @@ const Input = styled.input<InputProps>`
         background-color: transparent;
     }
 
+    &:disabled {
+        background-color: var(--lightGray, #f00);
+    }
+
     ${borders} ${space} ${borderRadius}
     ${left} ${width} ${right}
 `;

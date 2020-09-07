@@ -1,13 +1,11 @@
 package dk.sdu.cloud.alerting.services
 
-import dk.sdu.cloud.alerting.Configuration
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.toUtf8Bytes
 import org.apache.http.Header
 import org.apache.http.HttpEntity
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse
@@ -178,24 +176,6 @@ class ElasticAlertingTest {
     }
 
     @Test
-    fun `alert on indices count - not 200 response on health request`() {
-        val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
-        val ea = ElasticAlerting(rest, alerting, true)
-
-        val lowRest = mockk<RestClient>()
-
-        every { lowRest.performRequest(any()) } answers {
-            val response = mockk<Response>()
-            every { response.statusLine.statusCode } returns 400
-            response
-        }
-
-        runBlocking {ea.alertOnIndicesCount(Configuration())}
-
-    }
-
-    @Test
     fun `alert on doc count - not 200 response`() {
         val rest = mockk<RestHighLevelClient>()
         val alerting = mockk<AlertingService>()
@@ -232,7 +212,7 @@ class ElasticAlertingTest {
                 }
                 every { entity.contentLength } returns "index 1600000000".length.toLong()
                 every { entity.content } answers {
-                    ByteArrayInputStream( "index 1600000000".toUtf8Bytes())
+                    ByteArrayInputStream( "index 1600000000".toByteArray())
                 }
                 entity
             }
@@ -264,7 +244,7 @@ class ElasticAlertingTest {
                 }
                 every { entity.contentLength } returns "index 2000000000".length.toLong()
                 every { entity.content } answers {
-                    ByteArrayInputStream( "index 2000000000".toUtf8Bytes())
+                    ByteArrayInputStream( "index 2000000000".toByteArray())
                 }
                 entity
             }
@@ -296,7 +276,7 @@ class ElasticAlertingTest {
                 }
                 every { entity.contentLength } returns "index 84".length.toLong()
                 every { entity.content } answers {
-                    ByteArrayInputStream( "index 84".toUtf8Bytes())
+                    ByteArrayInputStream( "index 84".toByteArray())
                 }
                 entity
             }

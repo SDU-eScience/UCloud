@@ -3,13 +3,15 @@ package dk.sdu.cloud.app.license.services
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.*
-import dk.sdu.cloud.app.license.services.acl.*
+import dk.sdu.cloud.app.license.api.Project
+import dk.sdu.cloud.app.license.api.ProjectAndGroup
+import dk.sdu.cloud.app.license.api.ProjectGroup
+import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.UserStatusRequest
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import java.util.*
@@ -23,7 +25,7 @@ class AppLicenseService(
     suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, accessEntity: AccessEntity): LicenseServerWithId? {
         if (
             !aclService.hasPermission(serverId, accessEntity, ServerAccessRight.READ) &&
-            securityPrincipal.role !in Roles.PRIVILEDGED
+            securityPrincipal.role !in Roles.PRIVILEGED
         ) {
             throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
         }
@@ -32,7 +34,7 @@ class AppLicenseService(
             ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
     }
 
-    suspend fun updateAcl(serverId: String, changes: List<AclEntryRequest>, principal: SecurityPrincipal) {
+    suspend fun updateAcl(serverId: String, changes: List<AclChange>, principal: SecurityPrincipal) {
         val accessEntity = AccessEntity(principal.username, null, null)
         aclService.updatePermissions(serverId, changes, accessEntity)
     }
@@ -42,9 +44,36 @@ class AppLicenseService(
         aclService.revokeAllFromEntity(accessEntity)
     }
 
-    suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<AccessEntityWithPermission> {
-        return if (Roles.PRIVILEDGED.contains(user.role)) {
-            aclService.listAcl(request.serverId)
+    suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<DetailedAccessEntityWithPermission> {
+        return if (Roles.PRIVILEGED.contains(user.role)) {
+            aclService.listAcl(request.serverId).map {
+                if (!it.entity.project.isNullOrBlank() && !it.entity.group.isNullOrBlank()) {
+                    val lookup = ProjectGroups.lookupProjectAndGroup.call(
+                        LookupProjectAndGroupRequest(it.entity.project!!, it.entity.group!!),
+                        authenticatedClient
+                    ).orRethrowAs {
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to fetch project entities")
+                    }
+
+                    DetailedAccessEntityWithPermission(
+                        DetailedAccessEntity(
+                            null,
+                            Project(lookup.project.id, lookup.project.title),
+                            ProjectGroup(lookup.group.id, lookup.group.title)
+                        ),
+                        it.permission
+                    )
+                } else {
+                    DetailedAccessEntityWithPermission(
+                        DetailedAccessEntity(
+                            it.entity.user,
+                            null,
+                            null
+                        ),
+                        it.permission
+                    )
+                }
+            }
         } else {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not allowed")
         }
@@ -57,7 +86,7 @@ class AppLicenseService(
         ).orRethrowAs {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }.groups.map {
-            ProjectAndGroup(it.projectId, it.group)
+            ProjectAndGroup(it.project, it.group)
         }
 
         return appLicenseDao.list(
@@ -106,14 +135,14 @@ class AppLicenseService(
 
     suspend fun updateLicenseServer(securityPrincipal: SecurityPrincipal, request: UpdateServerRequest, accessEntity: AccessEntity): String {
         if (
-            aclService.hasPermission(request.withId, accessEntity, ServerAccessRight.READ_WRITE) ||
-            securityPrincipal.role in Roles.PRIVILEDGED
+            aclService.hasPermission(request.id, accessEntity, ServerAccessRight.READ_WRITE) ||
+            securityPrincipal.role in Roles.PRIVILEGED
         ) {
             // Save information for existing license server
             appLicenseDao.update(
                 db,
                 LicenseServerWithId(
-                    request.withId,
+                    request.id,
                     request.name,
                     request.address,
                     request.port,
@@ -122,7 +151,7 @@ class AppLicenseService(
             )
 
 
-            return request.withId
+            return request.id
         } else {
             throw RPCException("Not authorized to change license server details", HttpStatusCode.Unauthorized)
         }
@@ -134,7 +163,7 @@ class AppLicenseService(
                 request.id,
                 AccessEntity(securityPrincipal.username, null, null),
                 ServerAccessRight.READ_WRITE
-            ) || securityPrincipal.role in Roles.PRIVILEDGED
+            ) || securityPrincipal.role in Roles.PRIVILEGED
         ) {
             // Delete Acl entries for the license server
             aclService.revokeAllServerPermissionsWithSession(request.id)

@@ -82,7 +82,7 @@ export function PaginationButtons({totalPages, currentPage, toPage}: PaginationB
 
 const PaginationButtonBase = styled(Button) <{unclickable?: boolean}>`
     color: var(--text, #f00);
-    background-color: ${props => props.unclickable ? props.theme.colors.paginationDisabled : "transparent"};
+    background-color: ${props => props.unclickable ? "var(--paginationDisabled, #f00)" : "transparent"};
     border-color: var(--borderGray, #f00);
     border-width: 1px;
     &:disabled {
@@ -91,7 +91,7 @@ const PaginationButtonBase = styled(Button) <{unclickable?: boolean}>`
     border-right-width: 0px;
     &:hover {
         filter: brightness(100%);
-        background-color: ${props => props.unclickable ? null : props.theme.colors.paginationHoverColor};
+        background-color: ${props => props.unclickable ? null : "var(--paginationHoverColor, #f00)"};
         cursor: ${props => props.unclickable ? "default" : null};
         transform: none;
     }

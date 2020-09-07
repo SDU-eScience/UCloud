@@ -17,7 +17,7 @@ import java.net.URI
 
 @Order(Int.MAX_VALUE)
 @Plugin(name = "Log4j2ConfigFactory", category = ConfigurationFactory.CATEGORY)
-internal object Log4j2ConfigFactory : ConfigurationFactory() {
+object Log4j2ConfigFactory : ConfigurationFactory() {
     private const val appenderRef = "stdout"
     private lateinit var loggerContext: LoggerContext
 
@@ -77,7 +77,11 @@ internal object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("org.hibernate", Level.INFO)
             configureLogLevelForPackage("com.zaxxer.hikari", Level.INFO)
             configureLogLevelForPackage("io.mockk.impl", Level.INFO)
-        }.build()
+            configureLogLevelForPackage("com.github.jasync.sql.db.postgresql.codec.PostgreSQLConnectionHandler", Level.WARN)
+        }.build().also {
+            initializeFn?.invoke()
+            initializeFn = null
+        }
     }
 
     private fun ConfigurationBuilder<*>.configureLogLevelForPackage(packageName: String, level: Level) {
@@ -105,12 +109,24 @@ internal object Log4j2ConfigFactory : ConfigurationFactory() {
         )
     }
 
+    private var initializeFn: (() -> Unit)? = null
+
     fun initialize(ctx: Micro) {
-        if (ctx.developmentModeEnabled || ctx.commandLineArguments.contains("--debug")) {
-            loggerContext.configuration.getLoggerConfig(LogManager.ROOT_LOGGER_NAME).level = Level.DEBUG
+        if (!this::loggerContext.isInitialized) {
+            ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
+        }
+        initializeFn = {
+            if (ctx.developmentModeEnabled || ctx.commandLineArguments.contains("--debug")) {
+                loggerContext.configuration.getLoggerConfig(LogManager.ROOT_LOGGER_NAME).level = Level.DEBUG
+            }
+
+            loggerContext.updateLoggers()
         }
 
-        loggerContext.updateLoggers()
+        if (this::loggerContext.isInitialized) {
+            initializeFn!!()
+            initializeFn = null
+        }
     }
 
     fun configureLevels(levels: Map<String, Level>) {

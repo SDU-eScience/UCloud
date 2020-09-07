@@ -2,7 +2,6 @@ import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {Progress, Speed, Task, TaskUpdate} from "BackgroundTasks/api";
 import DetailedTask from "BackgroundTasks/DetailedTask";
 import {taskLoadAction, taskUpdateAction} from "BackgroundTasks/redux";
-import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
@@ -10,7 +9,6 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Dictionary, Page} from "Types";
 import {Icon} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -29,7 +27,7 @@ interface BackgroundTaskProps {
     activeUploads: number;
     uploads: Upload[];
     showUploader: () => void;
-    tasks?: Dictionary<TaskUpdate>;
+    tasks?: Record<string, TaskUpdate>;
     onTaskUpdate: (update: TaskUpdate) => void;
     loadInitialTasks: () => void;
 }
@@ -220,7 +218,7 @@ const mapStateToProps = (state: ReduxObject) => ({
 });
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
+    showUploader: () => dispatch(setUploaderVisible(true, Client.activeHomeFolder)),
     onTaskUpdate: (update: TaskUpdate) => dispatch(taskUpdateAction(update)),
     loadInitialTasks: async () => {
         try {

@@ -1,4 +1,4 @@
-version = "3.1.0"
+version = "3.2.5"
 
 application {
     mainClassName = "dk.sdu.cloud.project.MainKt"
@@ -10,4 +10,3 @@ dependencies {
     implementation(project(":mail-service:api"))
     implementation(project(":notification-service:api"))
 }
-

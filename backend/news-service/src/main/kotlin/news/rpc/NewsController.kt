@@ -40,7 +40,7 @@ class NewsController(
                     request.normalize(),
                     request.filter,
                     request.withHidden,
-                    ctx.securityPrincipal.role in Roles.PRIVILEDGED
+                    ctx.securityPrincipal.role in Roles.PRIVILEGED
                 )
             )
         }

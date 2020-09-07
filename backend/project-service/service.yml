@@ -1,9 +1,0 @@
----
-name: project
-
-namespaces:
-  - project
-  - project.members
-  - project.group
-
-dependencies: []

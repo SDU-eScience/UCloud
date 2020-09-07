@@ -7,6 +7,8 @@ import {Button, Flex, Icon} from "ui-components";
 import Input, {InputLabel} from "ui-components/Input";
 import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {SpaceProps, HeightProps, WidthProps} from "styled-system";
+import {useProjectStatus} from "Project/cache";
+import {getProjectNames} from "Utilities/ProjectUtilities";
 
 interface FileInputSelectorProps {
     path: string; // selected file
@@ -27,11 +29,11 @@ interface FileInputSelectorProps {
 
 export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> = props => {
     const [visible, setVisible] = useState(false);
-    const path = props.path ? props.path : "";
-
+    const path = props.path ?? "";
+    const projects = getProjectNames(useProjectStatus());
     const removeButton = props.remove ? (<RemoveButton onClick={() => props.remove!()} />) : null;
     const inputRefValueOrNull = props.inputRef?.current?.value;
-    const inputValue = inputRefValueOrNull ?? replaceHomeOrProjectFolder(path, Client);
+    const inputValue = inputRefValueOrNull ?? replaceHomeOrProjectFolder(path, Client, projects);
 
     return (
         <FileSelector
@@ -87,5 +89,5 @@ interface FileSelectorButton {
 export const RemoveButton = ({
     onClick, ...props
 }: FileSelectorButton & SpaceProps & WidthProps & HeightProps): JSX.Element => (
-    <Button color="red" ml="8px" onClick={onClick} {...props}><Icon name="close" size="1em" /></Button>
+    <Button type={"button"} color="red" ml="8px" onClick={onClick} {...props}><Icon name="close" size="1em" /></Button>
 );

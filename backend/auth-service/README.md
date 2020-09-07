@@ -151,7 +151,8 @@ sensitive data in it.
   "principalType": "password",
   "firstNames": "User",
   "lastName": "User",
-  "uid": 10
+  "uid": 10,
+  "orgId": "sdu"
 }
 ```
 
@@ -206,6 +207,11 @@ The table below shows the global roles in UCloud:
 | `USER`    | A 'normal' end-user                                                   |
 | `ADMIN`   | An administrator of system. Has access to certain privileged actions. |
 | `SERVICE` | An internal (micro)service. Has access to certain privileged actions. |
+
+The deployment script (see `k8-manager`) is responsible for the creation of service accounts. Service accounts can only
+authenticate via their `refreshToken`/`accessToken`. Compromised `refreshToken`s can manually be regenerated. Note that
+the same restrictions apply for `accessToken`s as normal users, they need to expire before access is denied. This
+happens within 30 minutes. Every microservice has an associated service account.
 
 #### Security Scopes
 
@@ -284,3 +290,4 @@ considered secret and does not allow a user to create new JWTs.
 | `firstNames`    | First name(s).                             |
 | `lastName`      | Last name.                                 |
 | `uid`           | Unique user ID                             |
+| `orgId`         | Organization ID (provided by WAYF)         |

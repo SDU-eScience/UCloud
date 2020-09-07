@@ -10,19 +10,17 @@ import dk.sdu.cloud.app.store.services.LogoService
 import dk.sdu.cloud.app.store.services.LogoType
 import dk.sdu.cloud.app.store.services.ToolAsyncDao
 import dk.sdu.cloud.app.store.util.yamlMapper
-import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.application.call
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.request.ContentTransformationException
-import io.ktor.request.receiveText
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
+import io.ktor.util.cio.*
+import io.ktor.utils.io.*
 import org.yaml.snakeyaml.reader.ReaderException
 import java.io.ByteArrayInputStream
 
@@ -66,45 +64,44 @@ class ToolController(
         }
 
         implement(ToolStore.create) {
-            with(ctx as HttpCall) {
-                val content = try {
-                    call.receiveText()
-                } catch (ex: ContentTransformationException) {
-                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    return@implement
+            val length = request.asIngoing().length?.toInt()
+                ?: throw RPCException("Content-Length required", HttpStatusCode.BadRequest)
+            val content = ByteArray(length)
+                .also { arr ->
+                    request.asIngoing().channel.readFully(arr)
                 }
+                .let { String(it) }
 
-                @Suppress("DEPRECATION")
-                val yamlDocument = try {
-                    yamlMapper.readValue<ToolDescription>(content)
-                } catch (ex: JsonMappingException) {
-                    error(
-                        CommonErrorMessage(
-                            "Bad value for parameter ${ex.pathReference.replace(
-                                "dk.sdu.cloud.app.api.",
-                                ""
-                            )}. ${ex.message}"
-                        ),
-                        HttpStatusCode.BadRequest
-                    )
-                    return@implement
-                } catch (ex: MarkedYAMLException) {
-                    error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
-                    return@implement
-                } catch (ex: ReaderException) {
-                    error(
-                        CommonErrorMessage("Document contains illegal characters (unicode?)"),
-                        HttpStatusCode.BadRequest
-                    )
-                    return@implement
-                }
-
-                db.withTransaction {
-                    toolDao.create(it, ctx.securityPrincipal, yamlDocument.normalize(), content)
-                }
-
-                ok(Unit)
+            @Suppress("DEPRECATION")
+            val yamlDocument = try {
+                yamlMapper.readValue<ToolDescription>(content)
+            } catch (ex: JsonMappingException) {
+                error(
+                    CommonErrorMessage(
+                        "Bad value for parameter ${ex.pathReference.replace(
+                            "dk.sdu.cloud.app.api.",
+                            ""
+                        )}. ${ex.message}"
+                    ),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
+            } catch (ex: MarkedYAMLException) {
+                error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
+                return@implement
+            } catch (ex: ReaderException) {
+                error(
+                    CommonErrorMessage("Document contains illegal characters (unicode?)"),
+                    HttpStatusCode.BadRequest
+                )
+                return@implement
             }
+
+            db.withTransaction {
+                toolDao.create(it, ctx.securityPrincipal, yamlDocument.normalize(), content)
+            }
+
+            ok(Unit)
         }
 
         implement(ToolStore.uploadLogo) {

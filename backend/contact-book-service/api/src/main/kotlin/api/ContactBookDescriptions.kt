@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
-import java.lang.IllegalArgumentException
 
 enum class ServiceOrigin {
     SHARE_SERVICE,
@@ -49,7 +48,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
 
     val insert = call<InsertRequest, InsertResponse, CommonErrorMessage>("insert") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -66,7 +65,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
 
     val delete = call<DeleteRequest, DeleteResponse, CommonErrorMessage>("delete") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 

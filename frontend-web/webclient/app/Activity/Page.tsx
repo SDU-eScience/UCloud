@@ -1,6 +1,6 @@
 import {ActivityDispatchProps, ActivityFilter, ActivityProps} from "Activity";
 import * as Module from "Activity";
-import {ActivityReduxObject, ReduxObject} from "DefaultObjects";
+import {ActivityReduxObject, emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -18,6 +18,11 @@ import {ActivityFeedFrame, ActivityFeedItem, ActivityFeedSpacer} from "./Feed";
 import {fetchActivity, resetActivity, setLoading, updateActivityFilter} from "./Redux/ActivityActions";
 import Input from "ui-components/Input";
 import {Client} from "Authentication/HttpClientInstance";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {useCloudAPI} from "Authentication/DataHook";
+import {groupSummaryRequest} from "Project";
+import {GroupWithSummary} from "Project/GroupList";
 
 const scrollSize = 250;
 
@@ -37,7 +42,6 @@ const dropdownOptions: Array<{text: string; value: string}> = [
 ];
 
 function Activity(props: ActivityProps): JSX.Element {
-
     React.useEffect(() => {
         props.onMount();
         props.resetActivity();
@@ -49,20 +53,24 @@ function Activity(props: ActivityProps): JSX.Element {
         return () => props.setRefresh();
     }, []);
 
+    const [groups] = useCloudAPI<Page<GroupWithSummary>>(
+        Client.hasActiveProject ? groupSummaryRequest({itemsPerPage: -1, page: 0}) : {noop: true}, emptyPage
+    );
+
     function renderHeader(): React.ReactNode {
         return <Heading.h2>File Activity</Heading.h2>;
     }
 
     function renderMain(): React.ReactNode {
-        const {scroll, loading, fetchActivity} = props;
+        const {scroll, loading} = props;
         return (
             <Scroll.List
                 scroll={scroll}
                 scrollSize={scrollSize}
-                onNextScrollRequested={req => fetchActivity(req, props)}
+                onNextScrollRequested={req => props.fetchActivity(req, props)}
                 loading={loading}
                 frame={(ref, children) => <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>}
-                renderer={props => <ActivityFeedItem activity={props.item} />}
+                renderer={p => <ActivityFeedItem groups={groups.data} activity={p.item} />}
                 spacer={height => <ActivityFeedSpacer key={`spacer${height}`} height={height} />}
             />
         );
@@ -206,7 +214,7 @@ export const TimeFilter = (props: {text: string; onChange: (ts?: Date) => void; 
                 showTimeInput
                 placeholderText={"Don't filter"}
                 selected={props.selected}
-                onChange={ts => props.onChange(ts ?? undefined)}
+                onChange={ts => props.onChange(ts as Date ?? undefined)}
                 timeIntervals={15}
                 isClearable
                 selectsStart
@@ -236,9 +244,7 @@ const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
 
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 
-    updateFilter: (filter) => {
-        dispatch(updateActivityFilter(filter));
-    },
+    updateFilter: (filter) => dispatch(updateActivityFilter(filter)),
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Activity);

@@ -1,36 +1,40 @@
 package dk.sdu.cloud.file.http
 
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.LimitChecker
 import dk.sdu.cloud.file.util.CallResult
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.toActor
 import io.ktor.http.HttpStatusCode
 
 class ActionController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
-    private val fileLookupService: FileLookupService<Ctx>
+    private val fileLookupService: FileLookupService<Ctx>,
+    private val limitChecker: LimitChecker<Ctx>
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.createPersonalRepository) {
             commandRunnerFactory.withCtx(this, SERVICE_USER) {
-                coreFs.makeDirectory(it, "/projects/${request.project}/${PERSONAL_REPOSITORY}/${request.username}")
+                runCatching { coreFs.makeDirectory(it, joinPath("/projects", request.project, PERSONAL_REPOSITORY)) }
+                coreFs.makeDirectory(it, joinPath("/projects", request.project, PERSONAL_REPOSITORY, request.username))
             }
             ok(Unit)
         }
 
         implement(FileDescriptions.createDirectory) {
             val sensitivity = request.sensitivity
-            if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.owner != null) {
+            if (ctx.securityPrincipal.role in Roles.PRIVILEGED && request.owner != null) {
                 val owner = request.owner!!
                 commandRunnerFactory.withCtxAndTimeout(this, user = owner) {
                     coreFs.makeDirectory(it, request.path)
@@ -120,6 +124,39 @@ class ActionController<Ctx : FSUserContext>(
                 coreFs.normalizePermissions(ctx, request.path)
             }
 
+            ok(Unit)
+        }
+
+        implement(FileDescriptions.updateQuota) {
+            limitChecker.setQuota(
+                ctx.securityPrincipal.toActor(),
+                request.path,
+                request.quotaInBytes,
+                request.additive
+            )
+            ok(Unit)
+        }
+
+        implement(FileDescriptions.retrieveQuota) {
+            val quota = limitChecker.retrieveQuota(ctx.securityPrincipal.toActor(), request.path)
+            var usage: Long? = null
+            if (request.includeUsage) {
+                commandRunnerFactory.withCtx(this, SERVICE_USER) {
+                    // Use service user since we have already passed permission check for reading quota
+                    usage = coreFs.estimateRecursiveStorageUsedMakeItFast(it, request.path)
+                }
+            }
+
+            ok(quota.copy(quotaUsed = usage))
+        }
+
+        implement(FileDescriptions.transferQuota) {
+            limitChecker.transferQuota(
+                ctx.securityPrincipal.toActor(),
+                projectHomeDirectory(ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)),
+                request.path,
+                request.quotaInBytes
+            )
             ok(Unit)
         }
     }

@@ -1,5 +1,3 @@
-import {Dictionary} from "Types";
-
 export function removeEntry<T>(arr: T[], index: number): T[] {
     return arr.slice(0, index).concat(arr.slice(index + 1));
 }
@@ -25,8 +23,8 @@ export function addEntryIfNotPresent(set: Set<PrimitiveDataTypes>, entry: Primit
     return size !== set.size;
 }
 
-export function groupBy<T>(items: T[], keySelector: (t: T) => string): Dictionary<T[]> {
-    const result: Dictionary<T[]> = {};
+export function groupBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T[]> {
+    const result: Record<string, T[]> = {};
     items.forEach(item => {
         const key = keySelector(item);
         const newList = result[key] ?? [];
@@ -36,8 +34,8 @@ export function groupBy<T>(items: T[], keySelector: (t: T) => string): Dictionar
     return result;
 }
 
-export function associateBy<T>(items: T[], keySelector: (t: T) => string): Dictionary<T> {
-    const result: Dictionary<T> = {};
+export function associateBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T> {
+    const result: Record<string, T> = {};
     items.forEach(item => {
         const key = keySelector(item);
         result[key] = item;

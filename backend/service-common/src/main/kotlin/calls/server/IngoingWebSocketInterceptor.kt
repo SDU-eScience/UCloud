@@ -11,14 +11,11 @@ import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.cio.websocket.CloseReason
-import io.ktor.http.cio.websocket.Frame
-import io.ktor.http.cio.websocket.close
-import io.ktor.http.cio.websocket.readText
-import io.ktor.http.cio.websocket.send
+import io.ktor.http.cio.websocket.*
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.cio.ChannelReadException
@@ -159,16 +156,16 @@ class IngoingWebSocketInterceptor(
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
 
-                    var nextPing = System.currentTimeMillis() + PING_PERIOD
+                    var nextPing = Time.now() + PING_PERIOD
                     try {
                         while (isActive && session.isActive) {
-                            if (System.currentTimeMillis() >= nextPing) {
+                            if (Time.now() >= nextPing) {
                                 try {
                                     session.rawSend("""{"ping":"pong"}""")
                                 } catch (ex: ClosedSendChannelException) {
                                     break
                                 }
-                                nextPing = System.currentTimeMillis() + PING_PERIOD
+                                nextPing = Time.now() + PING_PERIOD
                             }
 
                             val frame = try {
@@ -181,12 +178,12 @@ class IngoingWebSocketInterceptor(
 
                             if (frame is Frame.Text) {
                                 val text = frame.readText()
-                                log.debug("Received frame: $text")
+                                log.trace("Received frame: $text")
 
                                 @Suppress("BlockingMethodInNonBlockingContext")
                                 val parsedMessage = defaultMapper.readTree(text)
 
-                                log.debug("Parsed message: $parsedMessage")
+                                log.trace("Parsed message: $parsedMessage")
 
                                 // We silently discard messages that don't follow the correct format
                                 val requestedCall =
@@ -205,7 +202,7 @@ class IngoingWebSocketInterceptor(
                                         ?.textValue()
                                         ?: continue
 
-                                log.debug("streamId: $streamId")
+                                log.trace("streamId: $streamId")
 
                                 // We alert the caller if the send a well-formed message that we cannot handle
                                 val call = callsByName[requestedCall]
@@ -224,13 +221,13 @@ class IngoingWebSocketInterceptor(
                                 }
 
                                 launch {
-                                    log.debug("Handling call...")
+                                    log.trace("Handling call...")
                                     rpcServer.handleIncomingCall(
                                         this@IngoingWebSocketInterceptor,
                                         call,
                                         WSCall(session, parsedMessage, streamId)
                                     )
-                                    log.debug("Call has been handled")
+                                    log.trace("Call has been handled")
                                 }
                             }
                         }
@@ -241,7 +238,7 @@ class IngoingWebSocketInterceptor(
                                     throwable is ClosedSendChannelException
 
                         if (isChannelException(ex) || isChannelException(ex.cause)) {
-                            log.info("Channel was closed")
+                            log.trace("Channel was closed")
                         } else {
                             log.info("Caught exception in websocket server handler")
                             log.info(ex.stackTraceToString())

@@ -162,7 +162,7 @@ exports[`FileIcon FileIcon, shared 1`] = `
 }
 
 <div
-  className="sc-AxjAm c0"
+  className="c0"
 >
   <svg
     className="c1"
@@ -185,7 +185,7 @@ exports[`FileIcon FileIcon, shared 1`] = `
     />
   </svg>
   <div
-    className="sc-AxhUy c2"
+    className="c2"
   >
     <div
       className="c3"
@@ -556,6 +556,10 @@ exports[`Share prompt 1`] = `
 .c7:focus {
   outline: none;
   background-color: transparent;
+}
+
+.c7:disabled {
+  background-color: var(--lightGray,#f00);
 }
 
 .c7:focus {

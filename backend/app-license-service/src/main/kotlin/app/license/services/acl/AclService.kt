@@ -2,18 +2,17 @@ package dk.sdu.cloud.app.license.services.acl
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.license.api.AccessEntity
-import dk.sdu.cloud.app.license.api.AccessEntityWithPermission
-import dk.sdu.cloud.app.license.api.AclEntryRequest
+import dk.sdu.cloud.app.license.api.AclChange
 import dk.sdu.cloud.app.license.api.ServerAccessRight
 import dk.sdu.cloud.app.license.rpc.AppLicenseController
+import dk.sdu.cloud.app.license.services.AccessEntityWithPermission
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.project.api.GroupExistsRequest
-import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 
@@ -27,7 +26,7 @@ class AclService(
         return dao.hasPermission(db, serverId, accessEntity, permission)
     }
 
-    suspend fun updatePermissions(serverId: String, changes: List<AclEntryRequest>, accessEntity: AccessEntity) {
+    suspend fun updatePermissions(serverId: String, changes: List<AclChange>, accessEntity: AccessEntity) {
         if (dao.hasPermission(db, serverId, accessEntity, ServerAccessRight.READ_WRITE)) {
             changes.forEach { change ->
                 if (accessEntity.user == change.entity.user) {
@@ -76,19 +75,23 @@ class AclService(
             if(!project.isNullOrBlank() && !group.isNullOrBlank()) {
                 AppLicenseController.log.debug("Verifying that project and group exists")
 
-                val lookup = ProjectGroups.groupExists.call(
-                    GroupExistsRequest(project, group),
-                    authenticatedClient
+                val projectInfo = Projects.lookupByTitle.call(
+                        LookupByTitleRequest(project),
+                        authenticatedClient
                 ).orRethrowAs {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    throw RPCException("No project exists with that name", HttpStatusCode.BadRequest)
                 }
 
-                if (!lookup.exists) throw RPCException.fromStatusCode(
-                    HttpStatusCode.BadRequest,
-                    "The project group does not exist"
-                )
+                val groupInfo = ProjectGroups.lookupByTitle.call(
+                    LookupByGroupTitleRequest(projectInfo.id, group),
+                    authenticatedClient
+                ).orRethrowAs {
+                    throw RPCException("No group exists with that name", HttpStatusCode.BadRequest)
+                }
 
-                dao.updatePermissions(db, serverId, entity, permissions)
+                val entityWithId = AccessEntity(entity.user, projectInfo.id, groupInfo.groupId)
+
+                dao.updatePermissions(db, serverId, entityWithId, permissions)
             } else {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Neither user or project group defined")
             }

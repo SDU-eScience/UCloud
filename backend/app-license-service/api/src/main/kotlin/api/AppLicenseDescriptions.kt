@@ -12,55 +12,21 @@ import io.ktor.http.HttpMethod
 
 data class LicenseServerRequest(val serverId: String)
 
-data class UpdateServerRequest(
-    val name: String,
-    val address: String,
-    val port: Int,
-    val license: String?,
-    val withId: String
-)
-
-data class AccessEntityWithPermission(
-    val entity: AccessEntity,
-    val permission: ServerAccessRight
-)
-
-enum class ServerAccessRight {
-    READ,
-    READ_WRITE
-}
-
-data class AccessEntity(
-    val user: String?,
-    val project: String?,
-    val group: String?
-) {
-    init {
-        require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank())) { "No access entity defined" }
-    }
-}
-
-data class ProjectAndGroup(
-    val project: String,
-    val group: String
-)
-
+typealias UpdateServerRequest = LicenseServerWithId
 
 data class DeleteServerRequest(
     val id: String
 )
 
-data class NewServerRequest(
-    val name: String,
-    val address: String,
-    val port: Int,
-    val license: String?
-)
+typealias NewServerRequest = LicenseServer
 
 data class ListAclRequest(
     val serverId: String
 )
 
+/***
+ * @see LicenseServer
+ */
 data class LicenseServerWithId(
     val id: String,
     val name: String,
@@ -69,10 +35,45 @@ data class LicenseServerWithId(
     val license: String?
 )
 
+/**
+ * A license server
+ *
+ * Licenses servers in UCloud consist of a small number of fields which can be consumed by application to provide
+ * the user access to a license server.
+ *
+ * A [LicenseServer] usually references a running TCP/IP server which can be contacted on [address]:[port] using some
+ * application specific protocol. The [license] is intended to be used for authentication with the server.
+ *
+ * [LicenseServer]s are consumed by applications by using a parameter of type `license_server`. This should create a
+ * widget which displays all [LicenseServer]s a user has access to that also have a specific tag (see [AddTagRequest]).
+ */
 data class LicenseServer(
+    /**
+     * A name of the license server used for user interfaces
+     *
+     * This does not uniquely identify the server.
+     */
     val name: String,
+
+    /**
+     * An [address] used by the license server
+     *
+     * This is typically a hostname or an IP address. Use empty string if not applicable.
+     */
     val address: String,
+
+    /**
+     * The [port] is used in conjunction the [address] to create an identifier usable to contact a TCP/IP server
+     *
+     * Use 0 if not applicable.
+     */
     val port: Int,
+
+    /**
+     * A key used by the license server, typically for authentication
+     *
+     * This might not be applicable for the server, in that case use null.
+     */
     val license: String?
 )
 
@@ -81,13 +82,13 @@ data class LicenseServerId(
     val name: String
 )
 
-data class ListLicenseServersRequest(val tags: List<String>);
+data class FindByTagRequest(val tags: List<String>)
 data class UpdateServerResponse(val serverId: String)
 data class NewServerResponse(val serverId: String)
 
 data class UpdateAclRequest(
     val serverId: String,
-    val changes: List<AclEntryRequest>
+    val changes: List<AclChange>
 ) {
     init {
         if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
@@ -95,7 +96,7 @@ data class UpdateAclRequest(
     }
 }
 
-data class AclEntryRequest(
+data class AclChange(
     val entity: AccessEntity,
     val rights: ServerAccessRight,
     val revoke: Boolean = false
@@ -104,9 +105,12 @@ data class AclEntryRequest(
 object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     val baseContext = "/api/app/license"
 
+    /**
+     * Finds a [LicenseServerWithId] by its [LicenseServerWithId.id]
+     */
     val get = call<LicenseServerRequest, LicenseServerWithId, CommonErrorMessage>("get") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -123,7 +127,10 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val list = call<ListLicenseServersRequest, List<LicenseServerId>, CommonErrorMessage>("list") {
+    /**
+     * Finds all relevant [LicenseServerWithId] that have any tag present in [FindByTagRequest.tags]
+     */
+    val findByTag = call<FindByTagRequest, List<LicenseServerId>, CommonErrorMessage>("findByTag") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -134,16 +141,21 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                +"list"
+                +"by-tag"
             }
 
             body { bindEntireRequestFromBody() }
         }
     }
 
+    /**
+     * Lists _all_ license servers in the system
+     *
+     * This endpoint is only available for users in [Roles.PRIVILEGED]
+     */
     val listAll = call<Unit, List<LicenseServerWithId>, CommonErrorMessage>("listAll") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -158,9 +170,16 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     }
 
 
+    /**
+     * Updates the ACL associated with the license server identified by [UpdateAclRequest.serverId]
+     *
+     * @see UpdateAclRequest
+     * @see AclChange
+     * @see AccessEntity
+     */
     val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -176,9 +195,14 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val listAcl = call<ListAclRequest, List<AccessEntityWithPermission>, CommonErrorMessage>("listAcl") {
+    /**
+     * Lists the ACL associated with a [LicenseServer] identified by [ListAclRequest.serverId]
+     *
+     * The ACL will contain a detailed summary of the access entities, suitable for user interfaces.
+     */
+    val listAcl = call<ListAclRequest, List<DetailedAccessEntityWithPermission>, CommonErrorMessage>("listAcl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -196,9 +220,12 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
+    /**
+     * Updates an existing [LicenseServer]
+     */
     val update = call<UpdateServerRequest, UpdateServerResponse, CommonErrorMessage>("update") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -216,7 +243,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val delete = call<DeleteServerRequest, Unit, CommonErrorMessage>("update") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -237,7 +264,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val new = call<NewServerRequest, NewServerResponse, CommonErrorMessage>("new") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 

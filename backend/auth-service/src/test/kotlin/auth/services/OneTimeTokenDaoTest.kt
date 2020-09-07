@@ -3,14 +3,8 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.withDatabase
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.spyk
+import dk.sdu.cloud.service.test.TestDB
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass
@@ -18,8 +12,6 @@ import org.junit.BeforeClass
 import org.junit.Test
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class OneTimeTokenDaoTest {

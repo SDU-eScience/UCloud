@@ -1,6 +1,7 @@
 import {HeaderSearchType} from "DefaultObjects";
-import {PayloadAction} from "Types";
 import {SET_PRIORITIZED_SEARCH, SET_REFRESH_FUNCTION, USER_LOGIN, USER_LOGOUT} from "./HeaderReducer";
+import {useDispatch} from "react-redux";
+import {useEffect} from "react";
 
 export type HeaderActions = SetPrioritizedSearchAction | SetRefreshFunction;
 
@@ -25,3 +26,13 @@ interface UserLogIn {type: typeof USER_LOGIN}
 export const login = (): UserLogIn => ({
     type: USER_LOGIN
 });
+
+export function useRefreshFunction(refreshFn: () => void): void {
+    const dispatch = useDispatch();
+    useEffect(() => {
+        dispatch(setRefreshFunction(refreshFn));
+        return () => {
+            dispatch(setRefreshFunction(undefined));
+        };
+    });
+}

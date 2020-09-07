@@ -1,10 +1,18 @@
-import {APICallParameters} from "Authentication/DataHook";
+import {useGlobalCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
 import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 import {inDevEnvironment} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
+import {useHistory, useParams} from "react-router";
+import {useSelector} from "react-redux";
+import {emptyPage} from "DefaultObjects";
+import {useProjectStatus} from "./cache";
+import {useGlobal} from "Utilities/ReduxHooks";
+import {GroupWithSummary} from "./GroupList";
+import {useCallback, useEffect} from "react";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {usePromiseKeeper} from "PromiseKeeper";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -17,7 +25,7 @@ export interface ListGroupMembersRequestProps extends PaginationRequest {
     group: string;
 }
 
-export function createGroup(props: CreateGroupRequest): APICallParameters<{}> {
+export function createGroup(props: CreateGroupRequest): APICallParameters {
     return {
         reloadId: Math.random(),
         method: "PUT",
@@ -65,16 +73,27 @@ export function removeGroupMemberRequest(payload: RemoveGroupMemberProps): APICa
     };
 }
 
-export interface ShouldVerifyMembershipResponse {
-    shouldVerify: boolean;
-}
-
-export function shouldVerifyMembership(projectId: string): APICallParameters {
+export function membersCountRequest(): APICallParameters {
     return {
         method: "GET",
-        path: `${projectContext}should-verify`,
+        path: `${projectContext}membership/count`,
         reloadId: Math.random(),
-        projectOverride: projectId
+    };
+}
+
+export function groupsCountRequest(): APICallParameters {
+    return {
+        method: "GET",
+        path: `${groupContext}count`,
+        reloadId: Math.random(),
+    };
+}
+
+export function subprojectsCountRequest(): APICallParameters {
+    return {
+        method: "GET",
+        path: `${projectContext}sub-projects-count`,
+        reloadId: Math.random(),
     };
 }
 
@@ -122,8 +141,11 @@ export function groupSummaryRequest(payload: PaginationRequest): APICallParamete
     };
 }
 
-export interface UserStatusRequest {
+export type UserStatusRequest = {};
 
+export interface ProjectName {
+    title: string;
+    projectId: string;
 }
 
 export interface UserStatusResponse {
@@ -157,7 +179,7 @@ export function membershipSearch(request: MembershipSearchRequest): APICallParam
 }
 
 export interface UpdateGroupNameRequest {
-    oldGroupName: string;
+    groupId: string;
     newGroupName: string;
 }
 
@@ -186,18 +208,26 @@ export function deleteGroup(request: DeleteGroupRequest): APICallParameters<Dele
 export interface ProjectMember {
     username: string;
     role: ProjectRole;
+    memberOfAnyGroup?: boolean;
 }
 
 export interface Project {
     id: string;
     title: string;
-    members: ProjectMember[];
+    parent?: string;
+    archived: boolean;
+}
+
+export interface ProjectGroup {
+    id: string,
+    title: string
 }
 
 export const emptyProject = (id: string): Project => ({
     id,
     title: "",
-    members: []
+    parent: undefined,
+    archived: false
 });
 
 export enum ProjectRole {
@@ -213,6 +243,8 @@ export interface UserInProject {
     needsVerification: boolean;
     favorite: boolean;
     archived: boolean;
+    parent?: string;
+    ancestorPath?: string;
 }
 
 export interface UserGroupSummary {
@@ -221,7 +253,7 @@ export interface UserGroupSummary {
     username: string;
 }
 
-export const createProject = (payload: {title: string}): APICallParameters => ({
+export const createProject = (payload: {title: string; parent: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
@@ -251,9 +283,10 @@ export const changeRoleInProject = (
     reloadId: Math.random()
 });
 
-export interface ListProjectsRequest extends PaginationRequest{
+export interface ListProjectsRequest extends PaginationRequest {
     archived?: boolean;
     noFavorites?: boolean;
+    showAncestorPath?: boolean;
 }
 
 export const listProjects = (parameters: ListProjectsRequest): APICallParameters<ListProjectsRequest> => ({
@@ -266,19 +299,34 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
     reloadId: Math.random()
 });
 
-export interface ListFavoriteProjectsRequest extends PaginationRequest {
-    archived: boolean;
-}
-
-export const listFavoriteProjects = (parameters: ListFavoriteProjectsRequest): APICallParameters<ListFavoriteProjectsRequest> => ({
+export const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<PaginationRequest> => ({
     method: "GET",
     path: buildQueryString(
-        "/projects/listFavorites",
+        "/projects/sub-projects",
         parameters
     ),
     parameters,
     reloadId: Math.random()
 });
+
+export interface ListFavoriteProjectsRequest extends PaginationRequest {
+    archived: boolean;
+    showAncestorPath?: boolean;
+}
+
+export function listFavoriteProjects(
+    parameters: ListFavoriteProjectsRequest
+): APICallParameters<ListFavoriteProjectsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString(
+            "/projects/listFavorites",
+            parameters
+        ),
+        parameters,
+        reloadId: Math.random()
+    };
+}
 
 export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined => {
     const member = project.find(m => {
@@ -290,7 +338,7 @@ export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined
 };
 
 
-export interface ToggleProjectFavorite{
+export interface ToggleProjectFavorite {
     projectId: string;
 }
 
@@ -309,11 +357,12 @@ export interface OutgoingInvite {
     timestamp: number;
 }
 
-export interface ListOutgoingInvitesRequest extends PaginationRequest {
+export type ListOutgoingInvitesRequest = PaginationRequest;
+export type ListSubprojectsRequest = PaginationRequest;
 
-}
-
-export function listOutgoingInvites(request: ListOutgoingInvitesRequest): APICallParameters<ListOutgoingInvitesRequest> {
+export function listOutgoingInvites(
+    request: ListOutgoingInvitesRequest
+): APICallParameters<ListOutgoingInvitesRequest> {
     return {
         method: "GET",
         path: buildQueryString("/projects/invites/outgoing", request),
@@ -323,13 +372,12 @@ export function listOutgoingInvites(request: ListOutgoingInvitesRequest): APICal
 
 export interface IngoingInvite {
     project: string;
+    title: string;
     invitedBy: string;
     timestamp: string;
 }
 
-export interface ListIngoingInvitesRequest extends PaginationRequest {
-
-}
+export type ListIngoingInvitesRequest = PaginationRequest;
 
 export function listIngoingInvites(request: ListIngoingInvitesRequest): APICallParameters<ListIngoingInvitesRequest> {
     return {
@@ -366,8 +414,33 @@ export function rejectInvite(request: RejectInviteRequest): APICallParameters<Re
     };
 }
 
+export interface RenameProjectRequest {
+    id: string;
+    newTitle: string;
+}
+
+export function renameProject(request: RenameProjectRequest): APICallParameters<RenameProjectRequest> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/projects/rename",
+        payload: request,
+        parameters: request
+    };
+}
+
+export const deleteProject = (payload: {projectId: string}): APICallParameters => ({
+    method: "DELETE",
+    path: "/projects/subprojects",
+    payload,
+    reloadId: Math.random()
+});
+
 interface LeaveProjectRequest {}
-export function leaveProject(request: LeaveProjectRequest, projectOverride?: string): APICallParameters<LeaveProjectRequest> {
+export function leaveProject(
+    request: LeaveProjectRequest,
+    projectOverride?: string
+): APICallParameters<LeaveProjectRequest> {
     return {
         method: "DELETE",
         path: "/projects/leave",
@@ -409,7 +482,10 @@ export interface ArchiveProjectRequest {
     archiveStatus: boolean;
 }
 
-export function setProjectArchiveStatus(request: ArchiveProjectRequest, projectOverride?: string): APICallParameters<ArchiveProjectRequest> {
+export function setProjectArchiveStatus(
+    request: ArchiveProjectRequest,
+    projectOverride?: string
+): APICallParameters<ArchiveProjectRequest> {
     return {
         method: "POST",
         path: "/projects/archive",
@@ -420,7 +496,27 @@ export function setProjectArchiveStatus(request: ArchiveProjectRequest, projectO
     };
 }
 
+export interface ArchiveProjectRequestBulk {
+    projects: UserInProject[];
+}
+
+export function setProjectArchiveStatusBulk(
+    request: ArchiveProjectRequestBulk
+): APICallParameters<ArchiveProjectRequestBulk> {
+    return {
+        method: "POST",
+        path: "/projects/archiveBulk",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random(),
+    };
+}
+
 export interface ViewProjectRequest {
+    id: string;
+}
+
+export interface ViewGroupRequest {
     id: string;
 }
 
@@ -433,9 +529,175 @@ export function viewProject(request: ViewProjectRequest): APICallParameters<View
     };
 }
 
+export function viewGroup(request: ViewGroupRequest): APICallParameters<ViewGroupRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/projects/groups/view", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface FetchDataManagementPlanResponse {
+    dmp?: string;
+}
+
+export function fetchDataManagementPlan(request: unknown): APICallParameters<unknown> {
+    return {
+        method: "GET",
+        path: "/projects/dmp",
+        reloadId: Math.random()
+    };
+}
+
+export interface UpdateDataManagementPlanRequest {
+    id: string;
+    dmp?: string;
+}
+
+export function updateDataManagementPlan(
+    request: UpdateDataManagementPlanRequest
+): APICallParameters<UpdateDataManagementPlanRequest> {
+    return {
+        method: "POST",
+        path: "/projects/update-dmp",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
 export function areProjectsEnabled(): boolean {
     if ([DEV_SITE, STAGING_SITE].includes(window.location.host) || inDevEnvironment()) {
         return true;
     }
     return Client.userRole === "ADMIN";
+}
+
+export function useProjectId(): string | undefined {
+    return useSelector<ReduxObject, string | undefined>(it => it.project.project);
+}
+
+// eslint-disable-next-line
+export function useProjectManagementStatus(args: {
+    /**
+     * isRootComponent controls if this component should pull in new information when the project changes.
+     * Rule of thumb: If the component uses a MainContainer then this should be true otherwise it should probably be
+     * false.
+     */
+    isRootComponent: boolean,
+    allowPersonalProject?: true
+}) {
+    const {isRootComponent, allowPersonalProject} = args;
+    const history = useHistory();
+    const promises = usePromiseKeeper();
+    const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
+    const locationParams = useParams<{group: string; member?: string}>();
+    let groupId = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
+    let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
+    if (groupId === '-') groupId = undefined;
+    if (membersPage === '-') membersPage = undefined;
+
+    const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
+        "projectManagement",
+        membershipSearch({itemsPerPage: 100, page: 0, query: ""}),
+        emptyPage
+    );
+
+    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
+        "projectManagementDetails",
+        {noop: true},
+        {
+            projectId: projectId ?? "",
+            favorite: false,
+            needsVerification: false,
+            title: "",
+            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
+            archived: false
+        }
+    );
+
+    const [groupDetails, fetchGroupDetails, groupDetailsParams] = useGlobalCloudAPI<GroupWithSummary>(
+        "projectManagementGroup",
+        {noop: true},
+        {
+            groupId: "NoId",
+            groupTitle: "NoTitle",
+            numberOfMembers: 0,
+            members: [],
+        }
+    );
+
+    const [groupMembers, fetchGroupMembers, groupMembersParams] = useGlobalCloudAPI<Page<string>>(
+        "projectManagementGroupMembers",
+        {noop: true},
+        emptyPage
+    );
+
+    const [groupList, fetchGroupList, groupListParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
+        "projectManagementGroupSummary",
+        Client.hasActiveProject ? groupSummaryRequest({itemsPerPage: 10, page: 0}) : {noop: true},
+        emptyPage
+    );
+
+    const [outgoingInvites, fetchOutgoingInvites, outgoingInvitesParams] = useGlobalCloudAPI<Page<OutgoingInvite>>(
+        "projectManagementOutgoingInvites",
+        Client.hasActiveProject ? listOutgoingInvites({itemsPerPage: 10, page: 0}) : {noop: true},
+        emptyPage
+    );
+
+    const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
+    const [subprojectSearchQuery, setSubprojectSearchQuery] = useGlobal("projectManagementQuery", "");
+
+    if (projectId === undefined && !allowPersonalProject) {
+        history.push("/");
+    }
+
+    const projects = useProjectStatus();
+    const projectRole = projects.fetch().membership
+        .find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER;
+    const allowManagement = isAdminOrPI(projectRole);
+    const reloadProjectStatus = projects.reload;
+
+    useEffect(() => {
+        if (!isRootComponent) return;
+        if (promises.canceledKeeper) return;
+        if (groupId !== undefined) {
+            fetchGroupMembers(listGroupMembersRequest({group: groupId, itemsPerPage: 25, page: 0}));
+        } else if (Client.hasActiveProject) {
+            fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
+        }
+
+        if (groupId) fetchGroupDetails(viewGroup({id: groupId}));
+    }, [projectId, groupId, projectRole]);
+
+    useEffect(() => {
+        if (!isRootComponent) return;
+        if (promises.canceledKeeper) return;
+
+        // noinspection JSIgnoredPromiseFromCall
+        reloadProjectStatus();
+        if (Client.hasActiveProject) fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
+        if (projectId) fetchProjectDetails(viewProject({id: projectId}));
+    }, [projectId, projectRole]);
+
+    const reload = useCallback(() => {
+        if (promises.canceledKeeper) return;
+        fetchOutgoingInvites(outgoingInvitesParams);
+        setProjectMemberParams(projectMemberParams);
+        fetchProjectDetails(projectDetailsParams);
+        if (groupId !== undefined) {
+            fetchGroupMembers(groupMembersParams);
+            fetchGroupDetails(groupDetailsParams);
+        }
+    }, [projectMemberParams, groupMembersParams, setProjectMemberParams, groupId]);
+
+    return {
+        locationParams, projectId: projectId ?? "", groupId, groupDetails, fetchGroupDetails, groupDetailsParams,
+        projectMembers, setProjectMemberParams, groupMembers, fetchGroupMembers, groupMembersParams, groupList,
+        fetchGroupList, groupListParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
+        reloadProjectStatus, outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
+        projectDetails, projectDetailsParams, fetchProjectDetails, subprojectSearchQuery, setSubprojectSearchQuery,
+        reload
+    };
 }

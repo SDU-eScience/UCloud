@@ -1,6 +1,8 @@
-import {PayloadAction, SetLoadingAction} from "Types";
+import {SetLoadingAction} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {SET_ACTIVE_PAGE, SET_STATUS_LOADING, UPDATE_PAGE_TITLE} from "./StatusReducer";
+import {useDispatch} from "react-redux";
+import {useEffect} from "react";
 
 export type StatusActions = UpdatePageTitleAction | SetActivePage | SetLoading;
 
@@ -28,4 +30,19 @@ export const setLoading = (loading: boolean): SetLoading => ({
 
 export interface SetStatusLoading {
     setLoading: (loading: boolean) => void;
+}
+
+export function useTitle(title: string): void {
+    const dispatch = useDispatch();
+    useEffect(() => {
+        dispatch(updatePageTitle(title));
+        return () => {
+            dispatch(updatePageTitle(""));
+        };
+    });
+}
+
+export function useLoading(loading: boolean): void {
+    const dispatch = useDispatch();
+    dispatch(setLoading(loading));
 }

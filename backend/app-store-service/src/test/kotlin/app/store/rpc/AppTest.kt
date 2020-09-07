@@ -31,13 +31,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.assertStatus
-import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.sendJson
-import dk.sdu.cloud.service.test.sendRequest
-import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.service.test.*
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.setBody
@@ -687,7 +681,6 @@ class AppTest {
     fun `clear Logo test`() {
         withKtorTest(
             setup = {
-                micro.install(HibernateFeature)
                 val elasticDAO = mockk<ElasticDao>()
 
                 val toolDao = ToolAsyncDao()

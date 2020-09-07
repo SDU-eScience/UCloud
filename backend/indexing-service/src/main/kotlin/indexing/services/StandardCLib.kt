@@ -2,7 +2,7 @@ package dk.sdu.cloud.indexing.services
 
 import com.sun.jna.Native
 import com.sun.jna.Platform
-import kotlinx.io.pool.useInstance
+import io.ktor.utils.io.pool.*
 
 object StandardCLib {
     fun getxattr(path: String, name: String, maxSize: Int = 1024 * 64): String {

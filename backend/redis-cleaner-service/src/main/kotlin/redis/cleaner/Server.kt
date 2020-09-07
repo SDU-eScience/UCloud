@@ -5,6 +5,7 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.commandLineArguments
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.Time
 import io.lettuce.core.Limit
 import io.lettuce.core.Range
 import io.lettuce.core.RedisCommandExecutionException
@@ -36,7 +37,7 @@ class Server(override val micro: Micro) : CommonServer {
         keyName: String,
         dryRun: Boolean
     ) {
-        val minTimestamp = System.currentTimeMillis() - MAX_AGE
+        val minTimestamp = Time.now() - MAX_AGE
 
         log.info("Inspecting stream $keyName")
         val xlen = try {

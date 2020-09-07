@@ -1,4 +1,4 @@
-version = "0.1.1"
+version = "0.2.1"
 
 application {
     mainClassName = "dk.sdu.cloud.password.reset.MainKt"

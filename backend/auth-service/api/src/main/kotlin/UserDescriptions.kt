@@ -76,7 +76,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         audit<CreateUserAudit>()
 
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -164,7 +164,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
     val lookupUsers = call<LookupUsersRequest, LookupUsersResponse, CommonErrorMessage>("lookupUsers") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -181,7 +181,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
     val lookupEmail = call<LookupEmailRequest, LookupEmailResponse, CommonErrorMessage>("lookupEmail") {
         auth {
-            roles = setOf(Role.SERVICE)
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -251,7 +251,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
     val lookupUID = call<LookupUIDRequest, LookupUIDResponse, CommonErrorMessage>("lookupUID") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -269,7 +269,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
     val openUserIterator = call<Unit, FindByStringId, CommonErrorMessage>("openUserIterator") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -290,7 +290,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
      */
     val fetchNextIterator = call<FindByStringId, List<Principal>, CommonErrorMessage>("fetchNextIterator") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -308,7 +308,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
     val closeIterator = call<FindByStringId, Unit, CommonErrorMessage>("closeIterator") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 

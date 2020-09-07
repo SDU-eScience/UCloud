@@ -22,7 +22,8 @@ class MakeDirectoryTest : WithBackgroundScope() {
                 fs,
                 ClientMock.authenticatedClient,
                 backgroundScope,
-                mockedMetadataService
+                mockedMetadataService,
+                mockk(relaxed = true)
             )
         )
     }

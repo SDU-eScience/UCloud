@@ -1,6 +1,5 @@
 config("ceph") { ctx ->
-    configure("enabled", ctx.environment != "production")
-    if (ctx.environment == "test") configure("fsSubFolder", "staging")
+    configure("enabled", true)
 
     if (ctx.environment in setOf("test", "development")) {
         configure("monitors", "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789")
@@ -76,7 +75,7 @@ config("elasticsearch") { ctx ->
             configure("masterCount", 3)
             configure("clientCount", 2)
             configure("dataCount", 3)
-            configure("dataStorage", "5000Gi")
+            configure("dataStorage", "500Gi")
         }
     }
 }
@@ -86,6 +85,7 @@ config("app-orchestrator") { ctx ->
         mapOf<String, Any?>("name" to name, "cpu" to cpu, "memoryInGigs" to memoryInGigs, "gpu" to gpu)
 
     configure("gpuWhitelist", listOf(
+        "kln@cas.au.dk",
         "marin@imada.sdu.dk",
         "boegebjerg@imada.sdu.dk",
         "tochr15@student.sdu.dk",
@@ -107,7 +107,8 @@ config("app-orchestrator") { ctx ->
         "svensson@imada.sdu.dk",
         "dthrane@imada.sdu.dk",
         "jakoj17@student.sdu.dk",
-        "alfal19@student.sdu.dk"
+        "alfal19@student.sdu.dk",
+        "greisager@imada.sdu.dk"
     ))
 
     when (ctx.environment) {
@@ -197,7 +198,9 @@ config("app-kubernetes") { ctx ->
         "10.144.4.169/32",
 
         // coumputational biology server SDU (requested by Emiliano)
-        "10.137.1.93/32"
+        "10.137.1.93/32",
+
+        "172.16.0.101/32"
     ))
 }
 

@@ -3,7 +3,6 @@ import {width} from "styled-system";
 import {borders} from "./Input";
 import theme from "./theme";
 
-
 export const TextArea = styled.textarea<{width?: string | number}>`
     ${width}; ${borders};
     border-radius: 5px;
@@ -15,6 +14,10 @@ export const TextArea = styled.textarea<{width?: string | number}>`
     vertical-align: top;
     &:focus {
         outline: none;
+    }
+
+    &:disabled {
+        background-color: var(--lightGray, #f00);
     }
 `;
 

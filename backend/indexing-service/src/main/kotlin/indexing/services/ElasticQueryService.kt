@@ -227,10 +227,7 @@ class ElasticQueryService(
                     addNumericAggregations(builder, it, ElasticIndexedFile.FILE_DEPTH_FIELD)
                 }
             })
-            println(source().toString())
         }
-
-        println(result)
 
         val size = statisticsRequest.size?.let {
             retrieveNumericAggregate(result.aggregations, it, ElasticIndexedFile.SIZE_FIELD)

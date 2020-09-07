@@ -1,9 +1,8 @@
 import {AdvancedSearchRequest} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
-import {receiveApplications, setErrorMessage} from "Search/Redux/SearchActions";
+import {receiveApplications, setErrorMessage, ReceiveApplications, SetErrorMessage} from "Search/Redux/SearchActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {PayloadAction} from "Types";
 import {advancedSearchQuery} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {
@@ -45,7 +44,7 @@ export const setShowAllVersions = (): SetShowAllVersions => ({
     type: DETAILED_APPS_SHOW_ALL_VERSIONS,
 });
 
-export async function fetchApplications(body: AdvancedSearchRequest) {
+export async function fetchApplications(body: AdvancedSearchRequest): Promise<ReceiveApplications | SetErrorMessage> {
     try {
         const {response} = await Client.post(advancedSearchQuery, body);
         return receiveApplications(response);

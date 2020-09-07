@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.WithAppMetadata
@@ -54,7 +55,7 @@ enum class JobSortBy {
 }
 
 typealias MachineTypesRequest = Unit
-typealias MachineTypesResponse = List<MachineReservation>
+typealias MachineTypesResponse = List<Product.Compute>
 
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`

@@ -1,8 +1,8 @@
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
-import {NotificationsReduxObject, ReduxObject} from "DefaultObjects";
+import {NotificationsReduxObject} from "DefaultObjects";
 import * as React from "react";
-import {connect} from "react-redux";
+import {connect, useSelector} from "react-redux";
 import {Redirect, useHistory} from "react-router";
 import {Dispatch} from "redux";
 import {Snack} from "Snackbar/Snackbars";
@@ -15,12 +15,16 @@ import {TextSpan} from "ui-components/Text";
 import theme, {Theme, ThemeColor} from "ui-components/theme";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
+import * as UF from "UtilityFunctions";
 import {
     fetchNotifications,
     notificationRead,
     readAllNotifications,
     receiveSingleNotification
 } from "./Redux/NotificationsActions";
+import {dispatchSetProjectAction} from "Project/Redux";
+import {useProjectStatus} from "Project/cache";
+import {getProjectNames} from "Utilities/ProjectUtilities";
 
 interface NotificationProps {
     items: Notification[];
@@ -33,8 +37,9 @@ interface NotificationProps {
 type Notifications = NotificationProps & NotificationsOperations;
 
 function Notifications(props: Notifications): JSX.Element {
-
     const history = useHistory();
+    const projectNames = getProjectNames(useProjectStatus());
+    const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
 
     React.useEffect(() => {
         reload();
@@ -73,26 +78,12 @@ function Notifications(props: Notifications): JSX.Element {
     }
 
     function onNotificationAction(notification: Notification): void {
-        switch (notification.type) {
-            case "APP_COMPLETE":
-                // TODO This is buggy! Doesn't update if already present on analyses page
-                // TODO Should refactor these URLs somewhere else
-                history.push(`/applications/results/${notification.meta.jobId}`);
-                break;
-            case "REVIEW_PROJECT":
-                reload();
-                history.push("/projects/");
-                break;
-
-            case "SHARE_REQUEST":
-                reload();
-                history.push("/shares");
-                break;
-
-            case "PROJECT_INVITE":
-                reload();
-                history.push("/projects");
-                break;
+        reload();
+        const before = history.location.pathname;
+        UF.onNotificationAction(history, props.setActiveProject, notification, projectNames, props.notificationRead);
+        const after = history.location.pathname;
+        if (before === after) {
+            if (globalRefresh) globalRefresh();
         }
     }
 
@@ -191,7 +182,7 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
                 </TextSpan>
-                <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client)}</TextSpan>
+                <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client, [])}</TextSpan>
             </Flex>
         </NotificationWrapper>
     );
@@ -208,11 +199,17 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
     function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
         switch (eventType) {
             case "REVIEW_PROJECT":
-                return {name: "projects", color: "black", color2: "black"};
+                return {name: "projects", color: "black", color2: "midGray"};
             case "SHARE_REQUEST":
                 return {name: "share", color: "black", color2: "black"};
             case "PROJECT_INVITE":
-                return {name: "projects", color: "black", color2: "black"};
+                return {name: "projects", color: "black", color2: "midGray"};
+            case "PROJECT_ROLE_CHANGE":
+                return {name: "projects", color: "black", color2: "midGray"};
+            case "PROJECT_USER_LEFT":
+                return {name: "projects", color: "black", color2: "midGray"};
+            case "PROJECT_USER_REMOVED":
+                return {name: "projects", color: "black", color2: "midGray"};
             case "APP_COMPLETE":
             default:
                 return {name: "info", color: "white", color2: "black"};
@@ -220,8 +217,8 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
     }
 }
 
-const read = (p: {read: boolean; theme: Theme}): {backgroundColor: ThemeColor} => p.read ?
-    {backgroundColor: p.theme.colors.white as ThemeColor} : {backgroundColor: p.theme.colors.lightGray as ThemeColor};
+const read = (p: {read: boolean; theme: Theme}): {backgroundColor: string} => p.read ?
+    {backgroundColor: "var(--white, #f00)"} : {backgroundColor: "var(--lightGray, #f00)"};
 
 const NotificationWrapper = styled(Flex) <{read: boolean}>`
     ${read};
@@ -231,7 +228,7 @@ const NotificationWrapper = styled(Flex) <{read: boolean}>`
     cursor: pointer;
     width: 100%;
     &:hover {
-        background-color: ${p => p.theme.colors.lightGray};
+        background-color: var(--lightGray, #f00);
     }
 `;
 
@@ -241,6 +238,7 @@ interface NotificationsOperations {
     notificationRead: (id: number) => void;
     showUploader: () => void;
     readAll: () => void;
+    setActiveProject: (projectId?: string) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
@@ -248,7 +246,8 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
-    readAll: async () => dispatch(await readAllNotifications())
+    readAll: async () => dispatch(await readAllNotifications()),
+    setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId)
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
 

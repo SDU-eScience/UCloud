@@ -34,7 +34,7 @@ object TagDescriptions : CallDescriptionContainer("app.license.tag") {
 
     val add = call<AddTagRequest, Unit, CommonErrorMessage>("add") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -52,7 +52,7 @@ object TagDescriptions : CallDescriptionContainer("app.license.tag") {
 
     val delete = call<DeleteTagRequest, Unit, CommonErrorMessage>("delete") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -70,7 +70,7 @@ object TagDescriptions : CallDescriptionContainer("app.license.tag") {
 
     val list = call<ListTagsRequest, ListTagsResponse, CommonErrorMessage>("list") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 

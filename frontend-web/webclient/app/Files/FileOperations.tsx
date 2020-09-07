@@ -5,8 +5,6 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {AccessRight} from "Types";
 import {IconName} from "ui-components/Icon";
 import {Upload} from "Uploader";
-import {UploadPolicy} from "Uploader/api";
-import {newUpload} from "Uploader/Uploader";
 import {
     clearTrash,
     CopyOrMove,
@@ -20,17 +18,23 @@ import {
     getParentPath,
     isAnyFixedFolder,
     isAnyMockFile,
-    isArchiveExtension,
+    isArchiveExtension, isAUserPersonalFolder, isPartOfProject, isPersonalRootFolder,
     isTrashFolder,
-    moveToTrash, resolvePath,
+    moveToTrash,
     shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {promptDeleteRepository, repositoryName, updatePermissionsPrompt} from "Utilities/ProjectUtilities";
+import {
+    explainPersonalRepo,
+    promptDeleteRepository,
+    repositoryName,
+    updatePermissionsPrompt
+} from "Utilities/ProjectUtilities";
 import {FilePermissions} from "Files/permissions";
+import {ProjectName} from "Project";
 
 export interface FileOperationCallback {
     permissions: FilePermissions;
@@ -40,6 +44,7 @@ export interface FileOperationCallback {
     requestFileUpload: () => void;
     startRenaming: (file: File) => void;
     createNewUpload: (newUpload: Upload) => void;
+    projects: ProjectName[],
     requestFileSelector: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>;
     history: H.History;
 }
@@ -65,14 +70,14 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Upload Files",
         onClick: (_, cb) => cb.requestFileUpload(),
-        disabled: dir => isTrashFolder(dir[0].path),
+        disabled: dir => isTrashFolder(dir[0].path) || isPersonalRootFolder(dir[0].path),
         color: "blue",
         currentDirectoryMode: true
     },
     {
         text: "New Folder",
         onClick: (_, cb) => cb.requestFolderCreation(),
-        disabled: ([file]) => isTrashFolder(file.path),
+        disabled: ([file]) => isTrashFolder(file.path) || isPersonalRootFolder(file.path),
         color: "blue",
         outline: true,
         currentDirectoryMode: true
@@ -93,37 +98,11 @@ export const defaultFileOperations: FileOperation[] = [
             if (files.length !== 1) return true;
             else if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
+            else if (isPersonalRootFolder(files[0].path)) return true;
+            else if (isAUserPersonalFolder(files[0].path)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "rename"
-    },
-    {
-        text: "Upload",
-        onClick: (files, cb) => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.onchange = () => {
-                const inputFiles = input.files;
-                if (!inputFiles) return;
-
-                const file = inputFiles.item(0);
-                if (!file) return;
-
-                const upload = newUpload(file, files[0].path);
-                upload.resolution = UploadPolicy.OVERWRITE;
-                upload.sensitivity = files[0].ownSensitivityLevel ?? "INHERIT";
-                cb.createNewUpload(upload);
-            };
-
-            input.click();
-        },
-        disabled: (files, cb) => {
-            if (files.length !== 1) return true;
-            else if (files[0].fileType !== "FILE") return true;
-            else if (isAnyMockFile(files)) return true;
-            else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
-        },
-        icon: "upload"
     },
     {
         text: "Download",
@@ -139,6 +118,8 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Share",
         onClick: (files) => shareFiles({files, client: Client}),
         disabled: (files, cb) => {
+            if (files.find(it => it.fileType !== "DIRECTORY") !== undefined) return true;
+            if (files.find(it => isPartOfProject(it.path)) !== undefined) return true;
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
             else return !files.every(it => it.ownerName === Client.username);
@@ -152,6 +133,8 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
             else if (isAnyFixedFolder(files)) return true;
+            else if (files.find(it => isPersonalRootFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "sensitivity"
@@ -163,7 +146,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (target === null) return;
             cb.invokeAsyncWork(async () => {
                 try {
-                    await copyOrMoveFilesNew(CopyOrMove.Copy, files, target);
+                    await copyOrMoveFilesNew(CopyOrMove.Copy, files, target, cb.projects);
                     cb.requestReload();
                 } catch (e) {
                     console.warn(e);
@@ -173,6 +156,8 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
+            else if (files.find(it => isPersonalRootFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "copy",
@@ -184,7 +169,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (target === null) return;
             cb.invokeAsyncWork(async () => {
                 try {
-                    await copyOrMoveFilesNew(CopyOrMove.Move, files, target);
+                    await copyOrMoveFilesNew(CopyOrMove.Move, files, target, cb.projects);
                     cb.requestReload();
                 } catch (e) {
                     console.warn(e);
@@ -193,7 +178,9 @@ export const defaultFileOperations: FileOperation[] = [
         },
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files))  return true;
+            else if (isAnyFixedFolder(files)) return true;
+            else if (files.find(it => isPersonalRootFolder(it.path)) !== undefined) return true;
+            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "move",
@@ -235,12 +222,13 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Move to Trash",
         onClick: (files, cb) => {
-            moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload()});
+            moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload(), projects: cb.projects});
         },
         disabled: (files, cb) => {
             if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
             else if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
+            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
             else return files.every(({path}) => isTrashFolder(path) || isTrashFolder(getParentPath(path)));
         },
         icon: "trash",
@@ -251,7 +239,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) => {
             const paths = files.map(f => f.path);
             const message = paths.length > 1 ? `Delete ${paths.length} files?` :
-                `Delete file ${getFilenameFromPath(paths[0])}`;
+                `Delete file ${getFilenameFromPath(paths[0], cb.projects)}`;
 
             addStandardDialog({
                 title: "Delete files",
@@ -280,32 +268,40 @@ export const defaultFileOperations: FileOperation[] = [
         /* Rename project repo */
         text: "Rename",
         disabled: files => files.length !== 1,
-        onClick: ([file], cb) => cb.startRenaming(file),
+        onClick: ([file], cb) => {
+            if (isPersonalRootFolder(file.path)) {
+                explainPersonalRepo();
+            } else {
+                cb.startRenaming(file);
+            }
+        },
         icon: "rename",
-        repositoryMode: FileOperationRepositoryMode.REQUIRED
-    },
-    {
-        /* Update project sensitivity */
-        text: "Sensitivity",
-        onClick: (files, cb) =>
-            updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
-        disabled: (files, cb) => isAnyMockFile(files) || !cb.permissions.requireForAll(files, AccessRight.WRITE) ||
-            isAnyFixedFolder(files),
-        icon: "sensitivity",
         repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
     {
         /* Update repo permissions */
         text: "Permissions",
         disabled: files => files.length !== 1,
-        onClick: ([file], cb) => updatePermissionsPrompt(Client, file, cb.requestReload),
+        onClick: ([file], cb) => {
+            if (isPersonalRootFolder(file.path)) {
+                explainPersonalRepo();
+            } else {
+                updatePermissionsPrompt(Client, file, cb.requestReload);
+            }
+        },
         icon: "properties",
         repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
     {
         /* Delete repo permission */
         text: "Delete",
-        onClick: ([file], cb) => promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload),
+        onClick: ([file], cb) => {
+            if (isPersonalRootFolder(file.path)) {
+                explainPersonalRepo();
+            } else {
+                promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload);
+            }
+        },
         disabled: files => files.length !== 1,
         icon: "trash",
         color: "red",

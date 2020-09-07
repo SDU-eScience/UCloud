@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "indexing"
-    version = "1.16.5-3"
+    version = "1.17.2"
 
     withAmbassador {}
 
@@ -58,7 +58,6 @@ bundle { ctx ->
     withPostgresMigration(deployment)
     withCronJob(deploymentWithMount, "0 */12 * * *", listOf("--scan")) {
     }
-
     withAdHocJob(deploymentWithMount, "scan-now", { listOf("--scan", "--debug") }) {
     }
 

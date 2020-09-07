@@ -15,6 +15,7 @@ import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
@@ -38,6 +39,10 @@ class TokenService(
 ) {
     private val secureRandom = SecureRandom()
 
+    // JWT validation fails if we are using a mocked time source (since it is not using our mock)
+    // As a result we always use a real time source
+    private fun now(): Long = System.currentTimeMillis()
+
     private fun createOneTimeAccessTokenForExistingSession(
         user: Principal,
         audience: List<SecurityScope>
@@ -46,8 +51,8 @@ class TokenService(
         val token = AccessTokenContents(
             user = user,
             scopes = audience,
-            createdAt = System.currentTimeMillis(),
-            expiresAt = System.currentTimeMillis() + THIRTY_SECONDS_IN_MILLS,
+            createdAt = now(),
+            expiresAt = now() + THIRTY_SECONDS_IN_MILLS,
             claimableId = jti
         )
 
@@ -68,8 +73,8 @@ class TokenService(
         tokenTemplate: AccessTokenContents = AccessTokenContents(
             user,
             listOf(SecurityScope.ALL_WRITE),
-            System.currentTimeMillis(),
-            System.currentTimeMillis() + TEN_MIN_IN_MILLS
+            now(),
+            now() + TEN_MIN_IN_MILLS
         ),
         refreshTokenExpiry: Long? = null,
         userAgent: String? = null,
@@ -180,8 +185,8 @@ class TokenService(
         val tokenTemplate = AccessTokenContents(
             user = user,
             scopes = requestedScopes,
-            createdAt = System.currentTimeMillis(),
-            expiresAt = System.currentTimeMillis() + expiresIn,
+            createdAt = now(),
+            expiresAt = now() + expiresIn,
             extendedBy = requestedBy,
             extendedByChain = token.extendedByChain + listOf(requestedBy)
         )
@@ -236,8 +241,8 @@ class TokenService(
             AccessTokenContents(
                 user,
                 token.scopes,
-                System.currentTimeMillis(),
-                System.currentTimeMillis() + token.expiresAfter,
+                now(),
+                now() + token.expiresAfter,
                 claimableId = null,
                 sessionReference = token.publicSessionReference,
                 extendedBy = token.extendedBy,

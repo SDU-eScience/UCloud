@@ -73,6 +73,6 @@ module.exports = {
             hash: true,
             favicon: "app/Assets/Images/favicon.ico"
         }),
-        new MiniCSSExtractPlugin("[name].[hash:6].css"),
+        new MiniCSSExtractPlugin(),
     ]
 };

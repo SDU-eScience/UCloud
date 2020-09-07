@@ -4,8 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
@@ -16,8 +15,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.paginate
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
@@ -52,7 +49,7 @@ data class RefreshTokenAndUser(
 
     val ip: String? = null,
 
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = Time.now()
 )
 
 /**
@@ -94,7 +91,7 @@ class RefreshTokenAsyncDAO {
                     """
                         SELECT *
                         FROM refresh_tokens
-                        WHERE associated_user_id = ?id
+                        WHERE associated_user_id = :id
                     """
                 )
                 .rows
@@ -112,14 +109,14 @@ class RefreshTokenAsyncDAO {
                 .sendPreparedStatement(
                     {
                         setParameter("token", token)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis)
+                        setParameter("time", LocalDateTime(Time.now(), DateTimeZone.UTC).toDateTime().millis)
                     },
                     """
                         SELECT *
                         FROM refresh_tokens
-                        WHERE token = ?token AND (
+                        WHERE token = :token AND (
                             refresh_token_expiry is NULL OR
-                            refresh_token_expiry > ?time
+                            refresh_token_expiry > :time
                         )
                     """
                 )
@@ -144,7 +141,7 @@ class RefreshTokenAsyncDAO {
                     """
                         SELECT * 
                         FROM principals
-                        WHERE id = ?user
+                        WHERE id = :user
                     """
                 )
                 .rows
@@ -184,8 +181,8 @@ class RefreshTokenAsyncDAO {
                 },
                 """
                     UPDATE refresh_tokens
-                    SET csrf = ?csrf
-                    WHERE token = ?token
+                    SET csrf = :csrf
+                    WHERE token = :token
                 """
             ).rowsAffected
         }
@@ -207,7 +204,7 @@ class RefreshTokenAsyncDAO {
                 },
                 """
                     DELETE FROM refresh_tokens
-                    WHERE token = ?token
+                    WHERE token = :token
                 """
             ).rowsAffected > 0
         }
@@ -221,11 +218,11 @@ class RefreshTokenAsyncDAO {
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("time", System.currentTimeMillis())
+                        setParameter("time", Time.now())
                     },
                     """
                         DELETE FROM refresh_tokens
-                        WHERE refresh_token_expiry < ?time
+                        WHERE refresh_token_expiry < :time
                     """
                 )
         }
@@ -248,7 +245,7 @@ class RefreshTokenAsyncDAO {
                     """
                         SELECT *
                         FROM refresh_tokens
-                        WHERE associated_user_id = ?user AND
+                        WHERE associated_user_id = :user AND
                                 extended_by is NULL
                     """
                 )
@@ -272,7 +269,7 @@ class RefreshTokenAsyncDAO {
                     },
                     """
                         DELETE FROM refresh_tokens
-                        WHERE associated_user_id = ?user AND 
+                        WHERE associated_user_id = :user AND 
                                 extended_by is NULL
                     """
                 )

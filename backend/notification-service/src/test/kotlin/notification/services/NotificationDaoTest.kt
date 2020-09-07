@@ -1,10 +1,11 @@
 package dk.sdu.cloud.notification.services
 
-import TestDB
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
@@ -161,12 +162,11 @@ class NotificationDaoTest {
                 val dao = NotificationDao()
                 dao.create(session, user, notificationInstance)
                 Thread.sleep(1000)
-                val date = Date()
+                val date = Time.now()
                 Thread.sleep(1000)
                 dao.create(session, user, notificationInstance2)
                 println(dao.findNotifications(session, user))
-                println(date.time)
-                val results = dao.findNotifications(session, user, since = date.time)
+                val results = dao.findNotifications(session, user, since = date)
                 println(results)
                 assertEquals(1, results.itemsInTotal)
                 assertEquals(2, results.items.first().id)

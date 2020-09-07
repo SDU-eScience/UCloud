@@ -1,6 +1,16 @@
 package dk.sdu.cloud.webdav.services
 
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.components
+import dk.sdu.cloud.file.api.createdAt
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.modifiedAt
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.webdav.WebDavProperty
 import org.w3c.dom.Element
 import java.net.URLEncoder
@@ -21,16 +31,7 @@ class CloudToDavConverter {
         appendNewElement("d:response") {
             appendNewElement("d:href") {
                 val components = file.path.components().filter { it.isNotEmpty() }
-                textContent = when {
-                    components.size >= 1 && components[0] == "projects" -> {
-                        components // Don't drop the projects
-                    }
-
-                    else -> {
-                        components.drop(2)
-                    }
-                }.joinToString("/") { it.urlEncode() }.let { "/$it" }
-
+                textContent = components.drop(2).joinToString("/") { it.urlEncode() }.let { "/$it" }
             }
 
             appendNewElement("d:propstat") {

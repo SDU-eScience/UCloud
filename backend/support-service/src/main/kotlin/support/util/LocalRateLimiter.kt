@@ -1,6 +1,7 @@
 package dk.sdu.cloud.support.util
 
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.service.Time
 
 private data class Visit(val username: String, val timestamp: Long)
 
@@ -14,7 +15,7 @@ class LocalRateLimiter(
         synchronized(this) {
             cleanup()
 
-            val thisVisit = Visit(user.username, System.currentTimeMillis())
+            val thisVisit = Visit(user.username, Time.now())
             val visits = visitTracker[user.username]
 
             return if (visits == null) {
@@ -41,7 +42,7 @@ class LocalRateLimiter(
                 val visitsIt = visits.iterator()
                 while (visitsIt.hasNext()) {
                     val visit = visitsIt.next()
-                    if (System.currentTimeMillis() > visit.timestamp + expireAfter) {
+                    if (Time.now() > visit.timestamp + expireAfter) {
                         visitsIt.remove()
                     }
                 }

@@ -1,6 +1,45 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Runs component Mount component with non-empty page 1`] = `
+.c3 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c34 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: 4px;
+}
+
+.c37 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-right: 8px;
+}
+
+.c38 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  width: 110px;
+}
+
+.c40 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: -3px;
+}
+
 .c1 {
   margin-left: 190px;
   padding-top: 48px;
@@ -43,7 +82,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 .c31 {
   margin-left: 8px;
   margin-right: 8px;
-  margin-top: 4px;
 }
 
 .c32 {
@@ -83,22 +121,11 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   flex: none;
   vertical-align: middle;
   cursor: inherit;
-  margin-right: 5px;
+  margin-top: -2px;
   color: #8393A7;
 }
 
-.c37 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-left: 4px;
-  margin-right: 2px;
-  color: #8393A7;
-}
-
-.c40 {
+.c39 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -108,7 +135,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   color: #c00;
 }
 
-.c42 {
+.c41 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -116,45 +143,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   cursor: inherit;
   margin-right: 8px;
   color: #00C05A;
-}
-
-.c3 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-}
-
-.c34 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-top: 4px;
-}
-
-.c38 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-right: 8px;
-}
-
-.c39 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  width: 110px;
-}
-
-.c41 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  margin-top: -3px;
 }
 
 .c7 {
@@ -183,6 +171,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 .c35 {
   cursor: inherit;
   font-size: 10px;
+  margin-right: 4px;
   color: #8393A7;
 }
 
@@ -215,15 +204,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   width: auto;
 }
 
-.c6 {
-  position: relative;
-  display: inline-block;
-}
-
-.c6:hover > div {
-  display: block;
-}
-
 .c18 {
   display: -webkit-box;
   display: -webkit-flex;
@@ -246,7 +226,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   flex: 1 1 auto;
 }
 
-.c18 .sc-fzokOt {
+.c18 .sc-fzqNJr {
   border: 0;
   box-shadow: none;
 }
@@ -269,7 +249,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   position: relative;
   vertical-align: middle;
   cursor: pointer;
-  color: #8393A7;
+  color: var(--gray,#f00);
   margin-right: .5em;
 }
 
@@ -325,6 +305,15 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 
 .c30:hover {
   background-color: var(--lightBlue,#f00);
+}
+
+.c6 {
+  position: relative;
+  display: inline-block;
+}
+
+.c6:hover > div {
+  display: block;
 }
 
 .c2 {
@@ -445,7 +434,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 sc-AxiKw c2"
+    className="c0 c2"
     height={48}
     width={1}
   >
@@ -500,7 +489,8 @@ exports[`Runs component Mount component with non-empty page 1`] = `
     className="c0 c10"
   >
     <div
-      className="c0 sc-AxiKw c11"
+      className="c0 c11"
+      data-tag="sidebar"
       height="100%"
       width={340}
     >
@@ -1041,18 +1031,20 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c36"
                 clipRule="evenodd"
                 color="gray"
+                color2=""
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="10px"
-                mr="5px"
+                height="10"
+                mt="-2px"
                 viewBox="0 0 24 24"
-                width="10px"
+                width="10"
               >
                 <path
                   d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
                 />
               </svg>
+               
               
                v
               
@@ -1064,17 +1056,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               fontSize={0}
             >
               <svg
-                className="c37"
+                className="c36"
                 clipRule="evenodd"
                 color="gray"
+                color2=""
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="10px"
-                ml="4px"
-                mr="2px"
+                height="10"
+                mt="-2px"
                 viewBox="0 0 21 24"
-                width="10px"
+                width="10"
               >
                 <path
                   d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
@@ -1096,6 +1088,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                   fillRule="nonzero"
                 />
               </svg>
+               
               Started 
               28/08/2018
             </div>
@@ -1105,14 +1098,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c38"
+          className="c37"
         >
           <div
-            className="c39"
+            className="c38"
             width="110px"
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1130,7 +1123,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c41"
+              className="c40"
             >
               Failure
             </div>
@@ -1190,18 +1183,20 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c36"
                 clipRule="evenodd"
                 color="gray"
+                color2=""
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="10px"
-                mr="5px"
+                height="10"
+                mt="-2px"
                 viewBox="0 0 24 24"
-                width="10px"
+                width="10"
               >
                 <path
                   d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
                 />
               </svg>
+               
               
                v
               
@@ -1213,17 +1208,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               fontSize={0}
             >
               <svg
-                className="c37"
+                className="c36"
                 clipRule="evenodd"
                 color="gray"
+                color2=""
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="10px"
-                ml="4px"
-                mr="2px"
+                height="10"
+                mt="-2px"
                 viewBox="0 0 21 24"
-                width="10px"
+                width="10"
               >
                 <path
                   d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
@@ -1245,6 +1240,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                   fillRule="nonzero"
                 />
               </svg>
+               
               Started 
               29/08/2018
             </div>
@@ -1254,14 +1250,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c38"
+          className="c37"
         >
           <div
-            className="c39"
+            className="c38"
             width="110px"
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1279,7 +1275,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c41"
+              className="c40"
             >
               Failure
             </div>
@@ -1339,18 +1335,20 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c36"
                 clipRule="evenodd"
                 color="gray"
+                color2=""
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="10px"
-                mr="5px"
+                height="10"
+                mt="-2px"
                 viewBox="0 0 24 24"
-                width="10px"
+                width="10"
               >
                 <path
                   d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
                 />
               </svg>
+               
               
                v
               
@@ -1362,17 +1360,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               fontSize={0}
             >
               <svg
-                className="c37"
+                className="c36"
                 clipRule="evenodd"
                 color="gray"
+                color2=""
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="10px"
-                ml="4px"
-                mr="2px"
+                height="10"
+                mt="-2px"
                 viewBox="0 0 21 24"
-                width="10px"
+                width="10"
               >
                 <path
                   d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
@@ -1394,6 +1392,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                   fillRule="nonzero"
                 />
               </svg>
+               
               Started 
               30/08/2018
             </div>
@@ -1403,14 +1402,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c38"
+          className="c37"
         >
           <div
-            className="c39"
+            className="c38"
             width="110px"
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1428,7 +1427,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c41"
+              className="c40"
             >
               Failure
             </div>
@@ -1488,18 +1487,20 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c36"
                 clipRule="evenodd"
                 color="gray"
+                color2=""
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="10px"
-                mr="5px"
+                height="10"
+                mt="-2px"
                 viewBox="0 0 24 24"
-                width="10px"
+                width="10"
               >
                 <path
                   d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
                 />
               </svg>
+               
               
                v
               
@@ -1511,17 +1512,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               fontSize={0}
             >
               <svg
-                className="c37"
+                className="c36"
                 clipRule="evenodd"
                 color="gray"
+                color2=""
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="10px"
-                ml="4px"
-                mr="2px"
+                height="10"
+                mt="-2px"
                 viewBox="0 0 21 24"
-                width="10px"
+                width="10"
               >
                 <path
                   d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
@@ -1543,6 +1544,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                   fillRule="nonzero"
                 />
               </svg>
+               
               Started 
               03/09/2018
             </div>
@@ -1552,14 +1554,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c38"
+          className="c37"
         >
           <div
-            className="c39"
+            className="c38"
             width="110px"
           >
             <svg
-              className="c42"
+              className="c41"
               clipRule="evenodd"
               color="#00C05A"
               cursor="inherit"
@@ -1577,7 +1579,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c41"
+              className="c40"
             >
               Success
             </div>

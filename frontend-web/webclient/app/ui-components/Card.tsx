@@ -7,7 +7,7 @@ import {
     boxShadow,
     BoxShadowProps,
     height,
-    HeightProps
+    HeightProps, minHeight, MinHeightProps, padding, PaddingProps
 } from "styled-system";
 import Box, {BoxProps} from "./Box";
 import Icon from "./Icon";
@@ -23,12 +23,14 @@ export interface CardProps extends
     BorderColorProps,
     BoxShadowProps,
     BorderProps,
-    BorderRadiusProps {
+    BorderRadiusProps,
+    PaddingProps,
+    MinHeightProps {
     borderWidth?: number | string;
 }
 
 export const Card = styled(Box) <CardProps>`
-  ${height} ${boxShadow} ${boxBorder} ${borderRadius};
+  ${padding} ${minHeight} ${height} ${boxShadow} ${boxBorder} ${borderRadius};
 `;
 
 Card.defaultProps = {

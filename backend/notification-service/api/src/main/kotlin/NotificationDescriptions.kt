@@ -119,7 +119,7 @@ object NotificationDescriptions : CallDescriptionContainer("notifications") {
 
     val create = call<CreateNotification, FindByNotificationId, CommonErrorMessage>("create") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -138,7 +138,7 @@ object NotificationDescriptions : CallDescriptionContainer("notifications") {
 
     val delete = call<DeleteNotificationRequest, DeleteResponse, CommonErrorMessage>("delete") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -167,7 +167,7 @@ object NotificationDescriptions : CallDescriptionContainer("notifications") {
     val internalNotification =
         call<InternalNotificationRequest, InternalNotificationResponse, CommonErrorMessage>("internalNotification") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ
             }
 

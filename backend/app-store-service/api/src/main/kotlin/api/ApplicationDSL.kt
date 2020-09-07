@@ -228,6 +228,7 @@ sealed class ApplicationDescription(val application: String) {
                 title,
                 description,
                 website,
+                // TODO: should this always be false by default?
                 false
             )
 

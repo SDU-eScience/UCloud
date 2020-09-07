@@ -49,7 +49,7 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
 
     val updateMetadata = call<UpdateMetadataRequest, UpdateMetadataResponse, CommonErrorMessage>("updateMetadata") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -66,7 +66,7 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
 
     val createMetadata = call<CreateMetadataRequest, CreateMetadataResponse, CommonErrorMessage>("createMetadata") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -81,7 +81,7 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
 
     val findMetadata = call<FindMetadataRequest, FindMetadataResponse, CommonErrorMessage>("findMetadata") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -99,7 +99,7 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
 
     val removeMetadata = call<RemoveMetadataRequest, RemoveMetadataResponse, CommonErrorMessage>("removeMetadata") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -116,7 +116,7 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
 
     val verify = call<VerifyRequest, VerifyResponse, CommonErrorMessage>("verify") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -134,7 +134,7 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
 
     val findByPrefix = call<FindByPrefixRequest, FindByPrefixResponse, CommonErrorMessage>("findByPrefix") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 

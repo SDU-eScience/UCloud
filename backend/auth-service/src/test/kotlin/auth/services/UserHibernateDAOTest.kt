@@ -3,28 +3,18 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.Person
-import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.service.test.TestDB
 import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
-import org.hibernate.NonUniqueObjectException
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
@@ -216,7 +206,6 @@ class UserHibernateDAOTest {
             db.withTransaction { session ->
                 userHibernate.insert(session, person)
             }
-            println(TestDB.getEmbeddedPostgresInfo())
             db.withSession {
                 val foundById = userHibernate.findAllByIds(db, listOf(person.id))
                 assertEquals(1, foundById.size)

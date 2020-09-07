@@ -72,7 +72,7 @@ class MetadataRecoveryService<Ctx : FSUserContext>(
         }
     }
 
-    @UseExperimental(ExperimentalTime::class)
+    @OptIn(ExperimentalTime::class)
     private suspend fun process(lock: DistributedLock) {
         val didAcquire = lock.acquire()
         if (didAcquire) {

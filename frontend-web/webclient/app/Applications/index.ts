@@ -5,8 +5,8 @@ import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {match} from "react-router";
-import {Page, PaginationRequest} from "Types";
 import {ParameterValues} from "Utilities/ApplicationUtilities";
+import {Product} from "Accounting";
 
 /** @deprecated */
 export type Analysis = JobWithStatus;
@@ -49,6 +49,7 @@ export interface JobWithStatus {
     expiresAt: number | null;
     maxTime: number | null;
     outputFolder: string | null;
+    creditsCharged?: number;
 
     metadata: ApplicationMetadata;
 
@@ -97,7 +98,6 @@ interface ApplicationTool {
         info: ApplicationInfo;
         container: string;
         defaultNumberOfNodes: number;
-        defaultTasksPerNode: number;
         defaultAllocationTime: MaxTime;
         requiredModules: string[];
         authors: string[];
@@ -142,7 +142,6 @@ export interface MaxTimeForInput {
 export interface JobSchedulingOptionsForInput {
     maxTime: MaxTimeForInput;
     numberOfNodes: number;
-    tasksPerNode: number;
     name: React.RefObject<HTMLInputElement>;
 }
 
@@ -178,6 +177,9 @@ export interface RunAppState {
     previousRuns: Page<File>;
     unknownParameters: string[];
     reservation: string;
+    reservationMachine?: Product;
+    balance: number;
+    inlineError?: string;
 }
 
 export interface RunOperations extends SetStatusLoading {
@@ -188,6 +190,7 @@ export interface RunAppProps extends RunOperations {
     match: match<{appName: string; appVersion: string}>;
     history: History;
     updatePageTitle: () => void;
+    project?: string;
 }
 
 export interface NumberParameter extends BaseParameter {
@@ -374,7 +377,6 @@ export interface ToolDescription {
     info: NameAndVersion;
     container: string;
     defaultNumberOfNodes: number;
-    defaultTasksPerNode: number;
     defaultTimeAllocation: MaxTime;
     requiredModules: string[];
     authors: string[];

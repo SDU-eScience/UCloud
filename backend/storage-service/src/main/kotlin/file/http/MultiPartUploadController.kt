@@ -14,7 +14,7 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.io.jvm.javaio.copyTo
+import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import java.nio.file.Files
@@ -43,8 +43,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             )
 
             commandRunnerFactory.withCtx(this, owner) { ctx ->
-                log.debug("writing")
-
                 val ingoingRequest = request.file.asIngoing()
                 val location = fs.write(ctx, request.location, policy) {
                     ingoingRequest.channel.copyTo(this)
@@ -58,8 +56,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                         throw FSException.BadRequest("File upload aborted")
                     }
                 }
-
-                log.debug("done writing")
 
                 if (sensitivity != null) {
                     fs.setSensitivityLevel(ctx, location, sensitivity)

@@ -1,8 +1,8 @@
+package dk.sdu.cloud.service.test
+
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.micro.DatabaseConfig
-import dk.sdu.cloud.micro.HibernateFeature.Feature.safeSchemaName
-import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
-import dk.sdu.cloud.service.db.POSTGRES_DRIVER
+import dk.sdu.cloud.micro.safeSchemaName
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import org.flywaydb.core.Flyway
@@ -22,13 +22,27 @@ object TestDB {
                     jdbcUrl = db.getJdbcUrl("postgres", "postgres"),
                     defaultSchema = safeSchemaName(serviceDescription),
                     recreateSchema = false,
-                    driver = POSTGRES_DRIVER,
-                    dialect = POSTGRES_9_5_DIALECT,
                     username = "postgres",
                     password = "postgres"
                 )
             ),
             db
+        )
+    }
+
+    fun initializeWithoutService() {
+        db = EmbeddedPostgres.start()
+    }
+
+    fun dbSessionFactory(defaultSchema: String): AsyncDBSessionFactory {
+        return AsyncDBSessionFactory(
+            DatabaseConfig(
+                jdbcUrl = db.getJdbcUrl("postgres", "postgres"),
+                defaultSchema = defaultSchema,
+                recreateSchema = false,
+                username = "postgres",
+                password = "postgres"
+            )
         )
     }
 

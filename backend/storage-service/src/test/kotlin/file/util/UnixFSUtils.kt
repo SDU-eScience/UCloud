@@ -4,6 +4,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
+import dk.sdu.cloud.file.CephConfiguration
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
@@ -11,7 +12,6 @@ import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.linuxfs.NativeFS
 import dk.sdu.cloud.file.services.mockedMetadataService
 import dk.sdu.cloud.micro.BackgroundScope
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
@@ -32,7 +32,6 @@ fun linuxFSWithRelaxedMocks(
     NativeFS.disableChown = true
     val commandRunner = LinuxFSRunnerFactory(backgroundScope)
     val micro = initializeMicro()
-    micro.install(HibernateFeature)
     val homeFolderService = HomeFolderService()
     ClientMock.mockCall(UserDescriptions.lookupUsers) {
         TestCallResult.Ok(
@@ -46,13 +45,13 @@ fun linuxFSWithRelaxedMocks(
         LinuxFS(
             File(fsRoot),
             aclService,
-            mockk(relaxed = true)
+            CephConfiguration()
         ),
         aclService
     )
 }
 
-@UseExperimental(ExperimentalContracts::class)
+@OptIn(ExperimentalContracts::class)
 inline fun File.mkdir(name: String, closure: File.() -> Unit): File {
     contract {
         callsInPlace(closure, InvocationKind.EXACTLY_ONCE)

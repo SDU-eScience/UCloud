@@ -349,7 +349,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                         <>
                                             <LoginText fontSize={1} mt="5px">
                                                 To reset your password, enter your email address
-                                    </LoginText>
+                                            </LoginText>
                                             <LoginDropdownContent
                                                 overflow="visible"
                                                 squareTop={false}
@@ -380,7 +380,9 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                                     </form>
                                                     <Box mt={20}>
                                                         <Link to="/login">
-                                                            <BlackLoginText fontSize={1}>Return to Login page</BlackLoginText>
+                                                            <BlackLoginText fontSize={1}>
+                                                                Return to Login page
+                                                            </BlackLoginText>
                                                         </Link>
                                                     </Box>
                                                 </LoginBox>
@@ -390,7 +392,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                             <LoginBox width="315px">
                                                 <LoginText fontSize={1} mt="5px">
                                                     Please enter a new password
-                                </LoginText>
+                                                </LoginText>
                                                 <LoginDropdownContent
                                                     overflow="visible"
                                                     squareTop={false}

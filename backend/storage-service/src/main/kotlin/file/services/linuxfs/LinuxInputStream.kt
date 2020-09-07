@@ -1,7 +1,7 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import com.sun.jna.Native
-import kotlinx.io.pool.useInstance
+import io.ktor.utils.io.pool.*
 import java.io.InputStream
 import kotlin.math.min
 

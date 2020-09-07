@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.orchestrator
 import app.orchestrator.rpc.PublicLinkController
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.services.JobDao
-import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
 import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
 import dk.sdu.cloud.app.orchestrator.rpc.JobController
 import dk.sdu.cloud.app.orchestrator.services.*
@@ -52,6 +51,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             }
         }
 
+        val machineCache = MachineTypeCache(serviceClient)
+        val paymentService = PaymentService(db, serviceClient)
         val parameterExportService = ParameterExportService()
         val jobFileService = JobFileService(userClientFactory, parameterExportService, serviceClient)
         val publicLinks = PublicLinkService()
@@ -73,13 +74,12 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             db,
             jobQueryService,
             serviceClient,
-            config.machines
+            machineCache
         )
 
         val jobOrchestrator =
             JobOrchestrator(
                 serviceClient,
-                micro.eventStreamService.createProducer(AccountingEvents.jobCompleted),
                 db,
                 jobVerificationService,
                 computationBackendService,
@@ -87,7 +87,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 jobHibernateDao,
                 jobQueryService,
                 config.defaultBackend,
-                micro.backgroundScope
+                micro.backgroundScope,
+                paymentService
             )
 
         val streamFollowService =
@@ -116,8 +117,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                     serviceClient,
                     vncService,
                     webService,
-                    config.machines,
-                    config.gpuWhitelist
+                    machineCache
                 ),
 
                 CallbackController(jobOrchestrator),

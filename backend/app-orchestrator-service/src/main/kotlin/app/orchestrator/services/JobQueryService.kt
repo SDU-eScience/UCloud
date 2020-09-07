@@ -3,6 +3,8 @@ package dk.sdu.cloud.app.orchestrator.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -84,6 +86,7 @@ class JobQueryService(
             expiresAt,
             job.maxTime.toMillis(),
             jobFileService.jobFolder(verifiedJobWithAccessToken),
+            job.creditsCharged,
             job.application.metadata
         )
     }
@@ -104,8 +107,8 @@ class JobQueryService(
                         select *
                         from job_information
                         where
-                            (?owner::text is null or owner = ?owner) and
-                            system_id in (select unnest(?systemIds::text[]))
+                            (:owner::text is null or owner = :owner) and
+                            system_id in (select unnest(:systemIds::text[]))
                     """
                 )
                 .rows
@@ -132,7 +135,7 @@ class JobQueryService(
                         where
                             state != 'SUCCESS' and
                             state != 'FAILURE' and
-                            created_at < to_timestamp(?createdAt)
+                            created_at < to_timestamp(:createdAt)
                     """
                 )
 
@@ -173,47 +176,52 @@ class JobQueryService(
                         from job_information
                         where
                             -- Application filter
-                            (?appName::text is null or application_name = ?appName) and
-                            (?appVersion::text is null or application_version = ?appVersion) and
+                            (:appName::text is null or application_name = :appName) and
+                            (:appVersion::text is null or application_version = :appVersion) and
 
                             -- Min timestamp filter
                             (
-                                ?minTimestamp::bigint is null or
-                                created_at >= to_timestamp(?minTimestamp)
+                                :minTimestamp::bigint is null or
+                                created_at >= to_timestamp(:minTimestamp)
                             ) and
 
                             -- Max timestamp filter
                             (
-                                ?maxTimestamp::bigint is null or
-                                created_at <= to_timestamp(?maxTimestamp)
+                                :maxTimestamp::bigint is null or
+                                created_at <= to_timestamp(:maxTimestamp)
                             ) and
 
                             -- State filter
                             (
-                                ?state::text is null or
-                                state = ?state
+                                :state::text is null or
+                                state = :state
                             ) and
 
                             -- Permissions
                             (
-                                owner = ?owner or
-                                (?isProjectAdmin and ?project::text is not null and project = ?project)
+                                :project::text is null and (
+                                    owner =  :owner and project is null
+                                ) or 
+                                :project::text is not null and (
+                                    (owner = :owner and project = :project) or 
+                                    (:isProjectAdmin and project = :project)
+                                ) 
                             )
                     """,
                     """
                         order by
-                            (case when ?sortBy = 'CREATED_AT' and ?sortDirection = 'DESCENDING' then created_at end) desc,
-                            (case when ?sortBy = 'CREATED_AT' and ?sortDirection = 'ASCENDING' then created_at end) asc,
-                            (case when ?sortBy = 'STARTED_AT' and ?sortDirection = 'DESCENDING' then started_at end) desc,
-                            (case when ?sortBy = 'STARTED_AT' and ?sortDirection = 'ASCENDING' then started_at end) asc,
-                            (case when ?sortBy = 'NAME' and ?sortDirection = 'DESCENDING' then name end) desc,
-                            (case when ?sortBy = 'NAME' and ?sortDirection = 'ASCENDING' then name end) asc,
-                            (case when ?sortBy = 'LAST_UPDATE' and ?sortDirection = 'DESCENDING' then modified_at end) desc,
-                            (case when ?sortBy = 'LAST_UPDATE' and ?sortDirection = 'ASCENDING' then modified_at end) asc,
-                            (case when ?sortBy = 'APPLICATION' and ?sortDirection = 'DESCENDING' then application_name end) desc,
-                            (case when ?sortBy = 'APPLICATION' and ?sortDirection = 'ASCENDING' then application_name end) asc,
-                            (case when ?sortBy = 'STATE' and ?sortDirection = 'DESCENDING' then state end) desc,
-                            (case when ?sortBy = 'STATE' and ?sortDirection = 'ASCENDING' then state end) asc
+                            (case when :sortBy = 'CREATED_AT' and :sortDirection = 'DESCENDING' then created_at end) desc,
+                            (case when :sortBy = 'CREATED_AT' and :sortDirection = 'ASCENDING' then created_at end) asc,
+                            (case when :sortBy = 'STARTED_AT' and :sortDirection = 'DESCENDING' then started_at end) desc,
+                            (case when :sortBy = 'STARTED_AT' and :sortDirection = 'ASCENDING' then started_at end) asc,
+                            (case when :sortBy = 'NAME' and :sortDirection = 'DESCENDING' then name end) desc,
+                            (case when :sortBy = 'NAME' and :sortDirection = 'ASCENDING' then name end) asc,
+                            (case when :sortBy = 'LAST_UPDATE' and :sortDirection = 'DESCENDING' then modified_at end) desc,
+                            (case when :sortBy = 'LAST_UPDATE' and :sortDirection = 'ASCENDING' then modified_at end) asc,
+                            (case when :sortBy = 'APPLICATION' and :sortDirection = 'DESCENDING' then application_name end) desc,
+                            (case when :sortBy = 'APPLICATION' and :sortDirection = 'ASCENDING' then application_name end) asc,
+                            (case when :sortBy = 'STATE' and :sortDirection = 'DESCENDING' then state end) desc,
+                            (case when :sortBy = 'STATE' and :sortDirection = 'ASCENDING' then state end) asc
                     """
                 )
                 .mapItemsNotNull { it.toModel(false) }
@@ -237,8 +245,8 @@ class JobQueryService(
                         select *
                         from job_information
                         where
-                            (?username::text is null or owner = ?username) and
-                            (system_id = ?urlId or url = ?urlId) and
+                            (:username::text is null or owner = :username) and
+                            (system_id = :urlId or url = :urlId) and
                             (state != 'SUCCESS' and state != 'FAILURE')
                     """
                 )
@@ -263,7 +271,7 @@ class JobQueryService(
                         select count(system_id)
                         from job_information
                         where
-                            (system_id = ?urlId or url = ?urlId) and
+                            (system_id = :urlId or url = :urlId) and
                             state != 'SUCCESS' and
                             state != 'FAILURE'
                     """
@@ -291,8 +299,8 @@ class JobQueryService(
                         select count(url)
                         from public_links
                         where
-                            url = ?urlId and
-                            username = ?requestedBy
+                            url = :urlId and
+                            username = :requestedBy
                     """
                 )
                 .rows
@@ -319,7 +327,7 @@ class JobQueryService(
                         from 
                             public_links pl
                         where
-                            pl.username = ?requestedBy
+                            pl.username = :requestedBy
                     """
                 )
                 .rows
@@ -347,12 +355,12 @@ class JobQueryService(
                            from
                                public_links pl left join job_information j on pl.url = j.url
                            where
-                               pl.username = ?requestedBy
+                               pl.username = :requestedBy
                         ) t
                         where t.rn = 1
                         order by t.in_use, t.url
-                        limit ?limit
-                        offset ?offset;
+                        limit :limit
+                        offset :offset;
                     """
                 )
                 .rows
@@ -388,12 +396,13 @@ class JobQueryService(
                 backend = getField(backendName),
                 nodes = getField(nodes),
                 maxTime = SimpleDuration(getField(maxTimeHours), getField(maxTimeMinutes), getField(maxTimeSeconds)),
-                tasksPerNode = getField(tasksPerNode),
-                reservation = MachineReservation(
+                reservation = Product.Compute(
                     getField(reservationType),
-                    getField(reservedCpus),
-                    getField(reservedMemoryInGigs),
-                    getField(reservedGpus)
+                    getField(reservedPricePerUnit),
+                    ProductCategoryId(getField(reservedCategory), getField(reservedProvider)),
+                    cpu = getField(reservedCpus),
+                    memoryInGigs = getField(reservedMemoryInGigs),
+                    gpu = getField(reservedGpus)
                 ),
                 jobInput = VerifiedJobInput(
                     defaultMapper.readValue(getField(parameters))
@@ -410,7 +419,8 @@ class JobQueryService(
                 modifiedAt = getField(modifiedAt).toTimestamp(),
                 startedAt = getFieldNullable(startedAt)?.toTimestamp(),
                 url = getFieldNullable(url),
-                project = getFieldNullable(project)
+                project = getFieldNullable(project),
+                creditsCharged = getFieldNullable(creditsCharged)
             )
 
             val withoutTool = VerifiedJobWithAccessToken(

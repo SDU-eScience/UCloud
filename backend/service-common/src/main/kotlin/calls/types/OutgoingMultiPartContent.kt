@@ -1,5 +1,6 @@
 package dk.sdu.cloud.calls.types
 
+import dk.sdu.cloud.service.Time
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
@@ -7,9 +8,7 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.http.withCharset
 import io.ktor.util.flattenEntries
-import kotlinx.coroutines.io.ByteWriteChannel
-import kotlinx.coroutines.io.writeFully
-import kotlinx.coroutines.io.writeStringUtf8
+import io.ktor.utils.io.*
 import java.util.*
 
 /**
@@ -17,7 +16,7 @@ import java.util.*
  */
 class OutgoingMultiPartContent(val parts: List<Part>) : OutgoingContent.WriteChannelContent() {
     val uuid = UUID.randomUUID()
-    val boundary = "***ktor-$uuid-ktor-${System.currentTimeMillis()}***"
+    val boundary = "***ktor-$uuid-ktor-${Time.now()}***"
 
     data class Part(
         val name: String,

@@ -39,7 +39,7 @@ bundle { ctx ->
         println("Please make sure the above PVCs exist!")
     }
 
-    if (enabled) {
+    if (enabled && false) { // Doesn't work
         withSecret(name = cephFsSecret, namespace = "default") {
             val scanner = Scanner(System.`in`)
             println("Please enter ceph fs key: ")

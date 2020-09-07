@@ -1,22 +1,22 @@
 import styled from "styled-components";
 import {
     color,
-    ColorProps,
+    ColorProps, margin, MarginProps, maxWidth, MaxWidthProps,
     minWidth,
     MinWidthProps,
     textAlign,
-    TextAlignProps,
+    TextAlignProps, verticalAlign, VerticalAlignProps,
     width,
     WidthProps
 } from "styled-system";
 import {Cursor} from "./Types";
 
-export const Table = styled.table<WidthProps & MinWidthProps & ColorProps>`
+export const Table = styled.table<WidthProps & MinWidthProps & MaxWidthProps & ColorProps & MarginProps>`
     ${color}
     border: 0px;
     border-spacing: 0;
     table-layout: fixed;
-    ${width} ${minWidth} ${color}
+    ${width} ${minWidth} ${color} ${maxWidth} ${margin}
 `;
 
 Table.displayName = "Table";
@@ -27,10 +27,10 @@ Table.defaultProps = {
     minWidth: "15em"
 };
 
-export const TableCell = styled.td<TextAlignProps>`
+export const TableCell = styled.td<TextAlignProps & VerticalAlignProps & MarginProps>`
     border: 0px;
     border-spacing: 0;
-    ${textAlign}
+    ${textAlign} ${verticalAlign} ${margin}
 `;
 
 TableCell.displayName = "TableCell";

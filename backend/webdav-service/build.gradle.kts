@@ -1,4 +1,4 @@
-version = "0.1.15"
+version = "0.2.2"
 
 application {
     mainClassName = "dk.sdu.cloud.webdav.MainKt"

@@ -12,11 +12,8 @@ import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.events.RedisScope
-import dk.sdu.cloud.service.DistributedLock
-import dk.sdu.cloud.service.DistributedLockBestEffortFactory
-import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.delay
@@ -53,12 +50,11 @@ private class RedisHealthStream(serviceName: String, id: Int) : EventStreamConta
 }
 
 class HealthCheckFeature : MicroFeature {
-    private var lastObservedRedisMessage = System.currentTimeMillis()
+    private var lastObservedRedisMessage = Time.now()
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         val serverFeature = ctx.featureOrNull(ServerFeature) ?: return
         val redisFeature = ctx.featureOrNull(RedisFeature)
-        val hibernateFeature = ctx.featureOrNull(HibernateFeature)
         val elasticFeature = ctx.featureOrNull(ElasticFeature)
 
         val isObservingRedisStreams = if (redisFeature != null) {
@@ -87,7 +83,7 @@ class HealthCheckFeature : MicroFeature {
                     }
 
                     if (isObservingRedisStreams) {
-                        val now = System.currentTimeMillis()
+                        val now = Time.now()
                         val timeSinceLastMessage = now - lastObservedRedisMessage
                         if (timeSinceLastMessage >
                             REDIS_HEALTH_STREAM_MESSAGE_MAX_AGE * REDIS_HEALTH_MAX_MISSED_MESSAGES
@@ -102,26 +98,6 @@ class HealthCheckFeature : MicroFeature {
                                 HttpStatusCode.InternalServerError
                             )
                         }
-                    }
-                }
-
-                if (hibernateFeature != null) {
-                    log.debug("Testing Hibernate")
-                    val result = try {
-                        ctx.hibernateDatabase.withTransaction { session ->
-                            session.createNativeQuery(
-                                "SELECT 1"
-                            ).resultList
-                        }
-                    } catch (ex: Exception) {
-                        log.error("Hibernate is not working: EX: ${ex.stackTraceToString()}")
-                        throw RPCException(
-                            "Hibernate is not working, EX: ${ex.stackTraceToString()}",
-                            HttpStatusCode.InternalServerError
-                        )
-                    }
-                    if (result.isEmpty()) {
-                        throw RPCException("Hibernate is not working", HttpStatusCode.InternalServerError)
                     }
                 }
 
@@ -188,7 +164,7 @@ class HealthCheckFeature : MicroFeature {
             while (isActive) {
                 try {
                     ourLock.acquire()
-                    producer.produce(RedisHealthMessage(uuid, System.currentTimeMillis()))
+                    producer.produce(RedisHealthMessage(uuid, Time.now()))
                     delay(REDIS_HEALTH_STREAM_PAUSE_BETWEEN_EVENTS)
                 } catch (ex: Throwable) {
                     log.warn(ex.stackTraceToString())
@@ -197,13 +173,13 @@ class HealthCheckFeature : MicroFeature {
         }
 
         ctx.eventStreamService.subscribe(stream, EventConsumer.Immediate { event ->
-            val now = System.currentTimeMillis()
+            val now = Time.now()
             if (event.id == uuid && now - event.timestamp < REDIS_HEALTH_STREAM_MESSAGE_MAX_AGE) {
                 lastObservedRedisMessage = now
             }
         })
 
-        lastObservedRedisMessage = System.currentTimeMillis()
+        lastObservedRedisMessage = Time.now()
         return true
     }
 

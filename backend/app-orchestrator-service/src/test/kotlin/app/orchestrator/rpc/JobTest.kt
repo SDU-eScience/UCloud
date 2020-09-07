@@ -1,18 +1,16 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.app.orchestrator.api.CancelRequest
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsResponse
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.ListRecentRequest
-import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalVncParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
-import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
-import dk.sdu.cloud.app.orchestrator.services.JobQueryService
-import dk.sdu.cloud.app.orchestrator.services.StreamFollowService
-import dk.sdu.cloud.app.orchestrator.services.VncService
-import dk.sdu.cloud.app.orchestrator.services.WebService
+import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.app.orchestrator.utils.jobWithStatus
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
@@ -36,7 +34,6 @@ import io.mockk.coEvery
 import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.Job
-import org.hibernate.Session
 import org.junit.Test
 
 private fun KtorApplicationTestSetupContext.configureCallbackServer(
@@ -47,8 +44,13 @@ private fun KtorApplicationTestSetupContext.configureCallbackServer(
     serviceClient: AuthenticatedClient,
     vncService: VncService,
     webService: WebService,
-    machineTypes: List<MachineReservation>
+    machineTypes: List<Product.Compute>
 ): List<Controller> {
+    ClientMock.mockCallSuccess(
+        Products.retrieveAllFromProvider,
+        machineTypes
+    )
+
     return listOf(JobController(
         jobQueryService,
         orchestrator,
@@ -57,7 +59,7 @@ private fun KtorApplicationTestSetupContext.configureCallbackServer(
         serviceClient,
         vncService,
         webService,
-        machineTypes
+        MachineTypeCache(ClientMock.authenticatedClient)
     ))
 }
 
@@ -77,7 +79,13 @@ class JobTest{
                 val serviceClient = ClientMock.authenticatedClient
                 val vncService = mockk<VncService>()
                 val webService = mockk<WebService>()
-                val machineTypes = listOf( MachineReservation("ReservationName", 2, 2))
+                val machineTypes: List<Product.Compute> = listOf(
+                    Product.Compute(
+                        "ReservationName",
+                        2,
+                        ProductCategoryId("productId", "productProvider")
+                    )
+                )
 
                 ClientMock.mockCallSuccess(
                     AuthDescriptions.tokenExtension,
@@ -153,16 +161,15 @@ class JobTest{
                     user = TestUsers.user,
                     request = StartJobRequest(
                         NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version),
+                        "ReservationName",
                         "name",
                         mapOf("value" to 1),
-                        1,
                         1,
                         SimpleDuration(1,0,0),
                         "backend",
                         null,
                         emptyList(),
-                        emptyList(),
-                        "ReservationName"
+                        emptyList()
                     )
                 )
 

@@ -6,19 +6,20 @@ application {
 
 dependencies {
     implementation(project(":service-common"))
-    implementation(project(":auth-service:api"))
-    implementation(project(":avatar-service:api"))
-    implementation(project(":storage-service:api"))
-    implementation(project(":app-store-service:api"))
-    implementation(project(":app-orchestrator-service:api"))
-    implementation(project(":share-service:api"))
-    implementation(project(":file-favorite-service:api"))
-    implementation(project(":accounting-service:api"))
-    implementation(project(":accounting-compute-service:api"))
-    implementation(project(":accounting-storage-service:api"))
-    implementation(project(":filesearch-service:api"))
-    implementation(project(":activity-service:api"))
-    implementation(project(":notification-service:api"))
-    implementation(project(":file-trash-service:api"))
-    implementation(project(":support-service:api"))
+    testImplementation(project(":service-common-test"))
+
+    implementation(platform("org.testcontainers:testcontainers-bom:1.14.3"))
+    testImplementation("org.testcontainers:elasticsearch")
+    testImplementation("it.ozimov:embedded-redis:0.7.3")
+    testImplementation("org.testcontainers:selenium:1.14.3")
+    testImplementation("org.seleniumhq.selenium:selenium-remote-driver:3.141.59")
+    testImplementation("org.seleniumhq.selenium:selenium-chrome-driver:3.141.59")
+    testImplementation("org.seleniumhq.selenium:selenium-firefox-driver:3.141.59")
+
+    rootProject.childProjects.values
+        .filter { it.name.endsWith("-service") }
+        .forEach {
+            implementation(project(":" + it.name))
+            implementation(project(":" + it.name + ":api"))
+        }
 }

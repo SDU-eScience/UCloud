@@ -1,6 +1,24 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Activity Page Mount Activity Page, without project 1`] = `
+.c30 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+}
+
+.c27 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
 .c1 {
   margin-left: 190px;
   padding-top: 48px;
@@ -19,7 +37,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   padding-right: 340px;
 }
 
-.c20 {
+.c31 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -51,15 +69,15 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   padding: 9.5px 18px;
 }
 
-.c20:disabled {
+.c31:disabled {
   opacity: 0.25;
 }
 
-.c20:focus {
+.c31:focus {
   outline: none;
 }
 
-.c20:hover {
+.c31:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
@@ -74,15 +92,13 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   margin-left: .7em;
 }
 
-.c19 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-pack: center;
-  -webkit-justify-content: center;
-  -ms-flex-pack: center;
-  justify-content: center;
+.c28 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-right: 0.5em;
 }
 
 .c3 {
@@ -101,6 +117,17 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
 
 .c11 {
   cursor: pointer;
+}
+
+.c26 {
+  cursor: inherit;
+  font-size: 14px;
+  color: #1e252e;
+}
+
+.c29 {
+  cursor: inherit;
+  color: #000;
 }
 
 .c15 {
@@ -141,6 +168,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   background-color: transparent;
 }
 
+.c15:disabled {
+  background-color: var(--lightGray,#f00);
+}
+
 .c15:focus {
   outline: 0;
   border-color: #006aff;
@@ -158,15 +189,6 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   color: #000;
   font-weight: 700;
   width: 100%;
-}
-
-.c10 {
-  position: relative;
-  display: inline-block;
-}
-
-.c10:hover > div {
-  display: block;
 }
 
 .c8 {
@@ -205,6 +227,15 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
 .c13 .c14 {
   border: 0;
   box-shadow: none;
+}
+
+.c10 {
+  position: relative;
+  display: inline-block;
+}
+
+.c10:hover > div {
+  display: block;
 }
 
 .c2 {
@@ -277,6 +308,66 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   display: none;
 }
 
+.c19 {
+  background-color: #fff;
+  border: 0px;
+  border-spacing: 0;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 15em;
+  background-color: #fff;
+}
+
+.c25 {
+  border: 0px;
+  border-spacing: 0;
+}
+
+.c20 {
+  background-color: var(--white,#f00);
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.c22 {
+  border-spacing: 0;
+  border: 0px;
+  width: 12em;
+}
+
+.c23 {
+  border-spacing: 0;
+  border: 0px;
+  width: 99%;
+}
+
+.c21 {
+  cursor: auto;
+  vertical-align: top;
+}
+
+.c21 > .c24 {
+  border-spacing: 0;
+  border-top: 1px solid rgba(34,36,38,.1);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.c21 a {
+  color: var(--text,#f00);
+}
+
+.c21 a:hover {
+  color: var(--text,#f00);
+}
+
+.c21 div.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
 @media screen and (max-width:511px) {
   .c4 {
     display: none;
@@ -317,7 +408,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 sc-AxiKw c2"
+    className="c0 c2"
     height={96}
     width={1}
   >
@@ -333,7 +424,8 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
     className="c0 c4"
   >
     <div
-      className="c0 sc-AxiKw c5"
+      className="c0 c5"
+      data-tag="sidebar"
       height="100%"
       width={340}
     >
@@ -776,20 +868,572 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
         </div>
       </div>
     </div>
-    <div>
-      <h2
-        className="c3"
-        cursor="inherit"
-        fontSize={5}
-      >
-        No results.
-      </h2>
-    </div>
-    <div
+    <table
       className="c19"
+      width="100%"
+    >
+      <thead
+        className="c20"
+      >
+        <tr
+          className="c21"
+          cursor="auto"
+        >
+          <th
+            className="c22"
+            width="12em"
+          />
+          <th
+            className="c23"
+            width="99%"
+          />
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          className="c21"
+          cursor="auto"
+        >
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c26"
+              color="text"
+              cursor="inherit"
+              fontSize={1}
+            >
+              2 months
+              <br />
+              24 Jun 2020 12:25
+            </div>
+          </td>
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c27"
+            >
+              <svg
+                className="c28"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={24}
+                mr="0.5em"
+                viewBox="0 0 24 22"
+                width={24}
+              >
+                <path
+                  d="M16.711 4.128H23.4c.33 0 .6.309.6.687v16.5c0 .378-.27.688-.6.688H6.309L16.711 4.128z"
+                  fill="currentcolor"
+                />
+                <path
+                  d="M10.8 4.125h5.911L6.309 22H.6c-.33 0-.6-.309-.6-.687V.688C0 .339.229.049.6 0h6.6l3.6 4.125z"
+                />
+              </svg>
+              <div>
+                <b>
+                  <a
+                    href="/files/info?path=%2Fhome%2Fjonas%2Ffolder%20in%20home"
+                    onClick={[Function]}
+                  >
+                    <div
+                      className="ellipsis"
+                    >
+                      <div
+                        className="c29"
+                        color="black"
+                        cursor="inherit"
+                      >
+                        folder in home
+                      </div>
+                    </div>
+                  </a>
+                </b>
+                 
+                <span>
+                  was 
+                  <b>
+                    created
+                  </b>
+                   by 
+                  jonas
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="c21"
+          cursor="auto"
+        >
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c26"
+              color="text"
+              cursor="inherit"
+              fontSize={1}
+            >
+              4 months
+              <br />
+              12 May 2020 15:56
+            </div>
+          </td>
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c27"
+            >
+              <svg
+                className="c28"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={24}
+                mr="0.5em"
+                viewBox="0 0 24 24"
+                width={24}
+              >
+                <path
+                  d="M21.757 0A2.26 2.26 0 0124 2.257v19.485c0 1.226-.955 2.208-2.244 2.258H8.245A2.271 2.271 0 016 21.742V17h3v4h12V3H11V0h10.756z"
+                  fill="currentcolor"
+                />
+                <path
+                  d="M4.875 5.25H0v3.5h4.875V14h3.25V8.75H13v-3.5H8.125V0h-3.25v5.25z"
+                />
+              </svg>
+              <div>
+                <b>
+                  <a
+                    href="/files/info?path=%2Fhome%2Fjonas%2FIMG_20191206_091915.jpg"
+                    onClick={[Function]}
+                  >
+                    <div
+                      className="ellipsis"
+                    >
+                      <div
+                        className="c29"
+                        color="black"
+                        cursor="inherit"
+                      >
+                        IMG_20191206_091915.jpg
+                      </div>
+                    </div>
+                  </a>
+                </b>
+                 
+                <span>
+                   was copied to 
+                  Project 2/Repo/IMG_20191206_091915.jpg
+                   by 
+                  jonas
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="c21"
+          cursor="auto"
+        >
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c26"
+              color="text"
+              cursor="inherit"
+              fontSize={1}
+            >
+              4 months
+              <br />
+              12 May 2020 11:57
+            </div>
+          </td>
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c27"
+            >
+              <svg
+                className="c28"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={24}
+                mr="0.5em"
+                viewBox="0 0 24 24"
+                width={24}
+              >
+                <path
+                  d="M15 0h6.758a2.261 2.261 0 012.244 2.259v19.485c0 1.225-.955 2.207-2.244 2.257H8.246a2.27 2.27 0 01-2.244-2.257V14h3v7h12V3H15V0z"
+                  fill="currentcolor"
+                />
+                <path
+                  d="M16 6.001l-7.001-6v4h-9v4h9v4l7-6z"
+                />
+              </svg>
+              <div>
+                <b>
+                  <a
+                    href="/files/info?path=%2Fhome%2Fjonas%2FIMG_20191206_091915.jpg"
+                    onClick={[Function]}
+                  >
+                    <div
+                      className="ellipsis"
+                    >
+                      <div
+                        className="c29"
+                        color="black"
+                        cursor="inherit"
+                      >
+                        IMG_20191206_091915.jpg
+                      </div>
+                    </div>
+                  </a>
+                </b>
+                 
+                <span>
+                  was moved to
+                   
+                  <b>
+                    <a
+                      href="/files/info?path=%2Fhome%2Fjonas%2FFoo%2FIMG_20191206_091915.jpg"
+                      onClick={[Function]}
+                    >
+                      <div
+                        className="ellipsis"
+                      >
+                        <div
+                          className="c29"
+                          color="black"
+                          cursor="inherit"
+                        >
+                          /home/jonas/Foo/IMG_20191206_091915.jpg
+                        </div>
+                      </div>
+                    </a>
+                  </b>
+                    
+                  by jonas
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="c21"
+          cursor="auto"
+        >
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c26"
+              color="text"
+              cursor="inherit"
+              fontSize={1}
+            >
+              4 months
+              <br />
+              12 May 2020 11:57
+            </div>
+          </td>
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c27"
+            >
+              <svg
+                className="c28"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={24}
+                mr="0.5em"
+                viewBox="0 0 24 22"
+                width={24}
+              >
+                <path
+                  d="M16.711 4.128H23.4c.33 0 .6.309.6.687v16.5c0 .378-.27.688-.6.688H6.309L16.711 4.128z"
+                  fill="currentcolor"
+                />
+                <path
+                  d="M10.8 4.125h5.911L6.309 22H.6c-.33 0-.6-.309-.6-.687V.688C0 .339.229.049.6 0h6.6l3.6 4.125z"
+                />
+              </svg>
+              <div>
+                <b>
+                  <a
+                    href="/files/info?path=%2Fhome%2Fjonas%2FFoo"
+                    onClick={[Function]}
+                  >
+                    <div
+                      className="ellipsis"
+                    >
+                      <div
+                        className="c29"
+                        color="black"
+                        cursor="inherit"
+                      >
+                        Foo
+                      </div>
+                    </div>
+                  </a>
+                </b>
+                 
+                <span>
+                  was 
+                  <b>
+                    created
+                  </b>
+                   by 
+                  jonas
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="c21"
+          cursor="auto"
+        >
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c26"
+              color="text"
+              cursor="inherit"
+              fontSize={1}
+            >
+              4 months
+              <br />
+              12 May 2020 11:09
+            </div>
+          </td>
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c27"
+            >
+              <svg
+                className="c28"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={24}
+                mr="0.5em"
+                viewBox="0 0 24 24"
+                width={24}
+              >
+                <path
+                  d="M21.757 0A2.26 2.26 0 0124 2.257v19.485c0 1.226-.955 2.208-2.244 2.258H8.245A2.271 2.271 0 016 21.742V17h3v4h12V3H11V0h10.756z"
+                  fill="currentcolor"
+                />
+                <path
+                  d="M4.875 5.25H0v3.5h4.875V14h3.25V8.75H13v-3.5H8.125V0h-3.25v5.25z"
+                />
+              </svg>
+              <div>
+                <b>
+                  <a
+                    href="/files/info?path=%2Fhome%2Fjonas%2FIMG_20191206_091915.jpg"
+                    onClick={[Function]}
+                  >
+                    <div
+                      className="ellipsis"
+                    >
+                      <div
+                        className="c29"
+                        color="black"
+                        cursor="inherit"
+                      >
+                        IMG_20191206_091915.jpg
+                      </div>
+                    </div>
+                  </a>
+                </b>
+                 
+                <span>
+                   was copied to 
+                  Project 2/Repo/IMG_20191206_091915.jpg
+                   by 
+                  jonas
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="c21"
+          cursor="auto"
+        >
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c26"
+              color="text"
+              cursor="inherit"
+              fontSize={1}
+            >
+              4 months
+              <br />
+              11 May 2020 14:52
+            </div>
+          </td>
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c27"
+            >
+              <svg
+                className="c28"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={24}
+                mr="0.5em"
+                viewBox="0 0 24 24"
+                width={24}
+              >
+                <path
+                  d="M9 21h12V3H11V0h10.757A2.261 2.261 0 0124 2.26v19.485A2.245 2.245 0 0121.757 24H8.245A2.271 2.271 0 016 21.744V18h3v3z"
+                  fill="currentcolor"
+                />
+                <path
+                  d="M6 16l6-7H7.998V0H4v9H0l6 7z"
+                />
+              </svg>
+              <div>
+                <b>
+                  <a
+                    href="/files/info?path=%2Fhome%2Fjonas%2FIMG_20191206_091915.jpg"
+                    onClick={[Function]}
+                  >
+                    <div
+                      className="ellipsis"
+                    >
+                      <div
+                        className="c29"
+                        color="black"
+                        cursor="inherit"
+                      >
+                        IMG_20191206_091915.jpg
+                      </div>
+                    </div>
+                  </a>
+                </b>
+                 
+                <span>
+                  was 
+                  <b>
+                    downloaded
+                  </b>
+                   by 
+                  jonas
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr
+          className="c21"
+          cursor="auto"
+        >
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c26"
+              color="text"
+              cursor="inherit"
+              fontSize={1}
+            >
+              4 months
+              <br />
+              11 May 2020 10:52
+            </div>
+          </td>
+          <td
+            className="c24 c25"
+          >
+            <div
+              className="c27"
+            >
+              <svg
+                className="c28"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height={24}
+                mr="0.5em"
+                viewBox="0 0 25 24"
+                width={24}
+              >
+                <path
+                  d="M9.001 21h12V3h-10V0h10.756a2.261 2.261 0 012.244 2.259v19.485A2.245 2.245 0 0121.757 24H8.245a2.271 2.271 0 01-2.244-2.257V18h3v3z"
+                  fill="currentcolor"
+                />
+                <path
+                  d="M6 .001l-6 7h4v9h4v-9h4l-6-7z"
+                />
+              </svg>
+              <div>
+                <b>
+                  <a
+                    href="/files/info?path=%2Fhome%2Fjonas%2FIMG_20191206_091915.jpg"
+                    onClick={[Function]}
+                  >
+                    <div
+                      className="ellipsis"
+                    >
+                      <div
+                        className="c29"
+                        color="black"
+                        cursor="inherit"
+                      >
+                        IMG_20191206_091915.jpg
+                      </div>
+                    </div>
+                  </a>
+                </b>
+                 
+                <span>
+                  was 
+                  <b>
+                    uploaded
+                  </b>
+                   by 
+                  jonas
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div
+      className="c30"
     >
       <button
-        className="c20"
+        className="c31"
         color="blue"
         disabled={false}
         onClick={[Function]}

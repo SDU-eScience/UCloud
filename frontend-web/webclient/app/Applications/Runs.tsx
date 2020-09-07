@@ -2,7 +2,6 @@ import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
-import {ReduxObject} from "DefaultObjects";
 import {SortOrder} from "Files";
 import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -13,7 +12,6 @@ import {List} from "Pagination/List";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Box, Button, Checkbox, Label, List as ItemList, Flex, Text, Icon, Divider} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -39,7 +37,8 @@ import {JobStateIcon} from "./JobStateIcon";
 import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
 import {AppToolLogo} from "./AppToolLogo";
 import styled from "styled-components";
-import {ListRow} from "ui-components/List";
+import {ListRow, ListRowStat} from "ui-components/List";
+import {creditFormatter} from "Project/ProjectUsage";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -176,14 +175,17 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                     select={() => props.checkAnalysis(it.jobId, !it.checked)}
                                     left={<Text cursor="pointer">{it.name ? it.name : shortUUID(it.jobId)}</Text>}
                                     leftSub={<>
-                                        <Text color="gray" fontSize={0}>
-                                            <Icon color="gray" mr="5px" size="10px" name="id" />
+                                        <ListRowStat color={"gray"} icon={"id"}>
                                             {it.metadata.title} v{it.metadata.version}
-                                        </Text>
-                                        <Text color="gray" fontSize={0}>
-                                            <Icon color="gray" ml="4px" mr="2px" size="10px" name="chrono" />
+                                        </ListRowStat>
+                                        <ListRowStat color={"gray"} color2={"gray"} icon={"chrono"}>
                                             Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}
-                                        </Text>
+                                        </ListRowStat>
+                                        {!it.creditsCharged ? null : (
+                                            <ListRowStat color={"gray"} icon={"grant"}>
+                                                Price: {creditFormatter(it.creditsCharged)}
+                                            </ListRowStat>
+                                        )}
                                     </>}
                                     right={<>
                                         {hideExpiration ? null : (
@@ -287,7 +289,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={firstDate}
-                        onChange={(date): void => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
+                        onChange={(date: Date) => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"
                     />
@@ -304,7 +306,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={secondDate}
-                        onChange={(date): void => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
+                        onChange={(date: Date) => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
                         onSelect={d => fetchJobsInRange(firstDate, d)}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"

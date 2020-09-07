@@ -11,8 +11,8 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.withDatabase
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass
@@ -32,7 +32,6 @@ class ToolHibernateDaoTest {
         NameAndVersion("name", "1.2"),
         "container",
         2,
-        2,
         SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("author"),
@@ -45,7 +44,6 @@ class ToolHibernateDaoTest {
     private val normToolDesc2 = NormalizedToolDescription(
         NameAndVersion("name", "2.2"),
         "container",
-        2,
         2,
         SimpleDuration(1, 0, 0),
         listOf(""),
@@ -60,7 +58,6 @@ class ToolHibernateDaoTest {
         NameAndVersion("anothername", "5.2"),
         "container",
         2,
-        2,
         SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("author"),
@@ -73,7 +70,6 @@ class ToolHibernateDaoTest {
     private val normToolDesc4 = NormalizedToolDescription(
         NameAndVersion("anothername", "8.2"),
         "container",
-        2,
         2,
         SimpleDuration(1, 0, 0),
         listOf(""),

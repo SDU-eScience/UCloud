@@ -46,10 +46,10 @@ class FavoriteAsyncDao(
                         },
                         """
                             DELETE FROM favorited_by
-                            WHERE (the_user = ?user) AND
-                                (application_name = ?appname) AND
-                                (application_version = ?appversion)
-                        """.trimIndent()
+                            WHERE (the_user = :user) AND
+                                (application_name = :appname) AND
+                                (application_version = :appversion)
+                        """
                     )
 
             } else {
@@ -102,10 +102,10 @@ class FavoriteAsyncDao(
                     """
                         SELECT COUNT(*)
                         FROM favorited_by
-                        WHERE (the_user = ?user) AND
-                            (application_name = ?name) AND
-                            (application_version = ?version)
-                    """.trimIndent()
+                        WHERE (the_user = :user) AND
+                            (application_name = :name) AND
+                            (application_version = :version)
+                    """
                 )
                 .rows
                 .singleOrNull()?.getLong(0) ?: 0
@@ -121,17 +121,20 @@ class FavoriteAsyncDao(
     ): Page<ApplicationSummaryWithFavorite> {
         return ctx.withSession { session ->
             val itemsInTotal =
-                session.sendPreparedStatement(
-                    {
-                        setParameter("user", user.username)
-                    },
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("user", user.username)
+                        },
+                        """
+                        SELECT COUNT(*)
+                        FROM favorited_by
+                        WHERE the_user = :user
                     """
-                    SELECT COUNT(*)
-                    FROM favorited_by
-                    WHERE the_user = ?user
-                """.trimIndent()
-                ).rows.singleOrNull()?.getLong(0) ?: 0
-
+                    )
+                    .rows
+                    .singleOrNull()
+                    ?.getLong(0) ?: 0
 
             val groups = if (memberGroups.isNotEmpty()) {
                 memberGroups
@@ -144,10 +147,9 @@ class FavoriteAsyncDao(
                     .sendPreparedStatement(
                         {
                             setParameter("user", user.username)
-                            setParameter("role", user.role.toString())
+                            setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
                             setParameter("project", project)
                             setParameter("groups", groups)
-                            setParameter("privileged", Roles.PRIVILEDGED.toList())
                             setParameter("limit", paging.itemsPerPage)
                             setParameter("offset", paging.offset)
                         },
@@ -155,32 +157,32 @@ class FavoriteAsyncDao(
                         SELECT A.*
                         FROM favorited_by as F, applications as A
                         WHERE 
-                            (F.the_user = ?user) AND
+                            (F.the_user = :user) AND
                             (F.application_name = A.name) AND
                             (F.application_version = A.version) AND 
                             (
                                 (A.is_public = TRUE) OR
                                 (
-                                    cast(?project as text) is null AND ?user IN (
+                                    cast(:project as text) is null AND :user IN (
                                         SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                                     )
                                 ) OR
                                 (
-                                    cast(?project as text) is not null AND exists (
+                                    cast(:project as text) is not null AND exists (
                                         SELECT P2.project_group FROM permissions AS P2 WHERE
                                             P2.application_name = A.name AND
-                                            P2.project = cast(?project as text) AND
-                                            P2.project_group IN (select unnest(?groups::text[]))
+                                            P2.project = cast(:project as text) AND
+                                            P2.project_group IN (select unnest(:groups::text[]))
                                     )
                                 ) OR
                                 (                  
-                                    ?role IN (?privileged)
+                                    :isAdmin
                                 )
                             )
                         ORDER BY F.application_name
-                        LIMIT ?limit
-                        OFFSET ?offset
-                    """.trimIndent()
+                        LIMIT :limit
+                        OFFSET :offset
+                    """
                     )
                     .rows
                     .map {
@@ -198,8 +200,8 @@ class FavoriteAsyncDao(
                         """
                         SELECT *
                         FROM application_tags
-                        WHERE application_name IN (select unnest(?names::text[]))
-                    """.trimIndent()
+                        WHERE application_name IN (select unnest(:names::text[]))
+                    """
                     )
                     .rows
                     .toList()

@@ -1,11 +1,11 @@
 import {JobState, RunsSortBy} from "Applications/index";
-import {APICallParameters} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {SortOrder} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
 import {inSuccessRange} from "UtilityFunctions";
+import {Project, ProjectGroup} from "Project";
 
 export interface ListByNameProps {
     itemsPerPage: number;
@@ -111,13 +111,14 @@ export interface AccessEntity {
     group: string | null;
 }
 
-export interface UserEntity {
-    id: string;
-    type: UserEntityType;
+export interface DetailedAccessEntity {
+    user: string | null;
+    project: Project | null;
+    group: ProjectGroup | null;
 }
 
 export interface ApplicationPermissionEntry {
-    entity: AccessEntity;
+    entity: DetailedAccessEntity;
     permission: ApplicationAccessRight;
 }
 
@@ -172,7 +173,9 @@ export function deleteLicenseServerTag(props: LicenseServerTagProps): APICallPar
     };
 }
 
-export function updateLicenseServerPermission(props: UpdateLicenseServerPermissionProps): APICallParameters<UpdateLicenseServerPermissionProps> {
+export function updateLicenseServerPermission(
+    props: UpdateLicenseServerPermissionProps
+): APICallParameters<UpdateLicenseServerPermissionProps> {
     return {
         reloadId: Math.random(),
         method: "POST",
@@ -192,7 +195,9 @@ export function deleteLicenseServer(props: DeleteLicenseServerProps): APICallPar
     };
 }
 
-export function updateApplicationPermission(props: UpdateApplicationPermissionProps): APICallParameters<UpdateApplicationPermissionProps> {
+export function updateApplicationPermission(
+    props: UpdateApplicationPermissionProps
+): APICallParameters<UpdateApplicationPermissionProps> {
     return {
         reloadId: Math.random(),
         method: "POST",
@@ -230,17 +235,10 @@ export function licenseServers(props: ListLicenseServersProps): APICallParameter
     return {
         reloadId: Math.random(),
         method: "GET",
-        path: "/api/app/license/list",
+        path: "/api/app/license/by-tag",
         payload: props,
         parameters: props
     };
-}
-
-export interface MachineReservation {
-    name: string;
-    cpu: number | null;
-    memoryInGigs: number | null;
-    gpu: number | null;
 }
 
 export type AppOrTool = "APPLICATION" | "TOOL";
@@ -308,7 +306,7 @@ export interface UploadDocumentProps {
 export async function uploadDocument(props: UploadDocumentProps): Promise<boolean> {
     const token = await Client.receiveAccessTokenOrRefreshIt();
 
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
         const request = new XMLHttpRequest();
         const context = props.type === "APPLICATION" ? "apps" : "tools";
         request.open("PUT", Client.computeURL("/api", `/hpc/${context}`));

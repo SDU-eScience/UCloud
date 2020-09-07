@@ -1,25 +1,25 @@
 import * as React from "react";
+import {useCallback} from "react";
 import HttpClient from "Authentication/lib";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {AccessRight, Page} from "Types";
+import {AccessRight} from "Types";
 import {dialogStore} from "Dialog/DialogStore";
-import {Box, Button, Flex, List, Truncate} from "ui-components";
+import {Box, Button, Flex, List, RadioTile, RadioTilesContainer, Truncate} from "ui-components";
 import {useCloudAPI} from "Authentication/DataHook";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Acl, File, ProjectEntity} from "Files";
-import {ListRow} from "ui-components/List";
-import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Spacer} from "ui-components/Spacer";
-import {groupSummaryRequest, ProjectRole} from "Project";
-import {pathComponents} from "Utilities/FileUtilities";
+import {groupSummaryRequest, ProjectName, ProjectRole} from "Project";
+import {isPartOfSomePersonalFolder, isPersonalRootFolder, pathComponents} from "Utilities/FileUtilities";
 import styled from "styled-components";
 import {useHistory} from "react-router";
-import {useCallback} from "react";
 import {GroupWithSummary} from "Project/GroupList";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
+import {ProjectStatus} from "Project/cache";
+import * as Heading from "ui-components/Heading";
 
 export function repositoryName(path: string): string {
     const components = pathComponents(path);
@@ -105,7 +105,29 @@ const InnerProjectPermissionBox = styled.div`
     overflow-y: auto;
 `;
 
-export function UpdatePermissionsDialog(props: { client: HttpClient; repository: string; rights: Acl[]; reload: () => void }): JSX.Element {
+export function explainPersonalRepo(): void {
+    dialogStore.addDialog(
+        <Box width="auto" minWidth="450px">
+            <Heading.h3>You cannot change this directory</Heading.h3>
+            <ul>
+                <li>The &#039;Personal&#039; directory is a special directory</li>
+                <li>It contains a folder for every member (current or previous) of the project</li>
+                <li>These folders act as the home for every member of the project</li>
+                <li>Only project administrators can access the &#039;Personal&#039; directory</li>
+            </ul>
+            <Button fullWidth onClick={() => dialogStore.failure()}>OK</Button>
+        </Box>,
+        () => undefined,
+        true
+    );
+}
+
+export function UpdatePermissionsDialog(props: {
+    client: HttpClient;
+    repository: string;
+    rights: Acl[];
+    reload: () => void;
+}): JSX.Element {
     const [groups, fetchGroups, groupParams] = useCloudAPI<Page<GroupWithSummary>>(
         groupSummaryRequest({itemsPerPage: 25, page: 0}),
         emptyPage
@@ -115,68 +137,82 @@ export function UpdatePermissionsDialog(props: { client: HttpClient; repository:
     const history = useHistory();
 
     const onCreateGroup = useCallback(() => {
-        history.push("/projects/view/");
+        history.push("/project/members");
         dialogStore.failure();
     }, [history]);
+
     return (
-        <Box width="auto" minWidth="300px">
+        <Box width="auto" minWidth="450px">
             {groups.loading ? <LoadingSpinner size={24}/> : null}
             <InnerProjectPermissionBox>
-                <List height={"100%"}>
-                    <Pagination.List
-                        loading={groups.loading}
-                        page={groups.data}
-                        onPageChanged={(page) => fetchGroups(groupSummaryRequest({...groupParams.parameters, page}))}
-                        customEmptyPage={(
-                            <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
-                                  flexDirection={"column"}>
-                                <Box>
-                                    No groups exist for this project.
-                                </Box>
+                <Pagination.List
+                    loading={groups.loading}
+                    page={groups.data}
+                    onPageChanged={(page) => fetchGroups(groupSummaryRequest({...groupParams.parameters, page}))}
+                    customEmptyPage={(
+                        <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
+                              flexDirection={"column"}>
+                            <Box>
+                                No groups exist for this project.
+                            </Box>
 
-                                <Button onClick={onCreateGroup}>Create group</Button>
-                            </Flex>
-                        )}
-                        pageRenderer={() => (
-                            <>
-                                {groups.data.items.map(summary => {
-                                    const g = summary.group;
-                                    const acl = newRights.get(g) ?? props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
-                                    let rights = "None";
-                                    if (acl.includes(AccessRight.READ)) rights = "Read";
-                                    if (acl.includes(AccessRight.WRITE)) rights = "Edit";
-                                    return (
-                                        <ListRow
-                                            key={g}
-                                            left={<Truncate width={"300px"} mr={16} title={g}>{g}</Truncate>}
-                                            select={() => undefined}
-                                            isSelected={false}
-                                            right={
-                                                <ClickableDropdown
-                                                    chevron
-                                                    onChange={value => {
-                                                        if (value === "") newRights.set(g, []);
-                                                        else if (value === "READ") newRights.set(g, [AccessRight.READ]);
-                                                        else if (value === "WRITE") newRights.set(g, [AccessRight.READ, AccessRight.WRITE]);
-                                                        setNewRights(new Map(newRights));
-                                                    }}
-                                                    minWidth="75px"
-                                                    width="75px"
-                                                    options={[
-                                                        {text: "Read", value: "READ"},
-                                                        {text: "Edit", value: "WRITE"},
-                                                        {text: "None", value: ""}
-                                                    ]} trigger={rights}
-                                                />
-                                            }
-                                            navigate={() => undefined}
-                                        />
-                                    );
-                                })}
-                            </>
-                        )}
-                    />
-                </List>
+                            <Button onClick={onCreateGroup}>Create group</Button>
+                        </Flex>
+                    )}
+                    pageRenderer={() => (
+                        <>
+                            {groups.data.items.map(summary => {
+                                const g = summary.groupId;
+                                const acl = newRights.get(g) ??
+                                    props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ??
+                                    [];
+
+                                const onRightsUpdated = (r: AccessRight[]): void => {
+                                    newRights.set(g, r);
+                                    setNewRights(new Map(newRights));
+                                };
+
+                                return (
+                                    <Flex key={g} alignItems={"center"} mb={16}>
+                                        <Truncate width={"300px"} mr={16} title={summary.groupTitle}>
+                                            {summary.groupTitle}
+                                        </Truncate>
+
+                                        <RadioTilesContainer>
+                                            <RadioTile
+                                                label={"None"}
+                                                onChange={() => onRightsUpdated([])}
+                                                icon={"close"}
+                                                name={summary.groupId}
+                                                checked={acl.length === 0}
+                                                height={40}
+                                                fontSize={"0.5em"}
+                                            />
+                                            <RadioTile
+                                                label={"Read"}
+                                                onChange={() => onRightsUpdated([AccessRight.READ])}
+                                                icon={"search"}
+                                                name={summary.groupId}
+                                                checked={acl.includes(AccessRight.READ) && acl.length === 1}
+                                                height={40}
+                                                fontSize={"0.5em"}
+                                            />
+                                            <RadioTile
+                                                label={"Edit"}
+                                                onChange={() => onRightsUpdated([AccessRight.READ, AccessRight.WRITE])}
+                                                icon={"edit"}
+                                                name={summary.groupId}
+                                                checked={acl.includes(AccessRight.WRITE)}
+                                                height={40}
+                                                fontSize={"0.5em"}
+                                            />
+                                        </RadioTilesContainer>
+                                    </Flex>
+                                );
+                            })}
+                        </>
+                    )}
+                />
             </InnerProjectPermissionBox>
 
             <Spacer
@@ -211,8 +247,18 @@ export async function updatePermissions(
     }
 }
 
+/**
+ * Extracts title and projectId from project status.
+ * Intended usage:
+ *  ```
+ *  const project = useProjectStatus();
+ *  const projectNames = getProjectNames(project);
+ *  ```
+ */
+export function getProjectNames(project: ProjectStatus): ProjectName[] {
+    return project.fetch().membership.map(it => ({title: it.title, projectId: it.projectId}));
+}
+
 export function isAdminOrPI(role: ProjectRole): boolean {
     return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
 }
-
-

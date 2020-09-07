@@ -234,14 +234,14 @@ data class SizeResponse(val size: Long)
 /**
  * REST interface for queries of indexing data.
  *
- * In general, this can only be accessed by [Roles.PRIVILEDGED] users
+ * In general, this can only be accessed by [Roles.PRIVILEGED] users
  */
 object QueryDescriptions : CallDescriptionContainer("indexing") {
     const val baseContext = "/api/indexing/query"
 
     val query = call<QueryRequest, QueryResponse, CommonErrorMessage>("query") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -258,7 +258,7 @@ object QueryDescriptions : CallDescriptionContainer("indexing") {
 
     val statistics = call<StatisticsRequest, StatisticsResponse, CommonErrorMessage>("statistics") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -277,7 +277,7 @@ object QueryDescriptions : CallDescriptionContainer("indexing") {
     val size = call<SizeRequest, SizeResponse, CommonErrorMessage>("size") {
         auth {
             access = AccessRight.READ
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
         }
 
         http {

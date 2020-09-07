@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
 import kotlinx.coroutines.launch
+import kotlin.math.max
 
 const val WORKING_DIRECTORY = "/work"
 const val MULTI_NODE_DIRECTORY = "/etc/ucloud"
@@ -82,7 +83,7 @@ class K8JobCreationService(
 
     @Suppress("LongMethod", "ComplexMethod") // Just a DSL
     private fun createJobs(verifiedJob: VerifiedJob) {
-        val enableKataContainers = verifiedJob.application.invocation.container?.runAsRoot == true &&
+        val enableKataContainers = false && verifiedJob.application.invocation.container?.runAsRoot == true &&
                 (verifiedJob.reservation.gpu ?: 0) <= 0
 
         // We need to create and prepare some other resources as well
@@ -117,7 +118,7 @@ class K8JobCreationService(
                         }
 
                         if (reservation.memoryInGigs != null) {
-                            limits += "memory" to Quantity("${reservation.memoryInGigs!! - if (enableKataContainers) 6 else 0}Gi")
+                            limits += "memory" to Quantity("${max(1, reservation.memoryInGigs!! - if (enableKataContainers) 6 else 0)}Gi")
                         }
 
                         if (reservation.gpu != null) {

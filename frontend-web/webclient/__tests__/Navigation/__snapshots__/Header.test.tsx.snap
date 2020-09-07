@@ -164,6 +164,10 @@ exports[`Header Mount header 1`] = `
   background-color: transparent;
 }
 
+.c10:disabled {
+  background-color: var(--lightGray,#f00);
+}
+
 .c12 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;

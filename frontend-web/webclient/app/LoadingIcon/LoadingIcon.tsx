@@ -27,7 +27,7 @@ const spinColor = keyframes`
     ${createKF()}
 `;
 
-const HexSpinner = styled.div<SpinnerProps>`
+export const HexSpinWrapper = styled.div<SpinnerProps>`
     ${width} ${height}
     margin: 20px auto;
     & > svg {
@@ -51,7 +51,7 @@ function createCSS() {
 }
 
 const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
-    <HexSpinner width={size} height={size} >
+    <HexSpinWrapper width={size} height={size} >
         <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlnsXlink="http://www.w3.org/1999/xlink"
@@ -80,7 +80,7 @@ const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
             <path d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z" />
             <path d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z" />
         </svg>
-    </HexSpinner>
+    </HexSpinWrapper>
 );
 
 export default HexSpin;

@@ -15,6 +15,12 @@ import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
+data class Project(
+    val id: String,
+    val title: String
+)
+typealias ProjectGroup = Project
+
 data class AccessEntity(
     val user: String?,
     val project: String?,
@@ -25,8 +31,23 @@ data class AccessEntity(
     }
 }
 
+data class DetailedAccessEntity(
+    val user: String?,
+    val project: Project?,
+    val group: ProjectGroup?
+) {
+    init {
+        require(!user.isNullOrBlank() || (project != null && group != null)) { "No access entity defined" }
+    }
+}
+
 data class EntityWithPermission(
     val entity: AccessEntity,
+    val permission: ApplicationAccessRight
+)
+
+data class DetailedEntityWithPermission(
+    val entity: DetailedAccessEntity,
     val permission: ApplicationAccessRight
 )
 
@@ -242,7 +263,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
     val isPublic =
         call<IsPublicRequest, IsPublicResponse, CommonErrorMessage>("isPublic") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ
             }
 
@@ -263,7 +284,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val setPublic = call<SetPublicRequest, Unit, CommonErrorMessage>("setPublic")  {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -343,10 +364,10 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val listAcl = call<
             ListAclRequest,
-            List<EntityWithPermission>,
+            List<DetailedEntityWithPermission>,
             CommonErrorMessage>("listAcl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -361,7 +382,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -440,16 +461,16 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
     }
 
-    val create = call<Unit, Unit, CommonErrorMessage>("create") {
+    val create = call<BinaryStream, Unit, CommonErrorMessage>("create") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
         http {
             method = HttpMethod.Put
             path { using(baseContext) }
-            // body { //YAML Body TODO Implement support }
+            body { bindEntireRequestFromBody() }
         }
     }
 
@@ -472,7 +493,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val createTag = call<CreateTagsRequest, Unit, CommonErrorMessage>("createTag") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -490,7 +511,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val removeTag = call<DeleteTagsRequest, Unit, CommonErrorMessage>("removeTag") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -509,7 +530,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
     val uploadLogo =
         call<UploadApplicationLogoRequest, UploadApplicationLogoResponse, CommonErrorMessage>("uploadLogo") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
             }
 
@@ -534,7 +555,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
     val clearLogo =
         call<ClearLogoRequest, ClearLogoResponse, CommonErrorMessage>("clearLogo") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
             }
 

@@ -37,7 +37,7 @@ internal suspend fun internalHasPermission(
     publicDao: ApplicationPublicAsyncDao,
     aclDao: AclAsyncDao
 ): Boolean {
-    if (user.role in Roles.PRIVILEDGED) return true
+    if (user.role in Roles.PRIVILEGED) return true
     if (ctx.withSession { session -> publicDao.isPublic(session, user, appName, appVersion)}) return true
     return ctx.withSession { session ->
         aclDao.hasPermission(
@@ -76,31 +76,31 @@ internal suspend fun internalFindAllByName(
                     setParameter("project", currentProject)
                     setParameter("groups", groups)
                     setParameter("role", (user?.role ?: Role.UNKNOWN).toString())
-                    setParameter("privileged", Roles.PRIVILEDGED.toList())
+                    setParameter("privileged", Roles.PRIVILEGED.toList())
                     setParameter("user", user?.username ?: "")
                 },
                 """
                     SELECT * FROM applications AS A
-                    WHERE A.name = ?name AND (
+                    WHERE A.name = :name AND (
                         (
                             A.is_public = TRUE
                         ) OR (
-                            cast(?project as text) is null AND ?user IN (
+                            cast(:project as text) is null AND :user IN (
                                 SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                             )
                         ) OR (
-                            cast(?project as text) is not null and exists (
+                            cast(:project as text) is not null and exists (
                                 SELECT P2.project_group FROM permissions AS P2 WHERE
                                     P2.application_name = A.name AND
-                                    P2.project = cast(?project as text) AND
-                                    P2.project_group in (?groups)
+                                    P2.project = cast(:project as text) AND
+                                    P2.project_group in (select unnest(:groups::text[]))
                             )
                         ) OR (
-                            ?role in (?privileged)
+                            :role in (select unnest(:privileged::text[]))
                         ) 
                     )
                     ORDER BY A.created_at DESC
-                """.trimIndent()
+                """
             ).rows.paginate(paging).mapItems { it.toApplicationWithInvocation() }
         )
     }
@@ -136,7 +136,7 @@ internal suspend fun retrieveUserProjectGroups(
         authenticatedClient
     ).orRethrowAs {
         throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-    }.groups.filter { it.projectId == project }.map { it.group }
+    }.groups.filter { it.project == project }.map { it.group }
 
 
 internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: String): String? {

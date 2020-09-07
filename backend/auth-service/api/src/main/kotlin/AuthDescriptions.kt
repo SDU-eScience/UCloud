@@ -122,7 +122,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         audit<Unit>()
 
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -172,7 +172,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
 
     val claim = call<ClaimOneTimeToken, Unit, Unit>("claim") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 

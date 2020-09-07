@@ -129,7 +129,6 @@ val normToolDesc = NormalizedToolDescription(
     NameAndVersion("tool", "1.0.0"),
     "container",
     2,
-    2,
     SimpleDuration(1, 0, 0),
     listOf(""),
     listOf("Author"),

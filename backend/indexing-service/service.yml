@@ -1,9 +1,0 @@
----
-name: indexing
-
-namespaces:
-  - indexing
-  - indexing.subscriptions
-
-dependencies:
-  - files

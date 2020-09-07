@@ -44,7 +44,7 @@ class JobVerificationService(
     private val db: DBContext,
     private val jobs: JobQueryService,
     private val serviceClient: AuthenticatedClient,
-    private val machines: List<MachineReservation> = listOf(MachineReservation.BURST)
+    private val machineCache: MachineTypeCache
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -136,10 +136,14 @@ class JobVerificationService(
         }
 
         // Check machine reservation
-        val reservation =
-            if (unverifiedJob.request.reservation == null) MachineReservation.BURST
-            else (machines.find { it.name == unverifiedJob.request.reservation }
-                ?: throw JobException.VerificationError("Bad machine reservation"))
+        val reservation = run {
+            val machineName = unverifiedJob.request.reservation
+            val reservation =
+                if (machineName != null) machineCache.find(machineName)
+                else machineCache.findDefault()
+
+            reservation ?: throw JobException.VerificationError("Invalid machine type")
+        }
 
         // Verify membership of project
         if (unverifiedJob.project != null) {
@@ -161,7 +165,6 @@ class JobVerificationService(
                 backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
                 nodes = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes,
                 maxTime = unverifiedJob.request.maxTime ?: tool.description.defaultTimeAllocation,
-                tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode,
                 reservation = reservation,
                 jobInput = verifiedParameters,
                 files = files,
@@ -237,7 +240,8 @@ class JobVerificationService(
                     if (param is ApplicationParameter.InputFile && value != null) {
                         value as FileTransferDescription
                         param to value.copy(
-                            invocationParameter = "/work/${value.source.parent().removeSuffix("/").fileName()}/${value.source.fileName()}"
+                            invocationParameter = "/work/${value.source.parent().removeSuffix("/")
+                                .fileName()}/${value.source.fileName()}"
                         )
                     } else {
                         paramWithValue
@@ -332,7 +336,7 @@ class JobVerificationService(
         if (stat.fileType != desiredFileType) {
             throw JobException.VerificationError(
                 "Expected type of ${fileAppParameter.name} to be " +
-                        "$desiredFileType, but instead got a ${stat.fileType}"
+                    "$desiredFileType, but instead got a ${stat.fileType}"
             )
         }
 

@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
@@ -79,7 +80,12 @@ class AppLicenseTest {
             ProjectMembers.userStatus,
             UserStatusResponse(
                 listOf(
-                    UserStatusInProject("projectID", ProjectMember(TestUsers.user.username, ProjectRole.PI))
+                    UserStatusInProject(
+                        "projectID",
+                        "title",
+                        ProjectMember(TestUsers.user.username, ProjectRole.PI),
+                        null
+                    )
                 ),
                 listOf(
                     UserGroupSummary("projectID", "group1", TestUsers.user.username)
@@ -185,11 +191,11 @@ class AppLicenseTest {
         appLicenseService.updateLicenseServer(
             TestUsers.admin,
             UpdateServerRequest(
+                serverId,
                 "testName",
                 newAddress,
                 1234,
-                null,
-                serverId
+                null
             ),
             user
         )
@@ -220,11 +226,11 @@ class AppLicenseTest {
             appLicenseService.updateLicenseServer(
                 TestUsers.user,
                 UpdateServerRequest(
+                    serverId,
                     "testName",
                     newAddress,
                     1234,
-                    null,
-                    serverId
+                    null
                 ),
                 user2
             )

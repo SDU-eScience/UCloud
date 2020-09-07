@@ -49,7 +49,7 @@ describe("UserCreation", () => {
         expect(input.value).toEqual("password");
     });
 
-    test("Fill fields, check validity", () => {
+    test.skip("Fill fields, check validity", () => {
         render(userCreation());
         const passwordInput = screen.getByLabelText("Password") as HTMLInputElement;
         expect(passwordInput.checkValidity()).toBe(false);

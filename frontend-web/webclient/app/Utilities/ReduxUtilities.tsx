@@ -1,4 +1,3 @@
-import * as AccountingRedux from "Accounting/Redux";
 import activity from "Activity/Redux/ActivityReducer";
 import * as AppRedux from "Applications/Redux";
 import analyses from "Applications/Redux/AnalysesReducer";
@@ -6,7 +5,7 @@ import applications from "Applications/Redux/BrowseReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
 import * as TaskRedux from "BackgroundTasks/redux";
 import dashboard from "Dashboard/Redux/DashboardReducer";
-import {initObject, ReduxObject} from "DefaultObjects";
+import {initObject} from "DefaultObjects";
 import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import fileInfo from "Files/Redux/FileInfoReducer";
 import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
@@ -59,7 +58,6 @@ export const store = configureStore(initObject(), {
     fileInfo,
     hookStore,
     ...AppRedux.reducers,
-    ...AccountingRedux.reducers,
     avatar,
     loading,
     tasks: TaskRedux.reducer,

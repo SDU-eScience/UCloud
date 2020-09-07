@@ -1,8 +1,8 @@
-import {ReduxObject, emptyPage} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
-import {addTrailingSlash} from "UtilityFunctions";
+import {addTrailingSlash, shortUUID} from "UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
@@ -10,21 +10,32 @@ import {Flex, Truncate, Text, Icon, Divider} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {useCloudAPI} from "Authentication/DataHook";
-import {Page} from "Types";
 import {UserInProject, ListProjectsRequest, listProjects, areProjectsEnabled} from "Project";
 import {useHistory} from "react-router";
 import {History} from "history";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
+import {useProjectStatus} from "Project/cache";
 
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
+    if (!areProjectsEnabled()) return null;
 
+    const projectStatus = useProjectStatus();
     const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 10, archived: false}),
         emptyPage
     );
-    const activeContext = props.activeProject ?? "Personal Project";
+
+    let activeContext = "Personal Project";
+    if (props.activeProject) {
+        const membership = projectStatus.fetch().membership.find(it => it.projectId === props.activeProject);
+        if (membership) {
+            activeContext = membership.title;
+        } else {
+            activeContext = shortUUID(props.activeProject);
+        }
+    }
 
     useEffect(() => {
         const storedProject = getStoredProject();
@@ -33,19 +44,17 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
 
     const history = useHistory();
 
-    if (!areProjectsEnabled()) return null;
-
     return (
         <Flex pr="12px" alignItems={"center"}>
             <ClickableDropdown
                 trigger={
                     <HoverBox>
-                        <Icon name={"projects"} color2="midGray" mr={".5em"} />
+                        <Icon name={"projects"} color2="midGray" mr={".5em"}/>
                         <Truncate width={"150px"}>{activeContext}</Truncate>
-                        <Icon name={"chevronDown"} size={"12px"} ml={"4px"} />
+                        <Icon name={"chevronDown"} size={"12px"} ml={"4px"}/>
                     </HoverBox>
                 }
-                onTriggerClick={() => setFetchParams({...params})}
+                onTriggerClick={() => (setFetchParams({...params}), projectStatus.reload())}
                 left="0px"
                 width="250px"
             >
@@ -61,11 +70,11 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         key={project.projectId}
                         onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
                     >
-                        <Truncate width={"215px"}>{project.projectId}</Truncate>
+                        <Truncate width={"215px"}>{project.title}</Truncate>
                     </Text>
                 )}
-                {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
-                <Link to="/projects/"><Text>Manage projects</Text></Link>
+                {props.activeProject || response.data.items.length > 0 ? <Divider/> : null}
+                <Link to="/projects"><Text>Manage projects</Text></Link>
             </ClickableDropdown>
         </Flex>
     );

@@ -3,3 +3,6 @@
 
 # Ignore Gradle build output directory
 build
+/integration-testing/envoy/clusters.yaml
+/integration-testing/envoy/config.yaml
+/integration-testing/envoy/rds.yaml

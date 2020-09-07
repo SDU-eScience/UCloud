@@ -21,14 +21,19 @@ private val tokenValidationConfig by lazy {
 
 private val dbConfig by lazy {
     Files.createTempFile("config", ".yml").toFile().also {
+        //ignoring DB because it is using embedded DB
         // language=yaml
         it.writeText(
             """
-          ---
-          database:
-            profile: TEST_H2
-            logSql: true
-        """.trimIndent()
+            hibernate:
+              database:
+                profile: PERSISTENT_POSTGRES
+                credentials:
+                  username: development
+                  password: development
+                database: development
+                hostname: localhost
+            """.trimIndent()
         )
     }
 }

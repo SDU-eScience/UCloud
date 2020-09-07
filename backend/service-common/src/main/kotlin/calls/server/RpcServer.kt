@@ -344,11 +344,11 @@ class RpcServer {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
 
-            log.debug("Running BeforeParsing filters")
+            log.trace("Running BeforeParsing filters")
             val beforeParsing = filters.filterIsInstance<IngoingCallFilter.BeforeParsing>()
             beforeParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call) }
 
-            log.debug("Parsing call: $call")
+            log.trace("Parsing call: $call")
             @Suppress("TooGenericExceptionCaught")
             val capturedRequest = try {
                 val capturedRequest = source.parseRequest(ctx, call)
@@ -365,7 +365,7 @@ class RpcServer {
                 }
             }
 
-            log.debug("Running AfterParsing filters")
+            log.trace("Running AfterParsing filters")
             val afterParsing = filters.filterIsInstance<IngoingCallFilter.AfterParsing>()
             afterParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call, capturedRequest) }
 
@@ -379,7 +379,7 @@ class RpcServer {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
 
-            log.debug("Running BeforeResponse filters")
+            log.trace("Running BeforeResponse filters")
             val beforeResponse = filters.filterIsInstance<IngoingCallFilter.BeforeResponse>()
             beforeResponse
                 .filter { it.canUseContext(ctx) }

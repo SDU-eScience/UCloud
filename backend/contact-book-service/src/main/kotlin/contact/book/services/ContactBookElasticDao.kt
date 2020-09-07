@@ -2,6 +2,7 @@ package dk.sdu.cloud.contact.book.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.bulk.BulkRequest
@@ -28,18 +29,22 @@ class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
             return
         }
         val request = CreateIndexRequest(CONTACT_BOOK_INDEX)
-        request.settings("""
-            {
-            "number_of_shards": 2,
-            "number_of_replicas": 2,
-            "analysis": {
-              "analyzer": "whitespace",
-              "tokenizer": "whitespace"
-            }
-            }
-            """.trimIndent(), XContentType.JSON)
+        request.settings(
+            """
+                {
+                    "number_of_shards": 2,
+                    "number_of_replicas": 2,
+                    "analysis": {
+                        "analyzer": "whitespace",
+                        "tokenizer": "whitespace"
+                    }
+                }
+            """,
+            XContentType.JSON
+        )
 
-        request.mapping("""
+        request.mapping(
+            """
                 {
                     "properties" : {
                         "fromUser" : {
@@ -76,7 +81,10 @@ class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
                             }
                         }
                     }
-                }""".trimIndent(), XContentType.JSON)
+                }
+            """,
+            XContentType.JSON
+        )
         elasticClient.indices().create(request, RequestOptions.DEFAULT)
         elasticClient.indices().flush(FlushRequest(CONTACT_BOOK_INDEX).waitIfOngoing(true), RequestOptions.DEFAULT)
     }
@@ -86,7 +94,7 @@ class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
         val source = HashMap<String, Any>()
         source["fromUser"] = fromUser
         source["toUser"] = toUser
-        source["createdAt"] = Date().time
+        source["createdAt"] = Time.now()
         source["serviceOrigin"] = serviceOrigin
         request.source(source)
 

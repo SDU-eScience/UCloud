@@ -1,8 +1,34 @@
 package dk.sdu.cloud.file.api
 
+import dk.sdu.cloud.calls.RPCException
+import io.ktor.http.HttpStatusCode
 import java.io.File
 
 fun homeDirectory(user: String): String = "/home/$user/"
+fun projectHomeDirectory(projectId: String): String = "/projects/$projectId"
+
+fun projectIdFromPath(path: String): String? {
+    val normalizedComponents = path.normalize().components()
+    if (normalizedComponents.size < 2) return null
+    if (normalizedComponents[0] != "projects") return null
+    return normalizedComponents[1]
+}
+
+fun usernameFromPath(path: String): String? {
+    val normalizedComponents = path.normalize().components()
+    if (normalizedComponents.size < 2) return null
+    if (normalizedComponents[0] != "home") return null
+    return normalizedComponents[1]
+}
+
+fun findHomeDirectoryFromPath(path: String): String {
+    val components = path.components()
+    if (components.size < 2) throw RPCException("Could not find home directory for path", HttpStatusCode.BadRequest)
+    return when (components[0]) {
+        "home", "projects" -> "/" + listOf(components[0], components[1]).joinToString("/")
+        else -> throw RPCException("Could not find home directory for path", HttpStatusCode.BadRequest)
+    }
+}
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
     val basePath = File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path

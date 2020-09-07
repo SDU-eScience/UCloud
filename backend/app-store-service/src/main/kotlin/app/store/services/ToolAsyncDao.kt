@@ -9,16 +9,13 @@ import dk.sdu.cloud.app.store.api.NormalizedToolDescription
 import dk.sdu.cloud.app.store.api.Tool
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.paginatedQuery
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.offset
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -55,11 +52,11 @@ class ToolAsyncDao {
     ): Tool {
         val cacheKey = NameAndVersion(name, version)
         val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
-        if (cached != null && expiry > System.currentTimeMillis()) return cached
+        if (cached != null && expiry > Time.now()) return cached
         val result = ctx.withSession { session ->
             (internalByNameAndVersion(session, name, version)?.toTool() ?: throw ToolException.NotFound())
         }
-        byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
+        byNameAndVersionCache[cacheKey] = Pair(result, Time.now() + (1000L * 60 * 60))
         return result
     }
 
@@ -138,8 +135,8 @@ class ToolAsyncDao {
         ctx.withSession { session ->
             session.insert(ToolTable) {
                 set(ToolTable.owner, user.username)
-                set(ToolTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(ToolTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(ToolTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                set(ToolTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(ToolTable.tool, defaultMapper.writeValueAsString(description))
                 set(ToolTable.originalDocument, originalDocument)
                 set(ToolTable.idName, description.info.name)

@@ -14,7 +14,7 @@ import io.fabric8.kubernetes.client.KubernetesClient
  * A small dependencies bundle used by most of the K8 services.
  */
 data class K8Dependencies(
-    val client: KubernetesClient,
+    val client: ReloadableKubernetesClient,
     val nameAllocator: K8NameAllocator,
     val scope: BackgroundScope,
     val serviceClient: AuthenticatedClient

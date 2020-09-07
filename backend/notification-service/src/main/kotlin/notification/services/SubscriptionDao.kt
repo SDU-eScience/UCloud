@@ -1,6 +1,7 @@
 package dk.sdu.cloud.notification.services
 
 import dk.sdu.cloud.calls.client.HostInfo
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -39,7 +40,7 @@ class SubscriptionDao {
                 set(SubscriptionsTable.hostname, hostname)
                 set(SubscriptionsTable.port, port)
                 set(SubscriptionsTable.username, username)
-                set(SubscriptionsTable.lastPing, LocalDateTime.now(DateTimeZone.UTC))
+                set(SubscriptionsTable.lastPing, LocalDateTime(Time.now(), DateTimeZone.UTC))
             }
             id
         }
@@ -53,25 +54,26 @@ class SubscriptionDao {
                 },
                 """
                     DELETE FROM subscriptions
-                    WHERE id = ?id
-                """.trimIndent()
+                    WHERE id = :id
+                """
             )
         }
     }
 
     suspend fun findConnections(ctx: DBContext, username: String): List<Subscription> {
-        val earliestAllowedPing = Date(System.currentTimeMillis() - SubscriptionService.MAX_MS_SINCE_LAST_PING).time
+        val earliestAllowedPing = Time.now() - SubscriptionService.MAX_MS_SINCE_LAST_PING
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", username)
-                    setParameter("earliest", earliestAllowedPing)
-                },
-                """
-                    FROM subscriptions
-                    WHERE (username = ?username) AND (last_ping >= to_timestamp(?earliest))
-                """.trimIndent()
-            ).rows.map {
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", username)
+                        setParameter("earliest", earliestAllowedPing)
+                    },
+                    """
+                        SELECT * FROM subscriptions
+                        WHERE (username = :username) AND (last_ping >= to_timestamp(:earliest))
+                    """
+                ).rows.map {
                 Subscription(
                     HostInfo(
                         host = it.getField(SubscriptionsTable.hostname),
@@ -87,18 +89,19 @@ class SubscriptionDao {
 
     suspend fun refreshSessions(ctx: DBContext, hostname: String, port: Int) {
         ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("newPing", Date().time)
-                    setParameter("hostname", hostname)
-                    setParameter("port", port)
-                },
-                """
-                    UPDATE subscriptions
-                    SET last_ping = to_timestamp(?newPing)
-                    WHERE (hostname = ?hostname) AND (port = ?port)
-                """.trimIndent()
-            )
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("newPing", Time.now())
+                        setParameter("hostname", hostname)
+                        setParameter("port", port)
+                    },
+                    """
+                        UPDATE subscriptions
+                        SET last_ping = to_timestamp(:newPing)
+                        WHERE (hostname = :hostname) AND (port = :port)
+                    """
+                )
         }
     }
 }

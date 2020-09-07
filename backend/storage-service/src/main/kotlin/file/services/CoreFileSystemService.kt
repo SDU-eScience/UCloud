@@ -20,7 +20,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val wsServiceClient: AuthenticatedClient,
     private val backgroundScope: BackgroundScope,
-    private val metadataService: MetadataService
+    private val metadataService: MetadataService,
+    private val limitChecker: LimitChecker<*>
 ) {
     suspend fun write(
         ctx: Ctx,
@@ -32,7 +33,19 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val targetPath =
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
+        val limitCheckResult = runCatching {
+            limitChecker.checkLimitAndQuota(targetPath)
+        }
+
+        if (limitCheckResult.isFailure) {
+            // This will ensure that the permissions are checked before we leak
+            // that we don't have quota
+            fs.checkWritePermissions(ctx, targetPath)
+            limitCheckResult.getOrThrow()
+        }
+
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite())
+
         fs.write(ctx, writer)
         return targetPath
     }
@@ -56,6 +69,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     ): String {
         val normalizedFrom = from.normalize()
         val fromStat = stat(ctx, from, setOf(StorageFileAttribute.fileType, StorageFileAttribute.size))
+
+        // The to stat makes sure that we have checked permissions against the target before we continue
+        stat(ctx, to.parent(), setOf(StorageFileAttribute.fileType, StorageFileAttribute.size))
+        limitChecker.checkLimitAndQuota(to)
+
         if (fromStat.fileType != FileType.DIRECTORY) {
             runTask(wsServiceClient, backgroundScope, "File copy", ctx.user) {
                 status = "Copying file from '$from' to '$to'"
@@ -180,6 +198,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String
     ) {
+        // You are allowed to create new directories in case of limit has been reached. This is needed partially for
+        // trash to function.
         fs.makeDirectory(ctx, path)
     }
 
@@ -254,8 +274,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     ): String {
         if (conflictPolicy == WriteConflictPolicy.OVERWRITE) return desiredTargetPath
 
-        // Performance: This will cause a lot of stats, on items in the same folder, for the most part we could
-        // simply ls a common root and cache it. This should be a lot more efficient.
         val targetExists = exists(ctx, desiredTargetPath)
         return when (conflictPolicy) {
             WriteConflictPolicy.OVERWRITE -> desiredTargetPath
@@ -323,6 +341,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 "$parentPath/$desiredWithoutExtension(${currentMax + 1})$extension"
             }
         }
+    }
+
+    suspend fun estimateRecursiveStorageUsedMakeItFast(ctx: Ctx, path: String): Long {
+        return fs.estimateRecursiveStorageUsedMakeItFast(ctx, path)
     }
 
     companion object : Loggable {

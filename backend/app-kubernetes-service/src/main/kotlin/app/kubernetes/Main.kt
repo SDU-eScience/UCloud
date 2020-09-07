@@ -12,7 +12,8 @@ data class Configuration(
     val prefix: String = "app-",
     val domain: String = "cloud.sdu.dk",
     val performAuthentication: Boolean = true,
-    val toleration: TolerationKeyAndValue? = null
+    val toleration: TolerationKeyAndValue? = null,
+    val reloadableK8Config: String? = null
 )
 
 data class CephConfiguration(

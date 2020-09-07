@@ -1,5 +1,5 @@
 import {DetailedApplicationOperations, DetailedApplicationSearchReduxState} from "Applications";
-import {KeyCode, ReduxObject} from "DefaultObjects";
+import {KeyCode} from "DefaultObjects";
 import {SearchStamps} from "Files/DetailedFileSearch";
 import * as React from "react";
 import {connect} from "react-redux";

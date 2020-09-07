@@ -8,6 +8,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
@@ -60,7 +61,6 @@ class ToolTest {
     private val normToolDesc = NormalizedToolDescription(
         NameAndVersion("name", "2.2"),
         "container",
-        2,
         2,
         SimpleDuration(1, 0, 0),
         listOf(""),

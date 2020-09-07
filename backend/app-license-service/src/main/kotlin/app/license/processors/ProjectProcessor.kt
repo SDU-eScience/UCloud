@@ -6,7 +6,6 @@ import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.app.license.services.AppLicenseService
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.HibernateSession
 
 class ProjectProcessor(
     private val streams: EventStreamService,

@@ -23,8 +23,6 @@ defaultTimeAllocation:
 
 defaultNumberOfNodes: 1
 
-defaultTasksPerNode: 1
-
 license: The 3-Clause BSD License
 
 backend: DOCKER

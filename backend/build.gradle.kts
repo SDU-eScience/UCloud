@@ -2,8 +2,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
-    kotlin("jvm") version "1.3.72"
-    kotlin("plugin.jpa") version "1.3.72"
+    kotlin("jvm") version "1.4.0"
+    kotlin("plugin.jpa") version "1.4.0"
     jacoco
 }
 
@@ -15,8 +15,8 @@ buildscript {
     }
 
     dependencies {
-        classpath("org.jetbrains.dokka:dokka-gradle-plugin:0.10.1")
-        classpath("org.jetbrains.kotlin:kotlin-noarg:1.3.72")
+        classpath("org.jetbrains.dokka:dokka-gradle-plugin:1.4.0-rc")
+        classpath("org.jetbrains.kotlin:kotlin-noarg:1.4.0")
     }
 }
 
@@ -118,15 +118,17 @@ subprojects {
     }
 
     dependencies {
-        implementation("org.jetbrains.kotlin:kotlin-reflect:1.3.72")
+        implementation("org.jetbrains.kotlin:kotlin-reflect:1.4.0")
     }
 
     tasks {
+        /*
         val dokka by getting(DokkaTask::class)
         with(dokka) {
             outputFormat = "html"
             outputDirectory = "$buildDir/javadoc"
         }
+         */
     }
 
     tasks {
@@ -146,7 +148,7 @@ subprojects {
     }
 
     dependencies {
-        implementation(kotlin("stdlib-jdk8"))
+        //implementation(kotlin("stdlib-jdk11"))
 
         val myApiProject = project.childProjects["api"]
         if (myApiProject != null) {
@@ -175,11 +177,11 @@ subprojects {
 
     val compileKotlin: KotlinCompile by tasks
     compileKotlin.kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
     val compileTestKotlin: KotlinCompile by tasks
     compileTestKotlin.kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
 }
 

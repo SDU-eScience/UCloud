@@ -106,6 +106,10 @@ exports[`UserCreation Mount 1`] = `
   background-color: transparent;
 }
 
+.c6:disabled {
+  background-color: var(--lightGray,#f00);
+}
+
 .c6:focus {
   outline: 0;
   border-color: #006aff;
@@ -163,7 +167,7 @@ exports[`UserCreation Mount 1`] = `
   className="c0"
 >
   <div
-    className="sc-AxgMl c1"
+    className="c1"
     height={64}
     width={1}
   >
@@ -202,7 +206,6 @@ exports[`UserCreation Mount 1`] = `
           id="default"
           onChange={[Function]}
           placeholder="Username..."
-          required={true}
           value=""
           width="100%"
         />
@@ -220,7 +223,6 @@ exports[`UserCreation Mount 1`] = `
           id="default"
           onChange={[Function]}
           placeholder="Password..."
-          required={true}
           type="password"
           value=""
           width="100%"
@@ -239,7 +241,6 @@ exports[`UserCreation Mount 1`] = `
           id="default"
           onChange={[Function]}
           placeholder="Repeat password..."
-          required={true}
           type="password"
           value=""
           width="100%"
@@ -258,7 +259,6 @@ exports[`UserCreation Mount 1`] = `
           id="default"
           onChange={[Function]}
           placeholder="Email..."
-          required={true}
           type="email"
           value=""
           width="100%"

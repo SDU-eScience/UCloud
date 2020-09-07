@@ -10,7 +10,7 @@ enum ChangePasswordError {
     REPEATED_PASSWORD_DOES_NOT_MATCH
 }
 
-export const ChangePassword: React.FunctionComponent<{ setLoading: (loading: boolean) => void }> = props => {
+export const ChangePassword: React.FunctionComponent<{setLoading: (loading: boolean) => void}> = props => {
     const [error, setError] = useState<ChangePasswordError | null>(null);
     const currentPassword = useRef<HTMLInputElement>(null);
     const newPassword = useRef<HTMLInputElement>(null);

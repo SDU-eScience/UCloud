@@ -14,11 +14,11 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.defaultForFilePath
 import io.ktor.http.isSuccess
-import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
+import io.ktor.util.cio.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.core.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.io.core.ExperimentalIoApi
 import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -104,7 +104,7 @@ class JobFileService(
                 policy = WriteConflictPolicy.RENAME
             ),
             userClient
-        )
+        ).orThrow()
     }
 
     suspend fun acceptFile(
@@ -253,8 +253,6 @@ class JobFileService(
 
         val mounts = job.mounts.map { it.toMountName() } + job.files.map { it.toMountName() }
         val userClient = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
-        log.debug("access" + jobWithToken.accessToken)
-        log.debug("refresh" + jobWithToken.refreshToken)
 
         mounts.forEach { mountName ->
             FileDescriptions.deleteFile.call(

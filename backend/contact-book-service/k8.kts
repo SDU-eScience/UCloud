@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "contact-book"
-    version = "0.1.18"
+    version = "0.2.1"
 
     withAmbassador("/api/contactbook") {}
 

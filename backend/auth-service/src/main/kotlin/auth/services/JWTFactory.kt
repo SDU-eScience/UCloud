@@ -10,7 +10,8 @@ import java.util.*
 
 class JWTFactory(
     private val jwtAlg: JWTAlgorithm,
-    private val serviceLicenseAgreement: ServiceAgreementText? = null
+    private val serviceLicenseAgreement: ServiceAgreementText? = null,
+    private val disable2faCheck: Boolean = false
 ) : TokenGenerationService {
     override fun generate(contents: AccessTokenContents): String {
         val iat = Date(contents.createdAt)
@@ -43,7 +44,8 @@ class JWTFactory(
                 if (user.orcId != null) withClaim("orcId", user.orcId)
                 if (user.title != null) withClaim("title", user.title)
                 if (user.email != null) withClaim("email", user.email)
-                withClaim("twoFactorAuthentication", user.twoFactorAuthentication)
+                if (user is Person.ByWAYF) withClaim("orgId", user.organizationId)
+                withClaim("twoFactorAuthentication", if (!disable2faCheck) user.twoFactorAuthentication else true)
                 withClaim(
                     "serviceLicenseAgreement",
                     serviceLicenseAgreement == null || user.serviceLicenseAgreement == serviceLicenseAgreement.version
@@ -55,7 +57,6 @@ class JWTFactory(
             }
         }
 
-        // TODO This doesn't seem right
         val type = when (user) {
             is Person.ByWAYF -> "wayf"
             is Person.ByPassword -> "password"

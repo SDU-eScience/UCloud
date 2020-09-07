@@ -2,10 +2,11 @@
 
 package dk.sdu.cloud.file.services.linuxfs
 
+import dk.sdu.cloud.file.CephConfiguration
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.CephFsFastDirectoryStats
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.ProjectCache
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
@@ -31,7 +32,7 @@ import kotlin.math.min
 class LinuxFS(
     fsRoot: File,
     private val aclService: AclService,
-    private val projectCache: ProjectCache
+    private val cephConfiguration: CephConfiguration
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
     private val fsRoot = fsRoot.normalize().absoluteFile
 
@@ -462,6 +463,10 @@ class LinuxFS(
         }
     }
 
+    override suspend fun checkWritePermissions(ctx: LinuxFSRunner, path: String) {
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+    }
+
     override suspend fun write(
         ctx: LinuxFSRunner,
         writer: suspend (OutputStream) -> Unit
@@ -667,6 +672,50 @@ class LinuxFS(
 
     override suspend fun onFileCreated(ctx: LinuxFSRunner, path: String) {
         NativeFS.chown(File(translateAndCheckFile(ctx, path)), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+    }
+
+    override suspend fun calculateRecursiveStorageUsed(ctx: LinuxFSRunner, path: String): Long {
+        if (cephConfiguration.useCephDirectoryStats) return estimateRecursiveStorageUsedMakeItFast(ctx, path)
+
+        aclService.requirePermission(path, ctx.user, AccessRight.READ)
+
+        val systemFile = File(translateAndCheckFile(ctx, path))
+        val queue = LinkedList<File>()
+        queue.add(systemFile)
+
+        var sum = 0L
+
+        if (systemFile.isDirectory) {
+            while (queue.isNotEmpty()) {
+                val next = queue.pop()
+                NativeFS.listFiles(next)
+                    .map { File(next, it) }
+                    .forEach {
+                        if (Files.isSymbolicLink(it.toPath())) {
+                            return@forEach
+                        }
+
+                        if (it.isDirectory) queue.add(it)
+                        val s = stat(ctx, it, setOf(StorageFileAttribute.size), hasPerformedPermissionCheck = true)
+                        sum += s.size
+                    }
+            }
+        } else {
+            val s = stat(ctx, systemFile, setOf(StorageFileAttribute.size), hasPerformedPermissionCheck = true)
+            sum = s.size
+        }
+
+        return sum
+    }
+
+    override suspend fun estimateRecursiveStorageUsedMakeItFast(ctx: LinuxFSRunner, path: String): Long {
+        aclService.requirePermission(path, ctx.user, AccessRight.READ)
+        return if (!cephConfiguration.useCephDirectoryStats) {
+            // Just assume we'll use 30GB. This is a really bad estimate.
+            30L * 1000 * 1000 * 1000
+        } else {
+            CephFsFastDirectoryStats.getRecursiveSize(File(translateAndCheckFile(ctx, path)))
+        }
     }
 
     private fun String.toCloudPath(): String {
