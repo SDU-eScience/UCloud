@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "webclient"
-    version = "0.38.7"
+    version = "0.38.8"
 
     withAmbassador(null) {
         services.add(
