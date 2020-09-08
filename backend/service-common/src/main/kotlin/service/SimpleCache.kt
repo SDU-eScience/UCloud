@@ -2,6 +2,7 @@ package dk.sdu.cloud.service
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.lang.ref.WeakReference
 
 interface Cache<K, V : Any> {
     suspend fun clearAll()
@@ -20,6 +21,10 @@ class SimpleCache<K, V : Any>(
     private val internalMap = HashMap<K, CacheEntry<V>>()
     private val mutex = Mutex()
     private var nextRemoveExpired = Time.now() + (maxAge * 5)
+
+    init {
+        allCachesOnlyForTestingPlease.add(WeakReference(this))
+    }
 
     override suspend fun clearAll() {
         mutex.withLock { internalMap.clear() }
@@ -73,5 +78,7 @@ class SimpleCache<K, V : Any>(
     companion object : Loggable {
         override val log = logger()
         const val DONT_EXPIRE = -1L
+
+        val allCachesOnlyForTestingPlease = ArrayList<WeakReference<SimpleCache<*, *>>>()
     }
 }

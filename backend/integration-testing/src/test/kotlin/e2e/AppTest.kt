@@ -65,7 +65,7 @@ class AppTest : EndToEndTest() {
         driver.awaitElements(By.xpath("//button[text()='Remove from favorites']")).first { it.isDisplayed }
         driver.goToApps()
         retrySection {
-            // At this point, we're
+            // At this point, we're back at a page we already visited. Stale elements are a risk here.
             driver.clickAppCard(SampleApplications.figlet.name.capitalize())
         }
         driver.awaitElement(By.xpath("//b[text()='No machine selected']")).click()
