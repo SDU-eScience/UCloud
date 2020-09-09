@@ -48,6 +48,7 @@ const UIGlobalStyle = css`
     --tableRowHighlight: var(--lightBlue, #f00);
     --appCard: #ebeff3;
     --wayfGreen: #66b340;
+    --invertedThemeColor: #fff;
 }
 
 

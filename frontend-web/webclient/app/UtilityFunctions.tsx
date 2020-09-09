@@ -24,6 +24,7 @@ export function toggleCssColors(light: boolean): void {
         setCSSVariable("--paginationHoverColor", "var(--lightBlue, #f00)");
         setCSSVariable("--appCard", "#ebeff3");
         setCSSVariable("--borderGray", "var(--midGray, #f00)");
+        setCSSVariable("--invertedThemeColor", "#000");
     } else {
         setCSSVariable("--white", "#282c35");
         setCSSVariable("--tableRowHighlight", "#000");
@@ -36,6 +37,7 @@ export function toggleCssColors(light: boolean): void {
         setCSSVariable("--paginationHoverColor", "#444");
         setCSSVariable("--appCard", "#060707");
         setCSSVariable("--borderGray", "#111");
+        setCSSVariable("--invertedThemeColor", "#fff");
     }
 }
 
