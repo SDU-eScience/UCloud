@@ -177,8 +177,8 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   width: 100%;
   height: 100%;
   border-radius: 5px;
-  border: 1px solid var(--borderGray,#f00);
-  color: var(--borderGray,#f00);
+  border: 1px solid var(--invertedThemeColor);
+  color: var(--invertedThemeColor,#f00);
   -webkit-transition: all 300ms ease;
   transition: all 300ms ease;
 }
@@ -227,7 +227,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
 
 .c8:checked + .c9 {
   background-color: var(--blue,#f00);
-  border: 0px solid white;
+  border: 0px solid var(--black);
   color: white;
   -webkit-transform: scale(1.2,1.2);
   -ms-transform: scale(1.2,1.2);
@@ -244,6 +244,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   -ms-letter-spacing: 1px;
   letter-spacing: 1px;
   line-height: 1;
+  color: var(--invertedThemeColor);
   padding-top: 0.1rem;
 }
 

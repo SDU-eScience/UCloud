@@ -178,6 +178,7 @@ exports[`RunApp component Mount 1`] = `
     />
     <div
       className="c3"
+      data-tag="loading-spinner"
       height={36}
       width={36}
     >
