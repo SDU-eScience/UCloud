@@ -5,7 +5,7 @@ import * as React from "react";
 import {useHistory, useLocation} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Markdown} from "ui-components";
+import {Box, Button, Flex, Markdown} from "ui-components";
 import Error from "ui-components/Error";
 import {downloadFiles, fileTablePage, isDirectory} from "Utilities/FileUtilities";
 import {
@@ -155,12 +155,14 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
         <MainContainer
             main={(
                 <>
-                    <BreadCrumbs
-                        embedded
-                        currentPath={path}
-                        navigate={onFileNavigation}
-                        client={Client}
-                    />
+                    <Flex>
+                        <BreadCrumbs
+                            embedded
+                            currentPath={path}
+                            navigate={onFileNavigation}
+                            client={Client}
+                        />
+                    </Flex>
 
                     <Error error={error ?? undefined} />
                     {showContent()}
