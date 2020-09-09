@@ -138,8 +138,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             onClick: (projects) => dialogStore.addDialog(
                 <ArchiveProject
                     onSuccess={() => {
-                        dialogStore.success()
-                        setSelectedProjects(new Set())
+                        dialogStore.success();
+                        setSelectedProjects(new Set());
                         reload();
                     }}
                     projects={projects}
@@ -471,7 +471,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 }}
                             />
                             {selectedProjects.size === 0 && projectOperations.length > 0 ? (
-                                <div onClick={stopPropagation}>
+                                <div data-tag="project-dropdown" onClick={stopPropagation}>
                                     <ClickableDropdown
                                         width="125px"
                                         left="-105px"
