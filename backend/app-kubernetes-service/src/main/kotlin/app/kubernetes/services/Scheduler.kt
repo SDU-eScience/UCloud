@@ -15,6 +15,32 @@ import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
+object TimeCollector {
+    data class TimeSlot(val count: AtomicLong = AtomicLong(0L), val time: AtomicLong = AtomicLong(0L)) {
+        override fun toString(): String {
+            return "TimeSlot(count=$count, time=$time, avg=${time.get() / count.get().toDouble()})"
+        }
+    }
+
+    val timers = HashMap<String, TimeSlot>()
+}
+
+private inline fun <R> timedFunction(name: String, block: () -> R): R {
+    if (!TimeCollector.timers.contains(name)) {
+        TimeCollector.timers[name] = TimeCollector.TimeSlot()
+    }
+
+    val start = Time.now()
+    try {
+        return block()
+    } finally {
+        val duration = Time.now() - start
+        val value: TimeCollector.TimeSlot = TimeCollector.timers[name]!!
+        value.time.addAndGet(duration)
+        value.count.addAndGet(1)
+    }
+}
+
 enum class ScheduledJobState {
     AWAITING_SCHEDULE,
     SCHEDULED,
@@ -45,31 +71,6 @@ private data class FreeSlot(
     val jobs: ArrayList<String> = ArrayList()
 ) {
     override fun toString() = "FreeSlot($start, $end, $vCpuAvailable, $ramAvailable, $jobs, ${nextSlot != null})"
-}
-
-object TimeCollector {
-    data class TimeSlot(val count: AtomicLong = AtomicLong(0L), val time: AtomicLong = AtomicLong(0L)) {
-        override fun toString(): String {
-            return "TimeSlot(count=$count, time=$time, avg=${time.get() / count.get().toDouble()})"
-        }
-    }
-    val timers = HashMap<String, TimeSlot>()
-}
-
-private inline fun <R> timedFunction(name: String, block: () -> R): R {
-    if (!TimeCollector.timers.contains(name)) {
-        TimeCollector.timers[name] = TimeCollector.TimeSlot()
-    }
-
-    val start = Time.now()
-    try {
-        return block()
-    } finally {
-        val duration = Time.now() - start
-        val value: TimeCollector.TimeSlot = TimeCollector.timers[name]!!
-        value.time.addAndGet(duration)
-        value.count.addAndGet(1)
-    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -124,29 +125,36 @@ class FreeList(private val totalCpu: Int, private val totalRam: Int) {
         }
     }
 
-    fun findFreeSlot(vCpuReservation: Int, ramReservation: Int, duration: Long): Long? = timedFunction("findFreeSlot") {
+    fun findFreeSlot(
+        vCpuReservation: Int,
+        ramReservation: Int,
+        duration: Long,
+        earliestStart: Long
+    ): Long? = timedFunction("findFreeSlot") {
         var currentSlot: FreeSlot? = firstSlot
 
         while (currentSlot != null) {
-            if (currentSlot.vCpuAvailable >= vCpuReservation && currentSlot.ramAvailable >= ramReservation) {
-                var combinedTime = currentSlot.end - currentSlot.start
-                if (combinedTime >= duration) {
-                    return currentSlot.start
-                }
-
-                // Not enough time in a single slot, we need to start searching
-                var lastSlot: FreeSlot? = currentSlot.nextSlot
-                while (lastSlot != null && combinedTime < duration) {
-                    if (lastSlot.vCpuAvailable >= vCpuReservation && lastSlot.ramAvailable >= ramReservation) {
-                        combinedTime += lastSlot.end - lastSlot.start
-                        lastSlot = lastSlot.nextSlot
-                    } else {
-                        break
+            if (earliestStart in (currentSlot.start)..(currentSlot.end) || currentSlot.start >= earliestStart) {
+                if (currentSlot.vCpuAvailable >= vCpuReservation && currentSlot.ramAvailable >= ramReservation) {
+                    var combinedTime = currentSlot.end - currentSlot.start
+                    if (combinedTime >= duration) {
+                        return max(currentSlot.start, earliestStart)
                     }
-                }
 
-                if (combinedTime >= duration) {
-                    return currentSlot.start
+                    // Not enough time in a single slot, we need to start searching
+                    var lastSlot: FreeSlot? = currentSlot.nextSlot
+                    while (lastSlot != null && combinedTime < duration) {
+                        if (lastSlot.vCpuAvailable >= vCpuReservation && lastSlot.ramAvailable >= ramReservation) {
+                            combinedTime += lastSlot.end - max(lastSlot.start, earliestStart)
+                            lastSlot = lastSlot.nextSlot
+                        } else {
+                            break
+                        }
+                    }
+
+                    if (combinedTime >= duration) {
+                        return max(currentSlot.start, earliestStart)
+                    }
                 }
             }
 
@@ -210,7 +218,6 @@ class FreeList(private val totalCpu: Int, private val totalRam: Int) {
     }
 }
 
-
 data class Schedule(
     val nodes: List<String>,
     val startOfJob: Long,
@@ -243,13 +250,23 @@ interface SchedulerCallbacks {
 class Scheduler(
     private val callbacks: SchedulerCallbacks,
     private val scope: BackgroundScope,
-    private val numberOfSamples: Int = 5
+    private val numberOfSamples: Int = 5,
+
+    /**
+     * If jobs aren't scheduled within [desiredSchedulingSpeed]ms then this job will be placed in a queue for jobs
+     * which should be reconsidered. The scheduler will make periodic attempts to reschedule these jobs.
+     */
+    private val desiredSchedulingSpeed: Long = 1000 * 60 * 15L
 ) {
     private val nodes = HashMap<String, Node>()
     private val nodeIds = ArrayList<String>()
+    private val jobs = HashMap<String, JobToBeScheduled>()
+    private val jobsToReconsider = HashSet<String>()
 
     private val jobQueue = Channel<JobToBeScheduled>()
     private val eventQueue = Channel<SchedulerEvent>()
+    private val jobSchedulerTicker = scope.ticker(1000)
+    private val rescheduleTicker = scope.ticker(60_000)
 
     suspend fun addToQueue(job: JobToBeScheduled): String {
         val newId = "${idPrefix}_${idCounter.getAndIncrement()}"
@@ -261,10 +278,31 @@ class Scheduler(
         eventQueue.send(event)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun CoroutineScope.ticker(delay: Long) = produce<Unit> {
+        val timeMillis = min(delay, 100)
+        var next = 0L
+        while (isActive) {
+            if (Time.now() >= next) {
+                send(Unit)
+                next = Time.now() + delay
+            }
+            delay(timeMillis)
+        }
+    }
+
     fun start(): Job {
         return scope.launch {
             while (isActive) {
                 select<Unit> {
+                    jobSchedulerTicker.onReceive {
+                        println("Time to schedule jobs!")
+                    }
+
+                    rescheduleTicker.onReceive {
+                        println("Time to reschedule jobs")
+                    }
+
                     jobQueue.onReceive { job ->
                         schedule(job)
                     }
@@ -272,7 +310,7 @@ class Scheduler(
                     eventQueue.onReceive { ev ->
                         when (ev) {
                             is SchedulerEvent.JobTerminated -> {
-
+                                jobsToReconsider.remove(ev.id)
                             }
 
                             is SchedulerEvent.NodeOffline -> {
@@ -284,6 +322,7 @@ class Scheduler(
                                 val currentJobs = node.freeList.findJobsAt(Time.now())
                                 for (jobId in currentJobs) {
                                     // TODO Notify that job is dead
+                                    jobsToReconsider.remove(jobId)
                                 }
 
                                 nodes.remove(ev.id)
@@ -301,16 +340,21 @@ class Scheduler(
         }
     }
 
-    suspend fun schedule(job: JobToBeScheduled) = timedFunction("schedule") {
+    suspend fun schedule(
+        job: JobToBeScheduled,
+        autoNotify: Boolean = true
+    ): Schedule = timedFunction("schedule") {
         coroutineScope {
             while (true) {
+                val now = Time.now()
                 val solutions = (0 until numberOfSamples).map {
                     async {
                         val startingPoint = nodes[nodeIds[Random.nextInt(nodes.size)]]!!
                         val proposedTime = startingPoint.freeList.findFreeSlot(
                             job.vCpuReservation,
                             job.ramReservation,
-                            job.timeRequired.toMillis()
+                            job.timeRequired.toMillis(),
+                            now
                         ) ?: return@async null
                         val end = proposedTime + job.timeRequired.toMillis()
 
@@ -351,19 +395,50 @@ class Scheduler(
                     )
                 }
 
-                callbacks.notifyJobUpdate(
-                    job.copy(
-                        schedule = solution,
-                        currentState = ScheduledJobState.SCHEDULED
-                    )
+                val scheduled = job.copy(
+                    schedule = solution,
+                    currentState = ScheduledJobState.SCHEDULED
                 )
-                break
+                jobs[scheduled.id] = scheduled
+                if (autoNotify) {
+                    callbacks.notifyJobUpdate(scheduled)
+
+                    if (solution.startOfJob - now > desiredSchedulingSpeed) {
+                        jobsToReconsider.add(scheduled.id)
+                    }
+                }
+                return@coroutineScope solution
             }
+            @Suppress("UNREACHABLE_CODE", "ThrowableNotThrown")
+            throw IllegalStateException("Unreachable")
         }
     }
 
     private suspend fun reoderQueue() {
+        val iterator = jobsToReconsider.iterator()
+        val now = Time.now()
+        while (true) {
+            val jobId = iterator.next()
+            val job = jobs[jobId] ?: error("Found unknown job '$jobId' in jobsToReconsider")
+            val schedule = job.schedule!!
+            if (now - schedule.startOfJob < desiredSchedulingSpeed / 2) {
+                iterator.remove() // Don't bother reordering if we are already too close to being scheduled
+                continue
+            }
 
+            schedule.nodes.forEach {
+                val node = nodes[it]!!
+                node.freeList.releaseReservation(
+                    schedule.startOfJob,
+                    schedule.endOfJob,
+                    job.vCpuReservation,
+                    job.ramReservation
+                )
+            }
+
+            val newSchedule = schedule(job, autoNotify = false)
+            TODO("Compare, and fix up the free lists")
+        }
     }
 
     companion object : Loggable {
@@ -374,6 +449,10 @@ class Scheduler(
 }
 
 fun main() {
+    /*
+    Time.provider = StaticTimeProvider
+    StaticTimeProvider.time = 10_000
+     */
     val scope = BackgroundScope()
     scope.init()
     val scheduler = Scheduler(
@@ -392,17 +471,15 @@ fun main() {
 
             override fun notifyJobUpdate(job: JobToBeScheduled) {
                 scheduled++
-                /*
                 println(job.id)
                 println(job.schedule)
                 histogram[job.schedule!!.startOfJob] = (histogram[job.schedule.startOfJob] ?: 0) + 1
-                println(histogram.keys.sorted().joinToString(", ") { "$it = ${histogram[it]}"})
-                 */
 
                 if (scheduled % 1000 == 0) {
                     val now = Time.now()
                     val time = now - last
                     total += time
+                    println(histogram.keys.sorted().joinToString(", ") { "$it = ${histogram[it]}" })
                     println("dt: $time, total: $total, scheduled: ${scheduled}")
                     println(TimeCollector.timers.entries.joinToString("\n  ") { "${it.key} = ${it.value}" })
                     last = now
@@ -410,7 +487,7 @@ fun main() {
             }
         },
         scope,
-        1
+        5
     )
 
     val job = scheduler.start()
@@ -422,7 +499,7 @@ fun main() {
         }
 
         // We can run 10 jobs in parallel, which means we should be able to fit this in 200 cycles (201_000 largest endOfJob)
-        repeat(1_000_000) {
+        repeat(1000) {
             scheduler.addToQueue(
                 JobToBeScheduled(
                     SimpleDuration(0, 0, 1),
