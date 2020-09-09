@@ -20,6 +20,8 @@ runs out.
 
 8. Scheduled downtime and maintenance
 
+9. Extend time limit of a job
+
 ## Solution Proposals
 
 ### kube-batch
@@ -35,7 +37,7 @@ Basically a dead project appears to be superseded by volcano-sh.
 - Supports gang-scheduling and backfill
 - Should take care of the following points:
   - Fixed: 2, 4
-  - Unclear but potentially fixed: 5, 6, 7
+  - Unclear but potentially fixed: 5 (highly unlikely), 6, 7
 
 ### We do it
 

@@ -11,6 +11,9 @@ import java.util.concurrent.atomic.*
 import kotlin.collections.HashMap
 import kotlin.math.*
 import kotlin.random.Random
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTimedValue
 
 enum class ScheduledJobState {
     AWAITING_SCHEDULE,
@@ -40,8 +43,36 @@ private data class FreeSlot(
     var nextSlot: FreeSlot? = null,
     var previousSlot: FreeSlot? = null,
     val jobs: ArrayList<String> = ArrayList()
-)
+) {
+    override fun toString() = "FreeSlot($start, $end, $vCpuAvailable, $ramAvailable, $jobs, ${nextSlot != null})"
+}
 
+object TimeCollector {
+    data class TimeSlot(val count: AtomicLong = AtomicLong(0L), val time: AtomicLong = AtomicLong(0L)) {
+        override fun toString(): String {
+            return "TimeSlot(count=$count, time=$time, avg=${time.get() / count.get().toDouble()})"
+        }
+    }
+    val timers = HashMap<String, TimeSlot>()
+}
+
+private inline fun <R> timedFunction(name: String, block: () -> R): R {
+    if (!TimeCollector.timers.contains(name)) {
+        TimeCollector.timers[name] = TimeCollector.TimeSlot()
+    }
+
+    val start = Time.now()
+    try {
+        return block()
+    } finally {
+        val duration = Time.now() - start
+        val value: TimeCollector.TimeSlot = TimeCollector.timers[name]!!
+        value.time.addAndGet(duration)
+        value.count.addAndGet(1)
+    }
+}
+
+@OptIn(ExperimentalTime::class)
 class FreeList(private val totalCpu: Int, private val totalRam: Int) {
     private val firstSlot = FreeSlot(0, Long.MAX_VALUE, totalCpu, totalRam)
 
@@ -57,41 +88,43 @@ class FreeList(private val totalCpu: Int, private val totalRam: Int) {
     }
 
     fun hasSpaceAt(start: Long, end: Long, vCpuReservation: Int, ramReservation: Int): Boolean {
-        var currentSlot: FreeSlot? = firstSlot
-        var combinedTime = 0L
-        var startFound = false
-        val totalTime = end - start
+        timedFunction("hasSpaceAt") {
+            var currentSlot: FreeSlot? = firstSlot
+            var combinedTime = 0L
+            var startFound = false
+            val totalTime = end - start
 
-        while (currentSlot != null) {
-            if (start >= currentSlot.start && start <= currentSlot.end) {
-                startFound = true
-            } else if (startFound) {
-                return false
-            }
-
-            val hasSpace = currentSlot.vCpuAvailable >= vCpuReservation &&
-                    currentSlot.ramAvailable >= ramReservation
-            when {
-                startFound && hasSpace -> {
-                    combinedTime += currentSlot.end - max(currentSlot.start, start)
-                }
-
-                startFound && !hasSpace -> {
+            while (currentSlot != null) {
+                if (start >= currentSlot.start && start <= currentSlot.end) {
+                    startFound = true
+                } else if (startFound) {
                     return false
                 }
+
+                val hasSpace = currentSlot.vCpuAvailable >= vCpuReservation &&
+                    currentSlot.ramAvailable >= ramReservation
+                when {
+                    startFound && hasSpace -> {
+                        combinedTime += currentSlot.end - max(currentSlot.start, start)
+                    }
+
+                    startFound && !hasSpace -> {
+                        return false
+                    }
+                }
+
+                if (combinedTime >= totalTime) {
+                    return true
+                }
+
+                currentSlot = currentSlot.nextSlot
             }
 
-            if (combinedTime >= totalTime) {
-                return true
-            }
-
-            currentSlot = currentSlot.nextSlot
+            return false
         }
-
-        return false
     }
 
-    fun findFreeSlot(vCpuReservation: Int, ramReservation: Int, duration: Long): Long? {
+    fun findFreeSlot(vCpuReservation: Int, ramReservation: Int, duration: Long): Long? = timedFunction("findFreeSlot") {
         var currentSlot: FreeSlot? = firstSlot
 
         while (currentSlot != null) {
@@ -123,20 +156,19 @@ class FreeList(private val totalCpu: Int, private val totalRam: Int) {
         return null
     }
 
-    fun addReservation(start: Long, end: Long, vCpuReservation: Int, ramReservation: Int, jobId: String) {
+    fun addReservation(
+        start: Long,
+        end: Long,
+        vCpuReservation: Int,
+        ramReservation: Int,
+        jobId: String
+    ) = timedFunction("addReservation") {
         // Find all slots we overlap with
         // If we are fully contained within (i.e. larger or same size) the slot then we can simply adjust the values
         // If we are smaller then split the slot
 
         var currentSlot: FreeSlot? = firstSlot
-        while (true) {
-            if (currentSlot == null) break
-            // Slot: 0 100
-            // Res : 10 50
-
-            // Slot: 0 100
-            // Res : 99 200
-
+        while (currentSlot != null) {
             if (start >= currentSlot.start && start <= currentSlot.end) {
                 // We are contained within the slot
                 currentSlot.vCpuAvailable -= vCpuReservation
@@ -148,7 +180,7 @@ class FreeList(private val totalCpu: Int, private val totalRam: Int) {
                 if (end < currentSlot.end) {
                     // We are smaller than this slot, we need to split it
                     val newSlot = currentSlot.copy(
-                        start = end,
+                        start = end + 1,
                         vCpuAvailable = currentSlot.vCpuAvailable + vCpuReservation,
                         ramAvailable = currentSlot.ramAvailable + ramReservation,
                         previousSlot = currentSlot,
@@ -168,7 +200,12 @@ class FreeList(private val totalCpu: Int, private val totalRam: Int) {
         }
     }
 
-    fun releaseReservation(start: Long, end: Long, vCpuReservation: Int, ramReservation: Int) {
+    fun releaseReservation(
+        start: Long,
+        end: Long,
+        vCpuReservation: Int,
+        ramReservation: Int
+    ): Unit = timedFunction("releaseReservation") {
         TODO("Do the reverse of addReservation but this time we should attempt to combine slots together")
     }
 }
@@ -264,7 +301,7 @@ class Scheduler(
         }
     }
 
-    private suspend fun schedule(job: JobToBeScheduled) {
+    suspend fun schedule(job: JobToBeScheduled) = timedFunction("schedule") {
         coroutineScope {
             while (true) {
                 val solutions = (0 until numberOfSamples).map {
@@ -342,6 +379,9 @@ fun main() {
     val scheduler = Scheduler(
         object : SchedulerCallbacks {
             val histogram = HashMap<Long, Int>()
+            var scheduled = 0
+            var last = Time.now()
+            var total = 0L
             override fun scheduleJob(jobId: String, nodeId: String) {
                 println("scheduleJob($jobId, $nodeId)")
             }
@@ -351,13 +391,26 @@ fun main() {
             }
 
             override fun notifyJobUpdate(job: JobToBeScheduled) {
+                scheduled++
+                /*
                 println(job.id)
                 println(job.schedule)
                 histogram[job.schedule!!.startOfJob] = (histogram[job.schedule.startOfJob] ?: 0) + 1
                 println(histogram.keys.sorted().joinToString(", ") { "$it = ${histogram[it]}"})
+                 */
+
+                if (scheduled % 1000 == 0) {
+                    val now = Time.now()
+                    val time = now - last
+                    total += time
+                    println("dt: $time, total: $total, scheduled: ${scheduled}")
+                    println(TimeCollector.timers.entries.joinToString("\n  ") { "${it.key} = ${it.value}" })
+                    last = now
+                }
             }
         },
-        scope
+        scope,
+        1
     )
 
     val job = scheduler.start()
@@ -369,7 +422,7 @@ fun main() {
         }
 
         // We can run 10 jobs in parallel, which means we should be able to fit this in 200 cycles (201_000 largest endOfJob)
-        repeat(2000) {
+        repeat(1_000_000) {
             scheduler.addToQueue(
                 JobToBeScheduled(
                     SimpleDuration(0, 0, 1),
