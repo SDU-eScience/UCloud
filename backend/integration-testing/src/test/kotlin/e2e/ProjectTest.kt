@@ -11,9 +11,7 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.backend.createUser
 import dk.sdu.cloud.integration.backend.initializeRootProject
 import dk.sdu.cloud.integration.goToProjects
-import dk.sdu.cloud.project.api.InviteRequest
-import dk.sdu.cloud.project.api.Projects
-import org.junit.Ignore
+import dk.sdu.cloud.project.api.*
 import org.junit.Test
 import org.openqa.selenium.By
 
@@ -90,8 +88,6 @@ class ProjectTest : EndToEndTest() {
         driver.awaitNoElements(By.xpath("//a[text()='UCloud']"))
     }
 
-    // Currently doesn't work
-    @Ignore
     @Test
     fun `Archive project`() = e2e {
         val root = initializeRootProject()
@@ -100,13 +96,29 @@ class ProjectTest : EndToEndTest() {
             InviteRequest(root, setOf(user.username)),
             serviceClient
         ).orThrow()
+        Projects.acceptInvite.call(
+            AcceptInviteRequest(
+                root
+            ), user.client
+        )
+        Projects.changeUserRole.call(
+            ChangeUserRoleRequest(root, user.username, ProjectRole.ADMIN),
+            serviceClient
+        )
+
+
         driver.get("$address/app")
         driver.login(user.username, user.password)
         driver.goToProjects()
-        driver.awaitElement(By.xpath("//button[text()='Accept']")).click()
         driver.awaitElement(By.xpath("//a[text()='UCloud']"))
         driver.awaitElements(By.xpath("//div[@data-tag='project-dropdown']/div[@data-tag='dropdown']/span"))
             .first().click()
+        driver.awaitElement(By.xpath("//div[text()='Archive']")).click()
+        driver.awaitElement(By.xpath("//button[text()='Archive']")).click()
+        driver.awaitElement(By.xpath("//button[text()='Archive project']")).click()
+        driver.awaitNoElements(By.xpath("//a[text()='UCloud']"))
+        driver.awaitElements(By.xpath("//label[.='Show archived']")).first { it.isDisplayed }.click()
+        driver.awaitElement(By.xpath("//a[text()='UCloud']"))
     }
 
     @Test
