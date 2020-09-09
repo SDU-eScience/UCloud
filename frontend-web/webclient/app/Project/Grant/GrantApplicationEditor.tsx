@@ -523,7 +523,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                     />
                                 </Label>
                                 <Label mb={16} mt={16}>
-                                    Title
+                                    Project title
                                     <Input ref={projectTitleRef} />
                                 </Label>
                             </>
@@ -648,7 +648,9 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         )}
 
 
-                        <Heading.h3 mt={32}>Resources Requested</Heading.h3>
+                        <Heading.h3 mt={32}>
+                            {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources" }
+                        </Heading.h3>
 
                         <Heading.h4 mt={32}>Storage</Heading.h4>
                         <ResourceContainer>
@@ -716,6 +718,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                                 }
                                                                 autoComplete="off"
                                                                 type="number"
+                                                                onKeyUp={calculateEstimate}
                                                             />
                                                             <Box ml={10} width={32} flexShrink={0}>GB</Box>
                                                         </Flex>
@@ -847,7 +850,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         <Box p={32} pb={16}>
                             {target !== RequestTarget.VIEW_APPLICATION ? (
                                 <Button disabled={grantFinalized} fullWidth onClick={submitRequest}>
-                                    Submit request
+                                    Submit Application
                                 </Button>
                                 ) : null
                             }
