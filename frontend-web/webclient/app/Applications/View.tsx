@@ -28,6 +28,7 @@ import * as Pages from "./Pages";
 import * as Actions from "./Redux/ViewActions";
 import * as ViewObject from "./Redux/ViewObject";
 import {match} from "react-router";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 
 interface MainContentProps {
     onFavorite?: () => void;
@@ -53,6 +54,8 @@ function View(props: ViewProps): JSX.Element {
     React.useEffect(() => {
         fetchApp();
     }, []);
+
+    useSidebarPage(SidebarPages.AppStore);
 
     const {appName, appVersion} = props.match.params;
 

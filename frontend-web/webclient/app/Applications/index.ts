@@ -183,13 +183,13 @@ export interface RunAppState {
 }
 
 export interface RunOperations extends SetStatusLoading {
-    updatePageTitle: () => void;
+    onInit: () => void;
 }
 
 export interface RunAppProps extends RunOperations {
     match: match<{appName: string; appVersion: string}>;
     history: History;
-    updatePageTitle: () => void;
+    onInit: () => void;
     project?: string;
 }
 

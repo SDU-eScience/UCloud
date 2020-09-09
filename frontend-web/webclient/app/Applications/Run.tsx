@@ -11,7 +11,7 @@ import FileSelector from "Files/FileSelector";
 import {listDirectory} from "Files/LowLevelFileTable";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
-import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
+import {setActivePage, setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -75,6 +75,7 @@ import * as PublicLinks from "Applications/PublicLinks/Management";
 import {creditFormatter} from "Project/ProjectUsage";
 import {Product, retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import {MandatoryField} from "Applications/Widgets/BaseParameter";
+import {SidebarPages} from "ui-components/Sidebar";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -117,7 +118,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
     }
 
     public componentDidMount(): void {
-        this.props.updatePageTitle();
+        this.props.onInit();
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
         this.state.promises.makeCancelable(this.retrieveApplication(name, version));
@@ -1141,7 +1142,11 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
-    updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
+    onInit: () => {
+        dispatch(setActivePage(SidebarPages.AppStore));
+        dispatch(updatePageTitle("Run Application"));
+    },
+
     setLoading: loading => dispatch(setLoading(loading))
 });
 
