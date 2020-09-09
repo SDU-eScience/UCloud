@@ -402,7 +402,7 @@ interface UpdateSensitivity {
 }
 
 export async function updateSensitivity({files, client, onSensitivityChange}: UpdateSensitivity): Promise<void> {
-    const input = await sensitivityDialog();
+    const input = await sensitivityDialog(files.map(it => it.sensitivityLevel));
     if ("cancelled" in input) return;
     try {
         await Promise.all(files.map(file => reclassifyFile({file, sensitivity: input.option, client})));

@@ -127,13 +127,17 @@ export async function addStandardInputDialog({
 }
 
 
-export function sensitivityDialog(): Promise<{cancelled: true} | {option: SensitivityLevelMap}> {
-    let option = "INHERIT" as SensitivityLevelMap;
+export function sensitivityDialog(
+    sensitivities: (SensitivityLevelMap | null)[]
+): Promise<{cancelled: true} | {option: SensitivityLevelMap}> {
+    const defaultValue: SensitivityLevelMap = sensitivities.length === 1 ? sensitivities[0] ??
+        SensitivityLevelMap.INHERIT : SensitivityLevelMap.INHERIT;
+    let option = defaultValue;
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
         message: (
             <div>
-                <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
+                <Select defaultValue={defaultValue} onChange={e => option = e.target.value as SensitivityLevelMap}>
                     <option value="INHERIT">Inherit</option>
                     <option value="PRIVATE">Private</option>
                     <option value="CONFIDENTIAL">Confidential</option>
@@ -658,21 +662,21 @@ const loremText = `
     eleifend, ullamcorper quam et, ultricies metus. Vivamus non justo id quam lobortis volutpat.
 `.split(" ").map(it => it.trim());
 
-export const Lorem: React.FunctionComponent<{ maxLength?: number }> = ({maxLength = 240}) => {
+export const Lorem: React.FunctionComponent<{maxLength?: number}> = ({maxLength = 240}) => {
     let builder: string = "";
     let length = 0;
     let counter = 0;
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
-       const nextWord = loremText[counter];
-       counter++;
-       counter = counter % loremText.length;
+        const nextWord = loremText[counter];
+        counter++;
+        counter = counter % loremText.length;
 
-       if (nextWord.length + length > maxLength) break;
-       if (counter !== 1) builder += " ";
-       builder += nextWord;
-       length += nextWord.length;
+        if (nextWord.length + length > maxLength) break;
+        if (counter !== 1) builder += " ";
+        builder += nextWord;
+        length += nextWord.length;
     }
     return <>{builder}</>;
 };
