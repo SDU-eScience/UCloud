@@ -53,6 +53,7 @@ import {IngoingApplications} from "Project/Grant/IngoingApplications";
 import {OutgoingApplications} from "Project/Grant/OutgoingApplications";
 import {ProjectBrowser} from "Project/Grant/ProjectBrowser";
 import {LandingPage} from "Project/Grant/LandingPage";
+import Products from "Products/Products";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -118,6 +119,8 @@ const Core = (): JSX.Element => (
                 <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
 
                 <Route exact path="/search/:priority" component={requireAuth(Search)} />
+
+                <Route exact path="/skus" component={Products} />
 
                 {areProjectsEnabled() ? (
                     <>

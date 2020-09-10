@@ -11,7 +11,7 @@ import {emptyPage} from "DefaultObjects";
 import {creditFormatter} from "Project/ProjectUsage";
 import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
 
-const MachineTypesWrapper = styled.div`
+export const MachineTypesWrapper = styled.div`
     ${TableHeaderCell} {
         text-align: left;
     }
@@ -76,7 +76,7 @@ export const MachineTypes: React.FunctionComponent<{
                                 <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
                                 <TableCell>{machine.gpu ?? 0}</TableCell>
                                 <TableCell>{creditFormatter(machine.pricePerUnit * 60)}/hour</TableCell>
-                            </TableRow>
+                            </TableRow>;
                         })}
                     </tbody>
                 </Table>
