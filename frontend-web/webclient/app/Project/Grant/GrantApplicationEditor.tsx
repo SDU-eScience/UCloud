@@ -389,6 +389,14 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                     `input[data-target="quota-${productCategoryId(wb.wallet.paysFor)}"]`
                 )
             );
+
+            if (wb.area === ProductArea.STORAGE) {
+                if ((creditsRequested === undefined) !== (quotaRequested === undefined)) {
+                    snackbarStore.addFailure("Please fill out both Resources and Quota for requested storage product", false);
+                    return;
+                }
+            }
+
             if (quotaRequested) quotaRequested = quotaRequested * (1000 * 1000 * 1000);
 
             if (creditsRequested === undefined && quotaRequested === undefined) {
@@ -718,7 +726,6 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                                 }
                                                                 autoComplete="off"
                                                                 type="number"
-                                                                onKeyUp={calculateEstimate}
                                                             />
                                                             <Box ml={10} width={32} flexShrink={0}>GB</Box>
                                                         </Flex>
