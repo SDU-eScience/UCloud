@@ -118,7 +118,6 @@ fun main() {
                     }
                 }
             }
-            // TODO Missing type parameters
             while (queue.isNotEmpty()) {
                 val next = queue.pop()
                 val newTypes = writeType(next)
