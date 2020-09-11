@@ -145,18 +145,18 @@ class ElasticAlerting(
                 when {
                     usedStoragePercentage > highLimitPercentage && alertCounter == 2 -> {
                         val message =
-                            "ALERT: Available storage of ${fields.last()} is below ${highLimitPercentage * 100}"
+                            "ALERT: Available storage of ${fields.last()} is below ${highLimitPercentage}"
                         alertService.createAlert(Alert(message))
                         alertCounter++
                     }
                     usedStoragePercentage > midLimitPercentage && alertCounter == 1 -> {
-                        val message = "WARNING: storage of ${fields.last()} is below ${midLimitPercentage * 100}%"
+                        val message = "WARNING: storage of ${fields.last()} is below ${midLimitPercentage}%"
                         alertService.createAlert(Alert(message))
                         alertCounter++
                     }
                     usedStoragePercentage > lowLimitPercentage && !alertSent -> {
                         val message =
-                            "INFO: Available storage of ${fields.last()} is below ${lowLimitPercentage * 100}%"
+                            "INFO: Available storage of ${fields.last()} is below ${lowLimitPercentage}%"
                         alertService.createAlert(Alert(message))
                         alertCounter++
                         alertSent = true
