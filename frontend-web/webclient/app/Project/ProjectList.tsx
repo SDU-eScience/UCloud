@@ -294,7 +294,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 snackbarStore.addInformation("Personal project is now the active.", false);
                                             }
                                         }}
-                                        height="45px"
                                     >
                                         <Link to="/project/dashboard">
                                             Personal project
@@ -302,6 +301,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     </Box>
                                 </>
                             }
+                            leftSub={<div />}
                             right={<Flex alignItems="center" height="36.25px">
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
                                     if (!props.project) return;

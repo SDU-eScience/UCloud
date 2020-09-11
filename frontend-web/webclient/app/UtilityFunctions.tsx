@@ -80,7 +80,8 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  */
 export const getMembersString = (acls: Acl[]): string => {
     const withoutProjectAcls = acls.filter(it => typeof it.entity === "string" || "username" in it.entity);
-    const filteredAcl = withoutProjectAcls.filter(it => (it.entity as UserEntity).username !== currentClient.activeUsername);
+    const filteredAcl = withoutProjectAcls
+        .filter(it => (it.entity as UserEntity).username !== currentClient.activeUsername);
     if (filteredAcl.length > 0) {
         return `${acls.length + 1} members`;
     } else {
