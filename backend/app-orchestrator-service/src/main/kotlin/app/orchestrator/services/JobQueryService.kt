@@ -27,8 +27,7 @@ class JobQueryService(
     private val db: DBContext,
     private val jobFileService: JobFileService,
     private val projectCache: ProjectCache,
-    private val appService: ApplicationService,
-    private val publicLinks: PublicLinkService
+    private val appService: ApplicationService
 ) {
     suspend fun findById(
         user: SecurityPrincipalToken,
@@ -420,7 +419,8 @@ class JobQueryService(
                 startedAt = getFieldNullable(startedAt)?.toTimestamp(),
                 url = getFieldNullable(url),
                 project = getFieldNullable(project),
-                creditsCharged = getFieldNullable(creditsCharged)
+                creditsCharged = getFieldNullable(creditsCharged),
+                ipAddress = getFieldNullable(ipAddress)
             )
 
             val withoutTool = VerifiedJobWithAccessToken(

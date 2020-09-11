@@ -63,8 +63,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             db,
             jobFileService,
             ProjectCache(serviceClient),
-            applicationService,
-            publicLinks
+            applicationService
         )
 
         val vncService = VncService(computationBackendService, db, jobQueryService, serviceClient)

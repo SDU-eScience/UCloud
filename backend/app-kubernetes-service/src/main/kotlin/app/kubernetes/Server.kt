@@ -79,7 +79,7 @@ class Server(
         val jobCache = VerifiedJobCache(serviceClient)
         val networkPolicyService = NetworkPolicyService(k8Dependencies)
         val hostAliasesService = HostAliasesService(k8Dependencies)
-        val workspaceService = WorkspaceService(cephConfig)
+        val workspaceService = WorkspaceService(cephConfig, configuration.publicIpInterface)
 
         val logService = K8LogService(k8Dependencies)
         val jobMonitoringService = K8JobMonitoringService(

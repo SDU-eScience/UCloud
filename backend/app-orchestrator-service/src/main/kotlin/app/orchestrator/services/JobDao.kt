@@ -44,6 +44,7 @@ object JobInformationTable : SQLTable("job_information") {
     val url = text("url")
     val project = text("project")
     val creditsCharged = long("credits_charged")
+    val ipAddress = text("ip_address")
 }
 
 class JobDao {
@@ -88,6 +89,7 @@ class JobDao {
                 set(JobInformationTable.outputFolder, job.outputFolder)
                 set(JobInformationTable.url, job.url)
                 set(JobInformationTable.project, job.project)
+                set(JobInformationTable.ipAddress, job.ipAddress)
             }
         }
     }

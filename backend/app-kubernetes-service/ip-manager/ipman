@@ -22,7 +22,7 @@ domount() {
     echo $addr > "/tmp/ipinfo/$(echo $mntpath | md5sum | awk '{ print $1 }')_addr"
     echo $iface > "/tmp/ipinfo/$(echo $mntpath | md5sum | awk '{ print $1 }')_iface"
 
-    ip addr add $addr dev $iface &> /dev/null
+    ip addr add $addr/32 dev $iface &> /dev/null
 
     log '{"status":"Success"}'
     exit 0
@@ -37,7 +37,7 @@ unmount() {
     addr=$(cat $addr_file)
     iface=$(cat $iface_file)
 
-    ip addr del $addr dev $iface &> /dev/null
+    ip addr del $addr/32 dev $iface &> /dev/null
 
     rm ${addr_file} &> /dev/null
     rm ${iface_file} &> /dev/null
