@@ -1,0 +1,1 @@
+alter table job_information add column ip_address text default null;
