@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.file.api.*
@@ -20,6 +21,7 @@ import dk.sdu.cloud.grant.utils.responseTemplate
 import dk.sdu.cloud.grant.utils.updatedTemplate
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.ViewProjectRequest
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
@@ -57,14 +59,28 @@ class ApplicationService(
         application: CreateApplication
     ): Long {
         val returnedId = ctx.withSession { session ->
-            val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
-            if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
-                throw RPCException(
-                    "You are not allowed to submit applications to this project",
-                    HttpStatusCode.Forbidden
-                )
-            }
+            val projectID =
+                with(application) {
+                    when (val grantRecipient = this.grantRecipient) {
+                        is GrantRecipient.PersonalProject -> grantRecipient.username
+                        is GrantRecipient.ExistingProject -> grantRecipient.projectId
+                        is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                    }
+                }
+            val project = Projects.viewProject.call(
+                ViewProjectRequest(projectID),
+                serviceClient
+            ).orThrow()
 
+            val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
+            if (application.resourcesOwnedBy != project.parent) {
+                if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
+                    throw RPCException(
+                        "You are not allowed to submit applications to this project",
+                        HttpStatusCode.Forbidden
+                    )
+                }
+            }
             val id = session
                 .sendPreparedStatement(
                     {
