@@ -154,6 +154,10 @@ typealias UpdatePortsResponse = Unit
 object PublicIPs : CallDescriptionContainer("hpc.publicips") {
     const val baseContext = "/api/hpc/ip"
 
+    /**
+     * Sends an application to a system administrator requesting a single IP address allocation. The project header
+     * is be respected for this endpoint.
+     */
     val applyForAddress = call<ApplyForAddressRequest, ApplyForAddressResponse, CommonErrorMessage>("applyForAddress") {
         auth {
             access = AccessRight.READ_WRITE
@@ -171,6 +175,9 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
         }
     }
 
+    /**
+     * Endpoint for system administrators to approve an IP allocation (submitted via [applyForAddress])
+     */
     val approveAddress = call<ApproveAddressRequest, ApproveAddressResponse, CommonErrorMessage>("approveAddress") {
         auth {
             access = AccessRight.READ_WRITE
@@ -189,6 +196,9 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
         }
     }
 
+    /**
+     * Endpoint for system administrators to reject an IP allocation (submitted via [applyForAddress])
+     */
     val rejectAddress = call<RejectAddressRequest, RejectAddressResponse, CommonErrorMessage>("rejectAddress") {
         auth {
             access = AccessRight.READ_WRITE
@@ -207,6 +217,10 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
         }
     }
 
+    /**
+     * Endpoint for endusers to release an IP allocation. Only the owner of/admin of the project owning the ip can
+     * release the IP allocation. The associated IP ([PublicIP.ipAddress]) is returned to the pool of available IPs.
+     */
     val releaseAddress = call<ReleaseAddressRequest, ReleaseAddressResponse, CommonErrorMessage>("releaseAddress") {
         auth {
             access = AccessRight.READ_WRITE
@@ -224,6 +238,10 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
         }
     }
 
+    /**
+     * Updates the list of open ports. Only the owner of/admin of the project owning the IP can update the list of
+     * open ports. This will _not_ affect already running jobs.
+     */
     val updatePorts = call<UpdatePortsRequest, UpdatePortsResponse, CommonErrorMessage>("updatePorts") {
         auth {
             access = AccessRight.READ_WRITE
@@ -241,6 +259,9 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
         }
     }
 
+    /**
+     * Adds [AddToPoolRequest.addressesCovered] to the pool of IPs
+     */
     val addToPool = call<AddToPoolRequest, AddToPoolResponse, CommonErrorMessage>("addToPool") {
         auth {
             access = AccessRight.READ_WRITE
@@ -259,6 +280,9 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
         }
     }
 
+    /**
+     * Removes [AddToPoolRequest.addressesCovered] from the pool of IPs
+     */
     val removeFromPool = call<RemoveFromPoolRequest, RemoveFromPoolResponse, CommonErrorMessage>("removeFromPool") {
         auth {
             access = AccessRight.READ_WRITE
@@ -277,6 +301,9 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
         }
     }
 
+    /**
+     * Endpoint for system administrators to list all IPs which have been assigned to somebody
+     */
     val listAssignedAddresses =
         call<ListAssignedAddressesRequest, ListAssignedAddressesResponse, CommonErrorMessage>("listAssignedAddresses") {
             auth {
@@ -299,6 +326,10 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
             }
         }
 
+    /**
+     * Endpoint for end-users to list all the IPs associated to this user. If the project header is set then only
+     * addresses owned by the project is visible.
+     */
     val listMyAddresses = call<ListMyAddressesRequest, ListMyAddressesResponse, CommonErrorMessage>("listMyAddresses") {
         auth {
             access = AccessRight.READ
@@ -319,6 +350,9 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
         }
     }
 
+    /**
+     * Endpoint for end-users to list all active applications. The project header is respected for this endpoint.
+     */
     val listAddressApplications =
         call<ListAddressApplicationsRequest, ListAddressApplicationsResponse, CommonErrorMessage>(
             "listAddressApplications"

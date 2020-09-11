@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.stackTraceToString
@@ -44,7 +45,8 @@ class JobVerificationService(
     private val db: DBContext,
     private val jobs: JobQueryService,
     private val serviceClient: AuthenticatedClient,
-    private val machineCache: MachineTypeCache
+    private val machineCache: MachineTypeCache,
+    private val publicIps: PublicIPService
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -93,6 +95,19 @@ class JobVerificationService(
             if (!jobs.canUseUrl(db, unverifiedJob.decodedToken.principal.username, url)) {
                 throw RPCException("Not allowed to use selected URL", HttpStatusCode.BadRequest)
             }
+        }
+
+        // Check IP address
+        val ipAddress = unverifiedJob.request.ipAddress
+        val resolvedIpAddress = if (ipAddress != null) {
+            // This will throw if we do not have permissions
+            publicIps.lookupAddressById(
+                db,
+                Actor.SystemOnBehalfOfUser(unverifiedJob.decodedToken.principal.username),
+                ipAddress
+            )
+        } else {
+            null
         }
 
         // Check peers
@@ -176,7 +191,8 @@ class JobVerificationService(
                 archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title,
                 startedAt = null,
                 url = url,
-                project = unverifiedJob.project
+                project = unverifiedJob.project,
+                ipAddress = resolvedIpAddress?.ipAddress
             ),
             null,
             unverifiedJob.refreshToken

@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.services.JobDao
 import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
 import dk.sdu.cloud.app.orchestrator.rpc.JobController
+import dk.sdu.cloud.app.orchestrator.rpc.PublicIPController
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
@@ -56,6 +57,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val parameterExportService = ParameterExportService()
         val jobFileService = JobFileService(userClientFactory, parameterExportService, serviceClient)
         val publicLinks = PublicLinkService()
+        val publicIps = PublicIPService()
 
         val jobQueryService = JobQueryService(
             db,
@@ -74,7 +76,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             db,
             jobQueryService,
             serviceClient,
-            machineCache
+            machineCache,
+            publicIps
         )
 
         val jobOrchestrator =
@@ -122,11 +125,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
                 CallbackController(jobOrchestrator),
 
-                PublicLinkController(
-                    db,
-                    jobQueryService,
-                    publicLinks
-                )
+                PublicLinkController(db, jobQueryService, publicLinks),
+
+                PublicIPController(db, publicIps),
             )
         }
 
