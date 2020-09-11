@@ -635,11 +635,12 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                                 }
                             }
                         }
+                        val filesUsedTrimmed = filesUsed.substringBeforeLast(',')
                         activityEventList.add(
                             ActivityEvent.AllFilesUsedByApplication(
                                 doc.token.principal.username,
                                 doc.timestamp.time,
-                                filesUsed,
+                                filesUsedTrimmed,
                                 doc.requestJson.application.name,
                                 doc.requestJson.application.version
                             )
