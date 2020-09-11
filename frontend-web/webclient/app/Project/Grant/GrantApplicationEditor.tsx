@@ -394,7 +394,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             if (wb.area === ProductArea.STORAGE) {
                 if ((creditsRequested !== undefined) || (quotaRequested !== undefined)) {
                     if ((creditsRequested === undefined) || (quotaRequested === undefined)) {
-                        snackbarStore.addFailure("Please fill out both "Resources" and "Quota" for requested storage product", false);
+                        snackbarStore.addFailure("Please fill out both \"Resources\" and \"Quota\" for requested storage product", false);
                         return;
                     }
                 }
