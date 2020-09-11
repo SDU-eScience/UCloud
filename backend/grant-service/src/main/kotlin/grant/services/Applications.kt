@@ -59,19 +59,23 @@ class ApplicationService(
         application: CreateApplication
     ): Long {
         val returnedId = ctx.withSession { session ->
-            val projectID =
+            val projectId =
                 with(application) {
                     when (val grantRecipient = this.grantRecipient) {
-                        is GrantRecipient.PersonalProject -> grantRecipient.username
+                        is GrantRecipient.PersonalProject -> null
                         is GrantRecipient.ExistingProject -> grantRecipient.projectId
-                        is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                        is GrantRecipient.NewProject -> null
                     }
                 }
-            val project = Projects.viewProject.call(
-                ViewProjectRequest(projectID),
-                serviceClient
-            ).orThrow()
-
+            val projectOrNull = 
+                if (projectId != null) {
+                    Projects.viewProject.call(
+                        ViewProjectRequest(projectId),
+                        serviceClient
+                    ).orThrow()
+                } else {
+                    null
+                }
             val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
             if (application.resourcesOwnedBy != project.parent) {
                 if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
