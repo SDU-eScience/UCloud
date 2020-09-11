@@ -7,6 +7,13 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+# 11-09-20
+Bug fix in alert message to alerting-service. 
+
+```
+✅  Deployment(alerting, 1.2.1) (UP-TO-DATE)
+```
+
 # 29-06-20
 
 Re-enable kata containers
