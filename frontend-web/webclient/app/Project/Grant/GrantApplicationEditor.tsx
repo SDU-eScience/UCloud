@@ -389,6 +389,18 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                     `input[data-target="quota-${productCategoryId(wb.wallet.paysFor)}"]`
                 )
             );
+
+
+            if (wb.area === ProductArea.STORAGE) {
+                if ((creditsRequested !== undefined) || (quotaRequested !== undefined)) {
+                    if ((creditsRequested === undefined) || (quotaRequested === undefined)) {
+                        snackbarStore.addFailure("Please fill out both "Resources" and "Quota" for requested storage product", false);
+                        return;
+                    }
+                }
+            }
+
+
             if (quotaRequested) quotaRequested = quotaRequested * (1000 * 1000 * 1000);
 
             if (creditsRequested === undefined && quotaRequested === undefined) {
@@ -523,7 +535,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                     />
                                 </Label>
                                 <Label mb={16} mt={16}>
-                                    Title
+                                    Project title
                                     <Input ref={projectTitleRef} />
                                 </Label>
                             </>
@@ -648,7 +660,9 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         )}
 
 
-                        <Heading.h3 mt={32}>Resources Requested</Heading.h3>
+                        <Heading.h3 mt={32}>
+                            {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources" }
+                        </Heading.h3>
 
                         <Heading.h4 mt={32}>Storage</Heading.h4>
                         <ResourceContainer>
@@ -847,7 +861,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         <Box p={32} pb={16}>
                             {target !== RequestTarget.VIEW_APPLICATION ? (
                                 <Button disabled={grantFinalized} fullWidth onClick={submitRequest}>
-                                    Submit request
+                                    Submit Application
                                 </Button>
                                 ) : null
                             }
