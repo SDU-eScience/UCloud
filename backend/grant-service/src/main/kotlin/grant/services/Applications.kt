@@ -77,7 +77,7 @@ class ApplicationService(
                     null
                 }
             val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
-            if (application.resourcesOwnedBy != project.parent) {
+            if (projectOrNull == null || application.resourcesOwnedBy != projectOrNull.parent) {
                 if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
                     throw RPCException(
                         "You are not allowed to submit applications to this project",
