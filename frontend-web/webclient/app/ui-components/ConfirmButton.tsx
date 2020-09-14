@@ -1,43 +1,63 @@
 import * as React from "react";
 import {ButtonProps} from "ui-components/Button";
-import {ButtonHTMLAttributes, useRef, useState} from "react";
+import {ButtonHTMLAttributes, useEffect, useState} from "react";
 import {Button} from "ui-components/index";
 import styled from "styled-components";
+import theme from "ui-components/theme";
+import {width, WidthProps} from "styled-system";
 
 export interface ConfirmButtonProps extends ButtonProps, ButtonHTMLAttributes<HTMLButtonElement> {
+    dialog: JSX.Element;
+    dialogWidth?: string | number;
 }
 
 const Dialog = styled.div`
     position: relative;
-    top: 30px;
-    left: 30px;
+    top: 45px;
+    
+    &.open {
+        display: block;
+    }
+    
+    &.closed {
+        display: none;
+    }
 `;
 
-const DialogInner = styled.div`
+const DialogInner = styled.div<WidthProps>`
     position: absolute;
     padding: 16px;
-    background: red;
-    color: white;
-    border: 1px solid black;
+    color: var(--black, #f00);
+    background: var(--white, #f00);
+    box-shadow: ${theme.shadows.sm};
+    ${width};
+    text-align: initial;
 `;
 
 const ConfirmButton: React.FunctionComponent<ConfirmButtonProps> = props => {
     const [dialogOpen, setDialogOpen] = useState<boolean>(false);
-    const buttonRef = useRef<HTMLButtonElement>(null);
     const newProps = {...props};
-    // eslint-disable-next-line
-    delete newProps["ref"];
     newProps.onClick = () => {
         setDialogOpen(true);
     };
-    return <div>
-        <Button ref={buttonRef} {...newProps}>{props.children}</Button>
-        <Dialog>
-            <DialogInner>
-                Testing
+
+    useEffect(() => {
+        const listener = (): void => {
+            setDialogOpen(false);
+        };
+
+        document.body.addEventListener("click", listener);
+        return () => { document.body.removeEventListener("click", listener); };
+    }, [setDialogOpen]);
+
+    return <>
+        <Dialog className={dialogOpen ? "open" : "closed"}>
+            <DialogInner width={props.dialogWidth}>
+                {props.dialog}
             </DialogInner>
         </Dialog>
-    </div>;
+        <Button {...newProps}>{props.children}</Button>
+    </>;
 };
 
 export default ConfirmButton;

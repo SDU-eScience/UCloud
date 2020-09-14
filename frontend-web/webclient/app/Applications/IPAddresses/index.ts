@@ -172,6 +172,7 @@ export interface ListAddressApplicationsRequest {
 export interface AddressApplication {
     application: string,
     id: number,
+    createdAt: number,
 }
 export function listAddressApplications(
     request: ListAddressApplicationsRequest

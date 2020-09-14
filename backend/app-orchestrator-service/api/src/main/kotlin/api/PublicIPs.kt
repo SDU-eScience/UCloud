@@ -121,9 +121,11 @@ typealias ListAssignedAddressesResponse = Page<PublicIP>
 data class ListMyAddressesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias ListMyAddressesResponse = Page<PublicIP>
 
-data class AddressApplication(val id: Long, val application: String)
-data class ListAddressApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) :
-    WithPaginationRequest
+data class AddressApplication(val id: Long, val application: String, val createdAt: Long)
+data class ListAddressApplicationsRequest(
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
 typealias ListAddressApplicationsResponse = Page<AddressApplication>
 
 data class UpdatePortsRequest(val id: Long, val newPortList: List<PortAndProtocol>)
