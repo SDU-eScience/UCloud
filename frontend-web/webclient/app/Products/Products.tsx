@@ -29,18 +29,13 @@ function Products(): JSX.Element {
 
     if (!Client.isLoggedIn) return (<>
         <NonAuthenticatedHeader />
-        <Box mb="55px" />
+        <Box mb="72px" />
         <Box m={[0, 0, "15px"]}>
             {main}
         </Box>
     </>);
 
-    return (
-        <MainContainer
-            main={main}
-
-        />
-    );
+    return (<MainContainer main={main} />);
 }
 
 function MachineView({area}: {area: string}): JSX.Element {
