@@ -12,6 +12,8 @@ import {addStandardDialog} from "UtilityComponents";
 import {TextSpan} from "ui-components/Text";
 import {shortUUID} from "UtilityFunctions";
 import styled from "styled-components";
+import {Client} from "Authentication/HttpClientInstance";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 export interface PublicLinkManagementProps {
     onSelect?: (link: PublicLink) => void;
@@ -75,7 +77,7 @@ export const PublicLinkManagement: React.FunctionComponent<PublicLinkManagementP
                             </Flex>
                         </form>
                     )}
-                    right={<div/>}
+                    right={<div />}
                     leftSub={<ListRowStat icon={"appStore"}>Not in use</ListRowStat>}
                 /> : null}
 
@@ -136,17 +138,22 @@ export const PublicLinkManagement: React.FunctionComponent<PublicLinkManagementP
                                                             confirmText: "Delete link",
                                                             addToFront: true,
                                                             onConfirm: async () => {
-                                                                await runCommand(deletePublicLink({url: link.url}));
-                                                                reload();
+                                                                try {
+                                                                    await Client.delete("/hpc/urls", {url: link.url});
+                                                                } catch (e) {
+                                                                    snackbarStore.addFailure(UF.errorMessageOrDefault(e,
+                                                                        "Failed to delete " + link.url
+                                                                    ), false);
+                                                                }
                                                             }
                                                         });
                                                     }}>
                                                         <Icon
                                                             size={16}
                                                             mr="0.5em"
-                                                            color={"red"}
-                                                            color2={"red"}
-                                                            name={"trash"}
+                                                            color="red"
+                                                            color2="red"
+                                                            name="trash"
                                                         />
 
                                                         Delete
