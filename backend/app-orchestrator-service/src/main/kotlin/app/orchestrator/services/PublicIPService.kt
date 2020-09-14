@@ -18,15 +18,15 @@ class PublicIPService {
         TODO()
     }
 
-    suspend fun lookupAddressById(
+    suspend fun lookupAddressByIpAddress(
         ctx: DBContext,
         actor: Actor,
-        id: Long
+        ip: String
     ): PublicIP {
         // NOTE(Dan): Used for testing purposes
         // TODO: Replace it
         return PublicIP(
-            id,
+            42,
             "10.135.0.142",
             actor.safeUsername(),
             WalletOwnerType.USER,

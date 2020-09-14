@@ -62,7 +62,8 @@ data class AddToPoolRequest(
                     throw RPCException("Refusing to use subnet of this size '$addr'", HttpStatusCode.BadRequest)
                 }
 
-                val min = ((a shl 24) or (b shl 16) or (c shl 8) or d) and ((1L shl (32 - subnetSize)) - 1).inv().toInt()
+                val min =
+                    ((a shl 24) or (b shl 16) or (c shl 8) or d) and ((1L shl (32 - subnetSize)) - 1).inv().toInt()
                 val max = ((a shl 24) or (b shl 16) or (c shl 8) or d) or ((1L shl (32 - subnetSize)) - 1).toInt()
 
                 (min..max).forEach { n ->
@@ -131,6 +132,12 @@ typealias ListAddressApplicationsResponse = Page<AddressApplication>
 data class UpdatePortsRequest(val id: Long, val newPortList: List<PortAndProtocol>)
 typealias UpdatePortsResponse = Unit
 
+data class ListAddressApplicationsForApprovalRequest(
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+typealias ListAddressApplicationsForApprovalResponse = Page<AddressApplication>
+
 /**
  * Public IP addresses ([PublicIP]) are a resources owned by users/projects which can be attached to any running job
  *
@@ -146,7 +153,7 @@ typealias UpdatePortsResponse = Unit
  * Because the system has a limited number of [PublicIP]s, users must apply for an address
  * ([PublicIPs.applyForAddress]). Administrators can either approve ([PublicIPs.approveAddress]) or reject
  * ([PublicIPs.rejectAddress]) the application. An administrator can view pending applications using
- * [PublicIPs.listAddressApplications]. Administrators may also view already assigned IPs using
+ * [PublicIPs.listAddressApplicationsForApproval]. Administrators may also view already assigned IPs using
  * [PublicIPs.listAssignedAddresses].
  *
  * End-users should be presented with a list of their owned [PublicIP]s, this can be achieved using
@@ -352,6 +359,33 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
             params {
                 +boundTo(ListMyAddressesRequest::itemsPerPage)
                 +boundTo(ListMyAddressesRequest::page)
+            }
+        }
+    }
+
+    /**
+     * Endpoint for administrators to review pending applications
+     */
+    val listAddressApplicationsForApproval = call<
+        ListAddressApplicationsForApprovalRequest,
+        ListAddressApplicationsForApprovalResponse,
+        CommonErrorMessage>("listAddressApplicationsForApproval")
+    {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"review-applications"
+            }
+
+            params {
+                +boundTo(ListAddressApplicationsForApprovalRequest::itemsPerPage)
+                +boundTo(ListAddressApplicationsForApprovalRequest::page)
             }
         }
     }

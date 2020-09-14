@@ -36,6 +36,16 @@ class PublicIPController(
             ok(Unit)
         }
 
+        implement(PublicIPs.listAddressApplicationsForApproval) {
+            ok(Page(1, 10, 1, listOf(
+                AddressApplication(
+                    42,
+                    "This is my application",
+                    System.currentTimeMillis() - (1000 * 60 * 60 * 3)
+                )
+            )))
+        }
+
         implement(PublicIPs.listAddressApplications) {
             ok(Page(1, 10, 1, listOf(
                 AddressApplication(

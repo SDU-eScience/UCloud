@@ -101,7 +101,7 @@ class JobVerificationService(
         val ipAddress = unverifiedJob.request.ipAddress
         val resolvedIpAddress = if (ipAddress != null) {
             // This will throw if we do not have permissions
-            publicIps.lookupAddressById(
+            publicIps.lookupAddressByIpAddress(
                 db,
                 Actor.SystemOnBehalfOfUser(unverifiedJob.decodedToken.principal.username),
                 ipAddress

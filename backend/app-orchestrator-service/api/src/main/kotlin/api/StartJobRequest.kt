@@ -19,5 +19,5 @@ data class StartJobRequest(
     val peers: List<ApplicationPeer> = emptyList(),
     val acceptSameDataRetry: Boolean = false,
     val url: String? = null,
-    val ipAddress: Long? = null
+    val ipAddress: String? = null
 )

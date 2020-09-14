@@ -16,7 +16,8 @@ data class ExportedParameters(
     val maxTime: SimpleDuration,
     val mountedFolders: List<ExportedMount>,
     val jobName: String?,
-    val machineType: Product.Compute
+    val machineType: Product.Compute,
+    val ipAddress: String?
 )
 
 class ParameterExportService {
@@ -30,7 +31,8 @@ class ParameterExportService {
             verifiedJob.maxTime,
             verifiedJob.mounts.map { ExportedMount(it.sourcePath) },
             verifiedJob.name,
-            verifiedJob.reservation
+            verifiedJob.reservation,
+            verifiedJob.ipAddress
         )
     }
 

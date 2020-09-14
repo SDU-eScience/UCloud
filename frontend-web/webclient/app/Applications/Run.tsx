@@ -578,6 +578,22 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             }
         }
 
+        const urlName = this.state.url.current == null ? null : this.state.url.current.value;
+
+        if (this.state.useIp) {
+            if (this.state.ip.current == null || this.state.ip.current.value === "") {
+                snackbarStore.addFailure(
+                    "IP address is enabled, but not set",
+                    false,
+                    5000
+                );
+                this.setState(() => ({jobSubmitted: false}));
+                return;
+            }
+        }
+
+        const ipAddress = this.state.ip.current == null ? null : this.state.ip.current.value;
+
         const parameters = extractValuesFromWidgets({
             map: this.state.parameterValues,
             appParameters: this.state.application!.invocation.parameters,
@@ -648,7 +664,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         const jobName = name.current?.value;
         let reservation: string | null = this.state.reservation;
         if (reservation === "") reservation = null;
-        const urlName = this.state.url.current == null ? null : this.state.url.current.value;
 
         const job = {
             application: {
@@ -664,7 +679,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             reservation,
             type: "start",
             name: jobName !== "" ? jobName : null,
-            acceptSameDataRetry: false
+            acceptSameDataRetry: false,
+            ipAddress
         };
 
         try {
