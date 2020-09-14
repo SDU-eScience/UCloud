@@ -798,7 +798,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     maxTime,
                     siteVersion,
                     machineType,
-                    jobName
+                    jobName,
+                    ipAddress
                 } = JSON.parse(rawInputFile);
                 // Verify metadata
                 if (application.name !== thisApp.metadata.name) {
@@ -898,6 +899,10 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     });
                 }
 
+                if (ipAddress != null) {
+                    this.state.ip.current!.value = ipAddress;
+                }
+
                 if (jobName) {
                     this.state.schedulingOptions.name.current!.value = jobName;
                 }
@@ -911,7 +916,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     }),
                     useUrl: this.state.useUrl,
                     url: this.state.url,
-                    reservation: machineType.id ?? this.state.reservation
+                    reservation: machineType.id ?? this.state.reservation,
+                    useIp: ipAddress != null
                 }));
             } catch (e) {
                 console.warn(e);
@@ -1098,36 +1104,34 @@ const ApplicationIPWidget: React.FunctionComponent<ApplicationIPWidgetProps> = p
                 }}
             />
         </Flex>
-        {!props.ipEnabled ? null : (
-            <>
-                <Warning
-                    warning="By enabling this setting, anyone with a link can gain access to the application."
-                />
-                <Label mt={20}>
-                    <Flex alignItems={"center"}>
-                        <Input
-                            mx={"2px"}
-                            placeholder={""}
-                            ref={props.ip}
-                            required
-                            onKeyDown={e => e.preventDefault()}
-                            onClick={event => {
-                                event.preventDefault();
-                                dialogStore.addDialog(
-                                    <IPAddressManagement
-                                        onSelect={pl => {
-                                            setIp(pl.ipAddress);
-                                            dialogStore.success();
-                                        }}
-                                    />,
-                                    () => 0
-                                );
-                            }}
-                        />
-                    </Flex>
-                </Label>
-            </>
-        )}
+        <Box display={!props.ipEnabled ? "none" : "block"}>
+            <Warning
+                warning="By enabling this setting, anyone with a link can gain access to the application."
+            />
+            <Label mt={20}>
+                <Flex alignItems={"center"}>
+                    <Input
+                        mx={"2px"}
+                        placeholder={""}
+                        ref={props.ip}
+                        required
+                        onKeyDown={e => e.preventDefault()}
+                        onClick={event => {
+                            event.preventDefault();
+                            dialogStore.addDialog(
+                                <IPAddressManagement
+                                    onSelect={pl => {
+                                        setIp(pl.ipAddress);
+                                        dialogStore.success();
+                                    }}
+                                />,
+                                () => 0
+                            );
+                        }}
+                    />
+                </Flex>
+            </Label>
+        </Box>
     </>;
 };
 
