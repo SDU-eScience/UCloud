@@ -185,3 +185,18 @@ export function listAddressApplications(
         payload: undefined
     };
 }
+export interface ListAddressApplicationsForApprovalRequest {
+    itemsPerPage?: number,
+    page?: number,
+}
+export function listAddressApplicationsForApproval(
+    request: ListAddressApplicationsForApprovalRequest
+): APICallParameters<ListAddressApplicationsForApprovalRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/hpc/ip/review-applications", request),
+        parameters: request,
+        reloadId: Math.random(),
+        payload: undefined
+    };
+}
