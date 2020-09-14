@@ -37,7 +37,13 @@ class PublicIPController(
         }
 
         implement(PublicIPs.listAddressApplications) {
-            ok(Page(1, 10, 1, listOf(AddressApplication(42, "This is my application"))))
+            ok(Page(1, 10, 1, listOf(
+                AddressApplication(
+                    42,
+                    "This is my application",
+                    System.currentTimeMillis() - (1000 * 60 * 60 * 3)
+                )
+            )))
         }
 
         implement(PublicIPs.listAssignedAddresses) {
@@ -47,7 +53,8 @@ class PublicIPController(
                     "10.135.0.142",
                     ctx.securityPrincipal.username,
                     WalletOwnerType.USER,
-                    listOf(PortAndProtocol(1111, InternetProtocol.TCP))
+                    listOf(PortAndProtocol(1111, InternetProtocol.TCP)),
+                    null
                 ),
 
                 PublicIP(
@@ -55,19 +62,45 @@ class PublicIPController(
                     "10.135.0.143",
                     ctx.securityPrincipal.username,
                     WalletOwnerType.USER,
-                    listOf(PortAndProtocol(1111, InternetProtocol.UDP))
+                    listOf(PortAndProtocol(1111, InternetProtocol.UDP)),
+                    null
                 ),
             )))
         }
 
         implement(PublicIPs.listMyAddresses) {
-            ok(Page(1, 10, 1, listOf(
+            ok(Page(4, 10, 1, listOf(
                 PublicIP(
                     42,
                     "10.135.0.142",
                     ctx.securityPrincipal.username,
                     WalletOwnerType.USER,
-                    listOf(PortAndProtocol(1111, InternetProtocol.TCP))
+                    listOf(PortAndProtocol(1111, InternetProtocol.TCP)),
+                    null
+                ),
+                PublicIP(
+                    43,
+                    "10.135.0.143",
+                    ctx.securityPrincipal.username,
+                    WalletOwnerType.USER,
+                    emptyList(),
+                    null
+                ),
+                PublicIP(
+                    44,
+                    "10.135.0.144",
+                    ctx.securityPrincipal.username,
+                    WalletOwnerType.USER,
+                    (11000..11020).map { PortAndProtocol(it, if (it % 3 == 0) InternetProtocol.UDP else InternetProtocol.TCP) },
+                    null
+                ),
+                PublicIP(
+                    45,
+                    "10.135.0.145",
+                    ctx.securityPrincipal.username,
+                    WalletOwnerType.USER,
+                    (11000..11020).map { PortAndProtocol(it, if (it % 3 == 0) InternetProtocol.UDP else InternetProtocol.TCP) },
+                    "foobar"
                 )
             )))
         }

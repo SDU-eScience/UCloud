@@ -32,7 +32,8 @@ class PublicIPService {
             WalletOwnerType.USER,
             listOf(
                 PortAndProtocol(11042, InternetProtocol.TCP)
-            )
+            ),
+            null
         )
     }
 }
