@@ -122,6 +122,7 @@ export interface PublicIP {
     ipAddress: string,
     openPorts: PortAndProtocol[],
     ownerEntity: string,
+    inUseBy?: string,
 }
 export enum WalletOwnerType {
     USER = "USER",

@@ -109,8 +109,6 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
             <ProjectSharesWarning />
             <SelectableTextWrapper>
                 <SelectableText
-                    mr="1em"
-                    cursor="pointer"
                     fontSize={3}
                     selected={!sharedByMe}
                     onClick={() => setFetchParams(listShares({sharedByMe: false, itemsPerPage: 25, page: 0}))}
@@ -118,8 +116,6 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
                     Shared with Me
             </SelectableText>
                 <SelectableText
-                    mr="1em"
-                    cursor="pointer"
                     selected={sharedByMe}
                     fontSize={3}
                     onClick={() => setFetchParams(listShares({sharedByMe: true, itemsPerPage: 25, page: 0}))}

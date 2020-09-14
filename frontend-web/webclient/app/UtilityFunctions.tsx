@@ -10,6 +10,7 @@ import {
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
+import {APIError} from "Authentication/DataHook";
 
 export function toggleCssColors(light: boolean): void {
     if (light) {
@@ -430,13 +431,16 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
 }
 
 export function errorMessageOrDefault(
-    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string,
+    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | APIError | string,
     defaultMessage: string
 ): string {
-    if (!navigator.onLine) return "You seem to be offline.";
+    if (!navigator.onLine) return "You appear to be offline.";
     try {
-        if (typeof err === "string") return err;
-        if ("status" in err) {
+        if (typeof err === "string") {
+            return err;
+        } else if ("why" in err) {
+            return err.why;
+        } else if ("status" in err) {
             return err.response;
         } else {
             if (err.response.why) return err.response.why;

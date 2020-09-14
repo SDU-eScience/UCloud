@@ -17,7 +17,7 @@ export interface PublicLinkManagementProps {
     onSelect?: (link: PublicLink) => void;
 }
 
-export const Wrapper = styled.div`
+const Wrapper = styled.div`
     width: 800px;
 `;
 

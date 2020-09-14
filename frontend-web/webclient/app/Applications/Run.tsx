@@ -76,6 +76,8 @@ import {creditFormatter} from "Project/ProjectUsage";
 import {Product, retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import {MandatoryField} from "Applications/Widgets/BaseParameter";
 import {SidebarPages} from "ui-components/Sidebar";
+import {Toggle} from "ui-components/Toggle";
+import {IPAddressManagement} from "Applications/IPAddresses/Management";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -106,6 +108,10 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
             useUrl: false,
             url: React.createRef(),
+
+            useIp: false,
+            ip: React.createRef(),
+
             favorite: false,
             favoriteLoading: false,
             fsShown: false,
@@ -348,10 +354,18 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                         this.setState({reservation, reservationMachine});
                                     }
                                     }
-                                    urlEnabled={this.state.useUrl}
-                                    setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})}
-                                    url={this.state.url}
                                     app={application}
+                                />
+                            </RunSection>
+                            <RunSection>
+                                <NetworkingSection
+                                    app={application}
+                                    urlEnabled={this.state.useUrl}
+                                    setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})} // TODO ??
+                                    url={this.state.url}
+                                    ipEnabled={this.state.useIp}
+                                    setIpEnabled={() => this.setState({useIp: !this.state.useIp})}
+                                    ip={this.state.ip}
                                 />
                             </RunSection>
 
@@ -969,50 +983,50 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
     </Label>
 );
 
-const ApplicationUrl: React.FunctionComponent<{
-    inputRef: React.RefObject<HTMLInputElement>;
-    enabled: boolean;
-    setEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-    jobName: React.RefObject<HTMLInputElement>;
-}> = props => {
+interface ApplicationUrlProps {
+    urlEnabled: boolean;
+    setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+    url: React.RefObject<HTMLInputElement>;
+}
+
+const ApplicationUrl: React.FunctionComponent<ApplicationUrlProps> = props => {
     const [url, setUrl] = React.useState<string>("");
 
     React.useEffect(() => {
-        if (!props.inputRef) return;
+        if (!props.url) return;
 
-        const current = props.inputRef.current;
+        const current = props.url.current;
         if (current === null) return;
 
         current.value = url;
-    }, [props.inputRef, url]);
+    }, [props.url, url]);
 
     return (
-        <>
+        <Box mb={16}>
+            <Flex mb={8}>
+                <Box flexGrow={1}>Public link</Box>
+                <Toggle
+                    scale={1.5}
+                    activeColor="green"
+                    checked={props.urlEnabled}
+                    onChange={() => {
+                        props.setUrlEnabled(!props.urlEnabled);
+                    }}
+                />
+            </Flex>
             <div>
-                <Label mb={10}>
-                    <Checkbox size={28} checked={props.enabled} onChange={() => {
-                        props.setEnabled(!props.enabled);
-
-                        if (!props.enabled && props.jobName.current !== null) {
-                            setUrl(urlify(props.jobName.current!.value));
-                        }
-                    }} />
-                    <TextSpan>Public link</TextSpan>
-                </Label>
-            </div>
-
-            <div>
-                {props.enabled ? (
+                {props.urlEnabled ? (
                     <>
                         <Warning
-                            warning="By enabling this setting, anyone with a link can gain access to the application." />
+                            warning="By enabling this setting, anyone with a link can gain access to the application."
+                        />
                         <Label mt={20}>
                             <Flex alignItems={"center"}>
                                 <TextSpan>https://app-</TextSpan>
                                 <Input
                                     mx={"2px"}
-                                    placeholder="Unique URL identifier"
-                                    ref={props.inputRef}
+                                    placeholder={""}
+                                    ref={props.url}
                                     required
                                     onKeyDown={e => e.preventDefault()}
                                     onClick={event => {
@@ -1034,8 +1048,86 @@ const ApplicationUrl: React.FunctionComponent<{
                     </>
                 ) : (<></>)}
             </div>
-        </>
+        </Box>
     );
+};
+
+interface ApplicationIPWidgetProps {
+    ip: React.RefObject<HTMLInputElement>;
+    ipEnabled: boolean;
+    setIpEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const ApplicationIPWidget: React.FunctionComponent<ApplicationIPWidgetProps> = props => {
+    const [ip, setIp] = React.useState<string>("");
+
+    React.useEffect(() => {
+        if (!props.ip) return;
+
+        const current = props.ip.current;
+        if (current === null) return;
+
+        current.value = ip;
+    }, [props.ip, ip]);
+
+    return <>
+        <Flex mb={8}>
+            <Box flexGrow={1}>IP Address</Box>
+            <Toggle
+                scale={1.5}
+                activeColor="green"
+                checked={props.ipEnabled}
+                onChange={() => {
+                    props.setIpEnabled(!props.ipEnabled);
+                }}
+            />
+        </Flex>
+        {!props.ipEnabled ? null : (
+            <>
+                <Warning
+                    warning="By enabling this setting, anyone with a link can gain access to the application."
+                />
+                <Label mt={20}>
+                    <Flex alignItems={"center"}>
+                        <Input
+                            mx={"2px"}
+                            placeholder={""}
+                            ref={props.ip}
+                            required
+                            onKeyDown={e => e.preventDefault()}
+                            onClick={event => {
+                                event.preventDefault();
+                                dialogStore.addDialog(
+                                    <IPAddressManagement
+                                        onSelect={pl => {
+                                            setIp(pl.ipAddress);
+                                            dialogStore.success();
+                                        }}
+                                    />,
+                                    () => 0
+                                );
+                            }}
+                        />
+                    </Flex>
+                </Label>
+            </>
+        )}
+    </>;
+};
+
+interface NetworkingSectionProps extends ApplicationUrlProps, ApplicationIPWidgetProps {
+    app: WithAppMetadata & WithAppInvocation;
+}
+
+const NetworkingSection: React.FunctionComponent<NetworkingSectionProps> = props => {
+    return props.app.invocation.applicationType === "WEB" ? (
+        <>
+            <Heading.h4 mb={"1em"}>Networking</Heading.h4>
+
+            <ApplicationUrl url={props.url} urlEnabled={props.urlEnabled} setUrlEnabled={props.setUrlEnabled} />
+            <ApplicationIPWidget ip={props.ip} ipEnabled={props.ipEnabled} setIpEnabled={props.setIpEnabled} />
+        </>
+    ) : null;
 };
 
 
@@ -1045,13 +1137,6 @@ interface JobSchedulingOptionsProps {
     app: WithAppMetadata & WithAppInvocation;
     reservation: string;
     setReservation: (name: string, reservationMachine: Product) => void;
-    urlEnabled: boolean;
-    setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-    url: React.RefObject<HTMLInputElement>;
-}
-
-function urlify(text: string): string {
-    return encodeURIComponent(text.substr(0, 32)).replace(new RegExp('%20', 'g'), '-').toLowerCase();
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
@@ -1111,16 +1196,6 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                 />
             </div>
 
-            {props.app.invocation.applicationType === "WEB" ? (
-                <Box mb="4px" mt="1em">
-                    <ApplicationUrl
-                        inputRef={props.url}
-                        enabled={props.urlEnabled}
-                        setEnabled={props.setUrlEnabled}
-                        jobName={name}
-                    />
-                </Box>
-            ) : (<></>)}
 
         </>
     );

@@ -18,7 +18,8 @@ data class PublicIP(
     val ipAddress: String,
     val ownerEntity: String,
     val entityType: WalletOwnerType,
-    val openPorts: List<PortAndProtocol>
+    val openPorts: List<PortAndProtocol>,
+    val inUseBy: String?
 )
 
 data class ApplyForAddressRequest(val application: String)
@@ -220,6 +221,9 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
     /**
      * Endpoint for endusers to release an IP allocation. Only the owner of/admin of the project owning the ip can
      * release the IP allocation. The associated IP ([PublicIP.ipAddress]) is returned to the pool of available IPs.
+     *
+     * Attempting to release an address while it is used in an application results in an error with status code
+     * [HttpStatusCode.BadRequest].
      */
     val releaseAddress = call<ReleaseAddressRequest, ReleaseAddressResponse, CommonErrorMessage>("releaseAddress") {
         auth {

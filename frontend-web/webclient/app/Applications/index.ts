@@ -169,6 +169,8 @@ export interface RunAppState {
     schedulingOptions: JobSchedulingOptionsForInput;
     useUrl: boolean;
     url: React.RefObject<HTMLInputElement>;
+    useIp: boolean;
+    ip: React.RefObject<HTMLInputElement>;
     favorite: boolean;
     favoriteLoading: boolean;
     mountedFolders: AdditionalMountedFolder[];

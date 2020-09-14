@@ -3,7 +3,7 @@ import {
     color,
     ColorProps, margin, MarginProps, maxWidth, MaxWidthProps,
     minWidth,
-    MinWidthProps,
+    MinWidthProps, padding, PaddingProps,
     textAlign,
     TextAlignProps, verticalAlign, VerticalAlignProps,
     width,
@@ -27,10 +27,10 @@ Table.defaultProps = {
     minWidth: "15em"
 };
 
-export const TableCell = styled.td<TextAlignProps & VerticalAlignProps & MarginProps>`
+export const TableCell = styled.td<TextAlignProps & VerticalAlignProps & MarginProps & PaddingProps>`
     border: 0px;
     border-spacing: 0;
-    ${textAlign} ${verticalAlign} ${margin}
+    ${textAlign} ${verticalAlign} ${margin} ${padding}
 `;
 
 TableCell.displayName = "TableCell";
