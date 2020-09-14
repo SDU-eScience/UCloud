@@ -1108,29 +1108,27 @@ const ApplicationIPWidget: React.FunctionComponent<ApplicationIPWidgetProps> = p
             <Warning
                 warning="By enabling this setting, anyone with a link can gain access to the application."
             />
-            <Label mt={20}>
-                <Flex alignItems={"center"}>
-                    <Input
-                        mx={"2px"}
-                        placeholder={""}
-                        ref={props.ip}
-                        required
-                        onKeyDown={e => e.preventDefault()}
-                        onClick={event => {
-                            event.preventDefault();
-                            dialogStore.addDialog(
-                                <IPAddressManagement
-                                    onSelect={pl => {
-                                        setIp(pl.ipAddress);
-                                        dialogStore.success();
-                                    }}
-                                />,
-                                () => 0
-                            );
-                        }}
-                    />
-                </Flex>
-            </Label>
+            <Flex alignItems={"center"} mt={20}>
+                <Input
+                    mx={"2px"}
+                    placeholder={""}
+                    ref={props.ip}
+                    cursor={"pointer"}
+                    onKeyDown={e => e.preventDefault()}
+                    onClick={event => {
+                        event.preventDefault();
+                        dialogStore.addDialog(
+                            <IPAddressManagement
+                                onSelect={pl => {
+                                    setIp(pl.ipAddress);
+                                    dialogStore.success();
+                                }}
+                            />,
+                            () => 0
+                        );
+                    }}
+                />
+            </Flex>
         </Box>
     </>;
 };

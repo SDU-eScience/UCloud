@@ -38,7 +38,7 @@ const left = ({leftLabel}: {leftLabel?: boolean}): string =>
 const right = ({rightLabel}: {rightLabel?: boolean}): string =>
     rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
-const Input = styled.input<InputProps>`
+const Input = styled.input<InputProps & {cursor?: string}>`
     display: block;
     font-family: inherit;
     background-color: ${props => props.error ? props.theme.colors.lightRed : "transparent"};
@@ -66,6 +66,7 @@ const Input = styled.input<InputProps>`
 
     ${borders} ${space} ${borderRadius}
     ${left} ${width} ${right}
+    ${p => p.cursor ? `cursor: ${p.cursor}` : ""}
 `;
 
 Input.displayName = "Input";
