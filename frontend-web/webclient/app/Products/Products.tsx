@@ -3,7 +3,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {List} from "Pagination";
-import {Card, Box, Flex, Icon} from "ui-components";
+import {Card, Box, Flex, Icon, List as UIList, Text} from "ui-components";
 import * as React from "react";
 import {capitalized} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
@@ -76,7 +76,7 @@ function MachineView({area}: {area: string}): JSX.Element {
                         }))}
                         pageRenderer={() => (
                             <MachineTypesWrapper>
-                                <Table /* style={{alignItems: "center"}} */>
+                                <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHeaderCell>Name</TableHeaderCell>
@@ -111,27 +111,32 @@ function MachineView({area}: {area: string}): JSX.Element {
             ariaHideApp={false}
             shouldCloseOnEsc
             shouldCloseOnOverlayClick
-            onAfterClose={() => setActiveMachine(undefined)}
+            onRequestClose={() => setActiveMachine(undefined)}
             isOpen={activeMachine !== undefined}
             style={defaultModalStyle}
         >
-            <Spacer left={null} right={<Icon name="close" cursor="pointer" onClick={() => setActiveMachine(undefined)} />} />
-            {activeMachine === undefined ? null :
-                area === ProductArea.STORAGE ?
-                    <>
-                        <Box>name: {activeMachine.id}</Box>
-                        <Box>price: {activeMachine.pricePerUnit}</Box>
-                        <Box>description: {activeMachine.description}</Box>
-                    </>
-                    : <>
-                        <Box>Name: {activeMachine.id}</Box>
-                        <Box>CPU: {activeMachine.cpu}</Box>
-                        <Box>RAM: {activeMachine.memoryInGigs}</Box>
-                        <Box>GPU: {activeMachine.gpu}</Box>
-                        <Box>Price: {activeMachine.pricePerUnit}</Box>
-                        <Box>Description: {activeMachine.description}</Box>
-                    </>
-            }
+            <Spacer
+                left={null}
+                right={<Icon name="close" cursor="pointer" onClick={() => setActiveMachine(undefined)} />}
+            />
+            <Box maxWidth="650px">
+                {activeMachine === undefined ? null :
+                    area === ProductArea.STORAGE ?
+                        <UIList>
+                            <Flex><Text bold width="120px">Name:</Text> {activeMachine.id}</Flex>
+                            <Flex><Text bold width="120px">Price:</Text> {creditFormatter(activeMachine.pricePerUnit * 60)}/hour</Flex>
+                            <Flex><Text bold width="120px">Description:</Text> <Text pl="16px">{activeMachine.description}</Text></Flex>
+                        </UIList>
+                        : <UIList>
+                            <Flex><Text bold width="120px">Name:</Text> {activeMachine.id}</Flex>
+                            <Flex><Text bold width="120px">CPU:</Text> {activeMachine.cpu}</Flex>
+                            <Flex><Text bold width="120px">RAM:</Text> {activeMachine.memoryInGigs}</Flex>
+                            {activeMachine.gpu ? <Flex><Text bold width="120px">GPU:</Text> {activeMachine.gpu}</Flex> : null}
+                            <Flex><Text bold width="120px">Price:</Text> {creditFormatter(activeMachine.pricePerUnit * 60)}/hour</Flex>
+                            <Flex><Text bold width="120px">Description:</Text> <Text pl="16px">{activeMachine.description}</Text></Flex>
+                        </UIList>
+                }
+            </Box>
         </ReactModal>
     </>);
 }
