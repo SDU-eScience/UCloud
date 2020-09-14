@@ -72,11 +72,17 @@ class AuthInterceptor(private val tokenValidator: TokenValidation<Any>) {
     }
 }
 
+val IngoingCall.securityTokenOrNull: SecurityPrincipalToken?
+    get() = attributes.getOrNull(AuthInterceptor.tokenKey)
+
 var IngoingCall.securityToken: SecurityPrincipalToken
-    get() = attributes[AuthInterceptor.tokenKey]
+    get() = attributes.getOrNull(AuthInterceptor.tokenKey) ?: error("User is not logged in")
     internal set(value) {
         attributes[AuthInterceptor.tokenKey] = value
     }
+
+val IngoingCall.securityPrincipalOrNull: SecurityPrincipal?
+    get() = securityTokenOrNull?.principal
 
 val IngoingCall.securityPrincipal: SecurityPrincipal
     get() = securityToken.principal
