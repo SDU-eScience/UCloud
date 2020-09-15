@@ -53,6 +53,7 @@ import {IngoingApplications} from "Project/Grant/IngoingApplications";
 import {OutgoingApplications} from "Project/Grant/OutgoingApplications";
 import {ProjectBrowser} from "Project/Grant/ProjectBrowser";
 import {LandingPage} from "Project/Grant/LandingPage";
+import {PublicIPManagement} from "Admin/PublicIPManagement";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -106,6 +107,7 @@ const Core = (): JSX.Element => (
                 <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />
                 <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)} />
                 <Route exact path="/admin/news" component={requireAuth(NewsManagement)} />
+                <Route exact path="/admin/ips" component={requireAuth(PublicIPManagement)} />
 
                 <Route exact path="/news/detailed/:id" component={DetailedNews} />
                 <Route exact path="/news/list/:filter?" component={NewsList} />
