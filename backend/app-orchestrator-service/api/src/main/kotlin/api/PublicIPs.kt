@@ -122,7 +122,14 @@ typealias ListAssignedAddressesResponse = Page<PublicIP>
 data class ListMyAddressesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias ListMyAddressesResponse = Page<PublicIP>
 
-data class AddressApplication(val id: Long, val application: String, val createdAt: Long)
+data class AddressApplication(
+    val id: Long,
+    val application: String,
+    val createdAt: Long,
+    val entityId: String,
+    val entityType: WalletOwnerType
+)
+
 data class ListAddressApplicationsRequest(
     override val itemsPerPage: Int?,
     override val page: Int?

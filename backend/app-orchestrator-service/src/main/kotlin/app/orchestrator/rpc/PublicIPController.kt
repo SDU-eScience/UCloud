@@ -41,7 +41,9 @@ class PublicIPController(
                 AddressApplication(
                     42,
                     "This is my application",
-                    System.currentTimeMillis() - (1000 * 60 * 60 * 3)
+                    System.currentTimeMillis() - (1000 * 60 * 60 * 3),
+                    "Awesome project name",
+                    WalletOwnerType.PROJECT
                 )
             )))
         }
@@ -51,7 +53,9 @@ class PublicIPController(
                 AddressApplication(
                     42,
                     "This is my application",
-                    System.currentTimeMillis() - (1000 * 60 * 60 * 3)
+                    System.currentTimeMillis() - (1000 * 60 * 60 * 3),
+                    "Awesome project name",
+                    WalletOwnerType.PROJECT
                 )
             )))
         }
