@@ -11,6 +11,12 @@ enum class InternetProtocol {
     UDP
 }
 
+enum class ApplicationStatus {
+    PENDING,
+    APPROVED,
+    DECLINED
+}
+
 data class PortAndProtocol(val port: Int, val protocol: InternetProtocol)
 
 data class PublicIP(

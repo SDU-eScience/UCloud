@@ -5,10 +5,12 @@ import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.PublicIPService
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.toActor
 
 class PublicIPController(
     private val db: DBContext,
@@ -25,15 +27,23 @@ class PublicIPController(
         }
 
         implement(PublicIPs.applyForAddress) {
-            ok(FindByLongId(42L))
+            ok(
+                FindByLongId(
+                    publicIps.applyForAddress(db, ctx.securityPrincipal.toActor(), ctx.project, request.application)
+                )
+            )
         }
 
         implement(PublicIPs.approveAddress) {
-            ok(Unit)
+            ok(
+                publicIps.respondToApplication(db, request.id, ApplicationStatus.APPROVED)
+            )
         }
 
         implement(PublicIPs.rejectAddress) {
-            ok(Unit)
+            ok(
+                publicIps.respondToApplication(db, request.id, ApplicationStatus.DECLINED)
+            )
         }
 
         implement(PublicIPs.listAddressApplicationsForApproval) {
