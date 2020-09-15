@@ -357,17 +357,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                     app={application}
                                 />
                             </RunSection>
-                            <RunSection>
-                                <NetworkingSection
-                                    app={application}
-                                    urlEnabled={this.state.useUrl}
-                                    setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})} // TODO ??
-                                    url={this.state.url}
-                                    ipEnabled={this.state.useIp}
-                                    setIpEnabled={() => this.setState({useIp: !this.state.useIp})}
-                                    ip={this.state.ip}
-                                />
-                            </RunSection>
 
                             {mandatoryParams.length === 0 ? null : (
                                 <RunSection>
@@ -514,6 +503,18 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                     }
                                 </RunSection>
                             )}
+
+                            <RunSection>
+                                <NetworkingSection
+                                    app={application}
+                                    urlEnabled={this.state.useUrl}
+                                    setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})} // TODO ??
+                                    url={this.state.url}
+                                    ipEnabled={this.state.useIp}
+                                    setIpEnabled={() => this.setState({useIp: !this.state.useIp})}
+                                    ip={this.state.ip}
+                                />
+                            </RunSection>
 
                             <RunSection>
                                 {optional.length <= 0 ? null : (
@@ -1106,7 +1107,7 @@ const ApplicationIPWidget: React.FunctionComponent<ApplicationIPWidgetProps> = p
         </Flex>
         <Box display={!props.ipEnabled ? "none" : "block"}>
             <Warning
-                warning="By enabling this setting, anyone with a link can gain access to the application."
+                warning="By enabling this setting, anyone with the IP can gain access to the application."
             />
             <Flex alignItems={"center"} mt={20}>
                 <Input
