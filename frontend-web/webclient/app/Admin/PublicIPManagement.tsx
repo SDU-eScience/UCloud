@@ -1,4 +1,5 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {Client} from "Authentication/HttpClientInstance";
 import format from "date-fns/format";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -42,7 +43,7 @@ interface AddressApplication {
     createdAt: number;
 }
 
-export function PublicIPManagement(): JSX.Element {
+export function PublicIPManagement(): JSX.Element | null {
     const [ipsForApproval, setParams, params] = useCloudAPI<Page<AddressApplication>>(
         listAddressApplicationsForApprovalRequest({itemsPerPage: 25, page: 0}),
         emptyPage);
@@ -54,6 +55,8 @@ export function PublicIPManagement(): JSX.Element {
     React.useEffect(() => {
         dispatch(setUploaderCallback(() => reload()));
     }, [reload]);
+
+    if (!Client.userIsAdmin) return null;
 
     return (<MainContainer
         main={
