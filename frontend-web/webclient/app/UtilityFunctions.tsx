@@ -256,6 +256,7 @@ export const isExtPreviewSupported = (ext: string): boolean => {
         case "mp4":
         case "mov":
         case "wmv":
+        case "log":
             return true;
         default:
             return false;
