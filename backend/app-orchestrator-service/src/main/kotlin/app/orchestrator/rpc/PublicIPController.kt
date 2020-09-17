@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.toActor
@@ -70,25 +71,7 @@ class PublicIPController(
         }
 
         implement(PublicIPs.listAssignedAddresses) {
-            ok(Page(2, 10, 1, listOf(
-                PublicIP(
-                    42,
-                    "10.135.0.142",
-                    ctx.securityPrincipal.username,
-                    WalletOwnerType.USER,
-                    listOf(PortAndProtocol(1111, InternetProtocol.TCP)),
-                    null
-                ),
-
-                PublicIP(
-                    43,
-                    "10.135.0.143",
-                    ctx.securityPrincipal.username,
-                    WalletOwnerType.USER,
-                    listOf(PortAndProtocol(1111, InternetProtocol.UDP)),
-                    null
-                ),
-            )))
+            ok(publicIps.listAssignedAddresses(db, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
         implement(PublicIPs.listMyAddresses) {

@@ -6,16 +6,32 @@ import dk.sdu.cloud.app.orchestrator.api.InternetProtocol
 import dk.sdu.cloud.app.orchestrator.api.PortAndProtocol
 import dk.sdu.cloud.app.orchestrator.api.PublicIP
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 
 object OpenPortsTable: SQLTable("open_ports") {
-    val id = long("account_id", notNull = true)
-    val port = int("account_type", notNull = true)
-    val protocol = text("product_category", notNull = true)
+    val id = long("id", notNull = true)
+    val port = int("port", notNull = true)
+    val protocol = text("protocol", notNull = true)
+}
+
+object IpPoolTable: SQLTable("ip_pool") {
+    val ip = text("account_id", notNull = true)
+    val ownerId = text("owner_id")
+    val ownerType = text("owner_type")
+}
+
+object AddressApplicationsTable: SQLTable("address_applications") {
+    val id = long("id", notNull = true)
+    val createdAt = timestamp("created_at", notNull = true)
+    val approvedAt = text("approved_at")
+    val releasedAt = text("released_at")
+    val ip = text("ip")
+    val status = text("status", notNull = true)
+    val applicantId = text("applicant_id", notNull = true)
+    val applicantType= text("applicant_type", notNull = true)
+    val application = text("application", notNull = true)
 }
 
 class PublicIPService {
@@ -229,5 +245,51 @@ class PublicIPService {
                 )
             }
         }
+    }
+
+    suspend fun listAssignedAddresses(
+        ctx: DBContext,
+        pagination: NormalizedPaginationRequest,
+    ): Page<PublicIP> {
+        val items = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("offset", pagination.offset)
+                    setParameter("limit", pagination.itemsPerPage)
+                    setParameter("approved", ApplicationStatus.APPROVED.toString())
+                },
+                """
+                    select * from ip_pool as p inner join address_applications as a on p.ip = a.ip where a.status = :approved
+                    offset :offset
+                    limit :limit
+                """.trimIndent()
+            ).rows.map { application ->
+
+                val openPorts = session.sendPreparedStatement(
+                    {
+                        setParameter("id", application.getField(AddressApplicationsTable.id))
+                    },
+                    """
+                        select * from open_ports where id = :id
+                    """.trimIndent()
+                ).rows.map { port ->
+                    PortAndProtocol(
+                        port.getField(OpenPortsTable.port),
+                        InternetProtocol.valueOf(port.getField(OpenPortsTable.protocol))
+                    )
+                }
+
+                PublicIP(
+                    application.getField(AddressApplicationsTable.id),
+                    application.getField(AddressApplicationsTable.ip),
+                    application.getField(AddressApplicationsTable.applicantId),
+                    WalletOwnerType.valueOf(application.getField(AddressApplicationsTable.applicantType)),
+                    openPorts,
+                    null // TODO inUseBy
+                )
+            }
+        }
+
+        return Page(items.size, pagination.itemsPerPage, pagination.page, items)
     }
 }

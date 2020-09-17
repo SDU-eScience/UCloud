@@ -8,8 +8,8 @@ create table address_applications
   released_at       timestamp    default null,
   ip                text         default null,
   status            varchar(255) not null,
-  applicant_id      varchar(255) not null,
-  applicant_type    varchar(255) not null,
+  applicant_id      text         not null,
+  applicant_type    text         not null,
   application       text         not null,
   primary key (id)
 );
