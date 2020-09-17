@@ -126,11 +126,10 @@ class PublicIPService {
 
     suspend fun addToPool(
         ctx: DBContext,
-        addresses: List<String>,
-        exceptions: List<String>
+        addresses: Set<String>
     ) {
         ctx.withSession { session ->
-            addresses.filter { !exceptions.contains(it) }.forEach { address ->
+            addresses.forEach { address ->
                 session.sendPreparedStatement(
                     {
                         setParameter("address", address)
@@ -145,11 +144,10 @@ class PublicIPService {
 
     suspend fun removeFromPool(
         ctx: DBContext,
-        addresses: List<String>,
-        exceptions: List<String>
+        addresses: Set<String>
     ) {
         ctx.withSession { session ->
-            addresses.filter { !exceptions.contains(it) }.forEach { address ->
+            addresses.forEach { address ->
                 session.sendPreparedStatement(
                     {
                         setParameter("address", address)
@@ -159,6 +157,24 @@ class PublicIPService {
                     """.trimIndent()
                 )
             }
+        }
+    }
+
+    suspend fun releaseAddress(
+        ctx: DBContext,
+        id: Long
+    ) {
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                    setParameter("time", Time.now())
+                    setParameter("status", ApplicationStatus.RELEASED.toString())
+                },
+                """
+                    update address_applications set status = :status, released_at = :time where id = :id
+                """.trimIndent()
+            )
         }
     }
 }

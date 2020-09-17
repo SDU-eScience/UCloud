@@ -18,11 +18,11 @@ class PublicIPController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(PublicIPs.addToPool) {
-            ok(publicIps.addToPool(db, request.addresses, request.exceptions))
+            ok(publicIps.addToPool(db, request.addressesCovered()))
         }
 
         implement(PublicIPs.removeFromPool) {
-            ok(publicIps.removeFromPool(db, request.addresses, request.exceptions))
+            ok(publicIps.removeFromPool(db, request.addressesCovered()))
         }
 
         implement(PublicIPs.applyForAddress) {
@@ -133,7 +133,7 @@ class PublicIPController(
         }
 
         implement(PublicIPs.releaseAddress) {
-            ok(Unit)
+            ok(publicIps.releaseAddress(db, request.id))
         }
     }
 }
