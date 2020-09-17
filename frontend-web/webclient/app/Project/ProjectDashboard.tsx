@@ -85,7 +85,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
 
     const [settings, fetchSettings] = useCloudAPI<ProjectGrantSettings>(
         {noop: true},
-        {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}}
+        {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
     );
 
     const durationOption = durationOptions[3];

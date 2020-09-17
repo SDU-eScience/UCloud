@@ -72,7 +72,8 @@ class TemplateService(
             if (!isProjectAdmin && !isAdminOfChildProject) {
                 if (actor is Actor.User) {
                     val settings = settings.fetchSettings(session, Actor.System, projectId)
-                    if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
+                    if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }
+                        || settings.excludeRequestsFrom.any { actor.principal.email!!.endsWith(it)}) {
                         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
                     }
                 } else {

@@ -78,7 +78,8 @@ class ApplicationService(
                 }
             val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
             if (projectOrNull == null || application.resourcesOwnedBy != projectOrNull.parent) {
-                if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
+                if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }
+                    || settings.excludeRequestsFrom.any {actor.principal.email!!.endsWith(it)}) {
                     throw RPCException(
                         "You are not allowed to submit applications to this project",
                         HttpStatusCode.Forbidden
@@ -175,6 +176,9 @@ class ApplicationService(
         application: Application
     ): Boolean {
         val settings = settings.fetchSettings(ctx, Actor.System, application.resourcesOwnedBy)
+        if(settings.excludeRequestsFrom.any{ actor.principal.email!!.endsWith(it) }) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
         val matchesUserCriteria = settings.automaticApproval.from.any { it.matches(actor.principal) }
         if (settings.automaticApproval.maxResources.isEmpty()) return false
         if (!matchesUserCriteria) return false

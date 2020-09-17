@@ -78,7 +78,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     );
     const [settings, fetchSettings] = useCloudAPI<ProjectGrantSettings>(
         {noop: true},
-        {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}}
+        {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
     );
 
     const [products, fetchProducts] = useCloudAPI<RetrieveFromProviderResponse>(
@@ -142,6 +142,20 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             projectId
         }));
     }, [projectId, descriptionField, description]);
+
+    const addExcludeFrom = useCallback(async (criteria: string) => {
+        const settingsCopy = {...settings.data};
+        settingsCopy.excludeRequestsFrom.push(criteria);
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
+
+    const removeExcludeFrom = useCallback(async (idx: number) => {
+        const settingsCopy = {...settings.data};
+        settingsCopy.excludeRequestsFrom.splice(idx, 1);
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
 
     const addAllowFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
@@ -209,6 +223,14 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             criteria={settings.data.allowRequestsFrom}
             onSubmit={addAllowFrom}
             onRemove={removeAllowFrom}
+            showSubprojects={true}
+        />
+
+        <Heading.h4>Exclude Grant Applications From</Heading.h4>
+        <ExcludeListEditor
+            criteria={settings.data.excludeRequestsFrom}
+            onSubmit={addExcludeFrom}
+            onRemove={removeExcludeFrom}
             showSubprojects={true}
         />
 
@@ -344,6 +366,60 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
     </Grid>;
 };
 
+const ExcludeListEditor: React.FunctionComponent<{
+    onSubmit: (c: string) => any,
+    onRemove: (idx: number) => any,
+    criteria: String[],
+    showSubprojects: boolean
+}> = props => {
+    const [showRequestFromEditor, setShowRequestFromEditor] = useState<boolean>(false);
+    return <>
+        <Table mb={16}>
+            <thead>
+            <TableRow>
+                <TableHeaderCell textAlign={"left"}>Email Domain</TableHeaderCell>
+                <TableHeaderCell />
+            </TableRow>
+            </thead>
+            <tbody>
+            {props.criteria.length === 0 && !showRequestFromEditor ? <>
+                <TableRow>
+                    <TableCell>No exclusions yet</TableCell>
+                    <TableCell />
+                </TableRow>
+            </> : null}
+
+            {props.criteria.map((it, idx) => <>
+                <TableRow>
+                    <TableCell textAlign={"left"}>
+                        {it}
+                    </TableCell>
+                    <TableCell textAlign={"right"}>
+                        <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                    </TableCell>
+                </TableRow>
+            </>)}
+            {showRequestFromEditor ?
+                <UserExclusionRowEditor
+                    onSubmit={(c) => {
+                        props.onSubmit(c);
+                        setShowRequestFromEditor(false);
+                    }}
+                    onCancel={() => setShowRequestFromEditor(false)}
+                /> :
+                null
+            }
+            </tbody>
+        </Table>
+        <Flex justifyContent={"center"} mb={32}>
+            {!showRequestFromEditor ?
+                <Button width={450} onClick={() => setShowRequestFromEditor(true)}>Add new row</Button> :
+                null
+            }
+        </Flex>
+    </>;
+};
+
 const UserCriteriaEditor: React.FunctionComponent<{
     onSubmit: (c: UserCriteria) => any,
     onRemove: (idx: number) => any,
@@ -424,6 +500,39 @@ function userCriteriaTypePrettifier(t: string): string {
             return t;
     }
 }
+
+const UserExclusionRowEditor: React.FunctionComponent<{
+    onSubmit: (c: string) => any,
+    onCancel: () => void,
+}> = props => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const onClick = useCallback((e) => {
+        e.preventDefault();
+        if (inputRef.current!.value.indexOf(".") === -1 || inputRef.current!.value.indexOf(" ") !== -1) {
+            snackbarStore.addFailure("This does not look like a valid email domain. Try again.", false);
+            return;
+        }
+        if (inputRef.current!.value.indexOf("@") !== -1) {
+            snackbarStore.addFailure("Only the domain should be added. Example: 'sdu.dk'.", false);
+            return;
+        }
+        const suffix = inputRef.current!.value;
+        props.onSubmit(suffix);
+    }, [props.onSubmit]);
+
+    return <TableRow>
+        <TableCell>
+            <form onSubmit={onClick}>
+                <Flex height={47}>
+                    <Input ref={inputRef} placeholder={"Email domain"} />
+                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel} />
+                </Flex>
+            </form>
+        </TableCell>
+        <TableCell />
+    </TableRow>;
+};
+
 
 const UserCriteriaRowEditor: React.FunctionComponent<{
     onSubmit: (c: UserCriteria) => any,
