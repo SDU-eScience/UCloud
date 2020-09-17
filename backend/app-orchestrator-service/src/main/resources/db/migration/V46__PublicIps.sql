@@ -22,17 +22,27 @@ create table ip_pool (
 );
 
 create table open_ports (
-  ip      text not null,
-  port    integer not null check (port >= 0 and port <= 65535),
-  primary key (ip, port)
+  application_id       bigint not null,
+  port                 integer not null check (port >= 0 and port <= 65535),
+  protocol             varchar(3),
+  primary key (application_id, port, protocol)
 );
 
 create or replace function allocate_or_release_ip() returns trigger as $$
 begin
     if new.status = 'APPROVED' then
-        UPDATE ip_pool set owner_id = new.applicant_id, owner_type = new.applicant_type where ip = new.ip;
+        update ip_pool set owner_id = new.applicant_id, owner_type = new.applicant_type where ip = new.ip;
     elsif new.status = 'RELEASED' then
-        UPDATE ip_pool set owner_id = null, owner_type = null where ip = new.ip;
+        update ip_pool set owner_id = null, owner_type = null where ip = new.ip;
+    end if;
+    return null;
+end;
+$$ language plpgsql;
+
+create or replace function remove_open_ports() returns trigger as $$
+begin
+    if new.status = 'RELEASED' then
+        delete from open_ports where application_id = new.id;
     end if;
     return null;
 end;
@@ -42,3 +52,8 @@ create trigger trigger_approve_or_reject_application
     after update on address_applications
     for each row
     execute procedure allocate_or_release_ip();
+
+create trigger trigger_remove_open_ports_on_release
+    after update on address_applications
+    for each row
+    execute procedure remove_open_ports();

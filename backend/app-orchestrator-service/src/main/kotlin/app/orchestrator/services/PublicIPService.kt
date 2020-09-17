@@ -8,12 +8,15 @@ import dk.sdu.cloud.app.orchestrator.api.PublicIP
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.allocateId
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
+
+object OpenPortsTable: SQLTable("open_ports") {
+    val id = long("account_id", notNull = true)
+    val port = int("account_type", notNull = true)
+    val protocol = text("product_category", notNull = true)
+}
 
 class PublicIPService {
     suspend fun applyForAddress(
@@ -175,6 +178,56 @@ class PublicIPService {
                     update address_applications set status = :status, released_at = :time where id = :id
                 """.trimIndent()
             )
+        }
+    }
+
+    suspend fun updatePorts(
+        ctx: DBContext,
+        id: Long,
+        ports: List<PortAndProtocol>
+    ) {
+        ctx.withSession { session ->
+            val openPorts = session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
+                """
+                    select * from open_ports where id = :id
+                """.trimIndent()
+            ).rows.map {
+                PortAndProtocol(
+                    it.getField(OpenPortsTable.port),
+                    InternetProtocol.valueOf(it.getField(OpenPortsTable.protocol))
+                )
+            }
+
+            // Close ports
+            openPorts.filter { !ports.contains(it) }.forEach {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                        setParameter("port", it.port)
+                        setParameter("protocol", it.protocol.toString())
+                    },
+                    """
+                        delete from open_ports where id = :id and port = :port and protocol = :protocol 
+                    """.trimIndent()
+                )
+            }
+
+            // Open ports
+            ports.filter { !openPorts.contains(it) }.forEach {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                        setParameter("port", it.port)
+                        setParameter("protocol", it.protocol.toString())
+                    },
+                    """
+                        insert into open_ports (id, port, protocol) values (:id, :port, :protocol)
+                    """.trimIndent()
+                )
+            }
         }
     }
 }

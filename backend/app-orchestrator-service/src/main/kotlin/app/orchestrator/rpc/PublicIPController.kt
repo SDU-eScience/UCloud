@@ -129,7 +129,7 @@ class PublicIPController(
         }
 
         implement(PublicIPs.updatePorts) {
-            ok(Unit)
+            ok(publicIps.updatePorts(db, request.id, request.newPortList))
         }
 
         implement(PublicIPs.releaseAddress) {
