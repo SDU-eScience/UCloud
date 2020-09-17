@@ -139,7 +139,7 @@ function IPModal(props: {state: PoolManagement; closeModal: () => void; refresh:
                     height="22px"
                     width="44px"
                     onClick={() => {ips.push(React.createRef()); setIps([...ips]);}}
-                >Add</Button>
+                >New</Button>
             </Flex>
             <IPAddress>
                 {ips.map((ref, index) =>
@@ -166,7 +166,7 @@ function IPModal(props: {state: PoolManagement; closeModal: () => void; refresh:
                     height="22px"
                     width="44px"
                     onClick={() => {exclusions.push(React.createRef()); setExclusions([...exclusions]);}}
-                >Add</Button>
+                >New</Button>
             </Flex>
             <IPAddress>
                 {exclusions.map((ref, index) => <Flex my="6px" key={index}>
