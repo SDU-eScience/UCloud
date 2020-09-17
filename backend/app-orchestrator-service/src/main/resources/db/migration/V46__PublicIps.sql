@@ -4,7 +4,7 @@ create table address_applications
 (
   id                bigint       not null,
   created_at        timestamp    not null,
-  accepted_at       timestamp    default null,
+  approved_at       timestamp    default null,
   released_at       timestamp    default null,
   ip                text         default null,
   status            varchar(255) not null,
@@ -29,15 +29,16 @@ create table open_ports (
 
 create or replace function allocate_or_release_ip() returns trigger as $$
 begin
-    case when new.status = 'ACCEPTED' then
-        UPDATE ip_pool set owner_id = new.applicant_id, owner_type = new.applicant_type where ip = new.ip
-    case when new.status = 'RELEASED' then
-        UPDATE ip_pool set owner_id = null, owner_type = null where ip = new.ip
-    end;
+    if new.status = 'APPROVED' then
+        UPDATE ip_pool set owner_id = new.applicant_id, owner_type = new.applicant_type where ip = new.ip;
+    elsif new.status = 'RELEASED' then
+        UPDATE ip_pool set owner_id = null, owner_type = null where ip = new.ip;
+    end if;
+    return null;
 end;
 $$ language plpgsql;
 
-create trigger trigger_accept_reject_application
+create trigger trigger_approve_or_reject_application
     after update on address_applications
     for each row
     execute procedure allocate_or_release_ip();
