@@ -105,6 +105,13 @@ class GrantController(
                     request.allowRequestsFrom
                 )
 
+                settings.updateExclusionsFromList(
+                    session,
+                    ctx.securityPrincipal.toActor(),
+                    projectId,
+                    request.excludeRequestsFrom
+                )
+
                 settings.updateAutomaticApprovalList(
                     session,
                     ctx.securityPrincipal.toActor(),
