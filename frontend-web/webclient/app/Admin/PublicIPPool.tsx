@@ -155,7 +155,7 @@ function IPModal(props: {state: PoolManagement; closeModal: () => void; refresh:
                             autoComplete="off"
                             pattern={cidrRegex.source}
                         />
-                        {ips.length > 1 ? <RemoveButton onClick={() => undefined} /> : null}
+                        <RemoveButton onClick={() => ref.current != null ? ref.current.value = "" : undefined} />
                     </Flex>
                 )}
             </IPAddress>
@@ -169,20 +169,21 @@ function IPModal(props: {state: PoolManagement; closeModal: () => void; refresh:
                 >New</Button>
             </Flex>
             <IPAddress>
-                {exclusions.map((ref, index) => <Flex my="6px" key={index}>
-                    <Input
-                        type="text"
-                        minLength={7}
-                        required
-                        maxLength={18}
-                        size={18}
-                        ref={ref}
-                        placeholder="###.###.###.###/##"
-                        autoComplete="off"
-                        pattern={cidrRegex.source}
-                    />
-                    {exclusions.length > 1 ? <RemoveButton onClick={() => undefined} /> : null}
-                </Flex>)}
+                {exclusions.map((ref, index) =>
+                    <Flex my="6px" key={index}>
+                        <Input
+                            type="text"
+                            minLength={7}
+                            required
+                            maxLength={18}
+                            size={18}
+                            ref={ref}
+                            placeholder="###.###.###.###/##"
+                            autoComplete="off"
+                            pattern={cidrRegex.source}
+                        />
+                        <RemoveButton onClick={() => ref.current != null ? ref.current.value = "" : undefined} />
+                    </Flex>)}
             </IPAddress>
             <Button onClick={() => add ? addIps() : removeIps()} color={add ? "green" : "red"}>
                 {add ? "Add" : "Remove"}
