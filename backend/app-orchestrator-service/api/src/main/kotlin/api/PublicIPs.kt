@@ -14,7 +14,8 @@ enum class InternetProtocol {
 enum class ApplicationStatus {
     PENDING,
     APPROVED,
-    DECLINED
+    DECLINED,
+    RELEASED
 }
 
 data class PortAndProtocol(val port: Int, val protocol: InternetProtocol)

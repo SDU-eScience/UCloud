@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.orchestrator.api.ApplicationStatus
 import dk.sdu.cloud.app.orchestrator.api.InternetProtocol
 import dk.sdu.cloud.app.orchestrator.api.PortAndProtocol
 import dk.sdu.cloud.app.orchestrator.api.PublicIP
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -12,6 +13,7 @@ import dk.sdu.cloud.service.db.async.allocateId
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.safeUsername
+import io.ktor.http.HttpStatusCode
 
 class PublicIPService {
     suspend fun applyForAddress(
@@ -42,17 +44,12 @@ class PublicIPService {
                     setParameter("status", ApplicationStatus.PENDING.toString())
                     setParameter("createdAt", Time.now())
                     setParameter("application", application)
-
                 },
                 """
-                    INSERT INTO address_applications SET
-                        id = :id
-                        applicant_type = :applicantType,
-                        applicant_id = :applicantId,
-                        application = :application,
-                        status = :status,
-                        created_at = :createdAt,
-                        
+                    insert into address_applications 
+                        (id, applicant_id, applicant_type, application, status, created_at)
+                    values 
+                        (:id, :applicantId, :applicantType, :application, :status, :createdAt)
                 """.trimIndent()
             )
         }.rowsAffected
@@ -77,21 +74,91 @@ class PublicIPService {
         )
     }
 
-    suspend fun respondToApplication(
+    suspend fun approveApplication(
         ctx: DBContext,
         applicationId: Long,
-        newStatus: ApplicationStatus
+    ) {
+        ctx.withSession { session ->
+            val foundIp = session.sendPreparedStatement(
+                """
+                    select ip from ip_pool where owner_id is null and owner_type is null limit 1)
+                """.trimIndent()
+            ).rows
+
+            if (foundIp.isEmpty()) {
+                throw RPCException.fromStatusCode(HttpStatusCode.FailedDependency, "No available IP addresses found")
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("applicationId", applicationId)
+                    setParameter("newStatus", ApplicationStatus.APPROVED.toString())
+                    setParameter("time", Time.now())
+                    setParameter("ip", foundIp.first().getString("ip"))
+                },
+                """
+                    update address_applications set
+                        status = :newStatus,
+                        approved_at = :time,
+                        ip = :ip
+                    where id = :applicationId
+                """.trimIndent()
+            )
+        }
+    }
+
+    suspend fun rejectApplication(
+        ctx: DBContext,
+        applicationId: Long,
     ) {
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("applicationId", applicationId)
-                    setParameter("newStatus", newStatus.toString())
+                    setParameter("newStatus", ApplicationStatus.DECLINED.toString())
                 },
                 """
                     update address_applications set status = :newStatus where id = :applicationId
                 """.trimIndent()
             )
+        }
+    }
+
+    suspend fun addToPool(
+        ctx: DBContext,
+        addresses: List<String>,
+        exceptions: List<String>
+    ) {
+        ctx.withSession { session ->
+            addresses.filter { !exceptions.contains(it) }.forEach { address ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("address", address)
+                    },
+                    """
+                        insert into ip_pool (ip) values :address
+                    """.trimIndent()
+                )
+            }
+        }
+    }
+
+    suspend fun removeFromPool(
+        ctx: DBContext,
+        addresses: List<String>,
+        exceptions: List<String>
+    ) {
+        ctx.withSession { session ->
+            addresses.filter { !exceptions.contains(it) }.forEach { address ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("address", address)
+                    },
+                    """
+                        delete from ip_pool where ip = :address
+                    """.trimIndent()
+                )
+            }
         }
     }
 }

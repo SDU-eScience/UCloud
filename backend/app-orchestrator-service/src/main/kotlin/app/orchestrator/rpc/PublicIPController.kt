@@ -16,14 +16,13 @@ class PublicIPController(
     private val db: DBContext,
     private val publicIps: PublicIPService
 ) : Controller {
-    // NOTE(Dan): All of this is dummy data. Feel free to replace it with a proper implementation ;)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(PublicIPs.addToPool) {
-            ok(Unit)
+            ok(publicIps.addToPool(db, request.addresses, request.exceptions))
         }
 
         implement(PublicIPs.removeFromPool) {
-            ok(Unit)
+            ok(publicIps.removeFromPool(db, request.addresses, request.exceptions))
         }
 
         implement(PublicIPs.applyForAddress) {
@@ -36,13 +35,13 @@ class PublicIPController(
 
         implement(PublicIPs.approveAddress) {
             ok(
-                publicIps.respondToApplication(db, request.id, ApplicationStatus.APPROVED)
+                publicIps.approveApplication(db, request.id)
             )
         }
 
         implement(PublicIPs.rejectAddress) {
             ok(
-                publicIps.respondToApplication(db, request.id, ApplicationStatus.DECLINED)
+                publicIps.rejectApplication(db, request.id)
             )
         }
 
