@@ -20,7 +20,7 @@ exports[`Shares List Shares component 1`] = `
   background-color: #fff;
 }
 
-.c8 {
+.c9 {
   padding-top: 55px;
   padding-right: 14px;
 }
@@ -39,12 +39,11 @@ exports[`Shares List Shares component 1`] = `
 }
 
 .c6 {
-  cursor: pointer;
+  cursor: inherit;
   font-size: 20px;
-  margin-right: 1em;
 }
 
-.c10 {
+.c11 {
   cursor: inherit;
   font-size: 24px;
   text-align: center;
@@ -58,7 +57,14 @@ exports[`Shares List Shares component 1`] = `
 }
 
 .c7 {
+  cursor: pointer;
+  margin-right: 1em;
   border-bottom: 3px solid #006aff;
+}
+
+.c8 {
+  cursor: pointer;
+  margin-right: 1em;
 }
 
 .c3 {
@@ -67,19 +73,19 @@ exports[`Shares List Shares component 1`] = `
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c9 {
+  .c10 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c9 {
+  .c10 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c9 {
+  .c10 {
     display: none;
   }
 }
@@ -97,7 +103,7 @@ exports[`Shares List Shares component 1`] = `
     >
       <div
         className="c6 c7"
-        cursor="pointer"
+        cursor="inherit"
         fontSize={3}
         onClick={[Function]}
         selected={true}
@@ -105,8 +111,8 @@ exports[`Shares List Shares component 1`] = `
         Shared with Me
       </div>
       <div
-        className="c6 "
-        cursor="pointer"
+        className="c6 c8"
+        cursor="inherit"
         fontSize={3}
         onClick={[Function]}
         selected={false}
@@ -116,13 +122,13 @@ exports[`Shares List Shares component 1`] = `
     </div>
   </div>
   <div
-    className="c8"
+    className="c9"
   >
     <div
-      className="c9"
+      className="c10"
     />
     <h3
-      className="c10"
+      className="c11"
       cursor="inherit"
       fontSize={4}
     >
