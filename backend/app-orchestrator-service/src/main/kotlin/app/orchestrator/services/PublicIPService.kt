@@ -340,7 +340,7 @@ class PublicIPService {
                     setParameter("pending", ApplicationStatus.PENDING.toString())
                 },
                 """
-                    select id, applicant_id, applicant_type, created_at, status from address_applications
+                    select id, applicant_id, application, applicant_type, created_at, status from address_applications
                     where status = :pending
                     offset :offset
                     limit :limit
@@ -379,7 +379,7 @@ class PublicIPService {
                     setParameter("applicantType", applicantType.toString())
                 },
                 """
-                    select id, applicant_id, applicant_type, created_at, status from address_applications
+                    select id, applicant_id, application, applicant_type, created_at, status from address_applications
                     where applicant_id = :applicantId and applicant_type = :applicantType
                     offset :offset
                     limit :limit
