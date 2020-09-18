@@ -11,7 +11,7 @@ import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
 object OpenPortsTable: SQLTable("open_ports") {
-    val id = long("id", notNull = true)
+    val id = long("application_id", notNull = true)
     val port = int("port", notNull = true)
     val protocol = text("protocol", notNull = true)
 }
@@ -100,7 +100,7 @@ class PublicIPService {
         ctx.withSession { session ->
             val foundIp = session.sendPreparedStatement(
                 """
-                    select ip from ip_pool where owner_id is null and owner_type is null limit 1)
+                    select ip from ip_pool where owner_id is null and owner_type is null limit 1
                 """.trimIndent()
             ).rows
 
@@ -154,7 +154,7 @@ class PublicIPService {
                         setParameter("address", address)
                     },
                     """
-                        insert into ip_pool (ip) values :address
+                        insert into ip_pool (ip) values (:address)
                     """.trimIndent()
                 )
             }
@@ -223,7 +223,7 @@ class PublicIPService {
                     setParameter("id", id)
                 },
                 """
-                    select * from open_ports where id = :id
+                    select * from open_ports where application_id = :id
                 """.trimIndent()
             ).rows.map {
                 PortAndProtocol(
@@ -241,7 +241,7 @@ class PublicIPService {
                         setParameter("protocol", it.protocol.toString())
                     },
                     """
-                        delete from open_ports where id = :id and port = :port and protocol = :protocol 
+                        delete from open_ports where application_id = :id and port = :port and protocol = :protocol 
                     """.trimIndent()
                 )
             }
@@ -255,7 +255,7 @@ class PublicIPService {
                         setParameter("protocol", it.protocol.toString())
                     },
                     """
-                        insert into open_ports (id, port, protocol) values (:id, :port, :protocol)
+                        insert into open_ports (application_id, port, protocol) values (:id, :port, :protocol)
                     """.trimIndent()
                 )
             }
@@ -380,7 +380,7 @@ class PublicIPService {
                 },
                 """
                     select id, applicant_id, application, applicant_type, created_at, status from address_applications
-                    where applicant_id = :applicantId and applicant_type = :applicantType
+                    where applicant_id = :applicantId and applicant_type = :applicantType and status = :pending
                     offset :offset
                     limit :limit
                 """.trimIndent()
@@ -397,7 +397,7 @@ class PublicIPService {
                     setParameter("id", application.getField(AddressApplicationsTable.id))
                 },
                 """
-                        select * from open_ports where id = :id
+                        select * from open_ports where application_id = :id
                     """.trimIndent()
             ).rows.map { port ->
                 PortAndProtocol(

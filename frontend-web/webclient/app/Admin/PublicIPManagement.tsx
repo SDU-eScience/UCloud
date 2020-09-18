@@ -33,7 +33,7 @@ function rejectAddress(id: number): APICallParameters<{id: number}> {
 
 function acceptAddress(id: number): APICallParameters<{id: number}> {
     return {
-        path: `${baseContext}reject`,
+        path: `${baseContext}approve`,
         method: "POST",
         payload: {id}
     };
@@ -74,7 +74,7 @@ export function PublicIPManagement(): JSX.Element | null {
                         key={it.id}
                         left={
                             <HoverTruncate width="calc(100% - 50px)" fontSize={20}>
-                                <Lorem />
+                                {it.application}
                             </HoverTruncate>
                         }
                         icon={null}
