@@ -307,36 +307,25 @@ class SettingsService(
         pagination: NormalizedPaginationRequest
     ): Page<ProjectWithTitle> {
         return ctx.withSession { session ->
-            println(actor)
-
             val excludingProjects = if (actor is Actor.User) {
-                println(actor.principal.email)
-                val atIndex = actor.principal.email!!.indexOf('@')
-                if (atIndex == 0 || atIndex == -1) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Not a valid email")
-                }
-                else {
-                    val emailSuffix = actor.principal.email!!.substring(atIndex+1)
-                    println(emailSuffix)
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("suffix", emailSuffix)
-                        },
-                        """
-                            SELECT * 
-                            FROM exclude_applications_from
-                            WHERE email_suffix = :suffix
-                        """
-                    ).rows
-                        .map {
-                            it.getField(ExcludeApplicationsFromTable.projectID)
-                        }
-                }
+                val emailSuffix = actor.principal.email!!.substringAfter('@')
+                println(emailSuffix)
+                session.sendPreparedStatement(
+                    {
+                        setParameter("suffix", emailSuffix)
+                    },
+                    """
+                        SELECT * 
+                        FROM exclude_applications_from
+                        WHERE email_suffix = :suffix
+                    """
+                ).rows
+                    .map {
+                        it.getField(ExcludeApplicationsFromTable.projectID)
+                    }
             } else {
                emptyList<String>()
             }
-
-            println(excludingProjects)
 
             session
                 .paginatedQuery(

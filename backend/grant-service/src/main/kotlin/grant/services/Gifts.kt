@@ -128,7 +128,7 @@ class GiftService(
 
             if (rows.isEmpty()) return@withSession emptyList<GiftWithId>()
 
-            rows
+            val gifts = rows
                 .map { row ->
                     GiftWithId(
                         row.getField(GiftTable.id),
@@ -150,6 +150,33 @@ class GiftService(
                 .map { rowsForGift ->
                     rowsForGift.reduce { acc, giftWithId -> acc.copy(resources = acc.resources + giftWithId.resources) }
                 }
+
+            val excludedProjectIDs = session
+                .sendPreparedStatement(
+                    {
+                        if (actor is Actor.User) {
+                            setParameter("emailDomain", actor.principal.email?.substringAfter('@'))
+                        } else {
+                            setParameter("emailDomain", null as String?)
+                        }                    },
+                    """
+                        SELECT * FROM exclude_applications_from
+                        WHERE email_suffix = :emailDomain
+                    """
+                ).rows
+                .map {
+                    it.getField(ExcludeApplicationsFromTable.projectID)
+                }
+
+            val allowedGifts = gifts.mapNotNull { gift ->
+                if (excludedProjectIDs.contains(gift.resourcesOwnedBy)) {
+                    null
+                } else {
+                    gift
+                }
+            }
+
+            allowedGifts
         }
     }
 
