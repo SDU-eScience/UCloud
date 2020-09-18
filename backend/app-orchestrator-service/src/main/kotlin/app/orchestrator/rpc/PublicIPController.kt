@@ -75,40 +75,7 @@ class PublicIPController(
         }
 
         implement(PublicIPs.listMyAddresses) {
-            ok(Page(4, 10, 1, listOf(
-                PublicIP(
-                    42,
-                    "10.135.0.142",
-                    ctx.securityPrincipal.username,
-                    WalletOwnerType.USER,
-                    listOf(PortAndProtocol(1111, InternetProtocol.TCP)),
-                    null
-                ),
-                PublicIP(
-                    43,
-                    "10.135.0.143",
-                    ctx.securityPrincipal.username,
-                    WalletOwnerType.USER,
-                    emptyList(),
-                    null
-                ),
-                PublicIP(
-                    44,
-                    "10.135.0.144",
-                    ctx.securityPrincipal.username,
-                    WalletOwnerType.USER,
-                    (11000..11020).map { PortAndProtocol(it, if (it % 3 == 0) InternetProtocol.UDP else InternetProtocol.TCP) },
-                    null
-                ),
-                PublicIP(
-                    45,
-                    "10.135.0.145",
-                    ctx.securityPrincipal.username,
-                    WalletOwnerType.USER,
-                    (11000..11020).map { PortAndProtocol(it, if (it % 3 == 0) InternetProtocol.UDP else InternetProtocol.TCP) },
-                    "foobar"
-                )
-            )))
+            ok(publicIps.listMyAddresses(db, ctx.securityPrincipal.toActor(), ctx.project, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
         implement(PublicIPs.updatePorts) {

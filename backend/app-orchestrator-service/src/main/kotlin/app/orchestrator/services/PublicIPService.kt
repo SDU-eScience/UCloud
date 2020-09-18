@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.app.orchestrator.api.ApplicationStatus
 import dk.sdu.cloud.app.orchestrator.api.InternetProtocol
@@ -259,37 +260,88 @@ class PublicIPService {
                     setParameter("approved", ApplicationStatus.APPROVED.toString())
                 },
                 """
-                    select * from ip_pool as p inner join address_applications as a on p.ip = a.ip where a.status = :approved
+                    select a.id, a.ip, a.applicant_id, a.applicant_type, p.ip, p.owner_id, p.owner_type, j.application_name from (ip_pool as p
+                    inner join address_applications as a on p.ip = a.ip)
+                    left join job_information as j on j.ip_address = a.ip
+                    where a.status = :approved
                     offset :offset
                     limit :limit
                 """.trimIndent()
-            ).rows.map { application ->
-
-                val openPorts = session.sendPreparedStatement(
-                    {
-                        setParameter("id", application.getField(AddressApplicationsTable.id))
-                    },
-                    """
-                        select * from open_ports where id = :id
-                    """.trimIndent()
-                ).rows.map { port ->
-                    PortAndProtocol(
-                        port.getField(OpenPortsTable.port),
-                        InternetProtocol.valueOf(port.getField(OpenPortsTable.protocol))
-                    )
-                }
-
-                PublicIP(
-                    application.getField(AddressApplicationsTable.id),
-                    application.getField(AddressApplicationsTable.ip),
-                    application.getField(AddressApplicationsTable.applicantId),
-                    WalletOwnerType.valueOf(application.getField(AddressApplicationsTable.applicantType)),
-                    openPorts,
-                    null // TODO inUseBy
-                )
-            }
+            ).rows.toPublicIPPage(session)
         }
 
-        return Page(items.size, pagination.itemsPerPage, pagination.page, items)
+        return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())
     }
+
+    suspend fun listMyAddresses(
+        ctx: DBContext,
+        actor: Actor,
+        project: String?,
+        pagination: NormalizedPaginationRequest,
+    ): Page<PublicIP> {
+        val ownerType = if (project.isNullOrBlank()) {
+            WalletOwnerType.USER
+        } else {
+            WalletOwnerType.PROJECT
+        }
+
+        val ownerId = if (ownerType == WalletOwnerType.PROJECT) {
+            project
+        } else {
+            actor.username
+        }
+
+        val items = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("offset", pagination.offset)
+                    setParameter("limit", pagination.itemsPerPage)
+                    setParameter("approved", ApplicationStatus.APPROVED.toString())
+                    setParameter("ownerId", ownerId)
+                    setParameter("ownerType", ownerType.toString())
+                },
+                """
+                    select a.id, a.ip, a.applicant_id, a.applicant_type, p.ip, p.owner_id, p.owner_type, j.application_name from (ip_pool as p
+                    inner join address_applications as a on p.ip = a.ip)
+                    left join job_information as j on j.ip_address = a.ip
+                    where a.status = :approved and a.applicant_id = :ownerId and a.applicant_type = :ownerType
+                    offset :offset
+                    limit :limit
+                """.trimIndent()
+            ).rows.toPublicIPPage(session)
+        }
+
+        return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())
+    }
+
+
+
+
+    private suspend fun Iterable<RowData>.toPublicIPPage(session: AsyncDBConnection): Collection<PublicIP> {
+        return map { application ->
+            val openPorts = session.sendPreparedStatement(
+                {
+                    setParameter("id", application.getField(AddressApplicationsTable.id))
+                },
+                """
+                        select * from open_ports where id = :id
+                    """.trimIndent()
+            ).rows.map { port ->
+                PortAndProtocol(
+                    port.getField(OpenPortsTable.port),
+                    InternetProtocol.valueOf(port.getField(OpenPortsTable.protocol))
+                )
+            }
+
+            PublicIP(
+                application.getField(AddressApplicationsTable.id),
+                application.getField(AddressApplicationsTable.ip),
+                application.getField(AddressApplicationsTable.applicantId),
+                WalletOwnerType.valueOf(application.getField(AddressApplicationsTable.applicantType)),
+                openPorts,
+                application.getField(JobInformationTable.applicationName)
+            )
+        }
+    }
+
 }
