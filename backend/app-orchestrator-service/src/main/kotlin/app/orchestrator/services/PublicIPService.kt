@@ -182,6 +182,21 @@ class PublicIPService {
         id: Long
     ) {
         ctx.withSession { session ->
+            val inUse = session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
+                """
+                    select j.ip_address from address_applications as a
+                    left join job_information as j on a.ip = j.ip_address
+                    where a.id = :id
+                """.trimIndent()
+            ).rows.first().getField(JobInformationTable.ipAddress).isNullOrEmpty().not()
+
+            if (inUse) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Public IP cannot be released while in use")
+            }
+
             session.sendPreparedStatement(
                 {
                     setParameter("id", id)
