@@ -2,13 +2,28 @@ package dk.sdu.cloud.service.k8
 
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.JsonNodeType
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import com.fasterxml.jackson.module.kotlin.treeToValue
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.util.cio.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.isActive
 import okhttp3.ConnectionPool
 import java.io.File
 import java.util.*
@@ -24,6 +39,7 @@ sealed class KubernetesConfigurationSource {
             val users: List<User>,
             @JsonAlias("current-context") val currentContext: String?
         )
+
         private data class User(val name: String, val user: UserData) {
             data class UserData(
                 val token: String?,
@@ -31,9 +47,11 @@ sealed class KubernetesConfigurationSource {
                 @JsonAlias("client-key") val clientKey: String?
             )
         }
+
         private data class Context(val name: String, val context: ContextData) {
             data class ContextData(val cluster: String, val user: String)
         }
+
         private data class Cluster(val name: String, val cluster: Cluster) {
             data class Cluster(
                 @JsonAlias("certificate-authority-data") val certificateAuthorityData: String?,
@@ -48,7 +66,7 @@ sealed class KubernetesConfigurationSource {
             try {
                 val tree = yamlMapper.readValue<KubeConfig>(kubeConfigFile)
                 val actualContextId = context ?: tree.currentContext ?: tree.contexts.singleOrNull()
-                    ?: error("Unknown context, kube config contains: $tree")
+                ?: error("Unknown context, kube config contains: $tree")
 
                 val actualContext = tree.contexts.find { it.name == actualContextId }
                     ?: error("Unknown context, kube config contains: $tree")
@@ -61,15 +79,17 @@ sealed class KubernetesConfigurationSource {
 
                 val authenticationMethod = when {
                     user.user.token != null -> {
-                        KubernetesAuthenticationMethod.Token(user.user.token)
+                        val (username, password) = user.user.token.split(':')
+                        KubernetesAuthenticationMethod.BasicAuth(username, password)
                     }
 
                     user.user.clientCertificate != null && user.user.clientKey != null -> {
-                        val cert = File(user.user.clientCertificate).takeIf { it.exists() }?.readText()
-                        val key = File(user.user.clientKey).takeIf { it.exists() }?.readText()
-                        if (cert == null || key == null) error("Could not load cert/key at ${user.user}")
+                        log.info(
+                            "Client certificate authentication is not currently supported. " +
+                                "Falling back to kubectl proxy approach."
+                        )
 
-                        KubernetesAuthenticationMethod.Certificate(cert, key)
+                        KubernetesAuthenticationMethod.Proxy(actualContext.name)
                     }
 
                     else -> {
@@ -80,11 +100,6 @@ sealed class KubernetesConfigurationSource {
                 return KubernetesConnection(
                     cluster.cluster.server,
                     authenticationMethod,
-                    cluster.cluster.certificateAuthorityData?.let {
-                        Base64.getDecoder().decode(it).toString(Charsets.UTF_8)
-                    } ?: cluster.cluster.certificateAuthority?.let { file ->
-                        File(file).takeIf { it.exists() }?.readText()
-                    }
                 )
             } catch (ex: Throwable) {
                 log.warn("Exception caught while parsing kube config at '${kubeConfigFile.absolutePath}'")
@@ -121,7 +136,6 @@ sealed class KubernetesConfigurationSource {
             return KubernetesConnection(
                 "https://kubernetes.default.svc",
                 KubernetesAuthenticationMethod.Token(token),
-                caCert,
                 namespace ?: "default"
             )
         }
@@ -142,20 +156,66 @@ sealed class KubernetesConfigurationSource {
 
 sealed class KubernetesAuthenticationMethod {
     open fun configureClient(httpClientConfig: HttpClientConfig<OkHttpConfig>) {}
-    open fun configureRequest() {}
-    class Certificate(val cert: String, val key: String) : KubernetesAuthenticationMethod() {
-        override fun toString(): String {
-            return "Certificate(cert='$cert')"
+    open fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {}
+    class Proxy(val context: String) : KubernetesAuthenticationMethod() {
+        private fun startProxy(): Process {
+            return ProcessBuilder(
+                "kubectl",
+                "--context",
+                context,
+                "proxy",
+                "--port",
+                "42010"
+            ).start()
+        }
+
+        private var proxy: Process = startProxy()
+
+        override fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {
+            if (!proxy.isAlive) {
+                log.warn("Warning kubectl proxy died! Do you have kubectl configured correctly?")
+                if (!proxy.waitFor(30, TimeUnit.SECONDS)) {
+                    proxy.destroyForcibly()
+                }
+                proxy = startProxy()
+            }
+
+            httpRequestBuilder.url(httpRequestBuilder.url.clone().build().copy(
+                protocol = URLProtocol.HTTP,
+                host = "localhost",
+                specifiedPort = 42010
+            ).toString())
+        }
+
+        companion object : Loggable {
+            override val log = logger()
         }
     }
 
     class Token(val token: String) : KubernetesAuthenticationMethod() {
+        override fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {
+            with(httpRequestBuilder) {
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+        }
+
         override fun toString(): String {
             return "Token()"
         }
     }
 
     class BasicAuth(val username: String, val password: String) : KubernetesAuthenticationMethod() {
+        private val header = "Basic " + Base64.getEncoder()
+            .encode("$username:$password".toByteArray())
+            .toString(Charsets.UTF_8)
+
+        override fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {
+            with(httpRequestBuilder) {
+                println(header)
+                header(HttpHeaders.Authorization, header)
+            }
+        }
+
         override fun toString(): String {
             return "BasicAuth(username='$username')"
         }
@@ -165,25 +225,43 @@ sealed class KubernetesAuthenticationMethod {
 class KubernetesConnection(
     masterUrl: String,
     val authenticationMethod: KubernetesAuthenticationMethod,
-    val certificateAuthority: String? = null,
     val defaultNamespace: String = "default"
 ) {
     val masterUrl = masterUrl.removeSuffix("/")
     override fun toString(): String {
         return "KubernetesConnection(" +
             "authenticationMethod=$authenticationMethod, " +
-            "certificateAuthority=$certificateAuthority, " +
             "defaultNamespace='$defaultNamespace', " +
             "masterUrl='$masterUrl'" +
             ")"
     }
 }
 
+data class KubernetesResourceLocator(
+    val apiGroup: String,
+    val version: String,
+    val resourceType: String,
+    val name: String? = null,
+    val namespace: String? = null
+) {
+    fun withName(name: String): KubernetesResourceLocator = copy(name = name)
+    fun withNamespace(namespace: String): KubernetesResourceLocator = copy(namespace = namespace)
+    fun withNameAndNamespace(name: String, namespace: String): KubernetesResourceLocator =
+        copy(name = name, namespace = namespace)
+
+    companion object {
+        val common = KubernetesResources
+    }
+}
+
 class KubernetesClient(
     private val configurationSource: KubernetesConfigurationSource = KubernetesConfigurationSource.Auto
 ) {
-    private val conn = configurationSource.retrieveConnection() ?: error("Found no valid Kubernetes configuration")
-    private val httpClient = HttpClient(OkHttp) {
+    @PublishedApi
+    internal val conn = configurationSource.retrieveConnection() ?: error("Found no valid Kubernetes configuration")
+
+    @PublishedApi
+    internal val httpClient = HttpClient(OkHttp) {
         conn.authenticationMethod.configureClient(this)
 
         engine {
@@ -200,17 +278,166 @@ class KubernetesClient(
         log.info("Kubernetes client will use the following connection parameters: $conn")
     }
 
-    suspend fun getResource() {}
+    @PublishedApi
+    internal fun buildUrl(locator: KubernetesResourceLocator): String = buildString {
+        return buildString {
+            with(locator) {
+                append(conn.masterUrl)
+                append('/')
+                if (apiGroup == API_GROUP_LEGACY) {
+                    append("api/")
+                } else {
+                    append("apis/")
+                    append(apiGroup)
+                    append('/')
+                }
+                append(version)
+                append('/')
+                append("namespaces/")
+                append(namespace ?: conn.defaultNamespace)
+                append('/')
+                append(resourceType)
+                if (name != null) {
+                    append('/')
+                    append(name)
+                }
+            }
+        }
+    }
 
-    suspend fun postResource() {}
+    @PublishedApi
+    internal suspend inline fun <reified T> parseResponse(resp: HttpResponse): T {
+        if (!resp.status.isSuccess()) {
+            throw KubernetesException(
+                resp.status,
+                resp.content.toByteArray(1024 * 4096).decodeToString()
+            )
+        }
 
-    suspend fun patchResource() {}
+        try {
+            // Never read more than 32MB in a response
+            // This is just used as a safe-guard against a malicious server
+            val data = resp.content.toByteArray(1024 * 1024 * 32)
+            @Suppress("BlockingMethodInNonBlockingContext")
+            return defaultMapper.readValue(data)
+        } catch (ex: Exception) {
+            throw RuntimeException("Caught an exception while attempting to deserialize message", ex)
+        }
+    }
 
-    suspend fun deleteResource() {}
+    suspend fun getResource(locator: KubernetesResourceLocator): JsonNode {
+        val resp = httpClient.request<HttpResponse> {
+            url(buildUrl(locator))
 
-    suspend fun watchResource() {}
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            conn.authenticationMethod.configureRequest(this)
+        }
+
+        return parseResponse(resp)
+    }
+
+    suspend inline fun <reified T> listResources(locator: KubernetesResourceLocator): List<T> {
+        val resp = httpClient.request<HttpResponse> {
+            url(buildUrl(locator))
+
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            conn.authenticationMethod.configureRequest(this)
+        }
+
+        val parsedResp = parseResponse<JsonNode>(resp)
+        val items = parsedResp["items"].takeIf { it.nodeType == JsonNodeType.ARRAY }
+            ?: error("Could not parse items of response: $parsedResp")
+
+        return (0 until items.size()).map {
+            defaultMapper.treeToValue<T>(items[it])
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    inline fun <reified T : WatchEvent<*>> watchResource(
+        scope: CoroutineScope,
+        locator: KubernetesResourceLocator
+    ): ReceiveChannel<T> {
+        return scope.produce {
+            val resp = httpClient.request<HttpStatement> {
+                url(buildUrl(locator) + "?watch")
+
+                header(HttpHeaders.Accept, ContentType.Application.Json)
+                conn.authenticationMethod.configureRequest(this)
+            }
+
+            val content = resp.receive<ByteReadChannel>()
+
+            while (isActive) {
+                val nextLine = content.readUTF8Line() ?: break
+                @Suppress("BlockingMethodInNonBlockingContext")
+                send(defaultMapper.readValue<T>(nextLine))
+            }
+        }
+    }
+
+    suspend inline fun deleteResource(locator: KubernetesResourceLocator): JsonNode {
+        val resp = httpClient.request<HttpResponse> {
+            url(buildUrl(locator))
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            conn.authenticationMethod.configureRequest(this)
+            method = HttpMethod.Delete
+        }
+        return parseResponse(resp)
+    }
+
+    suspend inline fun replaceResource(
+        locator: KubernetesResourceLocator,
+        replacementJson: String
+    ): JsonNode {
+        val resp = httpClient.request<HttpResponse> {
+            url(buildUrl(locator))
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            conn.authenticationMethod.configureRequest(this)
+            method = HttpMethod.Put
+            body = TextContent(replacementJson, ContentType.Application.Json)
+        }
+        return parseResponse(resp)
+    }
+
+    suspend fun patchResource(
+        locator: KubernetesResourceLocator,
+        replacementJson: String
+    ): JsonNode {
+        val resp = httpClient.request<HttpResponse> {
+            url(buildUrl(locator))
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            conn.authenticationMethod.configureRequest(this)
+            method = HttpMethod.Patch
+            body = TextContent(replacementJson, ContentType.Application.Json)
+        }
+        return parseResponse(resp)
+    }
+
+    suspend fun createResource(
+        locator: KubernetesResourceLocator,
+        replacement: String,
+        contentType: ContentType = ContentType.Application.Json
+    ): JsonNode {
+        val resp = httpClient.request<HttpResponse> {
+            url(buildUrl(locator))
+            header(HttpHeaders.Accept, ContentType.Application.Json)
+            conn.authenticationMethod.configureRequest(this)
+            method = HttpMethod.Post
+            body = TextContent(replacement, contentType)
+        }
+        return parseResponse(resp)
+    }
 
     companion object : Loggable {
         override val log = logger()
     }
 }
+
+const val API_GROUP_CORE = ""
+const val API_GROUP_LEGACY = API_GROUP_CORE
+
+class KubernetesException(
+    val statusCode: HttpStatusCode,
+    val responseBody: String
+) : RuntimeException("Kubernetes returned an error: $statusCode. Reason: $responseBody")
