@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.PublicIPService
 import dk.sdu.cloud.calls.server.RpcServer
@@ -9,7 +8,6 @@ import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.toActor
 
@@ -35,39 +33,19 @@ class PublicIPController(
         }
 
         implement(PublicIPs.approveAddress) {
-            ok(
-                publicIps.approveApplication(db, request.id)
-            )
+            ok(publicIps.approveApplication(db, request.id))
         }
 
         implement(PublicIPs.rejectAddress) {
-            ok(
-                publicIps.rejectApplication(db, request.id)
-            )
+            ok(publicIps.rejectApplication(db, request.id))
         }
 
         implement(PublicIPs.listAddressApplicationsForApproval) {
-            ok(Page(1, 10, 1, listOf(
-                AddressApplication(
-                    42,
-                    "This is my application",
-                    System.currentTimeMillis() - (1000 * 60 * 60 * 3),
-                    "Awesome project name",
-                    WalletOwnerType.PROJECT
-                )
-            )))
+            ok(publicIps.listAddressApplicationsForApproval(db, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
         implement(PublicIPs.listAddressApplications) {
-            ok(Page(1, 10, 1, listOf(
-                AddressApplication(
-                    42,
-                    "This is my application",
-                    System.currentTimeMillis() - (1000 * 60 * 60 * 3),
-                    "Awesome project name",
-                    WalletOwnerType.PROJECT
-                )
-            )))
+            ok(publicIps.listAddressApplications(db, ctx.securityPrincipal.toActor(), ctx.project, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
         implement(PublicIPs.listAssignedAddresses) {

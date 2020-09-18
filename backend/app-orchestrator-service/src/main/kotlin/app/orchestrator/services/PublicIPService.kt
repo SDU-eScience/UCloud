@@ -2,10 +2,7 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.app.orchestrator.api.ApplicationStatus
-import dk.sdu.cloud.app.orchestrator.api.InternetProtocol
-import dk.sdu.cloud.app.orchestrator.api.PortAndProtocol
-import dk.sdu.cloud.app.orchestrator.api.PublicIP
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -267,7 +264,7 @@ class PublicIPService {
                     offset :offset
                     limit :limit
                 """.trimIndent()
-            ).rows.toPublicIPPage(session)
+            ).rows.toPublicIPs(session)
         }
 
         return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())
@@ -308,16 +305,75 @@ class PublicIPService {
                     offset :offset
                     limit :limit
                 """.trimIndent()
-            ).rows.toPublicIPPage(session)
+            ).rows.toPublicIPs(session)
         }
 
         return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())
     }
 
+    suspend fun listAddressApplicationsForApproval(
+        ctx: DBContext,
+        pagination: NormalizedPaginationRequest,
+    ): Page<AddressApplication> {
+        val items = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("offset", pagination.offset)
+                    setParameter("limit", pagination.itemsPerPage)
+                    setParameter("pending", ApplicationStatus.PENDING.toString())
+                },
+                """
+                    select id, applicant_id, applicant_type, created_at, status from address_applications
+                    where status = :pending
+                    offset :offset
+                    limit :limit
+                """.trimIndent()
+            ).rows.toAddressApplications()
+        }
 
+        return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())
+    }
 
+    suspend fun listAddressApplications(
+        ctx: DBContext,
+        actor: Actor,
+        project: String?,
+        pagination: NormalizedPaginationRequest,
+    ): Page<AddressApplication> {
+        val applicantType = if (project.isNullOrBlank()) {
+            WalletOwnerType.USER
+        } else {
+            WalletOwnerType.PROJECT
+        }
 
-    private suspend fun Iterable<RowData>.toPublicIPPage(session: AsyncDBConnection): Collection<PublicIP> {
+        val applicantId = if (applicantType == WalletOwnerType.PROJECT) {
+            project
+        } else {
+            actor.username
+        }
+
+        val items = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("offset", pagination.offset)
+                    setParameter("limit", pagination.itemsPerPage)
+                    setParameter("pending", ApplicationStatus.PENDING.toString())
+                    setParameter("applicantId", applicantId)
+                    setParameter("applicantType", applicantType.toString())
+                },
+                """
+                    select id, applicant_id, applicant_type, created_at, status from address_applications
+                    where applicant_id = :applicantId and applicant_type = :applicantType
+                    offset :offset
+                    limit :limit
+                """.trimIndent()
+            ).rows.toAddressApplications()
+        }
+
+        return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())
+    }
+
+    private suspend fun Iterable<RowData>.toPublicIPs(session: AsyncDBConnection): Collection<PublicIP> {
         return map { application ->
             val openPorts = session.sendPreparedStatement(
                 {
@@ -344,4 +400,16 @@ class PublicIPService {
         }
     }
 
+    private suspend fun Iterable<RowData>.toAddressApplications(): Collection<AddressApplication> {
+        return map { application ->
+            AddressApplication(
+                application.getField(AddressApplicationsTable.id),
+                application.getField(AddressApplicationsTable.application),
+                application.getField(AddressApplicationsTable.createdAt).toTimestamp(),
+                application.getField(AddressApplicationsTable.applicantId),
+                WalletOwnerType.valueOf(application.getField(AddressApplicationsTable.applicantType)),
+                ApplicationStatus.valueOf(application.getField(AddressApplicationsTable.status)),
+            )
+        }
+    }
 }

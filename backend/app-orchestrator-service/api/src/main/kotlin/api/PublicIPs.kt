@@ -134,7 +134,8 @@ data class AddressApplication(
     val application: String,
     val createdAt: Long,
     val entityId: String,
-    val entityType: WalletOwnerType
+    val entityType: WalletOwnerType,
+    val status: ApplicationStatus
 )
 
 data class ListAddressApplicationsRequest(
