@@ -456,7 +456,7 @@ function DashboardResources({wallets, loading, quota}: {
                                             {" "}of{" "}
                                             {sizeToString(quota.quotaInBytes)}
                                             {" "}({(100 * (quota.quotaInBytes !== 0 ?
-                                                (quota.quotaUsed ?? 0 / quota.quotaInBytes) : 1
+                                                ((quota.quotaUsed ?? 0) / quota.quotaInBytes) : 1
                                             )).toFixed(2)}%)
                                         </TableCell>
                                     </TableRow>
