@@ -7,6 +7,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
+import org.joda.time.DateTimeZone
+import org.joda.time.LocalDateTime
 
 object OpenPortsTable: SQLTable("open_ports") {
     val id = long("id", notNull = true)
@@ -23,8 +25,8 @@ object IpPoolTable: SQLTable("ip_pool") {
 object AddressApplicationsTable: SQLTable("address_applications") {
     val id = long("id", notNull = true)
     val createdAt = timestamp("created_at", notNull = true)
-    val approvedAt = text("approved_at")
-    val releasedAt = text("released_at")
+    val approvedAt = timestamp("approved_at")
+    val releasedAt = timestamp("released_at")
     val ip = text("ip")
     val status = text("status", notNull = true)
     val applicantId = text("applicant_id", notNull = true)
@@ -59,7 +61,7 @@ class PublicIPService {
                     setParameter("applicantType", applicantType.toString())
                     setParameter("applicantId", applicantId)
                     setParameter("status", ApplicationStatus.PENDING.toString())
-                    setParameter("createdAt", Time.now())
+                    setParameter("createdAt", LocalDateTime(Time.now(), DateTimeZone.UTC))
                     setParameter("application", application)
                 },
                 """
@@ -110,7 +112,7 @@ class PublicIPService {
                 {
                     setParameter("applicationId", applicationId)
                     setParameter("newStatus", ApplicationStatus.APPROVED.toString())
-                    setParameter("time", Time.now())
+                    setParameter("time", LocalDateTime(Time.now(), DateTimeZone.UTC))
                     setParameter("ip", foundIp.first().getString("ip"))
                 },
                 """
@@ -200,7 +202,7 @@ class PublicIPService {
             session.sendPreparedStatement(
                 {
                     setParameter("id", id)
-                    setParameter("time", Time.now())
+                    setParameter("time", LocalDateTime(Time.now(), DateTimeZone.UTC))
                     setParameter("status", ApplicationStatus.RELEASED.toString())
                 },
                 """
