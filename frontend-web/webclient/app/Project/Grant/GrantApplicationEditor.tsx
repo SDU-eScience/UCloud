@@ -5,7 +5,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
 import {Box, Button, ButtonGroup, Card, Flex, Icon, Input, Label, Text, TextArea, theme} from "ui-components";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
     ProductArea,
     productCategoryEquals,
@@ -45,9 +45,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {dateToString} from "Utilities/DateUtilities";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
-import {useAvatars} from "AvataaarLib/hook";
-import {Toggle} from "ui-components/Toggle";
-import {doNothing} from "UtilityFunctions";
+import {AvatarHook, useAvatars} from "AvataaarLib/hook";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
 import {useTitle} from "Navigation/Redux/StatusActions";
@@ -110,7 +108,22 @@ export enum RequestTarget {
     VIEW_APPLICATION = "view"
 }
 
-function useRequestInformation(target: RequestTarget) {
+interface UseRequestInformation {
+    wallets: WalletBalance[];
+    reloadWallets: () => void;
+    targetProject?: string;
+    documentRef: React.RefObject<HTMLTextAreaElement>;
+    templates: APICallState<ReadTemplatesResponse>;
+    recipient: GrantRecipient;
+    editingApplication?: GrantApplication;
+    comments: Comment[];
+    avatars: AvatarHook;
+    reload: () => void;
+    approver: boolean;
+    loading: boolean;
+}
+
+function useRequestInformation(target: RequestTarget): UseRequestInformation {
     let targetProject: string | undefined;
     let wallets: WalletBalance[] = [];
     let reloadWallets: () => void = () => {
