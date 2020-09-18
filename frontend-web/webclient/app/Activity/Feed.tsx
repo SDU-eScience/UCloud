@@ -58,7 +58,7 @@ const ActivityEvent: React.FunctionComponent<{
             <OperationText event={props.event} groups={props.groups} />
         </div>
     );
-}
+};
 
 // Performance note: Don't use styled components here.
 const OperationText: React.FunctionComponent<{
@@ -138,13 +138,13 @@ const OperationText: React.FunctionComponent<{
                 if (Client.hasActiveProject) {
                     return <span> No files were used in {used.applicationName} v{used.applicationVersion} by {used.username}</span>;
                 } else {
-                    return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>
+                    return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>;
                 }
             } else {
                 if (Client.hasActiveProject) {
                     return <span> were used in {used.applicationName} v{used.applicationVersion} by {used.username}</span>;
                 } else {
-                    return <span> were used in {used.applicationName} v{used.applicationVersion}</span>
+                    return <span> were used in {used.applicationName} v{used.applicationVersion}</span>;
                 }
             }
         }
@@ -154,7 +154,7 @@ const OperationText: React.FunctionComponent<{
                 if (Client.hasActiveProject) {
                     return <span> No files were used in {used.applicationName} v{used.applicationVersion} by {used.username}</span>;
                 } else {
-                    return <span> No files were used in {used.applicationName} v{used.applicationVersion} </span>
+                    return <span> No files were used in {used.applicationName} v{used.applicationVersion} </span>;
                 }
             }
             else {

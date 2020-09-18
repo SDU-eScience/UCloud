@@ -27,16 +27,16 @@ exports[`Search mount 1`] = `
   background-color: #fff;
 }
 
-.c8 {
+.c9 {
   margin-left: auto;
 }
 
-.c9 {
+.c10 {
   margin-top: 8px;
   margin-bottom: 8px;
 }
 
-.c14 {
+.c15 {
   padding-top: 96px;
   padding-right: 14px;
 }
@@ -47,7 +47,7 @@ exports[`Search mount 1`] = `
   left: 0;
 }
 
-.c13 {
+.c14 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -62,20 +62,20 @@ exports[`Search mount 1`] = `
   margin-right: 1em;
 }
 
-.c11 {
+.c12 {
   cursor: pointer;
 }
 
-.c12 {
+.c13 {
   cursor: inherit;
 }
 
-.c10 {
+.c11 {
   position: relative;
   display: inline-block;
 }
 
-.c10:hover > div {
+.c11:hover > div {
   display: block;
 }
 
@@ -84,43 +84,48 @@ exports[`Search mount 1`] = `
   cursor: pointer;
 }
 
+.c7 {
+  cursor: pointer;
+  margin-right: 1em;
+}
+
 .c3 {
   position: fixed;
   z-index: 50;
 }
 
 @media screen and (max-width:511px) {
-  .c7 {
+  .c8 {
     display: none;
   }
 }
 
 @media screen and (min-width:512px) and (max-width:639px) {
-  .c7 {
+  .c8 {
     display: none;
   }
 }
 
 @media screen and (min-width:640px) and (max-width:767px) {
-  .c7 {
+  .c8 {
     display: none;
   }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c15 {
+  .c16 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c15 {
+  .c16 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c15 {
+  .c16 {
     display: none;
   }
 }
@@ -137,7 +142,7 @@ exports[`Search mount 1`] = `
       className="c4 c5"
     >
       <div
-        className="c6 "
+        className="c6 c7"
         cursor="pointer"
         fontSize={3}
         onClick={[Function]}
@@ -146,7 +151,7 @@ exports[`Search mount 1`] = `
         Files
       </div>
       <div
-        className="c6 "
+        className="c6 c7"
         cursor="pointer"
         fontSize={3}
         onClick={[Function]}
@@ -156,41 +161,41 @@ exports[`Search mount 1`] = `
       </div>
     </div>
     <div
-      className="c7"
+      className="c8"
     >
       <div
         className="c4"
       >
         <div
-          className="c8"
+          className="c9"
         />
         <div
-          className="c9"
+          className="c10"
         >
           <div
             className="c4"
           >
             <div
-              className="c8"
+              className="c9"
             />
             <div
-              className="c10"
+              className="c11"
               data-tag="dropdown"
             >
               <span
-                className="c11"
+                className="c12"
                 cursor="pointer"
                 onClick={[Function]}
               >
                 <span
-                  className="c12"
+                  className="c13"
                   cursor="inherit"
                 >
                    
                   Files per page 25
                 </span>
                 <svg
-                  className="c13"
+                  className="c14"
                   clipRule="evenodd"
                   cursor="inherit"
                   fill="currentcolor"
@@ -213,10 +218,10 @@ exports[`Search mount 1`] = `
     </div>
   </div>
   <div
-    className="c14"
+    className="c15"
   >
     <div
-      className="c15"
+      className="c16"
     />
   </div>
 </div>

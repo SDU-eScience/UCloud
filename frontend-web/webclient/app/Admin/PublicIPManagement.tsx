@@ -3,12 +3,14 @@ import {Client} from "Authentication/HttpClientInstance";
 import format from "date-fns/format";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import styled from "styled-components";
 import {Button, ButtonGroup, List, Text, Truncate} from "ui-components";
 import {ListRow} from "ui-components/List";
-import {setUploaderCallback} from "Uploader/Redux/UploaderActions";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {addStandardDialog, Lorem} from "UtilityComponents";
 
 const baseContext = "/hpc/ip/";
@@ -45,16 +47,22 @@ interface AddressApplication {
 
 export function PublicIPManagement(): JSX.Element | null {
     const [ipsForApproval, setParams, params] = useCloudAPI<Page<AddressApplication>>(
-        listAddressApplicationsForApprovalRequest({itemsPerPage: 25, page: 0}),
+        Client.userIsAdmin ? listAddressApplicationsForApprovalRequest({itemsPerPage: 25, page: 0}) : {noop: true},
         emptyPage);
 
     const [, sendCommand] = useAsyncCommand();
     const dispatch = useDispatch();
+    useSidebarPage(SidebarPages.Admin);
+    useTitle("IP Management");
 
     const reload = (): void => setParams({...params});
     React.useEffect(() => {
-        dispatch(setUploaderCallback(() => reload()));
+        dispatch(setRefreshFunction(() => reload()));
     }, [reload]);
+
+    React.useEffect(() => {
+        return () => void dispatch(setRefreshFunction());
+    }, []);
 
     if (!Client.userIsAdmin) return null;
 
@@ -70,7 +78,9 @@ export function PublicIPManagement(): JSX.Element | null {
                             </HoverTruncate>
                         }
                         icon={null}
-                        leftSub={<Text fontSize={0} color="gray">Submitted {format(new Date(it.createdAt), "d LLL yyyy HH:mm")}</Text>}
+                        leftSub={<Text fontSize={0} color="gray">
+                            Submitted {format(new Date(it.createdAt), "d LLL yyyy HH:mm")}
+                        </Text>}
                         right={<ButtonGroup ml="-30px" width="200px">
                             <Button color="green" onClick={() => {
                                 addStandardDialog({
