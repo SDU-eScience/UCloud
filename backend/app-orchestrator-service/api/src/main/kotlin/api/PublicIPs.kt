@@ -138,16 +138,11 @@ data class AddressApplication(
     val status: ApplicationStatus
 )
 
-data class ListPendingAddressApplicationsRequest(
-    override val itemsPerPage: Int?,
-    override val page: Int?
-) : WithPaginationRequest
-typealias ListPendingAddressApplicationsResponse = Page<AddressApplication>
-
 data class ListAddressApplicationsRequest(
-    override val itemsPerPage: Int?,
-    override val page: Int?
-) : WithPaginationRequest
+    val status: ApplicationStatus,
+    val itemsPerPage: Int?,
+    val page: Int?
+)
 typealias ListAddressApplicationsResponse = Page<AddressApplication>
 
 data class OpenPortsRequest(val id: Long, val portList: List<PortAndProtocol>)
@@ -436,35 +431,9 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
     }
 
     /**
-     * Endpoint for end-users to list all active/pending applications. The project header is respected for this endpoint.
+     * Endpoint for end-users to list all applications. The project header is respected for this endpoint.
      */
-    val listPendingAddressApplications =
-        call<ListPendingAddressApplicationsRequest, ListPendingAddressApplicationsResponse, CommonErrorMessage>(
-            "listPendingAddressApplications"
-        ) {
-            auth {
-                access = AccessRight.READ
-            }
-
-            http {
-                method = HttpMethod.Get
-
-                path {
-                    using(baseContext)
-                    +"list-pending-applications"
-                }
-
-                params {
-                    +boundTo(ListPendingAddressApplicationsRequest::itemsPerPage)
-                    +boundTo(ListPendingAddressApplicationsRequest::page)
-                }
-            }
-        }
-
-    /**
-     * Endpoint for end-users to list all which are not pending applications. The project header is respected for this endpoint.
-     */
-    val listClosedAddressApplications =
+    val listAddressApplications =
         call<ListAddressApplicationsRequest, ListAddressApplicationsResponse, CommonErrorMessage>(
             "listAddressApplications"
         ) {
@@ -481,6 +450,7 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
                 }
 
                 params {
+                    +boundTo(ListAddressApplicationsRequest::status)
                     +boundTo(ListAddressApplicationsRequest::itemsPerPage)
                     +boundTo(ListAddressApplicationsRequest::page)
                 }

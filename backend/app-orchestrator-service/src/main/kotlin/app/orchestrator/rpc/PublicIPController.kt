@@ -44,12 +44,8 @@ class PublicIPController(
             ok(publicIps.listAddressApplicationsForApproval(db, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
-        implement(PublicIPs.listPendingAddressApplications) {
-            ok(publicIps.listPendingAddressApplications(db, ctx.securityPrincipal.toActor(), ctx.project, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
-        }
-
-        implement(PublicIPs.listClosedAddressApplications) {
-            ok(publicIps.listClosedAddressApplications(db, ctx.securityPrincipal.toActor(), ctx.project, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
+        implement(PublicIPs.listAddressApplications) {
+            ok(publicIps.listAddressApplications(db, ctx.securityPrincipal.toActor(), ctx.project, request.status, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
         implement(PublicIPs.listAssignedAddresses) {
