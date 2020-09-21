@@ -45,7 +45,7 @@ class PublicIPController(
         }
 
         implement(PublicIPs.listAddressApplications) {
-            ok(publicIps.listAddressApplications(db, ctx.securityPrincipal.toActor(), ctx.project, request.status, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
+            ok(publicIps.listAddressApplications(db, ctx.securityPrincipal.toActor(), ctx.project, request.pending, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
         implement(PublicIPs.listAssignedAddresses) {

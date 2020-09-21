@@ -348,7 +348,7 @@ class PublicIPService {
         ctx: DBContext,
         actor: Actor,
         project: String?,
-        status: ApplicationStatus,
+        pending: Boolean,
         pagination: NormalizedPaginationRequest,
     ): Page<AddressApplication> {
         val applicantType = if (project.isNullOrBlank()) {
@@ -363,22 +363,42 @@ class PublicIPService {
             actor.username
         }
 
-        val items = ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("offset", pagination.offset)
-                    setParameter("limit", pagination.itemsPerPage)
-                    setParameter("status", status.toString())
-                    setParameter("applicantId", applicantId)
-                    setParameter("applicantType", applicantType.toString())
-                },
-                """
-                    select id, applicant_id, application, applicant_type, created_at, status from address_applications
-                    where applicant_id = :applicantId and applicant_type = :applicantType and status = :status
-                    offset :offset
-                    limit :limit
-                """.trimIndent()
-            ).rows.toAddressApplications()
+        val items = if (pending) {
+            ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("offset", pagination.offset)
+                        setParameter("limit", pagination.itemsPerPage)
+                        setParameter("pending", ApplicationStatus.PENDING.toString())
+                        setParameter("applicantId", applicantId)
+                        setParameter("applicantType", applicantType.toString())
+                    },
+                    """
+                        select id, applicant_id, application, applicant_type, created_at, status from address_applications
+                        where applicant_id = :applicantId and applicant_type = :applicantType and status = :pending
+                        offset :offset
+                        limit :limit
+                    """.trimIndent()
+                ).rows.toAddressApplications()
+            }
+        } else {
+            ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("offset", pagination.offset)
+                        setParameter("limit", pagination.itemsPerPage)
+                        setParameter("pending", ApplicationStatus.PENDING.toString())
+                        setParameter("applicantId", applicantId)
+                        setParameter("applicantType", applicantType.toString())
+                    },
+                    """
+                        select id, applicant_id, application, applicant_type, created_at, status from address_applications
+                        where applicant_id = :applicantId and applicant_type = :applicantType and status != :pending
+                        offset :offset
+                        limit :limit
+                    """.trimIndent()
+                ).rows.toAddressApplications()
+            }
         }
 
         return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())

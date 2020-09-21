@@ -139,7 +139,7 @@ data class AddressApplication(
 )
 
 data class ListAddressApplicationsRequest(
-    val status: ApplicationStatus,
+    val pending: Boolean,
     val itemsPerPage: Int?,
     val page: Int?
 )
@@ -450,7 +450,7 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
                 }
 
                 params {
-                    +boundTo(ListAddressApplicationsRequest::status)
+                    +boundTo(ListAddressApplicationsRequest::pending)
                     +boundTo(ListAddressApplicationsRequest::itemsPerPage)
                     +boundTo(ListAddressApplicationsRequest::page)
                 }
