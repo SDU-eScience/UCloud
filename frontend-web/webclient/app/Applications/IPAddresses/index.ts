@@ -59,9 +59,13 @@ export function releaseAddress(
         payload: request
     };
 }
-export interface UpdatePortsRequest {
+export interface OpenPortsRequest {
     id: number,
-    newPortList: PortAndProtocol[],
+    portList: PortAndProtocol[],
+}
+export interface ClosePortsRequest {
+    id: number,
+    portList: PortAndProtocol[],
 }
 export interface PortAndProtocol {
     port: number,
@@ -71,12 +75,23 @@ export enum InternetProtocol {
     TCP = "TCP",
     UDP = "UDP",
 }
-export function updatePorts(
-    request: UpdatePortsRequest
-): APICallParameters<UpdatePortsRequest> {
+export function openPorts(
+    request: OpenPortsRequest
+): APICallParameters<OpenPortsRequest> {
     return {
         method: "POST",
-        path: "/hpc/ip/update-ports",
+        path: "/hpc/ip/open-ports",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request
+    };
+}
+export function closePorts(
+    request: ClosePortsRequest
+): APICallParameters<ClosePortsRequest> {
+    return {
+        method: "POST",
+        path: "/hpc/ip/close-ports",
         parameters: request,
         reloadId: Math.random(),
         payload: request

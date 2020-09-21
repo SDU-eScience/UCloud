@@ -7,7 +7,7 @@ import {
     listMyAddresses,
     PortAndProtocol,
     PublicIP, releaseAddress,
-    updatePorts
+    openPorts, closePorts
 } from "Applications/IPAddresses/index";
 import styled from "styled-components";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -17,6 +17,7 @@ import {
     ButtonGroup,
     ConfirmButton,
     Flex,
+    Icon,
     Input,
     Label,
     SelectableText,
@@ -107,7 +108,18 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
             return;
         }
 
-        await invokeCommand(updatePorts({id: editing.id, newPortList: editing.openPorts.concat([portAndProtocol])}));
+        await invokeCommand(openPorts({id: editing.id, portList: [portAndProtocol]}));
+        fetchMyAddresses({...myAddressesParams});
+    };
+
+
+    const onClosePort = async (portAndProtocol: PortAndProtocol): Promise<void> => {
+        if (editing === undefined) {
+            snackbarStore.addFailure("Could not close port (internal error)", false);
+            return;
+        }
+
+        await invokeCommand(closePorts({id: editing.id, portList: [portAndProtocol]}));
         fetchMyAddresses({...myAddressesParams});
     };
 
@@ -238,7 +250,9 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                 <TableHeaderCell textAlign={"left"}>
                                     <Label>Protocol</Label>
                                 </TableHeaderCell>
-                                <TableHeaderCell/>
+                                <TableHeaderCell textAlign={"right"}>
+                                    <Label>Close</Label>
+                                </TableHeaderCell>
                             </TableRow>
                         </TableHeader>
                         <tbody>
@@ -247,7 +261,18 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                             <TableRow key={it.port}>
                                 <TableCell>{it.port}</TableCell>
                                 <TableCell>{it.protocol}</TableCell>
-                                <TableCell/>
+                                <TableCell textAlign={"right"}>
+                                    <Button
+                                        color={"red"}
+                                        type={"button"}
+                                        paddingLeft={10}
+                                        paddingRight={10}
+
+                                        onClick={() => onClosePort({port: it.port, protocol: it.protocol})}
+                                    >
+                                        <Icon size={16} name="trash" />
+                                    </Button>
+                                </TableCell>
                             </TableRow>
                         ))}
                         <TableRow>

@@ -56,8 +56,12 @@ class PublicIPController(
             ok(publicIps.listMyAddresses(db, ctx.securityPrincipal.toActor(), ctx.project, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
-        implement(PublicIPs.updatePorts) {
-            ok(publicIps.updatePorts(db, request.id, request.newPortList))
+        implement(PublicIPs.openPorts) {
+            ok(publicIps.openPorts(db, request.id, request.portList))
+        }
+
+        implement(PublicIPs.closePorts) {
+            ok(publicIps.closePorts(db, request.id, request.portList))
         }
 
         implement(PublicIPs.releaseAddress) {

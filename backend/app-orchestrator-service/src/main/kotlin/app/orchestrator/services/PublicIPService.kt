@@ -212,42 +212,13 @@ class PublicIPService {
         }
     }
 
-    suspend fun updatePorts(
+    suspend fun openPorts(
         ctx: DBContext,
         id: Long,
         ports: List<PortAndProtocol>
     ) {
         ctx.withSession { session ->
-            val openPorts = session.sendPreparedStatement(
-                {
-                    setParameter("id", id)
-                },
-                """
-                    select * from open_ports where application_id = :id
-                """.trimIndent()
-            ).rows.map {
-                PortAndProtocol(
-                    it.getField(OpenPortsTable.port),
-                    InternetProtocol.valueOf(it.getField(OpenPortsTable.protocol))
-                )
-            }
-
-            // Close ports
-            openPorts.filter { !ports.contains(it) }.forEach {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("id", id)
-                        setParameter("port", it.port)
-                        setParameter("protocol", it.protocol.toString())
-                    },
-                    """
-                        delete from open_ports where application_id = :id and port = :port and protocol = :protocol 
-                    """.trimIndent()
-                )
-            }
-
-            // Open ports
-            ports.filter { !openPorts.contains(it) }.forEach {
+            ports.forEach {
                 session.sendPreparedStatement(
                     {
                         setParameter("id", id)
@@ -256,6 +227,28 @@ class PublicIPService {
                     },
                     """
                         insert into open_ports (application_id, port, protocol) values (:id, :port, :protocol)
+                    """.trimIndent()
+                )
+            }
+        }
+    }
+
+    suspend fun closePorts(
+        ctx: DBContext,
+        id: Long,
+        ports: List<PortAndProtocol>
+    ) {
+        ctx.withSession { session ->
+            // Close ports
+            ports.forEach {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                        setParameter("port", it.port)
+                        setParameter("protocol", it.protocol.toString())
+                    },
+                    """
+                        delete from open_ports where application_id = :id and port = :port and protocol = :protocol 
                     """.trimIndent()
                 )
             }
