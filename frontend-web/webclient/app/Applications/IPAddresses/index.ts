@@ -75,6 +75,26 @@ export enum InternetProtocol {
     TCP = "TCP",
     UDP = "UDP",
 }
+export enum ApplicationStatus {
+    PENDING = "PENDING",
+    APPROVED = "APPROVED",
+    DECLINED = "DECLINED",
+    RELEASED = "RELEASED"
+}
+
+export function readableApplicationStatus(status: ApplicationStatus): String {
+    switch (status) {
+        case ApplicationStatus.PENDING:
+            return "Pending";
+        case ApplicationStatus.APPROVED:
+            return "Approved";
+        case ApplicationStatus.DECLINED:
+            return "Declined"
+        case ApplicationStatus.RELEASED:
+            return "Released"
+    }
+}
+
 export function openPorts(
     request: OpenPortsRequest
 ): APICallParameters<OpenPortsRequest> {
@@ -181,12 +201,14 @@ export function listMyAddresses(
     };
 }
 export interface ListAddressApplicationsRequest {
+    pending: boolean,
     itemsPerPage?: number,
     page?: number,
 }
 export interface AddressApplication {
     application: string,
     id: number,
+    status: ApplicationStatus,
     createdAt: number,
 }
 export function listAddressApplications(
