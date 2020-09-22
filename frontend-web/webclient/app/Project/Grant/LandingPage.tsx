@@ -45,7 +45,7 @@ export const LandingPage: React.FunctionComponent = () => {
                     <LandingPageCard
                         color={"green"}
                         icon={"user"}
-                        title={"Personal Project"}
+                        title={"My Workspace"}
                         linkLocation={"/projects/browser/personal"}
                     >
                         <ul>

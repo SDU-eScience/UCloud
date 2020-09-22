@@ -359,7 +359,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 useTitle("Create Project");
                 break;
             case RequestTarget.PERSONAL_PROJECT:
-                useTitle("Personal Project");
+                useTitle("My Workspace");
                 break;
             case RequestTarget.VIEW_APPLICATION:
                 useTitle("Viewing Application");

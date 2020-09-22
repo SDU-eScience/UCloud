@@ -291,12 +291,12 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         onClick={() => {
                                             if (props.project !== undefined && props.project !== "") {
                                                 props.setProject();
-                                                snackbarStore.addInformation("Personal project is now the active.", false);
+                                                snackbarStore.addInformation("Personal workspace is now the active.", false);
                                             }
                                         }}
                                     >
                                         <Link to="/project/dashboard">
-                                            Personal project
+                                            My Workspace
                                         </Link>
                                     </Box>
                                 </>
@@ -305,7 +305,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             right={<Flex alignItems="center" height="36.25px">
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
                                     if (!props.project) return;
-                                    snackbarStore.addInformation("Personal project is now the active.", false);
+                                    snackbarStore.addInformation("Personal workspace is now the active.", false);
                                     props.setProject();
                                 }} />
                                 {selectedProjects.size === 0 && projectOperations.length > 0 ?
@@ -328,7 +328,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 favorite: false,
                                                 needsVerification: false,
                                                 projectId: "",
-                                                title: "Personal Project",
+                                                title: "My Workspace",
                                                 whoami: {role: ProjectRole.ADMIN, username: Client.username!}
                                             }]}
                                             projectOperations={personalProjectOperations}

@@ -27,7 +27,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
         emptyPage
     );
 
-    let activeContext = "Personal Project";
+    let activeContext = "My Workspace";
     if (props.activeProject) {
         const membership = projectStatus.fetch().membership.find(it => it.projectId === props.activeProject);
         if (membership) {
@@ -61,7 +61,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                 {props.activeProject ?
                     (
                         <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
-                            Personal project
+                            My Workspace
                         </Text>
                     ) : null
                 }
