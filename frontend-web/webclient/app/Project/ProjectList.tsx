@@ -415,14 +415,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 }}
                                 height="30px"
                             >
-                                <Link to="/project/dashboard">
-                                    {e.title}{e.archived ?
-                                        <Icon
-                                            ml="6px"
-                                            name={"tags"}
-                                            hoverColor={"black"}
-                                        /> : null
-                                    }
+                                <Link to="/project/dashboard" color={e.archived ? "darkGray" : "black"}>
+                                    {e.title}
                                 </Link>
                             </Box>
                         </>
@@ -430,6 +424,25 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     leftSub={<Text color="gray" fontSize={0}>{e.ancestorPath ? e.ancestorPath + "/" : null}</Text>}
                     right={
                         <Flex alignItems="center" height="36.25px">
+                            {e.archived ?
+                                <Tooltip
+                                    tooltipContentWidth="80px"
+                                    wrapperOffsetLeft="0"
+                                    wrapperOffsetTop="4px"
+                                    right="0"
+                                    top="1"
+                                    mb="50px"
+                                    trigger={(
+                                        <Icon
+                                            mr={8}
+                                            name={"tags"}
+                                            color={"gray"}
+                                        />
+                                    )}
+                                >
+                                    <Text fontSize={2}>Archived</Text>
+                                </Tooltip>
+                            : null}
                             {!e.needsVerification ? null : (
                                 <Text fontSize={0} mr={8}>
                                     <Icon name={"warning"} /> Attention required
