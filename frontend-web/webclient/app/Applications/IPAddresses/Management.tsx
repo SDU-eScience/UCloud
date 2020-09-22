@@ -109,13 +109,13 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
         setActivePage(PAGE_EDIT);
     };
 
-    const onEditSubmit = async (portAndProtocol: PortAndProtocol): Promise<void> => {
+    const onEditSubmit = async (portAndProtocols: PortAndProtocol[]): Promise<void> => {
         if (editing === undefined) {
             snackbarStore.addFailure("Could not add port (internal error)", false);
             return;
         }
 
-        await invokeCommand(openPorts({id: editing.id, portList: [portAndProtocol]}));
+        await invokeCommand(openPorts({id: editing.id, portList: portAndProtocols}));
         fetchMyAddresses({...myAddressesParams});
     };
 
@@ -312,7 +312,7 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                             if (isNaN(port)) {
                                                 snackbarStore.addFailure("Please fill out 'From' port field.", false);
                                             } else if (isNaN(upperPort)) {
-                                                await onEditSubmit({port, protocol: editingProtocol});
+                                                await onEditSubmit([{port, protocol: editingProtocol}]);
                                                 portInput.value = "";
                                                 upperPortInput.value = "";
                                             } else if (port > upperPort) {
@@ -320,14 +320,13 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                             } else {
                                                 const min = Math.min(port, upperPort);
                                                 const max = Math.max(port, upperPort);
-                                                for (let p = min; p <= max; p++) {
-                                                    try {
-                                                        await onEditSubmit({port: p, protocol: editingProtocol});
-                                                    } catch (e) {
-                                                        snackbarStore.addFailure(
-                                                            errorMessageOrDefault(e, "Failed to update port"), false
-                                                        );
-                                                    }
+                                                const portRange = [...Array(max - min + 1).keys()].map(i => ({port: i + min, protocol: editingProtocol}));
+                                                try {
+                                                    await onEditSubmit(portRange);
+                                                } catch (e) {
+                                                    snackbarStore.addFailure(
+                                                        errorMessageOrDefault(e, "Failed to open ports"), false
+                                                    );
                                                 }
                                                 portInput.value = "";
                                                 upperPortInput.value = "";
