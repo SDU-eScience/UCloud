@@ -170,10 +170,13 @@ export interface ListAddressApplicationsRequest {
     page?: number,
 }
 export interface AddressApplication {
-    application: string,
-    id: number,
-    createdAt: number,
+    id: number;
+    application: string;
+    createdAt: number;
+    entityId: string;
+    entityType: WalletOwnerType;
 }
+
 export function listAddressApplications(
     request: ListAddressApplicationsRequest
 ): APICallParameters<ListAddressApplicationsRequest> {
