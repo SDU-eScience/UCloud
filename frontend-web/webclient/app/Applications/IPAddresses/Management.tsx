@@ -33,7 +33,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
-import {shortUUID} from "UtilityFunctions";
+import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 
 export interface IPAddressManagementProps {
     onSelect?: (ip: PublicIP) => void;
@@ -111,7 +111,7 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
         fetchMyAddresses({...myAddressesParams});
     };
 
-    const onRequestSubmit = async(): Promise<void> => {
+    const onRequestSubmit = async (): Promise<void> => {
         const application = requestRef.current!.value;
         await invokeCommand(applyForAddress({application}));
         fetchMyApplications({...myApplicationsParams});
@@ -131,7 +131,7 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
         <InnerWrapper>
             {activePage !== PAGE_AVAILABLE ? null : (
                 <>
-                    {!myAddresses.error ? null : <Error error={myAddresses.error.why}/>}
+                    {!myAddresses.error ? null : <Error error={myAddresses.error.why} />}
                     <Pagination.List
                         page={myAddresses.data}
                         loading={myAddresses.loading}
@@ -145,77 +145,77 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                 </Button>
                             </NoResultsCardBody>
                         }
-                        pageRenderer={() => {
-                            return <>
+                        pageRenderer={() =>
+                            <>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHeaderCell textAlign={"left"}>IP Address</TableHeaderCell>
                                             <TableHeaderCell textAlign={"left"}>Ports</TableHeaderCell>
-                                            <TableHeaderCell/>
+                                            <TableHeaderCell />
                                         </TableRow>
                                     </TableHeader>
                                     <tbody>
-                                    {myAddresses.data.items.map(addr => {
-                                        return <TableRow key={addr.id}>
-                                            <TableCell>
-                                                {addr.ipAddress}
-                                                {!addr.inUseBy ? null : (
-                                                    <>
-                                                        <Text>In use by {shortUUID(addr.inUseBy)}</Text>
-                                                    </>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {addr.openPorts.length === 0 ?
-                                                    "No open ports! You will not be able to access any services." :
-                                                    <ul>
-                                                        {addr.openPorts.map(it => (
-                                                            <li key={it.port}>{it.port}/{it.protocol}</li>
-                                                        ))}
-                                                    </ul>
-                                                }
-                                            </TableCell>
-                                            <TableCell textAlign={"right"}>
-                                                <ButtonGroup>
-                                                    <Button color={"purple"} type={"button"} onClick={onEdit(addr)}>
-                                                        Edit
+                                        {myAddresses.data.items.map(addr =>
+                                            <TableRow key={addr.id}>
+                                                <TableCell>
+                                                    {addr.ipAddress}
+                                                    {!addr.inUseBy ? null : (
+                                                        <>
+                                                            <Text>In use by {shortUUID(addr.inUseBy)}</Text>
+                                                        </>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {addr.openPorts.length === 0 ?
+                                                        "No open ports! You will not be able to access any services." :
+                                                        <ul>
+                                                            {addr.openPorts.map(it => (
+                                                                <li key={it.port}>{it.port}/{it.protocol}</li>
+                                                            ))}
+                                                        </ul>
+                                                    }
+                                                </TableCell>
+                                                <TableCell textAlign={"right"}>
+                                                    <ButtonGroup>
+                                                        <Button color={"purple"} type={"button"} onClick={onEdit(addr)}>
+                                                            Edit
                                                     </Button>
-                                                    <ConfirmButton
-                                                        color={"red"}
-                                                        type={"button"}
-                                                        disabled={!!addr.inUseBy}
-                                                        dialogWidth={"170px"}
-                                                        dialog={
-                                                            <>
-                                                                <Text fontSize={theme.fontSizes[1]}>
-                                                                    If you delete this you will no longer be able to
-                                                                    use this
-                                                                    in applications!
+                                                        <ConfirmButton
+                                                            color={"red"}
+                                                            type={"button"}
+                                                            disabled={!!addr.inUseBy}
+                                                            dialogWidth={"170px"}
+                                                            dialog={
+                                                                <>
+                                                                    <Text fontSize={theme.fontSizes[1]}>
+                                                                        If you delete this you will no longer be able to
+                                                                        use this
+                                                                        in applications!
                                                                 </Text>
-                                                                <Button color={"red"} onClick={onDelete(addr)}>
-                                                                    Confirm deletion
+                                                                    <Button color={"red"} onClick={onDelete(addr)}>
+                                                                        Confirm deletion
                                                                 </Button>
-                                                            </>
-                                                        }
-                                                    >
-                                                        Delete
+                                                                </>
+                                                            }
+                                                        >
+                                                            Delete
                                                     </ConfirmButton>
-                                                    <Button
-                                                        type={"button"}
-                                                        disabled={!!addr.inUseBy}
-                                                        onClick={onUse(addr)}
-                                                    >
-                                                        Use
+                                                        <Button
+                                                            type={"button"}
+                                                            disabled={!!addr.inUseBy}
+                                                            onClick={onUse(addr)}
+                                                        >
+                                                            Use
                                                     </Button>
-                                                </ButtonGroup>
-                                            </TableCell>
-                                        </TableRow>;
-                                    })}
+                                                    </ButtonGroup>
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
                                     </tbody>
                                 </Table>
-                            </>;
-                        }}
+                            </>
+                        }
                     />
                 </>
             )}
@@ -225,84 +225,106 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                     <Box mb={16}>
                         <Label>
                             IP Address
-                            <Input disabled value={editing.ipAddress}/>
+                            <Input disabled value={editing.ipAddress} />
                         </Label>
                     </Box>
 
                     <Table mt={16} mb={16}>
                         <TableHeader>
                             <TableRow>
-                                <TableHeaderCell textAlign={"left"}>
-                                    <Label htmlFor={"editPort"}>Port</Label>
+                                <TableHeaderCell textAlign="left">
+                                    <Label htmlFor="editPort">Port</Label>
                                 </TableHeaderCell>
-                                <TableHeaderCell textAlign={"left"}>
+                                <TableHeaderCell textAlign="left">
                                     <Label>Protocol</Label>
                                 </TableHeaderCell>
-                                <TableHeaderCell/>
+                                <TableHeaderCell />
                             </TableRow>
                         </TableHeader>
                         <tbody>
+                            {editing.openPorts.map(it => (
+                                <TableRow key={it.port}>
+                                    <TableCell>{it.port}</TableCell>
+                                    <TableCell>{it.protocol}</TableCell>
+                                    <TableCell />
+                                </TableRow>
+                            ))}
+                            <TableRow>
+                                <TableCell pr={20}>
+                                    <Flex>
+                                        <Input width="110px" placeholder="From..." id="editPort" type="number" min={1} max={65535} />
+                                        <Input width="110px" placeholder="To..." id="upperEditPortRange" type="number" min={1} max={65535} />
+                                    </Flex>
+                                </TableCell>
+                                <TableCell>
+                                    <ClickableDropdown
+                                        trigger={editingProtocol.toString()}
+                                        chevron
+                                        options={Object.keys(InternetProtocol).map(it => ({text: it, value: it}))}
+                                        onChange={v => setEditingProtocol(v as InternetProtocol)}
+                                    />
+                                </TableCell>
+                                <TableCell textAlign="right">
+                                    <Button
+                                        type="button"
+                                        onClick={async () => {
+                                            const portInput = document.querySelector("#editPort") as HTMLInputElement;
+                                            const upperPortInput = document.querySelector("#upperEditPortRange") as HTMLInputElement;
 
-                        {editing.openPorts.map(it => (
-                            <TableRow key={it.port}>
-                                <TableCell>{it.port}</TableCell>
-                                <TableCell>{it.protocol}</TableCell>
-                                <TableCell/>
-                            </TableRow>
-                        ))}
-                        <TableRow>
-                            <TableCell pr={20}>
-                                <Input id={"editPort"} type={"number"} min={1} max={65535}/>
-                            </TableCell>
-                            <TableCell>
-                                <ClickableDropdown
-                                    trigger={editingProtocol.toString()}
-                                    chevron
-                                    options={Object.keys(InternetProtocol).map(it => ({text: it, value: it}))}
-                                    onChange={v => setEditingProtocol(v as InternetProtocol)}
-                                />
-                            </TableCell>
-                            <TableCell textAlign={"right"}>
-                                <Button
-                                    type={"button"}
-                                    onClick={async () => {
-                                        const portInput = document.querySelector("#editPort") as HTMLInputElement;
-                                        const port = parseInt(portInput.value, 10);
-                                        portInput.value = "";
-                                        // NOTE(Dan): We are not resetting the protocol on purpose
-                                        await onEditSubmit({port, protocol: editingProtocol});
-                                    }}
-                                >
-                                    Add
+                                            const port = parseInt(portInput.value, 10);
+                                            const upperPort = parseInt(upperPortInput.value, 10);
+                                            portInput.value = "";
+                                            upperPortInput.value = "";
+                                            // NOTE(Dan): We are not resetting the protocol on purpose
+                                            if (isNaN(port)) {
+                                                snackbarStore.addFailure("Please fill out 'From' port field.", false);
+                                            } else if (isNaN(upperPort)) {
+                                                await onEditSubmit({port, protocol: editingProtocol});
+                                            } else {
+                                                const min = Math.min(port, upperPort);
+                                                const max = Math.max(port, upperPort);
+                                                for (let p = min; p <= max; p++) {
+                                                    try {
+                                                        await onEditSubmit({port: p, protocol: editingProtocol});
+                                                    } catch (e) {
+                                                        snackbarStore.addFailure(
+                                                            errorMessageOrDefault(e, "Failed to update port"), false
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        Add
                                 </Button>
-                            </TableCell>
-                        </TableRow>
+                                </TableCell>
+                            </TableRow>
                         </tbody>
                     </Table>
                     <Box mb={16}>
                         Note: Your application must be restarted for changes to take effect.
                     </Box>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     <Button type={"button"} onClick={() => setActivePage(PAGE_AVAILABLE)}>Finish editing</Button>
                 </Flex>
             )}
 
             {activePage !== PAGE_REQUESTS ? null : (
                 <Flex height={"100%"} flexDirection={"column"}>
-                    {!myApplications.error ? null : <Error error={myApplications.error.why}/>}
-                    {!myApplications.loading ? null : <Spinner/>}
+                    {!myApplications.error ? null : <Error error={myApplications.error.why} />}
+                    {!myApplications.loading ? null : <Spinner />}
 
                     <Pagination.List
                         page={myApplications.data}
                         loading={myApplications.loading}
                         customEmptyPage={
-                            <NoResultsCardBody title={"No active requests"}/>
+                            <NoResultsCardBody title={"No active requests"} />
                         }
                         onPageChanged={newPage => {
                             fetchMyApplications(listAddressApplications({itemsPerPage: 25, page: newPage}));
                         }}
-                        pageRenderer={() => {
-                            return <Table>
+                        pageRenderer={() => (
+                            <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHeaderCell textAlign={"left"}>Submitted at</TableHeaderCell>
@@ -310,20 +332,20 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                     </TableRow>
                                 </TableHeader>
                                 <tbody>
-                                {myApplications.data.items.map(it => {
-                                    return <TableRow key={it.id}>
-                                        <TableCell>
-                                            {formatRelative(it.createdAt, new Date(), {locale: enGB})}
-                                        </TableCell>
-                                        <TableCell>{it.application}</TableCell>
-                                    </TableRow>;
-                                })}
+                                    {myApplications.data.items.map(it => {
+                                        return <TableRow key={it.id}>
+                                            <TableCell>
+                                                {formatRelative(it.createdAt, new Date(), {locale: enGB})}
+                                            </TableCell>
+                                            <TableCell>{it.application}</TableCell>
+                                        </TableRow>;
+                                    })}
                                 </tbody>
-                            </Table>;
-                        }}
+                            </Table>
+                        )}
                     />
 
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
 
                     <Button type={"button"} onClick={() => setActivePage(PAGE_NEW_REQUEST)}>
                         Apply for new address
