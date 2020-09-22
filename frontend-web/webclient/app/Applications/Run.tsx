@@ -18,6 +18,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
+import * as ReactModal from "react-modal";
 import {
     Box,
     Button,
@@ -26,7 +27,7 @@ import {
     Label,
     OutlineButton,
     VerticalButtonGroup,
-    Checkbox, Icon
+    Icon
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Error from "ui-components/Error";
@@ -78,6 +79,7 @@ import {MandatoryField} from "Applications/Widgets/BaseParameter";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Toggle} from "ui-components/Toggle";
 import {IPAddressManagement} from "Applications/IPAddresses/Management";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -1093,6 +1095,8 @@ const ApplicationIPWidget: React.FunctionComponent<ApplicationIPWidgetProps> = p
         current.value = ip;
     }, [props.ip, ip]);
 
+    const [open, setOpen] = React.useState(false);
+
     return <>
         <Flex mb={8}>
             <Box flexGrow={1}>IP Address</Box>
@@ -1112,25 +1116,27 @@ const ApplicationIPWidget: React.FunctionComponent<ApplicationIPWidgetProps> = p
             <Flex alignItems={"center"} mt={20}>
                 <Input
                     mx={"2px"}
-                    placeholder={""}
+                    placeholder=""
                     ref={props.ip}
-                    cursor={"pointer"}
+                    cursor="pointer"
                     onKeyDown={e => e.preventDefault()}
                     onClick={event => {
                         event.preventDefault();
-                        dialogStore.addDialog(
-                            <IPAddressManagement
-                                onSelect={pl => {
-                                    setIp(pl.ipAddress);
-                                    dialogStore.success();
-                                }}
-                            />,
-                            () => 0
-                        );
+                        setOpen(true);
                     }}
                 />
             </Flex>
         </Box>
+        <ReactModal
+            isOpen={open}
+            onRequestClose={() => setOpen(false)}
+            shouldCloseOnEsc
+            shouldCloseOnOverlayClick
+            ariaHideApp
+            style={{content: {...defaultModalStyle.content, height: "auto", maxHeight: undefined}}}
+        >
+            <IPAddressManagement onSelect={pl => setIp(pl.ipAddress)} />
+        </ReactModal>
     </>;
 };
 
