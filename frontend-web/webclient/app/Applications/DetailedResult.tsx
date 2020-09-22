@@ -201,7 +201,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 
                     <Panel width={1}>
                         <Heading.h4>Job Information</Heading.h4>
-                        <Card height="auto" p="14px 14px 14px 14px">
+                        <Card borderRadius="6px" height="auto" p="14px 14px 14px 14px">
                             <List>
                                 {jobWithStatus === null || jobWithStatus.name === null ? null : (
                                     <InfoBox><b>Name:</b> {jobWithStatus.name}</InfoBox>

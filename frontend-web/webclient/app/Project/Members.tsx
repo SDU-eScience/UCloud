@@ -80,7 +80,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
             main={(
                 <>
                     {!shouldVerify ? null : (
-                        <Box backgroundColor="orange" color="white" p={32} m={16}>
+                        <Box borderRadius="6px" backgroundColor="orange" color="white" p={32} m={16}>
                             <Heading.h4>Time for a review!</Heading.h4>
 
                             <ul>

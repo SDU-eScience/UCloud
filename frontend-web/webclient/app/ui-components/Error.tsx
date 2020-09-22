@@ -17,7 +17,7 @@ function Error(props: ErrorProps): JSX.Element | null {
 
     return (
         <Card
-            borderRadius="0.5em"
+            borderRadius="6px"
             height="auto"
             p="1em 1em 1em 1em"
             color="black"
