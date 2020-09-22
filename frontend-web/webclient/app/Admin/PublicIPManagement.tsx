@@ -1,3 +1,4 @@
+import {AddressApplication} from "Applications/IPAddresses";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import format from "date-fns/format";
@@ -8,10 +9,10 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import styled from "styled-components";
-import {Button, ButtonGroup, List, Text, Truncate} from "ui-components";
+import {Button, ButtonGroup, Flex, Icon, List, Text, Truncate} from "ui-components";
 import {ListRow} from "ui-components/List";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {addStandardDialog, Lorem} from "UtilityComponents";
+import {addStandardDialog} from "UtilityComponents";
 
 const baseContext = "/hpc/ip/";
 
@@ -37,12 +38,6 @@ function acceptAddress(id: number): APICallParameters<{id: number}> {
         method: "POST",
         payload: {id}
     };
-}
-
-interface AddressApplication {
-    id: number;
-    application: string;
-    createdAt: number;
 }
 
 export function PublicIPManagement(): JSX.Element | null {
@@ -73,15 +68,17 @@ export function PublicIPManagement(): JSX.Element | null {
                     <ListRow
                         key={it.id}
                         left={
-                            <HoverTruncate width="calc(100% - 50px)" fontSize={20}>
-                                {it.application}
+                            <HoverTruncate width={1}>
+                                <b>{it.entityId}: </b>{it.application}
                             </HoverTruncate>
                         }
                         icon={null}
-                        leftSub={<Text fontSize={0} color="gray">
-                            Submitted {format(new Date(it.createdAt), "d LLL yyyy HH:mm")}
-                        </Text>}
-                        right={<ButtonGroup ml="-30px" width="200px">
+                        leftSub={<Flex>
+                            <Text fontSize={0} color="gray">
+                                <Icon size="10" name="edit" /> Submitted {format(new Date(it.createdAt), "d LLL yyyy HH:mm")}
+                            </Text>
+                        </Flex>}
+                        right={<ButtonGroup ml="-30px" width="150px">
                             <Button color="green" onClick={() => {
                                 addStandardDialog({
                                     title: "Approve IP?",
@@ -113,6 +110,8 @@ export function PublicIPManagement(): JSX.Element | null {
 }
 
 const HoverTruncate = styled(Truncate)`
+    font-size: 20;
+
     &:hover {
         white-space: normal;
     }

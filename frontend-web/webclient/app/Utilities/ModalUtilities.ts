@@ -1,4 +1,6 @@
-export const defaultModalStyle = {
+import * as ReactModal from "react-modal";
+
+export const defaultModalStyle: ReactModal.Styles = {
     content: {
         top: "50%",
         left: "50%",
