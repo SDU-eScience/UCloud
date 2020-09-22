@@ -26,6 +26,7 @@ exports[`Mount ProjectDashboard 1`] = `
 }
 
 .c14 {
+  border-radius: 6px;
   width: 100%;
   height: auto;
   overflow: hidden;

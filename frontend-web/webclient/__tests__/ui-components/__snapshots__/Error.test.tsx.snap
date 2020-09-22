@@ -2,6 +2,7 @@
 
 exports[`Error component Error with error and dismiss button 1`] = `
 .c0 {
+  border-radius: 6px;
   padding: 1em 1em 1em 1em;
   height: auto;
   color: #000;
@@ -25,7 +26,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
   padding: 1em 1em 1em 1em;
   height: auto;
   border: 1px solid #c00;
-  border-radius: 0.5em;
+  border-radius: 6px;
 }
 
 .c2 {
@@ -94,6 +95,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
 
 exports[`Error component Error with error and no dismiss button 1`] = `
 .c0 {
+  border-radius: 6px;
   padding: 1em 1em 1em 1em;
   height: auto;
   color: #000;
@@ -104,7 +106,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   padding: 1em 1em 1em 1em;
   height: auto;
   border: 1px solid #c00;
-  border-radius: 0.5em;
+  border-radius: 6px;
 }
 
 .c2 {

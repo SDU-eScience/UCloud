@@ -56,6 +56,7 @@ exports[`Dashboard Dashboard mount 1`] = `
 }
 
 .c4 {
+  border-radius: 6px;
   width: 100%;
   height: auto;
   overflow: hidden;
