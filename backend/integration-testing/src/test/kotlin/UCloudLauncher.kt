@@ -6,8 +6,6 @@ import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.api.ReloadRequest
-import dk.sdu.cloud.app.kubernetes.watcher.AppKubernetesWatcherService
-import dk.sdu.cloud.app.kubernetes.watcher.api.AppKubernetesWatcher
 import dk.sdu.cloud.app.license.AppLicenseService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
@@ -509,7 +507,6 @@ object UCloudLauncher : Loggable {
                 AccountingService,
                 ActivityService,
                 AppKubernetesService,
-                AppKubernetesWatcherService,
                 AppLicenseService,
                 AppOrchestratorService,
                 AppStoreService,
@@ -579,11 +576,6 @@ object UCloudLauncher : Loggable {
         runBlocking {
             AppKubernetesDescriptions.reload.call(
                 ReloadRequest(cephfsHome),
-                serviceClient
-            ).orThrow()
-
-            AppKubernetesWatcher.reload.call(
-                Unit,
                 serviceClient
             ).orThrow()
         }
