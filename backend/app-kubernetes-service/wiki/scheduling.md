@@ -125,3 +125,24 @@ Basically a dead project appears to be superseded by volcano-sh.
   - Might need to add some kind of priority to this job
   - At this point we would probably also want reservations and a whole bunch
   of other features (which no one has implemented for K8s)
+
+
+---
+
+# Features to Remember
+
+- `/dev/shm` needs to be mounted
+- Network policy should block attempts to access an application from any other application
+- Network policy should allow proxy from the `app-kubernetes` service
+- Network policy should allow inter-job communication
+- Network policy should allow connected jobs to communicate
+- The `hostname` of every pod should be routable
+  - This includes at least within a multi-node job and connected jobs
+- Working directory
+- Environment variables
+- Should only be scheduled on certain nodes
+- Don't mount service account token
+- Cleanup and add proxy entries
+- We should generally allow 400/404 from the Kubernetes backend (as it usually just means we didn't get their in time)
+- Kata containers need to use slightly different amount of CPU (due to VM overhead)
+- 

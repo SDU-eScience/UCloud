@@ -18,22 +18,22 @@ object KubernetesResources {
 typealias KubernetesTimestamp = String
 
 data class ObjectMeta(
-    val name: String? = null,
-    val namespace: String? = null,
-    val annotations: Map<String, Any?>? = null,
-    val clusterName: KubernetesTimestamp? = null,
-    val creationTimestamp: String? = null,
-    val deletionGracePeriodSeconds: Int? = null,
-    val deletionTimestamp: KubernetesTimestamp? = null,
-    val finalizers: List<String>? = null,
-    val generateName: String? = null,
-    val generation: Int? = null,
-    val labels: Map<String, Any?>? = null,
-    val managedFields: List<Map<String, Any?>>? = null,
-    val ownerReferences: List<Map<String, Any?>>? = null,
-    val resourceVersion: String? = null,
-    val selfLink: String? = null,
-    val uid: String? = null,
+    var name: String? = null,
+    var namespace: String? = null,
+    var annotations: Map<String, Any?>? = null,
+    var clusterName: KubernetesTimestamp? = null,
+    var creationTimestamp: String? = null,
+    var deletionGracePeriodSeconds: Int? = null,
+    var deletionTimestamp: KubernetesTimestamp? = null,
+    var finalizers: List<String>? = null,
+    var generateName: String? = null,
+    var generation: Int? = null,
+    var labels: Map<String, Any?>? = null,
+    var managedFields: List<Map<String, Any?>>? = null,
+    var ownerReferences: List<Map<String, Any?>>? = null,
+    var resourceVersion: String? = null,
+    var selfLink: String? = null,
+    var uid: String? = null,
 )
 
 data class WatchEvent<T>(
@@ -42,374 +42,374 @@ data class WatchEvent<T>(
 )
 
 data class Affinity(
-    val nodeAffinity: Affinity? = null,
-    val podAffinity: Affinity? = null,
-    val podAntiAffinity: Affinity? = null,
+    var nodeAffinity: Affinity? = null,
+    var podAffinity: Affinity? = null,
+    var podAntiAffinity: Affinity? = null,
 ) {
     data class Node(
-        val preferredDuringSchedulingIgnoredDuringExecution: PreferredSchedulingTerm? = null,
-        val requiredDuringSchedulingIgnoredDuringExecution: NodeSelector? = null,
+        var preferredDuringSchedulingIgnoredDuringExecution: PreferredSchedulingTerm? = null,
+        var requiredDuringSchedulingIgnoredDuringExecution: NodeSelector? = null,
     ) {
         data class PreferredSchedulingTerm(
-            val preference: NodeSelectorTerm? = null,
-            val weight: Int? = null,
+            var preference: NodeSelectorTerm? = null,
+            var weight: Int? = null,
         )
 
         data class NodeSelectorTerm(
-            val matchExpressions: NodeSelectorRequirement? = null,
-            val matchFields: NodeSelectorRequirement? = null,
+            var matchExpressions: NodeSelectorRequirement? = null,
+            var matchFields: NodeSelectorRequirement? = null,
         )
 
         data class NodeSelectorRequirement(
-            val key: String? = null,
-            val operator: String? = null,
-            val values: List<String>? = null,
+            var key: String? = null,
+            var operator: String? = null,
+            var values: List<String>? = null,
         )
     }
     data class Pod(
-        val preferredDuringSchedulingIgnoredDuringExecution: List<WeightedPodAffinityTerm>? = null,
-        val requiredDuringSchedulingIgnoredDuringExecution: List<PodAffinityTerm>? = null,
+        var preferredDuringSchedulingIgnoredDuringExecution: List<WeightedPodAffinityTerm>? = null,
+        var requiredDuringSchedulingIgnoredDuringExecution: List<PodAffinityTerm>? = null,
     )
     data class PodAnti(
-        val preferredDuringSchedulingIgnoredDuringExecution: List<WeightedPodAffinityTerm>? = null,
-        val requiredDuringSchedulingIgnoredDuringExecution: List<PodAffinityTerm>? = null,
+        var preferredDuringSchedulingIgnoredDuringExecution: List<WeightedPodAffinityTerm>? = null,
+        var requiredDuringSchedulingIgnoredDuringExecution: List<PodAffinityTerm>? = null,
     )
 
     data class WeightedPodAffinityTerm(
-        val podAffinityTerm: PodAffinityTerm? = null,
-        val weight: Int? = null,
+        var podAffinityTerm: PodAffinityTerm? = null,
+        var weight: Int? = null,
     )
 
     data class PodAffinityTerm(
-        val labelSelector: LabelSelector? = null,
-        val namespaces: List<String>? = null,
-        val topologyKey: String? = null,
+        var labelSelector: LabelSelector? = null,
+        var namespaces: List<String>? = null,
+        var topologyKey: String? = null,
     )
 }
 
 data class LabelSelector(
-    val matchExpressions: List<LabelSelectorRequirement>? = null,
-    val matchLabels: Map<String, Any?>? = null,
+    var matchExpressions: List<LabelSelectorRequirement>? = null,
+    var matchLabels: Map<String, Any?>? = null,
 )
 
 data class LabelSelectorRequirement(
-    val key: String? = null,
-    val operator: String? = null,
-    val values: List<String>? = null,
+    var key: String? = null,
+    var operator: String? = null,
+    var values: List<String>? = null,
 )
 data class NodeSelector(
-    val key: String? = null,
-    val operator: String? = null,
-    val values: List<String>? = null,
+    var key: String? = null,
+    var operator: String? = null,
+    var values: List<String>? = null,
 )
 
 data class LocalObjectReference(
-    val name: String? = null
+    var name: String? = null
 )
 
 data class Pod(
-    val apiVersion: String = "v1",
-    val kind: String = "Pod",
-    val metadata: ObjectMeta? = null,
-    val spec: Spec? = null,
-    val status: Status? = null
+    var apiVersion: String = "v1",
+    var kind: String = "Pod",
+    var metadata: ObjectMeta? = null,
+    var spec: Spec? = null,
+    var status: Status? = null
 ) {
     data class Spec(
-        val activeDeadlineSeconds: Int? = null,
-        val affinity: Affinity? = null,
-        val automountServiceAccountToken: Boolean? = null,
-        val containers: List<Container>? = null,
-        //val dnsConfig: PodDNSConfig?,
-        val dnsPolicy: String? = null,
-        val enableServiceLinks: Boolean? = null,
-        //val ephemeralContainers: List<EphemeralContainer>?,
-        //val hostAliases: List<HostAlias>,
-        val hostIPC: Boolean? = null,
-        val hostNetwork: Boolean? = null,
-        val hostPID: Boolean? = null,
-        val hostname: String? = null,
-        //val imagePullSecrets: List<LocalObjectReference>?,
-        val initContainers: List<Container>? = null,
-        val nodeName: String? = null,
-        val nodeSelector: Map<String, Any?>? = null,
-        val overhead: Map<String, Any?>? = null,
-        val preemptionPolicy: String? = null,
-        val priority: Int? = null,
-        val priorityClassName: String? = null,
-        val restartPolicy: String? = null,
-        val runtimeClassName: String? = null,
-        val schedulerName: String? = null,
-        val securityContext: PodSecurityContext? = null,
-        val serviceAccountName: String? = null,
-        val subdomain: String? = null,
-        val tolerations: List<Toleration>? = null,
-        val volumes: List<Volume>? = null
+        var activeDeadlineSeconds: Int? = null,
+        var affinity: Affinity? = null,
+        var automountServiceAccountToken: Boolean? = null,
+        var containers: List<Container>? = null,
+        //var dnsConfig: PodDNSConfig?,
+        var dnsPolicy: String? = null,
+        var enableServiceLinks: Boolean? = null,
+        //var ephemeralContainers: List<EphemeralContainer>?,
+        //var hostAliases: List<HostAlias>,
+        var hostIPC: Boolean? = null,
+        var hostNetwork: Boolean? = null,
+        var hostPID: Boolean? = null,
+        var hostname: String? = null,
+        //var imagePullSecrets: List<LocalObjectReference>?,
+        var initContainers: List<Container>? = null,
+        var nodeName: String? = null,
+        var nodeSelector: Map<String, Any?>? = null,
+        var overhead: Map<String, Any?>? = null,
+        var preemptionPolicy: String? = null,
+        var priority: Int? = null,
+        var priorityClassName: String? = null,
+        var restartPolicy: String? = null,
+        var runtimeClassName: String? = null,
+        var schedulerName: String? = null,
+        var securityContext: PodSecurityContext? = null,
+        var serviceAccountName: String? = null,
+        var subdomain: String? = null,
+        var tolerations: List<Toleration>? = null,
+        var volumes: List<Volume>? = null
     )
 
     data class SpecTemplate(
-        val metadata: ObjectMeta? = null,
-        val spec: Spec? = null,
+        var metadata: ObjectMeta? = null,
+        var spec: Spec? = null,
     )
 
     data class PodSecurityContext(
-        val fsGroup: Int? = null,
-        val fsGroupChangePolicy: String? = null,
-        val runAsGroup: Int? = null,
-        val runAsNonRoot: Boolean? = null,
-        val runAsUser: Int? = null,
-        val supplementalGroups: List<Int>? = null,
-        //val sysctls: List<Sysctl>?,
-        //val windowsOptions: WindowsSecutiyContextOptions?
-        //val seLinuxOptions: SELinuxOptions?,
-        //val seccompProfile: SeccompProfile?,
+        var fsGroup: Int? = null,
+        var fsGroupChangePolicy: String? = null,
+        var runAsGroup: Int? = null,
+        var runAsNonRoot: Boolean? = null,
+        var runAsUser: Int? = null,
+        var supplementalGroups: List<Int>? = null,
+        //var sysctls: List<Sysctl>?,
+        //var windowsOptions: WindowsSecutiyContextOptions?
+        //var seLinuxOptions: SELinuxOptions?,
+        //var seccompProfile: SeccompProfile?,
     )
 
     data class Toleration(
-        val effect: String? = null,
-        val key: String? = null,
-        val operator: String? = null,
-        val tolerationSeconds: Int? = null,
-        val value: String? = null,
+        var effect: String? = null,
+        var key: String? = null,
+        var operator: String? = null,
+        var tolerationSeconds: Int? = null,
+        var value: String? = null,
     )
 
     data class Volume(
-        val name: String? = null,
-        val emptyDir: EmptyDirVolumeSource? = null,
-        val configMap: ConfigMapVolumeSource? = null,
-        val secret: SecretVolumeSource? = null,
-        val flexVolume: FlexVolumeSource? = null,
-        val persistentVolumeClaim: PersistentVolumeClaimSource? = null,
+        var name: String? = null,
+        var emptyDir: EmptyDirVolumeSource? = null,
+        var configMap: ConfigMapVolumeSource? = null,
+        var secret: SecretVolumeSource? = null,
+        var flexVolume: FlexVolumeSource? = null,
+        var persistentVolumeClaim: PersistentVolumeClaimSource? = null,
     ) {
         data class EmptyDirVolumeSource(
-            val medium: String? = null,
-            val quantity: String? = null
+            var medium: String? = null,
+            var sizeLimit: String? = null
         )
 
         data class ConfigMapVolumeSource(
-            val defaultMode: Int? = null,
-            val items: List<KeyToPath>? = null,
-            val name: String? = null,
-            val optional: Boolean? = null,
+            var defaultMode: Int? = null,
+            var items: List<KeyToPath>? = null,
+            var name: String? = null,
+            var optional: Boolean? = null,
         )
 
         data class KeyToPath(
-            val key: String? = null,
-            val mode: Int? = null,
-            val path: String? = null,
+            var key: String? = null,
+            var mode: Int? = null,
+            var path: String? = null,
         )
 
         data class SecretVolumeSource(
-            val defaultMode: Int? = null,
-            val items: List<KeyToPath>? = null,
-            val optional: Boolean? = null,
-            val secretName: String? = null,
+            var defaultMode: Int? = null,
+            var items: List<KeyToPath>? = null,
+            var optional: Boolean? = null,
+            var secretName: String? = null,
         )
 
         data class FlexVolumeSource(
-            val driver: String? = null,
-            val fsType: String? = null,
-            val options: Map<String, Any?>? = null,
-            val readOnly: Boolean? = null,
-            val secretRef: LocalObjectReference? = null
+            var driver: String? = null,
+            var fsType: String? = null,
+            var options: Map<String, Any?>? = null,
+            var readOnly: Boolean? = null,
+            var secretRef: LocalObjectReference? = null
         )
 
         data class PersistentVolumeClaimSource(
-            val claimName: String? = null,
-            val readOnly: Boolean? = null,
+            var claimName: String? = null,
+            var readOnly: Boolean? = null,
         )
     }
 
     data class Status(
-        val conditions: List<PodCondition>? = null,
-        val containerStatuses: List<ContainerStatus>? = null,
-        val hostIP: String? = null,
-        val initContainerStatuses: List<ContainerStatus>? = null,
-        val message: String? = null,
-        val phase: String? = null,
-        val podIP: String? = null,
-        val podIPs: List<PodIP>? = null,
-        val quosClass: String? = null,
-        val reason: String? = null,
-        val startTime: KubernetesTimestamp? = null,
+        var conditions: List<PodCondition>? = null,
+        var containerStatuses: List<ContainerStatus>? = null,
+        var hostIP: String? = null,
+        var initContainerStatuses: List<ContainerStatus>? = null,
+        var message: String? = null,
+        var phase: String? = null,
+        var podIP: String? = null,
+        var podIPs: List<PodIP>? = null,
+        var quosClass: String? = null,
+        var reason: String? = null,
+        var startTime: KubernetesTimestamp? = null,
     )
 
     data class PodCondition(
-        val lastProbeTime: KubernetesTimestamp? = null,
-        val lastTransitionTime: KubernetesTimestamp? = null,
-        val message: String? = null,
-        val reason: String? = null,
-        val status: String? = null,
-        val type: String? = null,
+        var lastProbeTime: KubernetesTimestamp? = null,
+        var lastTransitionTime: KubernetesTimestamp? = null,
+        var message: String? = null,
+        var reason: String? = null,
+        var status: String? = null,
+        var type: String? = null,
     )
 
     data class ContainerStatus(
-        val containerID: String? = null,
-        val image: String? = null,
-        val imageID: String? = null,
-        val lastState: ContainerState? = null,
-        val name: String? = null,
-        val ready: Boolean? = null,
-        val restartCount: Int? = null,
-        val started: Boolean? = null,
-        val state: ContainerState? = null,
+        var containerID: String? = null,
+        var image: String? = null,
+        var imageID: String? = null,
+        var lastState: ContainerState? = null,
+        var name: String? = null,
+        var ready: Boolean? = null,
+        var restartCount: Int? = null,
+        var started: Boolean? = null,
+        var state: ContainerState? = null,
     )
 
     data class ContainerState(
-        val running: StateRunning? = null,
-        val terminated: StateTerminated? = null,
-        val waiting: StateWaiting? = null,
+        var running: StateRunning? = null,
+        var terminated: StateTerminated? = null,
+        var waiting: StateWaiting? = null,
     ) {
         data class StateRunning(
-            val startedAt: KubernetesTimestamp? = null,
+            var startedAt: KubernetesTimestamp? = null,
         )
 
         data class StateTerminated(
-            val containerID: String? = null,
-            val exitCode: Int? = null,
-            val finishedAt: KubernetesTimestamp? = null,
-            val message: String? = null,
-            val reason: String? = null,
-            val signal: Int? = null,
-            val startedAt: KubernetesTimestamp? = null,
+            var containerID: String? = null,
+            var exitCode: Int? = null,
+            var finishedAt: KubernetesTimestamp? = null,
+            var message: String? = null,
+            var reason: String? = null,
+            var signal: Int? = null,
+            var startedAt: KubernetesTimestamp? = null,
         )
 
         data class StateWaiting(
-            val message: String? = null,
-            val reason: String? = null,
+            var message: String? = null,
+            var reason: String? = null,
         )
     }
 
     data class PodIP(
-        val ip: String? = null,
+        var ip: String? = null,
     )
 
     data class Container(
-        val args: List<String>? = null,
-        val command: List<String>? = null,
-        val env: List<EnvVar>? = null,
-        val envFrom: List<EnvFromSource>? = null,
-        val image: String? = null,
-        val imagePullPolicy: String? = null,
-        //val lifecycle: Lifecycle?,
-        val livenessProbe: Probe? = null,
-        val name: String? = null,
-        val ports: List<ContainerPort>? = null,
-        val readinessProbe: Probe? = null,
-        val resources: ResourceRequirements? = null,
-        val securityContext: SecurityContext? = null,
-        val startupProbe: Probe? = null,
-        val stdin: Boolean? = null,
-        val stdinOnce: Boolean? = null,
-        val terminationMessagePath: String? = null,
-        val terminationMessagePolicy: String? = null,
-        val tty: Boolean? = null,
-        val volumeDevices: List<VolumeDevice>? = null,
-        val volumeMounts: List<VolumeMount>? = null,
-        val workingDir: String? = null,
+        var args: List<String>? = null,
+        var command: List<String>? = null,
+        var env: List<EnvVar>? = null,
+        var envFrom: List<EnvFromSource>? = null,
+        var image: String? = null,
+        var imagePullPolicy: String? = null,
+        //var lifecycle: Lifecycle?,
+        var livenessProbe: Probe? = null,
+        var name: String? = null,
+        var ports: List<ContainerPort>? = null,
+        var readinessProbe: Probe? = null,
+        var resources: ResourceRequirements? = null,
+        var securityContext: SecurityContext? = null,
+        var startupProbe: Probe? = null,
+        var stdin: Boolean? = null,
+        var stdinOnce: Boolean? = null,
+        var terminationMessagePath: String? = null,
+        var terminationMessagePolicy: String? = null,
+        var tty: Boolean? = null,
+        var volumeDevices: List<VolumeDevice>? = null,
+        var volumeMounts: List<VolumeMount>? = null,
+        var workingDir: String? = null,
     ) {
         data class Probe(
-            val exec: ExecAction? = null,
-            val failureThreshold: Int? = null,
-            val httpGet: HttpGetAction? = null,
-            val initialDelaySeconds: Int? = null,
-            val periodSeconds: Int? = null,
-            val successThreshold: Int? = null,
-            val tcpSocket: TCPSocketAction? = null,
-            val timeoutSeconds: Int? = null
+            var exec: ExecAction? = null,
+            var failureThreshold: Int? = null,
+            var httpGet: HttpGetAction? = null,
+            var initialDelaySeconds: Int? = null,
+            var periodSeconds: Int? = null,
+            var successThreshold: Int? = null,
+            var tcpSocket: TCPSocketAction? = null,
+            var timeoutSeconds: Int? = null
         )
 
         data class ContainerPort(
-            val containerPort: Int? = null,
-            val hostIP: String? = null,
-            val hostPort: Int? = null,
-            val name: String? = null,
-            val protocol: String? = null,
+            var containerPort: Int? = null,
+            var hostIP: String? = null,
+            var hostPort: Int? = null,
+            var name: String? = null,
+            var protocol: String? = null,
         )
 
         data class ResourceRequirements(
-            val limits: Map<String, Any?>? = null,
-            val requests: Map<String, Any?>? = null,
+            var limits: Map<String, Any?>? = null,
+            var requests: Map<String, Any?>? = null,
         )
 
         data class SecurityContext(
-            val allowPrivilegeEscalation: Boolean? = null,
-            //val capabilities: Capabilities?,
-            val privileged: Boolean? = null,
-            val procMount: String?,
-            val readOnlyRootFilesystem: Boolean? = null,
-            val runAsGroup: Int? = null,
-            val runAsNonRoot: Boolean? = null,
-            val runAsUser: Int? = null,
-            //val seLinuxOptions: SELinuxOptions?,
-            //val seccompProfile: SeccompProfile?,
-            //val windowsOptions: WindowsSecurityContextOptions?,
+            var allowPrivilegeEscalation: Boolean? = null,
+            //var capabilities: Capabilities?,
+            var privileged: Boolean? = null,
+            var procMount: String? = null,
+            var readOnlyRootFilesystem: Boolean? = null,
+            var runAsGroup: Int? = null,
+            var runAsNonRoot: Boolean? = null,
+            var runAsUser: Int? = null,
+            //var seLinuxOptions: SELinuxOptions?,
+            //var seccompProfile: SeccompProfile?,
+            //var windowsOptions: WindowsSecurityContextOptions?,
         )
 
         data class VolumeDevice(
-            val devicePath: String? = null,
-            val name: String? = null,
+            var devicePath: String? = null,
+            var name: String? = null,
         )
 
         data class VolumeMount(
-            val mountPath: String? = null,
-            val mountPropagation: String? = null,
-            val name: String? = null,
-            val readOnly: Boolean? = null,
-            val subPath: String? = null,
-            val subPathExpr: String? = null,
+            var mountPath: String? = null,
+            var mountPropagation: String? = null,
+            var name: String? = null,
+            var readOnly: Boolean? = null,
+            var subPath: String? = null,
+            var subPathExpr: String? = null,
         )
     }
 
-    data class ExecAction(val command: List<String>? = null)
+    data class ExecAction(var command: List<String>? = null)
     data class HttpGetAction(
-        val host: String? = null,
-        val httpHeaders: List<Map<String, Any?>>? = null,
-        val path: String? = null,
-        val port: Any? = null, // String | Int
-        val scheme: String? = null
+        var host: String? = null,
+        var httpHeaders: List<Map<String, Any?>>? = null,
+        var path: String? = null,
+        var port: Any? = null, // String | Int
+        var scheme: String? = null
     )
     data class TCPSocketAction(
-        val host: String? = null,
-        val port: Int? = null,
+        var host: String? = null,
+        var port: Int? = null,
     )
 
     data class EnvVar(
-        val name: String? = null,
-        val value: String? = null,
-        val valueFrom: EnvVarSource? = null,
+        var name: String? = null,
+        var value: String? = null,
+        var valueFrom: EnvVarSource? = null,
     )
 
     data class EnvVarSource(
-        val configMapKeyRef: ConfigMapKeySelector? = null,
-        val fieldRef: ObjectFieldSelector? = null,
-        val secretKeyRef: SecretKeySelector? = null,
+        var configMapKeyRef: ConfigMapKeySelector? = null,
+        var fieldRef: ObjectFieldSelector? = null,
+        var secretKeyRef: SecretKeySelector? = null,
     ) {
         data class ConfigMapKeySelector(
-            val key: String? = null,
-            val name: String? = null,
-            val optional: Boolean? = null,
+            var key: String? = null,
+            var name: String? = null,
+            var optional: Boolean? = null,
         )
 
-        data class ObjectFieldSelector(val fieldPath: String? = null)
+        data class ObjectFieldSelector(var fieldPath: String? = null)
         data class SecretKeySelector(
-            val key: String? = null,
-            val name: String? = null,
-            val optional: Boolean? = null,
+            var key: String? = null,
+            var name: String? = null,
+            var optional: Boolean? = null,
         )
     }
 
     data class EnvFromSource(
-        val configMapRef: ConfigMapEnvSource? = null,
-        val prefix: String? = null,
-        val secretRef: SecretEnvSource? = null,
+        var configMapRef: ConfigMapEnvSource? = null,
+        var prefix: String? = null,
+        var secretRef: SecretEnvSource? = null,
     ) {
         data class ConfigMapEnvSource(
-            val name: String? = null,
-            val optional: Boolean? = null,
+            var name: String? = null,
+            var optional: Boolean? = null,
         )
         data class SecretEnvSource(
-            val name: String? = null,
-            val optional: Boolean? = null,
+            var name: String? = null,
+            var optional: Boolean? = null,
         )
     }
 }

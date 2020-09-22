@@ -13,6 +13,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -26,6 +27,7 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.isActive
 import okhttp3.ConnectionPool
 import java.io.File
+import java.net.URLEncoder
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -245,6 +247,12 @@ data class KubernetesResourceLocator(
     val namespace: String? = null
 ) {
     fun withName(name: String): KubernetesResourceLocator = copy(name = name)
+
+    /**
+     * Locates Kubernetes resources in the namespace identified by [namespace]
+     *
+     * If [namespace] == [NAMESPACE_ANY] then all namespaces will be considered.
+     */
     fun withNamespace(namespace: String): KubernetesResourceLocator = copy(namespace = namespace)
     fun withNameAndNamespace(name: String, namespace: String): KubernetesResourceLocator =
         copy(name = name, namespace = namespace)
@@ -263,12 +271,14 @@ class KubernetesClient(
     @PublishedApi
     internal val httpClient = HttpClient(OkHttp) {
         conn.authenticationMethod.configureClient(this)
+        install(HttpTimeout) {
+            this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+            this.connectTimeoutMillis = 1000 * 60
+            this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+        }
 
         engine {
             config {
-                readTimeout(5, TimeUnit.MINUTES)
-                writeTimeout(5, TimeUnit.MINUTES)
-
                 connectionPool(ConnectionPool(8, 30, TimeUnit.MINUTES))
             }
         }
@@ -279,30 +289,49 @@ class KubernetesClient(
     }
 
     @PublishedApi
-    internal fun buildUrl(locator: KubernetesResourceLocator): String = buildString {
-        return buildString {
-            with(locator) {
-                append(conn.masterUrl)
+    internal fun buildUrl(
+        locator: KubernetesResourceLocator,
+        queryParameters: Map<String, String>
+    ): String = buildString {
+        with(locator) {
+            append(conn.masterUrl)
+            append('/')
+            if (apiGroup == API_GROUP_LEGACY) {
+                append("api/")
+            } else {
+                append("apis/")
+                append(apiGroup)
                 append('/')
-                if (apiGroup == API_GROUP_LEGACY) {
-                    append("api/")
-                } else {
-                    append("apis/")
-                    append(apiGroup)
-                    append('/')
-                }
-                append(version)
-                append('/')
+            }
+            append(version)
+            append('/')
+            if (namespace != NAMESPACE_ANY) {
                 append("namespaces/")
                 append(namespace ?: conn.defaultNamespace)
                 append('/')
-                append(resourceType)
-                if (name != null) {
-                    append('/')
-                    append(name)
+            }
+            append(resourceType)
+            if (name != null) {
+                append('/')
+                append(name)
+            }
+            append(encodeQueryParamsToString(queryParameters))
+        }
+    }
+
+    private fun String.urlEncode() = URLEncoder.encode(this, "UTF-8")
+    private fun encodeQueryParamsToString(queryPathMap: Map<String, String>): String {
+        return queryPathMap
+            .map {
+                if (it.value.isEmpty()) {
+                    it.key.urlEncode()
+                } else {
+                    it.key.urlEncode() + "=" + it.value.urlEncode()
                 }
             }
-        }
+            .joinToString("&")
+            .takeIf { it.isNotEmpty() }
+            ?.let { "?$it" } ?: ""
     }
 
     @PublishedApi
@@ -325,9 +354,12 @@ class KubernetesClient(
         }
     }
 
-    suspend fun getResource(locator: KubernetesResourceLocator): JsonNode {
+    suspend fun getResource(
+        locator: KubernetesResourceLocator,
+        queryParameters: Map<String, String> = emptyMap()
+    ): JsonNode {
         val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator))
+            url(buildUrl(locator, queryParameters))
 
             header(HttpHeaders.Accept, ContentType.Application.Json)
             conn.authenticationMethod.configureRequest(this)
@@ -336,9 +368,12 @@ class KubernetesClient(
         return parseResponse(resp)
     }
 
-    suspend inline fun <reified T> listResources(locator: KubernetesResourceLocator): List<T> {
+    suspend inline fun <reified T> listResources(
+        locator: KubernetesResourceLocator,
+        queryParameters: Map<String, String> = emptyMap()
+    ): List<T> {
         val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator))
+            url(buildUrl(locator, queryParameters))
 
             header(HttpHeaders.Accept, ContentType.Application.Json)
             conn.authenticationMethod.configureRequest(this)
@@ -356,11 +391,12 @@ class KubernetesClient(
     @OptIn(ExperimentalCoroutinesApi::class)
     inline fun <reified T : WatchEvent<*>> watchResource(
         scope: CoroutineScope,
-        locator: KubernetesResourceLocator
+        locator: KubernetesResourceLocator,
+        queryParameters: Map<String, String> = emptyMap()
     ): ReceiveChannel<T> {
         return scope.produce {
             val resp = httpClient.request<HttpStatement> {
-                url(buildUrl(locator) + "?watch")
+                url(buildUrl(locator, queryParameters + mapOf("watch" to "")))
 
                 header(HttpHeaders.Accept, ContentType.Application.Json)
                 conn.authenticationMethod.configureRequest(this)
@@ -373,12 +409,17 @@ class KubernetesClient(
                 @Suppress("BlockingMethodInNonBlockingContext")
                 send(defaultMapper.readValue<T>(nextLine))
             }
+
+            runCatching { content.cancel() }
         }
     }
 
-    suspend inline fun deleteResource(locator: KubernetesResourceLocator): JsonNode {
+    suspend inline fun deleteResource(
+        locator: KubernetesResourceLocator,
+        queryParameters: Map<String, String> = emptyMap()
+    ): JsonNode {
         val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator))
+            url(buildUrl(locator, queryParameters))
             header(HttpHeaders.Accept, ContentType.Application.Json)
             conn.authenticationMethod.configureRequest(this)
             method = HttpMethod.Delete
@@ -388,10 +429,11 @@ class KubernetesClient(
 
     suspend inline fun replaceResource(
         locator: KubernetesResourceLocator,
-        replacementJson: String
+        replacementJson: String,
+        queryParameters: Map<String, String> = emptyMap()
     ): JsonNode {
         val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator))
+            url(buildUrl(locator, queryParameters))
             header(HttpHeaders.Accept, ContentType.Application.Json)
             conn.authenticationMethod.configureRequest(this)
             method = HttpMethod.Put
@@ -402,10 +444,11 @@ class KubernetesClient(
 
     suspend fun patchResource(
         locator: KubernetesResourceLocator,
-        replacementJson: String
+        replacementJson: String,
+        queryParameters: Map<String, String> = emptyMap()
     ): JsonNode {
         val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator))
+            url(buildUrl(locator, queryParameters))
             header(HttpHeaders.Accept, ContentType.Application.Json)
             conn.authenticationMethod.configureRequest(this)
             method = HttpMethod.Patch
@@ -417,10 +460,12 @@ class KubernetesClient(
     suspend fun createResource(
         locator: KubernetesResourceLocator,
         replacement: String,
-        contentType: ContentType = ContentType.Application.Json
+        contentType: ContentType = ContentType.Application.Json,
+        queryParameters: Map<String, String> = emptyMap()
     ): JsonNode {
+        log.debug("Creating resource:\n  $locator\n  $replacement")
         val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator))
+            url(buildUrl(locator, queryParameters))
             header(HttpHeaders.Accept, ContentType.Application.Json)
             conn.authenticationMethod.configureRequest(this)
             method = HttpMethod.Post
@@ -436,6 +481,9 @@ class KubernetesClient(
 
 const val API_GROUP_CORE = ""
 const val API_GROUP_LEGACY = API_GROUP_CORE
+
+// NOTE(Dan): Namespaces must be valid DNS names. Prepending with '#' guarantees that this won't be valid.
+const val NAMESPACE_ANY = "#ANY"
 
 class KubernetesException(
     val statusCode: HttpStatusCode,
