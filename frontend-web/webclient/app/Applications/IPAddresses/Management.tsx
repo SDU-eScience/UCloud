@@ -273,13 +273,16 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
 
                                             const port = parseInt(portInput.value, 10);
                                             const upperPort = parseInt(upperPortInput.value, 10);
-                                            portInput.value = "";
-                                            upperPortInput.value = "";
+
                                             // NOTE(Dan): We are not resetting the protocol on purpose
                                             if (isNaN(port)) {
                                                 snackbarStore.addFailure("Please fill out 'From' port field.", false);
                                             } else if (isNaN(upperPort)) {
                                                 await onEditSubmit({port, protocol: editingProtocol});
+                                                portInput.value = "";
+                                                upperPortInput.value = "";
+                                            } else if (port > upperPort) {
+                                                snackbarStore.addFailure("'From' can't be larger than 'To'.", false);
                                             } else {
                                                 const min = Math.min(port, upperPort);
                                                 const max = Math.max(port, upperPort);
@@ -292,6 +295,8 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                                         );
                                                     }
                                                 }
+                                                portInput.value = "";
+                                                upperPortInput.value = "";
                                             }
                                         }}
                                     >
