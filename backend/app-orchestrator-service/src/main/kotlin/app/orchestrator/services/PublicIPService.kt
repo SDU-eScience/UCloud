@@ -69,7 +69,7 @@ class PublicIPService {
                         (id, applicant_id, applicant_type, application, status, created_at)
                     values 
                         (:id, :applicantId, :applicantType, :application, :status, :createdAt)
-                """.trimIndent()
+                """
             )
         }.rowsAffected
     }
@@ -101,7 +101,7 @@ class PublicIPService {
             val foundIp = session.sendPreparedStatement(
                 """
                     select ip from ip_pool where owner_id is null and owner_type is null limit 1
-                """.trimIndent()
+                """
             ).rows
 
             if (foundIp.isEmpty()) {
@@ -121,7 +121,7 @@ class PublicIPService {
                         approved_at = :time,
                         ip = :ip
                     where id = :applicationId
-                """.trimIndent()
+                """
             )
         }
     }
@@ -138,7 +138,7 @@ class PublicIPService {
                 },
                 """
                     update address_applications set status = :newStatus where id = :applicationId
-                """.trimIndent()
+                """
             )
         }
     }
@@ -155,7 +155,7 @@ class PublicIPService {
                     },
                     """
                         insert into ip_pool (ip) values (:address)
-                    """.trimIndent()
+                    """
                 )
             }
         }
@@ -173,7 +173,7 @@ class PublicIPService {
                     },
                     """
                         delete from ip_pool where ip = :address
-                    """.trimIndent()
+                    """
                 )
             }
         }
@@ -192,7 +192,7 @@ class PublicIPService {
                     select j.ip_address from address_applications as a
                     left join job_information as j on a.ip = j.ip_address
                     where a.id = :id
-                """.trimIndent()
+                """
             ).rows.first().getField(JobInformationTable.ipAddress).isNullOrEmpty().not()
 
             if (inUse) {
@@ -207,7 +207,7 @@ class PublicIPService {
                 },
                 """
                     update address_applications set status = :status, released_at = :time where id = :id
-                """.trimIndent()
+                """
             )
         }
     }
@@ -227,7 +227,7 @@ class PublicIPService {
                     },
                     """
                         insert into open_ports (application_id, port, protocol) values (:id, :port, :protocol)
-                    """.trimIndent()
+                    """
                 )
             }
         }
@@ -249,7 +249,7 @@ class PublicIPService {
                     },
                     """
                         delete from open_ports where application_id = :id and port = :port and protocol = :protocol 
-                    """.trimIndent()
+                    """
                 )
             }
         }
@@ -273,7 +273,7 @@ class PublicIPService {
                     where a.status = :approved
                     offset :offset
                     limit :limit
-                """.trimIndent()
+                """
             ).rows.toPublicIPs(session)
         }
 
@@ -314,7 +314,7 @@ class PublicIPService {
                     where a.status = :approved and a.applicant_id = :ownerId and a.applicant_type = :ownerType
                     offset :offset
                     limit :limit
-                """.trimIndent()
+                """
             ).rows.toPublicIPs(session)
         }
 
@@ -337,7 +337,7 @@ class PublicIPService {
                     where status = :pending
                     offset :offset
                     limit :limit
-                """.trimIndent()
+                """
             ).rows.toAddressApplications()
         }
 
@@ -378,7 +378,7 @@ class PublicIPService {
                         where applicant_id = :applicantId and applicant_type = :applicantType and status = :pending
                         offset :offset
                         limit :limit
-                    """.trimIndent()
+                    """
                 ).rows.toAddressApplications()
             }
         } else {
@@ -396,7 +396,7 @@ class PublicIPService {
                         where applicant_id = :applicantId and applicant_type = :applicantType and status != :pending
                         offset :offset
                         limit :limit
-                    """.trimIndent()
+                    """
                 ).rows.toAddressApplications()
             }
         }
@@ -412,7 +412,7 @@ class PublicIPService {
                 },
                 """
                         select * from open_ports where application_id = :id
-                    """.trimIndent()
+                    """
             ).rows.map { port ->
                 PortAndProtocol(
                     port.getField(OpenPortsTable.port),
