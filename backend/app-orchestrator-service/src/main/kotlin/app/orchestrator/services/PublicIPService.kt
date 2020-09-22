@@ -267,8 +267,11 @@ class PublicIPService {
                     setParameter("approved", ApplicationStatus.APPROVED.toString())
                 },
                 """
-                    select a.id, a.ip, a.applicant_id, a.applicant_type, p.ip, p.owner_id, p.owner_type, j.application_name from (ip_pool as p
-                    inner join address_applications as a on p.ip = a.ip)
+                    select a.id, a.ip, a.applicant_id, a.applicant_type, p.ip, p.owner_id, p.owner_type, j.application_name
+                    from (
+                        ip_pool as p
+                        inner join address_applications as a on p.ip = a.ip
+                    )
                     left join job_information as j on j.ip_address = a.ip
                     where a.status = :approved
                     offset :offset
@@ -308,8 +311,11 @@ class PublicIPService {
                     setParameter("ownerType", ownerType.toString())
                 },
                 """
-                    select a.id, a.ip, a.applicant_id, a.applicant_type, p.ip, p.owner_id, p.owner_type, j.application_name from (ip_pool as p
-                    inner join address_applications as a on p.ip = a.ip)
+                    select a.id, a.ip, a.applicant_id, a.applicant_type, p.ip, p.owner_id, p.owner_type, j.application_name
+                    from (
+                        ip_pool as p
+                        inner join address_applications as a on p.ip = a.ip
+                    )
                     left join job_information as j on j.ip_address = a.ip
                     where a.status = :approved and a.applicant_id = :ownerId and a.applicant_type = :ownerType
                     offset :offset
