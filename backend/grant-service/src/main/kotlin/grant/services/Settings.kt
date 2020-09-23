@@ -31,7 +31,7 @@ object AllowApplicationsFromTable : SQLTable("allow_applications_from") {
 }
 
 object ExcludeApplicationsFromTable : SQLTable("exclude_applications_from") {
-    val projectID = text("project_id", notNull = true)
+    val projectId = text("project_id", notNull = true)
     val mailSuffix = text("email_suffix", notNull = true)
 }
 
@@ -61,7 +61,7 @@ class SettingsService(
         ctx:DBContext,
         actor: Actor,
         projectId: String,
-        exclusionList: List<String>
+        exclusionList: List<UserCriteria>
     ) {
         if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -81,17 +81,18 @@ class SettingsService(
                     """
                 )
 
-            exclusionList.forEach { suffix ->
+            exclusionList.forEach { criteria ->
+                criteria as UserCriteria.EmailDomain
                 session
                     .sendPreparedStatement(
                         {
                             setParameter("projectId", projectId)
-                            setParameter("suffix", suffix)
+                            setParameter("suffix", criteria.domain)
                         },
                         """
                         INSERT INTO exclude_applications_from (project_id, email_suffix) 
                         VALUES (:projectId, :suffix) ON CONFLICT DO NOTHING 
-                    """
+                        """
                     )
             }
         }
@@ -221,7 +222,9 @@ class SettingsService(
                         SELECT * FROM exclude_applications_from
                         WHERE project_id = :projectId
                     """
-                ).rows.map { it.getField(ExcludeApplicationsFromTable.mailSuffix) }
+                ).rows.map {
+                    UserCriteria.EmailDomain(it.getField(ExcludeApplicationsFromTable.mailSuffix) )
+            }
 
             val limits = session
                 .sendPreparedStatement(
@@ -309,7 +312,6 @@ class SettingsService(
         return ctx.withSession { session ->
             val excludingProjects = if (actor is Actor.User) {
                 val emailSuffix = actor.principal.email!!.substringAfter('@')
-                println(emailSuffix)
                 session.sendPreparedStatement(
                     {
                         setParameter("suffix", emailSuffix)
@@ -321,7 +323,7 @@ class SettingsService(
                     """
                 ).rows
                     .map {
-                        it.getField(ExcludeApplicationsFromTable.projectID)
+                        it.getField(ExcludeApplicationsFromTable.projectId)
                     }
             } else {
                emptyList<String>()

@@ -143,7 +143,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         }));
     }, [projectId, descriptionField, description]);
 
-    const addExcludeFrom = useCallback(async (criteria: string) => {
+    const addExcludeFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
         settingsCopy.excludeRequestsFrom.push(criteria);
         await runWork(uploadGrantRequestSettings(settingsCopy));
@@ -367,9 +367,9 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
 };
 
 const ExcludeListEditor: React.FunctionComponent<{
-    onSubmit: (c: string) => any,
+    onSubmit: (c: UserCriteria) => any,
     onRemove: (idx: number) => any,
-    criteria: String[],
+    criteria: UserCriteria[],
     showSubprojects: boolean
 }> = props => {
     const [showRequestFromEditor, setShowRequestFromEditor] = useState<boolean>(false);
@@ -392,7 +392,7 @@ const ExcludeListEditor: React.FunctionComponent<{
             {props.criteria.map((it, idx) => <>
                 <TableRow>
                     <TableCell textAlign={"left"}>
-                        {it}
+                        {it.type === "email" ? it.domain : null}
                     </TableCell>
                     <TableCell textAlign={"right"}>
                         <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
@@ -502,7 +502,7 @@ function userCriteriaTypePrettifier(t: string): string {
 }
 
 const UserExclusionRowEditor: React.FunctionComponent<{
-    onSubmit: (c: string) => any,
+    onSubmit: (c: UserCriteria) => any,
     onCancel: () => void,
 }> = props => {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -516,8 +516,8 @@ const UserExclusionRowEditor: React.FunctionComponent<{
             snackbarStore.addFailure("Only the domain should be added. Example: 'sdu.dk'.", false);
             return;
         }
-        const suffix = inputRef.current!.value;
-        props.onSubmit(suffix);
+        const domain = inputRef.current!.value;
+        props.onSubmit({type: "email", domain});
     }, [props.onSubmit]);
 
     return <TableRow>

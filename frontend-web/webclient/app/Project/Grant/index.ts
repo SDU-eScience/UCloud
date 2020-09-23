@@ -304,7 +304,7 @@ export interface AutomaticApprovalSettings {
 export interface ProjectGrantSettings {
     automaticApproval: AutomaticApprovalSettings;
     allowRequestsFrom: UserCriteria[];
-    excludeRequestsFrom: String[];
+    excludeRequestsFrom: UserCriteria[];
 }
 
 export function readGrantRequestSettings(

@@ -121,14 +121,18 @@ class GiftService(
                             ug.id, ug.title, ug.description, ug.resources_owned_by,
                             gr.product_category, gr.product_provider, gr.credits, gr.quota
                         from unclaimed_gifts ug, gift_resources gr
-                        where ug.id = gr.gift_id
+                        where ug.id = gr.gift_id and ug.id not in (
+                            select project_id 
+                            from exclude_applications_from
+                            where email_suffix = :emailDomain::text
+                        )
                     """
                 )
                 .rows
 
             if (rows.isEmpty()) return@withSession emptyList<GiftWithId>()
 
-            val gifts = rows
+            rows
                 .map { row ->
                     GiftWithId(
                         row.getField(GiftTable.id),
@@ -151,32 +155,6 @@ class GiftService(
                     rowsForGift.reduce { acc, giftWithId -> acc.copy(resources = acc.resources + giftWithId.resources) }
                 }
 
-            val excludedProjectIDs = session
-                .sendPreparedStatement(
-                    {
-                        if (actor is Actor.User) {
-                            setParameter("emailDomain", actor.principal.email?.substringAfter('@'))
-                        } else {
-                            setParameter("emailDomain", null as String?)
-                        }                    },
-                    """
-                        SELECT * FROM exclude_applications_from
-                        WHERE email_suffix = :emailDomain
-                    """
-                ).rows
-                .map {
-                    it.getField(ExcludeApplicationsFromTable.projectID)
-                }
-
-            val allowedGifts = gifts.mapNotNull { gift ->
-                if (excludedProjectIDs.contains(gift.resourcesOwnedBy)) {
-                    null
-                } else {
-                    gift
-                }
-            }
-
-            allowedGifts
         }
     }
 
