@@ -225,11 +225,9 @@ class JobOrchestrator(
                 // if we have bad transition on canceling, the job is finished and should not change status
                 if (proposedState != JobState.CANCELING || job.currentState.isFinal()) {
                     if (job.currentState.isFinal()) {
-                        log.info("Bad state transition from ${job.currentState} to $proposedState")
+                        log.info("Ignoring bad state transition from ${job.currentState} to $proposedState")
                         return
                     }
-
-                    throw JobException.BadStateTransition(job.currentState, event.newState)
                 }
             }
         }

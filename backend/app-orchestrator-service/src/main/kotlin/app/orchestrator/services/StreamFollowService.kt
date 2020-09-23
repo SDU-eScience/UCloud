@@ -110,7 +110,7 @@ class StreamFollowService(
                 try {
                     val (job) = jobQueryService.findById(requestedBy, request.jobId)
 
-                    if (job.currentState == JobState.RUNNING) {
+                    if (!job.currentState.isFinal()) {
                         if (activeSubscription == null) {
                             // setup a subscription
                             activeSubscription = launch {

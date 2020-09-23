@@ -19,7 +19,10 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.ChannelWriteException
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.channels.receiveOrNull
 import java.io.Closeable
 import java.util.*
 import kotlin.collections.HashMap
@@ -35,12 +38,13 @@ class AppKubernetesController(
     private val webService: WebService,
     private val broadcastStream: BroadcastingStream
 ) : Controller {
-    private val streams = HashMap<String, Closeable>()
+    private val streams = HashMap<String, ReceiveChannel<*>>()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         runBlocking {
             broadcastStream.subscribe(CancelWSStream.events) { (id) ->
-                streams.remove(id)?.close()
+                streams.remove(id)?.cancel()
             }
         }
 
@@ -67,40 +71,16 @@ class AppKubernetesController(
         implement(AppKubernetesDescriptions.followWSStream) {
             val streamId = UUID.randomUUID().toString()
             sendWSMessage(InternalFollowWSStreamResponse(streamId))
-
-            logService.useLogWatch(request.job.id) { resource, logStream ->
-                log.debug("Following log for ${request.job.id}")
-                streams[streamId] = resource
-
-                withContext<WSCall> {
-                    ctx.session.addOnCloseHandler {
-                        log.debug("[Log: ${request.job.id}] Client has closed connection")
-                        resource.close()
-                    }
-                }
-
-                val buffer = CharArray(4096)
-                val reader = logStream.reader()
+            val logWatch = logService.useLogWatch(request.job.id)
+            streams[streamId] = logWatch
+            try {
                 while (streams[streamId] != null) {
-                    val read = reader.read(buffer)
-                    if (read == -1) {
-                        log.debug("[Log: ${request.job.id}] EOF reached")
-                        resource.close()
-                        streams.remove(streamId)
-                        break
-                    }
-                    val stdout = String(buffer, 0, read)
-                    log.debug("[Log: ${request.job.id}] stdout: $stdout")
-
-                    try {
-                        sendWSMessage(InternalFollowWSStreamResponse(streamId, stdout, null))
-                    } catch (ex: ChannelWriteException) {
-                        resource.close()
-                        streams.remove(streamId)
-                        break
-                    }
+                    val ev = logWatch.receiveOrNull() ?: break
+                    sendWSMessage(InternalFollowWSStreamResponse(streamId, ev, null))
                 }
-            }.join()
+            } finally {
+                streams.remove(streamId)?.cancel()
+            }
 
             ok(InternalFollowWSStreamResponse(streamId))
         }
@@ -127,8 +107,7 @@ class AppKubernetesController(
         }
 
         implement(AppKubernetesDescriptions.cancel) {
-            //jobMonitoringService.cancel(request.verifiedJob)
-            TODO()
+            jobManagement.cancel(request.verifiedJob)
             ok(Unit)
         }
 

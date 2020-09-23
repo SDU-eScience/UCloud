@@ -12,7 +12,7 @@ import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.client.*
-import io.ktor.client.engine.okhttp.*
+import io.ktor.client.engine.cio.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -25,7 +25,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.isActive
-import okhttp3.ConnectionPool
 import java.io.File
 import java.net.URLEncoder
 import java.util.*
@@ -157,7 +156,7 @@ sealed class KubernetesConfigurationSource {
 }
 
 sealed class KubernetesAuthenticationMethod {
-    open fun configureClient(httpClientConfig: HttpClientConfig<OkHttpConfig>) {}
+    open fun configureClient(httpClientConfig: HttpClientConfig<*>) {}
     open fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {}
     class Proxy(val context: String) : KubernetesAuthenticationMethod() {
         private fun startProxy(): Process {
@@ -182,11 +181,13 @@ sealed class KubernetesAuthenticationMethod {
                 proxy = startProxy()
             }
 
-            httpRequestBuilder.url(httpRequestBuilder.url.clone().build().copy(
-                protocol = URLProtocol.HTTP,
-                host = "localhost",
-                specifiedPort = 42010
-            ).toString())
+            httpRequestBuilder.url(
+                httpRequestBuilder.url.clone().build().copy(
+                    protocol = URLProtocol.HTTP,
+                    host = "localhost",
+                    specifiedPort = 42010
+                ).toString()
+            )
         }
 
         companion object : Loggable {
@@ -269,18 +270,15 @@ class KubernetesClient(
     internal val conn = configurationSource.retrieveConnection() ?: error("Found no valid Kubernetes configuration")
 
     @PublishedApi
-    internal val httpClient = HttpClient(OkHttp) {
+    internal val httpClient = HttpClient(CIO) {
+        // NOTE(Dan): Not using OkHttp here because of a input buffering issue causing watched resources to not
+        // always flush. It is not clear to me how to make OkHttp/Ktor/??? not do this input buffering. Using the CIO
+        // engine seemingly resolves the issue.
         conn.authenticationMethod.configureClient(this)
         install(HttpTimeout) {
             this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
             this.connectTimeoutMillis = 1000 * 60
             this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-        }
-
-        engine {
-            config {
-                connectionPool(ConnectionPool(8, 30, TimeUnit.MINUTES))
-            }
         }
     }
 
@@ -291,7 +289,8 @@ class KubernetesClient(
     @PublishedApi
     internal fun buildUrl(
         locator: KubernetesResourceLocator,
-        queryParameters: Map<String, String>
+        queryParameters: Map<String, String>,
+        operation: String?
     ): String = buildString {
         with(locator) {
             append(conn.masterUrl)
@@ -315,6 +314,10 @@ class KubernetesClient(
                 append('/')
                 append(name)
             }
+            if (operation != null) {
+                append('/')
+                append(operation)
+            }
             append(encodeQueryParamsToString(queryParameters))
         }
     }
@@ -334,8 +337,7 @@ class KubernetesClient(
             ?.let { "?$it" } ?: ""
     }
 
-    @PublishedApi
-    internal suspend inline fun <reified T> parseResponse(resp: HttpResponse): T {
+    suspend inline fun <reified T> parseResponse(resp: HttpResponse): T {
         if (!resp.status.isSuccess()) {
             throw KubernetesException(
                 resp.status,
@@ -354,129 +356,135 @@ class KubernetesClient(
         }
     }
 
-    suspend fun getResource(
+    inline suspend fun <reified T> sendRequest(
+        method: HttpMethod,
         locator: KubernetesResourceLocator,
-        queryParameters: Map<String, String> = emptyMap()
-    ): JsonNode {
-        val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator, queryParameters))
-
+        queryParameters: Map<String, String> = emptyMap(),
+        operation: String? = null,
+        content: OutgoingContent? = null,
+    ): T {
+        return httpClient.request {
+            this.method = method
+            url(buildUrl(locator, queryParameters, operation).also { log.debug("$method $it") })
             header(HttpHeaders.Accept, ContentType.Application.Json)
+            if (content != null) body = content
             conn.authenticationMethod.configureRequest(this)
         }
-
-        return parseResponse(resp)
     }
 
-    suspend inline fun <reified T> listResources(
-        locator: KubernetesResourceLocator,
-        queryParameters: Map<String, String> = emptyMap()
-    ): List<T> {
-        val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator, queryParameters))
-
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            conn.authenticationMethod.configureRequest(this)
-        }
-
-        val parsedResp = parseResponse<JsonNode>(resp)
-        val items = parsedResp["items"].takeIf { it.nodeType == JsonNodeType.ARRAY }
-            ?: error("Could not parse items of response: $parsedResp")
-
-        return (0 until items.size()).map {
-            defaultMapper.treeToValue<T>(items[it])
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    inline fun <reified T : WatchEvent<*>> watchResource(
-        scope: CoroutineScope,
-        locator: KubernetesResourceLocator,
-        queryParameters: Map<String, String> = emptyMap()
-    ): ReceiveChannel<T> {
-        return scope.produce {
-            val resp = httpClient.request<HttpStatement> {
-                url(buildUrl(locator, queryParameters + mapOf("watch" to "")))
-
-                header(HttpHeaders.Accept, ContentType.Application.Json)
-                conn.authenticationMethod.configureRequest(this)
-            }
-
-            val content = resp.receive<ByteReadChannel>()
-
-            while (isActive) {
-                val nextLine = content.readUTF8Line() ?: break
-                @Suppress("BlockingMethodInNonBlockingContext")
-                send(defaultMapper.readValue<T>(nextLine))
-            }
-
-            runCatching { content.cancel() }
-        }
-    }
-
-    suspend inline fun deleteResource(
-        locator: KubernetesResourceLocator,
-        queryParameters: Map<String, String> = emptyMap()
-    ): JsonNode {
-        val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator, queryParameters))
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            conn.authenticationMethod.configureRequest(this)
-            method = HttpMethod.Delete
-        }
-        return parseResponse(resp)
-    }
-
-    suspend inline fun replaceResource(
-        locator: KubernetesResourceLocator,
-        replacementJson: String,
-        queryParameters: Map<String, String> = emptyMap()
-    ): JsonNode {
-        val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator, queryParameters))
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            conn.authenticationMethod.configureRequest(this)
-            method = HttpMethod.Put
-            body = TextContent(replacementJson, ContentType.Application.Json)
-        }
-        return parseResponse(resp)
-    }
-
-    suspend fun patchResource(
-        locator: KubernetesResourceLocator,
-        replacementJson: String,
-        queryParameters: Map<String, String> = emptyMap()
-    ): JsonNode {
-        val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator, queryParameters))
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            conn.authenticationMethod.configureRequest(this)
-            method = HttpMethod.Patch
-            body = TextContent(replacementJson, ContentType.Application.Json)
-        }
-        return parseResponse(resp)
-    }
-
-    suspend fun createResource(
-        locator: KubernetesResourceLocator,
-        replacement: String,
-        contentType: ContentType = ContentType.Application.Json,
-        queryParameters: Map<String, String> = emptyMap()
-    ): JsonNode {
-        log.debug("Creating resource:\n  $locator\n  $replacement")
-        val resp = httpClient.request<HttpResponse> {
-            url(buildUrl(locator, queryParameters))
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            conn.authenticationMethod.configureRequest(this)
-            method = HttpMethod.Post
-            body = TextContent(replacement, contentType)
-        }
-        return parseResponse(resp)
-    }
 
     companion object : Loggable {
         override val log = logger()
     }
+}
+
+suspend inline fun <reified T> KubernetesClient.getResource(
+    locator: KubernetesResourceLocator,
+    queryParameters: Map<String, String> = emptyMap(),
+    operation: String? = null,
+): T {
+    return parseResponse(sendRequest(HttpMethod.Get, locator, queryParameters, operation))
+}
+
+suspend inline fun <reified T> KubernetesClient.listResources(
+    locator: KubernetesResourceLocator,
+    queryParameters: Map<String, String> = emptyMap(),
+    operation: String? = null,
+): List<T> {
+    val resp = sendRequest<HttpResponse>(HttpMethod.Get, locator, queryParameters, operation)
+
+    val parsedResp = parseResponse<JsonNode>(resp)
+    val items = parsedResp["items"].takeIf { it.nodeType == JsonNodeType.ARRAY }
+        ?: error("Could not parse items of response: $parsedResp")
+
+    return (0 until items.size()).map {
+        defaultMapper.treeToValue<T>(items[it])
+    }
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
+inline fun <reified T : WatchEvent<*>> KubernetesClient.watchResource(
+    scope: CoroutineScope,
+    locator: KubernetesResourceLocator,
+    queryParameters: Map<String, String> = emptyMap(),
+    operation: String? = null,
+): ReceiveChannel<T> {
+    return scope.produce {
+        val resp = sendRequest<HttpStatement>(
+            HttpMethod.Get,
+            locator,
+            queryParameters + mapOf("watch" to "true"),
+            operation
+        )
+        val content = resp.receive<ByteReadChannel>()
+        while (isActive) {
+            val nextLine = content.readUTF8Line() ?: break
+            @Suppress("BlockingMethodInNonBlockingContext")
+            send(defaultMapper.readValue<T>(nextLine))
+        }
+
+        runCatching { content.cancel() }
+    }
+}
+
+suspend inline fun KubernetesClient.deleteResource(
+    locator: KubernetesResourceLocator,
+    queryParameters: Map<String, String> = emptyMap(),
+    operation: String? = null,
+): JsonNode {
+    return parseResponse(sendRequest(HttpMethod.Delete, locator, queryParameters, operation))
+}
+
+suspend inline fun KubernetesClient.replaceResource(
+    locator: KubernetesResourceLocator,
+    replacementJson: String,
+    queryParameters: Map<String, String> = emptyMap(),
+    operation: String? = null,
+): JsonNode {
+    return parseResponse(
+        sendRequest(
+            HttpMethod.Put,
+            locator,
+            queryParameters,
+            operation,
+            TextContent(replacementJson, ContentType.Application.Json)
+        )
+    )
+}
+
+suspend fun KubernetesClient.patchResource(
+    locator: KubernetesResourceLocator,
+    replacementJson: String,
+    queryParameters: Map<String, String> = emptyMap(),
+    operation: String? = null,
+): JsonNode {
+    return parseResponse(
+        sendRequest(
+            HttpMethod.Patch,
+            locator,
+            queryParameters,
+            operation,
+            TextContent(replacementJson, ContentType.Application.Json)
+        )
+    )
+}
+
+suspend fun KubernetesClient.createResource(
+    locator: KubernetesResourceLocator,
+    replacement: String,
+    contentType: ContentType = ContentType.Application.Json,
+    queryParameters: Map<String, String> = emptyMap(),
+    operation: String? = null,
+): JsonNode {
+    return parseResponse(
+        sendRequest(
+            HttpMethod.Post,
+            locator,
+            queryParameters,
+            operation,
+            TextContent(replacement, contentType)
+        )
+    )
 }
 
 const val API_GROUP_CORE = ""

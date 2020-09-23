@@ -88,3 +88,34 @@ data class VolcanoQueue(
         var inqueue: Int? = null,
     )
 }
+
+/**
+ * Contains well known Volcano job phases
+ *
+ * We are not using an enum here since these are likely not super stable. Code should handle job phases which do not
+ * fall into one of well known phases.
+ */
+object VolcanoJobPhase {
+    /** Pending is the phase that job is pending in the queue, waiting for scheduling decision */
+    const val Pending = "Pending"
+    /** Aborting is the phase that job is aborted, waiting for releasing pods */
+    const val Aborting = "Aborting"
+    /** Aborted is the phase that job is aborted by user or error handling */
+    const val Aborted = "Aborted"
+    /** Running is the phase that minimal available tasks of Job are running */
+    const val Running = "Running"
+    /** Restarting is the phase that the Job is restarted, waiting for pod releasing and recreating */
+    const val Restarting = "Restarting"
+    /** Completing is the phase that required tasks of job are completed, job starts to clean up */
+    const val Completing = "Completing"
+    /** Completed is the phase that all tasks of Job are completed */
+    const val Completed = "Completed"
+    /** Terminating is the phase that the Job is terminated, waiting for releasing pods */
+    const val Terminating = "Terminating"
+    /** Terminated is the phase that the job is finished unexpected, e.g. events */
+    const val Terminated = "Terminated"
+    /** Failed is the phase that the job is restarted failed reached the maximum number of retries. */
+    const val Failed = "Failed"
+}
+
+const val VOLCANO_JOB_NAME_LABEL = "volcano.sh/job-name"

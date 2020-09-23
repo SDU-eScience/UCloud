@@ -85,3 +85,4 @@ class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagement
 }
 
 const val DEFAULT_QUEUE = "default"
+const val USER_JOB_CONTAINER = "user-job"

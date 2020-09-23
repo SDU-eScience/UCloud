@@ -9,6 +9,8 @@ interface Cache<K, V : Any> {
     suspend fun remove(key: K)
 
     suspend fun get(key: K): V?
+
+    suspend fun insert(key: K, value: V)
 }
 
 class SimpleCache<K, V : Any>(
@@ -27,6 +29,12 @@ class SimpleCache<K, V : Any>(
 
     override suspend fun remove(key: K) {
         mutex.withLock { internalMap.remove(key) }
+    }
+
+    override suspend fun insert(key: K, value: V) {
+        mutex.withLock {
+            internalMap[key] = CacheEntry(Time.now(), value)
+        }
     }
 
     override suspend fun get(key: K): V? {

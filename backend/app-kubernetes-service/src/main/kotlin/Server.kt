@@ -48,18 +48,30 @@ class Server(
         val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val distributedStateFactory = RedisDistributedStateFactory(micro)
+        val nameAllocator = NameAllocator()
 
         val k8sClient = KubernetesClient()
 
         val k8Dependencies = K8Dependencies(
             k8sClient,
             micro.backgroundScope,
-            serviceClient
+            serviceClient,
+            nameAllocator,
+            DockerImageSizeQuery()
         )
 
         val jobCache = VerifiedJobCache(serviceClient)
+        val logService = K8LogService(k8Dependencies)
 
-        val jobManagement = JobManagement(k8Dependencies, distributedLocks).apply {
+        val jobManagement = JobManagement(
+            k8Dependencies,
+            distributedLocks,
+            logService,
+            // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
+            // instance) In that case we can disable it via configuration. Note that this config will only be used if
+            // we are in development mode.
+            configuration.disableMasterElection && micro.developmentModeEnabled
+        ).apply {
             register(TaskPlugin(configuration.toleration))
             register(ParameterPlugin())
             register(FileMountPlugin(cephConfig))
@@ -73,7 +85,6 @@ class Server(
             // register(KataContainerPlugin())
         }
 
-        val logService = K8LogService(k8Dependencies)
         val envoyConfigurationService = EnvoyConfigurationService(
             File("./envoy/rds.yaml"),
             File("./envoy/clusters.yaml")

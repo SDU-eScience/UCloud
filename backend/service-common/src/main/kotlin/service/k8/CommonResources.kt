@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.defaultMapper
+import java.util.*
 
 object KubernetesResources {
     val pod = KubernetesResourceLocator(API_GROUP_CORE, "v1", "pods")
@@ -13,9 +14,10 @@ object KubernetesResources {
     val job = KubernetesResourceLocator("batch", "v1", "jobs")
     val replicaSet = KubernetesResourceLocator("apps", "v1", "replicasets")
     val statefulSet = KubernetesResourceLocator("apps", "v1", "statefulsets")
+    val events = KubernetesResourceLocator(API_GROUP_CORE, "v1", "events")
 }
 
-typealias KubernetesTimestamp = String
+typealias KubernetesTimestamp = Date
 
 data class ObjectMeta(
     var name: String? = null,
@@ -413,6 +415,50 @@ data class Pod(
         )
     }
 }
+
+data class Event(
+    val apiVersion: String = "v1",
+    val kind: String = "Event",
+    var action: String? = null,
+    var count: Int? = null,
+    var eventTime: String? = null,
+    var firstTimestamp: KubernetesTimestamp? = null,
+    var involvedObject: ObjectReference? = null,
+    var lastTimestamp: KubernetesTimestamp? = null,
+    var message: String? = null,
+    var metadata: ObjectMeta? = null,
+    var reason: String? = null,
+    var related: ObjectReference? = null,
+    var reportingComponent: String? = null,
+    var reportingInstance: String? = null,
+    var series: EventSeries? = null,
+    var source: EventSource? = null,
+    var type: String? = null,
+)
+
+data class ObjectReference(
+    val apiVersion: String = "v1",
+    val kind: String = "ObjectReference",
+    var fieldPath: String? = null,
+    var name: String? = null,
+    var namespace: String? = null,
+    var resourceVersion: String? = null,
+    var uid: String? = null,
+)
+
+data class EventSource(
+    val apiVersion: String = "v1",
+    val kind: String = "EventSource",
+    var component: String? = null,
+    var host: String? = null,
+)
+
+data class EventSeries(
+    val apiVersion: String = "v1",
+    val kind: String = "EventSeries",
+    var count: Int? = null,
+    var lastObservedTime: String? = null,
+)
 
 typealias ResourceList = Map<String, String>
 
