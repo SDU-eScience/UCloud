@@ -1,5 +1,5 @@
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {formatDistance} from "date-fns/esm";
+import {format, formatDistance} from "date-fns/esm";
 import {NotificationsReduxObject} from "DefaultObjects";
 import * as React from "react";
 import {connect, useSelector} from "react-redux";
@@ -8,7 +8,7 @@ import {Dispatch} from "redux";
 import {Snack} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-components";
+import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Text, Relative} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
@@ -179,10 +179,11 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 <Icon {...resolveEventType(notification.type)} />
             </Box>
             <Flex width="90%" flexDirection="column">
-                <TextSpan color="grey" fontSize={1}>
-                    {formatDistance(notification.ts, new Date(), {addSuffix: true})}
-                </TextSpan>
                 <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client, [])}</TextSpan>
+                <Text title="From" fontSize={0} mr="12px" color="gray">
+                    <Icon size="10" mr="3px" name="edit" />
+                    {formatDistance(notification.ts, new Date(), {addSuffix: true})}
+                </Text>
             </Flex>
         </NotificationWrapper>
     );
