@@ -105,7 +105,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                     }
                     left={
                         <Flex>
-                            <Text mr={16}><strong>{app.grantRecipientTitle}</strong></Text>
+                            <Text mr={16}>{app.grantRecipientTitle}</Text>
                             {slim ? null : (
                                 <EllipsedText maxWidth={420}>
                                     {/*
