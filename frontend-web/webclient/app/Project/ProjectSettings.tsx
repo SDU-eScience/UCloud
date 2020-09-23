@@ -57,7 +57,7 @@ const ActionBox = styled.div`
 `;
 
 export const ProjectSettings: React.FunctionComponent = () => {
-    const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails} =
+    const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails, reloadProjectStatus} =
         useProjectManagementStatus({isRootComponent: true});
 
     useTitle("Project Settings");
@@ -72,7 +72,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     <ChangeProjectTitle
                         projectId={projectId}
                         projectDetails={projectDetails.data}
-                        onSuccess={() => fetchProjectDetails(projectDetailsParams)}
+                        onSuccess={() => {
+                            fetchProjectDetails(projectDetailsParams);
+                            reloadProjectStatus();
+                        }}
                     />
                     <Divider/>
                     <ArchiveSingleProject
