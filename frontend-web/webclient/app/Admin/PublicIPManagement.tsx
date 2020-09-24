@@ -34,7 +34,7 @@ function rejectAddress(id: number): APICallParameters<{id: number}> {
 
 function acceptAddress(id: number): APICallParameters<{id: number}> {
     return {
-        path: `${baseContext}reject`,
+        path: `${baseContext}approve`,
         method: "POST",
         payload: {id}
     };

@@ -11,6 +11,13 @@ enum class InternetProtocol {
     UDP
 }
 
+enum class ApplicationStatus {
+    PENDING,
+    APPROVED,
+    DECLINED,
+    RELEASED
+}
+
 data class PortAndProtocol(val port: Int, val protocol: InternetProtocol)
 
 data class PublicIP(
@@ -127,17 +134,22 @@ data class AddressApplication(
     val application: String,
     val createdAt: Long,
     val entityId: String,
-    val entityType: WalletOwnerType
+    val entityType: WalletOwnerType,
+    val status: ApplicationStatus
 )
 
 data class ListAddressApplicationsRequest(
-    override val itemsPerPage: Int?,
-    override val page: Int?
-) : WithPaginationRequest
+    val pending: Boolean,
+    val itemsPerPage: Int?,
+    val page: Int?
+)
 typealias ListAddressApplicationsResponse = Page<AddressApplication>
 
-data class UpdatePortsRequest(val id: Long, val newPortList: List<PortAndProtocol>)
-typealias UpdatePortsResponse = Unit
+data class OpenPortsRequest(val id: Long, val portList: List<PortAndProtocol>)
+typealias OpenPortsResponse = Unit
+
+data class ClosePortsRequest(val id: Long, val portList: List<PortAndProtocol>)
+typealias ClosePortsResponse = Unit
 
 data class ListAddressApplicationsForApprovalRequest(
     override val itemsPerPage: Int?,
@@ -166,7 +178,7 @@ typealias ListAddressApplicationsForApprovalResponse = Page<AddressApplication>
  * End-users should be presented with a list of their owned [PublicIP]s, this can be achieved using
  * [PublicIPs.listMyAddresses]. If they don't have any they should be presented with the option to apply for a new one.
  * Users must also be able to update the list of open ports in the [PublicIP]. Ports can be updated using
- * [PublicIPs.updatePorts].
+ * [PublicIPs.openPorts] and [PublicIPs.closePorts].
  */
 object PublicIPs : CallDescriptionContainer("hpc.publicips") {
     const val baseContext = "/api/hpc/ip"
@@ -259,10 +271,10 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
     }
 
     /**
-     * Updates the list of open ports. Only the owner of/admin of the project owning the IP can update the list of
+     * Adds to the list of open ports. Only the owner of/admin of the project owning the IP can update the list of
      * open ports. This will _not_ affect already running jobs.
      */
-    val updatePorts = call<UpdatePortsRequest, UpdatePortsResponse, CommonErrorMessage>("updatePorts") {
+    val openPorts = call<OpenPortsRequest, OpenPortsResponse, CommonErrorMessage>("openPorts") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -272,7 +284,28 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
 
             path {
                 using(baseContext)
-                +"update-ports"
+                +"open-ports"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    /**
+     * Removes from the list of open ports. Only the owner of/admin of the project owning the IP can update the list of
+     * open ports. This will _not_ affect already running jobs.
+     */
+    val closePorts = call<ClosePortsRequest, ClosePortsResponse, CommonErrorMessage>("closePorts") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"close-ports"
             }
 
             body { bindEntireRequestFromBody() }
@@ -398,7 +431,7 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
     }
 
     /**
-     * Endpoint for end-users to list all active applications. The project header is respected for this endpoint.
+     * Endpoint for end-users to list all applications. The project header is respected for this endpoint.
      */
     val listAddressApplications =
         call<ListAddressApplicationsRequest, ListAddressApplicationsResponse, CommonErrorMessage>(
@@ -417,6 +450,7 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
                 }
 
                 params {
+                    +boundTo(ListAddressApplicationsRequest::pending)
                     +boundTo(ListAddressApplicationsRequest::itemsPerPage)
                     +boundTo(ListAddressApplicationsRequest::page)
                 }

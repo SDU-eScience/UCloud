@@ -7,7 +7,7 @@ import {
     listMyAddresses,
     PortAndProtocol,
     PublicIP, releaseAddress,
-    updatePorts
+    openPorts, closePorts, ApplicationStatus, readableApplicationStatus
 } from "Applications/IPAddresses/index";
 import styled from "styled-components";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -17,6 +17,7 @@ import {
     ButtonGroup,
     ConfirmButton,
     Flex,
+    Icon,
     Input,
     Label,
     SelectableText,
@@ -65,14 +66,20 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
     const PAGE_REQUESTS = 1;
     const PAGE_EDIT = 2;
     const PAGE_NEW_REQUEST = 3;
+    const PAGE_CLOSED = 4
 
     const projectId = useProjectId();
     const [activePage, setActivePage] = useState<number>(PAGE_AVAILABLE);
     const [myAddresses, fetchMyAddresses, myAddressesParams] = useCloudAPI<Page<PublicIP>>({noop: true}, emptyPage);
-    const [myApplications, fetchMyApplications, myApplicationsParams] = useCloudAPI<Page<AddressApplication>>(
+    const [myPendingApplications, fetchMyPendingApplications, myPendingApplicationsParams] = useCloudAPI<Page<AddressApplication>>(
         {noop: true},
         emptyPage
     );
+    const [myClosedApplications, fetchMyClosedApplications, myClosedApplicationsParams] = useCloudAPI<Page<AddressApplication>>(
+        {noop: true},
+        emptyPage
+    );
+
     const [editingIp, setEditingIp] = useState<string | null>(null);
     const [editingProtocol, setEditingProtocol] = useState<InternetProtocol>(InternetProtocol.TCP);
     const editing = myAddresses.data.items.find(it => it.ipAddress === editingIp);
@@ -84,7 +91,8 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
     }, [projectId]);
 
     useEffect(() => {
-        fetchMyApplications(listAddressApplications({itemsPerPage: 25, page: 0}));
+        fetchMyPendingApplications(listAddressApplications({pending: true, itemsPerPage: 25, page: 0}));
+        fetchMyClosedApplications(listAddressApplications({pending: false, itemsPerPage: 25, page: 0}));
     }, [projectId]);
 
     const onUse = (ip: PublicIP) => () => {
@@ -101,20 +109,31 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
         setActivePage(PAGE_EDIT);
     };
 
-    const onEditSubmit = async (portAndProtocol: PortAndProtocol): Promise<void> => {
+    const onEditSubmit = async (portAndProtocols: PortAndProtocol[]): Promise<void> => {
         if (editing === undefined) {
             snackbarStore.addFailure("Could not add port (internal error)", false);
             return;
         }
 
-        await invokeCommand(updatePorts({id: editing.id, newPortList: editing.openPorts.concat([portAndProtocol])}));
+        await invokeCommand(openPorts({id: editing.id, portList: portAndProtocols}));
+        fetchMyAddresses({...myAddressesParams});
+    };
+
+
+    const onClosePort = async (portAndProtocol: PortAndProtocol): Promise<void> => {
+        if (editing === undefined) {
+            snackbarStore.addFailure("Could not close port (internal error)", false);
+            return;
+        }
+
+        await invokeCommand(closePorts({id: editing.id, portList: [portAndProtocol]}));
         fetchMyAddresses({...myAddressesParams});
     };
 
     const onRequestSubmit = async (): Promise<void> => {
         const application = requestRef.current!.value;
         await invokeCommand(applyForAddress({application}));
-        fetchMyApplications({...myApplicationsParams});
+        fetchMyPendingApplications({...myPendingApplicationsParams});
         setActivePage(PAGE_REQUESTS);
     };
 
@@ -124,7 +143,10 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                 Available IP Addresses {myAddresses.loading ? null : <>({myAddresses.data.itemsInTotal})</>}
             </SelectableText>
             <SelectableText selected={activePage === 1} onClick={() => setActivePage(PAGE_REQUESTS)}>
-                Active Requests {myApplications.loading ? null : <>({myApplications.data.itemsInTotal})</>}
+                Active Requests {myPendingApplications.loading ? null : <>({myPendingApplications.data.itemsInTotal})</>}
+            </SelectableText>
+            <SelectableText selected={activePage === 4} onClick={() => setActivePage(PAGE_CLOSED)}>
+                Closed Requests {myClosedApplications.loading ? null : <>({myClosedApplications.data.itemsInTotal})</>}
             </SelectableText>
         </SelectableTextWrapper>
 
@@ -238,7 +260,9 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                 <TableHeaderCell textAlign="left">
                                     <Label>Protocol</Label>
                                 </TableHeaderCell>
-                                <TableHeaderCell />
+                                <TableHeaderCell textAlign={"right"}>
+                                    <Label>Close</Label>
+                                </TableHeaderCell>
                             </TableRow>
                         </TableHeader>
                         <tbody>
@@ -246,7 +270,17 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                 <TableRow key={it.port}>
                                     <TableCell>{it.port}</TableCell>
                                     <TableCell>{it.protocol}</TableCell>
-                                    <TableCell />
+                                    <TableCell textAlign={"right"}>
+                                        <Button
+                                            color={"red"}
+                                            type={"button"}
+                                            paddingLeft={10}
+                                            paddingRight={10}
+                                            onClick={() => onClosePort({port: it.port, protocol: it.protocol})}
+                                        >
+                                            <Icon size={16} name="trash" />
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                             <TableRow>
@@ -278,7 +312,7 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                             if (isNaN(port)) {
                                                 snackbarStore.addFailure("Please fill out 'From' port field.", false);
                                             } else if (isNaN(upperPort)) {
-                                                await onEditSubmit({port, protocol: editingProtocol});
+                                                await onEditSubmit([{port, protocol: editingProtocol}]);
                                                 portInput.value = "";
                                                 upperPortInput.value = "";
                                             } else if (port > upperPort) {
@@ -286,14 +320,13 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                             } else {
                                                 const min = Math.min(port, upperPort);
                                                 const max = Math.max(port, upperPort);
-                                                for (let p = min; p <= max; p++) {
-                                                    try {
-                                                        await onEditSubmit({port: p, protocol: editingProtocol});
-                                                    } catch (e) {
-                                                        snackbarStore.addFailure(
-                                                            errorMessageOrDefault(e, "Failed to update port"), false
-                                                        );
-                                                    }
+                                                const portRange = [...Array(max - min + 1).keys()].map(i => ({port: i + min, protocol: editingProtocol}));
+                                                try {
+                                                    await onEditSubmit(portRange);
+                                                } catch (e) {
+                                                    snackbarStore.addFailure(
+                                                        errorMessageOrDefault(e, "Failed to open ports"), false
+                                                    );
                                                 }
                                                 portInput.value = "";
                                                 upperPortInput.value = "";
@@ -316,17 +349,17 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
 
             {activePage !== PAGE_REQUESTS ? null : (
                 <Flex height={"100%"} flexDirection={"column"}>
-                    {!myApplications.error ? null : <Error error={myApplications.error.why} />}
-                    {!myApplications.loading ? null : <Spinner />}
+                    {!myPendingApplications.error ? null : <Error error={myPendingApplications.error.why}/>}
+                    {!myPendingApplications.loading ? null : <Spinner/>}
 
                     <Pagination.List
-                        page={myApplications.data}
-                        loading={myApplications.loading}
+                        page={myPendingApplications.data}
+                        loading={myPendingApplications.loading}
                         customEmptyPage={
                             <NoResultsCardBody title={"No active requests"} />
                         }
                         onPageChanged={newPage => {
-                            fetchMyApplications(listAddressApplications({itemsPerPage: 25, page: newPage}));
+                            fetchMyPendingApplications(listAddressApplications({pending: true, itemsPerPage: 25, page: newPage}));
                         }}
                         pageRenderer={() => (
                             <Table>
@@ -337,14 +370,14 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                                     </TableRow>
                                 </TableHeader>
                                 <tbody>
-                                    {myApplications.data.items.map(it => {
-                                        return <TableRow key={it.id}>
-                                            <TableCell>
-                                                {formatRelative(it.createdAt, new Date(), {locale: enGB})}
-                                            </TableCell>
-                                            <TableCell>{it.application}</TableCell>
-                                        </TableRow>;
-                                    })}
+                                {myPendingApplications.data.items.map(it => {
+                                    return <TableRow key={it.id}>
+                                        <TableCell>
+                                            {formatRelative(it.createdAt, new Date(), {locale: enGB})}
+                                        </TableCell>
+                                        <TableCell>{it.application}</TableCell>
+                                    </TableRow>;
+                                })}
                                 </tbody>
                             </Table>
                         )}
@@ -357,6 +390,54 @@ export const IPAddressManagement: React.FunctionComponent<IPAddressManagementPro
                     </Button>
                 </Flex>
             )}
+
+            {activePage !== PAGE_CLOSED ? null : (
+                <Flex height={"100%"} flexDirection={"column"}>
+                    {!myClosedApplications.error ? null : <Error error={myClosedApplications.error.why}/>}
+                    {!myClosedApplications.loading ? null : <Spinner/>}
+
+                    <Pagination.List
+                        page={myClosedApplications.data}
+                        loading={myClosedApplications.loading}
+                        customEmptyPage={
+                            <NoResultsCardBody title={"No active requests"}/>
+                        }
+                        onPageChanged={newPage => {
+                            fetchMyClosedApplications(listAddressApplications({pending: false, itemsPerPage: 25, page: newPage}));
+                        }}
+                        pageRenderer={() => {
+                            return <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHeaderCell textAlign={"left"}>Submitted at</TableHeaderCell>
+                                        <TableHeaderCell textAlign={"left"}>Application</TableHeaderCell>
+                                        <TableHeaderCell textAlign={"right"}>Status</TableHeaderCell>
+                                    </TableRow>
+                                </TableHeader>
+                                <tbody>
+                                {myClosedApplications.data.items.map(it => {
+                                    return <TableRow key={it.id}>
+                                        <TableCell>
+                                            {formatRelative(it.createdAt, new Date(), {locale: enGB})}
+                                        </TableCell>
+                                        <TableCell>{it.application}</TableCell>
+                                        <TableCell textAlign={"right"}>{readableApplicationStatus(it.status)}</TableCell>
+                                    </TableRow>;
+                                })}
+                                </tbody>
+                            </Table>;
+                        }}
+                    />
+
+                    <Box flexGrow={1}/>
+
+                    <Button type={"button"} onClick={() => setActivePage(PAGE_NEW_REQUEST)}>
+                        Apply for new address
+                    </Button>
+                </Flex>
+            )}
+
+
 
             {activePage !== PAGE_NEW_REQUEST ? null : (
                 <Flex flexDirection={"column"}>
