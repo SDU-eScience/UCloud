@@ -22,7 +22,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {GrantProjectSettings} from "Project/Grant/Settings";
+import {GrantProjectSettings, LogoAndDescriptionSettings} from "Project/Grant/Settings";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -69,6 +69,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
             header={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]} />}
             main={
                 <ActionContainer>
+                    <a href={"#DMP"}>Data Management Plan</a>
+                    <a href={"#AppGrantSettings"}>Grant Settings</a>
                     <ChangeProjectTitle
                         projectId={projectId}
                         projectDetails={projectDetails.data}
@@ -95,7 +97,9 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     <Divider/>
                     <DataManagementPlan />
                     <Divider/>
-                    <GrantProjectSettings />
+                    <LogoAndDescriptionSettings/>
+                    <Divider/>
+                    <GrantProjectSettings/>
                 </ActionContainer>
             }
             sidebar={null}
@@ -170,7 +174,7 @@ const DataManagementPlan: React.FunctionComponent = props => {
     if (!Client.hasActiveProject || !projectManagement.allowManagement) return null;
 
     return <Box>
-        <Heading.h4>Data Management Plan</Heading.h4>
+        <Heading.h4 id={"DMP"}>Data Management Plan</Heading.h4>
         If you have a data management plan then you can attach it to the project here.
         <TextSpan bold>
             You still need to follow your organization&apos;s policies regarding data management plans.
