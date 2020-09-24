@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.service.k8.Pod
+import dk.sdu.cloud.service.k8.Volume
 
 /**
  * A plugin which mounts user-input into the containers
@@ -80,9 +81,9 @@ class FileMountPlugin(
 
             (pSpec.volumes?.toMutableList() ?: ArrayList()).let { volumes ->
                 volumes.add(
-                    Pod.Volume(
+                    Volume(
                         name = VOL_NAME,
-                        persistentVolumeClaim = Pod.Volume.PersistentVolumeClaimSource(CEPHFS, false)
+                        persistentVolumeClaim = Volume.PersistentVolumeClaimSource(CEPHFS, false)
                     )
                 )
                 pSpec.volumes = volumes

@@ -48,7 +48,9 @@ class Server(
         val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val distributedStateFactory = RedisDistributedStateFactory(micro)
-        val nameAllocator = NameAllocator()
+        val jobCache = VerifiedJobCache(serviceClient)
+        val uidCache = UserUidCache(serviceClient)
+        val nameAllocator = NameAllocator(jobCache, uidCache)
 
         val k8sClient = KubernetesClient()
 
@@ -60,13 +62,13 @@ class Server(
             DockerImageSizeQuery()
         )
 
-        val jobCache = VerifiedJobCache(serviceClient)
         val logService = K8LogService(k8Dependencies)
 
         val jobManagement = JobManagement(
             k8Dependencies,
             distributedLocks,
             logService,
+            jobCache,
             // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
             // instance) In that case we can disable it via configuration. Note that this config will only be used if
             // we are in development mode.
@@ -78,6 +80,7 @@ class Server(
             register(MultiNodePlugin())
             register(SharedMemoryPlugin())
             register(MiscellaneousPlugin())
+            if (fairShareEnabled) register(FairSharePlugin())
             register(ProxyPlugin(broadcastingStream))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers

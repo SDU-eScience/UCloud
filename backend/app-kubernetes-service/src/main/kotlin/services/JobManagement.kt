@@ -32,6 +32,7 @@ class JobManagement(
     private val k8: K8Dependencies,
     private val distributedLocks: DistributedLockFactory,
     private val logService: K8LogService,
+    private val jobCache: VerifiedJobCache,
     private val disableMasterElection: Boolean = false
 ) {
     private val plugins = ArrayList<JobManagementPlugin>()
@@ -50,6 +51,7 @@ class JobManagement(
     }
 
     suspend fun create(verifiedJob: VerifiedJob) {
+        jobCache.cacheJob(verifiedJob)
         val builder = VolcanoJob()
         val namespace = k8.nameAllocator.jobIdToNamespace(verifiedJob.id)
         builder.metadata = ObjectMeta(

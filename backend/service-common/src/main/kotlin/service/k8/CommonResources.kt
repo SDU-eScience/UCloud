@@ -15,6 +15,11 @@ object KubernetesResources {
     val replicaSet = KubernetesResourceLocator("apps", "v1", "replicasets")
     val statefulSet = KubernetesResourceLocator("apps", "v1", "statefulsets")
     val events = KubernetesResourceLocator(API_GROUP_CORE, "v1", "events")
+    val namespaces = KubernetesResourceLocator(API_GROUP_CORE, "v1", "namespaces", namespace = NAMESPACE_ANY)
+    val persistentVolumes = KubernetesResourceLocator(
+        API_GROUP_CORE, "v1", "persistentvolumes",
+        namespace = NAMESPACE_ANY
+    )
 }
 
 typealias KubernetesTimestamp = Date
@@ -68,10 +73,12 @@ data class Affinity(
             var values: List<String>? = null,
         )
     }
+
     data class Pod(
         var preferredDuringSchedulingIgnoredDuringExecution: List<WeightedPodAffinityTerm>? = null,
         var requiredDuringSchedulingIgnoredDuringExecution: List<PodAffinityTerm>? = null,
     )
+
     data class PodAnti(
         var preferredDuringSchedulingIgnoredDuringExecution: List<WeightedPodAffinityTerm>? = null,
         var requiredDuringSchedulingIgnoredDuringExecution: List<PodAffinityTerm>? = null,
@@ -99,6 +106,7 @@ data class LabelSelectorRequirement(
     var operator: String? = null,
     var values: List<String>? = null,
 )
+
 data class NodeSelector(
     var key: String? = null,
     var operator: String? = null,
@@ -174,52 +182,6 @@ data class Pod(
         var value: String? = null,
     )
 
-    data class Volume(
-        var name: String? = null,
-        var emptyDir: EmptyDirVolumeSource? = null,
-        var configMap: ConfigMapVolumeSource? = null,
-        var secret: SecretVolumeSource? = null,
-        var flexVolume: FlexVolumeSource? = null,
-        var persistentVolumeClaim: PersistentVolumeClaimSource? = null,
-    ) {
-        data class EmptyDirVolumeSource(
-            var medium: String? = null,
-            var sizeLimit: String? = null
-        )
-
-        data class ConfigMapVolumeSource(
-            var defaultMode: Int? = null,
-            var items: List<KeyToPath>? = null,
-            var name: String? = null,
-            var optional: Boolean? = null,
-        )
-
-        data class KeyToPath(
-            var key: String? = null,
-            var mode: Int? = null,
-            var path: String? = null,
-        )
-
-        data class SecretVolumeSource(
-            var defaultMode: Int? = null,
-            var items: List<KeyToPath>? = null,
-            var optional: Boolean? = null,
-            var secretName: String? = null,
-        )
-
-        data class FlexVolumeSource(
-            var driver: String? = null,
-            var fsType: String? = null,
-            var options: Map<String, Any?>? = null,
-            var readOnly: Boolean? = null,
-            var secretRef: LocalObjectReference? = null
-        )
-
-        data class PersistentVolumeClaimSource(
-            var claimName: String? = null,
-            var readOnly: Boolean? = null,
-        )
-    }
 
     data class Status(
         var conditions: List<PodCondition>? = null,
@@ -370,6 +332,7 @@ data class Pod(
         var port: Any? = null, // String | Int
         var scheme: String? = null
     )
+
     data class TCPSocketAction(
         var host: String? = null,
         var port: Int? = null,
@@ -409,6 +372,7 @@ data class Pod(
             var name: String? = null,
             var optional: Boolean? = null,
         )
+
         data class SecretEnvSource(
             var name: String? = null,
             var optional: Boolean? = null,
@@ -460,8 +424,91 @@ data class EventSeries(
     var lastObservedTime: String? = null,
 )
 
+data class Namespace(
+    val apiVersion: String = "v1",
+    val kind: String = "Namespace",
+    var metadata: ObjectMeta? = null,
+    var spec: Spec? = null,
+    var status: Status? = null,
+) {
+    data class Spec(
+        var finalizers: List<String>? = null,
+    )
+
+    data class Status(
+        var conditions: List<NamespaceCondition>? = emptyList(),
+        var phase: String? = null,
+    )
+
+    data class NamespaceCondition(
+        var lastTransitionTime: KubernetesTimestamp? = null,
+        var message: String? = null,
+        var reason: String? = null,
+        var status: String? = null,
+        var type: String? = null,
+    )
+}
+
+data class Volume(
+    var name: String? = null,
+    var emptyDir: EmptyDirVolumeSource? = null,
+    var configMap: ConfigMapVolumeSource? = null,
+    var secret: SecretVolumeSource? = null,
+    var flexVolume: FlexVolumeSource? = null,
+    var persistentVolumeClaim: PersistentVolumeClaimSource? = null,
+    var cephfs: CephfsVolumeSource? = null,
+) {
+    data class EmptyDirVolumeSource(
+        var medium: String? = null,
+        var sizeLimit: String? = null
+    )
+
+    data class ConfigMapVolumeSource(
+        var defaultMode: Int? = null,
+        var items: List<KeyToPath>? = null,
+        var name: String? = null,
+        var optional: Boolean? = null,
+    )
+
+    data class KeyToPath(
+        var key: String? = null,
+        var mode: Int? = null,
+        var path: String? = null,
+    )
+
+    data class SecretVolumeSource(
+        var defaultMode: Int? = null,
+        var items: List<KeyToPath>? = null,
+        var optional: Boolean? = null,
+        var secretName: String? = null,
+    )
+
+    data class FlexVolumeSource(
+        var driver: String? = null,
+        var fsType: String? = null,
+        var options: Map<String, Any?>? = null,
+        var readOnly: Boolean? = null,
+        var secretRef: LocalObjectReference? = null
+    )
+
+    data class PersistentVolumeClaimSource(
+        var claimName: String? = null,
+        var readOnly: Boolean? = null,
+    )
+
+    data class CephfsVolumeSource(
+        var monitors: List<String> = emptyList(),
+        var path: String? = null,
+        var readOnly: Boolean? = null,
+        var secret: LocalObjectReference
+    )
+}
+
+data class SecretReference(var name: String? = null, var namespace: String? = null)
+
 typealias ResourceList = Map<String, String>
 
 inline class KubernetesNode(val raw: JsonNode)
+
 val JsonNode.k8: KubernetesNode get() = KubernetesNode(this)
 val KubernetesNode.metadata: ObjectMeta get() = defaultMapper.treeToValue(raw["metadata"])
