@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.rpc
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
@@ -27,7 +28,7 @@ class JobController(
     private val jobQueryService: JobQueryService,
     private val jobOrchestrator: JobOrchestrator,
     private val streamFollowService: StreamFollowService,
-    private val userClientFactory: (String?, String?) -> AuthenticatedClient,
+    private val userClientFactory: UserClientFactory,
     private val serviceClient: AuthenticatedClient,
     private val vncService: VncService,
     private val webService: WebService,
@@ -109,7 +110,7 @@ class JobController(
             verifySlaFromPrincipal()
             jobOrchestrator.handleProposedStateChange(
                 JobStateChange(request.jobId, JobState.CANCELING),
-                newStatus = "Job is cancelling...",
+                newStatus = "User initiated cancel",
                 jobOwner = ctx.securityToken
             )
 

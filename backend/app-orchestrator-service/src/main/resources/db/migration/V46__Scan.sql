@@ -1,0 +1,1 @@
+alter table job_information add column last_scan timestamp default now();

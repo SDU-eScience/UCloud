@@ -240,8 +240,10 @@ class JobVerificationService(
                     if (param is ApplicationParameter.InputFile && value != null) {
                         value as FileTransferDescription
                         param to value.copy(
-                            invocationParameter = "/work/${value.source.parent().removeSuffix("/")
-                                .fileName()}/${value.source.fileName()}"
+                            invocationParameter = "/work/${
+                                value.source.parent().removeSuffix("/")
+                                    .fileName()
+                            }/${value.source.fileName()}"
                         )
                     } else {
                         paramWithValue
@@ -298,6 +300,48 @@ class JobVerificationService(
 
             collectAllFromTransfers(username, transfersFromParameters, userClient)
         }
+    }
+
+    data class HasPermissionForExistingMount(val hasPermissions: Boolean, val pathToFile: String?)
+
+    suspend fun hasPermissionsForExistingMounts(
+        jobWithToken: VerifiedJobWithAccessToken
+    ): HasPermissionForExistingMount {
+        val outputFolder = run {
+            val path = jobWithToken.job.outputFolder
+            if (path != null) {
+                listOf(ValidatedFileForUpload("", StorageFile(FileType.DIRECTORY, path), path, false))
+            } else {
+                emptyList()
+            }
+        }
+
+        val allFiles = jobWithToken.job.files + jobWithToken.job.mounts + outputFolder
+        val readOnlyFiles = allFiles.filter { it.readOnly }.map { it.sourcePath }
+        val readWriteFiles = allFiles.filter { !it.readOnly }.map { it.sourcePath }
+        if (readOnlyFiles.isNotEmpty()) {
+            val knowledge = FileDescriptions.verifyFileKnowledge.call(
+                VerifyFileKnowledgeRequest(jobWithToken.job.owner, readOnlyFiles, KnowledgeMode.Permission(false)),
+                serviceClient
+            ).orThrow()
+            val lackingPermissions = knowledge.responses.indexOf(false)
+            if (lackingPermissions != -1) {
+                return HasPermissionForExistingMount(false, readOnlyFiles[lackingPermissions])
+            }
+        }
+
+        if (readWriteFiles.isNotEmpty()) {
+            val knowledge = FileDescriptions.verifyFileKnowledge.call(
+                VerifyFileKnowledgeRequest(jobWithToken.job.owner, readWriteFiles, KnowledgeMode.Permission(true)),
+                serviceClient
+            ).orThrow()
+            val lackingPermissions = knowledge.responses.indexOf(false)
+            if (lackingPermissions != -1) {
+                return HasPermissionForExistingMount(false, readWriteFiles[lackingPermissions])
+            }
+        }
+
+        return HasPermissionForExistingMount(true, null)
     }
 
     private suspend fun collectAllFromTransfers(

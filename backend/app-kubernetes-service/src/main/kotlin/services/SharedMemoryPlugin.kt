@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.service.k8.Pod
+import dk.sdu.cloud.service.k8.Volume
 
 /**
  * A plugin which adds a /dev/shm
@@ -31,9 +32,9 @@ class SharedMemoryPlugin : JobManagementPlugin {
             }
             (spec.volumes?.toMutableList() ?: ArrayList()).let { volumes ->
                 volumes.add(
-                    Pod.Volume(
+                    Volume(
                         name = "shm",
-                        emptyDir = Pod.Volume.EmptyDirVolumeSource(
+                        emptyDir = Volume.EmptyDirVolumeSource(
                             medium = "Memory",
                             sizeLimit = "${sizeInGigs}Gi"
                         )

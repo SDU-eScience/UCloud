@@ -77,9 +77,11 @@ class ShareService(
             }
 
             launch {
-                ContactBookDescriptions.insert.call(
-                    InsertRequest(user, listOf(share.sharedWith), ServiceOrigin.SHARE_SERVICE), serviceClient
-                )
+                runCatching {
+                    ContactBookDescriptions.insert.call(
+                        InsertRequest(user, listOf(share.sharedWith), ServiceOrigin.SHARE_SERVICE), serviceClient
+                    )
+                }
             }
         }
 

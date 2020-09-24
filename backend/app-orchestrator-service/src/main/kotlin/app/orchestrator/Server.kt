@@ -14,11 +14,11 @@ import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.runBlocking
+
+typealias UserClientFactory = (accessToken: String?, refreshToken: String?) -> AuthenticatedClient
 
 class Server(override val micro: Micro, val config: Configuration) : CommonServer {
     override val log = logger()
@@ -28,10 +28,11 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val serviceClientWS = micro.authenticator.authenticateClient(OutgoingWSCall)
         val streams = micro.eventStreamService
+        val distributedLocks = DistributedLockBestEffortFactory(micro)
         val applicationService = ApplicationService(serviceClient)
         val jobHibernateDao = JobDao()
         val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
-        val userClientFactory: (String?, String?) -> AuthenticatedClient = { accessToken, refreshToken ->
+        val userClientFactory: UserClientFactory = { accessToken, refreshToken ->
             when {
                 accessToken != null -> {
                     serviceClient.withoutAuthentication().bearerAuth(accessToken)
@@ -91,6 +92,15 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 paymentService
             )
 
+        val jobMonitoring = JobMonitoringService(
+            db,
+            micro.backgroundScope,
+            distributedLocks,
+            applicationService,
+            jobVerificationService,
+            jobOrchestrator
+        )
+
         val streamFollowService =
             StreamFollowService(
                 jobFileService,
@@ -106,6 +116,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             jobOrchestrator,
             applicationService
         ).init()
+
+        runBlocking { jobMonitoring.initialize() }
 
         with(micro.server) {
             configureControllers(

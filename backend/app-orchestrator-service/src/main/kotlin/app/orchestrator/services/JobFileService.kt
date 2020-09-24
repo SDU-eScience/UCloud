@@ -1,11 +1,9 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.throwIfInternal
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
@@ -28,7 +26,7 @@ import java.util.*
 data class JobDirectory(val path: String)
 
 class JobFileService(
-    private val userClientFactory: (accessToken: String?, refreshToken: String?) -> AuthenticatedClient,
+    private val userClientFactory: UserClientFactory,
     private val parameterExportService: ParameterExportService,
     private val serviceClient: AuthenticatedClient
 ) {
@@ -139,7 +137,7 @@ class JobFileService(
             jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
                 ?: SensitivityLevel.PRIVATE
 
-        MultiPartUploadDescriptions.simpleUpload.call(
+        val uploadResp = MultiPartUploadDescriptions.simpleUpload.call(
             SimpleUploadRequest(
                 location = destPath.path,
                 sensitivity = sensitivityLevel,
@@ -150,7 +148,16 @@ class JobFileService(
                 )
             ),
             userClient
-        ).orThrow()
+        )
+        if (uploadResp is IngoingCallResponse.Error) {
+            when (uploadResp.statusCode) {
+                HttpStatusCode.Forbidden -> {
+                    // Permissions might have been lost for output directory. We silently ignore this.
+                }
+
+                else -> uploadResp.orThrow()
+            }
+        }
     }
 
     fun jobsFolder(

@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.channelFlow
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
+@Suppress("SqlResolve")
 class JobQueryService(
     private val db: DBContext,
     private val jobFileService: JobFileService,
@@ -112,7 +113,7 @@ class JobQueryService(
                     """
                 )
                 .rows
-                .mapNotNull { it.toModel(resolveTool = true) }
+                .mapNotNull { it.toVerifiedJob(resolveTool = true, appService) }
         }
     }
 
@@ -141,7 +142,7 @@ class JobQueryService(
 
                 while (true) {
                     val rows = session.sendQuery("fetch forward 100 from c").rows
-                    rows.mapNotNull { it.toModel(resolveTool = true) }.forEach { send(it) }
+                    rows.mapNotNull { it.toVerifiedJob(resolveTool = true, appService) }.forEach { send(it) }
                     if (rows.isEmpty()) break
                 }
             }
@@ -208,6 +209,8 @@ class JobQueryService(
                                 ) 
                             )
                     """,
+
+                    @Suppress("SqlResolve")
                     """
                         order by
                             (case when :sortBy = 'CREATED_AT' and :sortDirection = 'DESCENDING' then created_at end) desc,
@@ -224,7 +227,7 @@ class JobQueryService(
                             (case when :sortBy = 'STATE' and :sortDirection = 'ASCENDING' then state end) asc
                     """
                 )
-                .mapItemsNotNull { it.toModel(false) }
+                .mapItemsNotNull { it.toVerifiedJob(false, appService) }
         }
     }
 
@@ -251,7 +254,7 @@ class JobQueryService(
                     """
                 )
                 .rows
-                .map { it.toModel(false) }
+                .map { it.toVerifiedJob(false, appService) }
                 .singleOrNull()
         }
     }
@@ -381,70 +384,7 @@ class JobQueryService(
         }
     }
 
-    private suspend fun RowData.toModel(resolveTool: Boolean): VerifiedJobWithAccessToken? {
-        with(JobInformationTable) {
-            val job = VerifiedJob(
-                id = getField(systemId),
-                name = getFieldNullable(name),
-                owner = getField(owner),
-                application = appService.apps.get(
-                    NameAndVersion(
-                        getField(applicationName),
-                        getField(applicationVersion)
-                    )
-                ) ?: return null,
-                backend = getField(backendName),
-                nodes = getField(nodes),
-                maxTime = SimpleDuration(getField(maxTimeHours), getField(maxTimeMinutes), getField(maxTimeSeconds)),
-                reservation = Product.Compute(
-                    getField(reservationType),
-                    getField(reservedPricePerUnit),
-                    ProductCategoryId(getField(reservedCategory), getField(reservedProvider)),
-                    cpu = getField(reservedCpus),
-                    memoryInGigs = getField(reservedMemoryInGigs),
-                    gpu = getField(reservedGpus)
-                ),
-                jobInput = VerifiedJobInput(
-                    defaultMapper.readValue(getField(parameters))
-                ),
-                files = defaultMapper.readValue(getField(files)),
-                _mounts = getFieldNullable(mounts)?.let { defaultMapper.readValue<Set<ValidatedFileForUpload>>(it) },
-                _peers = getFieldNullable(peers)?.let { defaultMapper.readValue<Set<ApplicationPeer>>(it) },
-                currentState = getField(state).let { JobState.valueOf(it) },
-                failedState = getFieldNullable(failedState)?.let { JobState.valueOf(it) },
-                status = getField(status),
-                archiveInCollection = getField(archiveInCollection),
-                outputFolder = getFieldNullable(outputFolder),
-                createdAt = getField(createdAt).toTimestamp(),
-                modifiedAt = getField(modifiedAt).toTimestamp(),
-                startedAt = getFieldNullable(startedAt)?.toTimestamp(),
-                url = getFieldNullable(url),
-                project = getFieldNullable(project),
-                creditsCharged = getFieldNullable(creditsCharged)
-            )
 
-            val withoutTool = VerifiedJobWithAccessToken(
-                job,
-                getFieldNullable(accessToken),
-                getFieldNullable(refreshToken)
-            )
-
-            if (!resolveTool) return withoutTool
-
-            val toolReference = withoutTool.job.application.invocation.tool
-            val tool = appService.tools.get(NameAndVersion(toolReference.name, toolReference.version))
-
-            return withoutTool.copy(
-                job = withoutTool.job.copy(
-                    application = withoutTool.job.application.copy(
-                        invocation = withoutTool.job.application.invocation.copy(
-                            tool = ToolReference(toolReference.name, toolReference.version, tool)
-                        )
-                    )
-                )
-            )
-        }
-    }
 }
 
 fun LocalDateTime.toTimestamp(): Long = toDateTime(DateTimeZone.UTC).millis
@@ -459,3 +399,70 @@ private inline fun <T, R : Any> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page
     )
 }
 
+suspend fun RowData.toVerifiedJob(
+    resolveTool: Boolean,
+    appService: ApplicationService
+): VerifiedJobWithAccessToken? {
+    with(JobInformationTable) {
+        val job = VerifiedJob(
+            id = getField(systemId),
+            name = getFieldNullable(name),
+            owner = getField(owner),
+            application = appService.apps.get(
+                NameAndVersion(
+                    getField(applicationName),
+                    getField(applicationVersion)
+                )
+            ) ?: return null,
+            backend = getField(backendName),
+            nodes = getField(nodes),
+            maxTime = SimpleDuration(getField(maxTimeHours), getField(maxTimeMinutes), getField(maxTimeSeconds)),
+            reservation = Product.Compute(
+                getField(reservationType),
+                getField(reservedPricePerUnit),
+                ProductCategoryId(getField(reservedCategory), getField(reservedProvider)),
+                cpu = getField(reservedCpus),
+                memoryInGigs = getField(reservedMemoryInGigs),
+                gpu = getField(reservedGpus)
+            ),
+            jobInput = VerifiedJobInput(
+                defaultMapper.readValue(getField(parameters))
+            ),
+            files = defaultMapper.readValue(getField(files)),
+            _mounts = getFieldNullable(mounts)?.let { defaultMapper.readValue<Set<ValidatedFileForUpload>>(it) },
+            _peers = getFieldNullable(peers)?.let { defaultMapper.readValue<Set<ApplicationPeer>>(it) },
+            currentState = getField(state).let { JobState.valueOf(it) },
+            failedState = getFieldNullable(failedState)?.let { JobState.valueOf(it) },
+            status = getField(status),
+            archiveInCollection = getField(archiveInCollection),
+            outputFolder = getFieldNullable(outputFolder),
+            createdAt = getField(createdAt).toTimestamp(),
+            modifiedAt = getField(modifiedAt).toTimestamp(),
+            startedAt = getFieldNullable(startedAt)?.toTimestamp(),
+            url = getFieldNullable(url),
+            project = getFieldNullable(project),
+            creditsCharged = getFieldNullable(creditsCharged)
+        )
+
+        val withoutTool = VerifiedJobWithAccessToken(
+            job,
+            getFieldNullable(accessToken),
+            getFieldNullable(refreshToken)
+        )
+
+        if (!resolveTool) return withoutTool
+
+        val toolReference = withoutTool.job.application.invocation.tool
+        val tool = appService.tools.get(NameAndVersion(toolReference.name, toolReference.version))
+
+        return withoutTool.copy(
+            job = withoutTool.job.copy(
+                application = withoutTool.job.application.copy(
+                    invocation = withoutTool.job.application.invocation.copy(
+                        tool = ToolReference(toolReference.name, toolReference.version, tool)
+                    )
+                )
+            )
+        )
+    }
+}

@@ -199,11 +199,6 @@ class JobOrchestrator(
         computeBackend: SecurityPrincipal? = null,
         jobOwner: SecurityPrincipalToken? = null
     ) {
-        if (computeBackend == null && jobOwner == null) {
-            log.warn("computeBackend == null && jobOwner == null in handleProposedStateChange")
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        }
-
         val jobWithToken = findJobForId(event.systemId, jobOwner)
 
         withJobExceptionHandler(event.systemId) {
@@ -347,7 +342,7 @@ class JobOrchestrator(
                             db,
                             event.systemId,
                             state = event.newState,
-                            status = "Job cancelled successfully."
+                            status = "Job cancelled (${jobWithToken.job.status})."
                         )
                     }
 

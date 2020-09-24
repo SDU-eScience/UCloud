@@ -44,6 +44,7 @@ object JobInformationTable : SQLTable("job_information") {
     val url = text("url")
     val project = text("project")
     val creditsCharged = long("credits_charged")
+    val lastScan = timestamp("last_scan")
 }
 
 class JobDao {

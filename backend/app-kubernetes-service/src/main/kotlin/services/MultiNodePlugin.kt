@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.service.k8.Pod
+import dk.sdu.cloud.service.k8.Volume
 
 /**
  * A plugin which adds information about other 'nodes' in the job
@@ -78,9 +79,9 @@ class MultiNodePlugin : JobManagementPlugin {
 
             val volumes = template.volumes?.toMutableList() ?: ArrayList()
             volumes.add(
-                Pod.Volume(
+                Volume(
                     name = ucloudVolume,
-                    emptyDir = Pod.Volume.EmptyDirVolumeSource()
+                    emptyDir = Volume.EmptyDirVolumeSource()
                 )
             )
             template.volumes = volumes
