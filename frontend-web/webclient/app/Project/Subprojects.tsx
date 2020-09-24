@@ -3,13 +3,12 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {createProject, listSubprojects, Project, useProjectManagementStatus} from "Project";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Input, Link, List, Text} from "ui-components";
 import styled from "styled-components";
 import {emptyPage} from "DefaultObjects";
-import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
+import {errorMessageOrDefault} from "UtilityFunctions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import Table, {TableCell, TableRow} from "ui-components/Table";
 import * as Pagination from "Pagination";
 import * as Heading from "ui-components/Heading";
 import {
@@ -31,8 +30,7 @@ import {Balance} from "Accounting/Balance";
 import {NamingField, shakeAnimation, shakingClassName} from "UtilityComponents";
 import { Spacer } from "ui-components/Spacer";
 import { usePromiseKeeper } from "PromiseKeeper";
-
-const baseContext = "/projects/subprojects";
+import { ListRow } from "ui-components/List";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -134,21 +132,7 @@ const SelectableWallet: React.FunctionComponent<{
     );
 };
 
-
-const SearchContainer = styled(Flex)`
-    flex-wrap: wrap;
-    
-    form {
-        flex-grow: 1;
-        flex-basis: 350px;
-        display: flex;
-        margin-right: 10px;
-        margin-bottom: 10px;
-    }
-`;
-
 const Subprojects: React.FunctionComponent = () => {
-    const newSubprojectRef = React.useRef<HTMLInputElement>(null);
     const [isLoading, runCommand] = useAsyncCommand();
 
     useTitle("Resources");
@@ -158,9 +142,7 @@ const Subprojects: React.FunctionComponent = () => {
         projectId,
         allowManagement,
         subprojectSearchQuery,
-        setSubprojectSearchQuery,
         projectRole,
-        reloadProjectStatus
     } = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
@@ -216,16 +198,22 @@ const Subprojects: React.FunctionComponent = () => {
         try {
             const subprojectName = createSubprojectRef.current?.value ?? "";
             if (!subprojectName) {
-                snackbarStore.addFailure("Subproject name can't be empty", false);
+                snackbarStore.addFailure("Project name can't be empty", false);
                 return;
             }
-            await promises.makeCancelable(Client.put(baseContext, {group: subprojectName})).promise;
-            snackbarStore.addSuccess(`Group created`, true);
+            await promises.makeCancelable(
+                await runCommand(createProject({
+                    title: subprojectName,
+                    parent: projectId
+                }))
+            );
+
+            snackbarStore.addSuccess(`Subproject created`, true);
             createSubprojectRef.current!.value = "";
             setCreatingSubproject(false);
             setSubprojectParams({...subprojectParams});
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Could not create group."), false);
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create project."), false);
         }
     }
 
@@ -233,23 +221,6 @@ const Subprojects: React.FunctionComponent = () => {
         reloadSubprojects();
         reloadWallets();
     }, [projectId]);
-
-    const onSubmit = async (e: React.FormEvent): Promise<void> => {
-        e.preventDefault();
-        const inputField = newSubprojectRef.current!;
-        const newProjectName = inputField.value;
-        try {
-            await runCommand(createProject({
-                title: newProjectName,
-                parent: projectId
-            }));
-            inputField.value = "";
-            reloadSubprojects();
-            reloadProjectStatus();
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed creating new project"), false);
-        }
-    };
 
     return (
         <MainContainer
@@ -323,45 +294,15 @@ const Subprojects: React.FunctionComponent = () => {
                             />
                             <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
                                 <Box ml={8} mr={8}>
-                                {/*
-                                    <SearchContainer>
-                                        {!allowManagement ? null : (
-                                            <form onSubmit={onSubmit}>
-                                                <Input
-                                                    id="new-project-subproject"
-                                                    placeholder="Title of new project"
-                                                    disabled={isLoading}
-                                                    ref={newSubprojectRef}
-                                                    onChange={e => {
-                                                        newSubprojectRef.current!.value = e.target.value;
-                                                    }}
-                                                    rightLabel
-                                                />
-                                                <Button attached type={"submit"}>Create</Button>
-                                            </form>
-                                        )}
-                                        <form onSubmit={preventDefault}>
-                                            <Input
-                                                id="subproject-search"
-                                                placeholder="Filter this page..."
-                                                pr="30px"
-                                                autoComplete="off"
-                                                disabled={isLoading}
-                                                onChange={e => {
-                                                    setSubprojectSearchQuery(e.target.value);
-                                                }}
-                                            />
-                                            <Relative>
-                                                <Absolute right="6px" top="10px">
-                                                    <Label htmlFor="subproject-search">
-                                                        <Icon name="search" size="24" />
-                                                    </Label>
-                                                </Absolute>
-                                            </Relative>
-                                        </form>
-                                    </SearchContainer>
-                                            */}
                                     <Box mt={20}>
+                                        {creatingSubproject ? (
+                                            <NamingField
+                                                confirmText="Create"
+                                                onSubmit={createSubproject}
+                                                onCancel={() => setCreatingSubproject(false)}
+                                                inputRef={createSubprojectRef}
+                                            />
+                                        ) : null}
                                         <Pagination.List
                                             page={subprojects.data}
                                             pageRenderer={pageRenderer}
@@ -400,32 +341,22 @@ const Subprojects: React.FunctionComponent = () => {
         );
 
         return (
-            <>
-                <NamingField
-                    confirmText="Create"
-                    onSubmit={createSubproject}
-                    onCancel={() => setCreatingSubproject(false)}
-                    inputRef={createSubprojectRef}
-                />
-                <Table>
-                    <tbody>
-                        {filteredItems.map(subproject =>
-                            <SubprojectRow
-                                key={subproject.id}
-                                subproject={subproject}
-                                shakeWallets={shakeWallets}
-                                requestReload={reloadWallets}
-                                walletBalance={selectedWallet === null ?
-                                    undefined :
-                                    subprojectWallets.find(it => it.wallet.id === subproject.id) ??
-                                    {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
-                                }
-                                allowManagement={allowManagement}
-                            />
-                        )}
-                    </tbody>
-                </Table>
-            </>
+            <List>
+                {filteredItems.map(subproject =>
+                    <SubprojectRow
+                        key={subproject.id}
+                        subproject={subproject}
+                        shakeWallets={shakeWallets}
+                        requestReload={reloadWallets}
+                        walletBalance={selectedWallet === null ?
+                            undefined :
+                            subprojectWallets.find(it => it.wallet.id === subproject.id) ??
+                            {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
+                        }
+                        allowManagement={allowManagement}
+                    />
+                )}
+            </List>
         );
     }
 };
@@ -453,18 +384,6 @@ const AllocationEditor = styled.div`
 const AllocationForm = styled.form`
     display: flex;
     align-items: center;
-`;
-
-const SubprojectRowWrapper = styled(TableRow)`
-    td {
-        vertical-align: top;
-        white-space: nowrap;
-    }
-
-    ${TableCell}.allocation {
-        width: 100%;
-        vertical-align: middle;
-    }
 `;
 
 const LoadingBox = (props: React.PropsWithChildren<{height: string; isLoading: boolean}>): JSX.Element => {
@@ -558,12 +477,11 @@ const SubprojectRow: React.FunctionComponent<{
     }, [quotaRef.current, isEditingQuota]);
 
     return <>
-        <SubprojectRowWrapper>
-            <TableCell>
+        <ListRow
+            left={
                 <Text>{subproject.title}</Text>
-            </TableCell>
-            <TableCell className={"allocation"}>
-                {!allowManagement ? null : (
+            }
+            right={!allowManagement ? null : (
                     <>
                         <Flex alignItems={"center"} justifyContent={"flex-end"}>
                             {balance === undefined ? (
@@ -655,9 +573,9 @@ const SubprojectRow: React.FunctionComponent<{
                             </Flex>
                         )}
                     </>
-                )}
-            </TableCell>
-        </SubprojectRowWrapper>
+                )
+            }
+        />
     </>;
 };
 
