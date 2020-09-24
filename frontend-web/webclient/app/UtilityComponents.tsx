@@ -1,5 +1,5 @@
 import HttpClient from "Authentication/lib";
-import {SensitivityLevelMap} from "DefaultObjects";
+import {KeyCode, SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
 import * as React from "react";
@@ -628,6 +628,54 @@ export function MasterCheckbox({onClick, checked}: MasterCheckbox): JSX.Element 
         </Label>
     );
 }
+
+export const NamingField: React.FunctionComponent<{
+    onCancel: () => void;
+    confirmText: string;
+    inputRef: React.MutableRefObject<HTMLInputElement | null>;
+    onSubmit: (e: React.SyntheticEvent) => void;
+    defaultValue?: string;
+}> = props => {
+    const submit = React.useCallback((e) => {
+        e.preventDefault();
+        props.onSubmit(e);
+    }, [props.onSubmit]);
+
+    const keyDown = React.useCallback((e) => {
+        if (e.keyCode === KeyCode.ESC) {
+            props.onCancel();
+        }
+    }, [props.onCancel]);
+
+    return (
+        <form onSubmit={submit}>
+            <Flex>
+                <Input
+                    pt="0px"
+                    pb="0px"
+                    pr="0px"
+                    pl="0px"
+                    noBorder
+                    defaultValue={props.defaultValue ? props.defaultValue : ""}
+                    fontSize={20}
+                    maxLength={1024}
+                    onKeyDown={keyDown}
+                    borderRadius="0px"
+                    type="text"
+                    width="100%"
+                    autoFocus
+                    ref={props.inputRef}
+                />
+                <ConfirmCancelButtons
+                    confirmText={props.confirmText}
+                    cancelText="Cancel"
+                    onConfirm={submit}
+                    onCancel={props.onCancel}
+                />
+            </Flex>
+        </form>
+    );
+};
 
 const loremText = `
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam fringilla ipsum sem, id egestas risus mollis nec.

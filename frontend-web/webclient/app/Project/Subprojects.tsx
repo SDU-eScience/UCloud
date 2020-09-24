@@ -28,7 +28,11 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Balance} from "Accounting/Balance";
-import {shakeAnimation, shakingClassName} from "UtilityComponents";
+import {NamingField, shakeAnimation, shakingClassName} from "UtilityComponents";
+import { Spacer } from "ui-components/Spacer";
+import { usePromiseKeeper } from "PromiseKeeper";
+
+const baseContext = "/projects/subprojects";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -76,6 +80,8 @@ const SelectableWalletWrapper = styled.div`
         margin: 8px;
     }
 `;
+
+
 
 const SelectableWallet: React.FunctionComponent<{
     wallet: WalletBalance,
@@ -172,6 +178,10 @@ const Subprojects: React.FunctionComponent = () => {
         fetchQuota(retrieveQuota({path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder}));
     }, [setWalletParams, projectId]);
 
+    const [creatingSubproject, setCreatingSubproject] = useState(false);
+    const createSubprojectRef = useRef<HTMLInputElement>(null);
+    const promises = usePromiseKeeper();
+
     const [selectedWallet, setSelectedWallet] = useState<WalletBalance | null>(null);
     const walletContainer = useRef<HTMLDivElement>(null);
     const shakeWallets = useCallback(() => {
@@ -201,6 +211,24 @@ const Subprojects: React.FunctionComponent = () => {
         setSubprojectParams({...subprojectParams});
     };
 
+    async function createSubproject(e: React.SyntheticEvent): Promise<void> {
+        e.preventDefault();
+        try {
+            const subprojectName = createSubprojectRef.current?.value ?? "";
+            if (!subprojectName) {
+                snackbarStore.addFailure("Subproject name can't be empty", false);
+                return;
+            }
+            await promises.makeCancelable(Client.put(baseContext, {group: subprojectName})).promise;
+            snackbarStore.addSuccess(`Group created`, true);
+            createSubprojectRef.current!.value = "";
+            setCreatingSubproject(false);
+            setSubprojectParams({...subprojectParams});
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Could not create group."), false);
+        }
+    }
+
     useEffect(() => {
         reloadSubprojects();
         reloadWallets();
@@ -229,7 +257,18 @@ const Subprojects: React.FunctionComponent = () => {
             sidebar={null}
             main={(
                 <>
-                    <Heading.h3>Resources</Heading.h3>
+                    <Spacer
+                        left={
+                            <Heading.h3>Resources</Heading.h3>
+                        }
+                        right={
+                            <Link to={
+                                !Client.hasActiveProject ?
+                                    "/projects/browser/personal" :
+                                    "/project/grants/existing"
+                            }><Button>Apply for resources</Button></Link>
+                        }
+                    />
                     <LoadingBox height="233px" isLoading={wallets.loading}>
                         <WalletContainer ref={walletContainer}>
                             {mainWallets.length === 0 ? <>
@@ -255,16 +294,16 @@ const Subprojects: React.FunctionComponent = () => {
                                 }</>
                             }
 
-                            {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
+                            {(!Client.hasActiveProject || isAdminOrPI(projectRole)) && mainWallets.length === 0 ?
                                 <DashboardCard color="blue" isLoading={false}>
                                     <Flex height={"140px"} justifyContent={"center"} alignItems={"center"} flexDirection={"column"}>
-                                        <Heading.h4>Need more resources?</Heading.h4>
-                                        <Box mt={8}>
+                                        <Heading.h4>No resources available for this project</Heading.h4>
+                                        <Box mt={16}>
                                             <Link to={
                                                 !Client.hasActiveProject ?
                                                     "/projects/browser/personal" :
                                                     "/project/grants/existing"
-                                            }><Button>Apply for more resources</Button></Link>
+                                            }><Button>Apply for resources</Button></Link>
                                         </Box>
                                     </Flex>
                                 </DashboardCard>
@@ -274,9 +313,17 @@ const Subprojects: React.FunctionComponent = () => {
 
                     {!Client.hasActiveProject ? null : <>
                         {isAdminOrPI(projectRole) ? <>
-                            <Heading.h3>Subprojects</Heading.h3>
+                            <Spacer
+                                left={
+                                    <Heading.h3>Subprojects</Heading.h3>
+                                }
+                                right={
+                                    <Button height="40px" onClick={() => setCreatingSubproject(true)}>New Subproject</Button>
+                                }
+                            />
                             <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
                                 <Box ml={8} mr={8}>
+                                {/*
                                     <SearchContainer>
                                         {!allowManagement ? null : (
                                             <form onSubmit={onSubmit}>
@@ -313,6 +360,7 @@ const Subprojects: React.FunctionComponent = () => {
                                             </Relative>
                                         </form>
                                     </SearchContainer>
+                                            */}
                                     <Box mt={20}>
                                         <Pagination.List
                                             page={subprojects.data}
@@ -329,7 +377,7 @@ const Subprojects: React.FunctionComponent = () => {
                                             customEmptyPage={
                                                 <Flex justifyContent="center" alignItems="center" height="200px">
                                                     This project doesn&apos;t have any subprojects.
-                                                    {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
+                                                    {isAdminOrPI(projectRole) ? <> You can create one by using the &apos;New Subproject&apos; button above.</> : ""}
                                                 </Flex>
                                             }
                                         />
@@ -352,24 +400,32 @@ const Subprojects: React.FunctionComponent = () => {
         );
 
         return (
-            <Table>
-                <tbody>
-                    {filteredItems.map(subproject =>
-                        <SubprojectRow
-                            key={subproject.id}
-                            subproject={subproject}
-                            shakeWallets={shakeWallets}
-                            requestReload={reloadWallets}
-                            walletBalance={selectedWallet === null ?
-                                undefined :
-                                subprojectWallets.find(it => it.wallet.id === subproject.id) ??
-                                {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
-                            }
-                            allowManagement={allowManagement}
-                        />
-                    )}
-                </tbody>
-            </Table>
+            <>
+                <NamingField
+                    confirmText="Create"
+                    onSubmit={createSubproject}
+                    onCancel={() => setCreatingSubproject(false)}
+                    inputRef={createSubprojectRef}
+                />
+                <Table>
+                    <tbody>
+                        {filteredItems.map(subproject =>
+                            <SubprojectRow
+                                key={subproject.id}
+                                subproject={subproject}
+                                shakeWallets={shakeWallets}
+                                requestReload={reloadWallets}
+                                walletBalance={selectedWallet === null ?
+                                    undefined :
+                                    subprojectWallets.find(it => it.wallet.id === subproject.id) ??
+                                    {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
+                                }
+                                allowManagement={allowManagement}
+                            />
+                        )}
+                    </tbody>
+                </Table>
+            </>
         );
     }
 };
