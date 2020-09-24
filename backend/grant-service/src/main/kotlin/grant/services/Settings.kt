@@ -64,7 +64,7 @@ class SettingsService(
         exclusionList: List<UserCriteria>
     ) {
         if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
+        if (!exclusionList.all { it is UserCriteria.EmailDomain }) throw RPCException("Only email domain UserCriterias are supported for exclusion lists", HttpStatusCode.BadRequest)
         ctx.withSession { session ->
             if (!isEnabled(session, projectId)) {
                 throw RPCException("This project is not allowed to update these settings", HttpStatusCode.Forbidden)
