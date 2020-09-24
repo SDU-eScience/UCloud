@@ -103,6 +103,6 @@ class JobMonitoringService(
 
     companion object : Loggable {
         override val log = logger()
-        private const val TIME_BETWEEN_SCANS = 10_000
+        private const val TIME_BETWEEN_SCANS = 1_000 * 30
     }
 }
