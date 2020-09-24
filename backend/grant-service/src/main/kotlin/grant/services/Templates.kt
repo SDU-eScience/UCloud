@@ -3,6 +3,7 @@ package dk.sdu.cloud.grant.services
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.ReadTemplatesResponse
 import dk.sdu.cloud.grant.api.UploadTemplatesRequest
+import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
@@ -72,7 +73,13 @@ class TemplateService(
             if (!isProjectAdmin && !isAdminOfChildProject) {
                 if (actor is Actor.User) {
                     val settings = settings.fetchSettings(session, Actor.System, projectId)
-                    if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
+                    if (!settings.allowRequestsFrom.any { it.matches(actor.principal) } ||
+                        (actor.principal.email != null &&
+                        settings.excludeRequestsFrom.any {
+                            it as UserCriteria.EmailDomain
+                            actor.principal.email!!.endsWith(it.domain)
+                        })
+                    ) {
                         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
                     }
                 } else {

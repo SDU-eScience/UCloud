@@ -30,6 +30,11 @@ object AllowApplicationsFromTable : SQLTable("allow_applications_from") {
     val applicantId = text("applicant_id", notNull = false)
 }
 
+object ExcludeApplicationsFromTable : SQLTable("exclude_applications_from") {
+    val projectId = text("project_id", notNull = true)
+    val mailSuffix = text("email_suffix", notNull = true)
+}
+
 object AutomaticApprovalUsersTable : SQLTable("automatic_approval_users") {
     val projectId = text("project_id", notNull = true)
     val type = text("type", notNull = true)
@@ -52,6 +57,47 @@ object EnabledTable : SQLTable("enabled") {
 class SettingsService(
     private val projects: ProjectCache
 ) {
+    suspend fun updateExclusionsFromList(
+        ctx:DBContext,
+        actor: Actor,
+        projectId: String,
+        exclusionList: List<UserCriteria>
+    ) {
+        if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        if (!exclusionList.all { it is UserCriteria.EmailDomain }) throw RPCException("Only email domain UserCriterias are supported for exclusion lists", HttpStatusCode.BadRequest)
+        ctx.withSession { session ->
+            if (!isEnabled(session, projectId)) {
+                throw RPCException("This project is not allowed to update these settings", HttpStatusCode.Forbidden)
+            }
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        DELETE FROM exclude_applications_from 
+                        WHERE project_id = :projectId
+                    """
+                )
+
+            exclusionList.forEach { criteria ->
+                criteria as UserCriteria.EmailDomain
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("projectId", projectId)
+                            setParameter("suffix", criteria.domain)
+                        },
+                        """
+                        INSERT INTO exclude_applications_from (project_id, email_suffix) 
+                        VALUES (:projectId, :suffix) ON CONFLICT DO NOTHING 
+                        """
+                    )
+            }
+        }
+    }
+
     suspend fun updateApplicationsFromList(
         ctx: DBContext,
         actor: Actor,
@@ -167,6 +213,19 @@ class SettingsService(
                 )
                 .rows.map { it.toUserCriteria() }
 
+            val excludedFrom = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        SELECT * FROM exclude_applications_from
+                        WHERE project_id = :projectId
+                    """
+                ).rows.map {
+                    UserCriteria.EmailDomain(it.getField(ExcludeApplicationsFromTable.mailSuffix) )
+            }
+
             val limits = session
                 .sendPreparedStatement(
                     { setParameter("projectId", projectId) },
@@ -187,7 +246,7 @@ class SettingsService(
                 )
                 .rows.map { it.toUserCriteria() }
 
-            ProjectApplicationSettings(AutomaticApprovalSettings(automaticApprovalUsers, limits), allowFrom)
+            ProjectApplicationSettings(AutomaticApprovalSettings(automaticApprovalUsers, limits), allowFrom, excludedFrom)
         }
     }
 
@@ -251,6 +310,25 @@ class SettingsService(
         pagination: NormalizedPaginationRequest
     ): Page<ProjectWithTitle> {
         return ctx.withSession { session ->
+            val excludingProjects = if (actor is Actor.User) {
+                val emailSuffix = actor.principal.email!!.substringAfter('@')
+                session.sendPreparedStatement(
+                    {
+                        setParameter("suffix", emailSuffix)
+                    },
+                    """
+                        SELECT * 
+                        FROM exclude_applications_from
+                        WHERE email_suffix = :suffix
+                    """
+                ).rows
+                    .map {
+                        it.getField(ExcludeApplicationsFromTable.projectId)
+                    }
+            } else {
+               emptyList<String>()
+            }
+
             session
                 .paginatedQuery(
                     pagination,
@@ -275,6 +353,9 @@ class SettingsService(
                 )
                 .mapItemsNotNull { row ->
                     val projectId = row.getField(AllowApplicationsFromTable.projectId)
+                    if (excludingProjects.contains(projectId)) {
+                        return@mapItemsNotNull null
+                    }
                     val title = projects.ancestors.get(projectId)?.last()?.title ?: return@mapItemsNotNull null
                     ProjectWithTitle(projectId, title)
                 }
@@ -364,7 +445,7 @@ class SettingsService(
         }
     }
 
-   private fun RowData.toUserCriteria(): UserCriteria {
+    private fun RowData.toUserCriteria(): UserCriteria {
         val id = getField(AllowApplicationsFromTable.applicantId)
         return when (getField(AllowApplicationsFromTable.type)) {
             UserCriteria.ANYONE_TYPE -> UserCriteria.Anyone()

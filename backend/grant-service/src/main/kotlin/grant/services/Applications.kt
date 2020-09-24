@@ -15,6 +15,7 @@ import dk.sdu.cloud.grant.api.CreateApplication
 import dk.sdu.cloud.grant.api.GrantApplicationFilter
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
+import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.grant.utils.autoApproveTemplate
 import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
 import dk.sdu.cloud.grant.utils.responseTemplate
@@ -78,7 +79,14 @@ class ApplicationService(
                 }
             val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
             if (projectOrNull == null || application.resourcesOwnedBy != projectOrNull.parent) {
-                if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
+                if (!settings.allowRequestsFrom.any { it.matches(actor.principal) } ||
+                    (actor.principal.email != null
+                        && settings.excludeRequestsFrom.any {
+                            it as UserCriteria.EmailDomain
+                            actor.principal.email!!.endsWith(it.domain)
+                        }
+                    )
+                ) {
                     throw RPCException(
                         "You are not allowed to submit applications to this project",
                         HttpStatusCode.Forbidden
@@ -175,6 +183,12 @@ class ApplicationService(
         application: Application
     ): Boolean {
         val settings = settings.fetchSettings(ctx, Actor.System, application.resourcesOwnedBy)
+        if(actor.principal.email != null && settings.excludeRequestsFrom.any{
+                it as UserCriteria.EmailDomain
+                actor.principal.email!!.endsWith(it.domain)
+            }) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
         val matchesUserCriteria = settings.automaticApproval.from.any { it.matches(actor.principal) }
         if (settings.automaticApproval.maxResources.isEmpty()) return false
         if (!matchesUserCriteria) return false
