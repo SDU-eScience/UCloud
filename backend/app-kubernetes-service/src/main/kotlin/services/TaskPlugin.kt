@@ -15,7 +15,7 @@ import dk.sdu.cloud.service.k8.Pod
  * Most other plugins depend on this plugin having run.
  */
 class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagementPlugin {
-    override suspend fun K8Dependencies.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val app = job.application.invocation
         val tool = app.tool.tool!!.description
 

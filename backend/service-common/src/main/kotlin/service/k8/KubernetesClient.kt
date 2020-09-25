@@ -462,7 +462,8 @@ suspend inline fun KubernetesClient.replaceResource(
 
 suspend fun KubernetesClient.patchResource(
     locator: KubernetesResourceLocator,
-    replacementJson: String,
+    replacement: String,
+    contentType: ContentType = ContentType("application", "merge-patch+json"),
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): JsonNode {
@@ -472,7 +473,7 @@ suspend fun KubernetesClient.patchResource(
             locator,
             queryParameters,
             operation,
-            TextContent(replacementJson, ContentType.Application.Json)
+            TextContent(replacement, contentType)
         )
     )
 }

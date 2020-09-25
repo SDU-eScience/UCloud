@@ -15,7 +15,7 @@ import dk.sdu.cloud.service.k8.Volume
 class FileMountPlugin(
     private val cephConfiguration: CephConfiguration = CephConfiguration()
 ) : JobManagementPlugin {
-    override suspend fun K8Dependencies.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         data class FileMount(val path: String, val readOnly: Boolean) {
             val fileName = path.normalize().fileName()
         }

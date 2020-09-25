@@ -12,11 +12,11 @@ import dk.sdu.cloud.service.k8.*
  * the project. Namespace creation is done, as needed, by the [FairSharePlugin].
  */
 class FairSharePlugin : JobManagementPlugin {
-    override suspend fun K8Dependencies.onCreate(job: VerifiedJob, builder: VolcanoJob) {
-        val namespace = nameAllocator.jobIdToNamespace(job.id)
+    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+        val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
         @Suppress("BlockingMethodInNonBlockingContext")
         try {
-            client.createResource(
+            k8.client.createResource(
                 KubernetesResources.namespaces,
                 defaultMapper.writeValueAsString(Namespace(metadata = ObjectMeta(namespace)))
             )

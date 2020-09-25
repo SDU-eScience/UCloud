@@ -22,7 +22,7 @@ import dk.sdu.cloud.service.k8.Volume
  *   one used in `nodes.txt.
  */
 class MultiNodePlugin : JobManagementPlugin {
-    override suspend fun K8Dependencies.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
         val ucloudVolume = "ucloud-multinode"
         val mountPath = "/etc/ucloud"

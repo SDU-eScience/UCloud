@@ -23,7 +23,7 @@ data class K8Dependencies(
 ) {
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 
-    suspend fun addStatus(jobId: String, message: String) {
+    suspend fun addStatus(jobId: String, message: String): Boolean {
         val last = lastMessage.get(jobId)
         if (last != message) {
             ComputationCallbackDescriptions.addStatus.call(
@@ -31,14 +31,16 @@ data class K8Dependencies(
                 serviceClient
             )
             lastMessage.insert(jobId, message)
+            return true
         }
+        return false
     }
 
     suspend fun changeState(
         jobId: String,
         state: JobState,
         newStatus: String? = null
-    ) {
+    ): Boolean {
         val last = lastMessage.get(jobId)
         val messageAsString = "${state}-${newStatus}"
         if (last != messageAsString) {
@@ -47,6 +49,8 @@ data class K8Dependencies(
                 serviceClient
             ).orThrow()
             lastMessage.insert(jobId, messageAsString)
+            return true
         }
+        return false
     }
 }

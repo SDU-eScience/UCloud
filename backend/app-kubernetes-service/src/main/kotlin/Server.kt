@@ -79,6 +79,7 @@ class Server(
             register(FileMountPlugin(cephConfig))
             register(MultiNodePlugin())
             register(SharedMemoryPlugin())
+            register(ExpiryPlugin())
             register(MiscellaneousPlugin())
             if (fairShareEnabled) register(FairSharePlugin())
             register(ProxyPlugin(broadcastingStream))

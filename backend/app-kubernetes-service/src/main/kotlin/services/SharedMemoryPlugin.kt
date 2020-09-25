@@ -12,7 +12,7 @@ import dk.sdu.cloud.service.k8.Volume
  * no RAM reservation attached it will default to 1GB of RAM.
  */
 class SharedMemoryPlugin : JobManagementPlugin {
-    override suspend fun K8Dependencies.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val sizeInGigs = job.reservation.memoryInGigs ?: 1
 
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")

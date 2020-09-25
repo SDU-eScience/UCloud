@@ -13,11 +13,11 @@ import dk.sdu.cloud.service.BroadcastingStream
 class ProxyPlugin(
     private val broadcastingStream: BroadcastingStream,
 ) : JobManagementPlugin {
-    override suspend fun K8Dependencies.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         broadcastingStream.broadcast(ProxyEvent(job.id, true), ProxyEvents.events)
     }
 
-    override suspend fun K8Dependencies.onCleanup(jobId: String) {
+    override suspend fun JobManagement.onCleanup(jobId: String) {
         broadcastingStream.broadcast(ProxyEvent(jobId, false), ProxyEvents.events)
     }
 }

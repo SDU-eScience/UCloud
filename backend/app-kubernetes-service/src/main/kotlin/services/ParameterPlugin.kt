@@ -16,7 +16,7 @@ import dk.sdu.cloud.service.k8.Pod
  * - Environment variables will be initialized with values from the user
  */
 class ParameterPlugin : JobManagementPlugin {
-    override suspend fun K8Dependencies.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val app = job.application.invocation
         val givenParameters =
             job.jobInput.asMap().mapNotNull { (paramName, value) ->
