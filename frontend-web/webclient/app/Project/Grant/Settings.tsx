@@ -234,8 +234,8 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     }, [settings]);
 
     if (!enabled.data.enabled) return null;
-    return <Box id={"AppGrantSettings"}>
-        <Heading.h2>Application Settings</Heading.h2>
+    return <Box>
+        <Heading.h3 id={"AppGrantSettings"}>Application Settings</Heading.h3>
         <Divider/>
         <Heading.h4>Allow Grant Applications From</Heading.h4>
         <UserCriteriaEditor
