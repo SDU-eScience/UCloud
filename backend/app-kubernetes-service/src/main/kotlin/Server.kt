@@ -80,6 +80,7 @@ class Server(
             register(MultiNodePlugin())
             register(SharedMemoryPlugin())
             register(ExpiryPlugin())
+            register(AccountingPlugin())
             register(MiscellaneousPlugin())
             if (fairShareEnabled) register(FairSharePlugin())
             register(ProxyPlugin(broadcastingStream))
