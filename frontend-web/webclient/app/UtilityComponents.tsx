@@ -7,14 +7,14 @@ import List from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {keyframes, css} from "styled-components";
 import {
-    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text, ButtonGroup
+    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, ButtonGroup, Card, Link, Text
 } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import {UploadPolicy} from "Uploader/api";
-import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
+import {directorySizeQuery, fileTablePage, replaceHomeOrProjectFolder, sizeToString} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
@@ -22,6 +22,9 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {ProjectName} from "Project";
 import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "styled-system";
 import {useEffect, useRef} from "react";
+import {Client} from "Authentication/HttpClientInstance";
+import {Spacer} from "ui-components/Spacer";
+import {ErrorWrapper} from "ui-components/Error";
 
 interface StandardDialog {
     title?: string;
@@ -787,3 +790,76 @@ export const shakingClassName = "shaking";
 export const ShakingBox = styled(Box)`
     ${shakeAnimation}
 `;
+
+const MISSING_COMPUTE_CREDITS = "NOT_ENOUGH_COMPUTE_CREDITS";
+const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
+const EXCEEDED_STORAGE_QUOTA = "NOT_ENOUGH_STORAGE_QUOTA";
+
+export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
+    if (!props.errorCode) return null;
+    return (
+        <ErrorWrapper bg="lightRed"
+            borderColor="red"
+            width={1}
+        >
+            <WarningToOptions errorCode={props.errorCode} />
+        </ErrorWrapper>
+    );
+}
+
+function WarningToOptions(props: {errorCode: string}): JSX.Element {
+    const trashFolder = Client.hasActiveProject ?
+        `${Client.currentProjectFolder}/Personal/${Client.username}/Trash` :
+        `${Client.homeFolder}/Trash`;
+
+    const workspacePath = Client.hasActiveProject ?
+        `${Client.currentProjectFolder}/Personal/${Client.username}` : Client.homeFolder;
+
+    const applyPath = Client.hasActiveProject ? "/project/grants/existing" : "/project/grants/personal";
+
+    const [size] = useCloudAPI<{size: number}>({
+        path: directorySizeQuery, method: "POST", payload: {paths: [trashFolder]}
+    }, {size: -1});
+
+    switch (props.errorCode) {
+        case MISSING_COMPUTE_CREDITS:
+        case MISSING_STORAGE_CREDITS:
+            const computeOrStorage = props.errorCode === MISSING_COMPUTE_CREDITS ? "compute" : "storage";
+            return (
+                <Box mb="8px">
+                    <Heading.h4 mb="20px" color="#000">You do not have enough {computeOrStorage} credits.</Heading.h4>
+                    <Spacer
+                        left={<Text color="#000">Apply for more {computeOrStorage} resources.</Text>}
+                        right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
+                    />
+                </Box>
+            );
+        case EXCEEDED_STORAGE_QUOTA:
+            return (
+                <>
+                    <Heading.h4 mb="20px" color="#000">You do not have enough storage credit. To get more storage, you could do one of the following:</Heading.h4>
+                    <Box mb="8px">
+                        <Spacer
+                            left={<Text color="#000">Delete files. Your personal workspace files, including job results and trash also count towards your storage quota.</Text>}
+                            right={<Link to={fileTablePage(workspacePath)}><Button width="150px" height="30px">Workspace files</Button></Link>}
+                        />
+                    </Box>
+                    {size.data.size >= 0 ?
+                        <Box mb="8px">
+                            <Spacer
+                                left={<Text color="#000">Empty your trash folder. You have {sizeToString(1389212212/* size.data.size */)} counting towards your storage quota.</Text>}
+                                right={<Link to={fileTablePage(trashFolder)}><Button width="150px" height="30px">To trash folder</Button></Link>}
+                            />
+                        </Box> : null}
+                    <Box mb="8px">
+                        <Spacer
+                            left={<Text color="#000">Apply for more storage resources.</Text>}
+                            right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
+                        />
+                    </Box>
+                </>
+            );
+        default:
+            return <></>;
+    }
+}
