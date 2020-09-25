@@ -114,6 +114,17 @@ class JobManagement(
         }
     }
 
+    private suspend fun renewLock(lock: DistributedLock): Boolean {
+        if (!disableMasterElection) {
+            if (!lock.renew(90_000)) {
+                log.warn("Lock was lost during job monitoring")
+                return false
+            }
+        }
+        return true
+    }
+
+
     @OptIn(ExperimentalTime::class, ExperimentalCoroutinesApi::class)
     private suspend fun becomeMasterAndListen(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
@@ -131,6 +142,8 @@ class JobManagement(
                     KubernetesResources.pod.withNamespace(NAMESPACE_ANY),
                     mapOf("labelSelector" to VOLCANO_JOB_NAME_LABEL)
                 )
+
+                var nextFullScan = 0L
 
                 while (currentCoroutineContext().isActive) {
                     // TODO This code doesn't work it still throws with some kind of closed exception
@@ -258,12 +271,7 @@ class JobManagement(
                         log.warn("Took too long to process events ($duration). We will probably lose master status.")
                     }
 
-                    if (!disableMasterElection) {
-                        if (!lock.renew(90_000)) {
-                            log.warn("Lock was lost. We are no longer the master. Did update take too long?")
-                            break
-                        }
-                    }
+                    if (!renewLock(lock)) break
                 }
 
                 runCatching { volcanoWatch.cancel() }

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.api
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.OutgoingCall
@@ -14,6 +15,7 @@ import dk.sdu.cloud.service.TokenValidation
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.delay
 import java.net.ConnectException
 import java.time.temporal.ChronoUnit
 import java.util.*
@@ -39,7 +41,7 @@ class RefreshingJWTAuthenticator(
         return Date(Time.now()).toInstant().plus(3, ChronoUnit.MINUTES).isAfter(expiresAt.toInstant())
     }
 
-    private suspend fun refresh(): String {
+    private suspend fun refresh(attempts: Int = 0): String {
         log.debug("Refreshing token")
         val validatedToken = tokenValidation.validateOrNull(currentAccessToken)
         if (validatedToken.isExpiringSoon()) {
@@ -66,6 +68,14 @@ class RefreshingJWTAuthenticator(
                     result.statusCode == HttpStatusCode.Forbidden
                 ) {
                     throw IllegalStateException("We are not authorized to refresh the token! $result")
+                }
+
+                if (result.statusCode == HttpStatusCode.NotFound && attempts < 5) {
+                    // Deals with a bug when running this in dev mode via Launcher
+                    // Some times we request an authorization token before the auth service is actually responding
+
+                    delay(1000 * 5)
+                    return refresh(attempts + 1)
                 }
 
                 throw ConnectException("Unexpected status code from auth service while refreshing: $result")

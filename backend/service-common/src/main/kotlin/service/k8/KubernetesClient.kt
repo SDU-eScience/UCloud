@@ -386,20 +386,28 @@ suspend inline fun <reified T> KubernetesClient.getResource(
     return parseResponse(sendRequest(HttpMethod.Get, locator, queryParameters, operation))
 }
 
+data class KubernetesList<T>(
+    val items: List<T>,
+    val continueAt: String? = null
+) : List<T> by items
+
 suspend inline fun <reified T> KubernetesClient.listResources(
     locator: KubernetesResourceLocator,
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
-): List<T> {
+): KubernetesList<T> {
     val resp = sendRequest<HttpResponse>(HttpMethod.Get, locator, queryParameters, operation)
 
     val parsedResp = parseResponse<JsonNode>(resp)
     val items = parsedResp["items"].takeIf { it.nodeType == JsonNodeType.ARRAY }
         ?: error("Could not parse items of response: $parsedResp")
 
-    return (0 until items.size()).map {
-        defaultMapper.treeToValue<T>(items[it])
-    }
+    return KubernetesList(
+        (0 until items.size()).map {
+            defaultMapper.treeToValue(items[it])
+        },
+        parsedResp.get("metadata")?.get("continue")?.asText()
+    )
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
