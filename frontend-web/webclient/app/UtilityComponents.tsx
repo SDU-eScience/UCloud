@@ -815,7 +815,7 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
     const workspacePath = Client.hasActiveProject ?
         `${Client.currentProjectFolder}/Personal/${Client.username}` : Client.homeFolder;
 
-    const applyPath = Client.hasActiveProject ? "/project/grants/existing" : "/project/grants/personal";
+    const applyPath = Client.hasActiveProject ? "/project/grants/existing" : "/projects/browser/personal";
 
     const [size] = useCloudAPI<{size: number}>({
         path: directorySizeQuery, method: "POST", payload: {paths: [trashFolder]}
