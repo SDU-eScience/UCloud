@@ -398,7 +398,7 @@ class RpcServer {
                 val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) {
                     CommonErrorMessage(ex.why, ex.errorCode)
                 } else {
-                    CommonErrorMessage("Internal Server Error")
+                    CommonErrorMessage("Internal Server Error", ex.errorCode)
                 }
 
                 @Suppress("UNCHECKED_CAST")

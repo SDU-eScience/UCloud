@@ -19,7 +19,7 @@ fun <T : Any> IngoingCallResponse<T, *>.orThrow(): T {
         if (this is IngoingCallResponse.Error) {
             val error = this.error
             if (error is CommonErrorMessage) {
-                throw RPCException(error.why, statusCode)
+                throw RPCException(error.why, statusCode, error.errorCode)
             }
         }
         throw RPCException.fromStatusCode(statusCode)
