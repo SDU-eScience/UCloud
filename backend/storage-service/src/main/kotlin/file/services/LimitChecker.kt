@@ -410,7 +410,8 @@ class LimitChecker<Ctx : FSUserContext>(
         if (usage > quota.quotaInBytes) {
             throw RPCException(
                 "Storage quota has been exceeded. ${bytesToString(usage)} of ${bytesToString(quota.quotaInBytes)} used",
-                HttpStatusCode.PaymentRequired
+                HttpStatusCode.PaymentRequired,
+                "NOT_ENOUGH_STORAGE_QUOTA"
             )
         }
     }

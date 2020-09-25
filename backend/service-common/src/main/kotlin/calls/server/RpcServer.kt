@@ -396,7 +396,7 @@ class RpcServer {
             val statusCode = (ex as? RPCException)?.httpStatusCode ?: HttpStatusCode.InternalServerError
             val callResult = if (call.errorType.type == CommonErrorMessage::class.java && ex is RPCException) {
                 val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) {
-                    CommonErrorMessage(ex.why)
+                    CommonErrorMessage(ex.why, ex.errorCode)
                 } else {
                     CommonErrorMessage("Internal Server Error")
                 }

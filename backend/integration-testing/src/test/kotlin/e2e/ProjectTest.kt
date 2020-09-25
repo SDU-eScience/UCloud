@@ -33,7 +33,8 @@ class ProjectTest : EndToEndTest() {
             UploadRequestSettingsRequest(
                 AutomaticApprovalSettings(emptyList(), emptyList()), listOf(
                     UserCriteria.Anyone()
-                )
+                ),
+                emptyList()
             ), serviceClient.withProject(root)
         )
         val user = createUser()

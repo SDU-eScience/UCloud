@@ -2,7 +2,7 @@ package dk.sdu.cloud
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 
-data class CommonErrorMessage(val why: String)
+data class CommonErrorMessage(val why: String, val errorCode: String? = null)
 
 typealias FindByNameBulk = FindByName
 

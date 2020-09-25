@@ -49,6 +49,7 @@ const UIGlobalStyle = css`
     --appCard: #ebeff3;
     --wayfGreen: #66b340;
     --invertedThemeColor: #fff;
+    --fixedBlack: #000;
 }
 
 

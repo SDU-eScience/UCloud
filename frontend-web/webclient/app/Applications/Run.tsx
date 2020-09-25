@@ -50,7 +50,7 @@ import {
     fileTablePage, getFilenameFromPath,
     statFileQuery
 } from "Utilities/FileUtilities";
-import {addStandardDialog} from "UtilityComponents";
+import {addStandardDialog, LowStorageWarning} from "UtilityComponents";
 import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
 import {
     AdditionalMountedFolder,
@@ -327,6 +327,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                         </Flex>
                                     </RunSection>
                                 )}
+
                             {!unknownParameters.length ? null : (
                                 <Error
                                     error={"Could not add parameters:\n\t" + unknownParameters.join(", \n\t")}
@@ -335,7 +336,9 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                             )}
 
                             <RunSection>
-                                <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />
+                                {this.state.inlineError === "Insufficient funds" && this.state.balance >= estimatedCost ? (
+                                    <LowStorageWarning />
+                                ) : <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />}
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
