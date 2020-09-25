@@ -50,7 +50,7 @@ import {
     fileTablePage, getFilenameFromPath,
     statFileQuery
 } from "Utilities/FileUtilities";
-import {addStandardDialog, LowStorageWarning} from "UtilityComponents";
+import {addStandardDialog, WalletWarning} from "UtilityComponents";
 import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
 import {
     AdditionalMountedFolder,
@@ -113,7 +113,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             reservation: "",
             unknownParameters: [],
             balance: NO_WALLET_FOUND_VALUE,
-            inlineError: undefined
+            inlineError: undefined,
+            errorCode: undefined
         };
     }
 
@@ -336,9 +337,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                             )}
 
                             <RunSection>
-                                {this.state.inlineError === "Insufficient funds" && this.state.balance >= estimatedCost ? (
-                                    <LowStorageWarning />
-                                ) : <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />}
+                                <WalletWarning errorCode={this.state.errorCode} />
+                                {this.state.errorCode ? null : <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />}
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
@@ -689,7 +689,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                 });
             } else {
                 if (err.request.status === 402) {
-                    this.setState(({inlineError: err.response.why}));
+                    this.setState(({inlineError: err.response.why, errorCode: err.response.errorCode ?? undefined}));
                 } else {
                     snackbarStore.addFailure(
                         errorMessageOrDefault(err, "An error occurred submitting the job."),

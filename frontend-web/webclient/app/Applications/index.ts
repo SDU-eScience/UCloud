@@ -180,6 +180,7 @@ export interface RunAppState {
     reservationMachine?: Product;
     balance: number;
     inlineError?: string;
+    errorCode?: string;
 }
 
 export interface RunOperations extends SetStatusLoading {

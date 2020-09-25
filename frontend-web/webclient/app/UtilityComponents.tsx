@@ -24,6 +24,7 @@ import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "sty
 import {useEffect, useRef} from "react";
 import {Client} from "Authentication/HttpClientInstance";
 import {Spacer} from "ui-components/Spacer";
+import {ErrorWrapper} from "ui-components/Error";
 
 interface StandardDialog {
     title?: string;
@@ -742,50 +743,75 @@ export const ShakingBox = styled(Box)`
     ${shakeAnimation}
 `;
 
+const MISSING_COMPUTE_CREDITS = "NOT_ENOUGH_COMPUTE_CREDITS";
+const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
+const EXCEEDED_STORAGE_QUOTA = "NOT_ENOUGH_STORAGE_QUOTA";
 
-export function LowStorageWarning(): JSX.Element {
+export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
+    if (!props.errorCode) return null;
+    return (
+        <ErrorWrapper bg="lightRed"
+            borderColor="red"
+            width={1}
+        >
+            <WarningToOptions errorCode={props.errorCode} />
+        </ErrorWrapper>
+    );
+}
+
+function WarningToOptions(props: {errorCode: string}): JSX.Element {
     const trashFolder = Client.hasActiveProject ?
         `${Client.currentProjectFolder}/Personal/${Client.username}/Trash` :
         `${Client.homeFolder}/Trash`;
 
-    const workspacePath = Client.hasActiveProject ? `${Client.currentProjectFolder}/Personal/${Client.username}` : Client.homeFolder;
+    const workspacePath = Client.hasActiveProject ?
+        `${Client.currentProjectFolder}/Personal/${Client.username}` : Client.homeFolder;
+
+    const applyPath = Client.hasActiveProject ? "/project/grants/existing" : "/project/grants/personal";
 
     const [size] = useCloudAPI<{size: number}>({
         path: directorySizeQuery, method: "POST", payload: {paths: [trashFolder]}
     }, {size: -1});
 
-    const applyPath = Client.hasActiveProject ? "/project/grants/existing" : "/project/grants/personal";
-
-    return (
-        <Card
-            borderRadius="6px"
-            height="auto"
-            p="1em 1em 1em 1em"
-            color="black"
-            bg="lightRed"
-            borderColor="red"
-            width={1}
-        >
-            <Heading.h4 mb="20px" color="#000">You do not have enough storage credit. To get more storage, you could do one of the following:</Heading.h4>
-            <Box mb="8px">
-                <Spacer
-                    left={<Text color="#000">Delete files. Your personal workspace files, including job results and trash also count towards your storage quota.</Text>}
-                    right={<Link to={fileTablePage(workspacePath)}><Button width="150px" height="30px">Workspace files</Button></Link>}
-                />
-            </Box>
-            {size.data.size >= 0 ?
+    switch (props.errorCode) {
+        case MISSING_COMPUTE_CREDITS:
+        case MISSING_STORAGE_CREDITS:
+            const computeOrStorage = props.errorCode === MISSING_COMPUTE_CREDITS ? "compute" : "storage";
+            return (
                 <Box mb="8px">
+                    <Heading.h4 mb="20px" color="#000">You do not have enough {computeOrStorage} credits.</Heading.h4>
                     <Spacer
-                        left={<Text color="#000">Empty your trash folder. You have {sizeToString(1389212212/* size.data.size */)} counting towards your storage quota.</Text>}
-                        right={<Link to={fileTablePage(trashFolder)}><Button width="150px" height="30px">To trash folder</Button></Link>}
+                        left={<Text color="#000">Apply for more {computeOrStorage} resources.</Text>}
+                        right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                     />
-                </Box> : null}
-            <Box mb="8px">
-                <Spacer
-                    left={<Text color="#000">Apply for more storage resources.</Text>}
-                    right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
-                />
-            </Box>
-        </Card>
-    );
+                </Box>
+            );
+        case EXCEEDED_STORAGE_QUOTA:
+            return (
+                <>
+                    <Heading.h4 mb="20px" color="#000">You do not have enough storage credit. To get more storage, you could do one of the following:</Heading.h4>
+                    <Box mb="8px">
+                        <Spacer
+                            left={<Text color="#000">Delete files. Your personal workspace files, including job results and trash also count towards your storage quota.</Text>}
+                            right={<Link to={fileTablePage(workspacePath)}><Button width="150px" height="30px">Workspace files</Button></Link>}
+                        />
+                    </Box>
+                    {size.data.size >= 0 ?
+                        <Box mb="8px">
+                            <Spacer
+                                left={<Text color="#000">Empty your trash folder. You have {sizeToString(1389212212/* size.data.size */)} counting towards your storage quota.</Text>}
+                                right={<Link to={fileTablePage(trashFolder)}><Button width="150px" height="30px">To trash folder</Button></Link>}
+                            />
+                        </Box> : null}
+                    <Box mb="8px">
+                        <Spacer
+                            left={<Text color="#000">Apply for more storage resources.</Text>}
+                            right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
+                        />
+                    </Box>
+                </>
+            );
+        default:
+            return <></>;
+    }
 }
