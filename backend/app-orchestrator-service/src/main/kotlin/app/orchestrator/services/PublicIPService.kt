@@ -283,6 +283,27 @@ class PublicIPService {
         return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())
     }
 
+    suspend fun listAvailableAddresses(
+        ctx: DBContext,
+        pagination: NormalizedPaginationRequest,
+    ): Page<String> {
+        val items = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("offset", pagination.offset)
+                    setParameter("limit", pagination.itemsPerPage)
+                },
+                """
+                    select ip from ip_pool where owner_id is null and owner_type is null
+                    offset :offset
+                    limit :limit
+                """
+            ).rows.map { it.getField(IpPoolTable.ip) }
+        }
+
+        return Page(items.size, pagination.itemsPerPage, pagination.page, items.toList())
+    }
+
     suspend fun listMyAddresses(
         ctx: DBContext,
         actor: Actor,

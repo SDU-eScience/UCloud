@@ -52,6 +52,10 @@ class PublicIPController(
             ok(publicIps.listAssignedAddresses(db, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }
 
+        implement(PublicIPs.listAvailableAddresses) {
+            ok(publicIps.listAvailableAddresses(db, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
+        }
+
         implement(PublicIPs.listMyAddresses) {
             ok(publicIps.listMyAddresses(db, ctx.securityPrincipal.toActor(), ctx.project, NormalizedPaginationRequest(request.itemsPerPage, request.page)))
         }

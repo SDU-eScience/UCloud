@@ -1,4 +1,4 @@
-import {addToPool, listAssignedAddresses, PublicIP, removeFromPool} from "Applications/IPAddresses";
+import {addToPool, listAssignedAddresses, listAvailableAddresses, PublicIP, removeFromPool} from "Applications/IPAddresses";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
@@ -46,6 +46,13 @@ export function PublicIPPool(): JSX.Element | null {
         listAssignedAddresses({itemsPerPage: 25, page: 0}),
         emptyPage
     );
+
+    const [availableAddresses, setAvailableAddressesParams, availableAddressParams] = useCloudAPI<Page<PublicIP>>(
+        listAvailableAddresses({itemsPerPage: 25, page: 0}),
+        emptyPage
+    );
+
+
 
     const [management, setManagement] = React.useState(PoolManagement.CLOSED);
     const [selectedIp, setSelectedIp] = React.useState<number>(0);
@@ -125,9 +132,9 @@ export function PublicIPPool(): JSX.Element | null {
                             </>
                         )}
                     </List>
-                    <Heading.h3 mt={25}>Unassigned</Heading.h3>
+                    <Heading.h3 mt={25}>Available</Heading.h3>
                     <List>
-                        {assignedAddresses.data.items.map(address =>
+                        {availableAddresses.data.items.map(address =>
                             <>
                                 <ListRow
                                     key={address.id}

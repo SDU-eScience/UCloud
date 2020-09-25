@@ -151,6 +151,10 @@ export interface ListAssignedAddressesRequest {
     itemsPerPage?: number,
     page?: number,
 }
+export interface ListAvailableAddressesRequest {
+    itemsPerPage?: number,
+    page?: number,
+}
 export interface PublicIP {
     entityType: WalletOwnerType,
     id: number,
@@ -173,6 +177,17 @@ export function listAssignedAddresses(
     return {
         method: "GET",
         path: buildQueryString("/hpc/ip/list-assigned", request),
+        parameters: request,
+        reloadId: Math.random(),
+        payload: undefined
+    };
+}
+export function listAvailableAddresses(
+    request: ListAvailableAddressesRequest
+): APICallParameters<ListAvailableAddressesRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/hpc/ip/list-available", request),
         parameters: request,
         reloadId: Math.random(),
         payload: undefined

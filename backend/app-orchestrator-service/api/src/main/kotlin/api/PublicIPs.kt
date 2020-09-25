@@ -126,6 +126,12 @@ data class ListAssignedAddressesRequest(
 ) : WithPaginationRequest
 typealias ListAssignedAddressesResponse = Page<PublicIP>
 
+data class ListAvailableAddressesRequest(
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+typealias ListAvailableAddressesResponse = Page<String>
+
 data class ListMyAddressesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias ListMyAddressesResponse = Page<PublicIP>
 
@@ -375,6 +381,31 @@ object PublicIPs : CallDescriptionContainer("hpc.publicips") {
                 params {
                     +boundTo(ListAssignedAddressesRequest::itemsPerPage)
                     +boundTo(ListAssignedAddressesRequest::page)
+                }
+            }
+        }
+
+    /**
+     * Endpoint for system administrators to list all IPs which have not been assigned to anybody
+     */
+    val listAvailableAddresses =
+        call<ListAvailableAddressesRequest, ListAvailableAddressesResponse, CommonErrorMessage>("listAvailableAddresses") {
+            auth {
+                access = AccessRight.READ
+                roles = Roles.PRIVILEGED
+            }
+
+            http {
+                method = HttpMethod.Get
+
+                path {
+                    using(baseContext)
+                    +"list-available"
+                }
+
+                params {
+                    +boundTo(ListAvailableAddressesRequest::itemsPerPage)
+                    +boundTo(ListAvailableAddressesRequest::page)
                 }
             }
         }
