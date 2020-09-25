@@ -7,11 +7,12 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
+import * as Heading from "ui-components/Heading";
 import * as ReactModal from "react-modal";
 import {useDispatch} from "react-redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Flex, Input, List, Text} from "ui-components";
+import {Box, Button, Flex, Icon, Input, List, Text} from "ui-components";
 import {ListRow} from "ui-components/List";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
@@ -27,6 +28,18 @@ enum PoolManagement {
     REMOVE
 }
 
+const Wrapper = styled.div`
+    width: 800px;
+    height: 80vh;
+`;
+
+const InnerWrapper = styled.div`
+    height: calc(100% - 90px);
+    overflow-y: auto;
+    overflow-x: hidden;
+`;
+
+
 
 export function PublicIPPool(): JSX.Element | null {
     const [assignedAddresses, setParams, params] = useCloudAPI<Page<PublicIP>>(
@@ -35,6 +48,7 @@ export function PublicIPPool(): JSX.Element | null {
     );
 
     const [management, setManagement] = React.useState(PoolManagement.CLOSED);
+    const [selectedIp, setSelectedIp] = React.useState<number>(0);
 
     useSidebarPage(SidebarPages.Admin);
     useTitle("IP Management");
@@ -54,25 +68,84 @@ export function PublicIPPool(): JSX.Element | null {
     if (!Client.userIsAdmin) return null;
     return (
         <MainContainer
-            main={<List>
-                {assignedAddresses.data.items.map(address =>
-                    <ListRow
-                        key={address.id}
-                        left={<Flex>
-                            <Text>{address.ownerEntity}</Text>
-                            {address.inUseBy ? <Text color="gray" ml="8px"> In use by: {address.inUseBy}</Text> : null}
-                        </Flex>}
-                        leftSub={<Text fontSize={0} color="gray">{capitalized(address.entityType)}</Text>}
-                        right={<>
-                            {address.openPorts.map(port =>
-                                <Box key={port.protocol + port.port}>
-                                    {port.protocol}://{address.ipAddress}:{port.port}
-                                </Box>
-                            )}
-                        </>}
-                    />
-                )}
-            </List>}
+            main={
+                <Box maxWidth={1000} ml="auto" mr="auto">
+                    <Heading.h3>Assigned</Heading.h3>
+                    <List>
+                        {assignedAddresses.data.items.map(address =>
+                            <>
+                                <ListRow
+                                    navigate={() =>
+                                        setSelectedIp(address.id)
+                                    }
+                                    key={address.id}
+                                    left={
+                                        <Flex>
+                                            <Text>{address.ipAddress}</Text>
+                                        </Flex>
+                                    }
+                                    select={() => 
+                                        setSelectedIp(address.id)
+                                    }
+                                    leftSub={<>
+                                        <Text fontSize={1} color="gray" pr={1}>{capitalized(address.entityType)}:</Text>
+                                        <Text fontSize={1}>{address.ownerEntity}</Text>
+                                        </>
+                                    }
+                                    right={<>
+                                        <Text color="gray" ml="8px">{address.inUseBy ? `In use by: ${address.inUseBy}` : "Not in use"}</Text>
+                                    </>}
+                                    isSelected={selectedIp === address.id}
+                                />
+                                <ReactModal
+                                    isOpen={selectedIp === address.id}
+                                    onRequestClose={() => setSelectedIp(0)}
+                                    shouldCloseOnEsc
+                                    shouldCloseOnOverlayClick
+                                    ariaHideApp
+                                    style={{content: {...defaultModalStyle.content, height: "auto", maxHeight: undefined}}}
+                                >
+                                    <Wrapper>
+                                        <Heading.h3>Ports open for {address.ipAddress} ({address.openPorts.length})</Heading.h3>
+                                        <InnerWrapper>
+                                            <List mt={20}>
+                                                {address.openPorts.map(port =>
+                                                    <ListRow
+                                                        key={port.protocol + port.port}
+                                                        left={port.port}
+                                                        right={port.protocol}
+                                                    />
+                                                )}
+                                            </List>                                          
+                                        </InnerWrapper>
+                                        <Button onClick={() => setSelectedIp(0)} width="100%" mt={20}>Close</Button>
+                                    </Wrapper>
+                                </ReactModal>
+
+                            </>
+                        )}
+                    </List>
+                    <Heading.h3 mt={25}>Unassigned</Heading.h3>
+                    <List>
+                        {assignedAddresses.data.items.map(address =>
+                            <>
+                                <ListRow
+                                    key={address.id}
+                                    left={
+                                        <Flex>
+                                            <Text>{address.ipAddress}</Text>
+                                        </Flex>
+                                    }
+                                    right={<>
+                                        <Button color={"red"} pl={2} pr={2}><Icon name="trash" size="16" /></Button>
+                                    </>}
+                                />
+                            </>
+                        )}
+                    </List>
+
+                </Box>
+            }
             sidebar={<Box>
                 <Button width={1} my="8px" onClick={() => setManagement(PoolManagement.ADD)} color="green">
                     Add IPs
