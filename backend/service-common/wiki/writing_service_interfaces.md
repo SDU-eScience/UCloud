@@ -1,11 +1,11 @@
 # Writing Service Interfaces
 
-See [Getting Started](getting_started.html) for a general introduction to this
+See [Getting Started](./getting_started.md) for a general introduction to this
 subject.
 
 The RPC interfaces should be defined in the `api` package. The call descriptions
 tell both the server and the client how to send and receive requests. It also
-provides additional information to the [auditing](auditing.html) feature.
+provides additional information to the [auditing](./auditing.md) feature.
 
 Call descriptions are placed in `object`s that extend the
 `CallDescriptionContainer` class. Each RPC call have the following amount of
@@ -46,7 +46,7 @@ value is `Roles.END_USER`.
 
 ## `audit`
 
-Configures the [auditing](auditing.html) feature. The audit type should be set
+Configures the [auditing](./auditing.md) feature. The audit type should be set
 with `audit<AuditType>()`.
 
 In the server calls additional methods are exposed:

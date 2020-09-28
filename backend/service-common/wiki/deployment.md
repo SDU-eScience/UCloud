@@ -38,7 +38,7 @@ includes the automatic building of Docker containers.
 ## Procedure and Backwards Compatibility
 
 Containers are built and tested by our CI/CD pipeline. See the CI/CD section
-in [Getting Started](getting_started.html).
+in [Getting Started](./getting_started.md).
 
 Under normal conditions, before deploying a new version you must ensure that
 the software checks every mark in the following list:
@@ -51,7 +51,7 @@ the software checks every mark in the following list:
 
 |uncheck_| Breaking changes in the external interface can only occur in major releases (Semantic versioning).
 
-|uncheck_| When introducing breaking changes to a call, the Elasticsearch auditing index for that call must be updated. See [Auditing](auditing.html) for more information.
+|uncheck_| When introducing breaking changes to a call, the Elasticsearch auditing index for that call must be updated. See [Auditing](./auditing.md) for more information.
 
 .. |uncheck_| raw:: html
 

@@ -1,4 +1,4 @@
-# Application Format
+# Applications
 
 __Applications__ are described by YAML documents. The document describes the
 parameters of an application and how these should be used to invoke it. Each

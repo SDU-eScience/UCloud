@@ -1,6 +1,6 @@
 # Kubernetes Backend
 
-A [compute backend](../../app-services.html) using Kubernetes for scheduling jobs.
+A [compute backend](../app-orchestrator-service/README.md) using Kubernetes for scheduling jobs.
 
 Kubernetes is the scheduler/orchestrator already used for all UCloud
 services. `app-kuberneteres` works by running user jobs as 
@@ -36,18 +36,18 @@ The deadline of the job is enforced via `activeDeadlineSeconds`. The job will
 never restart and it will never attempt to run two copies at the same time.
 
 Environment variables are set as specified by the
-[app-service](../../app-services.html).
+[app-service](../app-orchestrator-service/README.md).
 
 ## Transferring Files
 
 The microservice will mount the same persistent volume (PV) as the
-[storage-service](../../file-storage-service.html). Note that to achieve this we must copy
+[storage-service](../storage-service/README.md). Note that to achieve this we must copy
 the internal settings of the mount to a separate PV which can be used in the
 namespace dedicated for running applications.
 
 The storage is mounted directly into the applications. A sub-mount is used 
 with the appropriate permissions. The ACLs are verified through the 
-[storage-service](../../file-storage-service.html).
+[storage-service](../storage-service/README.md).
 
 ## Security Model
 
@@ -65,7 +65,7 @@ cannot change settings which would affect the physical host.
 
 We don't put any special restrictions on the UID a user's container can run
 as. We encourage that all applications run as UID/GID 11042 (same as 
-[storage-service](../../file-storage-service.html)). `sudo` should be used if `root` 
+[storage-service](../storage-service/README.md)). `sudo` should be used if `root` 
 access is needed. This means that we must assume that all jobs can run 
 as root within the container. This is okay since containers are meant to 
 be a secure sandbox. Root containers should be scheduled on a more secure 

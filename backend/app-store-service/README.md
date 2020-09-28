@@ -1,6 +1,12 @@
-:orphan:
+## Compute
 
-## App Store Service
+.. toctree::
+  :hidden:
+  
+  ./wiki/tools.md
+  ./wiki/apps.md
+  Licenses <../app-license-service/README.md>
+  Orchestration <../app-orchestrator-service/README.md>
 
 The application store manages the core abstractions of UCloud applications
 as well as providing an API for browsing applications. The store has two core
@@ -9,9 +15,9 @@ abstractions which power all applications: __tools__ and __applications__.
 A __tool__ is a resource defined by a YAML document. This document describes
 which container should be used by the _application_. The same tool can be
 used by multiple different applications. You can read more about [tools
-here](backend/app-store-service/wiki/tools.html).
+here](../app-store-service/wiki/tools.md).
 
 __Applications__ are described by YAML documents. The document describes the
 parameters of an application and how these should be used to invoke it. Each
 application has an associated tool. You can read more about [applications
-here](backend/app-store-service/wiki/apps.html).
+here](../app-store-service/wiki/apps.md).
