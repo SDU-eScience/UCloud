@@ -161,6 +161,7 @@ export interface PublicIP {
     ipAddress: string,
     openPorts: PortAndProtocol[],
     ownerEntity: string,
+    ownerTitle: string,
     inUseBy?: string,
 }
 export enum WalletOwnerType {
@@ -196,13 +197,6 @@ export function listAvailableAddresses(
 export interface ListMyAddressesRequest {
     itemsPerPage?: number,
     page?: number,
-}
-export interface PublicIP {
-    entityType: WalletOwnerType,
-    id: number,
-    ipAddress: string,
-    openPorts: PortAndProtocol[],
-    ownerEntity: string,
 }
 export function listMyAddresses(
     request: ListMyAddressesRequest

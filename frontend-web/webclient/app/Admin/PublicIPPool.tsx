@@ -17,6 +17,8 @@ import {ListRow} from "ui-components/List";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {capitalized, errorMessageOrDefault} from "UtilityFunctions";
+import { dialogStore } from "Dialog/DialogStore";
+import { addStandardDialog } from "UtilityComponents";
 
 // https://stackoverflow.com/questions/49306970/correct-input-type-for-ip-address
 const cidrRegex =
@@ -42,27 +44,30 @@ const InnerWrapper = styled.div`
 
 
 export function PublicIPPool(): JSX.Element | null {
-    const [assignedAddresses, setParams, params] = useCloudAPI<Page<PublicIP>>(
+    const [assignedAddresses, setAssignedAddressesParams, assignedAddressesParams] = useCloudAPI<Page<PublicIP>>(
         listAssignedAddresses({itemsPerPage: 25, page: 0}),
         emptyPage
     );
 
-    const [availableAddresses, setAvailableAddressesParams, availableAddressParams] = useCloudAPI<Page<PublicIP>>(
+    const [availableAddresses, setAvailableAddressesParams, availableAddressesParams] = useCloudAPI<Page<string>>(
         listAvailableAddresses({itemsPerPage: 25, page: 0}),
         emptyPage
     );
 
-
-
     const [management, setManagement] = React.useState(PoolManagement.CLOSED);
     const [selectedIp, setSelectedIp] = React.useState<number>(0);
+
+    const [, sendCommand] = useAsyncCommand();
 
     useSidebarPage(SidebarPages.Admin);
     useTitle("IP Management");
 
     const dispatch = useDispatch();
 
-    const refresh = (): void => setParams({...params});
+    const refresh = (): void => {
+        setAssignedAddressesParams({...assignedAddressesParams});
+        setAvailableAddressesParams({...availableAddressesParams});
+    }
 
     React.useEffect(() => {
         dispatch(setRefreshFunction(refresh));
@@ -75,6 +80,9 @@ export function PublicIPPool(): JSX.Element | null {
     if (!Client.userIsAdmin) return null;
     return (
         <MainContainer
+            header={
+                <Heading.h2>Public IP Pool</Heading.h2>
+            }
             main={
                 <Box maxWidth={1000} ml="auto" mr="auto">
                     <Heading.h3>Assigned</Heading.h3>
@@ -94,9 +102,10 @@ export function PublicIPPool(): JSX.Element | null {
                                     select={() => 
                                         setSelectedIp(address.id)
                                     }
-                                    leftSub={<>
-                                        <Text fontSize={1} color="gray" pr={1}>{capitalized(address.entityType)}:</Text>
-                                        <Text fontSize={1}>{address.ownerEntity}</Text>
+                                    leftSub={
+                                        <>
+                                            <Text fontSize={1} color="gray" pr={1}>{capitalized(address.entityType)}:</Text>
+                                            <Text fontSize={1}>{address.ownerTitle} ({address.ownerEntity})</Text>
                                         </>
                                     }
                                     right={<>
@@ -115,15 +124,19 @@ export function PublicIPPool(): JSX.Element | null {
                                     <Wrapper>
                                         <Heading.h3>Ports open for {address.ipAddress} ({address.openPorts.length})</Heading.h3>
                                         <InnerWrapper>
-                                            <List mt={20}>
-                                                {address.openPorts.map(port =>
-                                                    <ListRow
-                                                        key={port.protocol + port.port}
-                                                        left={port.port}
-                                                        right={port.protocol}
-                                                    />
+                                                {address.openPorts.length > 0 ? (
+                                                    <List mt={20}>
+                                                        {address.openPorts.map(port => 
+                                                            <ListRow
+                                                                key={port.protocol + port.port}
+                                                                left={port.port}
+                                                                right={port.protocol}
+                                                            />
+                                                        )}
+                                                    </List>                                          
+                                                ) : (
+                                                    <Text mt={40} textAlign="center">No open ports</Text>
                                                 )}
-                                            </List>                                          
                                         </InnerWrapper>
                                         <Button onClick={() => setSelectedIp(0)} width="100%" mt={20}>Close</Button>
                                     </Wrapper>
@@ -132,20 +145,42 @@ export function PublicIPPool(): JSX.Element | null {
                             </>
                         )}
                     </List>
-                    <Heading.h3 mt={25}>Available</Heading.h3>
+                    <Heading.h3 mt={40}>Available</Heading.h3>
                     <List>
                         {availableAddresses.data.items.map(address =>
                             <>
                                 <ListRow
-                                    key={address.id}
+                                    key={address}
                                     left={
                                         <Flex>
-                                            <Text>{address.ipAddress}</Text>
+                                            <Text>{address}</Text>
                                         </Flex>
                                     }
-                                    right={<>
-                                        <Button color={"red"} pl={2} pr={2}><Icon name="trash" size="16" /></Button>
-                                    </>}
+                                    right={
+                                        <Button
+                                            onClick={() => {
+                                                addStandardDialog({
+                                                    title: "Are you sure?",
+                                                    message: `Remove ${address} from IP Pool?`,
+                                                    onConfirm: async () => {
+                                                        try {
+                                                            await sendCommand(removeFromPool({addresses: [address], exceptions: []}));
+                                                            refresh();
+                                                        } catch (e) {
+                                                            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to remove IP"), false);
+                                                        }
+
+                                                        refresh();
+                                                    },
+                                                });
+                                            }}
+                                            color={"red"}
+                                            pl={2}
+                                            pr={2}
+                                        >
+                                            <Icon name="trash" size="16" />
+                                        </Button>
+                                    }
                                 />
                             </>
                         )}

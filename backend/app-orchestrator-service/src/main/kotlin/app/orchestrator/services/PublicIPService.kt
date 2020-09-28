@@ -17,7 +17,7 @@ object OpenPortsTable: SQLTable("open_ports") {
 }
 
 object IpPoolTable: SQLTable("ip_pool") {
-    val ip = text("account_id", notNull = true)
+    val ip = text("ip", notNull = true)
     val ownerId = text("owner_id")
     val ownerType = text("owner_type")
 }
