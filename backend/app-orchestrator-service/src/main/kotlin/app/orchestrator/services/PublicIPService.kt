@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import com.github.jasync.sql.db.RowData
+import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
@@ -79,18 +80,29 @@ class PublicIPService {
         actor: Actor,
         ip: String
     ): PublicIP {
-        // NOTE(Dan): Used for testing purposes
-        // TODO: Replace it
-        return PublicIP(
-            42,
-            "10.135.0.142",
-            actor.safeUsername(),
-            WalletOwnerType.USER,
-            listOf(
-                PortAndProtocol(11042, InternetProtocol.TCP)
-            ),
-            null
-        )
+        return ctx.withSession { session ->
+            val items = session.sendPreparedStatement(
+                {
+                    setParameter("ip", ip)
+                    setParameter("approved", ApplicationStatus.APPROVED.toString())
+                },
+                """
+                    select a.id, a.ip, a.applicant_id, a.applicant_type, p.ip, p.owner_id, p.owner_type, j.application_name
+                    from (
+                        ip_pool as p
+                        inner join address_applications as a on p.ip = a.ip
+                    )
+                    left join job_information as j on j.ip_address = a.ip
+                    where a.status = :approved and a.ip = :ip
+                """
+            ).rows
+
+            if (items.length < 1) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
+            items.toPublicIPs(session).first()
+        }
     }
 
     suspend fun approveApplication(

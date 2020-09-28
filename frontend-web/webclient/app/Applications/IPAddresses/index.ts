@@ -161,7 +161,6 @@ export interface PublicIP {
     ipAddress: string,
     openPorts: PortAndProtocol[],
     ownerEntity: string,
-    ownerTitle: string,
     inUseBy?: string,
 }
 export enum WalletOwnerType {

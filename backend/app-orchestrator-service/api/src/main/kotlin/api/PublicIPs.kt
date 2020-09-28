@@ -25,7 +25,6 @@ data class PublicIP(
     val ipAddress: String,
     val ownerEntity: String,
     val entityType: WalletOwnerType,
-    val entityTitle: WalletOwnerType,
     val openPorts: List<PortAndProtocol>,
     val inUseBy: String?
 )

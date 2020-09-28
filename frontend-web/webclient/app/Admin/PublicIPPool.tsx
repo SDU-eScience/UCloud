@@ -105,7 +105,7 @@ export function PublicIPPool(): JSX.Element | null {
                                     leftSub={
                                         <>
                                             <Text fontSize={1} color="gray" pr={1}>{capitalized(address.entityType)}:</Text>
-                                            <Text fontSize={1}>{address.ownerTitle} ({address.ownerEntity})</Text>
+                                            <Text fontSize={1}>{address.ownerEntity}</Text>
                                         </>
                                     }
                                     right={<>
