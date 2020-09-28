@@ -645,7 +645,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 className="c22"
                 clipRule="evenodd"
                 color="iconColor"
-                color2=""
+                color2="#8393A7"
                 cursor="pointer"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -661,7 +661,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 />
                 <path
                   d="M13 16.962L14.999 19 24 9.96l-2-1.999-9 9z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
               </svg>
