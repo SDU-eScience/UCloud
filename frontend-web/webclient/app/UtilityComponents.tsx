@@ -847,7 +847,7 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
                     {size.data.size >= 0 ?
                         <Box mb="8px">
                             <Spacer
-                                left={<Text color="#000">Empty your trash folder. You have {sizeToString(1389212212/* size.data.size */)} counting towards your storage quota.</Text>}
+                                left={<Text color="#000">Empty your trash folder. You have {sizeToString(size.data.size)} counting towards your storage quota.</Text>}
                                 right={<Link to={fileTablePage(trashFolder)}><Button width="150px" height="30px">To trash folder</Button></Link>}
                             />
                         </Box> : null}
