@@ -64,7 +64,7 @@ const ActionBox = styled.div`
 `;
 
 const Smooth = styled.div`
-    .mylinks li{
+    & > ul > li {
         display:inline;   
         margin:0 20px; 
     }
@@ -104,7 +104,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 <ActionContainer>
                     <Smooth>
                         <Divider/>
-                        <ul className={"mylinks"}>
+                        <ul>
                             <li><a href={"#Availability"}>Project Availability</a></li>
                             <li><a href={"#Project Information"}>Project Information</a></li>
                             <li><a href={"#DMP"}>Data Management Plan</a></li>
