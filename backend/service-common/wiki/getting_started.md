@@ -1,8 +1,7 @@
 # Getting Started
 
-In this guide we will go through creating your first micro-service for UCloud.
-At the end of this guide you will have created a small Twitter-like service,
-where users of UCloud can post small messages.
+In this guide we will go through creating your first micro-service for UCloud. At the end of this guide you will have 
+created a small Twitter-like service, where users of UCloud can post small messages.
 
 We assume that you are already familiar with the
 [Kotlin](https://kotlinlang.org/) programming language.
@@ -11,26 +10,28 @@ We assume that you are already familiar with the
 
 We expect that you have the following tools installed:
 
+- IntelliJ IDEA (Ultimate or CE)
+- The tools listed [here](./testing_services_locally.md)
+
 You should add `infrastructure/scripts` to your `PATH`. Before you can test services you should also follow 
 [this guide](testing_services_locally.md).
 
 ## Creating the Service
 
-Start by cloning the UCloud repository and running the `create_service.kts`
-command:
+Start by cloning the UCloud repository and running the `create_service.kts` command from the `backend` folder:
 
 ```bash
 create_service.kts microblog
 ```
 
 The will create a new folder called `microblog-service`. All micro-services
-in the repository have a `-service` suffix. You should be able to open this
-project in IntelliJ IDEA without any problems. Remember to open the
-`microblog-service` folder and not the main repository!
+in the repository have a `-service` suffix. 
 
-The directory you just created contains quite a lot of files. Don't worry
-though, most of these are boilerplate and rarely need to be changed. The
-folder should look, roughly, like this:
+In order to open this in IntelliJ you should select the `backend` project. Make sure to import gradle dependencies
+(you will likely receive a prompt).
+
+The directory you just created contains quite a lot of files. Don't worry though, most of these are boilerplate and 
+rarely need to be changed. The folder should look, roughly, like this:
 
 ```text
 microblog-service/
@@ -51,7 +52,7 @@ microblog-service/
 
 The most important files are:
 
-- `Dockerfile`: A file which describes how to containerize this micro-service.
+- `Dockerfile`: A file which describes how to containerize this micro-service
 - `build.gradle.kts`: Gradle configuration files. Gradle controls the build of our service, including management of code dependencies
 - ``k8.kts``: Contains configuration of `Kubernetes <https://kubernetes.io/>`__ resources
 - `src/`: Contains the source code for this service
@@ -64,39 +65,29 @@ You will be spending most of your time in `src/main/kotlin` and
 
 ## Understanding the Structure of a UCloud Service
 
-Below we will go through the components of a single micro-service. You don't
-have to understand it yet. In the next section we will begin implementing
-our micro-service.
+Below we will go through the components of a single micro-service. You don't have to understand it yet. In the next 
+section we will begin implementing our micro-service.
 
 ### `Main.kt`
 
-The `Main.kt` file bootstraps the micro-service. They use our own small
-[Micro](../README.md) framework, which is part of the `service-common` lib. The
-primary task of Micro is to read configuration and connect to external
-services (i.e. services we don't write ourselves).
+The `Main.kt` file bootstraps the micro-service. They use our own small [Micro](../README.md) framework, which is part 
+of the `service-common` lib. The primary task of Micro is to read configuration and connect to external services 
+(i.e. services we don't write ourselves).
 
-A typical `Main.kt` will initialize Micro, run script handlers, and
-bootstrap `Server.kt`. A common task in `Main.kt` is also to parse
-configuration and load other required resources.
+A typical `Main.kt` will initialize Micro, run script handlers, and bootstrap `Server.kt`. A common task in `Main.kt` 
+is also to parse configuration and load other required resources.
 
 ### `Server.kt`
 
-The `Server.kt` file bootstrap the micro-service. It will create internal
-service level code and attach call handlers for the micro-service's RPC
-interface.
+The `Server.kt` file bootstrap the micro-service. It will create internal service level code and attach call handlers 
+for the micro-service's RPC interface.
 
 ### `api` (RPC Interfaces)
 
-See [Writing Service Interfaces](./writing_service_interfaces.md) for more
-information.
+See [Writing Service Interfaces](./writing_service_interfaces.md) for more information.
 
-The `api` package contains HTTP interfaces used by other services.
-The shared Gradle script contains logic to publish the `api` package as a JAR
-artifact included by other services. As a result it is important that the
-`api` package does not include classes that live elsewhere.
-
-If an `api` package depends on external libraries then these can be included
-in api's `build.gradle.kts` by using the `api` target:
+The `api` package contains RPC interfaces used by other services. If an `api` package depends on external libraries
+then these can be included in api's `build.gradle.kts` by using the `api` target:
 
 ```groovy
 dependencies {
@@ -106,44 +97,36 @@ dependencies {
 
 ### `rpc`
 
-The `rpc` package contains a `Controller` class for each
-`CallDescriptionContainer`. This file should generally
-avoid implementing the underlying business logic but rather only implement
-the details specific to the RPC medium. The remaining work should be
-delegated to the `services` layer.
+The `rpc` package contains a `Controller` class for each `CallDescriptionContainer`. This file should generally avoid
+implementing the underlying business logic but rather only implement the details specific to the RPC medium. The
+remaining work should be delegated to the `services` package.
 
 ### `processors` (Event Streams)
 
-The classes in the `processors` package consume messages from event streams.
-We will not cover this package in this guide.
+The classes in the `processors` package consume messages from event streams. We will not cover this package in this
+guide.
 
 ### `services`
 
-The classes in the `services` package implement the business logic of a
-micro-service. It would be in this package we implement code dealing with
-databases and interacting with other micro-services.
+The classes in the `services` package implement the business logic of a micro-service. It would be in this package we
+implement code dealing with databases and interacting with other micro-services.
 
 ## Implementing the RPC Interface of our Micro Blog
 
-The goal of this guide is to build a small micro-blog. It will contain just two
-endpoints:
+The goal of this guide is to build a small micro-blog. It will contain just two endpoints:
 
 - Create post: An endpoint which allows a user to post a message.
   We will also allow admins to post "important" posts.
 - List posts: An endpoint which displays all messages along with who posted it.
 
-Note: When creating micro-services in the future we recommended you do
-exactly this. Start by figuring out which messages a micro-service should
-receive and send. It is easier to create a service once you
-understand how it will take part in the existing ecosystem of services.
+Note: When creating micro-services in the future we recommended you do exactly this. Start by figuring out which
+messages a micro-service should receive and send. It is easier to create a service once you understand how it will take
+part in the existing ecosystem of services.
 
-The interface of a micro-service is defined in the `api` package. The
-`create_service.kts` script should have created an example interface for you
-already in `dk.sdu.cloud.microblog.api.MicroblogDescriptions`. All interface
-definitions extend the `CallDescriptionContainer` class. It takes a single
-argument, this argument should generally match the name of the service. This
-does not affect how your service works, but it does affect how auditing is
-performed.
+The interface of a micro-service is defined in the `api` package. The `create_service.kts` script should have created
+an example interface for you already in `dk.sdu.cloud.microblog.api.MicroBlogs`. All interface definitions
+extend the `CallDescriptionContainer` class. It takes a single argument, this argument should generally match the name
+of the service. This does not affect how your service works, but it does affect how auditing is performed.
 
 Start by defining a new endpoint for creating posts:
 
@@ -205,65 +188,39 @@ data class CreatePostResponse(val id: String)
 ```
 
 That concludes how to write the RPC interface. Before we continue you to the
-next sections let's add a dummy implementation for this call. Go into
-`dk.sdu.cloud.microblog.rpc.MicroblogController` and add the following to the
-`configure` call:
+next sections let's add a dummy implementation for this call. Create
+`dk.sdu.cloud.microblog.rpc.MicroblogController` and add the following:
 
 ```kotlin
-implement(MicroblogDescriptions.createPost) {
-    ok(CreatePostResponse("42"))
+package dk.sdu.cloud.microblog.rpc
+
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.microblog.api.CreatePostResponse
+import dk.sdu.cloud.microblog.api.Microblogs
+import dk.sdu.cloud.service.Controller
+
+class MicroblogController : Controller {
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(Microblogs.createPost) {
+            ok(CreatePostResponse("42"))
+        }
+    }
 }
 ```
 
 ## Starting the Micro-Service
 
-Before we continue with our implementation let's take a quick side-track and
-start the micro-service.
-
-All UCloud micro-services assume that they run in an environment where
-certain pieces of information is always available. As a result we must
-configure some basics before we continue.
-
-Start by creating a configuration folder for UCloud.
-
-```bash
-mkdir ~/sducloud
-```
-
-And create the following configuration file (`~/sducloud/tokenvalidation.yml`):
-
-```yaml
----
-tokenValidation:
-  jwt:
-    sharedSecret: notverysecret
-
-refreshToken: not-used-yet
-```
-
-This configures the authentication for your development system. UCloud uses
-[JWT](https://jwt.io) based authentication. This configuration contains very
-weak authentication, but it is suitable for your own local machine. You can use
-the following tokens in the coming examples:
-
-```bash
-admin=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMSIsInVpZCI6MTAsImxhc3ROYW1lIjoiVXNlciIsImF1ZCI6ImFsbDp3cml0ZSIsInJvbGUiOiJBRE1JTiIsImlzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJVc2VyIiwiZXhwIjozNTUxNDQyMjIzLCJleHRlbmRlZEJ5Q2hhaW4iOltdLCJpYXQiOjE1NTE0NDE2MjMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsInB1YmxpY1Nlc3Npb25SZWZlcmVuY2UiOiJyZWYifQ.BNVLnnWoxfE1YG-9u3oqZVUypbbnF4BX3BNb6T1KYquGaCkMgN_fpo63y7Tmh6NYjf3do2j4lf4d6L94f-3d-g
-
-user=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMiIsInVpZCI6MTAsImxhc3ROYW1lIjoiVXNlciIsImF1ZCI6ImFsbDp3cml0ZSIsInJvbGUiOiJVU0VSIiwiaXNzIjoiY2xvdWQuc2R1LmRrIiwiZmlyc3ROYW1lcyI6IlVzZXIiLCJleHAiOjM1NTE0NDIyMjMsImV4dGVuZGVkQnlDaGFpbiI6W10sImlhdCI6MTU1MTQ0MTYyMywicHJpbmNpcGFsVHlwZSI6InBhc3N3b3JkIiwicHVibGljU2Vzc2lvblJlZmVyZW5jZSI6InJlZiJ9.OcqxcdDQfXLRHctHlfhxA6BbAYiKUti9JyqeQhZRaIRIV6XTd7t3ozmx2xj_Le2J6MYwH6qyoeJYLYQe2D4iaQ
-```
-
-You can now start the micro-service by running the following command
-(remember to change `CONFIGDIR`):
-
-```bash
-./gradlew run --args='--dev --config-dir <CONFIGDIR>'
-```
+To start the server, follow the instructions in [this](./testing_services_locally.md) guide.
 
 You should now be able to reach the endpoint you just created. This can be
 done, for example, using [httpie](https://httpie.org/):
 
 ```bash
-http PUT :8080/api/microblog/post post="Hello, World" "Authorization: Bearer ${admin}"
+# Note: You must have configured TOK to match your token in UCloud
+# The following token can also be used for development:
+# TOK=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMSIsInVpZCI6MTAsImxhc3ROYW1lIjoiVXNlciIsImF1ZCI6ImFsbDp3cml0ZSIsInJvbGUiOiJBRE1JTiIsImlzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJVc2VyIiwiZXhwIjozNTUxNDQyMjIzLCJleHRlbmRlZEJ5Q2hhaW4iOltdLCJpYXQiOjE1NTE0NDE2MjMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsInB1YmxpY1Nlc3Npb25SZWZlcmVuY2UiOiJyZWYifQ.BNVLnnWoxfE1YG-9u3oqZVUypbbnF4BX3BNb6T1KYquGaCkMgN_fpo63y7Tmh6NYjf3do2j4lf4d6L94f-3d-g
+
+http PUT :8080/api/microblog/post post="Hello, World" "Authorization: Bearer ${TOK}"
 
 HTTP/1.1 200 OK
 Connection: keep-alive
@@ -276,9 +233,6 @@ Server: ktor-server-core/1.1.2 ktor-server-core/1.1.2
     "id": "42"
 }
 ```
-
-This example assumes you have defined the tokens `admin` and `user` in your
-bash environment.
 
 ## Implementing the Service Layer
 
@@ -293,6 +247,14 @@ saving the posts.
 We can now implement the `PostDao`.
 
 ```kotlin
+package dk.sdu.cloud.microblog.services
+
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
+import io.ktor.http.*
+
 class PostDao {
     suspend fun create(ctx: DBContext, username: String, contents: String, important: Boolean): String {
         if (contents.length >= 1024) throw RPCException("Post is too long", HttpStatusCode.BadRequest)
@@ -394,7 +356,7 @@ as you create new posts. Additionally, if you try running with the important
 flag as a user you should get an error message:
 
 ```text
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${user}"
+$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${USER_TOK}"
 HTTP/1.1 403 Forbidden
 Connection: keep-alive
 Content-Length: 48
@@ -448,12 +410,12 @@ fun list(session: Session, paging: NormalizedPaginationRequest): Page<Post>
 At the end you should be able to run the following:
 
 ```text
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${admin}"
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${admin}"
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${admin}"
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=false "Authorization: Bearer ${admin}"
+$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${TOK}"
+$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${TOK}"
+$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${TOK}"
+$ http PUT :8080/api/microblog/post post="Hello, World" important:=false "Authorization: Bearer ${TOK}"
 
-$ http :8080/api/microblog "Authorization: Bearer ${admin}"
+$ http :8080/api/microblog "Authorization: Bearer ${TOK}"
 HTTP/1.1 200 OK
 Connection: keep-alive
 Content-Length: 355

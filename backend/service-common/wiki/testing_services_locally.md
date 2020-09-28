@@ -11,6 +11,8 @@ system:
  - Java 11
    1. Install sdkman: https://sdkman.io/
    2. `sdk i java 11.0.8.hs-adpt`
+ - kscript
+   - `sdk i kscript`
  - Docker
    - macOS: https://www.docker.com/products/docker-desktop
  - Redis 
