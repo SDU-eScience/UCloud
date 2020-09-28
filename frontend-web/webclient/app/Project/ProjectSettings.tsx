@@ -22,7 +22,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {GrantProjectSettings} from "Project/Grant/Settings";
+import {GrantProjectSettings, LogoAndDescriptionSettings} from "Project/Grant/Settings";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -30,6 +30,13 @@ import {Toggle} from "ui-components/Toggle";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {TextSpan} from "ui-components/Text";
 import {doNothing} from "UtilityFunctions";
+import {
+    externalApplicationsEnabled,
+    ExternalApplicationsEnabledResponse,
+    ProjectGrantSettings, readGrantRequestSettings, readTemplates,
+    ReadTemplatesResponse
+} from "Project/Grant";
+import {retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
 
 const ActionContainer = styled.div`
     & > * {
@@ -56,12 +63,38 @@ const ActionBox = styled.div`
     }
 `;
 
+const Smooth = styled.div`
+    .mylinks li{
+        display:inline;   
+        margin:0 20px; 
+    }
+    
+    a {
+        color:inherit;
+        text-decoration: none;
+    }
+    
+    h3:target:before {
+        content: "";
+        display: block;
+        height: 150px;
+        margin: -150px 0 0;
+    }
+`;
+
 export const ProjectSettings: React.FunctionComponent = () => {
     const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails, reloadProjectStatus} =
         useProjectManagementStatus({isRootComponent: true});
 
     useTitle("Project Settings");
     useSidebarPage(SidebarPages.Projects);
+    const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
+        {noop: true},
+        {enabled: false}
+    );
+    useEffect(() => {
+        fetchEnabled((externalApplicationsEnabled({projectId})));
+    }, [projectId]);
 
     const history = useHistory();
     return (
@@ -69,33 +102,50 @@ export const ProjectSettings: React.FunctionComponent = () => {
             header={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]} />}
             main={
                 <ActionContainer>
-                    <ChangeProjectTitle
-                        projectId={projectId}
-                        projectDetails={projectDetails.data}
-                        onSuccess={() => {
-                            fetchProjectDetails(projectDetailsParams);
-                            reloadProjectStatus();
-                        }}
-                    />
-                    <Divider/>
-                    <ArchiveSingleProject
-                        isArchived={projectDetails.data.archived}
-                        projectId={projectId}
-                        projectRole={projectRole}
-                        title={projectDetails.data.title}
-                        onSuccess={() => history.push("/projects")}
-                    />
-                    <Divider/>
-                    <LeaveProject
-                        onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
-                        projectDetails={projectDetails.data}
-                        projectId={projectId}
-                        projectRole={projectRole}
-                    />
-                    <Divider/>
-                    <DataManagementPlan />
-                    <Divider/>
-                    <GrantProjectSettings />
+                    <Smooth>
+                        <Divider/>
+                        <ul className={"mylinks"}>
+                            <li><a href={"#Availability"}>Project Availability</a></li>
+                            <li><a href={"#Project Information"}>Project Information</a></li>
+                            <li><a href={"#DMP"}>Data Management Plan</a></li>
+                            {
+                                enabled.data.enabled ? <li><a href={"#AppGrantSettings"}>Grant Settings</a></li> :null
+                            }
+                        </ul>
+                        <Divider/>
+                        <Heading.h3 id={"Availability"}>Project Availability</Heading.h3>
+                        <Divider/>
+                        <ArchiveSingleProject
+                            isArchived={projectDetails.data.archived}
+                            projectId={projectId}
+                            projectRole={projectRole}
+                            title={projectDetails.data.title}
+                            onSuccess={() => history.push("/projects")}
+                        />
+                        <Divider/>
+                        <LeaveProject
+                            onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
+                            projectDetails={projectDetails.data}
+                            projectId={projectId}
+                            projectRole={projectRole}
+                        />
+                        <Divider/>
+                        <Heading.h3 id={"Project Information"}>Project Information</Heading.h3>
+                        <Divider/>
+                        <ChangeProjectTitle
+                            projectId={projectId}
+                            projectDetails={projectDetails.data}
+                            onSuccess={() => {
+                                fetchProjectDetails(projectDetailsParams);
+                                reloadProjectStatus();
+                            }}
+                        />
+                        {enabled.data.enabled ? <Divider/> : null}
+                        <LogoAndDescriptionSettings/>
+                        <DataManagementPlan />
+                        <Divider/>
+                        <GrantProjectSettings/>
+                    </Smooth>
                 </ActionContainer>
             }
             sidebar={null}
@@ -170,7 +220,9 @@ const DataManagementPlan: React.FunctionComponent = props => {
     if (!Client.hasActiveProject || !projectManagement.allowManagement) return null;
 
     return <Box>
-        <Heading.h4>Data Management Plan</Heading.h4>
+        <Divider/>
+        <Heading.h3 id={"DMP"}>Data Management Plan</Heading.h3>
+        <Divider/>
         If you have a data management plan then you can attach it to the project here.
         <TextSpan bold>
             You still need to follow your organization&apos;s policies regarding data management plans.
