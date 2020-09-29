@@ -435,7 +435,9 @@ function DashboardProjectUsage(): JSX.Element | null {
     const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     return (
-        <DashboardCard title="Usage" icon="hourglass" color="yellow"
+        <DashboardCard title={<Link to={"/app/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
+                       icon="hourglass"
+                       color="yellow"
                        isLoading={false}
                        onClick={() => history.push("/project/usage")}
         >
