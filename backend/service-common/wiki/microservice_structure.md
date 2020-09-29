@@ -12,8 +12,8 @@
 | `rpc` | Implements the interfaces provided by `api`. Delegates work to the `services` component.  |
 | `services` | Implements the business logic of a micro-service. Services in this component can depend on other services and make remote procedure calls to other micro-services. |
 | `processors` | Consumes and processes events from the event stream. |
-| `Main.kt` | TODO |
-| `Server.kt` | TODO |
+| `Main.kt` | Read configuration and initialize `Server.kt`.  |
+| `Server.kt` | Initialize all remaining components. |
 
 ## Databases
 
@@ -32,7 +32,7 @@ micro-services. `Redis` can also be used to perform distributed locking, for exa
 micro-service instance is performing a certain task.
 
 UCloud also stores state in other specialized 'databases'. Examples include a filesystem (we support optimizations
-for `CephFS`) and Kubernetes.
+for [CephFS](https://ceph.io/)) and [Kubernetes](https://kubernetes.io/).
 
 ## `Main.kt` and `Server.kt`
 
@@ -50,6 +50,15 @@ for `CephFS`) and Kubernetes.
 - Pass `Controller`s to `configureControllers`
 
 ## UCloud Gateway
+
+The UCloud gateway is responsible for routing and load balancing to the different micro-services and ther instances.
+In production, [NGINX](https://nginx.org/) and [Ambassador](https://www.getambassador.io/) acts as the gateway.
+These are configured by the resources stored in `k8.kts` which configures Ambassador to route requests to the correct
+services. NGINX forwards all UCloud traffic to Ambassador.
+
+In development and when using integration testing, the gateway is replaced by a single JVM instance which runs all of
+UCloud. The `launcher` module and the `integration-testing` module implements this. These modules both
+use the `Service` instances stored in `Main.kt` to configure routing.
 
 ## Networking and RPC
 
