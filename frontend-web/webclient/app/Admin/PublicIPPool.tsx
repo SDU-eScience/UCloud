@@ -108,9 +108,9 @@ export function PublicIPPool(): JSX.Element | null {
                                             <Text fontSize={1}>{address.ownerEntity}</Text>
                                         </>
                                     }
-                                    right={<>
+                                    right={
                                         <Text color="gray" ml="8px">{address.inUseBy ? `In use by: ${address.inUseBy}` : "Not in use"}</Text>
-                                    </>}
+                                    }
                                     isSelected={selectedIp === address.id}
                                 />
                                 <ReactModal
