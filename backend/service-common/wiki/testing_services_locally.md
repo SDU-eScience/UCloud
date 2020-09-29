@@ -1,7 +1,7 @@
-# Testing Services Locally
+# Running Services Locally
 
 This document describes how to run services locally, and only how to run them locally. __This is not a guide for running
-this in production.__
+UCloud in production.__
 
 ## Dependencies 
 

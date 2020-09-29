@@ -1,5 +1,14 @@
 # Common Service Library
 
+.. toctree::
+  :hidden:
+  
+  ./wiki/testing_services_locally.md
+  ./wiki/getting_started.md
+  ./wiki/microservice_structure.md
+  ./wiki/auditing.md
+  ./wiki/deployment.md
+
 Utility library designed to make it easier to create services that fit into
 UCloud.
 
