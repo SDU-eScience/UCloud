@@ -8,7 +8,6 @@ import theme, {Theme} from "./theme";
 import {Cursor} from "./Types";
 
 const IconBase = ({name, size, squared, theme, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
-    const key = 0;
     let Component = icons[name];
     if (!Component) {
         if (name === "bug") {
@@ -20,7 +19,6 @@ const IconBase = ({name, size, squared, theme, color2, spin, hoverColor, ...prop
 
     return (
         <Component
-            key={key.toString()}
             width={size}
             height={squared ? size : undefined }
             color2={color2 ? theme.colors[color2] : undefined}

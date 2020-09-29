@@ -1,10 +1,9 @@
-import {css} from "styled-components";
 import theme from "./theme";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
 
-const UIGlobalStyle = css`
+const UIGlobalStyle = `
 /* Colors */
 :root {
     --black: #000;

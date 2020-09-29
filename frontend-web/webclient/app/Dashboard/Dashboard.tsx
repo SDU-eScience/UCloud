@@ -53,12 +53,12 @@ import {
     GrantApplicationFilter,
     ingoingGrantApplications,
     IngoingGrantApplicationsResponse,
-    listOutgoingApplications, readGrantRequestSettings
+    listOutgoingApplications
 } from "Project/Grant";
 import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 import {creditFormatter, durationOptions} from "Project/ProjectUsage";
-import {computeUsageInPeriod, RightArrow} from "Project/ProjectDashboard";
-import {groupsCountRequest, membersCountRequest, subprojectsCountRequest, useProjectManagementStatus} from "Project";
+import {computeUsageInPeriod} from "Project/ProjectDashboard";
+import {useProjectManagementStatus} from "Project";
 import {useHistory} from "react-router";
 
 export const DashboardCard: React.FunctionComponent<{
@@ -184,7 +184,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         UF.onNotificationAction(props.history, props.setActiveProject, notification, projectNames, props.notificationRead);
 
     const main = (
-        <DashboardGrid minmax={435} gridGap={16}>
+        <GridCardGroup minmax={435} gridGap={16}>
             <DashboardNews news={news.data.items} loading={news.loading} />
             <DashboardFavoriteFiles
                 error={favoritePage.error?.why}
@@ -212,14 +212,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             />
             <DashboardProjectUsage/>
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
-        </DashboardGrid>
+        </GridCardGroup>
     );
 
     return (<MainContainer main={main} />);
 }
-const DashboardGrid = styled(GridCardGroup)`
-`;
-
 
 const DashboardFavoriteFiles = ({files, isLoading, favorite, error}: {
     files: File[];

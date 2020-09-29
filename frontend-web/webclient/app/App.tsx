@@ -23,7 +23,7 @@ export async function onLogin(): Promise<void> {
 }
 
 const GlobalStyle = createGlobalStyle`
-  ${() => UIGlobalStyle}
+  ${UIGlobalStyle}
 `;
 
 Client.initializeStore(store);
@@ -43,13 +43,11 @@ function App({children}: React.PropsWithChildren<{}>): JSX.Element {
 
     return (
         <ThemeProvider theme={isLightTheme ? theme : {...theme, colors: invertedColors}}>
-            <>
-                <GlobalStyle />
-                <BrowserRouter basename="app">
-                    <Header toggleTheme={toggle} />
-                    {children}
-                </BrowserRouter>
-            </>
+            <GlobalStyle />
+            <BrowserRouter basename="app">
+                <Header toggleTheme={toggle} />
+                {children}
+            </BrowserRouter>
         </ThemeProvider>
     );
 }

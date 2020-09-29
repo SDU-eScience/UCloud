@@ -31,7 +31,7 @@ export const Balance: React.FunctionComponent<{
                 </BalanceTextWrapper>
             }
         >
-            <BalanceExplainer {...props}/>
+            <BalanceExplainer {...props} />
         </Tooltip>
     );
 };
@@ -52,11 +52,13 @@ export const BalanceExplainer: React.FunctionComponent<{
         emptyPage
     );
 
-    if (!didLoadProducts) {
-        didLoadProducts = true;
-        fetchCompute(computeParams);
-        fetchStorage(storageParams);
-    }
+    React.useEffect(() => {
+        if (!didLoadProducts) {
+            didLoadProducts = true;
+            fetchCompute(computeParams);
+            fetchStorage(storageParams);
+        }
+    }, []);
 
     let pricePerUnit: number | null = null;
     let productName: string | null = null;
