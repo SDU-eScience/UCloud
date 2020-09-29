@@ -270,6 +270,12 @@ class ProjectController(
             )
         }
 
+        implement(Projects.isRenameable) {
+            ok(
+                projects.projectRenameable(db, ctx.project)
+            )
+        }
+
         implement(Projects.rename) {
             ok(
                 projects.renameProject(

@@ -175,6 +175,9 @@ data class RenameProjectRequest(
 
 typealias RenameProjectResponse = Unit
 
+typealias IsRenameableRequest = Unit
+typealias IsRenameableResponse = Boolean
+
 data class UpdateDataManagementPlanRequest(val id: String, val dmp: String?)
 typealias UpdateDataManagementPlanResponse = Unit
 
@@ -788,6 +791,22 @@ object Projects : CallDescriptionContainer("project") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val isRenameable = call<IsRenameableRequest, IsRenameableResponse, CommonErrorMessage>("rename") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"renameable"
+            }
         }
     }
 
