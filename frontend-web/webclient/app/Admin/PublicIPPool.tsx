@@ -90,10 +90,10 @@ export function PublicIPPool(): JSX.Element | null {
                         {assignedAddresses.data.items.map(address =>
                             <>
                                 <ListRow
+                                    key={address.id}
                                     navigate={() =>
                                         setSelectedIp(address.id)
                                     }
-                                    key={address.id}
                                     left={
                                         <Flex>
                                             <Text>{address.ipAddress}</Text>
