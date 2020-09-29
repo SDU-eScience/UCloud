@@ -437,7 +437,6 @@ function DashboardProjectUsage(): JSX.Element | null {
     return (
         <DashboardCard title="Usage" icon="hourglass" color="yellow"
                        isLoading={false}
-                       subtitle={<RightArrow />}
                        onClick={() => history.push("/project/usage")}
         >
             <Text color="darkGray" fontSize={1}>Past 30 days</Text>
