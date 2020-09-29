@@ -34,10 +34,11 @@ import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
 import {
+    ProductArea,
     retrieveBalance,
     RetrieveBalanceResponse,
     retrieveQuota,
-    RetrieveQuotaResponse,
+    RetrieveQuotaResponse, transformUsageChartForCharting, usage, UsageResponse,
     WalletBalance
 } from "Accounting";
 import {getProjectNames} from "Utilities/ProjectUtilities";
@@ -52,9 +53,13 @@ import {
     GrantApplicationFilter,
     ingoingGrantApplications,
     IngoingGrantApplicationsResponse,
-    listOutgoingApplications
+    listOutgoingApplications, readGrantRequestSettings
 } from "Project/Grant";
 import {GrantApplicationList} from "Project/Grant/IngoingApplications";
+import {creditFormatter, durationOptions} from "Project/ProjectUsage";
+import {computeUsageInPeriod, RightArrow} from "Project/ProjectDashboard";
+import {groupsCountRequest, membersCountRequest, subprojectsCountRequest, useProjectManagementStatus} from "Project";
+import {useHistory} from "react-router";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -205,7 +210,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 quota={quota.data}
                 loading={wallets.loading || quota.loading}
             />
-
+            <DashboardProjectUsage/>
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
         </DashboardGrid>
     );
@@ -406,6 +411,54 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
     </Flex>;
 };
 
+function DashboardProjectUsage(): JSX.Element | null {
+    const {projectId} =
+        useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+    const history = useHistory();
+    const durationOption = durationOptions[3];
+    const now = new Date().getTime();
+    const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
+        {noop: true},
+        {charts: []}
+    );
+    React.useEffect(() => {
+        setUsageParams(usage({
+            bucketSize: durationOption.bucketSize,
+            periodStart: now - durationOption.timeInPast,
+            periodEnd: now
+        }));
+    }, [projectId]);
+
+    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.COMPUTE));
+    const computeCreditsUsedInPeriod = computeUsageInPeriod(computeCharts);
+    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.STORAGE));
+    const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
+
+    return (
+        <DashboardCard title={<Link to={"/app/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
+                       icon="hourglass"
+                       color="yellow"
+                       isLoading={false}
+                       onClick={() => history.push("/project/usage")}
+        >
+            <Text color="darkGray" fontSize={1}>Past 30 days</Text>
+            <Table>
+                <tbody>
+                <TableRow cursor="pointer">
+                    <TableCell>Storage</TableCell>
+                    <TableCell
+                        textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
+                </TableRow>
+                <TableRow cursor="pointer">
+                    <TableCell>Compute</TableCell>
+                    <TableCell
+                        textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
+                </TableRow>
+                </tbody>
+            </Table>
+        </DashboardCard>
+    )
+}
 function DashboardResources({wallets, loading, quota}: {
     wallets: WalletBalance[];
     quota: RetrieveQuotaResponse,

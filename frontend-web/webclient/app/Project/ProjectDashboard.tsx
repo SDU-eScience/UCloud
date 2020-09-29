@@ -30,7 +30,7 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
-function computeUsageInPeriod(charts: NativeChart[]): number {
+export function computeUsageInPeriod(charts: NativeChart[]): number {
     let result = 0;
 
     for (const chart of charts) {
@@ -247,7 +247,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     );
 };
 
-const RightArrow = (): JSX.Element => (
+export const RightArrow = (): JSX.Element => (
     <Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />
 );
 
