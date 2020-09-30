@@ -43,6 +43,7 @@ interface ListRowProps {
     isSelected?: boolean;
     select?: () => void;
     navigate?: () => void;
+    truncateWidth?: string;
     left: React.ReactNode;
     leftSub?: React.ReactNode;
     icon?: React.ReactNode;
@@ -51,8 +52,9 @@ interface ListRowProps {
 
 export function ListRow(props: ListRowProps): JSX.Element {
     const isSelected = props.isSelected ?? false;
+    const truncateWidth = props.truncateWidth ?? "180px";
     const left = props.leftSub ? (
-        <Box maxWidth="calc(100% - 180px)" width="auto">
+        <Box maxWidth={`calc(100% - ${truncateWidth})`} width="auto">
             <Truncate
                 cursor={props.navigate ? "pointer" : "default"}
                 onClick={e => {props.navigate?.(); e.stopPropagation();}}
@@ -74,7 +76,10 @@ export function ListRow(props: ListRowProps): JSX.Element {
             width="100%"
             alignItems="center"
         >
-            {props.icon ? <Box onClick={stopPropagationAndPreventDefault} mx="8px">{props.icon}</Box> : <Box width="4px" />}
+            {props.icon ?
+                <Box onClick={stopPropagationAndPreventDefault} mx="8px">{props.icon}</Box> :
+                <Box width="4px" />
+            }
             {left}
             <Box ml="auto" />
             <Flex mr="8px">
