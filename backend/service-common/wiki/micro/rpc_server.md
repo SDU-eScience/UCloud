@@ -94,7 +94,8 @@ class WithNewContext<T : IngoingCall>(val ctx: T)
 fun <T : IngoingCall> withContext(handler: WithNewContext<T>.() -> Unit)
 ```
 
-Allows a `CallHandler` to interact directly with the RPC server backend.
+Allows a `CallHandler` to interact directly with the RPC server backend. _We generally recommend that you do not use
+this function to speak directly to the backend server._
 
 __Example:__ 
 

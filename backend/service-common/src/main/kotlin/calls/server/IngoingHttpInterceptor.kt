@@ -23,14 +23,13 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.withCharset
-import io.ktor.request.header
-import io.ktor.request.receiveOrNull
+import io.ktor.request.*
 import io.ktor.response.respond
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.*
-import io.ktor.util.DataConversionException
+import io.ktor.util.*
 import io.ktor.util.pipeline.PipelineContext
 import io.ktor.utils.io.errors.*
 import java.util.*
@@ -55,10 +54,13 @@ class IngoingHttpInterceptor(
         val httpDescription = call.httpOrNull ?: return
 
         engine.application.routing {
+            // toKtorTemplate performs a plain one-to-one mapping of the http/path block semantics to Ktor routing
+            // template
             route(httpDescription.path.toKtorTemplate(fullyQualified = true)) {
                 method(httpDescription.method) {
                     handle {
                         try {
+                            // Calls the handler provided by 'implement'
                             @Suppress("UNCHECKED_CAST")
                             rpcServer.handleIncomingCall(
                                 this@IngoingHttpInterceptor,

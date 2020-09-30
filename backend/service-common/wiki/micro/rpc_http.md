@@ -38,6 +38,9 @@ Defines how the message should be parsed from the HTTP request headers.
 | `+"Header"` | Requires the `"Header"` to be present (any value accepted) |
 | `+boundTo(header: String, prop)` | Binds the `header` to `prop` |
 
+__Note:__ When using the `boundTo()` function, header values will be serialized and deserialized as Base64. This is done
+to ensure that any value can be put into the header safely.
+
 ## `body`
 
 Defines how the message should be parsed from the HTTP request body. At the moment this will only read JSON messages.
