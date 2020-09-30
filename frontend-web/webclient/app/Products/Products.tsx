@@ -16,11 +16,13 @@ import styled from "styled-components";
 import * as ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {Spacer} from "ui-components/Spacer";
+import {PRODUCT_NAME} from "../../site.config.json";
 
 function Products(): JSX.Element {
 
     const main = (
         <>
+            <Description />
             <MachineView area={ProductArea.STORAGE} />
             <Box my="32px" />
             <MachineView area={ProductArea.COMPUTE} />
@@ -133,6 +135,17 @@ function MachineView({area}: {area: string}): JSX.Element {
                 }
             </Box>
         </ReactModal>
+    </>);
+}
+
+function Description(): JSX.Element {
+    const loggedIn = Client.isLoggedIn;
+
+    return (<>
+        Below is the available SKUs on the {PRODUCT_NAME} platform.
+        They are divided into different product areas, i.e. storage SKUs and compute SKUs.
+        The prices for compute will be visible when starting a job.
+        {loggedIn ? "Note that this page can be viewed even if you are not logged in." : null}
     </>);
 }
 
