@@ -352,6 +352,10 @@ const VisualizationForArea: React.FunctionComponent<{
         }
     }
 
+    charts.forEach(chart => chart.lineNames.sort((a: string, b: string): number =>
+        creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b]
+    ));
+
     return (
         <Box>
             <SummaryCard
