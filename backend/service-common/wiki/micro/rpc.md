@@ -1,4 +1,4 @@
-# RPC interfaces
+# RPC Interfaces
 
 .. toctree::
   :hidden:
