@@ -8,6 +8,8 @@
   ./events.md
   ./distributed_locks.md
   ./rpc.md
+  ./rpc_client.md
+  ./rpc_server.md
   ./http.md
   ./websockets.md
   ./serialization.md
