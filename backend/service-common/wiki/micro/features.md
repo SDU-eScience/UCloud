@@ -273,7 +273,7 @@ class MyService {
   - `Micro.redisConnectionManager: RedisConnectionManager`
   - `Micro.eventStreamService: RedisStreamService`
   
-Provides configuration and [event-stream](events.md) service.
+Provides configuration needed for [event streams](events.md) and [distributed locks](distributed_locks.md).
   
 __Example:__ Configuration for Redis
 
@@ -283,14 +283,14 @@ redis:
   port: 6379 # defaults to 6379
 ```
 
-__Example:__ Creating a broadcasting stream
+__Example:__ Broadcasting stream
 
 ```kotlin
 val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
 broadcastingStream.broadcast(MyMessage(42), MyStreams.stream)
 ```
 
-__Example:__ Creating a normal stream
+__Example:__ Producing a message
 
 ```kotlin
 val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
@@ -306,6 +306,7 @@ while (true) {
     val didAcquire = lock.acquire()
     if (didAcquire) {
         processing@while (true) {
+            // Do work here
             if (!lock.renew(60_000)) {
                 log.info("We lost the lock!")
                 break@processing

@@ -8,6 +8,7 @@
   ./wiki/microservice_structure.md
   ./wiki/auditing.md
   ./wiki/deployment.md
+  Library Reference <./wiki/micro/README.md>
 
 Utility library designed to make it easier to create services that fit into
 UCloud.
