@@ -473,12 +473,12 @@ const VisualizationForArea: React.FunctionComponent<{
                                                         )}
                                                     </TableCell>
                                                     <TableCell textAlign="right">
-                                                        <Toggle
+                                                        {p !== "Aggregated" ? <Toggle
                                                             onChange={() => onIncludeInChart(chart.provider, p, idx)}
                                                             scale={1.5}
                                                             activeColor={"green"}
                                                             checked={(includeInCharts[chart.provider] ?? {})[p] ?? idx < 10}
-                                                        />
+                                                        /> : null}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
