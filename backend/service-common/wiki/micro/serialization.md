@@ -52,7 +52,6 @@ sealed class LongRunningResponse<T> {
 }
 ```
 
-
 __Example:__ Using the `defaultMapper` instance to parse a JSON object
 
 ```kotlin
