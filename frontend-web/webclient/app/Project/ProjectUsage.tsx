@@ -356,7 +356,7 @@ const VisualizationForArea: React.FunctionComponent<{
         creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b]
     ));
 
-    charts.forEach(chart => chart.lineNames.push("Aggregated"));
+
     charts.forEach(chart => {
         let aggregatedCredits = 0;
         const keys = Object.keys(creditsUsedByWallet[chart.provider]);
@@ -365,6 +365,16 @@ const VisualizationForArea: React.FunctionComponent<{
                 aggregatedCredits += creditsUsedByWallet[chart.provider][key];
         });
         creditsUsedByWallet[chart.provider].Aggregated = aggregatedCredits;
+        if (!chart.lineNames.includes("Aggregated")) chart.lineNames.push("Aggregated");
+
+        chart.points.forEach(point => {
+            let used = 0;
+            for (const category of Object.keys(point)) {
+                if (category === "time") continue;
+                used += point[category];
+            }
+            point.Aggregated = used;
+        });
     });
 
     return (
@@ -402,7 +412,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                     return <Bar
                                                         key={id}
                                                         dataKey={id}
-                                                        fill={theme.chartColors[idx % theme.chartColors.length]}
+                                                        fill={id === "Aggregated" ? "#000" : theme.chartColors[idx % theme.chartColors.length]}
                                                         barSize={24}
                                                     />;
                                                 } else {
@@ -431,7 +441,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 <TableRow key={p}>
                                                     <TableCell>
                                                         <Box width={20} height={20}
-                                                            backgroundColor={theme.chartColors[idx % theme.chartColors.length]} />
+                                                            backgroundColor={p === "Aggregated" ? "#000" : theme.chartColors[idx % theme.chartColors.length]} />
                                                     </TableCell>
                                                     <TableCell>{p}</TableCell>
                                                     <TableCell textAlign="right">
@@ -449,7 +459,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                                 .reduce((prev, wall) => wall.balance + prev, 0)
                                                         )}
                                                     </TableCell>
-                                                    <TableCell textAlign={"right"}>
+                                                    <TableCell textAlign="right">
                                                         <Toggle
                                                             onChange={() => onIncludeInChart(chart.provider, p, idx)}
                                                             scale={1.5}
