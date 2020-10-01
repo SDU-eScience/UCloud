@@ -368,12 +368,15 @@ const VisualizationForArea: React.FunctionComponent<{
         if (!chart.lineNames.includes("Aggregated")) chart.lineNames.push("Aggregated");
 
         chart.points.forEach(point => {
-            let used = 0;
             for (const category of Object.keys(point)) {
-                if (category === "time") continue;
-                used += point[category];
+                if (category === "time") {
+                    point.Agggregated = point.time;
+                    continue;
+                }
+                if (point[category] === 0) {
+                    delete point[category];
+                }
             }
-            point.Aggregated = used;
         });
     });
 
@@ -412,12 +415,22 @@ const VisualizationForArea: React.FunctionComponent<{
                                                     return <Bar
                                                         key={id}
                                                         dataKey={id}
-                                                        fill={id === "Aggregated" ? "#000" : theme.chartColors[idx % theme.chartColors.length]}
+                                                        fill={theme.chartColors[idx % theme.chartColors.length]}
                                                         barSize={24}
                                                     />;
                                                 } else {
                                                     return null;
                                                 }
+                                            })}
+
+                                            {chart.lineNames.map((id, idx) => {
+                                                return <Bar
+                                                    key={id + "stack"}
+                                                    dataKey={id}
+                                                    stackId={"foo"}
+                                                    fill={theme.chartColors[idx % theme.chartColors.length]}
+                                                    barSize={24}
+                                                />;
                                             })}
                                         </BarChart>
                                     </ResponsiveContainer>
