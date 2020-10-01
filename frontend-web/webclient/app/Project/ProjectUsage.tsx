@@ -356,6 +356,17 @@ const VisualizationForArea: React.FunctionComponent<{
         creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b]
     ));
 
+    charts.forEach(chart => chart.lineNames.push("Aggregated"));
+    charts.forEach(chart => {
+        let aggregatedCredits = 0;
+        const keys = Object.keys(creditsUsedByWallet[chart.provider]);
+        keys.forEach((key, idx) => {
+            if ((includeInCharts[chart.provider] ?? {})[key] ?? idx < 10)
+                aggregatedCredits += creditsUsedByWallet[chart.provider][key];
+        });
+        creditsUsedByWallet[chart.provider].Aggregated = aggregatedCredits;
+    });
+
     return (
         <Box>
             <SummaryCard
@@ -427,12 +438,15 @@ const VisualizationForArea: React.FunctionComponent<{
                                                         {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
                                                     </TableCell>
                                                     <TableCell textAlign="right">
-                                                        {creditFormatter(
+                                                        {p !== "Aggregated" ? creditFormatter(
                                                             balance.data.wallets.find(it =>
                                                                 it.wallet.id === chart.lineNameToWallet[p].id &&
                                                                 it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
                                                                 it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
                                                             )?.balance ?? 0
+                                                        ) : creditFormatter(
+                                                            balance.data.wallets.filter(it => it.area === area)
+                                                                .reduce((prev, wall) => wall.balance + prev, 0)
                                                         )}
                                                     </TableCell>
                                                     <TableCell textAlign={"right"}>
@@ -452,7 +466,6 @@ const VisualizationForArea: React.FunctionComponent<{
                         )}
                     </React.Fragment>
                 ))}
-
             </Box>
         </Box>
     );
