@@ -27,7 +27,9 @@ suspend fun <R> DBContext.withSession(block: suspend (session: AsyncDBConnection
     }
 }
 
-data class AsyncDBConnection(val conn: SuspendingConnectionImpl) : DBContext(), SuspendingConnection by conn
+data class AsyncDBConnection(
+    internal val conn: SuspendingConnectionImpl // Internal jasync-sql connection
+) : DBContext(), SuspendingConnection by conn
 
 /**
  * A [DBSessionFactory] for the jasync library.

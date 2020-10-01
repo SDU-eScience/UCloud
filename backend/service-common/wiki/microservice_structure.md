@@ -2,7 +2,7 @@
 
 ![](./structure.png)
 
-**Figure:** The overall structure and internal of a generic UCloud micro-service.
+**Figure:** The overall structure and internals of a generic UCloud micro-service.
 
 ## Components of a Micro-service
 
