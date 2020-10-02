@@ -22,6 +22,7 @@ export default class HttpClient {
     private readonly serviceName: string;
     private readonly authContext: string;
     private readonly redirectOnInvalidTokens: boolean;
+    private readonly guestPages: string[] = ["/skus/", "/skus"];
 
     private apiContext: string;
     private accessToken: string;
@@ -62,6 +63,10 @@ export default class HttpClient {
         if (accessToken && csrfToken) {
             this.setTokens(accessToken, csrfToken);
         }
+    }
+
+    private get isPublicPage(): boolean {
+        return this.guestPages.some(page => window.location.pathname.endsWith(page));
     }
 
     public async waitForCloudReady(): Promise<void> {
@@ -124,7 +129,7 @@ export default class HttpClient {
         return this.receiveAccessTokenOrRefreshIt()
             .catch(it => {
                 console.warn(it);
-                snackbarStore.addFailure("Could not refresh login token.", false);
+                if (!this.isPublicPage) snackbarStore.addFailure("Could not refresh login token.", false);
                 if ([401, 403].includes(it.status)) HttpClient.clearTokens();
             }).then(token => {
                 return new Promise((resolve, reject) => {

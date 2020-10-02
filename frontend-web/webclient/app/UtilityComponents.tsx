@@ -1,5 +1,5 @@
 import HttpClient from "Authentication/lib";
-import {SensitivityLevelMap} from "DefaultObjects";
+import {KeyCode, SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
 import * as React from "react";
@@ -7,14 +7,14 @@ import List from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {keyframes, css} from "styled-components";
 import {
-    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text, ButtonGroup
+    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, ButtonGroup, Card, Link, Text
 } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import {UploadPolicy} from "Uploader/api";
-import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
+import {directorySizeQuery, fileTablePage, replaceHomeOrProjectFolder, sizeToString} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
@@ -22,6 +22,9 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {ProjectName} from "Project";
 import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "styled-system";
 import {useEffect, useRef} from "react";
+import {Client} from "Authentication/HttpClientInstance";
+import {Spacer} from "ui-components/Spacer";
+import {ErrorWrapper} from "ui-components/Error";
 
 interface StandardDialog {
     title?: string;
@@ -127,13 +130,17 @@ export async function addStandardInputDialog({
 }
 
 
-export function sensitivityDialog(): Promise<{cancelled: true} | {option: SensitivityLevelMap}> {
-    let option = "INHERIT" as SensitivityLevelMap;
+export function sensitivityDialog(
+    sensitivities: (SensitivityLevelMap | null)[]
+): Promise<{cancelled: true} | {option: SensitivityLevelMap}> {
+    const defaultValue: SensitivityLevelMap = sensitivities.length === 1 ? sensitivities[0] ??
+        SensitivityLevelMap.INHERIT : SensitivityLevelMap.INHERIT;
+    let option = defaultValue;
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
         message: (
             <div>
-                <Select defaultValue="Inherit" onChange={e => option = e.target.value as SensitivityLevelMap}>
+                <Select defaultValue={defaultValue} onChange={e => option = e.target.value as SensitivityLevelMap}>
                     <option value="INHERIT">Inherit</option>
                     <option value="PRIVATE">Private</option>
                     <option value="CONFIDENTIAL">Confidential</option>
@@ -625,6 +632,54 @@ export function MasterCheckbox({onClick, checked}: MasterCheckbox): JSX.Element 
     );
 }
 
+export const NamingField: React.FunctionComponent<{
+    onCancel: () => void;
+    confirmText: string;
+    inputRef: React.MutableRefObject<HTMLInputElement | null>;
+    onSubmit: (e: React.SyntheticEvent) => void;
+    defaultValue?: string;
+}> = props => {
+    const submit = React.useCallback((e) => {
+        e.preventDefault();
+        props.onSubmit(e);
+    }, [props.onSubmit]);
+
+    const keyDown = React.useCallback((e) => {
+        if (e.keyCode === KeyCode.ESC) {
+            props.onCancel();
+        }
+    }, [props.onCancel]);
+
+    return (
+        <form onSubmit={submit}>
+            <Flex>
+                <Input
+                    pt="0px"
+                    pb="0px"
+                    pr="0px"
+                    pl="0px"
+                    noBorder
+                    defaultValue={props.defaultValue ? props.defaultValue : ""}
+                    fontSize={20}
+                    maxLength={1024}
+                    onKeyDown={keyDown}
+                    borderRadius="0px"
+                    type="text"
+                    width="100%"
+                    autoFocus
+                    ref={props.inputRef}
+                />
+                <ConfirmCancelButtons
+                    confirmText={props.confirmText}
+                    cancelText="Cancel"
+                    onConfirm={submit}
+                    onCancel={props.onCancel}
+                />
+            </Flex>
+        </form>
+    );
+};
+
 const loremText = `
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam fringilla ipsum sem, id egestas risus mollis nec.
     Quisque sed efficitur lectus. Vestibulum magna erat, auctor at malesuada ut, scelerisque nec quam. Nam mattis at
@@ -658,21 +713,21 @@ const loremText = `
     eleifend, ullamcorper quam et, ultricies metus. Vivamus non justo id quam lobortis volutpat.
 `.split(" ").map(it => it.trim());
 
-export const Lorem: React.FunctionComponent<{ maxLength?: number }> = ({maxLength = 240}) => {
+export const Lorem: React.FunctionComponent<{maxLength?: number}> = ({maxLength = 240}) => {
     let builder: string = "";
     let length = 0;
     let counter = 0;
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
-       const nextWord = loremText[counter];
-       counter++;
-       counter = counter % loremText.length;
+        const nextWord = loremText[counter];
+        counter++;
+        counter = counter % loremText.length;
 
-       if (nextWord.length + length > maxLength) break;
-       if (counter !== 1) builder += " ";
-       builder += nextWord;
-       length += nextWord.length;
+        if (nextWord.length + length > maxLength) break;
+        if (counter !== 1) builder += " ";
+        builder += nextWord;
+        length += nextWord.length;
     }
     return <>{builder}</>;
 };
@@ -735,3 +790,76 @@ export const shakingClassName = "shaking";
 export const ShakingBox = styled(Box)`
     ${shakeAnimation}
 `;
+
+const MISSING_COMPUTE_CREDITS = "NOT_ENOUGH_COMPUTE_CREDITS";
+const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
+const EXCEEDED_STORAGE_QUOTA = "NOT_ENOUGH_STORAGE_QUOTA";
+
+export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
+    if (!props.errorCode) return null;
+    return (
+        <ErrorWrapper bg="lightRed"
+            borderColor="red"
+            width={1}
+        >
+            <WarningToOptions errorCode={props.errorCode} />
+        </ErrorWrapper>
+    );
+}
+
+function WarningToOptions(props: {errorCode: string}): JSX.Element {
+    const trashFolder = Client.hasActiveProject ?
+        `${Client.currentProjectFolder}/Personal/${Client.username}/Trash` :
+        `${Client.homeFolder}/Trash`;
+
+    const workspacePath = Client.hasActiveProject ?
+        `${Client.currentProjectFolder}/Personal/${Client.username}` : Client.homeFolder;
+
+    const applyPath = Client.hasActiveProject ? "/project/grants/existing" : "/projects/browser/personal";
+
+    const [size] = useCloudAPI<{size: number}>({
+        path: directorySizeQuery, method: "POST", payload: {paths: [trashFolder]}
+    }, {size: -1});
+
+    switch (props.errorCode) {
+        case MISSING_COMPUTE_CREDITS:
+        case MISSING_STORAGE_CREDITS:
+            const computeOrStorage = props.errorCode === MISSING_COMPUTE_CREDITS ? "compute" : "storage";
+            return (
+                <Box mb="8px">
+                    <Heading.h4 mb="20px" color="#000">You do not have enough {computeOrStorage} credits.</Heading.h4>
+                    <Spacer
+                        left={<Text color="#000">Apply for more {computeOrStorage} resources.</Text>}
+                        right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
+                    />
+                </Box>
+            );
+        case EXCEEDED_STORAGE_QUOTA:
+            return (
+                <>
+                    <Heading.h4 mb="20px" color="#000">You do not have enough storage credit. To get more storage, you could do one of the following:</Heading.h4>
+                    <Box mb="8px">
+                        <Spacer
+                            left={<Text color="#000">Delete files. Your personal workspace files, including job results and trash also count towards your storage quota.</Text>}
+                            right={<Link to={fileTablePage(workspacePath)}><Button width="150px" height="30px">Workspace files</Button></Link>}
+                        />
+                    </Box>
+                    {size.data.size >= 0 ?
+                        <Box mb="8px">
+                            <Spacer
+                                left={<Text color="#000">Empty your trash folder. You have {sizeToString(size.data.size)} counting towards your storage quota.</Text>}
+                                right={<Link to={fileTablePage(trashFolder)}><Button width="150px" height="30px">To trash folder</Button></Link>}
+                            />
+                        </Box> : null}
+                    <Box mb="8px">
+                        <Spacer
+                            left={<Text color="#000">Apply for more storage resources.</Text>}
+                            right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
+                        />
+                    </Box>
+                </>
+            );
+        default:
+            return <></>;
+    }
+}

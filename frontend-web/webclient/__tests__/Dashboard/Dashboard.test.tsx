@@ -12,7 +12,8 @@ import {store} from "../../app/Utilities/ReduxUtilities";
 
 jest.mock("Project", () => ({
     getProjectNames: () => [],
-    userProjectStatus: () => {}
+    userProjectStatus: () => {},
+    useProjectManagementStatus: () => ({projectId: "foo"})
 }));
 
 jest.mock("Authentication/HttpClientInstance", () => ({
@@ -51,9 +52,7 @@ const WrappedDashboard: React.FunctionComponent<{store: Store<ReduxObject>}> = p
 
 describe("Dashboard", () => {
     test("Dashboard mount", async () => {
-        await act(async () => {
-            const dash = await create(<WrappedDashboard store={store} />);
-            expect(dash.toJSON()).toMatchSnapshot();
-        });
+        const dash = await create(<WrappedDashboard store={store} />);
+        expect(dash.toJSON()).toMatchSnapshot();
     });
 });

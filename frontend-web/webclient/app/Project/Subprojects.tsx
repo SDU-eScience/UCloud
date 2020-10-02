@@ -3,13 +3,12 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {createProject, listSubprojects, Project, useProjectManagementStatus} from "Project";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Input, Label, Link, List, Text} from "ui-components";
 import styled from "styled-components";
 import {emptyPage} from "DefaultObjects";
-import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
+import {errorMessageOrDefault} from "UtilityFunctions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import Table, {TableCell, TableRow} from "ui-components/Table";
 import * as Pagination from "Pagination";
 import * as Heading from "ui-components/Heading";
 import {
@@ -28,7 +27,11 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Balance} from "Accounting/Balance";
-import {shakeAnimation, shakingClassName} from "UtilityComponents";
+import {NamingField, shakeAnimation, shakingClassName} from "UtilityComponents";
+import { Spacer } from "ui-components/Spacer";
+import { usePromiseKeeper } from "PromiseKeeper";
+import { ListRow } from "ui-components/List";
+import { flex } from "styled-system";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -76,6 +79,8 @@ const SelectableWalletWrapper = styled.div`
         margin: 8px;
     }
 `;
+
+
 
 const SelectableWallet: React.FunctionComponent<{
     wallet: WalletBalance,
@@ -128,21 +133,7 @@ const SelectableWallet: React.FunctionComponent<{
     );
 };
 
-
-const SearchContainer = styled(Flex)`
-    flex-wrap: wrap;
-    
-    form {
-        flex-grow: 1;
-        flex-basis: 350px;
-        display: flex;
-        margin-right: 10px;
-        margin-bottom: 10px;
-    }
-`;
-
 const Subprojects: React.FunctionComponent = () => {
-    const newSubprojectRef = React.useRef<HTMLInputElement>(null);
     const [isLoading, runCommand] = useAsyncCommand();
 
     useTitle("Resources");
@@ -152,9 +143,7 @@ const Subprojects: React.FunctionComponent = () => {
         projectId,
         allowManagement,
         subprojectSearchQuery,
-        setSubprojectSearchQuery,
         projectRole,
-        reloadProjectStatus
     } = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
@@ -171,6 +160,10 @@ const Subprojects: React.FunctionComponent = () => {
         setWalletParams(retrieveBalance({includeChildren: true}));
         fetchQuota(retrieveQuota({path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder}));
     }, [setWalletParams, projectId]);
+
+    const [creatingSubproject, setCreatingSubproject] = useState(false);
+    const createSubprojectRef = useRef<HTMLInputElement>(null);
+    const promises = usePromiseKeeper();
 
     const [selectedWallet, setSelectedWallet] = useState<WalletBalance | null>(null);
     const walletContainer = useRef<HTMLDivElement>(null);
@@ -201,27 +194,34 @@ const Subprojects: React.FunctionComponent = () => {
         setSubprojectParams({...subprojectParams});
     };
 
+    async function createSubproject(e: React.SyntheticEvent): Promise<void> {
+        e.preventDefault();
+        try {
+            const subprojectName = createSubprojectRef.current?.value ?? "";
+            if (!subprojectName) {
+                snackbarStore.addFailure("Project name can't be empty", false);
+                return;
+            }
+            await promises.makeCancelable(
+                await runCommand(createProject({
+                    title: subprojectName,
+                    parent: projectId
+                }))
+            );
+
+            snackbarStore.addSuccess(`Subproject created`, true);
+            createSubprojectRef.current!.value = "";
+            setCreatingSubproject(false);
+            setSubprojectParams({...subprojectParams});
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create project."), false);
+        }
+    }
+
     useEffect(() => {
         reloadSubprojects();
         reloadWallets();
     }, [projectId]);
-
-    const onSubmit = async (e: React.FormEvent): Promise<void> => {
-        e.preventDefault();
-        const inputField = newSubprojectRef.current!;
-        const newProjectName = inputField.value;
-        try {
-            await runCommand(createProject({
-                title: newProjectName,
-                parent: projectId
-            }));
-            inputField.value = "";
-            reloadSubprojects();
-            reloadProjectStatus();
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed creating new project"), false);
-        }
-    };
 
     return (
         <MainContainer
@@ -229,7 +229,18 @@ const Subprojects: React.FunctionComponent = () => {
             sidebar={null}
             main={(
                 <>
-                    <Heading.h3>Resources</Heading.h3>
+                    <Spacer
+                        left={
+                            <Heading.h3>Resources</Heading.h3>
+                        }
+                        right={
+                            <Link to={
+                                !Client.hasActiveProject ?
+                                    "/projects/browser/personal" :
+                                    "/project/grants/existing"
+                            }><Button>Apply for resources</Button></Link>
+                        }
+                    />
                     <LoadingBox height="233px" isLoading={wallets.loading}>
                         <WalletContainer ref={walletContainer}>
                             {mainWallets.length === 0 ? <>
@@ -255,16 +266,16 @@ const Subprojects: React.FunctionComponent = () => {
                                 }</>
                             }
 
-                            {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
+                            {(!Client.hasActiveProject || isAdminOrPI(projectRole)) && mainWallets.length === 0 ?
                                 <DashboardCard color="blue" isLoading={false}>
                                     <Flex height={"140px"} justifyContent={"center"} alignItems={"center"} flexDirection={"column"}>
-                                        <Heading.h4>Need more resources?</Heading.h4>
-                                        <Box mt={8}>
+                                        <Heading.h4>No resources available for this project</Heading.h4>
+                                        <Box mt={16}>
                                             <Link to={
                                                 !Client.hasActiveProject ?
                                                     "/projects/browser/personal" :
                                                     "/project/grants/existing"
-                                            }><Button>Apply for more resources</Button></Link>
+                                            }><Button>Apply for resources</Button></Link>
                                         </Box>
                                     </Flex>
                                 </DashboardCard>
@@ -274,46 +285,25 @@ const Subprojects: React.FunctionComponent = () => {
 
                     {!Client.hasActiveProject ? null : <>
                         {isAdminOrPI(projectRole) ? <>
-                            <Heading.h3>Subprojects</Heading.h3>
+                            <Spacer
+                                left={
+                                    <Heading.h3>Subprojects</Heading.h3>
+                                }
+                                right={
+                                    <Button height="40px" onClick={() => setCreatingSubproject(true)}>New Subproject</Button>
+                                }
+                            />
                             <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
                                 <Box ml={8} mr={8}>
-                                    <SearchContainer>
-                                        {!allowManagement ? null : (
-                                            <form onSubmit={onSubmit}>
-                                                <Input
-                                                    id="new-project-subproject"
-                                                    placeholder="Title of new project"
-                                                    disabled={isLoading}
-                                                    ref={newSubprojectRef}
-                                                    onChange={e => {
-                                                        newSubprojectRef.current!.value = e.target.value;
-                                                    }}
-                                                    rightLabel
-                                                />
-                                                <Button attached type={"submit"}>Create</Button>
-                                            </form>
-                                        )}
-                                        <form onSubmit={preventDefault}>
-                                            <Input
-                                                id="subproject-search"
-                                                placeholder="Filter this page..."
-                                                pr="30px"
-                                                autoComplete="off"
-                                                disabled={isLoading}
-                                                onChange={e => {
-                                                    setSubprojectSearchQuery(e.target.value);
-                                                }}
-                                            />
-                                            <Relative>
-                                                <Absolute right="6px" top="10px">
-                                                    <Label htmlFor="subproject-search">
-                                                        <Icon name="search" size="24" />
-                                                    </Label>
-                                                </Absolute>
-                                            </Relative>
-                                        </form>
-                                    </SearchContainer>
                                     <Box mt={20}>
+                                        {creatingSubproject ? (
+                                            <NamingField
+                                                confirmText="Create"
+                                                onSubmit={createSubproject}
+                                                onCancel={() => setCreatingSubproject(false)}
+                                                inputRef={createSubprojectRef}
+                                            />
+                                        ) : null}
                                         <Pagination.List
                                             page={subprojects.data}
                                             pageRenderer={pageRenderer}
@@ -329,7 +319,7 @@ const Subprojects: React.FunctionComponent = () => {
                                             customEmptyPage={
                                                 <Flex justifyContent="center" alignItems="center" height="200px">
                                                     This project doesn&apos;t have any subprojects.
-                                                    {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
+                                                    {isAdminOrPI(projectRole) ? <> You can create one by using the &apos;New Subproject&apos; button above.</> : ""}
                                                 </Flex>
                                             }
                                         />
@@ -352,24 +342,22 @@ const Subprojects: React.FunctionComponent = () => {
         );
 
         return (
-            <Table>
-                <tbody>
-                    {filteredItems.map(subproject =>
-                        <SubprojectRow
-                            key={subproject.id}
-                            subproject={subproject}
-                            shakeWallets={shakeWallets}
-                            requestReload={reloadWallets}
-                            walletBalance={selectedWallet === null ?
-                                undefined :
-                                subprojectWallets.find(it => it.wallet.id === subproject.id) ??
-                                {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
-                            }
-                            allowManagement={allowManagement}
-                        />
-                    )}
-                </tbody>
-            </Table>
+            <List>
+                {filteredItems.map(subproject =>
+                    <SubprojectRow
+                        key={subproject.id}
+                        subproject={subproject}
+                        shakeWallets={shakeWallets}
+                        requestReload={reloadWallets}
+                        walletBalance={selectedWallet === null ?
+                            undefined :
+                            subprojectWallets.find(it => it.wallet.id === subproject.id) ??
+                            {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
+                        }
+                        allowManagement={allowManagement}
+                    />
+                )}
+            </List>
         );
     }
 };
@@ -378,11 +366,10 @@ const AllocationEditor = styled.div`
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    width: 250px;
     margin: 0 16px;
 
     ${Input} {
-        width: 1px;
+        width: 150px;
         flex-grow: 1;
         padding-top: 0;
         padding-bottom: 0;
@@ -396,19 +383,7 @@ const AllocationEditor = styled.div`
 
 const AllocationForm = styled.form`
     display: flex;
-    align-items: center;
-`;
-
-const SubprojectRowWrapper = styled(TableRow)`
-    td {
-        vertical-align: top;
-        white-space: nowrap;
-    }
-
-    ${TableCell}.allocation {
-        width: 100%;
-        vertical-align: middle;
-    }
+    align-items: right;
 `;
 
 const LoadingBox = (props: React.PropsWithChildren<{height: string; isLoading: boolean}>): JSX.Element => {
@@ -502,38 +477,39 @@ const SubprojectRow: React.FunctionComponent<{
     }, [quotaRef.current, isEditingQuota]);
 
     return <>
-        <SubprojectRowWrapper>
-            <TableCell>
+        <ListRow
+            left={
                 <Text>{subproject.title}</Text>
-            </TableCell>
-            <TableCell className={"allocation"}>
-                {!allowManagement ? null : (
+            }
+            right={!allowManagement ? null : (
                     <>
                         <Flex alignItems={"center"} justifyContent={"flex-end"}>
-                            {balance === undefined ? (
-                                <>
-                                    <Button height="35px" width={"135px"} onClick={() => {
-                                        snackbarStore.addInformation("You must select a resource above", false);
-                                        if (shakeWallets) shakeWallets();
-                                    }}>
-                                        Edit allocation
-                                    </Button>
-                                </>
-                            ) : (
+                            {!isEditingQuota ? (
+                                balance === undefined ? (
+                                    <>
+                                        <Button height="35px" width={"135px"} onClick={() => {
+                                            snackbarStore.addInformation("You must select a resource above", false);
+                                            if (shakeWallets) shakeWallets();
+                                        }}>
+                                            Edit allocation
+                                        </Button>
+                                    </>
+                                ) : (
                                     <>
                                         {!isEditing ? (
                                             <>
                                                 <AllocationEditor>
                                                     {creditFormatter(balance, 0)}
                                                 </AllocationEditor>
-                                                <Button height="35px" width={"135px"} onClick={() => setIsEditing(true)}>
-                                                    Edit allocation
+                                                <Button pr={8} pl={8} onClick={() => setIsEditing(true)}>
+                                                    <Icon name="edit" size={14} />
                                                 </Button>
                                             </>
                                         ) : (
                                                 <AllocationForm onSubmit={onSubmit}>
                                                     <AllocationEditor>
-                                                        <Input ref={inputRef} noBorder autoFocus />
+                                                        <Label>Allocation:</Label>
+                                                        <Input ref={inputRef} noBorder autoFocus width={120} />
                                                         <span>DKK</span>
                                                         {loading ?
                                                             <HexSpin size={16} />
@@ -549,7 +525,7 @@ const SubprojectRow: React.FunctionComponent<{
                                                         }
                                                     </AllocationEditor>
 
-                                                    <Button type="submit" height="35px" width="135px" color="green"
+                                                    <Button type="submit" color="green"
                                                         disabled={loading}>
                                                         Allocate
                                                     </Button>
@@ -557,51 +533,57 @@ const SubprojectRow: React.FunctionComponent<{
                                             )
                                         }
                                     </>
-                                )}
+                                )
+                            ) : null}
+
+                            {!isEditing ? (
+                                quotaInTotal === undefined ? null : (
+                                    <Flex alignItems={"center"} justifyContent={"flex-end"}>
+                                        {!isEditingQuota ? (
+                                            <>
+                                                <AllocationEditor>
+                                                    {quotaInTotal === -1 ? "No quota" : sizeToString(quotaInTotal)}
+                                                </AllocationEditor>
+                                                <Button pl={8} pr={8} onClick={() => setIsEditingQuota(true)}>
+                                                    <Icon name="edit" size={14} />
+                                                </Button>
+                                            </>
+                                        ) : (
+                                                <AllocationForm onSubmit={onSubmitQuota}>
+                                                    <AllocationEditor>
+                                                        <Label>Quota:</Label>
+                                                        <Input ref={quotaRef} noBorder autoFocus />
+                                                        <span>GB</span>
+                                                        {loading ?
+                                                            <HexSpin size={16} />
+                                                            :
+                                                            <Icon
+                                                                size={16}
+                                                                ml="10px"
+                                                                cursor="pointer"
+                                                                name="close"
+                                                                color="red"
+                                                                onClick={() => setIsEditingQuota(false)}
+                                                            />
+                                                        }
+                                                    </AllocationEditor>
+
+                                                    <Button type="submit" color="green"
+                                                        disabled={loading}>
+                                                        Allocate
+                                                    </Button>
+                                                </AllocationForm>
+                                            )}
+                                    </Flex>
+                                )
+                            ) : null}
+
+
                         </Flex>
-
-                        {quotaInTotal === undefined ? null : (
-                            <Flex alignItems={"center"} justifyContent={"flex-end"} mt={16}>
-                                {!isEditingQuota ? (
-                                    <>
-                                        <AllocationEditor>
-                                            {quotaInTotal === -1 ? "No quota" : sizeToString(quotaInTotal)}
-                                        </AllocationEditor>
-                                        <Button height="35px" width="135px" onClick={() => setIsEditingQuota(true)}>
-                                            Edit quota
-                                        </Button>
-                                    </>
-                                ) : (
-                                        <AllocationForm onSubmit={onSubmitQuota}>
-                                            <AllocationEditor>
-                                                <Input ref={quotaRef} noBorder autoFocus />
-                                                <span>GB</span>
-                                                {loading ?
-                                                    <HexSpin size={16} />
-                                                    :
-                                                    <Icon
-                                                        size={16}
-                                                        ml="10px"
-                                                        cursor="pointer"
-                                                        name="close"
-                                                        color="red"
-                                                        onClick={() => setIsEditingQuota(false)}
-                                                    />
-                                                }
-                                            </AllocationEditor>
-
-                                            <Button type="submit" height="35px" width="135px" color="green"
-                                                disabled={loading}>
-                                                Allocate
-                                            </Button>
-                                        </AllocationForm>
-                                    )}
-                            </Flex>
-                        )}
                     </>
-                )}
-            </TableCell>
-        </SubprojectRowWrapper>
+                )
+            }
+        />
     </>;
 };
 

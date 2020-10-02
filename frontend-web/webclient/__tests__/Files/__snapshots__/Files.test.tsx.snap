@@ -706,6 +706,7 @@ exports[`Mount Files component 1`] = `
     </div>
     <div
       className="c32"
+      data-tag="loading-spinner"
       height={32}
       width={32}
     >

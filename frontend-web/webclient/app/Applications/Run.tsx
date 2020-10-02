@@ -11,7 +11,7 @@ import FileSelector from "Files/FileSelector";
 import {listDirectory} from "Files/LowLevelFileTable";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
-import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
+import {setActivePage, setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -50,7 +50,7 @@ import {
     fileTablePage, getFilenameFromPath,
     statFileQuery
 } from "Utilities/FileUtilities";
-import {addStandardDialog} from "UtilityComponents";
+import {addStandardDialog, WalletWarning} from "UtilityComponents";
 import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
 import {
     AdditionalMountedFolder,
@@ -75,6 +75,7 @@ import * as PublicLinks from "Applications/PublicLinks/Management";
 import {creditFormatter} from "Project/ProjectUsage";
 import {Product, retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import {MandatoryField} from "Applications/Widgets/BaseParameter";
+import {SidebarPages} from "ui-components/Sidebar";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -112,12 +113,13 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             reservation: "",
             unknownParameters: [],
             balance: NO_WALLET_FOUND_VALUE,
-            inlineError: undefined
+            inlineError: undefined,
+            errorCode: undefined
         };
     }
 
     public componentDidMount(): void {
-        this.props.updatePageTitle();
+        this.props.onInit();
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
         this.state.promises.makeCancelable(this.retrieveApplication(name, version));
@@ -326,6 +328,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                         </Flex>
                                     </RunSection>
                                 )}
+
                             {!unknownParameters.length ? null : (
                                 <Error
                                     error={"Could not add parameters:\n\t" + unknownParameters.join(", \n\t")}
@@ -334,7 +337,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                             )}
 
                             <RunSection>
-                                <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />
+                                <WalletWarning errorCode={this.state.errorCode} />
+                                {this.state.errorCode ? null : <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />}
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
@@ -685,7 +689,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                 });
             } else {
                 if (err.request.status === 402) {
-                    this.setState(({inlineError: err.response.why}));
+                    this.setState(({inlineError: err.response.why, errorCode: err.response.errorCode ?? undefined}));
                 } else {
                     snackbarStore.addFailure(
                         errorMessageOrDefault(err, "An error occurred submitting the job."),
@@ -1141,7 +1145,11 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
-    updatePageTitle: () => dispatch(updatePageTitle("Run Application")),
+    onInit: () => {
+        dispatch(setActivePage(SidebarPages.AppStore));
+        dispatch(updatePageTitle("Run Application"));
+    },
+
     setLoading: loading => dispatch(setLoading(loading))
 });
 

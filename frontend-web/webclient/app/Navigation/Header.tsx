@@ -53,6 +53,18 @@ interface HeaderProps extends HeaderStateToProps, HeaderOperations {
 const DevelopmentBadge = (): JSX.Element | null => [DEV_SITE, STAGING_SITE].includes(window.location.host) ||
     inDevEnvironment() ? <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
+export function NonAuthenticatedHeader(): JSX.Element {
+    return (
+        <HeaderContainer color="headerText" bg="headerBg">
+            <Logo />
+            <ui.Box ml="auto" />
+            <ui.Link to="/login">
+                <ui.Button color="green" textColor="headerIconColor" mr="12px">Log in</ui.Button>
+            </ui.Link>
+        </HeaderContainer >
+    );
+}
+
 function Header(props: HeaderProps): JSX.Element | null {
     const [upcomingDowntime, setUpcomingDowntime] = React.useState(-1);
     const [intervalId, setIntervalId] = React.useState(-1);
@@ -121,7 +133,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             </ui.Flex>
             <ui.Support />
             <Notification />
-            <AutomaticGiftClaim/>
+            <AutomaticGiftClaim />
             <ClickableDropdown
                 colorOnHover={false}
                 width="200px"

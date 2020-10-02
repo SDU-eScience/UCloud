@@ -1052,7 +1052,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c43"
                 clipRule="evenodd"
                 color="gray"
-                color2=""
+                color2="#fff"
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -1080,7 +1080,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c43"
                 clipRule="evenodd"
                 color="gray"
-                color2=""
+                color2="#8393A7"
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -1091,12 +1091,12 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               >
                 <path
                   d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
                 <path
                   d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
                 <path
@@ -1105,7 +1105,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 />
                 <path
                   d="M6.857 0h6.858v2.572H6.857z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
               </svg>
@@ -1204,7 +1204,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c43"
                 clipRule="evenodd"
                 color="gray"
-                color2=""
+                color2="#fff"
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -1232,7 +1232,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c43"
                 clipRule="evenodd"
                 color="gray"
-                color2=""
+                color2="#8393A7"
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -1243,12 +1243,12 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               >
                 <path
                   d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
                 <path
                   d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
                 <path
@@ -1257,7 +1257,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 />
                 <path
                   d="M6.857 0h6.858v2.572H6.857z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
               </svg>
@@ -1356,7 +1356,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c43"
                 clipRule="evenodd"
                 color="gray"
-                color2=""
+                color2="#fff"
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -1384,7 +1384,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c43"
                 clipRule="evenodd"
                 color="gray"
-                color2=""
+                color2="#8393A7"
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -1395,12 +1395,12 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               >
                 <path
                   d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
                 <path
                   d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
                 <path
@@ -1409,7 +1409,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 />
                 <path
                   d="M6.857 0h6.858v2.572H6.857z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
               </svg>
@@ -1508,7 +1508,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c43"
                 clipRule="evenodd"
                 color="gray"
-                color2=""
+                color2="#fff"
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -1536,7 +1536,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 className="c43"
                 clipRule="evenodd"
                 color="gray"
-                color2=""
+                color2="#8393A7"
                 cursor="inherit"
                 fill="currentcolor"
                 fillRule="evenodd"
@@ -1547,12 +1547,12 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               >
                 <path
                   d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
                 <path
                   d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
                 <path
@@ -1561,7 +1561,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
                 />
                 <path
                   d="M6.857 0h6.858v2.572H6.857z"
-                  fill="currentcolor"
+                  fill="#8393A7"
                   fillRule="nonzero"
                 />
               </svg>

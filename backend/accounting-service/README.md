@@ -1,6 +1,10 @@
-:orphan:
+# Accounting
 
-# Accounting (Compute)
+.. toctree::
+  :hidden:
+  
+  ./wiki/wallets.md
+  ../grant-service/README.md
 
 __Credits__ is the currency used for all payment of compute resources in UCloud. All prices in the UCloud system are
 in an _integer_ amount of credits. Credits are always integer as this allow for more precise calculations. All
@@ -8,7 +12,7 @@ applications run on a specific machine template, these machine template have an 
 will _reserve_ credits from a wallet at the start of every job. We _charge_ the credits from the wallet at the end of
 the job.
 
-[__Wallets__](wiki/wallets.html) contain an integer amount of credits and can pay for any jobs running a specific
+[Wallets](wiki/wallets.md) contain an integer amount of credits and can pay for any jobs running a specific
 machine type. A wallet belongs to an entity, this is either a project, or a user (Personal project).
 
 The __balance__ of a wallet describe the contents of a wallet (in credits). The system will remove credits from the 

@@ -57,8 +57,8 @@ const RadioTileIcon = styled.div`
     width: 100%;
     height: 100%;
     border-radius: 5px;
-    border: 1px solid var(--borderGray, #f00);
-    color: var(--borderGray, #f00);
+    border: 1px solid var(--invertedThemeColor);
+    color: var(--invertedThemeColor, #f00);
     transition: all 300ms ease;
 `;
 
@@ -98,15 +98,11 @@ const RadioTileInput = styled.input`
 
   &:checked + ${RadioTileIcon} {
     background-color: var(--blue, #f00);
-    border: 0px solid white;
+    border: 0px solid var(--black);
     color: white;
     transform: scale(1.2, 1.2);
   }
 `;
-
-interface RadioTileLabelProps {
-    fontSize: FontSizeProps;
-}
 
 const RadioTileLabel = styled.label<FontSizeProps>`
     text-align: center;
@@ -115,6 +111,7 @@ const RadioTileLabel = styled.label<FontSizeProps>`
     text-transform: uppercase;
     letter-spacing: 1px;
     line-height: 1;
+    color: var(--invertedThemeColor);
     padding-top: 0.1rem;
 `;
 

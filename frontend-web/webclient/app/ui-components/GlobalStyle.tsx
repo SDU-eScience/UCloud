@@ -1,10 +1,9 @@
-import {css} from "styled-components";
 import theme from "./theme";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
 
-const UIGlobalStyle = css`
+const UIGlobalStyle = `
 /* Colors */
 :root {
     --black: #000;
@@ -48,6 +47,8 @@ const UIGlobalStyle = css`
     --tableRowHighlight: var(--lightBlue, #f00);
     --appCard: #ebeff3;
     --wayfGreen: #66b340;
+    --invertedThemeColor: #fff;
+    --fixedBlack: #000;
 }
 
 

@@ -178,6 +178,7 @@ exports[`Detailed Result Mount DetailedResult 1`] = `
     />
     <div
       className="c3"
+      data-tag="loading-spinner"
       height={24}
       width={24}
     >

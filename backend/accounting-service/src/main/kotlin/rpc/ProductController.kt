@@ -1,12 +1,13 @@
 package dk.sdu.cloud.accounting.services
 
-import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityPrincipalOrNull
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.toActor
+import dk.sdu.cloud.service.toActorOrGuest
 
 class ProductController(
     private val db: AsyncDBSessionFactory,
@@ -42,7 +43,7 @@ class ProductController(
             ok(
                 products.listByArea(
                     db,
-                    ctx.securityPrincipal.toActor(),
+                    ctx.securityPrincipalOrNull.toActorOrGuest(),
                     request.area,
                     request.provider,
                     request.normalize()

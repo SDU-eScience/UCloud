@@ -27,6 +27,10 @@ sealed class Actor {
     class User(val principal: SecurityPrincipal) : Actor() {
         override val username = principal.username
     }
+
+    companion object {
+        val guest = SystemOnBehalfOfUser("__guest")
+    }
 }
 
 fun Actor.safeUsername(systemUsername: String = "_ucloud"): String {
@@ -38,3 +42,6 @@ fun Actor.safeUsername(systemUsername: String = "_ucloud"): String {
 
 fun SecurityPrincipalToken.toActor(): Actor.User = Actor.User(principal)
 fun SecurityPrincipal.toActor(): Actor.User = Actor.User(this)
+
+fun SecurityPrincipal?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
+fun SecurityPrincipalToken?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest

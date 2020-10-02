@@ -219,7 +219,7 @@ object Products : CallDescriptionContainer("products") {
         call<ListProductsByAreaRequest, ListProductsByAreaResponse, CommonErrorMessage>("listProductionsByType") {
             auth {
                 access = AccessRight.READ
-                roles = Roles.AUTHENTICATED
+                roles = Roles.PUBLIC
             }
 
             http {

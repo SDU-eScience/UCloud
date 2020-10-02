@@ -16,14 +16,9 @@ function Error(props: ErrorProps): JSX.Element | null {
     }
 
     return (
-        <Card
-            borderRadius="0.5em"
-            height="auto"
-            p="1em 1em 1em 1em"
-            color="black"
+        <ErrorWrapper
             bg="lightRed"
             borderColor="red"
-            width={props.width}
         >
             <Flex alignItems="center">
                 <div><WhiteSpacedText fontSize={1} color="red">{props.error}</WhiteSpacedText></div>
@@ -38,9 +33,23 @@ function Error(props: ErrorProps): JSX.Element | null {
                     </Box>
                 )}
             </Flex>
-        </Card>
+        </ErrorWrapper>
     );
 }
+
+export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<{width?: string | number, bg: string; borderColor: string}>> = props => (
+    <Card
+        borderRadius="6px"
+        height="auto"
+        p="1em 1em 1em 1em"
+        color="black"
+        bg={props.bg}
+        borderColor={props.borderColor}
+        width={props.width}
+    >
+        {props.children}
+    </Card>
+);
 
 const WhiteSpacedText = styled(Text)`
     white-space: pre;

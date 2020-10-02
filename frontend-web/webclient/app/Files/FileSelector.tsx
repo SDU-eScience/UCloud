@@ -126,6 +126,7 @@ const useVirtualFolders = (path: string): VirtualFolderDefinition => {
 
 const FileSelectorModalStyle = {
     content: {
+        borderRadius: "6px",
         top: "80px",
         left: "25%",
         right: "25%",

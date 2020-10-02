@@ -3,7 +3,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {Box, Card, Flex, Icon, Text, theme} from "ui-components";
+import {Box, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text, theme} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -31,22 +31,23 @@ import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Dropdown} from "ui-components/Dropdown";
+import {capitalized} from "UtilityFunctions";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
     return `${date.getDate()}/${date.getMonth() + 1} ` +
         `${date.getHours().toString().padStart(2, "0")}:` +
-        `${date.getMinutes().toString().padStart(2, "0")}`
+        `${date.getMinutes().toString().padStart(2, "0")}`;
 }
 
 function dateFormatterDay(timestamp: number): string {
     const date = new Date(timestamp);
-    return `${date.getDate()}/${date.getMonth() + 1} `
+    return `${date.getDate()}/${date.getMonth() + 1} `;
 }
 
 function dateFormatterMonth(timestamp: number): string {
     const date = new Date(timestamp);
-    return `${date.getMonth() + 1}/${date.getFullYear()} `
+    return `${date.getMonth() + 1}/${date.getFullYear()} `;
 }
 
 function getDateFormatter(duration: Duration): (timestamp: number) => string {
@@ -65,7 +66,7 @@ function getDateFormatter(duration: Duration): (timestamp: number) => string {
 }
 
 export function creditFormatter(credits: number, precision: number = 2): string {
-    if (precision < 0 || precision > 6) throw "Precision must be in 0..6";
+    if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
 
     // Edge-case handling
     if (credits < 0) {
@@ -191,6 +192,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
 
+    const [productArea, setProductArea] = useState(ProductArea.COMPUTE);
     const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3]);
 
     // ProductArea -> Provider -> LineName -> includeInChartStatus (default: true)
@@ -212,67 +214,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
 
         setIncludeInCharts(newState);
     };
-
-    function periodStartFunction(time: Date, duration: Duration): number {
-        switch (duration.text) {
-            case "Today":
-                return new Date(
-                    time.getFullYear(),
-                    time.getMonth(),
-                    time.getDate(),
-                    time.getHours() + 1,
-                    0,
-                    0
-                ).getTime();
-            case "Past week":
-                return new Date(
-                    time.getFullYear(),
-                    time.getMonth(),
-                    time.getDate(),
-                    time.getHours() + 1,
-                    0,
-                    0
-                ).getTime();
-            case "Past 14 days":
-                return new Date(
-                    time.getFullYear(),
-                    time.getMonth(),
-                    time.getDate() + 1,
-                    0,
-                    0,
-                    0
-                ).getTime();
-            case "Past 30 days":
-                return new Date(
-                    time.getFullYear(),
-                    time.getMonth(),
-                    time.getDate() + 1,
-                    0,
-                    0,
-                    0
-                ).getTime();
-            case "Past 180 days":
-                return new Date(
-                    time.getFullYear(),
-                    time.getMonth(),
-                    time.getDate() + 1,
-                    0,
-                    0,
-                    0
-                ).getTime();
-            case "Past 365 days":
-                return new Date(
-                    time.getFullYear(),
-                    time.getMonth(),
-                    time.getDate() + 1,
-                    0,
-                    0,
-                    0
-                ).getTime();
-            default:
-                return time.getTime();
-        }
-    }
 
     const currentTime = new Date();
     const now = periodStartFunction(currentTime, durationOption);
@@ -313,45 +254,59 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     return (
         <MainContainer
             header={
-                <UsageHeader>
-                    <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]}/>
-                    <ClickableDropdown
-                        trigger={
-                            <Flex alignItems={"center"}>
-                                <Heading.h4 mr={8}>{durationOption.text}</Heading.h4>
-                                <Icon name={"chevronDown"} size={16}/>
-                            </Flex>
-                        }
-                        onChange={opt => setDurationOption(durationOptions[parseInt(opt)])}
-                        options={durationOptions.map((it, idx) => {
-                            return {text: it.text, value: `${idx}`};
-                        })}
-                    />
-                </UsageHeader>
+                <Box>
+                    <UsageHeader>
+                        <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]} />
+                        <ClickableDropdown
+                            trigger={
+                                <Flex alignItems={"center"}>
+                                    <Heading.h4 mr={8}>{durationOption.text}</Heading.h4>
+                                    <Icon name={"chevronDown"} size={16} />
+                                </Flex>
+                            }
+                            onChange={opt => setDurationOption(durationOptions[parseInt(opt, 10)])}
+                            options={durationOptions.map((it, idx) => ({text: it.text, value: `${idx}`}))}
+                        />
+                    </UsageHeader>
+                    <SelectableTextWrapper>
+                        {Object.keys(ProductArea).map((area: ProductArea) => (
+                            <SelectableText
+                                key={area}
+                                mr="1em"
+                                fontSize={3}
+                                onClick={() => setProductArea(area)}
+                                selected={productArea === area}
+                            >{capitalized(area)}</SelectableText>
+                        ))}
+                    </SelectableTextWrapper>
+                </Box>
             }
             sidebar={null}
-            main={(
-                <>
-                    <VisualizationForArea
-                        area={ProductArea.COMPUTE}
-                        projectId={projectId}
-                        usageResponse={usageResponse}
-                        durationOption={durationOption}
-                        balance={balance}
-                        includeInCharts={computeIncludeInCharts}
-                        onIncludeInChart={onIncludeInChart(ProductArea.COMPUTE)}
-                    />
-                    <VisualizationForArea
-                        area={ProductArea.STORAGE}
-                        projectId={projectId}
-                        usageResponse={usageResponse}
-                        durationOption={durationOption}
-                        balance={balance}
-                        includeInCharts={storageIncludeInCharts}
-                        onIncludeInChart={onIncludeInChart(ProductArea.STORAGE)}
-                    />
-                </>
-            )}
+            main={
+                <Box mt="8px">
+                    {productArea === ProductArea.COMPUTE ?
+                        <VisualizationForArea
+                            area={ProductArea.COMPUTE}
+                            projectId={projectId}
+                            usageResponse={usageResponse}
+                            durationOption={durationOption}
+                            balance={balance}
+                            includeInCharts={computeIncludeInCharts}
+                            onIncludeInChart={onIncludeInChart(ProductArea.COMPUTE)}
+                        />
+                        :
+                        <VisualizationForArea
+                            area={ProductArea.STORAGE}
+                            projectId={projectId}
+                            usageResponse={usageResponse}
+                            durationOption={durationOption}
+                            balance={balance}
+                            includeInCharts={storageIncludeInCharts}
+                            onIncludeInChart={onIncludeInChart(ProductArea.STORAGE)}
+                        />
+                    }
+                </Box>
+            }
         />
     );
 };
@@ -397,6 +352,34 @@ const VisualizationForArea: React.FunctionComponent<{
         }
     }
 
+    charts.forEach(chart => chart.lineNames.sort((a: string, b: string): number =>
+        creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b]
+    ));
+
+
+    charts.forEach(chart => {
+        let aggregatedCredits = 0;
+        const keys = Object.keys(creditsUsedByWallet[chart.provider]);
+        keys.forEach((key, idx) => {
+            if ((includeInCharts[chart.provider] ?? {})[key] ?? idx < 10)
+                aggregatedCredits += creditsUsedByWallet[chart.provider][key];
+        });
+        creditsUsedByWallet[chart.provider].Aggregated = aggregatedCredits;
+        if (!chart.lineNames.includes("Aggregated")) chart.lineNames.push("Aggregated");
+
+        chart.points.forEach(point => {
+            for (const category of Object.keys(point)) {
+                if (category === "time") {
+                    point.Agggregated = point.time;
+                    continue;
+                }
+                if (point[category] === 0) {
+                    delete point[category];
+                }
+            }
+        });
+    });
+
     return (
         <Box>
             <SummaryCard
@@ -439,6 +422,16 @@ const VisualizationForArea: React.FunctionComponent<{
                                                     return null;
                                                 }
                                             })}
+
+                                            {chart.lineNames.map((id, idx) => {
+                                                return <Bar
+                                                    key={id + "stack"}
+                                                    dataKey={id}
+                                                    stackId={"foo"}
+                                                    fill={theme.chartColors[idx % theme.chartColors.length]}
+                                                    barSize={24}
+                                                />;
+                                            })}
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </Box>
@@ -461,28 +454,31 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 <TableRow key={p}>
                                                     <TableCell>
                                                         <Box width={20} height={20}
-                                                            backgroundColor={theme.chartColors[idx % theme.chartColors.length]} />
+                                                            backgroundColor={p === "Aggregated" ? "#000" : theme.chartColors[idx % theme.chartColors.length]} />
                                                     </TableCell>
                                                     <TableCell>{p}</TableCell>
                                                     <TableCell textAlign="right">
                                                         {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
                                                     </TableCell>
                                                     <TableCell textAlign="right">
-                                                        {creditFormatter(
+                                                        {p !== "Aggregated" ? creditFormatter(
                                                             balance.data.wallets.find(it =>
                                                                 it.wallet.id === chart.lineNameToWallet[p].id &&
                                                                 it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
                                                                 it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
                                                             )?.balance ?? 0
+                                                        ) : creditFormatter(
+                                                            balance.data.wallets.filter(it => it.area === area)
+                                                                .reduce((prev, wall) => wall.balance + prev, 0)
                                                         )}
                                                     </TableCell>
-                                                    <TableCell textAlign={"right"}>
-                                                        <Toggle
+                                                    <TableCell textAlign="right">
+                                                        {p !== "Aggregated" ? <Toggle
                                                             onChange={() => onIncludeInChart(chart.provider, p, idx)}
                                                             scale={1.5}
                                                             activeColor={"green"}
                                                             checked={(includeInCharts[chart.provider] ?? {})[p] ?? idx < 10}
-                                                        />
+                                                        /> : null}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -493,7 +489,6 @@ const VisualizationForArea: React.FunctionComponent<{
                         )}
                     </React.Fragment>
                 ))}
-
             </Box>
         </Box>
     );
@@ -591,3 +586,64 @@ const mapDispatchToProps = (dispatch: Dispatch): ProjectUsageOperations => ({
 });
 
 export default connect(null, mapDispatchToProps)(ProjectUsage);
+
+function periodStartFunction(time: Date, duration: Duration): number {
+    switch (duration.text) {
+        case "Today":
+            return new Date(
+                time.getFullYear(),
+                time.getMonth(),
+                time.getDate(),
+                time.getHours() + 1,
+                0,
+                0
+            ).getTime();
+        case "Past week":
+            return new Date(
+                time.getFullYear(),
+                time.getMonth(),
+                time.getDate(),
+                time.getHours() + 1,
+                0,
+                0
+            ).getTime();
+        case "Past 14 days":
+            return new Date(
+                time.getFullYear(),
+                time.getMonth(),
+                time.getDate() + 1,
+                0,
+                0,
+                0
+            ).getTime();
+        case "Past 30 days":
+            return new Date(
+                time.getFullYear(),
+                time.getMonth(),
+                time.getDate() + 1,
+                0,
+                0,
+                0
+            ).getTime();
+        case "Past 180 days":
+            return new Date(
+                time.getFullYear(),
+                time.getMonth(),
+                time.getDate() + 1,
+                0,
+                0,
+                0
+            ).getTime();
+        case "Past 365 days":
+            return new Date(
+                time.getFullYear(),
+                time.getMonth(),
+                time.getDate() + 1,
+                0,
+                0,
+                0
+            ).getTime();
+        default:
+            return time.getTime();
+    }
+}

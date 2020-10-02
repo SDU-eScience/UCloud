@@ -62,7 +62,7 @@ File(serviceDir, "src/main/resources/db/migration/schema.txt").writeText(service
 File(serviceDir, "src/test/kotlin").mkdirs()
 File(serviceDir, "src/test/resources").mkdirs()
 
-val mainPackage = File(kotlinSrc, service)
+val mainPackage = kotlinSrc
 mainPackage.mkdirs()
 
 File(mainPackage, "api").mkdirs()
@@ -122,7 +122,7 @@ val apiSrc = File(apiDir, "src/main/kotlin")
 apiSrc.mkdirs()
 
 File(apiSrc, "Descriptions.kt").writeText("""
-    package dk.sdu.cloud.${packageName}
+    package dk.sdu.cloud.${packageName}.api
     
     import dk.sdu.cloud.AccessRight
     import dk.sdu.cloud.CommonErrorMessage

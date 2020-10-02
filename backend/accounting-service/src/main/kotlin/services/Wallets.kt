@@ -5,13 +5,16 @@ import dk.sdu.cloud.accounting.Utils.CREDITS_NOTIFY_LIMIT
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
@@ -246,7 +249,10 @@ class BalanceService(
             requirePermissionToWriteBalance(session, initiatedBy, account.id, account.type)
             val (currentBalance, exists) = getBalance(session, initiatedBy, account, true)
             if (currentBalance != lastKnownBalance) {
-                throw RPCException("Balance has been updated since you last viewed it! ($currentBalance / $lastKnownBalance)", HttpStatusCode.Conflict)
+                throw RPCException(
+                    "Balance has been updated since you last viewed it! ($currentBalance / $lastKnownBalance)",
+                    HttpStatusCode.Conflict
+                )
             }
 
             if (!exists) {
@@ -434,6 +440,7 @@ class BalanceService(
     }
 
     private class ReservationUserRequestedAbortException : RuntimeException()
+
     suspend fun reserveCredits(
         ctx: DBContext,
         initiatedBy: Actor,
@@ -459,7 +466,21 @@ class BalanceService(
                 if (!request.skipLimitCheck) {
                     val reserved = getReservedCredits(ctx, wallet)
                     if (reserved + amount > balance) {
-                        throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
+                        throw RPCException(
+                            "Insufficient funds",
+                            HttpStatusCode.PaymentRequired,
+                            run {
+                                val product = Products.findProduct.call(
+                                    FindProductRequest(
+                                        wallet.paysFor.provider,
+                                        wallet.paysFor.id,
+                                        request.productId
+                                    ), client
+                                ).orNull()
+                                if (product == null) null
+                                else "NOT_ENOUGH_${product.area.name}_CREDITS"
+                            }
+                        )
                     }
                 }
 

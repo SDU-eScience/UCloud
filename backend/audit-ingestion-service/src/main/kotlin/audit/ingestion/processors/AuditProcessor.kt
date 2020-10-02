@@ -31,7 +31,7 @@ class AuditProcessor(
     private val client: RestHighLevelClient
 ) {
     fun init() {
-        events.subscribe(HttpLogsStream, EventConsumer.Batched { rawBatch ->
+        events.subscribe(HttpLogsStream, EventConsumer.Batched() { rawBatch ->
             if (rawBatch.isNotEmpty()) log.debug("Accepting batch of size ${rawBatch.size}")
 
             rawBatch

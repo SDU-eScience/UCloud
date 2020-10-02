@@ -182,19 +182,19 @@ export const sideBarMenuElements: {
             {icon: "files", label: "Files", to: "/login"},
             {icon: "projects", label: "Projects", to: "/login"},
             {icon: "apps", label: "Apps", to: "/login"}
-        ], predicate: () => !Client.isLoggedIn
+        ], predicate: (): boolean => !Client.isLoggedIn
     },
     general: {
         items: [
             {
-                icon: "files", label: "Files", to: () =>
+                icon: "files", label: "Files", to: (): string =>
                     fileTablePage(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder)
             },
-            {icon: "projects", label: "Projects", to: "/projects", show: () => Client.hasActiveProject},
-            {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
+            {icon: "projects", label: "Projects", to: "/projects", show: (): boolean => Client.hasActiveProject},
+            {icon: "shareMenu", label: "Shares", to: "/shares/", show: (): boolean => !Client.hasActiveProject},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/applications/results/"}
-        ], predicate: () => Client.isLoggedIn
+        ], predicate: (): boolean => Client.isLoggedIn
     },
     auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Client.isLoggedIn},
     admin: {items: [{icon: "admin", label: "Admin", to: "/admin"}], predicate: () => Client.userIsAdmin}
@@ -252,7 +252,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                 >
                     <Tooltip
                         left="-50%"
-                        top={"1"}
+                        top="1"
                         mb="35px"
                         trigger={(
                             <EllipsedText

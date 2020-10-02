@@ -1,7 +1,13 @@
-:orphan:
-
 # Procedures and Rules
 
+.. toctree::
+  :titlesonly:
+  :maxdepth: 1
+  :hidden:
+
+  CI/CD <./Jenkins.md>
+  UCloud Release Notes <../../wiki/release-notes.md>
+  
 This document is created to link relevant documentation so it can be referred
 to from within the ISMS.
 

@@ -200,7 +200,10 @@ config("app-kubernetes") { ctx ->
         // coumputational biology server SDU (requested by Emiliano)
         "10.137.1.93/32",
 
-        "172.16.0.101/32"
+        // Ansys
+        "172.16.0.101/32",
+        // COMSOL
+        "172.16.0.102/32",
     ))
 }
 

@@ -7,7 +7,24 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
-# 29-06-20
+## 29-09-20
+
+Remove limits from app-kubernetes-service resource requests. This is a temporary bug-fix to ensure that the QoS does
+not prevent jobs from being OOM killed when they exceed their resource allocation.
+
+```
+✅  Deployment(app-kubernetes, 0.18.8) (UP-TO-DATE)
+```
+
+## 11-09-20
+Bug fix in alert message to alerting-service. 
+Increased lower limit for alert on storage from 50% to 70% full.
+
+```
+✅  Deployment(alerting, 1.2.1) (UP-TO-DATE)
+```
+
+## 29-06-20
 
 Re-enable kata containers
 

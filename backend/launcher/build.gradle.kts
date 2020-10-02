@@ -7,5 +7,8 @@ dependencies {
 
     rootProject.childProjects.values
         .filter { it.name.endsWith("-service") }
-        .forEach { implementation(project(":" + it.name)) }
+        .forEach {
+            implementation(project(":" + it.name))
+            implementation(project(":" + it.name + ":api"))
+        }
 }

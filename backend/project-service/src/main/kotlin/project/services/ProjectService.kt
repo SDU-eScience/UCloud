@@ -664,14 +664,23 @@ class ProjectService(
     ) {
         ctx.withSession { session ->
             requireAdmin(session, projectId, actor)
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("project", projectId)
-                    setParameter("newTitle", newTitle)
-                },
-                """update projects set title = :newTitle where id = :project"""
-            )
+            try {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("project", projectId)
+                        setParameter("newTitle", newTitle)
+                    },
+                    """update projects set title = :newTitle where id = :project """
+                )
+            } catch (ex: GenericDatabaseException) {
+                when (ex.errorCode) {
+                    "23505" -> throw RPCException.fromStatusCode(
+                        HttpStatusCode.Conflict,
+                        "Project with title $newTitle already exists"
+                    )
+                    else -> throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                }
+            }
         }
     }
 

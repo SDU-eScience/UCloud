@@ -2,6 +2,7 @@ package dk.sdu.cloud.avatar.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -43,6 +44,8 @@ data class FindBulkRequest(
 data class FindBulkResponse(
     val avatars: Map<String, SerializedAvatar>
 )
+
+typealias Avatars = AvatarDescriptions
 
 object AvatarDescriptions : CallDescriptionContainer("avatar") {
     val baseContext = "/api/avatar"

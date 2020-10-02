@@ -1,6 +1,9 @@
-:orphan:
-
 # Projects
+
+.. toctree::
+  :hidden:
+    
+  ../project-repository-service/README.md
 
 The projects feature allow for collaboration between different users across the entire UCloud platform.
 
@@ -10,7 +13,7 @@ changes. Other services extend the projects feature and subscribe to these chang
 ## Definition
 
 A project in UCloud is a collection of `members` which is uniquely identified by an `id`. All `members` are 
-[users](../auth-service) identified by their `username` and have exactly one `role`. A user always has exactly one
+[users](../auth-service/README.md) identified by their `username` and have exactly one `role`. A user always has exactly one
 `role`. Each project has exactly one principal investigator (`PI`). The `PI` is responsible for managing the project,
 including adding and removing users.
 
@@ -92,7 +95,7 @@ implement(Descriptions.call) {
 - [Project Repositories](../project-repository-service/README.md): Learn about
   how projects interact with the storage of UCloud.
 - [Accounting](../accounting-service/README.md): Learn how subprojects and accounting of resources work.
-- [Grant Applications](../grant-service): Learn how end-users can create projects.
+- [Grant Applications](../grant-service/README.md): Learn how end-users can create projects.
 
 ## Internal Documentation
 

@@ -40,7 +40,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
                 refreshToken != null -> {
                     RefreshingJWTAuthenticator(
-                        serviceClient.client,
+                        micro.client,
                         refreshToken,
                         micro.tokenValidation as TokenValidationJWT
                     ).authenticateClient(OutgoingHttpCall)

@@ -1,6 +1,9 @@
-:orphan:
+# Compute Orchestrator
 
-# App Services 
+.. toctree::
+  :hidden:
+  
+  K8 backend <../app-kubernetes-service/README.md>
 
 The application orchestrator uses the `app-store-service` to implement the
 execution of jobs (an application + user input). In many ways the application
@@ -14,9 +17,7 @@ this service is to ensure that all user requests are validated before they
 are forwarded. This hugely simplifies backend implementation and makes it easier
 to create different implementations.
 
-.. figure:: /backend/app-orchestrator-service/wiki/schedule.png
-   :width: 30%
-   :align: center
+![](./wiki/schedule.png)
 
 **Figure:** The end-user sends commands to the `app-service`. Commands are
 validated and transformed into useful commands for the computation backend.
@@ -39,7 +40,7 @@ all are the input values required by the application.
 
 ## Container Environment
 
-See [app-kubernetes](backend/app-kubernetes-service/README.html) for more information.
+See [app-kubernetes](../app-kubernetes-service/README.md) for more information.
 
 ## Multi-Node Applications
 

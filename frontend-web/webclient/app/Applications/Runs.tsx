@@ -175,10 +175,10 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                     select={() => props.checkAnalysis(it.jobId, !it.checked)}
                                     left={<Text cursor="pointer">{it.name ? it.name : shortUUID(it.jobId)}</Text>}
                                     leftSub={<>
-                                        <ListRowStat color={"gray"} icon={"id"}>
+                                        <ListRowStat color="gray" icon="id">
                                             {it.metadata.title} v{it.metadata.version}
                                         </ListRowStat>
-                                        <ListRowStat color={"gray"} color2={"gray"} icon={"chrono"}>
+                                        <ListRowStat color="gray" color2="gray" icon="chrono">
                                             Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}
                                         </ListRowStat>
                                         {!it.creditsCharged ? null : (
@@ -215,7 +215,8 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
     const [firstDate, setFirstDate] = React.useState<Date | null>(null);
     const [secondDate, setSecondDate] = React.useState<Date | null>(null);
 
-    const appStates = Object.keys(JobState).map(it => ({text: prettierString(it), value: it}));
+    const appStates = Object.keys(JobState)
+        .filter(it => it !== "CANCELLING").map(it => ({text: prettierString(it), value: it}));
     appStates.push(defaultFilter);
 
     function fetchJobsInRange(minDate: Date | null, maxDate: Date | null) {

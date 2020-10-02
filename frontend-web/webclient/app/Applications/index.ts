@@ -180,16 +180,17 @@ export interface RunAppState {
     reservationMachine?: Product;
     balance: number;
     inlineError?: string;
+    errorCode?: string;
 }
 
 export interface RunOperations extends SetStatusLoading {
-    updatePageTitle: () => void;
+    onInit: () => void;
 }
 
 export interface RunAppProps extends RunOperations {
     match: match<{appName: string; appVersion: string}>;
     history: History;
-    updatePageTitle: () => void;
+    onInit: () => void;
     project?: string;
 }
 

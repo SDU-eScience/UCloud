@@ -1,6 +1,4 @@
-:orphan:
-
-# Authentication Service
+# Authentication
 
 ## Authenticating with UCloud
 
@@ -36,12 +34,12 @@ user.
 Currently no password policy is implemented.
 
 Login attempts are logged through normal
-[auditing](backend/service-common/wiki/auditing.html). We limit
+[auditing](../service-common/wiki/auditing.md). We limit
 number of incorrect login attempts according to the following [recommendations](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#account-lockout).
 
 Passwords are stored following recommendations by
 [OWASP](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Password_Storage_Cheat_Sheet.md).
-Password hashing is provided via OpenJDK8. Specifically we use
+Password hashing is provided via OpenJDK 11. Specifically we use
 `PBKDF2WithHmacSHA512` with the following parameters:
 
 - Salt length: 16 bytes (Generated via `SecureRandom`)
@@ -186,7 +184,7 @@ one-time token to mitigate the dangers of doing this.
 
 These properties are related to the authorization mechanisms of UCloud.
 This is tightly related to how the RPC layer is defined. This is described
-further in [Auditing](backend/service-common/wiki/auditing.html) and [Writing Service Interface](backend/service-common/wiki/writing_service_interfaces.html).
+further in [Auditing](../service-common/wiki/auditing.md) and [Writing Service Interface](backend/service-common/wiki/writing_service_interfaces.html).
 
 | **Property** | **Description**                                             |
 | -------- | ------------------------------------------------------- |

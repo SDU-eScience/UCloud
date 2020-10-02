@@ -25,6 +25,6 @@ The table below defines the unit for each product areas:
 
 Microservices, which provide a product, can _reserve_ credits from a wallet. This will create a `Transaction` entry
 with `isReservation = true`. The system will check, during the reservation, that enough credits are available in the
-local `Wallet`, as well as all parent `Wallet`s. Click [here](../README.html) for an example of limit checking. The 
+local `Wallet`, as well as all parent `Wallet`s. Click [here](../README.md) for an example of limit checking. The 
 `amount` from the `Transaction` is deducted from the `balance` when it is _charged_.
 

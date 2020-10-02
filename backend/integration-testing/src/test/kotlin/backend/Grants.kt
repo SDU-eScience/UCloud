@@ -43,7 +43,8 @@ suspend fun allowGrantsFrom(projectId: String, piClient: AuthenticatedClient, cr
     Grants.uploadRequestSettings.call(
         UploadRequestSettingsRequest(
             currentSettings.automaticApproval,
-            currentSettings.allowRequestsFrom + listOf(criteria)
+            currentSettings.allowRequestsFrom + listOf(criteria),
+            currentSettings.excludeRequestsFrom
         ),
         piClient.withProject(projectId)
     ).orThrow()

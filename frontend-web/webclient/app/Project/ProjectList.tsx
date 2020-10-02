@@ -138,8 +138,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             onClick: (projects) => dialogStore.addDialog(
                 <ArchiveProject
                     onSuccess={() => {
-                        dialogStore.success()
-                        setSelectedProjects(new Set())
+                        dialogStore.success();
+                        setSelectedProjects(new Set());
                         reload();
                     }}
                     projects={projects}
@@ -291,21 +291,21 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         onClick={() => {
                                             if (props.project !== undefined && props.project !== "") {
                                                 props.setProject();
-                                                snackbarStore.addInformation("Personal project is now the active.", false);
+                                                snackbarStore.addInformation("Personal workspace is now the active.", false);
                                             }
                                         }}
-                                        height="45px"
                                     >
                                         <Link to="/project/dashboard">
-                                            Personal project
+                                            My Workspace
                                         </Link>
                                     </Box>
                                 </>
                             }
+                            leftSub={<div />}
                             right={<Flex alignItems="center" height="36.25px">
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
                                     if (!props.project) return;
-                                    snackbarStore.addInformation("Personal project is now the active.", false);
+                                    snackbarStore.addInformation("Personal workspace is now the active.", false);
                                     props.setProject();
                                 }} />
                                 {selectedProjects.size === 0 && projectOperations.length > 0 ?
@@ -328,7 +328,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 favorite: false,
                                                 needsVerification: false,
                                                 projectId: "",
-                                                title: "Personal Project",
+                                                title: "My Workspace",
                                                 whoami: {role: ProjectRole.ADMIN, username: Client.username!}
                                             }]}
                                             projectOperations={personalProjectOperations}
@@ -387,6 +387,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         else selectedProjects.add(e.projectId);
                         setSelectedProjects(new Set(selectedProjects));
                     }}
+                    truncateWidth={e.needsVerification ? "300px" : "250px"}
                     isSelected={selectedProjects.has(e.projectId)}
                     icon={
                         <Box mt="-6px">
@@ -401,35 +402,32 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         </Box>
                     }
                     left={
-                        <>
-                            <Box
-                                test-tag={e.projectId}
-                                onClick={() => {
-                                    if (e.projectId !== props.project) {
-                                        props.setProject(e.projectId);
-                                        snackbarStore.addInformation(
-                                            `${e.title} is now the active project`,
-                                            false
-                                        );
-                                    }
-                                }}
-                                height="30px"
-                            >
-                                <Link to="/project/dashboard">
-                                    {e.title}{e.archived ?
-                                        <Icon
-                                            ml="6px"
-                                            name={"tags"}
-                                            hoverColor={"black"}
-                                        /> : null
-                                    }
-                                </Link>
-                            </Box>
-                        </>
+                        <Link to="/project/dashboard" color={e.archived ? "darkGray" : "text"}>
+                            {e.title}
+                        </Link>
                     }
                     leftSub={<Text color="gray" fontSize={0}>{e.ancestorPath ? e.ancestorPath + "/" : null}</Text>}
                     right={
                         <Flex alignItems="center" height="36.25px">
+                            {e.archived ?
+                                <Tooltip
+                                    tooltipContentWidth="80px"
+                                    wrapperOffsetLeft="0"
+                                    wrapperOffsetTop="4px"
+                                    right="0"
+                                    top="1"
+                                    mb="50px"
+                                    trigger={(
+                                        <Icon
+                                            mr={8}
+                                            name={"tags"}
+                                            color={"gray"}
+                                        />
+                                    )}
+                                >
+                                    <Text fontSize={2}>Archived</Text>
+                                </Tooltip>
+                                : null}
                             {!e.needsVerification ? null : (
                                 <Text fontSize={0} mr={8}>
                                     <Icon name={"warning"} /> Attention required
@@ -471,7 +469,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 }}
                             />
                             {selectedProjects.size === 0 && projectOperations.length > 0 ? (
-                                <div onClick={stopPropagation}>
+                                <div data-tag="project-dropdown" onClick={stopPropagation}>
                                     <ClickableDropdown
                                         width="125px"
                                         left="-105px"

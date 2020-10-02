@@ -69,6 +69,74 @@ export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean
 
 const wayfIdpsPairs = wayfIdps.map(it => ({value: it, content: it}));
 
+export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
+    const {projectId} = useProjectManagementStatus({isRootComponent: false});
+    const [, runWork] = useAsyncCommand();
+    const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
+        {noop: true},
+        {enabled: false}
+    );
+    const [description, fetchDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+        retrieveDescription({projectId}),
+        {description: ""}
+    );
+    const descriptionField = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        fetchEnabled((externalApplicationsEnabled({projectId})));
+        fetchDescription(retrieveDescription({projectId}));
+    }, [projectId]);
+
+    useEffect(() => {
+        if (descriptionField.current) {
+            descriptionField.current.value = description.data.description;
+        }
+    }, [descriptionField, description]);
+
+    const onUploadDescription = useCallback(async () => {
+        await runWork(uploadDescription({
+            description: descriptionField.current!.value,
+            projectId
+        }));
+        fetchDescription(retrieveDescription({
+            projectId
+        }));
+    }, [projectId, descriptionField, description]);
+
+    const [, setLogoCacheBust] = useState("" + Date.now());
+
+    if (!enabled.data.enabled) return null;
+    return <Box>
+        <Heading.h4>Logo for Project</Heading.h4>
+        Current Logo: <Logo projectId={projectId} size={"40px"}/> <br/>
+        <Button width={"350px"} as="label">
+            Upload Logo
+            <HiddenInputField
+                type="file"
+                onChange={async e => {
+                    const target = e.target;
+                    if (target.files) {
+                        const file = target.files[0];
+                        target.value = "";
+                        if (file.size > 1024 * 512) {
+                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                        } else {
+                            if (await uploadProjectLogo({file, projectId: projectId})) {
+                                setLogoCacheBust("" + Date.now());
+                                snackbarStore.addSuccess("Logo changed, refresh to see changes", false);
+                            }
+                        }
+                        dialogStore.success();
+                    }
+                }}
+            />
+        </Button>
+        <Divider/>
+        <Heading.h4>Description for Project</Heading.h4>
+        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription}/>
+    </Box>
+}
+
 export const GrantProjectSettings: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: false});
     const [, runWork] = useAsyncCommand();
@@ -78,7 +146,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     );
     const [settings, fetchSettings] = useCloudAPI<ProjectGrantSettings>(
         {noop: true},
-        {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}}
+        {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
     );
 
     const [products, fetchProducts] = useCloudAPI<RetrieveFromProviderResponse>(
@@ -91,22 +159,14 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         {existingProject: "", newProject: "", personalProject: ""}
     );
 
-    const [description, fetchDescription] = useCloudAPI<RetrieveDescriptionResponse>(
-        retrieveDescription({projectId}),
-        {description: ""}
-    );
-
     const templatePersonal = useRef<HTMLTextAreaElement>(null);
     const templateExisting = useRef<HTMLTextAreaElement>(null);
     const templateNew = useRef<HTMLTextAreaElement>(null);
-
-    const descriptionField = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
         fetchSettings(readGrantRequestSettings({projectId}));
         fetchTemplates(readTemplates({projectId}));
-        fetchDescription(retrieveDescription({projectId}));
     }, [projectId]);
 
     useEffect(() => {
@@ -119,10 +179,8 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         if (templateNew.current) {
             templateNew.current.value = templates.data.newProject;
         }
-        if (descriptionField.current) {
-            descriptionField.current.value = description.data.description;
-        }
-    }, [templates, templatePersonal, templateExisting, templateNew, descriptionField, description]);
+
+    }, [templates, templatePersonal, templateExisting, templateNew]);
 
     const onUploadTemplate = useCallback(async () => {
         await runWork(uploadTemplates({
@@ -133,15 +191,19 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         fetchTemplates(readTemplates({projectId}));
     }, [templates, templatePersonal, templateExisting, templateNew, projectId]);
 
-    const onUploadDescription = useCallback(async () => {
-        await runWork(uploadDescription({
-            description: descriptionField.current!.value,
-            projectId
-        }));
-        fetchDescription(retrieveDescription({
-            projectId
-        }));
-    }, [projectId, descriptionField, description]);
+    const addExcludeFrom = useCallback(async (criteria: UserCriteria) => {
+        const settingsCopy = {...settings.data};
+        settingsCopy.excludeRequestsFrom.push(criteria);
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
+
+    const removeExcludeFrom = useCallback(async (idx: number) => {
+        const settingsCopy = {...settings.data};
+        settingsCopy.excludeRequestsFrom.splice(idx, 1);
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
 
     const addAllowFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
@@ -171,44 +233,23 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
-    const [, setLogoCacheBust] = useState("" + Date.now());
-
     if (!enabled.data.enabled) return null;
-
     return <Box>
-        <Heading.h4>Logo for Project</Heading.h4>
-        Current Logo: <Logo projectId={projectId} size={"40px"} /> <br />
-        <Button width={"350px"} as="label">
-            Upload Logo
-            <HiddenInputField
-                type="file"
-                onChange={async e => {
-                    const target = e.target;
-                    if (target.files) {
-                        const file = target.files[0];
-                        target.value = "";
-                        if (file.size > 1024 * 512) {
-                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                        } else {
-                            if (await uploadProjectLogo({file, projectId: projectId})) {
-                                setLogoCacheBust("" + Date.now());
-                                snackbarStore.addSuccess("Logo changed, refresh to see changes", false);
-                            }
-                        }
-                        dialogStore.success();
-                    }
-                }}
-            />
-        </Button>
-        <Divider/>
-        <Heading.h4>Description for Project</Heading.h4>
-        <DescriptionEditor templateDescription={descriptionField} onUploadDescription={onUploadDescription} />
+        <Heading.h3 id={"AppGrantSettings"}>Application Settings</Heading.h3>
         <Divider/>
         <Heading.h4>Allow Grant Applications From</Heading.h4>
         <UserCriteriaEditor
             criteria={settings.data.allowRequestsFrom}
             onSubmit={addAllowFrom}
             onRemove={removeAllowFrom}
+            showSubprojects={true}
+        />
+
+        <Heading.h4>Exclude Grant Applications From</Heading.h4>
+        <ExcludeListEditor
+            criteria={settings.data.excludeRequestsFrom}
+            onSubmit={addExcludeFrom}
+            onRemove={removeExcludeFrom}
             showSubprojects={true}
         />
 
@@ -344,6 +385,60 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
     </Grid>;
 };
 
+const ExcludeListEditor: React.FunctionComponent<{
+    onSubmit: (c: UserCriteria) => any,
+    onRemove: (idx: number) => any,
+    criteria: UserCriteria[],
+    showSubprojects: boolean
+}> = props => {
+    const [showRequestFromEditor, setShowRequestFromEditor] = useState<boolean>(false);
+    return <>
+        <Table mb={16}>
+            <thead>
+            <TableRow>
+                <TableHeaderCell textAlign={"left"}>Email Domain</TableHeaderCell>
+                <TableHeaderCell />
+            </TableRow>
+            </thead>
+            <tbody>
+            {props.criteria.length === 0 && !showRequestFromEditor ? <>
+                <TableRow>
+                    <TableCell>No exclusions yet</TableCell>
+                    <TableCell />
+                </TableRow>
+            </> : null}
+
+            {props.criteria.map((it, idx) => <>
+                <TableRow>
+                    <TableCell textAlign={"left"}>
+                        {it.type === "email" ? it.domain : null}
+                    </TableCell>
+                    <TableCell textAlign={"right"}>
+                        <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
+                    </TableCell>
+                </TableRow>
+            </>)}
+            {showRequestFromEditor ?
+                <UserExclusionRowEditor
+                    onSubmit={(c) => {
+                        props.onSubmit(c);
+                        setShowRequestFromEditor(false);
+                    }}
+                    onCancel={() => setShowRequestFromEditor(false)}
+                /> :
+                null
+            }
+            </tbody>
+        </Table>
+        <Flex justifyContent={"center"} mb={32}>
+            {!showRequestFromEditor ?
+                <Button width={450} onClick={() => setShowRequestFromEditor(true)}>Add new row</Button> :
+                null
+            }
+        </Flex>
+    </>;
+};
+
 const UserCriteriaEditor: React.FunctionComponent<{
     onSubmit: (c: UserCriteria) => any,
     onRemove: (idx: number) => any,
@@ -424,6 +519,39 @@ function userCriteriaTypePrettifier(t: string): string {
             return t;
     }
 }
+
+const UserExclusionRowEditor: React.FunctionComponent<{
+    onSubmit: (c: UserCriteria) => any,
+    onCancel: () => void,
+}> = props => {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const onClick = useCallback((e) => {
+        e.preventDefault();
+        if (inputRef.current!.value.indexOf(".") === -1 || inputRef.current!.value.indexOf(" ") !== -1) {
+            snackbarStore.addFailure("This does not look like a valid email domain. Try again.", false);
+            return;
+        }
+        if (inputRef.current!.value.indexOf("@") !== -1) {
+            snackbarStore.addFailure("Only the domain should be added. Example: 'sdu.dk'.", false);
+            return;
+        }
+        const domain = inputRef.current!.value;
+        props.onSubmit({type: "email", domain});
+    }, [props.onSubmit]);
+
+    return <TableRow>
+        <TableCell>
+            <form onSubmit={onClick}>
+                <Flex height={47}>
+                    <Input ref={inputRef} placeholder={"Email domain"} />
+                    <ConfirmCancelButtons height={"unset"} onConfirm={onClick} onCancel={props.onCancel} />
+                </Flex>
+            </form>
+        </TableCell>
+        <TableCell />
+    </TableRow>;
+};
+
 
 const UserCriteriaRowEditor: React.FunctionComponent<{
     onSubmit: (c: UserCriteria) => any,

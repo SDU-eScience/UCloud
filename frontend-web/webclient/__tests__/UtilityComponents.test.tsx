@@ -105,7 +105,7 @@ describe("Dialogs", () => {
     test("Add sensitivity dialog", () => {
         let dialogCount = 0;
         dialogStore.subscribe(dialogs => dialogCount = dialogs.length);
-        sensitivityDialog();
+        sensitivityDialog([null]);
         expect(dialogCount).toBe(1);
         dialogStore.failure();
         expect(dialogCount).toBe(0);

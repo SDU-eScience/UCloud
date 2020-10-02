@@ -659,6 +659,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
 
             params {
                 +boundTo(RetrieveQuotaRequest::path)
+                +boundTo(RetrieveQuotaRequest::includeUsage)
             }
         }
     }

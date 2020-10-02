@@ -148,7 +148,8 @@ data class AutomaticApprovalSettings(
  */
 data class ProjectApplicationSettings(
     val automaticApproval: AutomaticApprovalSettings,
-    val allowRequestsFrom: List<UserCriteria>
+    val allowRequestsFrom: List<UserCriteria>,
+    val excludeRequestsFrom: List<UserCriteria>
 )
 
 typealias UploadRequestSettingsRequest = ProjectApplicationSettings

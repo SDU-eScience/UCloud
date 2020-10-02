@@ -51,7 +51,7 @@ function createCSS() {
 }
 
 const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
-    <HexSpinWrapper width={size} height={size} >
+    <HexSpinWrapper data-tag="loading-spinner" width={size} height={size} >
         <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlnsXlink="http://www.w3.org/1999/xlink"

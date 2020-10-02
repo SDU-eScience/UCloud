@@ -19,6 +19,7 @@ import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Hide, List} fro
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {Step, StepGroup} from "ui-components/Step";
 import {TextSpan} from "ui-components/Text";
@@ -54,6 +55,8 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 
     const jobId = props.match.params.jobId;
     const outputFolder = jobWithStatus?.outputFolder ?? "";
+
+    useSidebarPage(SidebarPages.Runs);
 
     async function fetchJob(): Promise<void> {
         try {
@@ -198,7 +201,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 
                     <Panel width={1}>
                         <Heading.h4>Job Information</Heading.h4>
-                        <Card height="auto" p="14px 14px 14px 14px">
+                        <Card borderRadius="6px" height="auto" p="14px 14px 14px 14px">
                             <List>
                                 {jobWithStatus === null || jobWithStatus.name === null ? null : (
                                     <InfoBox><b>Name:</b> {jobWithStatus.name}</InfoBox>

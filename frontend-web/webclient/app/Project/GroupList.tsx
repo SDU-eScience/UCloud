@@ -9,7 +9,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
-import {addStandardDialog, ConfirmCancelButtons} from "UtilityComponents";
+import {addStandardDialog, ConfirmCancelButtons, NamingField} from "UtilityComponents";
 import {KeyCode} from "DefaultObjects";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -233,54 +233,6 @@ const GroupList: React.FunctionComponent = () => {
         setRenamingGroup(null);
         snackbarStore.addSuccess("Project group renamed", true);
     }
-};
-
-const NamingField: React.FunctionComponent<{
-    onCancel: () => void;
-    confirmText: string;
-    inputRef: MutableRefObject<HTMLInputElement | null>;
-    onSubmit: (e: React.SyntheticEvent) => void;
-    defaultValue?: string;
-}> = props => {
-    const submit = useCallback((e) => {
-        e.preventDefault();
-        props.onSubmit(e);
-    }, [props.onSubmit]);
-
-    const keyDown = useCallback((e) => {
-        if (e.keyCode === KeyCode.ESC) {
-            props.onCancel();
-        }
-    }, [props.onCancel]);
-
-    return (
-        <form onSubmit={submit}>
-            <Flex>
-                <Input
-                    pt="0px"
-                    pb="0px"
-                    pr="0px"
-                    pl="0px"
-                    noBorder
-                    defaultValue={props.defaultValue ? props.defaultValue : ""}
-                    fontSize={20}
-                    maxLength={1024}
-                    onKeyDown={keyDown}
-                    borderRadius="0px"
-                    type="text"
-                    width="100%"
-                    autoFocus
-                    ref={props.inputRef}
-                />
-                <ConfirmCancelButtons
-                    confirmText={props.confirmText}
-                    cancelText="Cancel"
-                    onConfirm={submit}
-                    onCancel={props.onCancel}
-                />
-            </Flex>
-        </form>
-    );
 };
 
 type GroupOperation = Operation<GroupWithSummary>;

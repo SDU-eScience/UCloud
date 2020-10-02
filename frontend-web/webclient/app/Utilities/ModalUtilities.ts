@@ -1,5 +1,6 @@
 export const defaultModalStyle = {
     content: {
+        borderRadius: "6px",
         top: "50%",
         left: "50%",
         right: "auto",

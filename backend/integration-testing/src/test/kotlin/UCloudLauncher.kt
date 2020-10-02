@@ -47,6 +47,7 @@ import dk.sdu.cloud.project.ProjectService
 import dk.sdu.cloud.project.repository.ProjectRepositoryService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -394,6 +395,11 @@ object UCloudLauncher : Loggable {
 
         TestDB.dbSessionFactory("public").withSession { session ->
             session.sendQuery("select truncate_tables()")
+        }
+
+        SimpleCache.allCachesOnlyForTestingPlease.forEach {
+            val cache = it.get()
+            cache?.clearAll()
         }
 
         TestDB.dbSessionFactory("auth").withSession { session ->
