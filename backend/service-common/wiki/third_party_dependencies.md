@@ -209,6 +209,33 @@ __Assessment:__
 
 Gradle is a build tool which is recommended in many parts of the official Kotlin documentation.
 
+## Jenkins
+
+- __Website:__ https://www.jenkins.io/
+- __Short description:__ Automation server which powers our CI/CD system
+- __Described in:__ [CI/CD](../../../infrastructure/wiki/Jenkins.md)
+
+__Assessment:__
+
+- __How essential is the dependency for UCloud?__ 3
+- __How essential is knowledge of the system to develop UCloud?__ 1
+- __Difficulty of migrating to an alternative technology:__ 2
+- __Likelihood of the dependency getting discontinued in the coming 5 years:__ 1
+
+## Rancher
+
+- __Website:__ https://rancher.com/
+- __Short description:__ Manages our Kubernetes clusters
+- __Described in:__ [Deployment procedures](./deployment.md)
+
+__Assessment:__
+
+- __How essential is the dependency for UCloud?__ 2
+- __How essential is knowledge of the system to develop UCloud?__ 2
+- __Difficulty of migrating to an alternative technology:__ 3
+- __Alternative technologies:__ Bare-metal Kubernetes deployment/OpenShift
+- __Likelihood of the dependency getting discontinued in the coming 5 years:__ 2
+
 ## Frontend
 
 ### Styled Components
@@ -222,7 +249,6 @@ __Assessment:__
 - __How essential is the dependency for UCloud?__ 4
 - __How essential is knowledge of the system to develop UCloud?__ 4
 - __Difficulty of migrating to an alternative technology:__ 3
-- __Alternative technologies:__ (If relevant) We could use ...
 - __Likelihood of the dependency getting discontinued in the coming 5 years:__ 2
 
 Styled components is a hugely popular JavaScript library for CSS in JS. Their webpage lists many large companies as
@@ -257,6 +283,32 @@ __Assessment:__
 - __Likelihood of the dependency getting discontinued in the coming 5 years:__ 2
 
 ### Webpack
+
+- __Website:__ https://webpack.js.org/
+- __Short description:__ Static module bundler for JavaScript applications.
+- __Described in:__ [Frontend README](../../../frontend-web/README.md)
+
+__Assessment:__
+
+- __How essential is the dependency for UCloud?__ 4
+- __How essential is knowledge of the system to develop UCloud?__ 3
+- __Difficulty of migrating to an alternative technology:__ 3
+- __Likelihood of the dependency getting discontinued in the coming 5 years:__ 1
+
+WebPack development is [sponsered](https://webpack.js.org/) by several large companies.
+
+### TypeScript
+
+- __Website:__ https://www.typescriptlang.org/
+- __Short description:__ The entire frontend of UCloud is developed in the TypeScript.
+- __Described in:__ [Frontend README](../../../frontend-web/README.md)
+
+__Assessment:__
+
+- __How essential is the dependency for UCloud?__ 5
+- __How essential is knowledge of the system to develop UCloud?__ 5
+- __Difficulty of migrating to an alternative technology:__ 5
+- __Likelihood of the dependency getting discontinued in the coming 5 years:__ 1
 
 ### Redux
 
