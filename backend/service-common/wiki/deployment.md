@@ -38,7 +38,7 @@ includes the automatic building of Docker containers.
 ## Procedure and Backwards Compatibility
 
 Containers are built and tested by our CI/CD pipeline. See the CI/CD section
-in [Getting Started](./getting_started.md).
+in [Getting Started](first_service.md).
 
 Under normal conditions, before deploying a new version you must ensure that
 the software checks every mark in the following list:
