@@ -271,13 +271,10 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     );
 
     useEffect(() => {
-        console.log(props.projectDetails.parent)
         if (props.projectDetails.parent !== undefined) {
             setAllowRenaming(getRenamingStatus({projectId: props.projectDetails.parent}))
         }
     }, [props.projectId]);
-    console.log(allowRenaming)
-
     return (
             <Box flexGrow={1}>
                 <form onSubmit={async e => {
