@@ -1,4 +1,4 @@
-# Resource Request/Applying for Resources - Design Document
+# Grants
 
 All projects are able to _request resources_ from their parents, in the case of a personal project they must select
 the project they wish to apply to. All individual users are able to _apply for resources_ from a project. This allows

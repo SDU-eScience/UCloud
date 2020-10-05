@@ -387,6 +387,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         else selectedProjects.add(e.projectId);
                         setSelectedProjects(new Set(selectedProjects));
                     }}
+                    truncateWidth={e.needsVerification ? "300px" : "250px"}
                     isSelected={selectedProjects.has(e.projectId)}
                     icon={
                         <Box mt="-6px">
@@ -401,25 +402,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         </Box>
                     }
                     left={
-                        <>
-                            <Box
-                                test-tag={e.projectId}
-                                onClick={() => {
-                                    if (e.projectId !== props.project) {
-                                        props.setProject(e.projectId);
-                                        snackbarStore.addInformation(
-                                            `${e.title} is now the active project`,
-                                            false
-                                        );
-                                    }
-                                }}
-                                height="30px"
-                            >
-                                <Link to="/project/dashboard" color={e.archived ? "darkGray" : "black"}>
-                                    {e.title}
-                                </Link>
-                            </Box>
-                        </>
+                        <Link to="/project/dashboard" color={e.archived ? "darkGray" : "text"}>
+                            {e.title}
+                        </Link>
                     }
                     leftSub={<Text color="gray" fontSize={0}>{e.ancestorPath ? e.ancestorPath + "/" : null}</Text>}
                     right={
@@ -442,7 +427,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 >
                                     <Text fontSize={2}>Archived</Text>
                                 </Tooltip>
-                            : null}
+                                : null}
                             {!e.needsVerification ? null : (
                                 <Text fontSize={0} mr={8}>
                                     <Icon name={"warning"} /> Attention required

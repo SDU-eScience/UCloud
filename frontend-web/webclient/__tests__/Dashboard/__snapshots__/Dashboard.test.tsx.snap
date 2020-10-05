@@ -194,6 +194,12 @@ exports[`Dashboard Dashboard mount 1`] = `
   cursor: inherit;
 }
 
+.c23 {
+  cursor: inherit;
+  font-size: 14px;
+  color: #53657d;
+}
+
 .c9 {
   cursor: pointer;
   -webkit-text-decoration: none;
@@ -229,6 +235,38 @@ exports[`Dashboard Dashboard mount 1`] = `
   border-bottom: 0px;
 }
 
+.c24 {
+  background-color: #fff;
+  border: 0px;
+  border-spacing: 0;
+  table-layout: fixed;
+  width: 100%;
+  min-width: 15em;
+  background-color: #fff;
+}
+
+.c27 {
+  border: 0px;
+  border-spacing: 0;
+}
+
+.c28 {
+  border: 0px;
+  border-spacing: 0;
+  text-align: right;
+}
+
+.c25 {
+  cursor: pointer;
+}
+
+.c25 > .c26 {
+  border-spacing: 0;
+  border-top: 1px solid rgba(34,36,38,.1);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 @media screen and (min-width:768px) and (max-width:1023px) {
   .c2 {
     display: none;
@@ -257,7 +295,7 @@ exports[`Dashboard Dashboard mount 1`] = `
       className="c2"
     />
     <div
-      className="c3 "
+      className="c3"
       width="100%"
     >
       <div
@@ -800,6 +838,119 @@ exports[`Dashboard Dashboard mount 1`] = `
               </a>
             </div>
           </div>
+        </div>
+      </div>
+      <div
+        className="c4 c5"
+        height="auto"
+        onClick={[Function]}
+        overflow="hidden"
+        width={1}
+      >
+        <div
+          className=""
+          style={
+            Object {
+              "borderTop": "5px solid var(--yellow, #f00)",
+            }
+          }
+        />
+        <div
+          className="c6"
+          height="100%"
+        >
+          <div
+            className="c7"
+          >
+            <svg
+              className="c8"
+              clipRule="evenodd"
+              color="#53657d"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height="20"
+              m={8}
+              ml={0}
+              viewBox="0 0 16 24"
+              width="20"
+            >
+              <path
+                d="M1.501 0a1.5 1.5 0 00-1.5 1.5v4.718A2 2 0 00.647 7.69L5.332 12 .645 16.32a2 2 0 00-.644 1.47V22.5a1.5 1.5 0 001.5 1.5h13a1.5 1.5 0 001.5-1.5V17.79a2 2 0 00-.644-1.47L10.67 12l4.685-4.31a2 2 0 00.646-1.472V1.5a1.5 1.5 0 00-1.5-1.5h-13zm11.831 17.532v4.125H2.67v-4.125L8 12.617l5.331 4.915zm-5.331-6.144L2.67 6.473V2.284h10.668v4.183l-5.337 4.921z"
+                fillRule="nonzero"
+              />
+              <path
+                d="M2.67 6.472l10.669-.006L8 11.388 2.67 6.472zM2.67 18.533h10.662v3.125H2.67z"
+                fill="currentcolor"
+              />
+              <path
+                d="M8 12.618l1 6.915H7l1-6.915z"
+                fill="currentcolor"
+              />
+            </svg>
+            <a
+              className="c9"
+              color="text"
+              href="/app/project/usage"
+              onClick={[Function]}
+            >
+              <h3
+                className="c10"
+                cursor="inherit"
+                fontSize={4}
+              >
+                Usage
+              </h3>
+            </a>
+            <div
+              className="c11"
+            />
+          </div>
+          <div
+            className="c23"
+            color="darkGray"
+            cursor="inherit"
+            fontSize={1}
+          >
+            Past 30 days
+          </div>
+          <table
+            className="c24"
+            width="100%"
+          >
+            <tbody>
+              <tr
+                className="c25"
+                cursor="pointer"
+              >
+                <td
+                  className="c26 c27"
+                >
+                  Storage
+                </td>
+                <td
+                  className="c26 c28"
+                >
+                  0 DKK
+                </td>
+              </tr>
+              <tr
+                className="c25"
+                cursor="pointer"
+              >
+                <td
+                  className="c26 c27"
+                >
+                  Compute
+                </td>
+                <td
+                  className="c26 c28"
+                >
+                  0 DKK
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
       <div

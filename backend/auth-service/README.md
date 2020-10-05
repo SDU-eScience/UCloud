@@ -39,7 +39,7 @@ number of incorrect login attempts according to the following [recommendations](
 
 Passwords are stored following recommendations by
 [OWASP](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Password_Storage_Cheat_Sheet.md).
-Password hashing is provided via OpenJDK8. Specifically we use
+Password hashing is provided via OpenJDK 11. Specifically we use
 `PBKDF2WithHmacSHA512` with the following parameters:
 
 - Salt length: 16 bytes (Generated via `SecureRandom`)

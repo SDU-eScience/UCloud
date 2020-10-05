@@ -3,7 +3,8 @@
 .. toctree::
   :hidden:
   
-  ./wiki/wallets.md   
+  ./wiki/wallets.md
+  ../grant-service/README.md
 
 __Credits__ is the currency used for all payment of compute resources in UCloud. All prices in the UCloud system are
 in an _integer_ amount of credits. Credits are always integer as this allow for more precise calculations. All

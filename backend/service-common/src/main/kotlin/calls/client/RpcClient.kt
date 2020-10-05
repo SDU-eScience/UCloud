@@ -106,10 +106,13 @@ data class ClientAndBackend(
 
 data class AuthenticatedClient(
     val client: RpcClient,
-    val companion: OutgoingCallCompanion<*>,
+    val backend: OutgoingCallCompanion<*>,
     val afterFilters: (suspend (OutgoingCall) -> Unit)? = null,
     val authenticator: suspend (OutgoingCall) -> Unit
 ) {
+    @Deprecated("replaced with backend", ReplaceWith("backend"))
+    val companion: OutgoingCallCompanion<*> get() = backend
+
     companion object {
         fun <Ctx : OutgoingCall, Companion : OutgoingCallCompanion<Ctx>> create(
             client: RpcClient,

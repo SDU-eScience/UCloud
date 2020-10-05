@@ -8,6 +8,7 @@
   ./wiki/permissions.md
   ./wiki/quota.md
   ../share-service/README.md
+  ../webdav-service/README.md
 
 This service implements the underlying file system of UCloud. All access to
 the real data _must_ be verified by this service.  This file system provides 

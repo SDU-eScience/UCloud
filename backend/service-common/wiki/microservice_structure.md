@@ -2,7 +2,7 @@
 
 ![](./structure.png)
 
-**Figure:** The overall structure and internal of a generic UCloud micro-service.
+**Figure:** The overall structure and internals of a generic UCloud micro-service.
 
 ## Components of a Micro-service
 
@@ -62,4 +62,12 @@ use the `Service` instances stored in `Main.kt` to configure routing.
 
 ## Networking and RPC
 
+UCloud has an internal library for exposing type-safe interfaces which can be used for RPC. You can read more about the
+interfaces [here](./micro/rpc.md). The type-safe interfaces are used by both the [client](./micro/rpc_client.md) and
+[server](./micro/rpc_server.md) component of UCloud. This significantly reduces the amount of duplicate code required.
+
 ## Event Streams
+
+UCloud provide [event streams](./micro/events.md) to allow micro-services communication with other services without
+knowing the concrete recipients of the code. This allows for loose-coupling of the services. This is particularly
+useful if a service needs to advertise changes to the core data-model.

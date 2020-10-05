@@ -1,458 +1,300 @@
 # Getting Started
 
-In this guide we will go through creating your first micro-service for UCloud. At the end of this guide you will have 
-created a small Twitter-like service, where users of UCloud can post small messages.
+This document describes how to run services locally, and only how to run them locally. __This is not a guide for running
+UCloud in production.__
 
-We assume that you are already familiar with the
-[Kotlin](https://kotlinlang.org/) programming language.
+## Dependencies 
 
-## Before You Start
+To run services locally, the following should be installed on your
+system:
+ 
+ - Java 11
+   1. Install sdkman: https://sdkman.io/
+   2. `sdk i java 11.0.8.hs-adpt`
+ - kscript
+   - `sdk i kscript`
+ - Docker
+   - macOS: https://www.docker.com/products/docker-desktop
+ - Redis 
+   - Docker: `docker run --name redis -d -p 6379:6379 redis:5.0.9`
+ - Elasticsearch
+   - Docker: `docker run --name elastic -d -p 9200:9200 -e discovery.type=single-node docker.elastic.co/elasticsearch/elasticsearch:7.6.0`
+ - PostgreSQL 10
+   - macOS: https://postgresapp.com/
+ - Kubernetes
+   - Minikube: https://kubernetes.io/docs/tasks/tools/install-minikube/
+     - macOS: `minikube start -p hyperkit --kubernetes-version v1.15.5`
+   
+## Configuring Minikube to Run Applications
 
-We expect that you have the following tools installed:
+You will need to configure minikube to mount the file-system folder which your local instance is using. 
 
-- IntelliJ IDEA (Ultimate or CE)
-- The tools listed [here](./testing_services_locally.md)
+Save the file below as `/tmp/pvcs.yml`:
 
-You should add `infrastructure/scripts` to your `PATH`. Before you can test services you should also follow 
-[this guide](testing_services_locally.md).
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: storage
+spec:
+  capacity:
+    storage: 1000Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath:
+    path: "/hosthome"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs
+  namespace: app-kubernetes
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  volumeName: storage
+  resources:
+    requests:
+      storage: 1000Gi
 
-## Creating the Service
-
-Start by cloning the UCloud repository and running the `create_service.kts` command from the `backend` folder:
-
-```bash
-create_service.kts microblog
 ```
 
-The will create a new folder called `microblog-service`. All micro-services
-in the repository have a `-service` suffix. 
+Then run:
 
-In order to open this in IntelliJ you should select the `backend` project. Make sure to import gradle dependencies
-(you will likely receive a prompt).
-
-The directory you just created contains quite a lot of files. Don't worry though, most of these are boilerplate and 
-rarely need to be changed. The folder should look, roughly, like this:
-
-```text
-microblog-service/
-├── Dockerfile
-├── build.gradle.kts
-├── k8.kts
-├── api/
-└── src
-    ├── main
-    │   ├── kotlin
-    │   │   └── microblog/
-    │   └── resources
-    └── test
-        ├── kotlin
-        │   └── microblog/
-        └── resources
+```
+kubectl --context hyperkit create ns app-kubernetes
+kubectl --context hyperkit create -f /tmp/pvcs.yml
 ```
 
-The most important files are:
+From `sducloud/backend/launcher` run the following command:
 
-- `Dockerfile`: A file which describes how to containerize this micro-service
-- `build.gradle.kts`: Gradle configuration files. Gradle controls the build of our service, including management of code dependencies
-- ``k8.kts``: Contains configuration of `Kubernetes <https://kubernetes.io/>`__ resources
-- `src/`: Contains the source code for this service
-- `src/main/kotlin/`: Contains the implementation of the micro-service.
-- `src/test/kotlin`: Contains test code for this micro-service.
-- `api/`: Subproject containing shared API interfaces of this micro-service
+```
+mkdir -p fs/{home,projects}
+minikube -p hyperkit mount fs/:/hosthome --uid=11042 --gid=11042
+```
+   
+## Preparing Configuration
 
-You will be spending most of your time in `src/main/kotlin` and
-`src/test/kotlin`.
+Create the file `~/sducloud/tokenvalidation.yml` with the following content:
 
-## Understanding the Structure of a UCloud Service
-
-Below we will go through the components of a single micro-service. You don't have to understand it yet. In the next 
-section we will begin implementing our micro-service.
-
-### `Main.kt`
-
-The `Main.kt` file bootstraps the micro-service. They use our own small [Micro](../README.md) framework, which is part 
-of the `service-common` lib. The primary task of Micro is to read configuration and connect to external services 
-(i.e. services we don't write ourselves).
-
-A typical `Main.kt` will initialize Micro, run script handlers, and bootstrap `Server.kt`. A common task in `Main.kt` 
-is also to parse configuration and load other required resources.
-
-### `Server.kt`
-
-The `Server.kt` file bootstrap the micro-service. It will create internal service level code and attach call handlers 
-for the micro-service's RPC interface.
-
-### `api` (RPC Interfaces)
-
-See [Writing Service Interfaces](./writing_service_interfaces.md) for more information.
-
-The `api` package contains RPC interfaces used by other services. If an `api` package depends on external libraries
-then these can be included in api's `build.gradle.kts` by using the `api` target:
-
-```groovy
-dependencies {
-    api(project(":storage-service:api"))
-}
+```yaml
+---
+refreshToken: theverysecretadmintoken
+tokenValidation:
+  jwt:
+    sharedSecret: notverysecret
 ```
 
-### `rpc`
+Create the file `~/sducloud/db.yml` with the following content (note: replace credentials to match your postgres):
 
-The `rpc` package contains a `Controller` class for each `CallDescriptionContainer`. This file should generally avoid
-implementing the underlying business logic but rather only implement the details specific to the RPC medium. The
-remaining work should be delegated to the `services` package.
-
-### `processors` (Event Streams)
-
-The classes in the `processors` package consume messages from event streams. We will not cover this package in this
-guide.
-
-### `services`
-
-The classes in the `services` package implement the business logic of a micro-service. It would be in this package we
-implement code dealing with databases and interacting with other micro-services.
-
-## Implementing the RPC Interface of our Micro Blog
-
-The goal of this guide is to build a small micro-blog. It will contain just two endpoints:
-
-- Create post: An endpoint which allows a user to post a message.
-  We will also allow admins to post "important" posts.
-- List posts: An endpoint which displays all messages along with who posted it.
-
-Note: When creating micro-services in the future we recommended you do exactly this. Start by figuring out which
-messages a micro-service should receive and send. It is easier to create a service once you understand how it will take
-part in the existing ecosystem of services.
-
-The interface of a micro-service is defined in the `api` package. The `create_service.kts` script should have created
-an example interface for you already in `dk.sdu.cloud.microblog.api.MicroBlogs`. All interface definitions
-extend the `CallDescriptionContainer` class. It takes a single argument, this argument should generally match the name
-of the service. This does not affect how your service works, but it does affect how auditing is performed.
-
-Start by defining a new endpoint for creating posts:
-
-```kotlin
-// (1)
-val createPost = call<CreatePostRequest, CreatePostResponse, CommonErrorMessage>("createPost") {
-    // (2)
-    auth {
-        roles = Roles.END_USER // (2a)
-        access = AccessRight.READ_WRITE // (2b)
-    }
-
-    // (3)
-    http {
-        // (3a)
-        method = HttpMethod.Put
-
-        // (3b)
-        path {
-            using(baseContext)
-            +"post"
-        }
-
-        // (3c)
-        body { bindEntireRequestFromBody() }
-    }
-}
+```yaml
+---
+hibernate:
+  database:
+    profile: PERSISTENT_POSTGRES
+    credentials:
+      username: postgres
+      password: postgrespassword
+    logSql: true
 ```
 
-1. We define and export a call description by assigning a variable to the
-   result of `call<Request, Response, ErrorType>(name: String)`.
-   - We use the convention of `<CallName>Request` and `<CallName>Response` for
-     `Request` and `Response` types. This makes it easier find and use the
-     appropriate types.
-2. The `auth {}` block contains information about how authentication should be
-   performed for this endpoint.
-   - The `roles` define who is allowed to access this point. The default value
-     is `Roles.END_USER` this will allow any user authenticated user to use the
-     endpoint.
-   - The `access` define the nature of the call. Calls that only read data
-     (do not modify state) should use `READ`. Calls that modify state should
-     use `READ_WRITE`.
-3. The `http {}` block defines how this call should be invoked via the HTTP
-   protocol. Multiple protocols are supported, but the most common is HTTP.
-   - This call requires the [method](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods) to be `PUT`
-   - The URI must match `${baseContext}/post` (evaluates to
-     `/api/microblog/post`).
-   - The request body should be parsed as JSON and must contain fields matching
-     `CreatePostRequest`.
+## Running Database Migrations
 
-We also need to define the request and response types. You can add them to
-the same file outside of the `MicroblogDescriptions` object. Request and
-response types should _only_ contain data, they should not contain methods.
-This makes them the ideal use-case for Kotlin's data classes.
+This step needs to be done periodically as changes are made to the database. 
 
-```kotlin
-data class CreatePostRequest(val post: String, val important: Boolean)
-data class CreatePostResponse(val id: String)
+Note: Database migrations on development versions sometimes fail due to checksum mismatches. This happens because we
+find issues in the database migrations and correct the version directly, as opposed to creating a new one. One way
+around this is to recreate the affected schema/the entire database. That is, if you don't want to fix it by hand.
+
+From `sducloud/backend` run the following:
+
+```
+./gradlew :launcher:run --args='--dev --run-script migrate-db'
 ```
 
-That concludes how to write the RPC interface. Before we continue you to the
-next sections let's add a dummy implementation for this call. Create
-`dk.sdu.cloud.microblog.rpc.MicroblogController` and add the following:
+Compiling the project from scratch takes approximately 3 minutes. If you get a compilation error similar to this:
 
-```kotlin
-package dk.sdu.cloud.microblog.rpc
-
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.microblog.api.CreatePostResponse
-import dk.sdu.cloud.microblog.api.Microblogs
-import dk.sdu.cloud.service.Controller
-
-class MicroblogController : Controller {
-    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(Microblogs.createPost) {
-            ok(CreatePostResponse("42"))
-        }
-    }
-}
+```
+e: sdu-cloud/backend/service-common/src/main/kotlin/micro/FlywayFeature.kt: (79, 27): Unresolved reference: resources
 ```
 
-## Starting the Micro-Service
+Then make sure you are currently running Java 11 (`java -version`).
 
-To start the server, follow the instructions in [this](./testing_services_locally.md) guide.
+## Running Elasticsearch Migrations
 
-You should now be able to reach the endpoint you just created. This can be
-done, for example, using [httpie](https://httpie.org/):
+We still don't have a good solution for this. At the moment the following is required to be run from `sducloud/backend`:
 
-```bash
-# Note: You must have configured TOK to match your token in UCloud
-# The following token can also be used for development:
-# TOK=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMSIsInVpZCI6MTAsImxhc3ROYW1lIjoiVXNlciIsImF1ZCI6ImFsbDp3cml0ZSIsInJvbGUiOiJBRE1JTiIsImlzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJVc2VyIiwiZXhwIjozNTUxNDQyMjIzLCJleHRlbmRlZEJ5Q2hhaW4iOltdLCJpYXQiOjE1NTE0NDE2MjMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsInB1YmxpY1Nlc3Npb25SZWZlcmVuY2UiOiJyZWYifQ.BNVLnnWoxfE1YG-9u3oqZVUypbbnF4BX3BNb6T1KYquGaCkMgN_fpo63y7Tmh6NYjf3do2j4lf4d6L94f-3d-g
-
-http PUT :8080/api/microblog/post post="Hello, World" "Authorization: Bearer ${TOK}"
-
-HTTP/1.1 200 OK
-Connection: keep-alive
-Content-Length: 11
-Content-Type: application/json; charset=UTF-8
-Date: Fri, 01 Mar 2019 12:18:23 GMT
-Server: ktor-server-core/1.1.2 ktor-server-core/1.1.2
-
-{
-    "id": "42"
-}
+```
+./gradlew :contact-book-service:run --args='--dev --createIndex'
 ```
 
-## Implementing the Service Layer
+## Creating the Initial Admin User
 
-The 'service' layer of the micro-service is that part that handles the pure
-business logic of your service. It should generally be written such that it
-can be re-used by several endpoints.
+__NOTE: DATABASE MIGRATIONS MUST HAVE BEEN RUN AT THIS POINT__
 
-One of the common types of services you have to write is for database-access.
-We will be writing a small DAO for accessing the tables associated with
-saving the posts.
-
-We can now implement the `PostDao`.
-
-```kotlin
-package dk.sdu.cloud.microblog.services
-
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
-
-class PostDao {
-    suspend fun create(ctx: DBContext, username: String, contents: String, important: Boolean): String {
-        if (contents.length >= 1024) throw RPCException("Post is too long", HttpStatusCode.BadRequest)
-
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", username)
-                        setParameter("contents", contents)
-                        setParameter("important", important)
-                    },
-                    """
-                        insert into post (id, username, contents, important) 
-                        values (nextval('post_sequence'), :username, :contents, :important)
-                        returning id
-                    """
-                )
-                .rows
-                .single()
-                .getLong(0)!!
-                .toString()
-        }
-    }
-}
-```
-
-In `src/main/resources/db/migration` add the following file `V1__Initial.sql`:
+Run the following commands in your postgres database:
 
 ```sql
-create sequence post_sequence start 0 increment 1;
+insert into auth.principals 
+    (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 
+    phone_number, title, hashed_password, salt, org_id, email) 
+values 
+    ('PASSWORD', 'admin@dev', now(), now(), 'ADMIN', 'Admin', 'Dev', null, null, null, 
+    E'\\xDEADBEEF', E'\\xDEADBEEF', null, 'admin@dev');
 
-create table post(
-    id bigint,
-    username text,
-    contents text,
-    important bool
-);
+insert into auth.refresh_tokens
+    (token, associated_user_id, csrf, public_session_reference, extended_by, scopes, 
+    expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, user_agent) 
+values
+    ('theverysecretadmintoken', 'admin@dev', 'csrf', 'initial', null, '["all:write"]'::jsonb, 
+    31536000000, null, '[]'::jsonb, now(), '127.0.0.1', 'UCloud');
 ```
 
-Next we will be implementing a service wrapping the DAO itself. In this service
-we should expose logic that more closely matches the logic of endpoints. If we
-want to impose additional constraints (such as security) we should do it here.
+## Starting UCloud
 
-```kotlin
-class PostService(
-    private val db: DBContext,
-    private val postDao: PostDao
-) {
-    suspend fun create(user: Actor, contents: String, important: Boolean): String {
-        if (contents.length >= 1024) throw RPCException("Post too long", HttpStatusCode.BadRequest)
-        if (important) {
-            if (user !is Actor.System && !(user is Actor.User && user.principal.role !in Roles.ADMIN)) {
-                throw RPCException("Only admins can create important posts", HttpStatusCode.Forbidden)
-            }
-        }
 
-        return postDao.create(db, user.username, contents, important)
-    }
-}
+From `sducloud/backend` run the following:
+
+```
+./gradlew :launcher:run --args='--dev'
 ```
 
-We will also be updating the `implement` call (in the controller):
+From `sducloud/frontend-web/webclient/`
 
-```kotlin
-implement(MicroblogDescriptions.createPost) {
-    ok(
-        CreatePostResponse(
-            postService.create(ctx.securityPrincipal.toActor(), request.post, request.important)
-        )
-    )
-}
+```
+npm run start_use_local_backend
 ```
 
-Finally, we have to setup the correct dependencies for each service. Go to
-`Server.kt` and create our services:
+UCloud should now be accessible at `http://localhost:8080` for the backend and `http://localhost:9000` for the frontend.
 
-```kotlin
-override fun start() {
-    val db = AsyncDBSessionFactory(micro.databaseConfig)
-    val postDao = PostDao()
-    val postService = PostService(db, postDao)
+## Creating the Initial User and Test Data
 
-    with(micro.server) {
-        configureControllers(
-            MicroblogController(postService)
-        )
-    }
+Run the following bash script in your terminal, feel free to change the username and password:
 
-    startServices()
-}
+```
+#!/usr/bin/env bash
+ADMINTOK=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMSIsInVpZCI6MTAsImxhc3ROYW1lIjoiVXNlciIsImF1ZCI6ImFsbDp3cml0ZSIsInJvbGUiOiJBRE1JTiIsImlzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJVc2VyIiwiZXhwIjozNTUxNDQyMjIzLCJleHRlbmRlZEJ5Q2hhaW4iOltdLCJpYXQiOjE1NTE0NDE2MjMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsInB1YmxpY1Nlc3Npb25SZWZlcmVuY2UiOiJyZWYifQ.BNVLnnWoxfE1YG-9u3oqZVUypbbnF4BX3BNb6T1KYquGaCkMgN_fpo63y7Tmh6NYjf3do2j4lf4d6L94f-3d-g
+
+
+USERNAME=user
+PASSWORD=mypassword
+
+
+if ! command -v jq &> /dev/null
+then
+    echo "jq could not be found in path (Download: https://stedolan.github.io/jq/)"
+    exit
+fi
+
+USERTOK=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/auth/users/register' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '[{"username": "'"${USERNAME}"'", "password": "'"${PASSWORD}"'", "role": "ADMIN", "email": "user@example.com"}]' | jq .[0].accessToken -r`
+
+FIGLET_TOOL='
+---
+tool: v1
+
+title: Figlet
+
+name: figlet
+version: 1.0.0
+
+container: truek/figlets:1.1.1
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: Tool for rendering text.
+
+defaultTimeAllocation:
+  hours: 0
+  minutes: 1
+  seconds: 0
+
+backend: DOCKER
+'
+
+FIGLET_APP='
+---
+application: v1
+
+title: Figlet
+name: figlet
+version: 1.0.0
+
+tool:
+  name: figlet
+  version: 1.0.0
+
+authors:
+- Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+
+description: >
+  Render some text with Figlet Docker!
+
+invocation:
+- figlet-cat
+- type: var
+  vars: file
+
+parameters:
+  file:
+    title: "A file to render with figlet"
+    type: input_file
+'
+
+curl 'http://localhost:8080/api/hpc/tools' -X PUT -H "Authorization: Bearer ${ADMINTOK}" \
+    -H 'Content-Type: application/x-yaml' -d "${FIGLET_TOOL}"
+
+curl 'http://localhost:8080/api/hpc/apps' -X PUT -H "Authorization: Bearer ${ADMINTOK}" \
+    -H 'Content-Type: application/x-yaml' -d "${FIGLET_APP}"
+
+curl -XPUT -H 'Content-Type: application/json' 'http://localhost:8080/api/products' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "type": "storage", "id": "u1-cephfs", "pricePerUnit": 0, "category": { "id": "u1-cephfs", "provider": "ucloud" } }'
+
+curl -XPUT -H 'Content-Type: application/json' 'http://localhost:8080/api/products' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "type": "compute", "id": "u1-standard-1", "cpu": 1, "pricePerUnit": 0, "category": { "id": "u1-standard", "provider": "ucloud" } }'
+
+projectId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "title": "UCloud" , "principalInvestigator": "'"${USERNAME}"'" }' | jq .id -r`
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/accounting/wallets/set-balance' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "wallet": { "id": "'"${projectId}"'", "type": "PROJECT", "paysFor": { "id": "u1-cephfs", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/accounting/wallets/set-balance' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "wallet": { "id": "'"${projectId}"'", "type": "PROJECT", "paysFor": { "id": "u1-standard", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/grant/set-enabled' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "projectId": "'"${projectId}"'", "enabledStatus": true }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/grant/request-settings' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${projectId}" \
+    -d '{ "allowRequestsFrom": [{"type": "anyone"}], "automaticApproval": { "from": [], "maxResources": [] } }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/files/quota' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "path": "/projects/'"${projectId}"'/", "quotaInBytes": 1000000000000000 }'
+
+curl 'http://localhost:8080/api/hpc/apps/createTag' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -H 'Content-Type: application/json; charset=utf-8' \
+    -d '{"applicationName":"figlet","tags":["Featured"]}'
 ```
 
-You should now be able to restart the service and make posts using the call
-instructions from before.
+This will create the user:
 
-If you did it all correctly, you should now see that the ID increments slowly
-as you create new posts. Additionally, if you try running with the important
-flag as a user you should get an error message:
+- Username: user
+- Password: mypassword
 
-```text
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${USER_TOK}"
-HTTP/1.1 403 Forbidden
-Connection: keep-alive
-Content-Length: 48
-Content-Type: application/json; charset=UTF-8
-Date: Mon, 04 Mar 2019 07:02:09 GMT
-Server: ktor-server-core/1.1.2 ktor-server-core/1.1.2
-
-{
-    "why": "Only admins can create important posts"
-}
-```
-
-## Exercise: Implementing the Listing Endpoint
-
-You should now implement the endpoint that lists all posts. To get you
-started here are the appropriate additions to the RPC interface:
-
-```kotlin
-// Types
-data class Post(val username: String, val post: String, val important: Boolean)
-data class ListPostRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
-typealias ListPostResponse = Page<Post>
-
-// Call description
-val listPosts = call<ListPostRequest, ListPostResponse, CommonErrorMessage>("listPosts") {
-    auth {
-        access = AccessRight.READ
-    }
-
-    http {
-        method = HttpMethod.Get
-
-        path {
-            using(baseContext)
-        }
-
-        params {
-            +boundTo(ListPostRequest::itemsPerPage)
-            +boundTo(ListPostRequest::page)
-        }
-    }
-}
-```
-
-And the new method to `PostDao`:
-
-```kotlin
-fun list(session: Session, paging: NormalizedPaginationRequest): Page<Post>
-```
-
-At the end you should be able to run the following:
-
-```text
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${TOK}"
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${TOK}"
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=true "Authorization: Bearer ${TOK}"
-$ http PUT :8080/api/microblog/post post="Hello, World" important:=false "Authorization: Bearer ${TOK}"
-
-$ http :8080/api/microblog "Authorization: Bearer ${TOK}"
-HTTP/1.1 200 OK
-Connection: keep-alive
-Content-Length: 355
-Content-Type: application/json; charset=UTF-8
-Date: Mon, 04 Mar 2019 07:19:16 GMT
-Server: ktor-server-core/1.1.2 ktor-server-core/1.1.2
-
-{
-    "items": [
-        {
-            "id": "1",
-            "important": true,
-            "post": "Hello, World",
-            "username": "user1"
-        },
-        {
-            "id": "2",
-            "important": true,
-            "post": "Hello, World",
-            "username": "user1"
-        },
-        {
-            "id": "3",
-            "important": true,
-            "post": "Hello, World",
-            "username": "user1"
-        },
-        {
-            "id": "4",
-            "important": false,
-            "post": "Hello, World",
-            "username": "user1"
-        }
-    ],
-    "itemsInTotal": 4,
-    "itemsPerPage": 10,
-    "pageNumber": 0,
-    "pagesInTotal": 1
-}
-```
+Which you should be able to use immediately on your local version of UCloud.
