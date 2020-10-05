@@ -100,32 +100,51 @@ class GiftService(
                     },
 
                     """
+                        -- unclaimed_gifts returns at least one row for every gift which we are eligible to claim
+                        -- NOTE(Dan): This does not take into account email filters
                         with unclaimed_gifts as (
-                            select g.* 
+                            select g.*
                             from gifts g, gifts_user_criteria uc
-                            where 
+                            where
+                                -- If giftId is specified it must match the gift we are looking for
                                 (g.id = :giftId::bigint or :giftId::bigint is null) and
+
                                 g.id = uc.gift_id and
+
+                                -- User must not have claimed this gift already
                                 not exists(
-                                    select gc.user_id 
-                                    from gifts_claimed gc 
-                                    where gc.user_id = :userId and gc.gift_id = g.id
-                                ) and (
+                                        select gc.user_id
+                                        from gifts_claimed gc
+                                        where gc.user_id = :userId and gc.gift_id = g.id
+                                ) and
+
+                                -- User must match at least one criteria
+                                (
                                     (uc.type = 'anyone') or
                                     (uc.type = 'wayf' and uc.applicant_id = :wayfId::text and :wayfId::text is not null) or
                                     (uc.type = 'email' and uc.applicant_id = :emailDomain::text and :emailDomain::text is not null)
                                 )
                         )
-                        
-                        select 
+
+                        -- This selects both the gift ID and the resources associated with the gift (This can 
+                        -- potentially return multiple rows per gift if multiple user criteria match our user
+                        select
                             ug.id, ug.title, ug.description, ug.resources_owned_by,
                             gr.product_category, gr.product_provider, gr.credits, gr.quota
-                        from unclaimed_gifts ug, gift_resources gr
-                        where ug.id = gr.gift_id and ug.id not in (
-                            select project_id 
-                            from exclude_applications_from
-                            where email_suffix = :emailDomain::text
-                        )
+                        from
+                            unclaimed_gifts ug,
+                            gift_resources gr
+                        where
+                              ug.id = gr.gift_id and
+
+                              -- User must not be excluded by email exclude list
+                              not exists(
+                                select project_id
+                                from exclude_applications_from
+                                where
+                                    email_suffix = :emailDomain::text and
+                                    project_id = ug.resources_owned_by
+                            )
                     """
                 )
                 .rows
