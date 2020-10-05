@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
@@ -61,7 +62,8 @@ class JobManagement(
     private val distributedLocks: DistributedLockFactory,
     private val logService: K8LogService,
     private val jobCache: VerifiedJobCache,
-    private val disableMasterElection: Boolean = false
+    private val disableMasterElection: Boolean = false,
+    private val fullScanFrequency: Long = 1000L * 60 * 15
 ) {
     private val plugins = ArrayList<JobManagementPlugin>()
     data class ScheduledMonitoringJob(val jobId: String, val timestamp: Long) {
@@ -204,14 +206,21 @@ class JobManagement(
 
                 listenerLoop@while (currentCoroutineContext().isActive) {
                     if (volcanoWatch.isClosedForReceive) {
-                        log.warn("Stopped receiving new Volcano job watch events. Restarting watcher.")
-                        volcanoWatch = k8.client.watchResource(this, KubernetesResources.volcanoJob)
+                        log.info("Stopped receiving new Volcano job watch events. Restarting watcher.")
+                        volcanoWatch = k8.client.watchResource(
+                            this,
+                            KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
+                        )
                         continue
                     }
 
                     if (podWatch.isClosedForReceive) {
-                        log.warn("Stopped receiving new Pod watch events. Restarting watcher.")
-                        podWatch = k8.client.watchResource(this, KubernetesResources.pod)
+                        log.info("Stopped receiving new Pod watch events. Restarting watcher.")
+                        podWatch = k8.client.watchResource(
+                            this,
+                            KubernetesResources.pod.withNamespace(NAMESPACE_ANY),
+                            mapOf("labelSelector" to VOLCANO_JOB_NAME_LABEL)
+                        )
                         continue
                     }
 
@@ -220,7 +229,7 @@ class JobManagement(
                             onTimeout(30_000) {
                                 if (Time.now() >= nextFullScan) {
                                     // Perform full scan
-                                    nextFullScan = Time.now() + 1000 * 60 * 15
+                                    nextFullScan = Time.now() + fullScanFrequency
 
                                     val resources = k8.client.listResources<VolcanoJob>(
                                         KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
@@ -445,7 +454,8 @@ class JobManagement(
             }
 
             ComputationCallbackDescriptions.completed.call(
-                JobCompletedRequest(jobId, null, true),
+                // Accounting is done by the AccountingPlugin, don't charge anything additional here.
+                JobCompletedRequest(jobId, SimpleDuration.fromMillis(0), true),
                 k8.serviceClient
             ).orThrow()
         } finally {

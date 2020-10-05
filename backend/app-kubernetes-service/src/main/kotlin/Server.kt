@@ -72,7 +72,8 @@ class Server(
             // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
             // instance) In that case we can disable it via configuration. Note that this config will only be used if
             // we are in development mode.
-            configuration.disableMasterElection && micro.developmentModeEnabled
+            configuration.disableMasterElection && micro.developmentModeEnabled,
+            configuration.fullScanFrequency
         ).apply {
             register(TaskPlugin(configuration.toleration))
             register(ParameterPlugin())

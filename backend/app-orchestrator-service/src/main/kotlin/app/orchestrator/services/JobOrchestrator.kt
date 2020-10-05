@@ -268,8 +268,7 @@ class JobOrchestrator(
                 securityPrincipal
             )
 
-            val charge = paymentService.charge(job, actualDuration.toMillis())
-            jobDao.updateStatus(db, jobId, creditsCharged = charge.amountCharged)
+            chargeCredits(jobWithToken, actualDuration, "", false)
         }
     }
 
@@ -422,6 +421,50 @@ class JobOrchestrator(
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
+    suspend fun deleteJobInformation(appName: String, appVersion: String) {
+        jobDao.deleteJobInformation(
+            db,
+            appName,
+            appVersion
+        )
+    }
+
+    suspend fun charge(
+        jobId: String,
+        chargeId: String,
+        wallDuration: SimpleDuration,
+        securityPrincipal: SecurityPrincipal
+    ) {
+        val jobWithToken = findJobForUrl(jobId)
+        computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
+
+        chargeCredits(jobWithToken, wallDuration, "-$chargeId", cancelIfInsufficient = true)
+    }
+
+    private suspend fun chargeCredits(
+        jobWithToken: VerifiedJobWithAccessToken,
+        wallDuration: SimpleDuration,
+        chargeId: String,
+        cancelIfInsufficient: Boolean
+    ) {
+        val charge = paymentService.charge(jobWithToken.job, wallDuration.toMillis(), chargeId)
+        when (charge) {
+            is PaymentService.ChargeResult.Charged -> {
+                jobDao.updateStatus(db, jobWithToken.job.id, creditsCharged = charge.amountCharged)
+            }
+
+            PaymentService.ChargeResult.InsufficientFunds -> {
+                if (cancelIfInsufficient) {
+                    handleStateChange(
+                        jobWithToken,
+                        JobStateChange(jobWithToken.job.id, JobState.CANCELING),
+                        "Insufficient funds"
+                    )
+                }
+            }
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
 
@@ -457,14 +500,6 @@ class JobOrchestrator(
             // In case of really bad failures we allow for a "failure -> failure" transition
             JobState.FAILURE to setOf(JobState.FAILURE),
             JobState.SUCCESS to emptySet()
-        )
-    }
-
-    suspend fun deleteJobInformation(appName: String, appVersion: String) {
-        jobDao.deleteJobInformation(
-            db,
-            appName,
-            appVersion
         )
     }
 }

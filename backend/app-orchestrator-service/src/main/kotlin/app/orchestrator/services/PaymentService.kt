@@ -24,26 +24,44 @@ class PaymentService(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient
 ) {
-    data class ChargeResult(val amountCharged: Long, val pricePerUnit: Long)
+    sealed class ChargeResult {
+        data class Charged(val amountCharged: Long, val pricePerUnit: Long) : ChargeResult()
+        object InsufficientFunds : ChargeResult()
+    }
+
 
     suspend fun charge(
         job: VerifiedJob,
-        timeUsedInMillis: Long
+        timeUsedInMillis: Long,
+        chargeId: String = ""
     ): ChargeResult {
         val pricePerUnit = job.reservation.pricePerUnit
 
         val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * job.nodes
         val price = pricePerUnit * units
-        val result = Wallets.chargeReservation.call(
-            ChargeReservationRequest(
-                job.id,
+        val result = Wallets.reserveCredits.call(
+            ReserveCreditsRequest(
+                job.id + chargeId,
                 price,
-                units
+                Time.now(),
+                Wallet(
+                    job.project ?: job.owner,
+                    if (job.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
+                    job.reservation.category
+                ),
+                job.owner,
+                job.reservation.id,
+                units,
+                chargeImmediately = true,
+                skipIfExists = true
             ),
             serviceClient
         )
 
         if (result is IngoingCallResponse.Error) {
+            if (result.statusCode == HttpStatusCode.PaymentRequired) {
+                return ChargeResult.InsufficientFunds
+            }
             log.error("Failed to charge payment for job: ${job.id} $result")
             db.withSession { session ->
                 session.insert(MissedPayments) {
@@ -54,7 +72,7 @@ class PaymentService(
             }
         }
 
-        return ChargeResult(price, pricePerUnit)
+        return ChargeResult.Charged(price, pricePerUnit)
     }
 
     suspend fun reserve(job: VerifiedJob) {
@@ -74,7 +92,8 @@ class PaymentService(
                 ),
                 job.owner,
                 job.reservation.id,
-                units
+                units,
+                discardAfterLimitCheck = true
             ),
             serviceClient
         ).statusCode

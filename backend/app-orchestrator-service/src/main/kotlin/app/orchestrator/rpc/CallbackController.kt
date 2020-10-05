@@ -57,6 +57,16 @@ class CallbackController(
             ok(Unit)
         }
 
+        implement(ComputationCallbackDescriptions.chargeCredits) {
+            jobOrchestrator.charge(
+                request.jobId,
+                request.chargeId,
+                request.wallDuration,
+                ctx.securityPrincipal
+            )
+            ok(Unit)
+        }
+
         implement(ComputationCallbackDescriptions.lookup) {
             ok(jobOrchestrator.lookupOwnJob(request.id, ctx.securityPrincipal))
         }

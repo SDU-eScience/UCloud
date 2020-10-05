@@ -14,7 +14,8 @@ data class Configuration(
     val performAuthentication: Boolean = true,
     val toleration: TolerationKeyAndValue? = null,
     val reloadableK8Config: String? = null,
-    val disableMasterElection: Boolean = false
+    val disableMasterElection: Boolean = false,
+    val fullScanFrequency: Long = 1000 * 60 * 15L
 )
 
 data class CephConfiguration(

@@ -30,6 +30,14 @@ data class SubmitComputationResult(
     @JsonIgnore val fileData: BinaryStream
 )
 
+data class ChargeCreditsRequest(
+    val jobId: String,
+    val chargeId: String,
+    val wallDuration: SimpleDuration
+)
+
+typealias ChargeCreditsResponse = Unit
+
 object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute") {
     val baseContext = "/api/app/compute"
 
@@ -153,6 +161,24 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
             path {
                 using(baseContext)
                 +"completed"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val chargeCredits = call<ChargeCreditsRequest, ChargeCreditsResponse, CommonErrorMessage>("chargeCredits") {
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"charge-credits"
             }
 
             body { bindEntireRequestFromBody() }

@@ -2,6 +2,11 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
+import dk.sdu.cloud.app.orchestrator.api.ChargeCreditsRequest
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -18,7 +23,7 @@ class AccountingPlugin : JobManagementPlugin {
             return
         }
 
-        account(jobId, now - lastTs, now)
+        account(jobId, lastTs, now)
     }
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {
@@ -32,11 +37,12 @@ class AccountingPlugin : JobManagementPlugin {
                 continue@loop
             }
 
-            account(k8.nameAllocator.jobNameToJobId(name), now - lastTs, now)
+            account(k8.nameAllocator.jobNameToJobId(name), lastTs, now)
         }
     }
 
-    private suspend fun JobManagement.account(jobId: String, timespent: Long, now: Long) {
+    private suspend fun JobManagement.account(jobId: String, lastTs: Long, now: Long) {
+        val timespent = now - lastTs
         if (timespent <= 0L) {
             log.info("No time spent on $jobId ($timespent)")
             log.info("No accounting will be performed")
@@ -46,7 +52,10 @@ class AccountingPlugin : JobManagementPlugin {
         val name = k8.nameAllocator.jobIdToJobName(jobId)
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
-        TODO("Do the call")
+        ComputationCallbackDescriptions.chargeCredits.call(
+            ChargeCreditsRequest(jobId, lastTs.toString(), SimpleDuration.fromMillis(timespent)),
+            k8.serviceClient
+        ).orThrow()
 
         k8.client.patchResource(
             KubernetesResources.volcanoJob.withNameAndNamespace(

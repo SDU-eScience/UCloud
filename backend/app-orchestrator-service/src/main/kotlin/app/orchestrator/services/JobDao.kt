@@ -122,7 +122,7 @@ class JobDao {
                             status = coalesce(:status::text, status),
                             state = coalesce(:state::text, state),
                             failed_state = coalesce(:failedState::text, failed_state),
-                            credits_charged = coalesce(:creditsCharged::bigint, credits_charged),
+                            credits_charged = coalesce(:creditsCharged::bigint, 0) + coalesce(credits_charged, 0),
                             started_at = (case
                                 when :state::text = 'RUNNING' then timezone('utc', now())
                                 else started_at
