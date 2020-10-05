@@ -15,14 +15,12 @@ export type Analysis = JobWithStatus;
 export type AppState = JobState;
 
 export enum JobState {
-    VALIDATED = "VALIDATED",
-    PREPARED = "PREPARED",
-    SCHEDULED = "SCHEDULED",
+    IN_QUEUE = "IN_QUEUE",
     RUNNING = "RUNNING",
-    TRANSFER_SUCCESS = "TRANSFER_SUCCESS",
+    //READY = "READY",
+    CANCELING = "CANCELING",
     SUCCESS = "SUCCESS",
-    FAILURE = "FAILURE",
-    CANCELLING = "CANCELLING"
+    FAILURE = "FAILURE"
 }
 
 export interface AdvancedSearchRequest extends PaginationRequest {

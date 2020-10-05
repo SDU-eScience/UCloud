@@ -26,20 +26,16 @@ export const JobStateIcon: React.FunctionComponent<{
     }
 
     switch (props.state) {
-        case JobState.VALIDATED:
-            iconName = "checkDouble";
-            break;
-        case JobState.PREPARED:
-            iconName = "hourglass";
-            break;
-        case JobState.SCHEDULED:
+        case JobState.IN_QUEUE:
             iconName = "calendar";
             break;
         case JobState.RUNNING:
             iconName = "chrono";
+            defaultColor = "purple";
             break;
-        case JobState.TRANSFER_SUCCESS:
-            iconName = "move";
+        case JobState.READY:
+            iconName = "chrono";
+            defaultColor = "green";
             break;
         case JobState.SUCCESS:
             iconName = "check";

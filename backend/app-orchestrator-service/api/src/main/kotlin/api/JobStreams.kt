@@ -6,42 +6,32 @@ data class JobStateChange(val systemId: String, val newState: JobState)
 
 enum class JobState {
     /**
-     * The job has been validated and is ready to be processed for scheduling
+     * Any job which has been submitted and not yet in a final state where the number of tasks running is less than
+     * the number of tasks requested
      */
-    VALIDATED,
+    IN_QUEUE,
 
     /**
-     * The job has all of its dependencies shipped to compute and is ready to be scheduled
-     */
-    PREPARED,
-
-    /**
-     * The job has been scheduled
-     */
-    SCHEDULED,
-
-    /**
-     * The job is currently running in the HPC environment
+     * A job where all the tasks are running
      */
     RUNNING,
 
     /**
-     * The job has completed successfully, but is in the process of transferring files.
-     */
-    TRANSFER_SUCCESS,
-
-    /**
-     * The job is being terminated via a user initiated cancellation
+     * A job which has been cancelled, either by user request or system request
      */
     CANCELING,
 
     /**
-     * The job has completed successfully
+     * A job which has terminated. The job terminated with no _scheduler_ error.
+     *
+     * Note: A job will complete successfully even if the user application exits with an unsuccessful status code.
      */
     SUCCESS,
 
     /**
-     * The job has completed unsuccessfully
+     * A job which has terminated with a failure.
+     *
+     * Note: A job will fail _only_ if it is the scheduler's fault
      */
     FAILURE;
 

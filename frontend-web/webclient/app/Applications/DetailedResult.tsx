@@ -44,7 +44,7 @@ interface DetailedResultProps extends DetailedResultOperations {
 
 const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const [status, setStatus] = useState<string>("");
-    const [appState, setAppState] = useState<JobState>(JobState.VALIDATED);
+    const [appState, setAppState] = useState<JobState>(JobState.IN_QUEUE);
     const [failedState, setFailedState] = useState<JobState | null>(null);
     const [jobWithStatus, setJobWithStatus] = useState<JobWithStatus | null>(null);
     const [application, setApplication] = useState<WithAppInvocation | null>(null);
@@ -172,27 +172,12 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     <Panel>
                         <StepGroup>
                             <StepTrackerItem
-                                stateToDisplay={JobState.VALIDATED}
-                                currentState={appState}
-                                failedState={failedState}
-                            />
-                            <StepTrackerItem
-                                stateToDisplay={JobState.PREPARED}
-                                currentState={appState}
-                                failedState={failedState}
-                            />
-                            <StepTrackerItem
-                                stateToDisplay={JobState.SCHEDULED}
+                                stateToDisplay={JobState.IN_QUEUE}
                                 currentState={appState}
                                 failedState={failedState}
                             />
                             <StepTrackerItem
                                 stateToDisplay={JobState.RUNNING}
-                                currentState={appState}
-                                failedState={failedState}
-                            />
-                            <StepTrackerItem
-                                stateToDisplay={JobState.TRANSFER_SUCCESS}
                                 currentState={appState}
                                 failedState={failedState}
                             />
@@ -339,20 +324,18 @@ const InteractiveApplicationLink: React.FunctionComponent<{
 
 const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
     switch (state) {
-        case JobState.VALIDATED:
+        case JobState.IN_QUEUE:
             return 0;
-        case JobState.PREPARED:
-            return 1;
-        case JobState.SCHEDULED:
-            return 2;
         case JobState.RUNNING:
-            return 3;
-        case JobState.TRANSFER_SUCCESS:
-            return 4;
+            return 1;
+        /*
+        case JobState.READY:
+            return 2;
+        */
         case JobState.SUCCESS:
-            return 5;
+            return 3;
         case JobState.FAILURE:
-            return 5;
+            return 3;
         default:
             return 0;
     }
@@ -365,18 +348,16 @@ const stateToTitle = (state: JobState): string => {
     switch (state) {
         case JobState.FAILURE:
             return "Failure";
-        case JobState.PREPARED:
-            return "Pending";
+        case JobState.IN_QUEUE:
+            return "In queue";
         case JobState.RUNNING:
             return "Running";
-        case JobState.SCHEDULED:
-            return "Scheduled";
         case JobState.SUCCESS:
             return "Success";
-        case JobState.TRANSFER_SUCCESS:
-            return "Transferring";
-        case JobState.VALIDATED:
-            return "Validated";
+        /*
+        case JobState.READY:
+            return "Ready";
+        */
         default:
             return "Unknown";
     }

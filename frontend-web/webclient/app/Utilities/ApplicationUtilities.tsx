@@ -14,7 +14,6 @@ import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {addStandardDialog} from "UtilityComponents";
 import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
-import {expandHomeOrProjectFolder} from "./FileUtilities";
 import {useEffect, useState} from "react";
 import {QuickLaunchApp} from "Files/QuickLaunch";
 import {usePromiseKeeper} from "PromiseKeeper";
@@ -250,10 +249,9 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
 }
 
 export const inCancelableState = (state: JobState): boolean => [
-    JobState.VALIDATED,
-    JobState.PREPARED,
-    JobState.SCHEDULED,
-    JobState.RUNNING
+    JobState.IN_QUEUE,
+    JobState.RUNNING,
+    //JobState.READY,
 ].includes(state);
 
 export function validateOptionalFields(
