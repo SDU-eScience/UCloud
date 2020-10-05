@@ -16,10 +16,7 @@ import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.calls.websocket
 import io.ktor.http.HttpMethod
 
-data class ComputationErrorMessage(
-    val internalReason: String,
-    val statusMessage: String
-)
+typealias ComputationErrorMessage = CommonErrorMessage
 
 data class SubmitFileToComputation(
     val jobId: String,

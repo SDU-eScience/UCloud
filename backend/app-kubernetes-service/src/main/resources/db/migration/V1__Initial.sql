@@ -1,0 +1,1 @@
+create table cluster_state(cluster_id text primary key, paused boolean);

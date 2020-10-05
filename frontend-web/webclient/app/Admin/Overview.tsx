@@ -12,7 +12,8 @@ const linkInfo: LinkInfo[] = [
     {to: "/admin/userCreation", text: "User Creation", icon: "user", color: "white", color2: "midGray"},
     {to: "/applications/studio", text: "Application Studio", icon: "appStore", color: "white", color2: "blue"},
     {to: "/admin/licenseServers", text: "License Servers", icon: "license", color: "white", color2: "white"},
-    {to: "/admin/news", text: "News", icon: "warning", color: "white", color2: "black"}
+    {to: "/admin/news", text: "News", icon: "warning", color: "white", color2: "black"},
+    {to: "/admin/appk8", text: "Compute Maintenance", icon: "calendar", color: "white", color2: "black"}
 ];
 
 interface LinkInfo {

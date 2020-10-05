@@ -10,20 +10,15 @@ import dk.sdu.cloud.app.orchestrator.api.InternalFollowWSStreamResponse
 import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
-import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
-import io.ktor.util.cio.ChannelWriteException
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.receiveOrNull
-import java.io.Closeable
 import java.util.*
 import kotlin.collections.HashMap
 

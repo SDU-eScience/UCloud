@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes
 
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
+import dk.sdu.cloud.app.kubernetes.rpc.MaintenanceController
 import dk.sdu.cloud.app.kubernetes.rpc.ReloadController
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.kubernetes.services.proxy.ApplicationProxyService
@@ -11,22 +12,13 @@ import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
-import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.feature
-import dk.sdu.cloud.micro.featureOrNull
-import dk.sdu.cloud.micro.redisConnectionManager
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.serviceDescription
-import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.RedisBroadcastingStream
 import dk.sdu.cloud.service.RedisDistributedStateFactory
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.k8.KubernetesClient
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
@@ -51,6 +43,7 @@ class Server(
         val jobCache = VerifiedJobCache(serviceClient)
         val uidCache = UserUidCache(serviceClient)
         val nameAllocator = NameAllocator(jobCache, uidCache)
+        val db = AsyncDBSessionFactory(micro.databaseConfig)
 
         val k8sClient = KubernetesClient()
 
@@ -64,11 +57,14 @@ class Server(
 
         val logService = K8LogService(k8Dependencies)
 
+        val maintenance = MaintenanceService(db, k8Dependencies)
+
         val jobManagement = JobManagement(
             k8Dependencies,
             distributedLocks,
             logService,
             jobCache,
+            maintenance,
             // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
             // instance) In that case we can disable it via configuration. Note that this config will only be used if
             // we are in development mode.
@@ -151,7 +147,8 @@ class Server(
                     webService,
                     broadcastingStream
                 ),
-                ReloadController(k8Dependencies)
+                ReloadController(k8Dependencies),
+                MaintenanceController(maintenance)
             )
         }
 

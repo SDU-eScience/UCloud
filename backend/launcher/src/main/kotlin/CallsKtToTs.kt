@@ -1,6 +1,7 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.kubernetes.api.Maintenance
 import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Page

@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
@@ -62,6 +63,7 @@ class JobManagement(
     private val distributedLocks: DistributedLockFactory,
     private val logService: K8LogService,
     private val jobCache: VerifiedJobCache,
+    private val maintenance: MaintenanceService,
     private val disableMasterElection: Boolean = false,
     private val fullScanFrequency: Long = 1000L * 60 * 15
 ) {
@@ -110,6 +112,14 @@ class JobManagement(
     }
 
     suspend fun create(verifiedJob: VerifiedJob) {
+        if (maintenance.isPaused()) {
+            throw RPCException(
+                "UCloud does not currently accept new jobs",
+                HttpStatusCode.BadRequest,
+                "CLUSTER_PAUSED"
+            )
+        }
+
         jobCache.cacheJob(verifiedJob)
         val builder = VolcanoJob()
         val namespace = k8.nameAllocator.jobIdToNamespace(verifiedJob.id)

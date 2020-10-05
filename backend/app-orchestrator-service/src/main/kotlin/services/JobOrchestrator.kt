@@ -79,6 +79,8 @@ class JobOrchestrator(
             val message =
                 if (ex is RPCException && ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why else null
 
+            log.info("Exception: $ex")
+
             if (ex !is RPCException) {
                 log.warn("Unexpected exception caught while handling a job callback! ($jobId)")
                 log.warn(ex.stackTraceToString())
