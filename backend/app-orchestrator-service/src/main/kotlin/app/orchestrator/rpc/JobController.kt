@@ -22,8 +22,6 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 
-internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 200L
-
 class JobController(
     private val jobQueryService: JobQueryService,
     private val jobOrchestrator: JobOrchestrator,
@@ -69,11 +67,6 @@ class JobController(
         implement(JobDescriptions.start) {
             verifySlaFromPrincipal()
             log.debug("Extending token")
-            val maxTime = request.maxTime
-            if (maxTime != null && maxTime.toMillis() > JOB_MAX_TIME) {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Maximum job time exceeded")
-            }
-
 
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(

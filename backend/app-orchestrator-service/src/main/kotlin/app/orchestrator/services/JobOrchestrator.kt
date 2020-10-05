@@ -397,13 +397,6 @@ class JobOrchestrator(
         return jobWithToken.job
     }
 
-    suspend fun removeExpiredJobs() {
-        val expired = Time.now() - JOB_MAX_TIME
-        jobQueryService.findJobsCreatedBefore(db, expired).collect { job ->
-            failJob(job)
-        }
-    }
-
     private suspend fun findJobForId(id: String, jobOwner: SecurityPrincipalToken? = null): VerifiedJobWithAccessToken {
         return if (jobOwner == null) {
             jobQueryService.find(db, listOf(id), null).singleOrNull()

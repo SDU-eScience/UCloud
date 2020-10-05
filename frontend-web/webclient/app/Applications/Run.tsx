@@ -1075,7 +1075,6 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
             <Flex mb="1em">
                 <SchedulingField
                     min={0}
-                    max={200}
                     field="maxTime"
                     subField="hours"
                     text="Hours"
