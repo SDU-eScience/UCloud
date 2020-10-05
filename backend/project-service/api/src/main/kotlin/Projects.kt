@@ -175,8 +175,19 @@ data class RenameProjectRequest(
 
 typealias RenameProjectResponse = Unit
 
-typealias IsRenameableRequest = Unit
-typealias IsRenameableResponse = Boolean
+data class ToggleRenamingRequest(
+    val projectId: String
+)
+
+typealias ToggleRenamingResponse = Unit
+
+data class AllowsRenamingRequest(
+    val projectId: String
+)
+
+data class AllowsRenamingResponse(
+    val allowed: Boolean
+)
 
 data class UpdateDataManagementPlanRequest(val id: String, val dmp: String?)
 typealias UpdateDataManagementPlanResponse = Unit
@@ -794,10 +805,30 @@ object Projects : CallDescriptionContainer("project") {
         }
     }
 
-    val isRenameable = call<IsRenameableRequest, IsRenameableResponse, CommonErrorMessage>("rename") {
+    val toggleRenaming = call<ToggleRenamingRequest, ToggleRenamingResponse, CommonErrorMessage>("toggleRenaming") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"toggleRenaming"
+            }
+
+            params {
+                +boundTo(ToggleRenamingRequest::projectId)
+            }
+        }
+    }
+
+    val allowsRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("rename") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         http {

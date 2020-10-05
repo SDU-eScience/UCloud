@@ -1,1 +1,1 @@
-alter table projects add column renameable boolean default false;
+alter table projects add column subprojects_renameable boolean default false;

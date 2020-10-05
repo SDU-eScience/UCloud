@@ -46,7 +46,7 @@ object ProjectTable : SQLTable("projects") {
     val modifiedAt = timestamp("modified_at", notNull = true)
     val archived = bool("archived", notNull = true)
     val parent = text("parent", notNull = false)
-    val renameable = bool("renameable", notNull = false)
+    val allowsRenaming = bool("subprojects_renameable", notNull = false)
 }
 
 object ProjectMembershipVerified : SQLTable("project_membership_verification") {
@@ -657,7 +657,7 @@ class ProjectService(
         }
     }
 
-    suspend fun projectRenameable (
+    suspend fun allowsRenaming (
         ctx:DBContext,
         projectId: String?
     ): Boolean {
@@ -675,8 +675,29 @@ class ProjectService(
                     """
                 ).rows
                 .firstOrNull()
-                ?.getField(ProjectTable.renameable)
+                ?.getField(ProjectTable.allowsRenaming)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+    }
+
+    suspend fun toggleRenaming(
+        ctx: DBContext,
+        projectId: String,
+        actor: Actor
+    ) {
+        ctx.withSession { session ->
+            requireAdmin(session, projectId, actor)
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        UPDATE projects 
+                        SET subprojects_renameable = NOT subprojects_renameable 
+                        WHERE id = :projectId
+                    """
+                )
         }
     }
 
@@ -688,26 +709,22 @@ class ProjectService(
     ) {
         ctx.withSession { session ->
             requireAdmin(session, projectId, actor)
-            if (projectRenameable(ctx, projectId)) {
-                try {
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("project", projectId)
-                            setParameter("newTitle", newTitle)
-                        },
-                        """update projects set title = :newTitle where id = :project """
+            try {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("project", projectId)
+                        setParameter("newTitle", newTitle)
+                    },
+                    """update projects set title = :newTitle where id = :project """
+                )
+            } catch (ex: GenericDatabaseException) {
+                when (ex.errorCode) {
+                    "23505" -> throw RPCException.fromStatusCode(
+                        HttpStatusCode.Conflict,
+                        "Project with title $newTitle already exists"
                     )
-                } catch (ex: GenericDatabaseException) {
-                    when (ex.errorCode) {
-                        "23505" -> throw RPCException.fromStatusCode(
-                            HttpStatusCode.Conflict,
-                            "Project with title $newTitle already exists"
-                        )
-                        else -> throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                    }
+                    else -> throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                 }
-            } else {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             }
         }
     }

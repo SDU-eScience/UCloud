@@ -1,6 +1,7 @@
 import * as React from "react";
 import Divider from "ui-components/Divider";
 import {
+    ArchiveProjectRequestBulk,
     fetchDataManagementPlan,
     FetchDataManagementPlanResponse,
     leaveProject,
@@ -11,7 +12,7 @@ import {
     useProjectManagementStatus,
     UserInProject
 } from "Project/index";
-import {Box, Button, ButtonGroup, Flex, Input, Label, Text, TextArea} from "ui-components";
+import {Box, Button, ButtonGroup, Checkbox, Flex, Input, Label, Text, TextArea} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
@@ -31,12 +32,14 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {TextSpan} from "ui-components/Text";
 import {doNothing} from "UtilityFunctions";
 import {
+    AllowSubProjectsRenamingRequest,
+    AllowSubProjectsRenamingResponse,
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
     ProjectGrantSettings, readGrantRequestSettings, readTemplates,
-    ReadTemplatesResponse
+    ReadTemplatesResponse, ToggleSubProjectsRenamingRequest
 } from "Project/Grant";
-import {retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
+import {ProductArea, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
 
 const ActionContainer = styled.div`
     & > * {
@@ -128,6 +131,13 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             projectDetails={projectDetails.data}
                             projectId={projectId}
                             projectRole={projectRole}
+                        />
+                        <Divider/>
+                        <Heading.h3 id={"Subproject Settings"}>Subproject Settings</Heading.h3>
+                        <SubprojectSettings
+                            projectId={projectId}
+                            projectRole={projectRole}
+                            setLoading={() => false}
                         />
                         <Divider/>
                         <Heading.h3 id={"Project Information"}>Project Information</Heading.h3>
@@ -312,6 +322,74 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
             </Box>
     );
 };
+
+interface AllowRenamingProps {
+    projectId: string;
+    projectRole: ProjectRole
+    setLoading: (loading: boolean) => void;
+}
+
+export function toggleRenaming(
+    request: ToggleSubProjectsRenamingRequest
+): APICallParameters<ToggleSubProjectsRenamingRequest> {
+    return {
+        method: "POST",
+        path: "/projects/toggleRenaming",
+        payload: request,
+        reloadId: Math.random(),
+    };
+}
+
+export function getRenamingStatus(
+    request: AllowSubProjectsRenamingRequest
+): APICallParameters<AllowSubProjectsRenamingRequest> {
+    return {
+        method: "GET",
+        path: "/projects/renameable",
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+
+const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
+    const [allowRenaming, setAllowRenaming] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
+        {noop: true},
+        {allowed: false}
+    );
+
+    useEffect(() => {
+        props.setLoading(allowRenaming.loading);
+        setAllowRenaming(getRenamingStatus({projectId: props.projectId}));
+    }, []);
+
+    const toggleAndSet = async () => {
+        await callAPIWithErrorHandler(toggleRenaming({projectId: props.projectId}));
+        setAllowRenaming(getRenamingStatus({projectId: props.projectId}));
+        console.log("MOJN")
+    };
+
+    return <>
+        {props.projectRole === ProjectRole.USER ? null : (
+            <ActionBox>
+                <Box flexGrow={1}>
+                    <Label
+                        fontWeight={"normal"}
+                        fontSize={"2"}
+                    >
+                        <Checkbox
+                            size={24}
+                            checked={allowRenaming.data.allowed}
+                            onClick={() => toggleAndSet()}
+                            onChange={() => undefined}
+                        />
+                        Allow subprojects to rename
+                    </Label>
+                </Box>
+            </ActionBox>
+        )}
+        </>
+}
+
 
 interface ArchiveSingleProjectProps {
     isArchived: boolean;
