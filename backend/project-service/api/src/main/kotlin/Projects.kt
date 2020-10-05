@@ -819,9 +819,7 @@ object Projects : CallDescriptionContainer("project") {
                 +"toggleRenaming"
             }
 
-            params {
-                +boundTo(ToggleRenamingRequest::projectId)
-            }
+            body { bindEntireRequestFromBody() }
         }
     }
 
@@ -837,6 +835,10 @@ object Projects : CallDescriptionContainer("project") {
             path {
                 using(baseContext)
                 +"renameable"
+            }
+
+            params {
+                +boundTo(AllowsRenamingRequest::projectId)
             }
         }
     }

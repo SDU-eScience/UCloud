@@ -40,6 +40,7 @@ import {
     ReadTemplatesResponse, ToggleSubProjectsRenamingRequest
 } from "Project/Grant";
 import {ProductArea, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 const ActionContainer = styled.div`
     & > * {
@@ -341,13 +342,16 @@ export function toggleRenaming(
 }
 
 export function getRenamingStatus(
-    request: AllowSubProjectsRenamingRequest
+    parameters: AllowSubProjectsRenamingRequest
 ): APICallParameters<AllowSubProjectsRenamingRequest> {
     return {
         method: "GET",
-        path: "/projects/renameable",
-        parameters: request,
-        reloadId: Math.random(),
+        path: buildQueryString(
+            "/projects/renameable",
+            parameters
+        ),
+        parameters,
+        reloadId: Math.random()
     };
 }
 
