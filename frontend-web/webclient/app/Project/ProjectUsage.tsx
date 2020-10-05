@@ -195,26 +195,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const [productArea, setProductArea] = useState(ProductArea.COMPUTE);
     const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3]);
 
-    // ProductArea -> Provider -> LineName -> includeInChartStatus (default: true)
-    const [includeInCharts, setIncludeInCharts] = useState<Record<string, Record<string, Record<string, boolean>>>>({});
-
-    const computeIncludeInCharts: Record<string, Record<string, boolean>> = includeInCharts[ProductArea.COMPUTE] ?? {};
-    const storageIncludeInCharts: Record<string, Record<string, boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
-
-    const onIncludeInChart = (area: ProductArea) => (provider: string, lineName: string, id: number) => {
-        const existingAtProvider: Record<string, boolean> = (includeInCharts[area] ?? {})[provider] ?? {};
-        const newIncludeAtProvider: Record<string, boolean> = {...existingAtProvider};
-        newIncludeAtProvider[lineName] = !(existingAtProvider[lineName] ?? id < 10);
-
-        const newComputeInclude = {...computeIncludeInCharts};
-        newComputeInclude[provider] = newIncludeAtProvider;
-
-        const newState = {...includeInCharts};
-        newState[area] = newComputeInclude;
-
-        setIncludeInCharts(newState);
-    };
-
     const currentTime = new Date();
     const now = periodStartFunction(currentTime, durationOption);
 
@@ -238,8 +218,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
             periodStart: now - durationOption.timeInPast,
             periodEnd: now
         }));
-
-        setIncludeInCharts({});
     }, [durationOption]);
 
     useEffect(() => {
@@ -291,8 +269,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                             usageResponse={usageResponse}
                             durationOption={durationOption}
                             balance={balance}
-                            includeInCharts={computeIncludeInCharts}
-                            onIncludeInChart={onIncludeInChart(ProductArea.COMPUTE)}
                         />
                         :
                         <VisualizationForArea
@@ -301,8 +277,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                             usageResponse={usageResponse}
                             durationOption={durationOption}
                             balance={balance}
-                            includeInCharts={storageIncludeInCharts}
-                            onIncludeInChart={onIncludeInChart(ProductArea.STORAGE)}
                         />
                     }
                 </Box>
@@ -316,10 +290,8 @@ const VisualizationForArea: React.FunctionComponent<{
     projectId: string,
     usageResponse: APICallState<UsageResponse>,
     balance: APICallState<RetrieveBalanceResponse>,
-    durationOption: Duration,
-    includeInCharts: Record<string, Record<string, boolean>>,
-    onIncludeInChart: (provider: string, lineName: string, id: number) => void
-}> = ({area, projectId, usageResponse, balance, durationOption, includeInCharts, onIncludeInChart}) => {
+    durationOption: Duration
+}> = ({area, projectId, usageResponse, balance, durationOption}) => {
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
 
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
@@ -356,12 +328,13 @@ const VisualizationForArea: React.FunctionComponent<{
         creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b]
     ));
 
+    const [, forceUpdate] = useState(false);
 
     charts.forEach(chart => {
         let aggregatedCredits = 0;
         const keys = Object.keys(creditsUsedByWallet[chart.provider]);
-        keys.forEach((key, idx) => {
-            if ((includeInCharts[chart.provider] ?? {})[key] ?? idx < 10)
+        keys.forEach(key => {
+            if (!chartExclusions.queryExcludeFromCharts(key))
                 aggregatedCredits += creditsUsedByWallet[chart.provider][key];
         });
         creditsUsedByWallet[chart.provider].Aggregated = aggregatedCredits;
@@ -411,7 +384,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 formatter={n => creditFormatter(n as number, 2)}
                                             />
                                             {chart.lineNames.map((id, idx) => {
-                                                if ((includeInCharts[chart.provider] ?? {})[id] ?? idx < 10) {
+                                                if (!chartExclusions.queryExcludeFromCharts(id)) {
                                                     return <Bar
                                                         key={id}
                                                         dataKey={id}
@@ -424,13 +397,17 @@ const VisualizationForArea: React.FunctionComponent<{
                                             })}
 
                                             {chart.lineNames.map((id, idx) => {
-                                                return <Bar
-                                                    key={id + "stack"}
-                                                    dataKey={id}
-                                                    stackId={"foo"}
-                                                    fill={theme.chartColors[idx % theme.chartColors.length]}
-                                                    barSize={24}
-                                                />;
+                                                if (!chartExclusions.queryExcludeFromCharts(id)) {
+                                                    return <Bar
+                                                        key={id + "stack"}
+                                                        dataKey={id}
+                                                        stackId={"foo"}
+                                                        fill={theme.chartColors[idx % theme.chartColors.length]}
+                                                        barSize={24}
+                                                    />;
+                                                } else {
+                                                    return null;
+                                                }
                                             })}
                                         </BarChart>
                                     </ResponsiveContainer>
@@ -446,7 +423,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                     Credits Used In Period
                                                 </TableHeaderCell>
                                                 <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
-                                                <TableHeaderCell textAlign={"right"}>Include In Chart</TableHeaderCell>
+                                                <TableHeaderCell textAlign="right">Include In Chart</TableHeaderCell>
                                             </TableRow>
                                         </TableHeader>
                                         <tbody>
@@ -473,12 +450,12 @@ const VisualizationForArea: React.FunctionComponent<{
                                                         )}
                                                     </TableCell>
                                                     <TableCell textAlign="right">
-                                                        {p !== "Aggregated" ? <Toggle
-                                                            onChange={() => onIncludeInChart(chart.provider, p, idx)}
+                                                        {p !== "Aggregated" ? (<Toggle
+                                                            onChange={() => onChartExclusion(p)}
                                                             scale={1.5}
-                                                            activeColor={"green"}
-                                                            checked={(includeInCharts[chart.provider] ?? {})[p] ?? idx < 10}
-                                                        /> : null}
+                                                            activeColor="green"
+                                                            checked={!chartExclusions.queryExcludeFromCharts(p)}
+                                                        />) : null}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -492,6 +469,11 @@ const VisualizationForArea: React.FunctionComponent<{
             </Box>
         </Box>
     );
+
+    function onChartExclusion(name: string): void {
+        chartExclusions.toggleFromCharts(name);
+        forceUpdate(it => !it);
+    }
 };
 
 
@@ -647,3 +629,29 @@ function periodStartFunction(time: Date, duration: Duration): number {
             return time.getTime();
     }
 }
+
+
+class ChartExclusions {
+    private exclusions: string[] = [];
+    private static excludeFromChartsString = "excludeFromCharts";
+
+    constructor() {
+        this.exclusions = JSON.parse(window.localStorage.getItem(ChartExclusions.excludeFromChartsString) ?? "[]");
+    }
+
+    public toggleFromCharts(name: string): void {
+        if (this.exclusions.includes(name)) {
+            this.exclusions = this.exclusions.filter(it => name !== it);
+            window.localStorage.setItem(ChartExclusions.excludeFromChartsString, JSON.stringify(this.exclusions));
+        } else {
+            this.exclusions.push(name);
+            window.localStorage.setItem(ChartExclusions.excludeFromChartsString, JSON.stringify(this.exclusions));
+        }
+    }
+
+    public queryExcludeFromCharts(name: string): boolean {
+        return this.exclusions.includes(name);
+    }
+}
+
+const chartExclusions = new ChartExclusions();
