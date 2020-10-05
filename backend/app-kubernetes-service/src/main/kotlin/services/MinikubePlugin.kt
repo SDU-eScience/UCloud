@@ -9,7 +9,9 @@ import dk.sdu.cloud.service.k8.*
 /**
  * A plugin which adds better support for minikube by adding a LoadBalancer service for the Volcano job
  */
-class MinikubePlugin : JobManagementPlugin {
+object MinikubePlugin : JobManagementPlugin {
+    const val SERVICE_SUFFIX = "-mk"
+
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
         val name = k8.nameAllocator.jobIdToJobName(job.id)
@@ -56,9 +58,5 @@ class MinikubePlugin : JobManagementPlugin {
                 )
             )
         }
-    }
-
-    companion object {
-        const val SERVICE_SUFFIX = "-mk"
     }
 }

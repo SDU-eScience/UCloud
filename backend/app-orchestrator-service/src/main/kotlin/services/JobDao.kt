@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
@@ -161,5 +162,26 @@ class JobDao {
         }
     }
 
-
+    suspend fun updateMaxTime(ctx: DBContext, jobId: String, maxTime: SimpleDuration) {
+        ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("jobId", jobId)
+                        setParameter("hours", maxTime.hours)
+                        setParameter("minutes", maxTime.minutes)
+                        setParameter("seconds", maxTime.seconds)
+                    },
+                    """
+                        update job_information
+                        set 
+                            max_time_hours = :hours,
+                            max_time_minutes = :minutes,
+                            max_time_seconds = :seconds
+                        where
+                            system_id = :jobId
+                    """
+                )
+        }
+    }
 }

@@ -153,6 +153,10 @@ class JobManagement(
         }
     }
 
+    suspend fun extend(job: VerifiedJob, newMaxTime: SimpleDuration) {
+        ExpiryPlugin.extendJob(k8, job.id, newMaxTime)
+    }
+
     suspend fun cancel(verifiedJob: VerifiedJob) {
         markJobAsComplete(verifiedJob.id, null)
     }

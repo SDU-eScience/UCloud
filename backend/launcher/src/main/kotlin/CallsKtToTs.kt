@@ -1,9 +1,8 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.kClass
-import dk.sdu.cloud.calls.toKtorTemplate
+import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Page
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.WildcardType
@@ -87,6 +86,8 @@ fun main() {
     for (description in descriptions) {
         for (call in description.callContainer) {
             // NOTE(Dan): This just assumes that it is all or nothing for all parameters
+
+            if (call.httpOrNull == null) continue
 
             val usesParams = call.http.params != null
             val usesBody = call.http.body != null

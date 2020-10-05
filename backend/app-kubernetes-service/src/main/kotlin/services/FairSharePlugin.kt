@@ -11,7 +11,7 @@ import dk.sdu.cloud.service.k8.*
  * namespace for them. If the application has a project attached to it we will use a namespace dedicated to
  * the project. Namespace creation is done, as needed, by the [FairSharePlugin].
  */
-class FairSharePlugin : JobManagementPlugin {
+object FairSharePlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
         @Suppress("BlockingMethodInNonBlockingContext")

@@ -14,7 +14,7 @@ import dk.sdu.cloud.service.k8.Pod
  * - No other code depends on them
  * - They can all be run near the end of the plugin pipeline
  */
-class MiscellaneousPlugin : JobManagementPlugin {
+object MiscellaneousPlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val containerConfig = job.application.invocation.container ?: ContainerDescription()
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")

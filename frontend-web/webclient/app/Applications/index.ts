@@ -65,7 +65,7 @@ type FetchJobsOperation = (
     sortBy: RunsSortBy,
     minTimestamp?: number,
     maxTimestamp?: number,
-    filter?: AppState
+    filter?: JobState
 ) => void;
 
 export interface AnalysesOperations {
@@ -131,7 +131,10 @@ export interface MaxTime {
     seconds: number;
 }
 
-export interface MaxTimeForInput {
+/** @deprecated */
+export type MaxTimeForInput = SimpleDuration;
+
+export interface SimpleDuration {
     hours: number;
     minutes: number;
     seconds: number;
@@ -411,11 +414,28 @@ export interface WithAllAppTags {
 }
 
 export interface FollowStdStreamResponse {
-    failedState: AppState | null;
-    state: AppState | null;
+    failedState: JobState | null;
+    state: JobState | null;
     status: string | null;
     stdout: string | null;
     stderr: string | null;
 }
 
 export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata & WithAllAppTags;
+
+export interface ExtendDurationRequest {
+    extendWith: SimpleDuration,
+    jobId: string,
+}
+
+export function extendDuration(
+    request: ExtendDurationRequest
+): APICallParameters<ExtendDurationRequest> {
+    return {
+        method: "POST",
+        path: "/hpc/jobs/extend-duration",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request
+    };
+}

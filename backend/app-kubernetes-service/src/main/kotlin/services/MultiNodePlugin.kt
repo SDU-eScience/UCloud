@@ -21,7 +21,7 @@ import dk.sdu.cloud.service.k8.Volume
  * - `node-$rank.txt`: A file containing a single line of text for the $rank'th node. Format will be identical to the
  *   one used in `nodes.txt.
  */
-class MultiNodePlugin : JobManagementPlugin {
+object MultiNodePlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
         val ucloudVolume = "ucloud-multinode"

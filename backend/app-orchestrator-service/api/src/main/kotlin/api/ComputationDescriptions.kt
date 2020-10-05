@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
@@ -48,6 +49,13 @@ data class CancelInternalRequest(
 )
 
 typealias CancelInternalResponse = Unit
+
+data class UpdateJobDeadlineRequest(
+    val verifiedJob: VerifiedJob,
+    val newMaxTime: SimpleDuration
+)
+
+typealias UpdateJobDeadlineResponse = Unit
 
 /**
  * Abstract [RESTDescriptions] for computation backends.
@@ -253,6 +261,26 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
             path {
                 using(baseContext)
                 +"cancel"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val updateJobDeadline = call<UpdateJobDeadlineRequest, UpdateJobDeadlineResponse, CommonErrorMessage>(
+        "updateJobDeadline"
+    ) {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"update-deadline"
             }
 
             body { bindEntireRequestFromBody() }

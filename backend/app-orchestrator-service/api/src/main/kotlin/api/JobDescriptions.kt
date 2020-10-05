@@ -6,6 +6,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.WithAppMetadata
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.audit
@@ -56,6 +57,9 @@ enum class JobSortBy {
 
 typealias MachineTypesRequest = Unit
 typealias MachineTypesResponse = List<Product.Compute>
+
+data class ExtendDurationRequest(val jobId: String, val extendWith: SimpleDuration)
+typealias ExtendDurationResponse = Unit
 
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
@@ -237,6 +241,23 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
                 using(baseContext)
                 +"machine-types"
             }
+        }
+    }
+
+    val extendDuration = call<ExtendDurationRequest, ExtendDurationResponse, CommonErrorMessage>("extendDuration") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"extend-duration"
+            }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 }

@@ -76,15 +76,15 @@ class Server(
             configuration.fullScanFrequency
         ).apply {
             register(TaskPlugin(configuration.toleration))
-            register(ParameterPlugin())
+            register(ParameterPlugin)
             register(FileMountPlugin(cephConfig))
-            register(MultiNodePlugin())
-            register(SharedMemoryPlugin())
-            register(ExpiryPlugin())
-            register(AccountingPlugin())
-            register(MiscellaneousPlugin())
-            if (fairShareEnabled) register(FairSharePlugin())
-            if (micro.developmentModeEnabled) register(MinikubePlugin())
+            register(MultiNodePlugin)
+            register(SharedMemoryPlugin)
+            register(ExpiryPlugin)
+            register(AccountingPlugin)
+            register(MiscellaneousPlugin)
+            if (fairShareEnabled) register(FairSharePlugin)
+            if (micro.developmentModeEnabled) register(MinikubePlugin)
             register(ProxyPlugin(broadcastingStream))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers

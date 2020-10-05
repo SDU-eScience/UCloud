@@ -110,6 +110,17 @@ class JobController(
             ok(Unit)
         }
 
+        implement(JobDescriptions.extendDuration) {
+            verifySlaFromPrincipal()
+            jobOrchestrator.extendDuration(
+                request.jobId,
+                request.extendWith,
+                ctx.securityToken
+            )
+
+            ok(Unit)
+        }
+
         implement(JobDescriptions.follow) {
             verifySlaFromPrincipal()
             ok(streamFollowService.followStreams(request, ctx.securityToken))

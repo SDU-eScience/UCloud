@@ -60,7 +60,7 @@ object Roles {
     val END_USER = setOf(Role.USER, Role.ADMIN)
     val PRIVILEGED = setOf(Role.ADMIN, Role.SERVICE)
 
-    @Deprecated("Corrected spelling", replaceWith = ReplaceWith("Roles.PRIVILEGED"))
+    @Deprecated("Corrected spelling", replaceWith = ReplaceWith("Roles.PRIVILEGED"), DeprecationLevel.HIDDEN)
     val PRIVILEDGED = setOf(Role.ADMIN, Role.SERVICE)
 
     val ADMIN = setOf(Role.ADMIN)

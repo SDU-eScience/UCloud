@@ -111,6 +111,11 @@ class AppKubernetesController(
             ok(Unit)
         }
 
+        implement(AppKubernetesDescriptions.updateJobDeadline) {
+            jobManagement.extend(request.verifiedJob, request.newMaxTime)
+            ok(Unit)
+        }
+
         return@configure
     }
 

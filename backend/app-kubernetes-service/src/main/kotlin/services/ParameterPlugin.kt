@@ -15,7 +15,7 @@ import dk.sdu.cloud.service.k8.Pod
  * - The container will receive a new command
  * - Environment variables will be initialized with values from the user
  */
-class ParameterPlugin : JobManagementPlugin {
+object ParameterPlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val app = job.application.invocation
         val givenParameters =

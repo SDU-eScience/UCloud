@@ -3,16 +3,19 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.k8.KubernetesException
-import dk.sdu.cloud.service.k8.KubernetesResources
-import dk.sdu.cloud.service.k8.deleteResource
-import dk.sdu.cloud.service.k8.patchResource
+import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
 
-class ExpiryPlugin : JobManagementPlugin {
+object ExpiryPlugin : JobManagementPlugin, Loggable {
+    override val log = logger()
+    const val MAX_TIME_ANNOTATION = "ucloud.dk/maxTime"
+    const val EXPIRY_ANNOTATION = "ucloud.dk/expiry"
+    const val JOB_START = "ucloud.dk/jobStart"
+
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val maxTimeMillis = job.maxTime.toMillis()
         val jobMetadata = builder.metadata ?: error("no metadata")
@@ -24,8 +27,7 @@ class ExpiryPlugin : JobManagementPlugin {
 
     override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {
         val metadata = jobFromServer.metadata ?: return
-        val maxTime = metadata.annotations?.get(MAX_TIME_ANNOTATION)?.toString()?.toLongOrNull()
-            ?: error("no max time annotation on volcano job! $jobId $jobFromServer")
+        val maxTime = jobFromServer.maxTime ?: error("no max time attached to job: $jobId")
 
         val start = Time.now()
         val expiry = (start + maxTime)
@@ -71,10 +73,53 @@ class ExpiryPlugin : JobManagementPlugin {
         }
     }
 
-    companion object : Loggable {
-        const val MAX_TIME_ANNOTATION = "ucloud.dk/maxTime"
-        const val EXPIRY_ANNOTATION = "ucloud.dk/expiry"
-        const val JOB_START = "ucloud.dk/jobStart"
-        override val log = logger()
+    suspend fun extendJob(k8: K8Dependencies, jobId: String, newMaxTime: SimpleDuration) {
+        val name = k8.nameAllocator.jobIdToJobName(jobId)
+        val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
+
+        val job = k8.client.getResource<VolcanoJob>(
+            KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace)
+        )
+
+        val ops = ArrayList<Map<String, Any?>>()
+        ops.add(
+            mapOf(
+                "op" to "replace",
+                "path" to "/metadata/annotations/${MAX_TIME_ANNOTATION.replace("/", "~1")}",
+                "value" to newMaxTime.toMillis().toString()
+            )
+        )
+
+        val jobStart = job.jobStart
+        if (jobStart != null) {
+            ops.add(
+                mapOf(
+                    "op" to "replace",
+                    "path" to "/metadata/annotations/${EXPIRY_ANNOTATION.replace("/", "~1")}",
+                    "value" to (jobStart + newMaxTime.toMillis()).toString()
+                )
+            )
+        }
+
+        k8.client.patchResource(
+            KubernetesResources.volcanoJob.withNameAndNamespace(
+                name,
+                namespace
+            ),
+            defaultMapper.writeValueAsString(ops),
+            ContentType("application", "json-patch+json")
+        )
     }
+}
+
+val VolcanoJob.maxTime: Long? get() {
+    return metadata?.annotations?.get(ExpiryPlugin.MAX_TIME_ANNOTATION)?.toString()?.toLongOrNull()
+}
+
+val VolcanoJob.jobStart: Long? get() {
+    return metadata?.annotations?.get(ExpiryPlugin.JOB_START)?.toString()?.toLongOrNull()
+}
+
+val VolcanoJob.expiry: Long? get() {
+    return metadata?.annotations?.get(ExpiryPlugin.EXPIRY_ANNOTATION)?.toString()?.toLongOrNull()
 }

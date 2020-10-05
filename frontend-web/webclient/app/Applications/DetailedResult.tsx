@@ -15,7 +15,7 @@ import {Link} from "react-router-dom";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Card, ContainerForText, ExternalLink, Flex, Hide, List} from "ui-components";
+import {Box, Button, ButtonGroup, Card, ContainerForText, ExternalLink, Flex, Hide, List} from "ui-components";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
@@ -26,10 +26,19 @@ import {TextSpan} from "ui-components/Text";
 import {cancelJob, cancelJobDialog, hpcJobQuery, inCancelableState} from "Utilities/ApplicationUtilities";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
-import {ApplicationType, FollowStdStreamResponse, isJobStateFinal, JobState, JobWithStatus, WithAppInvocation} from ".";
+import {
+    ApplicationType,
+    extendDuration,
+    FollowStdStreamResponse,
+    isJobStateFinal,
+    JobState,
+    JobWithStatus,
+    WithAppInvocation
+} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {runApplication} from "./Pages";
 import {pad} from "./View";
+import {callAPIWithErrorHandler} from "Authentication/DataHook";
 
 interface DetailedResultOperations {
     setPageTitle: (jobId: string) => void;
@@ -38,7 +47,7 @@ interface DetailedResultOperations {
 }
 
 interface DetailedResultProps extends DetailedResultOperations {
-    match: match<{jobId: string}>;
+    match: match<{ jobId: string }>;
     history: History;
 }
 
@@ -94,6 +103,20 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         }
     }
 
+    async function extend(hours: number): Promise<void> {
+        await promises.makeCancelable(
+            callAPIWithErrorHandler(
+                extendDuration({
+                    jobId: jobWithStatus!.jobId,
+                    extendWith: {hours, minutes: 0, seconds: 0}
+                })
+            )
+        ).promise;
+
+        const {response} = await promises.makeCancelable(Client.get<JobWithStatus>(hpcJobQuery(jobId))).promise;
+        setJobWithStatus(response);
+    }
+
     useEffect(() => {
         // Re-initialize most stuff when the job id changes
         props.setPageTitle(shortUUID(jobId));
@@ -102,23 +125,23 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 
         const connection = WSFactory.open(
             "/hpc/jobs", {
-            init: conn => {
-                conn.subscribe({
-                    call: "hpc.jobs.followWS",
-                    payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
-                    handler: message => {
-                        const streamEntry = message.payload as FollowStdStreamResponse;
-                        if (streamEntry.state !== null) {
-                            if (streamEntry.state !== JobState.RUNNING && timeLeft !== -1) setTimeLeft(-1);
-                            setAppState(streamEntry.state);
+                init: conn => {
+                    conn.subscribe({
+                        call: "hpc.jobs.followWS",
+                        payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
+                        handler: message => {
+                            const streamEntry = message.payload as FollowStdStreamResponse;
+                            if (streamEntry.state !== null) {
+                                if (streamEntry.state !== JobState.RUNNING && timeLeft !== -1) setTimeLeft(-1);
+                                setAppState(streamEntry.state);
+                            }
+                            if (streamEntry.status !== null) setStatus(streamEntry.status);
+                            if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
+                            if (streamEntry.stdout !== null) appendToXterm(streamEntry.stdout);
                         }
-                        if (streamEntry.status !== null) setStatus(streamEntry.status);
-                        if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
-                        if (streamEntry.stdout !== null) appendToXterm(streamEntry.stdout);
-                    }
-                });
-            }
-        });
+                    });
+                }
+            });
 
         return () => {
             connection.close();
@@ -152,10 +175,12 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         }
 
         let intervalId: number = -1;
-        if (appState === JobState.RUNNING && timeLeft === -1 && jobWithStatus !== null &&
+        if (appState === JobState.RUNNING && jobWithStatus !== null &&
             (jobWithStatus.maxTime !== null || jobWithStatus.expiresAt !== null)) {
-            const expiresAt = jobWithStatus.expiresAt ? jobWithStatus.expiresAt : Date.now() + jobWithStatus.maxTime!;
+            console.log("Installing new setInterval");
             intervalId = window.setInterval(() => {
+                const expiresAt = jobWithStatus.expiresAt ? jobWithStatus.expiresAt : Date.now() + jobWithStatus.maxTime!;
+                console.log(jobWithStatus.expiresAt);
                 setTimeLeft(expiresAt - Date.now());
             }, 500);
         }
@@ -163,11 +188,11 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         return () => {
             if (intervalId !== -1) window.clearInterval(intervalId);
         };
-    }, [appState]);
+    }, [appState, jobWithStatus]);
 
     return (
         <MainContainer
-            main={application === null || jobWithStatus == null ? <LoadingIcon size={24} /> : (
+            main={application === null || jobWithStatus == null ? <LoadingIcon size={24}/> : (
                 <ContainerForText>
                     <Panel>
                         <StepGroup>
@@ -205,16 +230,27 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                 {appState !== JobState.SUCCESS ? null : (
                                     <InfoBox>
                                         Application has completed successfully.
-                                    Click <Link to={fileTablePage(outputFolder)}>
-                                            <Button px="10px" py="5px">here</Button>
-                                        </Link> to go to the output.
+                                        Click <Link to={fileTablePage(outputFolder)}>
+                                        <Button px="10px" py="5px">here</Button>
+                                    </Link> to go to the output.
                                     </InfoBox>
                                 )}
 
                                 {appState !== JobState.RUNNING || timeLeft <= 0 ? null : (
                                     <InfoBox>
-                                        <b>Time remaining:</b>{" "}
-                                        <TimeRemaining timeInMs={timeLeft} />
+                                        <Flex>
+                                            <b>Time remaining:&nbsp;</b>
+                                            <TimeRemaining timeInMs={timeLeft}/>
+
+                                            <Box flexGrow={1} />
+
+                                            <ButtonGroup>
+                                                <Button onClick={() => { extend(1); }}>+1 hr</Button>
+                                                <Button onClick={() => { extend(10); }}>+10 hrs</Button>
+                                                <Button onClick={() => { extend(24); }}>+24 hrs</Button>
+                                                <Button onClick={() => { extend(48); }}>+48 hrs</Button>
+                                            </ButtonGroup>
+                                        </Flex>
                                     </InfoBox>
                                 )}
                             </List>
@@ -239,7 +275,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     {outputFolder === "" || appState !== JobState.SUCCESS && appState !== JobState.FAILURE ? null : (
                         <Panel width={1}>
                             <Heading.h4>Output Files</Heading.h4>
-                            <EmbeddedFileTable disableNavigationButtons={true} path={outputFolder} />
+                            <EmbeddedFileTable disableNavigationButtons={true} path={outputFolder}/>
                         </Panel>
                     )}
 
@@ -256,8 +292,8 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                     <Heading.h4>
                                         Output
                                         &nbsp;
-                                    <Dropdown>
-                                            <Icon name="info" color="white" color2="black" size="1em" />
+                                        <Dropdown>
+                                            <Icon name="info" color="white" color2="black" size="1em"/>
                                             <DropdownContent
                                                 width="400px"
                                                 visible
@@ -267,14 +303,15 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                             >
                                                 <TextSpan fontSize={1}>
                                                     Streams are collected
-                                                from <code>stdout</code> and <code>stderr</code> of your application.
-                                            </TextSpan>
+                                                    from <code>stdout</code> and <code>stderr</code> of your
+                                                    application.
+                                                </TextSpan>
                                             </DropdownContent>
                                         </Dropdown>
                                     </Heading.h4>
                                 </Box>
                                 <Box width={1} backgroundColor="lightGray">
-                                    <div ref={xtermRef} />
+                                    <div ref={xtermRef}/>
                                 </Box>
                             </Flex>
                         </Box>
@@ -296,7 +333,7 @@ const InfoBox = styled(Box)`
     padding-bottom: 0.8em;
 `;
 
-const TimeRemaining: React.FunctionComponent<{timeInMs: number}> = props => {
+const TimeRemaining: React.FunctionComponent<{ timeInMs: number }> = props => {
     const timeLeft = props.timeInMs;
     const seconds = (timeLeft / 1000) % 60;
     const minutes = ((timeLeft / (1000 * 60)) % 60);

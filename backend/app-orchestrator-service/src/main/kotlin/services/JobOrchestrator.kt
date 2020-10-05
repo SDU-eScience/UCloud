@@ -25,7 +25,6 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 /**
@@ -359,18 +358,28 @@ class JobOrchestrator(
         }
     }
 
-    suspend fun replayLostJobs() {
-        log.info("Replaying jobs lost from last session...")
-        var count = 0
-        jobQueryService.findJobsCreatedBefore(db, Time.now()).collect { jobWithToken ->
-            count++
-            handleStateChange(
-                jobWithToken,
-                JobStateChange(jobWithToken.job.id, jobWithToken.job.currentState),
-                isReplay = true
+
+    suspend fun extendDuration(
+        jobId: String,
+        extendWith: SimpleDuration,
+        jobOwner: SecurityPrincipalToken
+    ) {
+        val jobWithToken = findJobForId(jobId, jobOwner)
+        val backend = computationBackendService.getAndVerifyByName(jobWithToken.job.backend)
+
+        db.withSession { session ->
+            val newMaxTime = SimpleDuration.fromMillis(jobWithToken.job.maxTime.toMillis() + extendWith.toMillis())
+            jobDao.updateMaxTime(
+                session,
+                jobId,
+                newMaxTime
             )
+
+            backend.updateJobDeadline.call(
+                UpdateJobDeadlineRequest(jobWithToken.job.copy(maxTime = newMaxTime), newMaxTime),
+                serviceClient
+            ).orThrow()
         }
-        log.info("No more lost jobs! We recovered $count jobs.")
     }
 
     suspend fun lookupOwnJob(jobId: String, securityPrincipal: SecurityPrincipal): VerifiedJob {

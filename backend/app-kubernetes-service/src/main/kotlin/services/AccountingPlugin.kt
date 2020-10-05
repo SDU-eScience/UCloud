@@ -14,7 +14,10 @@ import dk.sdu.cloud.service.k8.KubernetesResources
 import dk.sdu.cloud.service.k8.patchResource
 import io.ktor.http.*
 
-class AccountingPlugin : JobManagementPlugin {
+object AccountingPlugin : JobManagementPlugin, Loggable {
+    override val log = logger()
+    const val LAST_PERFORMED_AT_ANNOTATION = "ucloud.dk/lastAccountingTs"
+
     override suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {
         log.info("Accounting because job has completed!")
         val now = Time.now()
@@ -83,10 +86,5 @@ class AccountingPlugin : JobManagementPlugin {
     }
     private val VolcanoJob.jobStartedAt: Long? get() {
         return metadata?.annotations?.get(ExpiryPlugin.JOB_START)?.toString()?.toLongOrNull()
-    }
-
-    companion object : Loggable {
-        override val log = logger()
-        const val LAST_PERFORMED_AT_ANNOTATION = "ucloud.dk/lastAccountingTs"
     }
 }

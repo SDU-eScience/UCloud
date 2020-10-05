@@ -8,7 +8,7 @@ import kotlin.math.max
 /**
  * A plugin which enables support for Kata Containers
  */
-class KataContainerPlugin : JobManagementPlugin {
+object KataContainerPlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
         tasks.forEach { task ->

@@ -31,12 +31,13 @@ export const JobStateIcon: React.FunctionComponent<{
             break;
         case JobState.RUNNING:
             iconName = "chrono";
-            defaultColor = "purple";
             break;
+        /*
         case JobState.READY:
             iconName = "chrono";
             defaultColor = "green";
             break;
+         */
         case JobState.SUCCESS:
             iconName = "check";
             defaultColor = "green";

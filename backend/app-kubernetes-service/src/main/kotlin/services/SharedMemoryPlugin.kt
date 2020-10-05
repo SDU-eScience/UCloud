@@ -11,7 +11,7 @@ import dk.sdu.cloud.service.k8.Volume
  * The size of the shared memory device is set to be limited by the RAM allocated to the job itself. If the job has
  * no RAM reservation attached it will default to 1GB of RAM.
  */
-class SharedMemoryPlugin : JobManagementPlugin {
+object SharedMemoryPlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
         val sizeInGigs = job.reservation.memoryInGigs ?: 1
 
