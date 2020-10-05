@@ -402,7 +402,19 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         </Box>
                     }
                     left={
-                        <Link to="/project/dashboard" color={e.archived ? "darkGray" : "text"}>
+                        <Link
+                            onClick={() => {
+                                if (e.projectId !== props.project) {
+                                    props.setProject(e.projectId);
+                                    snackbarStore.addInformation(
+                                        `${e.title} is now the active project`,
+                                        false
+                                    );
+                                }
+                            }}
+                            to="/project/dashboard"
+                            color={e.archived ? "darkGray" : "text"}
+                        >
                             {e.title}
                         </Link>
                     }
