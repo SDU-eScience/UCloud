@@ -1,9 +1,14 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
+import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.k8.KubernetesResources
+import dk.sdu.cloud.service.k8.Pod
+import dk.sdu.cloud.service.k8.getResource
+import dk.sdu.cloud.service.k8.listResources
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -80,24 +85,31 @@ class TunnelManager(private val k8: K8Dependencies) {
         }
     }
 
-    private fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int, urlId: String?): Tunnel {
-        /*
-        val pod =
-            k8.nameAllocator.listPods(jobId).firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+    private suspend fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int, urlId: String?): Tunnel {
+        val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
+        val jobName = k8.nameAllocator.jobIdToJobName(jobId)
 
-        fun findPodResource() = k8.nameAllocator.findPodByName(pod.metadata.name)
-        val podResource = findPodResource()
+        val pod = k8.client
+            .listResources<Pod>(
+                KubernetesResources.pod.withNamespace(namespace),
+                mapOf(
+                    "labelSelector" to "$VOLCANO_JOB_NAME_LABEL=$jobName"
+                )
+            )
+            .firstOrNull() ?: throw RPCException("Could not find active job", HttpStatusCode.NotFound)
+
+        val podName = pod.metadata?.name ?: throw RPCException("Pod has no name", HttpStatusCode.InternalServerError)
 
         if (!isRunningInsideKubernetes) {
             val k8sTunnel = run {
-                // Using kubectl port-forward appears to be a lot more reliable than using the built-in.
+                // Using kubectl port-forward appears to be a lot more reliable than using the alternatives.
                 ProcessBuilder().apply {
                     val cmd = listOf(
                         "kubectl",
                         "port-forward",
                         "-n",
-                        k8.nameAllocator.namespace,
-                        pod.metadata.name,
+                        namespace,
+                        podName,
                         "$localPortSuggestion:$remotePort"
                     )
                     log.debug("Running command: $cmd")
@@ -132,19 +144,21 @@ class TunnelManager(private val k8: K8Dependencies) {
             )
         } else {
             val ipAddress =
-                podResource.get().status.podIP ?: throw RPCException("Application not found", HttpStatusCode.NotFound)
+                pod.status?.podIP ?: throw RPCException("Application not found", HttpStatusCode.NotFound)
             log.debug("Running inside of kubernetes going directly to pod at $ipAddress")
             return Tunnel(
                 jobId = jobId,
                 ipAddress = ipAddress,
                 localPort = remotePort,
                 urlId = urlId,
-                _isAlive = { runCatching { findPodResource()?.get() }.getOrNull() != null },
+                _isAlive = {
+                    runCatching {
+                        k8.client.getResource<Pod>(KubernetesResources.pod.withNameAndNamespace(podName, namespace))
+                    }.getOrNull() != null
+                },
                 _close = { }
             )
         }
-         */
-        return Tunnel(jobId, "127.0.0.1", 42000, null, { true }, {})
     }
 
     companion object : Loggable {

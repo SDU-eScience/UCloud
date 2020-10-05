@@ -16,10 +16,8 @@ object KubernetesResources {
     val statefulSet = KubernetesResourceLocator("apps", "v1", "statefulsets")
     val events = KubernetesResourceLocator(API_GROUP_CORE, "v1", "events")
     val namespaces = KubernetesResourceLocator(API_GROUP_CORE, "v1", "namespaces", namespace = NAMESPACE_ANY)
-    val persistentVolumes = KubernetesResourceLocator(
-        API_GROUP_CORE, "v1", "persistentvolumes",
-        namespace = NAMESPACE_ANY
-    )
+    val persistentVolumes = KubernetesResourceLocator(API_GROUP_CORE, "v1", "persistentvolumes", null, NAMESPACE_ANY)
+    val services = KubernetesResourceLocator(API_GROUP_CORE, "v1", "services")
 }
 
 typealias KubernetesTimestamp = Date
@@ -507,6 +505,46 @@ data class Volume(
 data class SecretReference(var name: String? = null, var namespace: String? = null)
 
 typealias ResourceList = Map<String, String>
+
+data class Service(
+    var apiVersion: String = "v1",
+    var kind: String = "Service",
+    var metadata: ObjectMeta? = null,
+    var spec: Spec? = null,
+    var status: Status? = null
+) {
+    data class Spec(
+        var clueterIP: String? = null,
+        var externalIPs: List<String> = emptyList(),
+        var externalName: String? = null,
+        var externalTrafficPolicy: String? = null,
+        var healthCheckNodePort: Int? = null,
+        var ipFamily: String? = null,
+        var loadBalancerIP: String? = null,
+        var loadBalancerSourceRanges: List<String> = emptyList(),
+        var ports: List<ServicePort> = emptyList(),
+        var publishNotReadyAddresses: Boolean? = null,
+        var selector: Map<String, Any?>? = null,
+        var sessionAffinity: String? = null,
+        var topologyKeys: List<String> = emptyList(),
+        var type: String? = null
+    )
+
+    data class Status(
+        var apiVersion: String = "v1",
+        var kind: String = "ServiceStatus",
+        var items: List<Service> = emptyList()
+    )
+}
+
+data class ServicePort(
+    var appProtocol: String? = null,
+    var name: String? = null,
+    var nodePort: Int? = null,
+    var port: Int? = null,
+    var protocol: String? = null,
+    var targetPort: Any? = null
+)
 
 inline class KubernetesNode(val raw: JsonNode)
 

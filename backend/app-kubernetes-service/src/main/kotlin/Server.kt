@@ -84,6 +84,7 @@ class Server(
             register(AccountingPlugin())
             register(MiscellaneousPlugin())
             if (fairShareEnabled) register(FairSharePlugin())
+            if (micro.developmentModeEnabled) register(MinikubePlugin())
             register(ProxyPlugin(broadcastingStream))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers

@@ -154,7 +154,7 @@ class JobManagement(
     }
 
     suspend fun cancel(verifiedJob: VerifiedJob) {
-        markJobAsComplete(verifiedJob.id)
+        markJobAsComplete(verifiedJob.id, null)
     }
 
     suspend fun initializeListeners() {
@@ -362,15 +362,11 @@ class JobManagement(
                                 if (newState != null) {
                                     if (newState == JobState.SUCCESS) {
                                         val didChange = k8.addStatus(jobId, statusUpdate)
+                                        println("Job is done! didChange = $didChange")
                                         if (didChange) {
-                                            markJobAsComplete(jobId)
-                                            plugins.forEach { plugin ->
-                                                with(plugin) {
-                                                    with(k8) {
-                                                        onJobComplete(jobId, ev.theObject)
-                                                    }
-                                                }
-                                            }
+
+
+                                            markJobAsComplete(jobId, ev.theObject)
                                         }
                                     } else {
                                         val didChangeState = k8.changeState(jobId, newState!!, statusUpdate)
@@ -439,7 +435,21 @@ class JobManagement(
         }
     }
 
-    private suspend fun markJobAsComplete(jobId: String) {
+    private suspend fun markJobAsComplete(jobId: String, volcanoJob: VolcanoJob?) {
+        val job = volcanoJob ?: run {
+            val name = k8.nameAllocator.jobIdToJobName(jobId)
+            val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
+            k8.client.getResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+        }
+
+        plugins.forEach { plugin ->
+            with(plugin) {
+                with(k8) {
+                    onJobComplete(jobId, job)
+                }
+            }
+        }
+
         val dir = logService.downloadLogsToDirectory(jobId)
         try {
             dir?.listFiles()?.forEach { file ->

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
+import kotlinx.coroutines.runBlocking
 import java.io.Closeable
 
 @Suppress("ConstructorParameterNaming")
@@ -8,9 +9,9 @@ class Tunnel(
     val ipAddress: String,
     val localPort: Int,
     val urlId: String?,
-    private val _isAlive: () -> Boolean,
-    private val _close: () -> Unit
+    private val _isAlive: suspend () -> Boolean,
+    private val _close: suspend () -> Unit
 ) : Closeable {
-    fun isAlive() = _isAlive()
-    override fun close() = _close()
+    suspend fun isAlive() = _isAlive()
+    override fun close() = runBlocking { _close() }
 }

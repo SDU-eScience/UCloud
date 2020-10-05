@@ -16,6 +16,7 @@ import io.ktor.http.*
 
 class AccountingPlugin : JobManagementPlugin {
     override suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {
+        log.info("Accounting because job has completed!")
         val now = Time.now()
         val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt ?: run {
             log.warn("Found no last accounting timestamp for job with id $jobId")

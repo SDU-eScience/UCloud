@@ -2,12 +2,17 @@ package dk.sdu.cloud.app.kubernetes.services.proxy
 
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
+import dk.sdu.cloud.app.kubernetes.services.MinikubePlugin
 import dk.sdu.cloud.app.kubernetes.services.VerifiedJobCache
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.k8.KubernetesResources
+import dk.sdu.cloud.service.k8.Service
+import dk.sdu.cloud.service.k8.getResource
+import dk.sdu.cloud.service.k8.listResources
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.features.origin
@@ -94,18 +99,23 @@ class WebService(
                     val minikubeIpAddress = start.inputStream.bufferedReader().readText().lines().first()
                     start.waitFor()
 
-                    val nodeport: Int = TODO()/* = k8.nameAllocator
-                        .findServices(job.id)
-                        .list()
-                        .items
-                        .first()
-                        .spec
-                        .ports
-                        .first()
-                        .nodePort
-                        */
+                    val name = k8.nameAllocator.jobIdToJobName(id)
+                    val namespace = k8.nameAllocator.jobIdToNamespace(id)
 
-                    call.respondRedirect("http://${minikubeIpAddress}:$nodeport")
+                    val nodePort = k8.client
+                        .getResource<Service>(
+                            KubernetesResources.services.withNameAndNamespace(
+                                name + MinikubePlugin.SERVICE_SUFFIX,
+                                namespace
+                            )
+                        )
+                        .spec
+                        ?.ports
+                        ?.first()
+                        ?.nodePort
+                        ?: error("No NodePort attached to job: $id")
+
+                    call.respondRedirect("http://${minikubeIpAddress}:$nodePort")
                 }
             }
         }
