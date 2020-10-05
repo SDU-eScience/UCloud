@@ -272,7 +272,7 @@ class ProjectController(
 
         implement(Projects.allowsRenaming) {
             ok(
-                AllowsRenamingResponse(projects.allowsRenaming(db, ctx.project))
+                AllowsRenamingResponse(projects.allowsRenaming(db, request.projectId))
             )
         }
 

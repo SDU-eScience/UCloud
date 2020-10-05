@@ -1,7 +1,6 @@
 import * as React from "react";
 import Divider from "ui-components/Divider";
 import {
-    ArchiveProjectRequestBulk,
     fetchDataManagementPlan,
     FetchDataManagementPlanResponse,
     leaveProject,
@@ -36,10 +35,8 @@ import {
     AllowSubProjectsRenamingResponse,
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
-    ProjectGrantSettings, readGrantRequestSettings, readTemplates,
-    ReadTemplatesResponse, ToggleSubProjectsRenamingRequest
+    ToggleSubProjectsRenamingRequest
 } from "Project/Grant";
-import {ProductArea, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 const ActionContainer = styled.div`
@@ -96,6 +93,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
         {noop: true},
         {enabled: false}
     );
+
     useEffect(() => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
     }, [projectId]);
@@ -266,6 +264,20 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     const newProjectTitle = React.useRef<HTMLInputElement>(null);
     const [, invokeCommand] = useAsyncCommand();
     const [saveDisabled, setSaveDisabled] = React.useState<boolean>(true);
+
+    const [allowRenaming, setAllowRenaming] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
+        {noop: true},
+        {allowed: false}
+    );
+
+    useEffect(() => {
+        console.log(props.projectDetails.parent)
+        if (props.projectDetails.parent !== undefined) {
+            setAllowRenaming(getRenamingStatus({projectId: props.projectDetails.parent}))
+        }
+    }, [props.projectId]);
+    console.log(allowRenaming)
+
     return (
             <Box flexGrow={1}>
                 <form onSubmit={async e => {
@@ -310,6 +322,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                                     }
                                 }}
                                 defaultValue={props.projectDetails.title}
+                                disabled={!allowRenaming.data.allowed}
                             />
                         </Box>
                         <Button
@@ -369,7 +382,6 @@ const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
     const toggleAndSet = async () => {
         await callAPIWithErrorHandler(toggleRenaming({projectId: props.projectId}));
         setAllowRenaming(getRenamingStatus({projectId: props.projectId}));
-        console.log("MOJN")
     };
 
     return <>

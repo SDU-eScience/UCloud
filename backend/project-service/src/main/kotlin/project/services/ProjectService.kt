@@ -659,9 +659,8 @@ class ProjectService(
 
     suspend fun allowsRenaming (
         ctx:DBContext,
-        projectId: String?
+        projectId: String
     ): Boolean {
-        if (projectId == null) return false
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -670,11 +669,11 @@ class ProjectService(
                     },
                     """
                         SELECT *
-                        FROM projects
+                        FROM project.projects
                         WHERE id = :projectId
                     """
                 ).rows
-                .firstOrNull()
+                .singleOrNull()
                 ?.getField(ProjectTable.allowsRenaming)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
@@ -693,7 +692,7 @@ class ProjectService(
                         setParameter("projectId", projectId)
                     },
                     """
-                        UPDATE projects 
+                        UPDATE project.projects 
                         SET subprojects_renameable = NOT subprojects_renameable 
                         WHERE id = :projectId
                     """
