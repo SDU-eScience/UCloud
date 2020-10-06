@@ -25,6 +25,8 @@ export function productAreaTitle(area: ProductArea): string {
 export interface WalletBalance {
     wallet: Wallet;
     balance: number;
+    allocated: number;
+    used: number;
     area: ProductArea;
 }
 

@@ -34,6 +34,8 @@ data class RetrieveBalanceRequest(
 data class WalletBalance(
     val wallet: Wallet,
     val balance: Long,
+    val allocated: Long,
+    val used: Long,
     val area: ProductArea
 )
 

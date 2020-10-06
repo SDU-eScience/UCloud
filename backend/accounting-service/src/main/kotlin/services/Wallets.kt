@@ -26,6 +26,10 @@ object WalletTable : SQLTable("wallets") {
     val productProvider = text("product_provider", notNull = true)
     val balance = long("balance", notNull = true)
     val lowFundsNotificationSend = bool("low_funds_notifications_send", notNull = true)
+
+    // The following fields are managed by triggers
+    val allocated = long("allocated", notNull = true)
+    val used = long("used", notNull = true)
 }
 
 object TransactionTable : SQLTable("transactions") {
@@ -193,6 +197,8 @@ class BalanceService(
                             )
                         ),
                         it.getField(WalletTable.balance),
+                        it.getField(WalletTable.allocated),
+                        it.getField(WalletTable.used),
                         ProductArea.valueOf(it.getString("area")!!)
                     )
                 }
