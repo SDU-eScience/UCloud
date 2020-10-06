@@ -288,7 +288,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
 
             <BackgroundImage image={bg2}>
                 <Flex alignItems="top" width="100vw" height="100vh" justifyContent="center" pt="20vh">
-                    <Flex mr="16px">
+                    <Flex mr="45px">
                         <LoginBox width="315px">
                             {!isWebDav ? null : (
                                 <LoginBox mb={32}>
