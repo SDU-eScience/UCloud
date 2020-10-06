@@ -298,7 +298,7 @@ const VisualizationForArea: React.FunctionComponent<{
 }> = ({area, projectId, usageResponse, balance, durationOption}) => {
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
 
-    const memberships = useProjectStatus().fetch().membership;
+    // const memberships = useProjectStatus().fetch().membership;
 
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
@@ -336,11 +336,11 @@ const VisualizationForArea: React.FunctionComponent<{
     const [, forceUpdate] = useState(false);
 
 
-    const lines = new Set(...charts.map(chart => [
+    /* const lines = new Set(...charts.map(chart => [
         ...Object.keys(chart.lineNameToWallet).map(it => chart.lineNameToWallet[it].paysFor.id).filter(it => it)
-    ]));
+    ])); */
 
-    for (const chart of charts) {
+/*     for (const chart of charts) {
         let aggregatedCredits = 0;
         const keys = Object.keys(creditsUsedByWallet[chart.provider]);
         keys.forEach(key => {
@@ -375,7 +375,7 @@ const VisualizationForArea: React.FunctionComponent<{
         chart.lineNames.filter(it => it).forEach(it =>
             lines.add(it)
         );
-    }
+    } */
 
     return (
         <Box>
@@ -407,7 +407,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                             <Tooltip labelFormatter={getDateFormatter(durationOption)}
                                                 formatter={n => creditFormatter(n as number, 2)}
                                             />
-                                            {[...lines].map((id, idx) => {
+                                            {chart.lineNames.map((id, idx) => {
                                                 if (!chartExclusions.queryExcludeFromCharts(id)) {
                                                     return <Bar
                                                         key={id}
@@ -420,7 +420,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 }
                                             })}
 
-                                            {[...lines].map((id, idx) => {
+                                            {chart.lineNames.map((id, idx) => {
                                                 if (!chartExclusions.queryExcludeFromCharts(id)) {
                                                     return <Bar
                                                         key={id + "stack"}
@@ -451,7 +451,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                             </TableRow>
                                         </TableHeader>
                                         <tbody>
-                                            {[...lines].map((p, idx) => (
+                                            {chart.lineNames.map((p, idx) => (
                                                 <TableRow key={p}>
                                                     <TableCell>
                                                         <Box width={20} height={20}
@@ -462,7 +462,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                         {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
                                                     </TableCell>
                                                     <TableCell textAlign="right">
-                                                        {p !== Aggregated && !lines.has(p) ? creditFormatter(
+                                                        {p !== Aggregated && chart.lineNames.includes(p) ? creditFormatter(
                                                             balance.data.wallets.find(it =>
                                                                 it.wallet.id === chart.lineNameToWallet[p].id &&
                                                                 it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
@@ -474,7 +474,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                         )}
                                                     </TableCell>
                                                     <TableCell textAlign="right">
-                                                        {p !== Aggregated && !lines.has(p) ? (<Toggle
+                                                        {p !== Aggregated && chart.lineNames.includes(p) ? (<Toggle
                                                             onChange={() => onChartExclusion(p)}
                                                             scale={1.5}
                                                             activeColor="green"
