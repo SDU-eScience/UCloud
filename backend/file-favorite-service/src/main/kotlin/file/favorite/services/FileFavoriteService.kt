@@ -9,16 +9,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindMetadataRequest
-import dk.sdu.cloud.file.api.MetadataDescriptions
-import dk.sdu.cloud.file.api.MetadataUpdate
-import dk.sdu.cloud.file.api.RemoveMetadataRequest
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.StorageFileAttribute
-import dk.sdu.cloud.file.api.UpdateMetadataRequest
-import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -123,7 +114,8 @@ class FileFavoriteService(
     suspend fun listAll(
         pagination: NormalizedPaginationRequest,
         user: SecurityPrincipalToken,
-        userClient: AuthenticatedClient
+        userClient: AuthenticatedClient,
+        project: String? = null
     ): Page<StorageFile> {
         val allMetadata = MetadataDescriptions.findMetadata.call(
             FindMetadataRequest(null, FAVORITE_METADATA_TYPE, user.principal.username),
@@ -131,6 +123,15 @@ class FileFavoriteService(
         ).orThrow()
 
         return allMetadata.metadata
+            .filter {
+                val shouldStartWith = if (project == null) {
+                    "/home/"
+                } else {
+                    projectHomeDirectory(project)
+                }
+
+                it.path.normalize().startsWith(shouldStartWith)
+            }
             .paginate(pagination)
             .run {
                 val newItems = items.mapNotNull { metadata ->

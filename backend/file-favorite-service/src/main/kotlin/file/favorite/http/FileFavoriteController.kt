@@ -4,10 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.audit
-import dk.sdu.cloud.calls.server.bearer
-import dk.sdu.cloud.calls.server.securityToken
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
@@ -36,8 +33,10 @@ class FileFavoriteController(
         implement(FileFavoriteDescriptions.list) {
             ok(
                 fileFavoriteService.listAll(
-                    request.normalize(), ctx.securityToken,
-                    clientContext.bearerAuth(ctx.bearer!!)
+                    request.normalize(),
+                    ctx.securityToken,
+                    clientContext.bearerAuth(ctx.bearer!!),
+                    ctx.project
                 )
             )
         }
