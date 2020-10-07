@@ -657,11 +657,13 @@ class ProjectService(
         }
     }
 
-    suspend fun allowsRenaming (
+    suspend fun allowsSubProjectsRenaming (
         ctx:DBContext,
-        projectId: String
+        projectId: String,
+        actor: Actor
     ): Boolean {
         return ctx.withSession { session ->
+            requireAdmin(ctx, projectId, actor)
             session
                 .sendPreparedStatement(
                     {
@@ -676,6 +678,49 @@ class ProjectService(
                 .singleOrNull()
                 ?.getField(ProjectTable.allowsRenaming)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+    }
+
+    suspend fun allowedRenaming (
+        ctx:DBContext,
+        projectId: String,
+        actor: Actor
+    ): Boolean {
+        return ctx.withSession { session ->
+            requireAdmin(session, projectId, actor)
+            val parentId = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        SELECT parent 
+                        FROM projects
+                        WHERE id = :projectId 
+                    """
+                ).rows
+                .singleOrNull()
+                ?.getField(ProjectTable.parent)
+            //Does not allow renaming of root projects.
+            if (parentId == null) {
+                false
+            }
+            else {
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("parentProjectId", parentId)
+                        },
+                        """
+                        SELECT *
+                        FROM project.projects
+                        WHERE id = :parentProjectId
+                    """
+                    ).rows
+                    .singleOrNull()
+                    ?.getField(ProjectTable.allowsRenaming)
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
         }
     }
 

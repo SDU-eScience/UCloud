@@ -108,6 +108,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         <Divider/>
                         <ul>
                             <li><a href={"#Availability"}>Project Availability</a></li>
+                            <li><a href={"#Subproject Settings"}>Subproject Settings</a></li>
                             <li><a href={"#Project Information"}>Project Information</a></li>
                             <li><a href={"#DMP"}>Data Management Plan</a></li>
                             {
@@ -271,9 +272,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     );
 
     useEffect(() => {
-        if (props.projectDetails.parent !== undefined) {
-            setAllowRenaming(getRenamingStatus({projectId: props.projectDetails.parent}))
-        }
+        setAllowRenaming(getRenamingStatus({projectId: props.projectId}))
     }, [props.projectId]);
     return (
             <Box flexGrow={1}>
@@ -351,6 +350,20 @@ export function toggleRenaming(
     };
 }
 
+export function getRenamingStatusForSubProject(
+    parameters: AllowSubProjectsRenamingRequest
+): APICallParameters<AllowSubProjectsRenamingRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString(
+            "/projects/renameable-sub",
+            parameters
+        ),
+        parameters,
+        reloadId: Math.random()
+    };
+}
+
 export function getRenamingStatus(
     parameters: AllowSubProjectsRenamingRequest
 ): APICallParameters<AllowSubProjectsRenamingRequest> {
@@ -373,12 +386,12 @@ const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
 
     useEffect(() => {
         props.setLoading(allowRenaming.loading);
-        setAllowRenaming(getRenamingStatus({projectId: props.projectId}));
+        setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
     }, []);
 
     const toggleAndSet = async () => {
         await callAPIWithErrorHandler(toggleRenaming({projectId: props.projectId}));
-        setAllowRenaming(getRenamingStatus({projectId: props.projectId}));
+        setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
     };
 
     return <>

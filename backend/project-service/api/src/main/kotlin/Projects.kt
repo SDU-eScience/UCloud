@@ -823,7 +823,7 @@ object Projects : CallDescriptionContainer("project") {
         }
     }
 
-    val allowsRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("rename") {
+    val allowedRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("allowsRenaming") {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED
@@ -835,6 +835,26 @@ object Projects : CallDescriptionContainer("project") {
             path {
                 using(baseContext)
                 +"renameable"
+            }
+
+            params {
+                +boundTo(AllowsRenamingRequest::projectId)
+            }
+        }
+    }
+
+    val allowsSubProjectRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("allowsSubProjectRenaming") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"renameable-sub"
             }
 
             params {

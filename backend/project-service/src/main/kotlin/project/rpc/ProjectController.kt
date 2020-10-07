@@ -270,9 +270,15 @@ class ProjectController(
             )
         }
 
-        implement(Projects.allowsRenaming) {
+        implement(Projects.allowedRenaming) {
             ok(
-                AllowsRenamingResponse(projects.allowsRenaming(db, request.projectId))
+                AllowsRenamingResponse(projects.allowedRenaming(db, request.projectId, ctx.securityPrincipal.toActor()))
+            )
+        }
+
+        implement(Projects.allowsSubProjectRenaming) {
+            ok(
+                AllowsRenamingResponse(projects.allowsSubProjectsRenaming(db, request.projectId, ctx.securityPrincipal.toActor()))
             )
         }
 
