@@ -1,4 +1,4 @@
-import {useXTerm} from "Applications/xterm";
+import {appendToXterm, useXTerm} from "Applications/xterm";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {EmbeddedFileTable} from "Files/FileTable";
 import {History} from "history";
@@ -59,7 +59,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const [application, setApplication] = useState<WithAppInvocation | null>(null);
     const [interactiveLink, setInteractiveLink] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<number>(-1);
-    const [xtermRef, appendToXterm, resetXterm] = useXTerm();
+    const {termRef, terminal} = useXTerm();
     const promises = usePromiseKeeper();
 
     const jobId = props.match.params.jobId;
@@ -121,7 +121,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         // Re-initialize most stuff when the job id changes
         props.setPageTitle(shortUUID(jobId));
         fetchJob();
-        resetXterm();
+        terminal.reset();
 
         const connection = WSFactory.open(
             "/hpc/jobs", {
@@ -137,7 +137,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                             }
                             if (streamEntry.status !== null) setStatus(streamEntry.status);
                             if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
-                            if (streamEntry.stdout !== null) appendToXterm(streamEntry.stdout);
+                            if (streamEntry.stdout !== null) appendToXterm(terminal, streamEntry.stdout);
                         }
                     });
                 }
@@ -311,7 +311,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                     </Heading.h4>
                                 </Box>
                                 <Box width={1} backgroundColor="lightGray">
-                                    <div ref={xtermRef}/>
+                                    <div ref={termRef}/>
                                 </Box>
                             </Flex>
                         </Box>

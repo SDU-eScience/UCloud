@@ -55,6 +55,7 @@ import {ProjectBrowser} from "Project/Grant/ProjectBrowser";
 import {LandingPage} from "Project/Grant/LandingPage";
 import Products from "Products/Products";
 import {AppK8Admin} from "Admin/AppK8Admin";
+import {ShellDemo} from "Applications/Shell";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -101,6 +102,7 @@ const Core = (): JSX.Element => (
                 <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
 
                 {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
+                {!inDevEnvironment() ? null : <Route exact path={"/playground/shell"} component={ShellDemo} />}
 
                 <Route exact path="/shares" component={requireAuth(Share.List)} />
 

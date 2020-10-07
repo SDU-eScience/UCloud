@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.kubernetes
 import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
 import dk.sdu.cloud.app.kubernetes.rpc.MaintenanceController
 import dk.sdu.cloud.app.kubernetes.rpc.ReloadController
+import dk.sdu.cloud.app.kubernetes.rpc.ShellDemo
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.kubernetes.services.proxy.ApplicationProxyService
 import dk.sdu.cloud.app.kubernetes.services.proxy.AuthenticationService
@@ -148,7 +149,8 @@ class Server(
                     broadcastingStream
                 ),
                 ReloadController(k8Dependencies),
-                MaintenanceController(maintenance)
+                MaintenanceController(maintenance),
+                ShellDemo(k8Dependencies.client)
             )
         }
 

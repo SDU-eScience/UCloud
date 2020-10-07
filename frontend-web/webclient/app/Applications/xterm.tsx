@@ -5,7 +5,12 @@ import {Terminal} from "xterm";
 import {FitAddon} from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 
-export function useXTerm(): [React.RefObject<HTMLDivElement>, (textToAppend: string) => void, () => void] {
+interface XtermHook {
+    termRef: React.RefObject<HTMLDivElement>;
+    terminal: Terminal;
+}
+
+export function useXTerm(): XtermHook {
     const [didMount, setDidMount] = useState(false);
 
     const [term] = useState(() => new Terminal({theme: getTheme()}));
@@ -32,16 +37,15 @@ export function useXTerm(): [React.RefObject<HTMLDivElement>, (textToAppend: str
         term.setOption("theme", getTheme());
     }
 
-    return [
-        elem,
-        textToAppend => {
-            const remainingString = textToAppend.replace(/\n/g, "\r\n");
-            term.write(remainingString);
-        },
-        () => {
-            term.reset();
-        }
-    ];
+    return {
+        termRef: elem,
+        terminal: term
+    };
+}
+
+export function appendToXterm(term: Terminal, textToAppend: string) {
+    const remainingString = textToAppend.replace(/\n/g, "\r\n");
+    term.write(remainingString);
 }
 
 function getTheme() {

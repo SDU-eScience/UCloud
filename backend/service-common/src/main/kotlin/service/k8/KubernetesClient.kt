@@ -18,6 +18,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
+import io.ktor.util.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.CoroutineScope
@@ -155,6 +156,21 @@ sealed class KubernetesConfigurationSource {
     }
 }
 
+fun URLBuilder.fixedClone(): Url {
+    val e = HashMap<String, List<String>>()
+    parameters.entries().forEach { (k, v) -> e[k] = v }
+    parameters.clear()
+    return clone().build().copy(
+        parameters = Parameters.build {
+            for ((k, values) in e) {
+                for (v in values) {
+                    append(k, v)
+                }
+            }
+        }
+    )
+}
+
 sealed class KubernetesAuthenticationMethod {
     open fun configureClient(httpClientConfig: HttpClientConfig<*>) {}
     open fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {}
@@ -165,6 +181,7 @@ sealed class KubernetesAuthenticationMethod {
                 "--context",
                 context,
                 "proxy",
+                "--disable-filter=true", // allow exec into pods, TODO Put this behind a flag to opt-in
                 "--port",
                 "42010"
             ).start()
@@ -182,10 +199,10 @@ sealed class KubernetesAuthenticationMethod {
             }
 
             httpRequestBuilder.url(
-                httpRequestBuilder.url.clone().build().copy(
+                httpRequestBuilder.url.fixedClone().copy(
                     protocol = URLProtocol.HTTP,
                     host = "localhost",
-                    specifiedPort = 42010
+                    specifiedPort = 42010,
                 ).toString()
             )
         }
@@ -286,8 +303,7 @@ class KubernetesClient(
         log.info("Kubernetes client will use the following connection parameters: $conn")
     }
 
-    @PublishedApi
-    internal fun buildUrl(
+    fun buildUrl(
         locator: KubernetesResourceLocator,
         queryParameters: Map<String, String>,
         operation: String?
@@ -335,6 +351,7 @@ class KubernetesClient(
             .joinToString("&")
             .takeIf { it.isNotEmpty() }
             ?.let { "?$it" } ?: ""
+            .also { println(it) }
     }
 
     suspend inline fun <reified T> parseResponse(resp: HttpResponse): T {
@@ -368,10 +385,13 @@ class KubernetesClient(
             url(buildUrl(locator, queryParameters, operation).also { log.debug("$method $it") })
             header(HttpHeaders.Accept, ContentType.Application.Json)
             if (content != null) body = content
-            conn.authenticationMethod.configureRequest(this)
+            configureRequest(this)
         }
     }
 
+    inline fun configureRequest(requestBuilder: HttpRequestBuilder) {
+        conn.authenticationMethod.configureRequest(requestBuilder)
+    }
 
     companion object : Loggable {
         override val log = logger()
