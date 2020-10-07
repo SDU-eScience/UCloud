@@ -298,8 +298,6 @@ const VisualizationForArea: React.FunctionComponent<{
 }> = ({area, projectId, usageResponse, balance, durationOption}) => {
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
 
-    // const memberships = useProjectStatus().fetch().membership;
-
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
         else return sum;
@@ -322,6 +320,8 @@ const VisualizationForArea: React.FunctionComponent<{
             for (const category of Object.keys(point)) {
                 if (category === "time") continue;
 
+                if (point[category] === 0) delete point[category];
+
                 const currentUsage = usageByCurrentProvider[category] ?? 0;
                 usageByCurrentProvider[category] = currentUsage + point[category];
                 creditsUsedInPeriod += point[category];
@@ -329,53 +329,13 @@ const VisualizationForArea: React.FunctionComponent<{
         }
     }
 
-    charts.forEach(chart => chart.lineNames.sort((a: string, b: string): number =>
-        creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b]
-    ));
+    charts.forEach(chart => chart.lineNames.sort((a: string, b: string): number => {
+        const difference = creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b];
+        if (difference === 0) return 0;
+        return a.localeCompare(b);
+    }));
 
     const [, forceUpdate] = useState(false);
-
-
-    /* const lines = new Set(...charts.map(chart => [
-        ...Object.keys(chart.lineNameToWallet).map(it => chart.lineNameToWallet[it].paysFor.id).filter(it => it)
-    ])); */
-
-/*     for (const chart of charts) {
-        let aggregatedCredits = 0;
-        const keys = Object.keys(creditsUsedByWallet[chart.provider]);
-        keys.forEach(key => {
-            if (!chartExclusions.queryExcludeFromCharts(key))
-                aggregatedCredits += creditsUsedByWallet[chart.provider][key];
-        });
-        creditsUsedByWallet[chart.provider][Aggregated] = aggregatedCredits;
-        if (!chart.lineNames.includes(Aggregated) && chart.lineNames.filter(it => it).length) chart.lineNames.push(Aggregated);
-
-        for (const point of chart.points) {
-            for (const category of Object.keys(point)) {
-                if (category === "time") {
-                    continue;
-                }
-                if (point[category] === 0) {
-                    delete point[category];
-                }
-
-                const projectId = chart.lineNameToWallet[category].id;
-                const projectTitle = memberships.find(it => it.projectId === projectId)?.title;
-                const product = chart.lineNameToWallet[category]?.paysFor.id;
-                if (!product || !projectTitle) continue;
-                lines.add(projectTitle);
-                const provided = creditsUsedByWallet[chart.provider];
-                if (provided[product] === undefined) provided[product] = 0;
-                if (provided[projectTitle] === undefined) provided[projectTitle] = 0;
-
-                provided[product] += (point[category] ?? 0);
-                provided[projectTitle] += (point[category] ?? 0);
-            }
-        }
-        chart.lineNames.filter(it => it).forEach(it =>
-            lines.add(it)
-        );
-    } */
 
     return (
         <Box>
