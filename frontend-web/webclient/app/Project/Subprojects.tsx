@@ -3,7 +3,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {createProject, listSubprojects, Project, useProjectManagementStatus} from "Project";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Box, Button, Card, Flex, Icon, Input, Label, Link, List, Text} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Input, Label, Link, List, Text, Tooltip} from "ui-components";
 import styled from "styled-components";
 import {emptyPage} from "DefaultObjects";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -352,7 +352,13 @@ const Subprojects: React.FunctionComponent = () => {
                         walletBalance={selectedWallet === null ?
                             undefined :
                             subprojectWallets.find(it => it.wallet.id === subproject.id) ??
-                            {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
+                            {
+                                ...selectedWallet,
+                                balance: 0,
+                                allocated: 0,
+                                used: 0,
+                                wallet: {...selectedWallet.wallet, id: subproject.id}
+                            }
                         }
                         allowManagement={allowManagement}
                     />
@@ -362,7 +368,7 @@ const Subprojects: React.FunctionComponent = () => {
     }
 };
 
-const AllocationEditor = styled.div`
+const AllocationEditor = styled(Box)`
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -399,6 +405,9 @@ const SubprojectRow: React.FunctionComponent<{
     allowManagement: boolean
 }> = ({subproject, walletBalance, shakeWallets, requestReload, allowManagement}) => {
     const balance = walletBalance?.balance;
+    const used = walletBalance?.used ?? 0;
+    const allocated = walletBalance?.allocated ?? 0;
+    const percentageUsed = allocated === 0 ? 0 : (used / allocated) * 100;
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [isEditingQuota, setIsEditingQuota] = useState<boolean>(false);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -499,7 +508,12 @@ const SubprojectRow: React.FunctionComponent<{
                                         {!isEditing ? (
                                             <>
                                                 <AllocationEditor>
-                                                    {creditFormatter(balance, 0)}
+                                                    {creditFormatter(balance, 0)}&nbsp;
+                                                    <Tooltip
+                                                        trigger={<>({percentageUsed.toFixed(2)}% used)</>}
+                                                    >
+                                                        {creditFormatter(used, 0)} of {creditFormatter(allocated, 0)} used
+                                                    </Tooltip>
                                                 </AllocationEditor>
                                                 <Button pr={8} pl={8} onClick={() => setIsEditing(true)}>
                                                     <Icon name="edit" size={14} />
@@ -541,7 +555,7 @@ const SubprojectRow: React.FunctionComponent<{
                                     <Flex alignItems={"center"} justifyContent={"flex-end"}>
                                         {!isEditingQuota ? (
                                             <>
-                                                <AllocationEditor>
+                                                <AllocationEditor width={"100px"}>
                                                     {quotaInTotal === -1 ? "No quota" : sizeToString(quotaInTotal)}
                                                 </AllocationEditor>
                                                 <Button pl={8} pr={8} onClick={() => setIsEditingQuota(true)}>

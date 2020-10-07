@@ -39,37 +39,85 @@ Leader have the responsibility for validity of the content.
 
 ## The Development Cycle
 
-### Git Repository
+UCloud uses an __agile methodology__ for development and deployment, which will also be used for this project The method 
+is commonly used for complex projects like this one, and it emphasizes collaboration, flexibility, continuous 
+improvement, and high-quality results. 
 
-UCloud uses a [git repository](https://git-scm.com/) for all UCloud
-related code and documentation. The root of the repository contains a
-directory for every software module.
+This project methodology is fundamentally designed around the concept of tasks, also known as issues. An issue is a 
+description of some desired change within the project. Issues contain a description of either an observed bug to fix 
+or a desired enhancement to the software. Issues can be assigned to team members by team or project leaders or 
+developers can assign themselves to work on certain issues.
 
-The documentation for each module is placed in a folder called `wiki/`.
-Documentation is automatically generated from this folder.
+Large or complex issues, which need to be broken down into smaller tasks, are called epics. Associated with every 
+epic is a number of smaller issues. For example, new features in UCloud commonly become an epic.
 
-All microservices end in the suffix `-service`. You can read more about the
-structure of a microservice `here <common-service.html>`__.
+### Roadmap
 
-The `master` branch of the git repository contains code which is either in
-production or currently in testing to become the new production version.
-Developers create new branches for feature/issue development.
+New features described by epics are placed into the project roadmap with a starting date and deadline. The goal of the 
+roadmap is to provide an easy way to plan the work needed to complete the project in a timely manner. The roadmap 
+provides an overview of the whole project and a detailed always up-to-date view of the scheduled work for the next 
+3-6 months.  
 
-The git repository is hosted on [GitHub](https://github.com). An organization
-exists for the [SDU eScience Center](https://github.com/sdu-escience). We keep
-several repositories. We typically have at least one repository per project.
+All tasks/issues go through a fixed set of stages: “backlog”, “in progress”, “testing”, “review” and finally “closed”.
 
-The GitHub organization uses the
-["teams"](https://help.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-teams)
-feature for managing permissions within the organization. This includes
-permissions such as read and write permissions to each repository.
+### Backlog
 
-The developers are divided in Teams, each working on a separate repository.
-Each Team is granted read/write permissions to their working repository.
-Admin permission (read/write/add users/delete) to the repositories is granted
-to the Project Leader as well as the ISMS admin.
- 
-2 factor authentication is required for the repositories on GitHub.
+The issue's life begins when it enters the backlog. The backlog is a list of tasks ordered by priority, and it 
+describes the next tasks/issues to work on. For example, a critical bug will have a high priority and be put on top of 
+the backlog as soon as it is created, even if many other tasks were created before it.
+
+### In progress: Design & Development
+
+The software design begins when the work on an issue starts. Once a developer starts working on it, the issue enters 
+the "in progress" stage. New requirements are often discovered during the lifetime of an issue. These new issues enter 
+the backlog as any other issue. Epics corresponding to bigger features receive detailed sub-issues and developers are 
+assigned to individual issues.
+
+### Initial testing
+
+Eventually code will reach a functional stage. At this point the issue becomes "ready for initial testing". In this 
+stage, the code is tested by the assigned developer.  Code is tested both manually and automatically. Automatic tests 
+are executed by Jenkins and include both unit and integration testing. Manual testing is performed on a development 
+system. The development system contains a software and hardware stack similar to the one used in the production 
+environment. This allows us to more accurately test code.
+
+### Code review
+
+After the testing stage, the assigned developer will submit a pull request and the issue enters the “code review” 
+stage. The code is reviewed by one or more developers in the team knowledgeable of the affected code. This typically 
+includes the team leader.  The review causes a feedback loop between reviewers and the developer. Once the reviewers 
+accept the proposed change, the code is merged into the master branch and the associated issue is closed.
+
+### Staging and Alpha testing
+
+Changes made to the software base of UCloud through issues are bundled together to form a release-candidate. This 
+_release-candidate_ is deployed to the staging environment of UCloud. The staging environment is similar to both the 
+development and production environment. This release candidate goes through internal alpha testing.  New issues may 
+arise from alpha testing, which are inserted in the backlog. Depending on the nature of the issue, these may block the 
+release candidate from release or can simply be dealt with in later releases. Once the release candidate has passed 
+internal alpha testing, it is deployed to the production environment. 
+
+### Deployment
+
+The UCloud software is deployed using Kubernetes. Kubernetes is a very flexible container orchestrator system which 
+is configured using Kubernetes “resources”. These resources define the desired state of the cluster and it is the job 
+of Kubernetes to always match this state on the available hardware. The code of each microservice contains the code 
+needed for deploying itself to a Kubernetes. As a result, this code goes through the same development and review 
+process as all other code. New big features are introduced in production as “beta” and a testing phase by the users 
+starts. Bugs reports are submitted by the users via the integrated bug reporting feature in the web UI. After the beta 
+testing is complete, the feature is promoted to _stable_.
+
+### Code and project management
+
+As UCloud, this project will be hosted on GitHub as a public repository under an open-source license. We use the 
+GitHub issue system to create and close issues. We use ZenHub as a project management tool, which integrates seamlessly 
+with Github, to track the various stages of the lifecycle of an issue and to manage both epics and the project roadmap.   
+
+### Documentation
+
+Technical documentation of UCloud is kept in the same repository as the source code. This means that all documentation 
+goes through the same review mechanisms as all other code. User documentation is kept in a separate repository, and 
+it will be provided in collaboration with the back-offices at the national HPC centers.
 
 ### Internal Artifact Repositories
 
@@ -97,26 +145,6 @@ scenarios.
 
 Automatic testing is performed by our Continuous Integration (CI) system, 
 [Jenkins](infrastructure/wiki/Jenkins.html). The director grants access to the CI system.
-
-### Code Review
-
-The code is reviewed by the Project Leader before being merged into the
-`master` branch. When code is pushed to the `master` branch tests are
-automatically run.
-
-When the commit is accepted it will merged into the `master` branch. Code on
-the `master` branch eventually reaches the production system after a test
-period.
-
-If the commit is rejected and changes are needed, the Team responsible for the
-commit will make the necessary changes and resubmit the code for review.  The
-ISMS admin uses the GitHub issues to if improvements is needed within content
-that relates to compliance and security.
-
-### Deployment
-
-Deployment procedures and relevant technologies are listed
-`here <infrastructure/wiki/deployment.html>`__.
 
 ## Support
 
@@ -252,35 +280,3 @@ The information that is being collected is:
 
 If a change is observed an email is sent to the Project Leader so the change
 can be accepted and verified or investigated.
-
----
-
-## Sections pending migration
-
-The following sections are in the process of being migrated to new documents.
-They are left here as they have not yet been migrated.
-
-### Secret management
-
-Identity management is handled by Wayf.
-
-Transactions are authorised through JWT´s.
-
-https://jwt.io
-
-Inside K8´s the secret management features from K8 are being used.
-
-https://kubernetes-security.info
-
-> infrastructure level secrets (password management, key management for e.g.
-> CEPH and SSH, or encryption) are stored within GitHub which have to changed.
-
-### Development
-
-Members from the development team generally does not have root access to any
-system (dev/prod).
-
-Root access is generally not needed since most configuration and deployment is
-automated.
-
-

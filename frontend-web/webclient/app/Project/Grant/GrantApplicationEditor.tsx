@@ -235,6 +235,8 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                         type: "USER"
                     },
                     balance: it.creditsRequested ?? 0,
+                    used: 0,
+                    allocated: 0,
                     area: ProductArea.COMPUTE
                 };
             });
@@ -301,6 +303,8 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
             mergedWallets.push({
                 area: product.area,
                 balance: 0,
+                used: 0,
+                allocated: 0,
                 wallet: {
                     type: "USER",
                     id: "unknown",

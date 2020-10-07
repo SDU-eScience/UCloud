@@ -12,6 +12,7 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {
+    NativeChart,
     ProductArea,
     productAreaTitle,
     retrieveBalance,
@@ -32,6 +33,9 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Dropdown} from "ui-components/Dropdown";
 import {capitalized} from "UtilityFunctions";
+import {useProjectStatus} from "./cache";
+
+const Aggregated = "Aggregated";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -294,6 +298,8 @@ const VisualizationForArea: React.FunctionComponent<{
 }> = ({area, projectId, usageResponse, balance, durationOption}) => {
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
 
+    // const memberships = useProjectStatus().fetch().membership;
+
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
         else return sum;
@@ -312,8 +318,7 @@ const VisualizationForArea: React.FunctionComponent<{
         const usageByCurrentProvider: Record<string, number> = {};
         creditsUsedByWallet[chart.provider] = usageByCurrentProvider;
 
-        for (let i = 0; i < chart.points.length; i++) {
-            let point = chart.points[i];
+        for (const point of chart.points) {
             for (const category of Object.keys(point)) {
                 if (category === "time") continue;
 
@@ -330,28 +335,47 @@ const VisualizationForArea: React.FunctionComponent<{
 
     const [, forceUpdate] = useState(false);
 
-    charts.forEach(chart => {
+
+    /* const lines = new Set(...charts.map(chart => [
+        ...Object.keys(chart.lineNameToWallet).map(it => chart.lineNameToWallet[it].paysFor.id).filter(it => it)
+    ])); */
+
+/*     for (const chart of charts) {
         let aggregatedCredits = 0;
         const keys = Object.keys(creditsUsedByWallet[chart.provider]);
         keys.forEach(key => {
             if (!chartExclusions.queryExcludeFromCharts(key))
                 aggregatedCredits += creditsUsedByWallet[chart.provider][key];
         });
-        creditsUsedByWallet[chart.provider].Aggregated = aggregatedCredits;
-        if (!chart.lineNames.includes("Aggregated")) chart.lineNames.push("Aggregated");
+        creditsUsedByWallet[chart.provider][Aggregated] = aggregatedCredits;
+        if (!chart.lineNames.includes(Aggregated) && chart.lineNames.filter(it => it).length) chart.lineNames.push(Aggregated);
 
-        chart.points.forEach(point => {
+        for (const point of chart.points) {
             for (const category of Object.keys(point)) {
                 if (category === "time") {
-                    point.Agggregated = point.time;
                     continue;
                 }
                 if (point[category] === 0) {
                     delete point[category];
                 }
+
+                const projectId = chart.lineNameToWallet[category].id;
+                const projectTitle = memberships.find(it => it.projectId === projectId)?.title;
+                const product = chart.lineNameToWallet[category]?.paysFor.id;
+                if (!product || !projectTitle) continue;
+                lines.add(projectTitle);
+                const provided = creditsUsedByWallet[chart.provider];
+                if (provided[product] === undefined) provided[product] = 0;
+                if (provided[projectTitle] === undefined) provided[projectTitle] = 0;
+
+                provided[product] += (point[category] ?? 0);
+                provided[projectTitle] += (point[category] ?? 0);
             }
-        });
-    });
+        }
+        chart.lineNames.filter(it => it).forEach(it =>
+            lines.add(it)
+        );
+    } */
 
     return (
         <Box>
@@ -363,7 +387,7 @@ const VisualizationForArea: React.FunctionComponent<{
             />
 
             <Box m={35}>
-                {charts.map(chart => (
+                {charts.map((chart: NativeChart) => (
                     <React.Fragment key={chart.provider}>
                         {chart.lineNames.length === 0 ? null : (
                             <>
@@ -431,14 +455,14 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 <TableRow key={p}>
                                                     <TableCell>
                                                         <Box width={20} height={20}
-                                                            backgroundColor={p === "Aggregated" ? "#000" : theme.chartColors[idx % theme.chartColors.length]} />
+                                                            backgroundColor={p === Aggregated ? "#000" : theme.chartColors[idx % theme.chartColors.length]} />
                                                     </TableCell>
                                                     <TableCell>{p}</TableCell>
                                                     <TableCell textAlign="right">
                                                         {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
                                                     </TableCell>
                                                     <TableCell textAlign="right">
-                                                        {p !== "Aggregated" ? creditFormatter(
+                                                        {p !== Aggregated && chart.lineNames.includes(p) ? creditFormatter(
                                                             balance.data.wallets.find(it =>
                                                                 it.wallet.id === chart.lineNameToWallet[p].id &&
                                                                 it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
@@ -450,7 +474,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                         )}
                                                     </TableCell>
                                                     <TableCell textAlign="right">
-                                                        {p !== "Aggregated" ? (<Toggle
+                                                        {p !== Aggregated && chart.lineNames.includes(p) ? (<Toggle
                                                             onChange={() => onChartExclusion(p)}
                                                             scale={1.5}
                                                             activeColor="green"
