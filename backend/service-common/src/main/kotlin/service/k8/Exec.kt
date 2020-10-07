@@ -6,12 +6,11 @@ import io.ktor.client.features.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 
 private val webSocketClient = HttpClient(CIO).config {
     install(io.ktor.client.features.websocket.WebSockets)
@@ -22,6 +21,7 @@ class ExecContext(
     val stdin: SendChannel<ByteArray>
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 suspend fun KubernetesClient.exec(
     resource: KubernetesResourceLocator,
     command: List<String>,
@@ -42,7 +42,6 @@ suspend fun KubernetesClient.exec(
                         "tty" to tty.toString(),
                         "stdout" to stdout.toString(),
                         "stderr" to stderr.toString(),
-                        //"command" to command.joinToString(" ") { "\"$it\"" }
                     ),
                     "exec"
                 )
@@ -65,14 +64,14 @@ suspend fun KubernetesClient.exec(
             coroutineScope {
                 val ingoingChannel = Channel<ExecMessage>()
                 val outgoingChannel = Channel<ByteArray>()
-                launch {
+                val outgoingJob = launch {
                     while (isActive) {
                         val nextMessage = outgoingChannel.receiveOrNull() ?: break
                         outgoing.send(Frame.Binary(true, byteArrayOf(0) + nextMessage))
                     }
                 }
 
-                launch {
+                val ingoingJob = launch {
                     while (isActive) {
                         val f = incoming.receiveOrNull() ?: break
                         if (f !is Frame.Binary) continue
@@ -83,7 +82,23 @@ suspend fun KubernetesClient.exec(
                     }
                 }
 
-                ExecContext(ingoingChannel, outgoingChannel).block()
+                val userJob = launch {
+                    ExecContext(ingoingChannel, outgoingChannel).block()
+                }
+
+                select<Unit> {
+                    userJob.onJoin {
+                        runCatching { cancel() }
+                    }
+
+                    outgoingJob.onJoin {
+                        runCatching { cancel() }
+                    }
+
+                    ingoingJob.onJoin {
+                        runCatching { cancel() }
+                    }
+                }
             }
         }
     )

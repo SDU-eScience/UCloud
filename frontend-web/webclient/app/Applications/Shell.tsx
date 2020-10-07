@@ -46,7 +46,7 @@ export const ShellDemo: React.FunctionComponent = props => {
         return () => {
             wsConnection.close();
         };
-    }, []);
+    }, [termRef.current]);
 
     return <MainContainer
         header={<Heading.h2>Shell Demo</Heading.h2>}

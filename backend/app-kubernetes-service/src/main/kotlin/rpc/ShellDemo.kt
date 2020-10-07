@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.k8.ExecContext
 import dk.sdu.cloud.service.k8.KubernetesClient
 import dk.sdu.cloud.service.k8.KubernetesResources
@@ -19,6 +20,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.slf4j.Logger
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -51,6 +53,12 @@ class ShellDemo(private val client: KubernetesClient) : Controller {
                             openSessions[id] = shellSession
                         }
 
+                        ctx.session.addOnCloseHandler {
+                            closeSession(shellSession)
+                        }
+
+                        sendWSMessage(DemoResponse.Initialized(id))
+
                         coroutineScope {
                             launch {
                                 outputs.consumeEach { f ->
@@ -58,12 +66,6 @@ class ShellDemo(private val client: KubernetesClient) : Controller {
                                 }
                             }
                         }
-
-                        ctx.session.addOnCloseHandler {
-                            closeSession(shellSession)
-                        }
-
-                        sendWSMessage(DemoResponse.Initialized(id))
                     }
                 } else if (cRequest is DemoRequest.Input) {
                     val session = openSessions[cRequest.streamId] ?: throw RPCException("Not found", HttpStatusCode.NotFound)
@@ -76,8 +78,13 @@ class ShellDemo(private val client: KubernetesClient) : Controller {
 
     private suspend fun closeSession(shellSession: ShellSession) {
         mutex.withLock {
+            log.info("Closing")
             val session = openSessions.remove(shellSession.id)?.session ?: return
             session.outputs.cancel()
         }
+    }
+
+    companion object : Loggable {
+        override val log: Logger = logger()
     }
 }
