@@ -487,8 +487,8 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
 }
 
 export function shouldHideSidebarAndHeader(): boolean {
-    return ["/app/login", "/app/login/wayf"]
-        .includes(window.location.pathname) && window.location.search === "?dav=true";
+    return ["/app/login", "/app/login/wayf", "/app/login/selection"]
+        .includes(window.location.pathname) || window.location.search === "?dav=true";
 }
 
 export function getUserThemePreference(): "light" | "dark" {
