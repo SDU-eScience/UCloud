@@ -1,7 +1,7 @@
 import * as React from "react";
-import {PRODUCT_NAME, VERSION_TEXT} from "../../site.config.json";
+import {LOGIN_PRODUCT_NAME, VERSION_TEXT, PRODUCT_NAME} from "../../site.config.json";
 
-export function BG1(): JSX.Element {
+export function BG1(props: {selection?: boolean}): JSX.Element {
     return (
         <svg
             viewBox="0 0 2296 2500"
@@ -49,8 +49,8 @@ export function BG1(): JSX.Element {
                 </g>
             </g>
             <path d="M368.231,274.126l171.842,99.213l171.841,-99.213l1583.39,0l0,2300l-2295.31,0l0,-2300l368.231,0Z" fill="url(#_Linear11)" />
-            <text pointerEvents="none" x="722.462px" y="247.713px" fontFamily="'IBMPlexSans', 'IBM Plex Sans', sans-serif" fontSize="200px" fill="#fff">
-                {PRODUCT_NAME}
+            <text pointerEvents="none" x="722.462px" y="247.713px" fontFamily="'IBMPlexSans', 'IBM Plex Sans', sans-serif" fontSize="80px" fill="#fff">
+                {props.selection ? LOGIN_PRODUCT_NAME : PRODUCT_NAME}
             </text>
             <text pointerEvents="none" x="1420px" y="350.713px" fontFamily="'IBMPlexSans', 'IBM Plex Sans', sans-serif" fontSize="80px" fill="#ff0024">
                 {VERSION_TEXT}

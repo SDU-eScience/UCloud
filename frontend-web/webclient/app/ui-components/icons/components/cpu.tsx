@@ -10,7 +10,7 @@ const SvgCpu = (props: any) => (
       rx={4.523}
       ry={7.894}
       fill="none"
-      stroke="currentcolor"
+      stroke="#000"
       strokeWidth={2.51}
     />
     <rect rx={1.009} y={25.225} height={2.5} width={16} />
@@ -35,7 +35,7 @@ const SvgCpu = (props: any) => (
       height={37.992}
       width={37.992}
       fill="none"
-      stroke="currentcolor"
+      stroke="#000"
       strokeWidth={2.008}
     />
     <text

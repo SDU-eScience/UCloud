@@ -22,7 +22,7 @@ import FileInfo from "Files/FileInfo";
 import FilePreview from "Files/FilePreview";
 import Files from "Files/Files";
 import {History} from "history";
-import {LoginPage} from "Login/Login";
+import {LoginPage, LoginSelection} from "Login/Login";
 import Wayf from "Login/Wayf";
 import {MainContainer} from "MainContainer/MainContainer";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
@@ -66,6 +66,7 @@ const Core = (): JSX.Element => (
         <ErrorBoundary>
             <Switch>
                 <Route exact path="/login" component={LoginPage} />
+                <Route exact path="/login/selection" component={LoginSelection} />
                 <Route exact path="/loginSuccess" component={LoginSuccess} />
                 <Route exact path="/login/wayf" component={Wayf} />
                 <Route exact path="/" component={requireAuth(Dashboard)} />
