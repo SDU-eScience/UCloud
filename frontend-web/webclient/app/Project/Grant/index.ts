@@ -230,6 +230,18 @@ export interface ExternalApplicationsEnabledResponse {
     enabled: boolean;
 }
 
+export interface AllowSubProjectsRenamingRequest {
+    projectId: string;
+}
+
+export interface AllowSubProjectsRenamingResponse {
+    allowed: boolean;
+}
+
+export interface ToggleSubProjectsRenamingRequest {
+    projectId: string;
+}
+
 export function externalApplicationsEnabled(
     request: ExternalApplicationsEnabledRequest
 ): APICallParameters<ExternalApplicationsEnabledRequest> {

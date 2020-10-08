@@ -46,6 +46,7 @@ object ProjectTable : SQLTable("projects") {
     val modifiedAt = timestamp("modified_at", notNull = true)
     val archived = bool("archived", notNull = true)
     val parent = text("parent", notNull = false)
+    val allowsRenaming = bool("subprojects_renameable", notNull = false)
 }
 
 object ProjectMembershipVerified : SQLTable("project_membership_verification") {
@@ -653,6 +654,94 @@ class ProjectService(
             val user = lookup.results[username] ?: throw ProjectException.UserDoesNotExist()
             log.debug("$username resolved to $user")
             if (user.role !in Roles.END_USER) throw ProjectException.CantAddUserToProject()
+        }
+    }
+
+    suspend fun allowsSubProjectsRenaming (
+        ctx:DBContext,
+        projectId: String,
+        actor: Actor
+    ): Boolean {
+        return ctx.withSession { session ->
+            requireAdmin(ctx, projectId, actor)
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        SELECT *
+                        FROM project.projects
+                        WHERE id = :projectId
+                    """
+                ).rows
+                .singleOrNull()
+                ?.getField(ProjectTable.allowsRenaming)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+    }
+
+    suspend fun allowedRenaming (
+        ctx:DBContext,
+        projectId: String,
+        actor: Actor
+    ): Boolean {
+        return ctx.withSession { session ->
+            requireAdmin(session, projectId, actor)
+            val parentId = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        SELECT parent 
+                        FROM projects
+                        WHERE id = :projectId 
+                    """
+                ).rows
+                .singleOrNull()
+                ?.getField(ProjectTable.parent)
+            //Does not allow renaming of root projects.
+            if (parentId == null) {
+                false
+            }
+            else {
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("parentProjectId", parentId)
+                        },
+                        """
+                        SELECT *
+                        FROM project.projects
+                        WHERE id = :parentProjectId
+                    """
+                    ).rows
+                    .singleOrNull()
+                    ?.getField(ProjectTable.allowsRenaming)
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+        }
+    }
+
+    suspend fun toggleRenaming(
+        ctx: DBContext,
+        projectId: String,
+        actor: Actor
+    ) {
+        ctx.withSession { session ->
+            requireAdmin(session, projectId, actor)
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        UPDATE project.projects 
+                        SET subprojects_renameable = NOT subprojects_renameable 
+                        WHERE id = :projectId
+                    """
+                )
         }
     }
 
