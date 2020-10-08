@@ -58,7 +58,6 @@ import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 import {creditFormatter, durationOptions} from "Project/ProjectUsage";
 import {computeUsageInPeriod} from "Project/ProjectDashboard";
 import {useProjectManagementStatus} from "Project";
-import {useHistory} from "react-router";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -538,7 +537,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         title={title}
         color={"green"}
         isLoading={outgoingApps.loading}
-        icon={"search"}
+        icon={"mail"}
     >
         {ingoingApps.error !== undefined ? null : (
             <Error error={ingoingApps.error} />
