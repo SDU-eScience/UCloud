@@ -7,8 +7,8 @@ import Icon from "ui-components/Icon";
 import Text from "ui-components/Text";
 
 interface WarningProps {clearWarning?: () => void; warning?: string; width?: string | number}
-function Warning(props: WarningProps): JSX.Element | null {
-    if (!props.warning) return null;
+const Warning: React.FunctionComponent<WarningProps> = props => {
+    if (!props.warning && !props.children) return null;
 
     function onClearWarning(e: React.MouseEvent<HTMLElement, MouseEvent>): void {
         props.clearWarning!();
@@ -26,7 +26,7 @@ function Warning(props: WarningProps): JSX.Element | null {
             width={props.width}
         >
             <Flex alignItems="center">
-                <div><WhiteSpacedText fontSize={1} color="black">{props.warning}</WhiteSpacedText></div>
+                <div><WhiteSpacedText fontSize={1} color="black">{props.warning}{props.children}</WhiteSpacedText></div>
                 {!props.clearWarning ? null : (
                     <Box ml="auto">
                         <Icon
@@ -40,7 +40,7 @@ function Warning(props: WarningProps): JSX.Element | null {
             </Flex>
         </Card>
     );
-}
+};
 
 const WhiteSpacedText = styled(Text)`
     white-space: pre;
