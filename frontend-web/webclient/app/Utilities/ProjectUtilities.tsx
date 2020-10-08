@@ -110,10 +110,10 @@ export function explainPersonalRepo(): void {
         <Box width="auto" minWidth="450px">
             <Heading.h3>You cannot change this directory</Heading.h3>
             <ul>
-                <li>The &#039;Personal&#039; directory is a special directory</li>
+                <li>The &#034;Members&#039; Files&#034; directory is a special directory</li>
                 <li>It contains a folder for every member (current or previous) of the project</li>
                 <li>These folders act as the home for every member of the project</li>
-                <li>Only project administrators can access the &#039;Personal&#039; directory</li>
+                <li>Only project administrators can access the &#034;Members&#039; Files&#034; directory</li>
             </ul>
             <Button fullWidth onClick={() => dialogStore.failure()}>OK</Button>
         </Box>,

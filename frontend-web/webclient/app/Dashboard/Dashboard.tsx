@@ -410,7 +410,6 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
 function DashboardProjectUsage(): JSX.Element | null {
     const {projectId} =
         useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-    const history = useHistory();
     const durationOption = durationOptions[3];
     const now = new Date().getTime();
     const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
@@ -431,21 +430,20 @@ function DashboardProjectUsage(): JSX.Element | null {
     const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     return (
-        <DashboardCard title={<Link to={"/app/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
+        <DashboardCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
                        icon="hourglass"
                        color="yellow"
                        isLoading={false}
-                       onClick={() => history.push("/project/usage")}
         >
             <Text color="darkGray" fontSize={1}>Past 30 days</Text>
             <Table>
                 <tbody>
-                <TableRow cursor="pointer">
+                <TableRow>
                     <TableCell>Storage</TableCell>
                     <TableCell
                         textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
                 </TableRow>
-                <TableRow cursor="pointer">
+                <TableRow>
                     <TableCell>Compute</TableCell>
                     <TableCell
                         textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
@@ -453,7 +451,7 @@ function DashboardProjectUsage(): JSX.Element | null {
                 </tbody>
             </Table>
         </DashboardCard>
-    )
+    );
 }
 function DashboardResources({wallets, loading, quota}: {
     wallets: WalletBalance[];

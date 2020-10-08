@@ -523,7 +523,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         if (this.state.application === undefined) return;
         const title = this.state.application.metadata.title;
         const path = Client.hasActiveProject ?
-            `${Client.currentProjectFolder}/Personal/${Client.username}/Jobs/${title}`
+            `${Client.currentProjectFolder}/Members' Files/${Client.username}/Jobs/${title}`
             : `${Client.homeFolder}Jobs/${title}`;
         try {
             const previousRuns = await callAPI<Page<CloudFile>>(listDirectory({

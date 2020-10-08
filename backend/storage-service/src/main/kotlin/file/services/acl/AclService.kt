@@ -103,7 +103,7 @@ class AclService(
 
         val pathComponents = request.path.components()
         if (pathComponents.size == 3 && pathComponents[0] == "projects" && pathComponents[2] == PERSONAL_REPOSITORY) {
-            throw RPCException("Cannot update permissions of 'Personal' repository", HttpStatusCode.Forbidden)
+            throw RPCException("Cannot update permissions of '${PERSONAL_REPOSITORY}' repository", HttpStatusCode.Forbidden)
         }
 
         metadataService.updateMetadata(

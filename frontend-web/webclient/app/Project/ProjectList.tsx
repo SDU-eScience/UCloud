@@ -12,7 +12,7 @@ import {
     rejectInvite,
     ListFavoriteProjectsRequest,
     listFavoriteProjects,
-    ProjectRole, projectRoleToString
+    projectRoleToString
 } from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -176,16 +176,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         }
     ];
 
-    const personalProjectOperations: ProjectOperation[] = [{
-        text: "Manage",
-        disabled: () => false,
-        icon: "properties",
-        onClick: () => {
-            props.setProject();
-            history.push("/project/dashboard");
-        }
-    }];
-
     return (
         <MainContainer
             headerSize={58}
@@ -283,60 +273,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     </>)}
                     <Heading.h3 mb={16}>My Projects</Heading.h3>
                     <List>
-                        <ListRow
-                            icon={<Box width="24px" />}
-                            left={
-                                <>
-                                    <Box
-                                        onClick={() => {
-                                            if (props.project !== undefined && props.project !== "") {
-                                                props.setProject();
-                                                snackbarStore.addInformation("Personal workspace is now the active.", false);
-                                            }
-                                        }}
-                                    >
-                                        <Link to="/project/dashboard">
-                                            My Workspace
-                                        </Link>
-                                    </Box>
-                                </>
-                            }
-                            leftSub={<div />}
-                            right={<Flex alignItems="center" height="36.25px">
-                                <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
-                                    if (!props.project) return;
-                                    snackbarStore.addInformation("Personal workspace is now the active.", false);
-                                    props.setProject();
-                                }} />
-                                {selectedProjects.size === 0 && projectOperations.length > 0 ?
-                                    <ClickableDropdown
-                                        width="125px"
-                                        left="-105px"
-                                        trigger={(
-                                            <Icon
-                                                ml="0.5em"
-                                                mr="10px"
-                                                name="ellipsis"
-                                                size="1em"
-                                                rotation={90}
-                                            />
-                                        )}
-                                    >
-                                        <ProjectOperations
-                                            selectedProjects={[{
-                                                archived: false,
-                                                favorite: false,
-                                                needsVerification: false,
-                                                projectId: "",
-                                                title: "My Workspace",
-                                                whoami: {role: ProjectRole.ADMIN, username: Client.username!}
-                                            }]}
-                                            projectOperations={personalProjectOperations}
-                                        />
-                                    </ClickableDropdown>
-                                    : <Box width="37px" />}
-                            </Flex>}
-                        />
                         <Pagination.List
                             page={response.data}
                             pageRenderer={pageRenderer}

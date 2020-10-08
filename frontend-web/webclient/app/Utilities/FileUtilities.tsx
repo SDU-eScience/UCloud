@@ -374,7 +374,7 @@ export function getFilenameFromPath(path: string, projects: ProjectName[]): stri
 
     if (baseName === "..") return `.. (${getFilenameFromPath(goUpDirectory(2, replacedHome), projects)})`;
     if (baseName === ".") return `. (Current folder)`;
-    if (isMyPersonalFolder(path)) return `Personal Files (${Client.username})`;
+    if (isMyPersonalFolder(path)) return `My Files`;
     return baseName;
 }
 
@@ -577,7 +577,7 @@ export function isTrashFolder(path: string): boolean {
     if (components.length === 3 && components[0] === "home" && components[2] === "Trash") return true;
     else return components.length === 5 &&
         components[0] === "projects" &&
-        components[2] === "Personal" &&
+        components[2] === PERSONAL_REPOSITORY &&
         components[4] === "Trash";
 }
 
@@ -587,7 +587,7 @@ export function isJobsFolder(path: string): boolean {
     if (components.length === 3 && components[0] === "home" && components[2] === "Jobs") return true;
     else return components.length === 5 &&
         components[0] === "projects" &&
-        components[2] === "Personal" &&
+        components[2] === PERSONAL_REPOSITORY &&
         components[4] === "Jobs";
 }
 
@@ -619,26 +619,29 @@ export function projectIdFromPath(path: string): string | null {
 
 export function isMyPersonalFolder(path: string): boolean {
     const components = pathComponents(path);
-    return components.length === 4 && components[0] === "projects" && components[2] === "Personal" &&
+    return components.length === 4 && components[0] === "projects" && components[2] === PERSONAL_REPOSITORY &&
         components[3] === Client.username;
 }
 
 export function isAUserPersonalFolder(path: string): boolean {
     const components = pathComponents(path);
-    return components.length === 4 && components[0] === "projects" && components[2] === "Personal";
+    return components.length === 4 && components[0] === "projects" && components[2] === PERSONAL_REPOSITORY;
 }
 
 export function isPartOfSomePersonalFolder(path: string): boolean {
     const components = pathComponents(path);
-    return components.length >= 4 && components[0] === "projects" && components[2] === "Personal";
+    return components.length >= 4 && components[0] === "projects" && components[2] === PERSONAL_REPOSITORY;
 }
 
 export function isPersonalRootFolder(path: string): boolean {
     const components = pathComponents(path);
-    return components.length === 3 && components[0] === "projects" && components[2] === "Personal";
+    return components.length === 3 && components[0] === "projects" && components[2] === PERSONAL_REPOSITORY;
 }
 
 export function isPartOfProject(path: string): boolean {
     const components = pathComponents(path);
     return components.length >= 2 && components[0] === "projects";
 }
+
+
+const PERSONAL_REPOSITORY = "Members' Files"
