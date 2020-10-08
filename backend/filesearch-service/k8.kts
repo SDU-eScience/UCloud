@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "filesearch"
-    version = "1.3.1"
+    version = "1.3.2"
 
     withAmbassador("/api/file-search") {}
 
