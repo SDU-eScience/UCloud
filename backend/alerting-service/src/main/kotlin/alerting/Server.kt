@@ -130,13 +130,13 @@ class Server(
 
         GlobalScope.launch {
             try {
-                log.info("Alert on many 4xx through ambassador - starting up")
+                log.info("Alert on many 4xx and 5xx through ambassador - starting up")
                 NetworkTrafficAlerts(elasticHighLevelClient, alertService)
-                    .ambassador4xxAlert(elasticHighLevelClient, config)
+                    .ambassadorResponseAlert(elasticHighLevelClient, config)
             } catch (ex: Exception) {
-                log.warn("WARNING: Alert on many 4xx through ambassador caught exception: ${ex}.")
+                log.warn("WARNING: Alert on many 4xx and 5xx through ambassador caught exception: ${ex}.")
                 alertService.createAlert(
-                    Alert("WARNING: Alert on many 4xx through ambassador caught exception: ${ex.stackTraceToString()}.")
+                    Alert("WARNING: Alert on many 4xx and 5xx through ambassador caught exception: ${ex.stackTraceToString()}.")
                 )
                 exitProcess(1)
             }

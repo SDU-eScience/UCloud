@@ -68,7 +68,13 @@ class KubernetesAlerting {
         val alerts = mutableListOf<String>()
         while (true) {
             val nodes = client.nodes().list().items
-            nodes.forEach { node ->
+            nodes.forEach eachNode@{ node ->
+                node.spec.taints.forEach { taint ->
+                    if (taint.effect == "NoSchedule") {
+                        log.info("Node: ${node.metadata.name} is being skipped since it is in NoSchedule")
+                        return@eachNode
+                    }
+                }
                 node.status.conditions.forEach {
                     when (it.type) {
                         "Ready" -> {
