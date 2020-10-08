@@ -7,6 +7,7 @@ import * as React from "react";
 import {match} from "react-router";
 import {ParameterValues} from "Utilities/ApplicationUtilities";
 import {Product} from "Accounting";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 /** @deprecated */
 export type Analysis = JobWithStatus;
@@ -437,5 +438,26 @@ export function extendDuration(
         parameters: request,
         reloadId: Math.random(),
         payload: request
+    };
+}
+
+export interface QueryShellParametersRequest {
+    jobId: string,
+    rank: number,
+}
+
+export interface QueryShellParametersResponse {
+    path: string,
+}
+
+export function queryShellParameters(
+    request: QueryShellParametersRequest
+): APICallParameters<QueryShellParametersRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString(`/hpc/jobs/query-shell/${request.jobId}`, request),
+        parameters: request,
+        reloadId: Math.random(),
+        payload: undefined
     };
 }

@@ -39,6 +39,13 @@ data class AuditData(
     var requestToAudit: Any? = null
     var securityPrincipalTokenToAudit: SecurityPrincipalToken? = null
 
+    /**
+     * We allow a request to skip auditing by setting [skipAuditing] to `true`
+     *
+     * This will completely skip any and all auditing of the request. Use with care.
+     */
+    var skipAuditing: Boolean = false
+
     companion object {
         val auditDataKey = AttributeKey<AuditData>("audit-data")
     }

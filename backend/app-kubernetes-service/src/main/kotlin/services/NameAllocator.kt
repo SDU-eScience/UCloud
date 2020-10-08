@@ -45,4 +45,8 @@ class NameAllocator(
     fun rankFromPodName(podName: String): Int {
         return podName.substringAfterLast('-').toInt()
     }
+
+    suspend fun jobIdAndRankToPodName(jobId: String, rank: Int): String {
+        return jobIdToJobName(jobId) + "-job-" + rank
+    }
 }

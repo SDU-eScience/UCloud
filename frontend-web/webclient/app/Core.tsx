@@ -95,6 +95,7 @@ const Core = (): JSX.Element => (
                 />
                 <Route exact path="/applications/results" component={requireAuth(Runs)} />
                 <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)} />
+                <Route exact path={"/applications/shell/:jobId/:rank"} component={ShellDemo} />
                 <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)} />
 
                 <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
@@ -102,7 +103,6 @@ const Core = (): JSX.Element => (
                 <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
 
                 {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
-                {!inDevEnvironment() ? null : <Route exact path={"/playground/shell"} component={ShellDemo} />}
 
                 <Route exact path="/shares" component={requireAuth(Share.List)} />
 

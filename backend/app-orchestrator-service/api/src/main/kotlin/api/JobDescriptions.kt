@@ -230,6 +230,27 @@ object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
                 }
             }
         }
+    val queryShellParameters = call<QueryShellParametersRequest, QueryShellParametersResponse, CommonErrorMessage>(
+        "queryShellParameters"
+    ) {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"query-shell"
+                +boundTo(QueryShellParametersRequest::jobId)
+            }
+
+            params {
+                +boundTo(QueryShellParametersRequest::rank)
+            }
+        }
+    }
 
     val machineTypes = call<MachineTypesRequest, MachineTypesResponse, CommonErrorMessage>("machineTypes") {
         auth {
@@ -468,6 +489,15 @@ data class QueryWebParametersRequest(
 )
 
 data class QueryWebParametersResponse(
+    val path: String
+)
+
+data class QueryShellParametersRequest(
+    val jobId: String,
+    val rank: Int = 0
+)
+
+data class QueryShellParametersResponse(
     val path: String
 )
 

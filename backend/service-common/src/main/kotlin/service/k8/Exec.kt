@@ -18,7 +18,8 @@ private val webSocketClient = HttpClient(CIO).config {
 
 class ExecContext(
     val outputs: ReceiveChannel<ExecMessage>,
-    val stdin: SendChannel<ByteArray>
+    val stdin: SendChannel<ByteArray>,
+    val resizes: SendChannel<ExecResizeMessage>,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -62,8 +63,27 @@ suspend fun KubernetesClient.exec(
 
         block = {
             coroutineScope {
+                val resizeChannel = Channel<ExecResizeMessage>()
                 val ingoingChannel = Channel<ExecMessage>()
                 val outgoingChannel = Channel<ByteArray>()
+
+                val resizeJob = launch {
+                    while (isActive) {
+                        // NOTE(Dan): I have no clue where this is documented.
+                        // I found this through a combination of Wireshark and this comment:
+                        // https://github.com/fabric8io/kubernetes-client/issues/1374#issuecomment-492884783
+                        val nextMessage = resizeChannel.receiveOrNull() ?: break
+                        outgoing.send(
+                            Frame.Binary(
+                                true,
+                                byteArrayOf(4) +
+                                    """{"Width": ${nextMessage.cols}, "Height": ${nextMessage.rows}}"""
+                                        .toByteArray(Charsets.UTF_8)
+                            )
+                        )
+                    }
+                }
+
                 val outgoingJob = launch {
                     while (isActive) {
                         val nextMessage = outgoingChannel.receiveOrNull() ?: break
@@ -83,21 +103,14 @@ suspend fun KubernetesClient.exec(
                 }
 
                 val userJob = launch {
-                    ExecContext(ingoingChannel, outgoingChannel).block()
+                    ExecContext(ingoingChannel, outgoingChannel, resizeChannel).block()
                 }
 
                 select<Unit> {
-                    userJob.onJoin {
-                        runCatching { cancel() }
-                    }
-
-                    outgoingJob.onJoin {
-                        runCatching { cancel() }
-                    }
-
-                    ingoingJob.onJoin {
-                        runCatching { cancel() }
-                    }
+                    resizeJob.onJoin { runCatching { cancel() } }
+                    userJob.onJoin { runCatching { cancel() } }
+                    outgoingJob.onJoin { runCatching { cancel() } }
+                    ingoingJob.onJoin { runCatching { cancel() } }
                 }
             }
         }
@@ -115,3 +128,5 @@ enum class ExecStream(val id: Int) {
 }
 
 data class ExecMessage(val stream: ExecStream, val bytes: ByteArray)
+
+data class ExecResizeMessage(val cols: Int, val rows: Int)

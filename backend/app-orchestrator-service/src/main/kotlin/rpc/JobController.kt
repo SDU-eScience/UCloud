@@ -141,6 +141,12 @@ class JobController(
             ok(webService.queryWebParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
 
+        implement(JobDescriptions.queryShellParameters) {
+            verifySlaFromPrincipal()
+            // TODO We will rework the API before adding more backends
+            ok(QueryShellParametersResponse("/api/app/compute/kubernetes/shell"))
+        }
+
         implement(JobDescriptions.machineTypes) {
             verifySlaFromPrincipal()
 

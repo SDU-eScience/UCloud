@@ -63,6 +63,7 @@ class WSCall internal constructor(
 }
 
 class WSSession internal constructor(val id: String, val underlyingSession: WebSocketServerSession) {
+    val attributes = AttributeContainer()
     internal val onCloseHandlers = ArrayList<suspend () -> Unit>()
     internal var isActive: Boolean = true
         private set

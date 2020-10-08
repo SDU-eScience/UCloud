@@ -4,6 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
+import dk.sdu.cloud.app.orchestrator.api.Shells
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 
@@ -29,3 +30,5 @@ object AppKubernetesDescriptions : ComputationDescriptions("kubernetes") {
         }
     }
 }
+
+object AppKubernetesShell : Shells("kubernetes")

@@ -48,9 +48,6 @@ private class AuditCallEventStream(call: CallDescription<*, *, *>) : EventStream
     }
 }
 
-@Deprecated("Renamed")
-typealias AuditToKafkaStream = AuditToEventStream
-
 class AuditToEventStream(
     private val instance: ServiceInstance,
     private val eventStreamService: EventStreamService,
@@ -101,6 +98,8 @@ class AuditToEventStream(
             ) {
                 val auditDescription = call.auditOrNull
                 val auditData = context.audit
+                if (auditData.skipAuditing) return
+
                 val eventProducer = httpEventProducer(call)
                 val auditProducer = auditProducer(call)
 

@@ -80,6 +80,7 @@ private fun writeType(klass: KClass<*>, name: String? = klass.simpleName): List<
 fun main() {
     val descriptions = listOf<CallDescriptionContainer>(
         // TODO Put call container here
+        JobDescriptions
     )
 
     val classesSeen = HashSet<String>()
