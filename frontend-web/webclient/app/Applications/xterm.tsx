@@ -8,6 +8,7 @@ import "xterm/css/xterm.css";
 interface XtermHook {
     termRef: React.RefObject<HTMLDivElement>;
     terminal: Terminal;
+    fitAddon: FitAddon;
 }
 
 export function useXTerm(): XtermHook {
@@ -39,11 +40,12 @@ export function useXTerm(): XtermHook {
 
     return {
         termRef: elem,
-        terminal: term
+        terminal: term,
+        fitAddon,
     };
 }
 
-export function appendToXterm(term: Terminal, textToAppend: string) {
+export function appendToXterm(term: Terminal, textToAppend: string): void {
     const remainingString = textToAppend.replace(/\n/g, "\r\n");
     term.write(remainingString);
 }
