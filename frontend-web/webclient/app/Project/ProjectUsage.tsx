@@ -3,7 +3,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {Box, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text, theme} from "ui-components";
+import {Box, Button, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text, theme} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -19,6 +19,7 @@ import {
     RetrieveBalanceResponse,
     transformUsageChartForCharting,
     usage,
+    UsageChart,
     UsageResponse
 } from "Accounting";
 import {useProjectManagementStatus} from "Project";
@@ -289,6 +290,36 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     );
 };
 
+const AGGREGATED = "Aggregated";
+
+function sortCharts(charts: NativeChart[], creditsUsedByWallet: Record<string, Record<string, number>>, projects: Set<string>): void {
+    charts.forEach(chart => chart.lineNames.sort((a: string, b: string): number => {
+        if (a === AGGREGATED) return 1;
+        else if (b === AGGREGATED) return -1;
+
+        const aIsProject = projects.has(a);
+        const bIsProject = projects.has(b);
+        if (aIsProject && bIsProject)
+            return creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b];
+
+        if (aIsProject && !bIsProject) {
+            if (chart.lineNameToWallet[b].paysFor.title === a) return -1;
+            // else return a.localeCompare(b);
+        }
+        if (!aIsProject && bIsProject) {
+            if (chart.lineNameToWallet[a].paysFor.title === b) return 1;
+            // else return a.localeCompare(b);
+        }
+
+        if (chart.lineNameToWallet[a].paysFor.title !== chart.lineNameToWallet[a].paysFor.title)
+            return a.localeCompare(b);
+
+        const difference = creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b];
+        if (difference !== 0) return difference;
+        return a.localeCompare(b);
+    }));
+}
+
 const VisualizationForArea: React.FunctionComponent<{
     area: ProductArea,
     projectId: string,
@@ -296,9 +327,9 @@ const VisualizationForArea: React.FunctionComponent<{
     balance: APICallState<RetrieveBalanceResponse>,
     durationOption: Duration
 }> = ({area, projectId, usageResponse, balance, durationOption}) => {
-    const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
-
-    // const memberships = useProjectStatus().fetch().membership;
+    const projectNames = new Set(...usageResponse.data.charts.map(it => it.lines.map(it => it.projectPath ?? "")).filter(it => it));
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area, [...expanded]));
 
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
@@ -329,53 +360,9 @@ const VisualizationForArea: React.FunctionComponent<{
         }
     }
 
-    charts.forEach(chart => chart.lineNames.sort((a: string, b: string): number =>
-        creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b]
-    ));
+    sortCharts(charts, creditsUsedByWallet, projectNames);
 
     const [, forceUpdate] = useState(false);
-
-
-    /* const lines = new Set(...charts.map(chart => [
-        ...Object.keys(chart.lineNameToWallet).map(it => chart.lineNameToWallet[it].paysFor.id).filter(it => it)
-    ])); */
-
-/*     for (const chart of charts) {
-        let aggregatedCredits = 0;
-        const keys = Object.keys(creditsUsedByWallet[chart.provider]);
-        keys.forEach(key => {
-            if (!chartExclusions.queryExcludeFromCharts(key))
-                aggregatedCredits += creditsUsedByWallet[chart.provider][key];
-        });
-        creditsUsedByWallet[chart.provider][Aggregated] = aggregatedCredits;
-        if (!chart.lineNames.includes(Aggregated) && chart.lineNames.filter(it => it).length) chart.lineNames.push(Aggregated);
-
-        for (const point of chart.points) {
-            for (const category of Object.keys(point)) {
-                if (category === "time") {
-                    continue;
-                }
-                if (point[category] === 0) {
-                    delete point[category];
-                }
-
-                const projectId = chart.lineNameToWallet[category].id;
-                const projectTitle = memberships.find(it => it.projectId === projectId)?.title;
-                const product = chart.lineNameToWallet[category]?.paysFor.id;
-                if (!product || !projectTitle) continue;
-                lines.add(projectTitle);
-                const provided = creditsUsedByWallet[chart.provider];
-                if (provided[product] === undefined) provided[product] = 0;
-                if (provided[projectTitle] === undefined) provided[projectTitle] = 0;
-
-                provided[product] += (point[category] ?? 0);
-                provided[projectTitle] += (point[category] ?? 0);
-            }
-        }
-        chart.lineNames.filter(it => it).forEach(it =>
-            lines.add(it)
-        );
-    } */
 
     return (
         <Box>
@@ -408,7 +395,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 formatter={n => creditFormatter(n as number, 2)}
                                             />
                                             {chart.lineNames.map((id, idx) => {
-                                                if (!chartExclusions.queryExcludeFromCharts(id)) {
+                                                if (!chartExclusions.queryExcludeFromCharts(id) && id !== "Aggregated") {
                                                     return <Bar
                                                         key={id}
                                                         dataKey={id}
@@ -421,7 +408,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                             })}
 
                                             {chart.lineNames.map((id, idx) => {
-                                                if (!chartExclusions.queryExcludeFromCharts(id)) {
+                                                if (!chartExclusions.queryExcludeFromCharts(id) && id !== "Aggregated") {
                                                     return <Bar
                                                         key={id + "stack"}
                                                         dataKey={id}
@@ -451,38 +438,45 @@ const VisualizationForArea: React.FunctionComponent<{
                                             </TableRow>
                                         </TableHeader>
                                         <tbody>
-                                            {chart.lineNames.map((p, idx) => (
-                                                <TableRow key={p}>
-                                                    <TableCell>
-                                                        <Box width={20} height={20}
-                                                            backgroundColor={p === Aggregated ? "#000" : theme.chartColors[idx % theme.chartColors.length]} />
-                                                    </TableCell>
-                                                    <TableCell>{p}</TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
-                                                    </TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {p !== Aggregated && chart.lineNames.includes(p) ? creditFormatter(
-                                                            balance.data.wallets.find(it =>
-                                                                it.wallet.id === chart.lineNameToWallet[p].id &&
-                                                                it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
-                                                                it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
-                                                            )?.balance ?? 0
-                                                        ) : creditFormatter(
-                                                            balance.data.wallets.filter(it => it.area === area)
-                                                                .reduce((prev, wall) => wall.balance + prev, 0)
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {p !== Aggregated && chart.lineNames.includes(p) ? (<Toggle
-                                                            onChange={() => onChartExclusion(p)}
-                                                            scale={1.5}
-                                                            activeColor="green"
-                                                            checked={!chartExclusions.queryExcludeFromCharts(p)}
-                                                        />) : null}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
+                                            {chart.lineNames.map((p, idx) => {
+                                                const canExpand = projectNames.has(p);
+                                                const isExpanded = expanded.has(p);
+                                                return (
+                                                    <TableRow key={p}>
+                                                        <TableCell>
+                                                            <Box width={20} height={20}
+                                                                backgroundColor={p === Aggregated ? "#000" : theme.chartColors[idx % theme.chartColors.length]} />
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {p}
+                                                            {canExpand ? <Button ml="6px" width="6px" height="16px" onClick={() => onExpandOrDeflate(p)}>{isExpanded ? "-" : "+"}</Button> : null}
+                                                        </TableCell>
+                                                        <TableCell textAlign="right">
+                                                            {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
+                                                        </TableCell>
+                                                        <TableCell textAlign="right">
+                                                            {p !== Aggregated ? creditFormatter(
+                                                                balance.data.wallets.find(it =>
+                                                                    it.wallet.id === chart.lineNameToWallet[p].id &&
+                                                                    it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
+                                                                    it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
+                                                                )?.balance ?? 0
+                                                            ) : creditFormatter(
+                                                                balance.data.wallets.filter(it => it.area === area)
+                                                                    .reduce((prev, wall) => wall.balance + prev, 0)
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell textAlign="right">
+                                                            {p !== Aggregated ? (<Toggle
+                                                                onChange={() => onChartExclusion(p)}
+                                                                scale={1.5}
+                                                                activeColor="green"
+                                                                checked={!chartExclusions.queryExcludeFromCharts(p)}
+                                                            />) : null}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
                                         </tbody>
                                     </Table>
                                 </Box>
@@ -493,6 +487,14 @@ const VisualizationForArea: React.FunctionComponent<{
             </Box>
         </Box>
     );
+
+    function onExpandOrDeflate(p: string): void {
+        if (expanded.has(p)) {
+            setExpanded(new Set((expanded.delete(p), expanded)));
+        } else {
+            setExpanded(new Set([...expanded, p]));
+        }
+    }
 
     function onChartExclusion(name: string): void {
         chartExclusions.toggleFromCharts(name);
