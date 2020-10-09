@@ -397,7 +397,7 @@ const StorageRequestCard: React.FunctionComponent<{
                     <th>
                         How much&nbsp;
                         {state.recipient.type !== "new_project" ?
-                            "additional" : ""
+                            "additional " : ""
                         }
                         data will be stored?
                         <br/>
@@ -427,7 +427,7 @@ const StorageRequestCard: React.FunctionComponent<{
                     <th>
                         For how long should the&nbsp;
                         {state.recipient.type !== "new_project" ?
-                            "additional" : ""
+                            "additional " : ""
                         }
                         data be stored?
                         <br/>
