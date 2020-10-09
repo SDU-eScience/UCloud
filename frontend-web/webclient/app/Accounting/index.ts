@@ -282,6 +282,8 @@ export function transformUsageChartForCharting(
         }
     }
 
+    if (lineNames.length === 1 && lineNames.includes(AGGREGATED)) lineNames.pop();
+
     return {provider: chart.provider, lineNames, points: Object.values(builder), lineNameToWallet};
 }
 

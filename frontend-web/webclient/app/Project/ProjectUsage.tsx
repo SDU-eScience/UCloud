@@ -304,11 +304,10 @@ function sortCharts(charts: NativeChart[], creditsUsedByWallet: Record<string, R
 
         if (aIsProject && !bIsProject) {
             if (chart.lineNameToWallet[b].paysFor.title === a) return -1;
-            // else return a.localeCompare(b);
         }
+
         if (!aIsProject && bIsProject) {
             if (chart.lineNameToWallet[a].paysFor.title === b) return 1;
-            // else return a.localeCompare(b);
         }
 
         if (chart.lineNameToWallet[a].paysFor.title !== chart.lineNameToWallet[a].paysFor.title)
@@ -330,7 +329,6 @@ const VisualizationForArea: React.FunctionComponent<{
     const projectNames = new Set(...usageResponse.data.charts.map(it => it.lines.map(it => it.projectPath ?? "")).filter(it => it));
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area, [...expanded]));
-
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
         else return sum;
