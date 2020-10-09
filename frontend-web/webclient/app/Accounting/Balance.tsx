@@ -36,6 +36,22 @@ export const Balance: React.FunctionComponent<{
     );
 };
 
+/**
+ * Returns the price of the only currently existing storage product
+ */
+export function useStoragePrice(): number {
+    const [storageProducts] = useGlobalCloudAPI<Page<Product>>(
+        "storageProducts",
+        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER}),
+        emptyPage
+    );
+
+    const items = storageProducts.data.items;
+    if (items.length === 0) return 0;
+    return items[0].pricePerUnit;
+}
+
+
 export const BalanceExplainer: React.FunctionComponent<{
     amount: number;
     productCategory: ProductCategoryId;

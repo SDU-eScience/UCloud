@@ -80,7 +80,7 @@ export const DashboardCard: React.FunctionComponent<{
         minHeight={minHeight}
     >
         <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
-        <Box px={3} py={1} height={"100%"}>
+        <Box px={3} py={1} height={"100%"} className={"dashboard-card-inner"}>
             <Flex alignItems="center">
                 {icon !== undefined ? (
                     <Icon
