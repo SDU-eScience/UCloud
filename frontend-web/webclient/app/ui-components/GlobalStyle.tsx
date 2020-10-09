@@ -3,6 +3,23 @@ import theme from "./theme";
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
 
+export function injectFonts(): void {
+    const styleTag = document.createElement("style");
+    styleTag.innerHTML = `
+        /* Custom font */
+        @font-face {
+          font-family: 'IBM Plex Sans';
+          src: url('${fontLight}');
+        }
+
+        @font-face {
+          font-family: 'IBM Plex Sans';
+          src: url('${fontRegular}');
+          font-weight: 400;
+    }`;
+    document.head.appendChild(styleTag);
+}
+
 const UIGlobalStyle = `
 /* Colors */
 html {
@@ -81,18 +98,6 @@ html.dark {
     --invertedThemeColor: #fff;
 }
 
-
-/* Custom font */
-@font-face {
-  font-family: 'IBM Plex Sans';
-  src: url('${fontLight}');
-}
-
-@font-face {
-  font-family: 'IBM Plex Sans';
-  src: url('${fontRegular}');
-  font-weight: 400;
-}
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
 

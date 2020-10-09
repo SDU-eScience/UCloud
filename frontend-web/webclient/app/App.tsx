@@ -12,6 +12,7 @@ import {invertedColors} from "ui-components/theme";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {store} from "Utilities/ReduxUtilities";
 import {isLightThemeStored, setSiteTheme, toggleCssColors} from "UtilityFunctions";
+import {injectFonts} from "ui-components/GlobalStyle";
 
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
     store.dispatch({type});
@@ -51,6 +52,8 @@ function App({children}: React.PropsWithChildren<{}>): JSX.Element {
         </ThemeProvider>
     );
 }
+
+injectFonts();
 
 ReactDOM.render(
     (
