@@ -557,7 +557,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         <Absolute style={{overflowY: "hidden"}} bottom="0" height="50%" width="100%">
             <BG1 selection={props.selection} />
             {props.selection ? <Absolute bottom={0} left="30px" width="calc(100% - 150px)">
-                <Icon size={"150px"} mr="24px" name="logoSdu" />
+                <Icon size={"150px"} mr="24px" color="#fff" name="logoSdu" />
                 <Image width={"160px"} src={aarhusu_logo} />
                 <Image width={"150px"} src={aalborgu_logo} />
             </Absolute> : null}
@@ -587,7 +587,7 @@ export function LoginSelection(): JSX.Element {
                             borderWidth={0}
                             borderRadius={6}
                         >
-                            <Flex alignItems="center" justifyContent="center" my="8px"><Heading.h4>{product.name}</Heading.h4></Flex>
+                            <Flex alignItems="center" justifyContent="center" color="#fff" my="8px"><Heading.h4>{product.name}</Heading.h4></Flex>
                             <Flex justifyContent="center">
                                 <a href={product.site}>
                                     <Button mb="8px" width="300px" color="green">
@@ -609,11 +609,3 @@ const CenteredGrid = styled.div`
     grid-template-rows: 110px;
     grid-gap: 16px;
 `;
-
-function ProductLink(props: React.PropsWithChildren<{to: string; local: boolean}>): JSX.Element {
-    if (props.local) {
-        return <Link to={props.to}>{props.children}</Link>;
-    } else {
-        return <a href={props.to}>{props.children}</a>;
-    }
-}
