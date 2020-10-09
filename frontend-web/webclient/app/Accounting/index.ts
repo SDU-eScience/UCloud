@@ -6,6 +6,7 @@ export type AccountType = "USER" | "PROJECT";
 export interface ProductCategoryId {
     id: string;
     provider: string;
+    title?: string;
 }
 
 export enum ProductArea {
@@ -121,7 +122,7 @@ export interface Product {
     pricePerUnit: number;
     category: ProductCategoryId;
     description: string;
-    availability: { type: "available" | "unavailable"; reason?: string };
+    availability: {type: "available" | "unavailable"; reason?: string};
     priority: number;
     cpu?: number;
     memoryInGigs?: number;
@@ -133,7 +134,7 @@ export interface ListProductsRequest extends PaginationRequest {
     provider: string;
 }
 
-export interface ListProductsByAreaRequest extends PaginationRequest{
+export interface ListProductsByAreaRequest extends PaginationRequest {
     provider: string;
     area: string
 }
@@ -158,7 +159,7 @@ export function listByProductArea(request: ListProductsByAreaRequest): APICallPa
     };
 }
 
-export interface RetrieveFromProviderRequest { provider: string; }
+export interface RetrieveFromProviderRequest {provider: string;}
 export type RetrieveFromProviderResponse = Product[];
 export function retrieveFromProvider(
     request: RetrieveFromProviderRequest
@@ -222,31 +223,59 @@ export interface NativeChart {
     lineNameToWallet: Record<string, Wallet>;
 }
 
+const AGGREGATED = "Aggregated";
+
 export function transformUsageChartForCharting(
     chart: UsageChart,
-    type: ProductArea
+    type: ProductArea,
+    expanded?: string[]
 ): NativeChart {
     const builder: Record<string, NativeChartPoint> = {};
     const lineNames: string[] = [];
     const lineNameToWallet: Record<string, Wallet> = {};
 
+    lineNames.push(AGGREGATED);
+
     for (const line of chart.lines) {
         if (type !== line.area) continue;
 
         const lineId = line.projectPath ? `${line.projectPath} (${line.category})` : line.category;
-        lineNames.push(lineId);
+
+        if (expanded !== undefined && expanded.includes(line.projectPath ?? "")) lineNames.push(lineId);
+
+        if (line.projectPath && !lineNames.includes(line.projectPath)) {
+            lineNames.push(line.projectPath);
+            lineNameToWallet[line.projectPath] = {
+                id: line.projectId!,
+                type: "PROJECT",
+                paysFor: {
+                    id: line.category,
+                    provider: chart.provider
+                }
+            };
+        }
+
         lineNameToWallet[lineId] = {
             id: line.projectId ?? Client.username ?? "",
             type: line.projectId ? "PROJECT" : "USER",
             paysFor: {
                 id: line.category,
-                provider: chart.provider
+                provider: chart.provider,
+                title: line.projectPath
             }
         };
 
         for (const point of line.points) {
             const dataPoint = builder[`${point.timestamp}`] ?? {time: point.timestamp};
             dataPoint[lineId] = point.creditsUsed;
+
+            if (line.projectPath) {
+                if (dataPoint[line.projectPath] === undefined) dataPoint[line.projectPath] = 0;
+                if (dataPoint[AGGREGATED] === undefined) dataPoint[AGGREGATED] = 0;
+                dataPoint[line.projectPath] += dataPoint[lineId];
+                dataPoint[AGGREGATED] += dataPoint[lineId];
+            }
+
             builder[`${point.timestamp}`] = dataPoint;
         }
     }
