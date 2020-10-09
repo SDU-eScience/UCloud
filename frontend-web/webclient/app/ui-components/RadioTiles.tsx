@@ -98,7 +98,7 @@ const RadioTileInput = styled.input`
 
   &:checked + ${RadioTileIcon} {
     background-color: var(--blue, #f00);
-    border: 0px solid var(--black);
+    border: 0px solid white;
     color: white;
     transform: scale(1.2, 1.2);
   }
@@ -111,7 +111,6 @@ const RadioTileLabel = styled.label<FontSizeProps>`
     text-transform: uppercase;
     letter-spacing: 1px;
     line-height: 1;
-    color: var(--invertedThemeColor);
     padding-top: 0.1rem;
 `;
 

@@ -31,7 +31,7 @@ Client.initializeStore(store);
 function App({children}: React.PropsWithChildren<{}>): JSX.Element {
     const [isLightTheme, setTheme] = React.useState(() => {
         const isLight = isLightThemeStored();
-        if (!isLight) toggleCssColors(isLight);
+        toggleCssColors(isLight);
         return isLight;
     });
     const setAndStoreTheme = (isLight: boolean): void => (setSiteTheme(isLight), setTheme(isLight));
