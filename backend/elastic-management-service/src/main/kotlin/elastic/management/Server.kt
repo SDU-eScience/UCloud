@@ -17,6 +17,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import elastic.management.services.ElasticEntryCleanupService
+import elastic.management.services.Grafana
 import kotlin.system.exitProcess
 
 
@@ -32,6 +33,18 @@ class Server(
         val elasticLowLevelClient = micro.elasticLowLevelClient
 
         startServices(wait = false)
+
+        if (micro.commandLineArguments.contains("--grafanaAliases")) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                val grafana = Grafana(elasticHighLevelClient)
+                grafana.createAlias("grafana", "http_logs")
+                exitProcess(0)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                exitProcess(1)
+            }
+        }
 
         if (micro.commandLineArguments.contains("--entryDelete")) {
             @Suppress("TooGenericExceptionCaught")
