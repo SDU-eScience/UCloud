@@ -218,73 +218,82 @@ export interface NativeChartPoint extends Record<string, number> {
     time: number;
 }
 
+export interface UsageRow {
+    title: string;
+    projectId: string;
+    projectPath: string;
+    creditsUsed: number;
+    creditsRemaining: number;
+    wallet?: WalletBalance;
+    children: UsageRow[];
+}
+
+export interface UsageTable {
+    rows: UsageRow[];
+}
+
+export function transformUsageChartForTable(
+    chart: UsageChart,
+    type: ProductArea,
+    wallets: WalletBalance[],
+) {
+
+}
+
 export interface NativeChart {
     provider: string;
     lineNames: string[];
     points: NativeChartPoint[];
-    lineNameToWallet: Record<string, Wallet>;
 }
-
-const AGGREGATED = "Aggregated";
 
 export function transformUsageChartForCharting(
     chart: UsageChart,
-    type: ProductArea,
-    expanded?: string[]
+    type: ProductArea
 ): NativeChart {
     const builder: Record<string, NativeChartPoint> = {};
-    const lineNames: string[] = [];
-    const lineNameToWallet: Record<string, Wallet> = {};
+    let lineNames: string[] = [];
+    const numberToInclude = 4;
+    const otherId = "Others";
 
-    lineNames.push(AGGREGATED);
+    const usagePerProject: Record<string, number> = {};
+    for (const line of chart.lines) {
+        if (type !== line.area) continue;
+        if (line.projectPath === undefined) continue;
+
+        if (!lineNames.includes(line.projectPath)) {
+            lineNames.push(line.projectPath);
+        }
+
+        usagePerProject[line.projectPath] =
+            (usagePerProject[line.projectPath] ?? 0) +
+            line.points.reduce((prev, cur) => prev + cur.creditsUsed, 0);
+    }
+
+    lineNames.sort((a, b) => (usagePerProject[b] ?? 0) - (usagePerProject[a] ?? 0));
+    lineNames = lineNames.filter((ignored, idx) => idx < numberToInclude);
+    lineNames.push(otherId);
 
     for (const line of chart.lines) {
         if (type !== line.area) continue;
+        if (!line.projectPath) continue;
 
-        const lineId = line.projectPath ? `${line.projectPath} (${line.category})` : line.category;
-
-        if (expanded !== undefined && expanded.includes(line.projectPath ?? "")) lineNames.push(lineId);
-
-        if (line.projectPath && !lineNames.includes(line.projectPath)) {
-            lineNames.push(line.projectPath);
-            lineNameToWallet[line.projectPath] = {
-                id: line.projectId!,
-                type: "PROJECT",
-                paysFor: {
-                    id: line.category,
-                    provider: chart.provider
-                }
-            };
+        const ranking = lineNames.indexOf(line.projectPath);
+        let id = line.projectPath;
+        if (ranking === -1) {
+            id = otherId;
         }
-
-        lineNameToWallet[lineId] = {
-            id: line.projectId ?? Client.username ?? "",
-            type: line.projectId ? "PROJECT" : "USER",
-            paysFor: {
-                id: line.category,
-                provider: chart.provider,
-                title: line.projectPath
-            }
-        };
 
         for (const point of line.points) {
             const dataPoint = builder[`${point.timestamp}`] ?? {time: point.timestamp};
-            dataPoint[lineId] = point.creditsUsed;
 
-            if (line.projectPath) {
-                if (dataPoint[line.projectPath] === undefined) dataPoint[line.projectPath] = 0;
-                if (dataPoint[AGGREGATED] === undefined) dataPoint[AGGREGATED] = 0;
-                dataPoint[line.projectPath] += dataPoint[lineId];
-                dataPoint[AGGREGATED] += dataPoint[lineId];
-            }
+            if (dataPoint[id] === undefined) dataPoint[id] = 0;
+            dataPoint[id] += point.creditsUsed;
 
             builder[`${point.timestamp}`] = dataPoint;
         }
     }
 
-    if (lineNames.length === 1 && lineNames.includes(AGGREGATED)) lineNames.pop();
-
-    return {provider: chart.provider, lineNames, points: Object.values(builder), lineNameToWallet};
+    return {provider: chart.provider, lineNames, points: Object.values(builder)};
 }
 
 

@@ -19,7 +19,6 @@ import {
     RetrieveBalanceResponse,
     transformUsageChartForCharting,
     usage,
-    UsageChart,
     UsageResponse
 } from "Accounting";
 import {useProjectManagementStatus} from "Project";
@@ -34,9 +33,6 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Dropdown} from "ui-components/Dropdown";
 import {capitalized} from "UtilityFunctions";
-import {useProjectStatus} from "./cache";
-
-const Aggregated = "Aggregated";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -290,35 +286,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     );
 };
 
-const AGGREGATED = "Aggregated";
-
-function sortCharts(charts: NativeChart[], creditsUsedByWallet: Record<string, Record<string, number>>, projects: Set<string>): void {
-    charts.forEach(chart => chart.lineNames.sort((a: string, b: string): number => {
-        if (a === AGGREGATED) return 1;
-        else if (b === AGGREGATED) return -1;
-
-        const aIsProject = projects.has(a);
-        const bIsProject = projects.has(b);
-        if (aIsProject && bIsProject)
-            return creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b];
-
-        if (aIsProject && !bIsProject) {
-            if (chart.lineNameToWallet[b].paysFor.title === a) return -1;
-        }
-
-        if (!aIsProject && bIsProject) {
-            if (chart.lineNameToWallet[a].paysFor.title === b) return 1;
-        }
-
-        if (chart.lineNameToWallet[a].paysFor.title !== chart.lineNameToWallet[a].paysFor.title)
-            return a.localeCompare(b);
-
-        const difference = creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b];
-        if (difference !== 0) return difference;
-        return a.localeCompare(b);
-    }));
-}
-
 const VisualizationForArea: React.FunctionComponent<{
     area: ProductArea,
     projectId: string,
@@ -326,9 +293,14 @@ const VisualizationForArea: React.FunctionComponent<{
     balance: APICallState<RetrieveBalanceResponse>,
     durationOption: Duration
 }> = ({area, projectId, usageResponse, balance, durationOption}) => {
-    const projectNames = new Set(...usageResponse.data.charts.map(it => it.lines.map(it => it.projectPath ?? "")).filter(it => it));
+    const projectNames = new Set(
+        ...usageResponse.data.charts
+            .map(it => it.lines.map(it => it.projectPath ?? ""))
+            .filter(it => it)
+    );
+
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
-    const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area, [...expanded]));
+    const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
         else return sum;
@@ -357,8 +329,6 @@ const VisualizationForArea: React.FunctionComponent<{
             }
         }
     }
-
-    sortCharts(charts, creditsUsedByWallet, projectNames);
 
     const [, forceUpdate] = useState(false);
 
@@ -389,39 +359,40 @@ const VisualizationForArea: React.FunctionComponent<{
                                             <CartesianGrid strokeDasharray="3 3" />
                                             <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)} />
                                             <YAxis width={150} tickFormatter={creditFormatter} />
-                                            <Tooltip labelFormatter={getDateFormatter(durationOption)}
+                                            <Tooltip
+                                                labelFormatter={getDateFormatter(durationOption)}
                                                 formatter={n => creditFormatter(n as number, 2)}
+                                                offset={64}
                                             />
-                                            {chart.lineNames.map((id, idx) => {
-                                                if (!chartExclusions.queryExcludeFromCharts(id) && id !== "Aggregated") {
+                                            {chart.lineNames
+                                                .map((id, idx) => {
                                                     return <Bar
                                                         key={id}
                                                         dataKey={id}
                                                         fill={theme.chartColors[idx % theme.chartColors.length]}
                                                         barSize={24}
                                                     />;
-                                                } else {
-                                                    return null;
-                                                }
-                                            })}
-
-                                            {chart.lineNames.map((id, idx) => {
-                                                if (!chartExclusions.queryExcludeFromCharts(id) && id !== "Aggregated") {
-                                                    return <Bar
-                                                        key={id + "stack"}
-                                                        dataKey={id}
-                                                        stackId={"foo"}
-                                                        fill={theme.chartColors[idx % theme.chartColors.length]}
-                                                        barSize={24}
-                                                    />;
-                                                } else {
-                                                    return null;
-                                                }
-                                            })}
+                                                })
+                                            }
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </Box>
 
+                                <Flex flexDirection={"row"} justifyContent={"center"}>
+                                    {chart.lineNames.map((line, idx) => {;
+                                        return <Flex mx={"16px"} key={idx} flexDirection={"row"}>
+                                            <Box
+                                                width={20}
+                                                height={20}
+                                                mr={"8px"}
+                                                backgroundColor={theme.chartColors[idx % theme.chartColors.length]}
+                                            />
+                                            {line}
+                                        </Flex>;
+                                    })}
+                                </Flex>
+
+                                {/*
                                 <Box mb={40}>
                                     <Table>
                                         <TableHeader>
@@ -443,7 +414,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                                     <TableRow key={p}>
                                                         <TableCell>
                                                             <Box width={20} height={20}
-                                                                backgroundColor={p === Aggregated ? "#000" : theme.chartColors[idx % theme.chartColors.length]} />
+                                                                backgroundColor={theme.chartColors[idx % theme.chartColors.length]} />
                                                         </TableCell>
                                                         <TableCell>
                                                             {p}
@@ -453,24 +424,21 @@ const VisualizationForArea: React.FunctionComponent<{
                                                             {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
                                                         </TableCell>
                                                         <TableCell textAlign="right">
-                                                            {p !== Aggregated ? creditFormatter(
+                                                            {creditFormatter(
                                                                 balance.data.wallets.find(it =>
                                                                     it.wallet.id === chart.lineNameToWallet[p].id &&
                                                                     it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
                                                                     it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
                                                                 )?.balance ?? 0
-                                                            ) : creditFormatter(
-                                                                balance.data.wallets.filter(it => it.area === area)
-                                                                    .reduce((prev, wall) => wall.balance + prev, 0)
                                                             )}
                                                         </TableCell>
                                                         <TableCell textAlign="right">
-                                                            {p !== Aggregated ? (<Toggle
+                                                            {<Toggle
                                                                 onChange={() => onChartExclusion(p)}
                                                                 scale={1.5}
                                                                 activeColor="green"
                                                                 checked={!chartExclusions.queryExcludeFromCharts(p)}
-                                                            />) : null}
+                                                            />}
                                                         </TableCell>
                                                     </TableRow>
                                                 );
@@ -478,6 +446,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                         </tbody>
                                     </Table>
                                 </Box>
+                                */}
                             </>
                         )}
                     </React.Fragment>
