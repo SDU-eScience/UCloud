@@ -1,5 +1,4 @@
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Client} from "Authentication/HttpClientInstance";
 
 export type AccountType = "USER" | "PROJECT";
 
@@ -232,12 +231,60 @@ export interface UsageTable {
     rows: UsageRow[];
 }
 
+interface AccountingProject {
+    categories: CategoryUsage[];
+    totalUsage: number;
+    totalAllocated: number;
+    projectId: string;
+    projectTitle: string;
+}
+
+interface CategoryUsage {
+    product: string;
+    usage: number;
+    allocated: number;
+}
+
 export function transformUsageChartForTable(
     chart: UsageChart,
     type: ProductArea,
     wallets: WalletBalance[],
-) {
+    expanded: Set<string>
+): {provider: string; projects: AccountingProject[]} {
+    const projectMap: Record<string, AccountingProject> = {};
+    const relevantWallets = wallets.filter(it => it.area === type && it.wallet.type === "PROJECT");
 
+    chart.lines.filter(it => it.area === type).forEach(line => {
+        const lineUsage = line.points.reduce((acc, p) => p.creditsUsed + acc, 0);
+        const allocated = relevantWallets.find(it => it.wallet.id === line.projectId)?.allocated ?? 0;
+        if (!projectMap[line.projectPath!]) {
+            projectMap[line.projectPath!] = {
+                categories: expanded.has(line.projectPath!) ?
+                    [{product: line.category, usage: lineUsage, allocated}] : [],
+                totalUsage: lineUsage,
+                totalAllocated: relevantWallets.find(it => it.wallet.id === line.projectId)?.allocated ?? 0,
+                projectId: line.projectId!,
+                projectTitle: line.projectPath!
+            };
+        } else {
+            const project = projectMap[line.projectPath!];
+            if (expanded.has(line.projectPath!)) {
+                projectMap[line.projectPath!].categories =
+                    project.categories.concat([{product: line.category, usage: lineUsage, allocated}]);
+            }
+            projectMap[line.projectPath!].totalUsage += lineUsage;
+            projectMap[line.projectPath!].totalAllocated += allocated;
+        }
+    });
+
+    const projects: AccountingProject[] = [];
+
+    for (const project of Object.keys(projectMap)) {
+        projectMap[project].categories.sort((a, b) => b.usage - a.usage);
+        projects.push(projectMap[project]);
+    }
+
+    return {provider: chart.provider, projects: projects.sort((a, b) => b.totalUsage - a.totalUsage)};
 }
 
 export interface NativeChart {
