@@ -126,7 +126,9 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"}/>
                         <PageTab activePage={page} page={SettingsPage.DMP} title={"Data Management Plan"}/>
                         <PageTab activePage={page} page={SettingsPage.SUBPROJECTS} title={"Subprojects"}/>
-                        <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"}/>
+                        {!enabled.data.enabled ? null :
+                            <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"}/>
+                        }
                     </SelectableTextWrapper>
 
                     {page !== SettingsPage.AVAILABILITY ? null : (
