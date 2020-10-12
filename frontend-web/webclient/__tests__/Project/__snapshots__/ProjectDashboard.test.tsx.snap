@@ -331,7 +331,7 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c16"
+          className="c16 dashboard-card-inner"
           height="100%"
         >
           <div
@@ -447,7 +447,7 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c16"
+          className="c16 dashboard-card-inner"
           height="100%"
         >
           <div
@@ -526,7 +526,7 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c16"
+          className="c16 dashboard-card-inner"
           height="100%"
         >
           <div

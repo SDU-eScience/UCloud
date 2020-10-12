@@ -313,7 +313,7 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6"
+          className="c6 dashboard-card-inner"
           height="100%"
         >
           <div
@@ -427,7 +427,7 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6"
+          className="c6 dashboard-card-inner"
           height="100%"
         >
           <div
@@ -537,7 +537,7 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6"
+          className="c6 dashboard-card-inner"
           height="100%"
         >
           <div
@@ -636,7 +636,7 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6"
+          className="c6 dashboard-card-inner"
           height="100%"
         >
           <div
@@ -759,7 +759,7 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6"
+          className="c6 dashboard-card-inner"
           height="100%"
         >
           <div
@@ -855,7 +855,7 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6"
+          className="c6 dashboard-card-inner"
           height="100%"
         >
           <div
@@ -967,7 +967,7 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6"
+          className="c6 dashboard-card-inner"
           height="100%"
         >
           <div
