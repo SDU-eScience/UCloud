@@ -21,6 +21,7 @@ import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
 import dk.sdu.cloud.grant.utils.responseTemplate
 import dk.sdu.cloud.grant.utils.updatedTemplate
 import dk.sdu.cloud.project.api.CreateProjectRequest
+import dk.sdu.cloud.project.api.LookupByIdRequest
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewProjectRequest
 import dk.sdu.cloud.service.*
@@ -70,8 +71,8 @@ class ApplicationService(
                 }
             val projectOrNull = 
                 if (projectId != null) {
-                    Projects.viewProject.call(
-                        ViewProjectRequest(projectId),
+                    Projects.lookupById.call(
+                        LookupByIdRequest(projectId),
                         serviceClient
                     ).orThrow()
                 } else {
