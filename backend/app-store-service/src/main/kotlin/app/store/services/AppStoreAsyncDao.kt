@@ -64,7 +64,8 @@ class AppStoreAsyncDao(
                         ) or (
                             :isAdmin
                         )
-                    ) 
+                    )
+                    ORDER BY A.name
                     """
                 )
                 .rows
@@ -121,6 +122,7 @@ class AppStoreAsyncDao(
                         :isAdmin
                     ) 
                 )
+                ORDER BY A.name
                 """
                 )
                 .rows
