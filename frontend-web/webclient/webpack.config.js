@@ -19,7 +19,7 @@ module.exports = {
             {
                 test: /\.[jt]sx?$/,
                 exclude: /node_modules/,
-                loader: ["ts-loader"],
+                loader: "ts-loader"
             },
             {
                 test: /\.js$/,

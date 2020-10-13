@@ -146,7 +146,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
                 onPageChanged={pageNumber => fetchFeatured(featured.itemsPerPage, pageNumber)}
             />
             {featuredTags.map(tag =>
-                <FeaturedTag key={tag} tag={tag} rows={1} columns={7}
+                <FeaturedTag key={tag} tag={tag} omit={defaultTools} rows={1} columns={7}
                     setFavorite={async (name, version, page) => {
                         props.receiveApplications(await favoriteApplicationFromPage({
                             name,
@@ -334,15 +334,17 @@ const ToolImage = styled.img`
 
 interface FeaturedTagProps {
     tag: string;
+    omit: string[];
     setFavorite(appName: string, appVersion: string, page: Page<FullAppInfo>): void;
     columns: number;
     rows: number;
 }
 
-function FeaturedTag({tag, setFavorite, columns, rows}: FeaturedTagProps): JSX.Element {
+function FeaturedTag({tag, setFavorite, columns, rows, omit}: FeaturedTagProps): JSX.Element {
     const page = useSelector<ReduxObject, Page<FullAppInfo>>(it =>
         it.applicationsBrowse.applications.get(tag) ?? emptyPage
     );
+
     return (
         <>
             <div>
@@ -364,7 +366,7 @@ function FeaturedTag({tag, setFavorite, columns, rows}: FeaturedTagProps): JSX.E
                     gridGap="15px"
                     style={{gridAutoFlow: "column"}}
                 >
-                    {page.items.map(app => (
+                    {page.items.filter(it => !it.tags.some(_tag => omit.includes(_tag))).map(app => (
                         <ApplicationCard
                             key={`${app.metadata.name}-${app.metadata.version}`}
                             onFavorite={(name, version) => setFavorite(name, version, page)}
