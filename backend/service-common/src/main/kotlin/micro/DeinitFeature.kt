@@ -12,7 +12,9 @@ class DeinitFeature : MicroFeature {
     }
 
     fun addHandler(handler: () -> Unit) {
-        handlers.add(handler)
+        synchronized(handlers) {
+            handlers.add(handler)
+        }
     }
 
     fun runHandlers() {
