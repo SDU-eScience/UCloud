@@ -59,7 +59,11 @@ function Applications(props: ApplicationsProps): JSX.Element {
     const featuredTags = [
         "Engineering",
         "Data Analytics",
-        "Bioinformatics"
+        "Bioinformatics",
+        "Social Science",
+        "Applied Science",
+        "Natural Science",
+        "Development"
     ];
 
     React.useEffect(() => {
