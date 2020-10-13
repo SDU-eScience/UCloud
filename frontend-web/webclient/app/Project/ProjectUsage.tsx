@@ -3,7 +3,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {Box, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text, theme} from "ui-components";
+import {Box, Button, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text, theme} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -18,6 +18,7 @@ import {
     retrieveBalance,
     RetrieveBalanceResponse,
     transformUsageChartForCharting,
+    transformUsageChartForTable,
     usage,
     UsageResponse
 } from "Accounting";
@@ -33,9 +34,6 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Dropdown} from "ui-components/Dropdown";
 import {capitalized} from "UtilityFunctions";
-import {useProjectStatus} from "./cache";
-
-const Aggregated = "Aggregated";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -296,14 +294,13 @@ const VisualizationForArea: React.FunctionComponent<{
     balance: APICallState<RetrieveBalanceResponse>,
     durationOption: Duration
 }> = ({area, projectId, usageResponse, balance, durationOption}) => {
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
-
-    // const memberships = useProjectStatus().fetch().membership;
-
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
         else return sum;
     }, 0);
+
 
     const balanceAllocatedToChildren = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id !== projectId) return sum + wallet.balance;
@@ -329,53 +326,9 @@ const VisualizationForArea: React.FunctionComponent<{
         }
     }
 
-    charts.forEach(chart => chart.lineNames.sort((a: string, b: string): number =>
-        creditsUsedByWallet[chart.provider][a] - creditsUsedByWallet[chart.provider][b]
-    ));
+    const tableCharts = usageResponse.data.charts.map(it => transformUsageChartForTable(it, area, balance.data.wallets, expanded));
 
     const [, forceUpdate] = useState(false);
-
-
-    /* const lines = new Set(...charts.map(chart => [
-        ...Object.keys(chart.lineNameToWallet).map(it => chart.lineNameToWallet[it].paysFor.id).filter(it => it)
-    ])); */
-
-/*     for (const chart of charts) {
-        let aggregatedCredits = 0;
-        const keys = Object.keys(creditsUsedByWallet[chart.provider]);
-        keys.forEach(key => {
-            if (!chartExclusions.queryExcludeFromCharts(key))
-                aggregatedCredits += creditsUsedByWallet[chart.provider][key];
-        });
-        creditsUsedByWallet[chart.provider][Aggregated] = aggregatedCredits;
-        if (!chart.lineNames.includes(Aggregated) && chart.lineNames.filter(it => it).length) chart.lineNames.push(Aggregated);
-
-        for (const point of chart.points) {
-            for (const category of Object.keys(point)) {
-                if (category === "time") {
-                    continue;
-                }
-                if (point[category] === 0) {
-                    delete point[category];
-                }
-
-                const projectId = chart.lineNameToWallet[category].id;
-                const projectTitle = memberships.find(it => it.projectId === projectId)?.title;
-                const product = chart.lineNameToWallet[category]?.paysFor.id;
-                if (!product || !projectTitle) continue;
-                lines.add(projectTitle);
-                const provided = creditsUsedByWallet[chart.provider];
-                if (provided[product] === undefined) provided[product] = 0;
-                if (provided[projectTitle] === undefined) provided[projectTitle] = 0;
-
-                provided[product] += (point[category] ?? 0);
-                provided[projectTitle] += (point[category] ?? 0);
-            }
-        }
-        chart.lineNames.filter(it => it).forEach(it =>
-            lines.add(it)
-        );
-    } */
 
     return (
         <Box>
@@ -387,7 +340,7 @@ const VisualizationForArea: React.FunctionComponent<{
             />
 
             <Box m={35}>
-                {charts.map((chart: NativeChart) => (
+                {charts.map(chart => (
                     <React.Fragment key={chart.provider}>
                         {chart.lineNames.length === 0 ? null : (
                             <>
@@ -404,95 +357,111 @@ const VisualizationForArea: React.FunctionComponent<{
                                             <CartesianGrid strokeDasharray="3 3" />
                                             <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)} />
                                             <YAxis width={150} tickFormatter={creditFormatter} />
-                                            <Tooltip labelFormatter={getDateFormatter(durationOption)}
+                                            <Tooltip
+                                                labelFormatter={getDateFormatter(durationOption)}
                                                 formatter={n => creditFormatter(n as number, 2)}
+                                                offset={64}
                                             />
-                                            {chart.lineNames.map((id, idx) => {
-                                                if (!chartExclusions.queryExcludeFromCharts(id)) {
-                                                    return <Bar
+                                            {chart.lineNames
+                                                .map((id, idx) =>
+                                                    <Bar
                                                         key={id}
                                                         dataKey={id}
                                                         fill={theme.chartColors[idx % theme.chartColors.length]}
                                                         barSize={24}
-                                                    />;
-                                                } else {
-                                                    return null;
-                                                }
-                                            })}
-
-                                            {chart.lineNames.map((id, idx) => {
-                                                if (!chartExclusions.queryExcludeFromCharts(id)) {
-                                                    return <Bar
-                                                        key={id + "stack"}
-                                                        dataKey={id}
-                                                        stackId={"foo"}
-                                                        fill={theme.chartColors[idx % theme.chartColors.length]}
-                                                        barSize={24}
-                                                    />;
-                                                } else {
-                                                    return null;
-                                                }
-                                            })}
+                                                    />
+                                                )
+                                            }
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </Box>
 
-                                <Box mb={40}>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHeaderCell width={30} />
-                                                <TableHeaderCell />
-                                                <TableHeaderCell textAlign="right">
-                                                    Credits Used In Period
-                                                </TableHeaderCell>
-                                                <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
-                                                <TableHeaderCell textAlign="right">Include In Chart</TableHeaderCell>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <tbody>
-                                            {chart.lineNames.map((p, idx) => (
-                                                <TableRow key={p}>
-                                                    <TableCell>
-                                                        <Box width={20} height={20}
-                                                            backgroundColor={p === Aggregated ? "#000" : theme.chartColors[idx % theme.chartColors.length]} />
-                                                    </TableCell>
-                                                    <TableCell>{p}</TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
-                                                    </TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {p !== Aggregated && chart.lineNames.includes(p) ? creditFormatter(
-                                                            balance.data.wallets.find(it =>
-                                                                it.wallet.id === chart.lineNameToWallet[p].id &&
-                                                                it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
-                                                                it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
-                                                            )?.balance ?? 0
-                                                        ) : creditFormatter(
-                                                            balance.data.wallets.filter(it => it.area === area)
-                                                                .reduce((prev, wall) => wall.balance + prev, 0)
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {p !== Aggregated && chart.lineNames.includes(p) ? (<Toggle
-                                                            onChange={() => onChartExclusion(p)}
-                                                            scale={1.5}
-                                                            activeColor="green"
-                                                            checked={!chartExclusions.queryExcludeFromCharts(p)}
-                                                        />) : null}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </tbody>
-                                    </Table>
-                                </Box>
+                                <Flex flexDirection={"row"} justifyContent={"center"}>
+                                    {chart.lineNames.map((line, idx) =>
+                                        <Flex key={idx} mx={"16px"} flexDirection={"row"}>
+                                            <Box
+                                                width={20}
+                                                height={20}
+                                                mr={"8px"}
+                                                backgroundColor={theme.chartColors[idx % theme.chartColors.length]}
+                                            />
+                                            {line}
+                                        </Flex>
+                                    )}
+                                </Flex>
                             </>
                         )}
                     </React.Fragment>
                 ))}
+
+                {tableCharts.map(chart =>
+                    <Box key={chart.provider} mb={40}>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHeaderCell width={30} />
+                                    <TableHeaderCell />
+                                    <TableHeaderCell textAlign="right">
+                                        Credits Used In Period
+                                                </TableHeaderCell>
+                                    <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
+                                </TableRow>
+                            </TableHeader>
+                            <tbody>
+                                {chart.projects.map((p, idx) => {
+                                    const isExpanded = expanded.has(p.projectTitle);
+                                    const result = [
+                                        <TableRow key={p.projectTitle}>
+                                            <TableCell>
+                                                <Box width={20} height={20}
+                                                    backgroundColor={idx > 3 ? undefined : theme.chartColors[idx % theme.chartColors.length]} />
+                                            </TableCell>
+                                            <TableCell>
+                                                {p.projectTitle}
+                                                <Button ml="6px" width="6px" height="16px" onClick={() => onExpandOrDeflate(p.projectTitle)}>{isExpanded ? "-" : "+"}</Button>
+                                            </TableCell>
+                                            <TableCell textAlign="right">
+                                                {creditFormatter(p.totalUsage)}
+                                            </TableCell>
+                                            <TableCell textAlign="right">
+                                                {creditFormatter(p.totalAllocated - p.totalUsage)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ];
+                                    if (isExpanded) {
+                                        for (const category of p.categories) {
+                                            result.push(<TableRow key={category.product}>
+                                                <TableCell>
+                                                    <Box pl="6px" width={20} height={20}
+                                                        backgroundColor={idx > 3 ? undefined : theme.chartColors[idx % theme.chartColors.length]} />
+                                                </TableCell>
+                                                <TableCell>{category.product} </TableCell>
+                                                <TableCell textAlign="right">
+                                                    {creditFormatter(category.usage)}
+                                                </TableCell>
+                                                <TableCell textAlign="right">
+                                                    {creditFormatter(category.allocated - category.usage)}
+                                                </TableCell>
+                                            </TableRow>);
+                                        }
+                                    }
+                                    return result;
+                                })}
+                            </tbody>
+                        </Table>
+                    </Box>
+                )}
             </Box>
         </Box>
     );
+
+    function onExpandOrDeflate(p: string): void {
+        if (expanded.has(p)) {
+            setExpanded(new Set((expanded.delete(p), expanded)));
+        } else {
+            setExpanded(new Set([...expanded, p]));
+        }
+    }
 
     function onChartExclusion(name: string): void {
         chartExclusions.toggleFromCharts(name);

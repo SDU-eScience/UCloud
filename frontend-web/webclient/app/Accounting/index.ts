@@ -1,11 +1,11 @@
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Client} from "Authentication/HttpClientInstance";
 
 export type AccountType = "USER" | "PROJECT";
 
 export interface ProductCategoryId {
     id: string;
     provider: string;
+    title?: string;
 }
 
 export enum ProductArea {
@@ -123,7 +123,7 @@ export interface Product {
     pricePerUnit: number;
     category: ProductCategoryId;
     description: string;
-    availability: { type: "available" | "unavailable"; reason?: string };
+    availability: {type: "available" | "unavailable"; reason?: string};
     priority: number;
     cpu?: number;
     memoryInGigs?: number;
@@ -135,7 +135,7 @@ export interface ListProductsRequest extends PaginationRequest {
     provider: string;
 }
 
-export interface ListProductsByAreaRequest extends PaginationRequest{
+export interface ListProductsByAreaRequest extends PaginationRequest {
     provider: string;
     area: string
 }
@@ -160,7 +160,7 @@ export function listByProductArea(request: ListProductsByAreaRequest): APICallPa
     };
 }
 
-export interface RetrieveFromProviderRequest { provider: string; }
+export interface RetrieveFromProviderRequest {provider: string;}
 export type RetrieveFromProviderResponse = Product[];
 export function retrieveFromProvider(
     request: RetrieveFromProviderRequest
@@ -217,11 +217,80 @@ export interface NativeChartPoint extends Record<string, number> {
     time: number;
 }
 
+export interface UsageRow {
+    title: string;
+    projectId: string;
+    projectPath: string;
+    creditsUsed: number;
+    creditsRemaining: number;
+    wallet?: WalletBalance;
+    children: UsageRow[];
+}
+
+export interface UsageTable {
+    rows: UsageRow[];
+}
+
+interface AccountingProject {
+    categories: CategoryUsage[];
+    totalUsage: number;
+    totalAllocated: number;
+    projectId: string;
+    projectTitle: string;
+}
+
+interface CategoryUsage {
+    product: string;
+    usage: number;
+    allocated: number;
+}
+
+export function transformUsageChartForTable(
+    chart: UsageChart,
+    type: ProductArea,
+    wallets: WalletBalance[],
+    expanded: Set<string>
+): {provider: string; projects: AccountingProject[]} {
+    const projectMap: Record<string, AccountingProject> = {};
+    const relevantWallets = wallets.filter(it => it.area === type && it.wallet.type === "PROJECT");
+
+    chart.lines.filter(it => it.area === type).forEach(line => {
+        const lineUsage = line.points.reduce((acc, p) => p.creditsUsed + acc, 0);
+        const allocated = relevantWallets.find(it => it.wallet.id === line.projectId)?.allocated ?? 0;
+        if (!projectMap[line.projectPath!]) {
+            projectMap[line.projectPath!] = {
+                categories: expanded.has(line.projectPath!) ?
+                    [{product: line.category, usage: lineUsage, allocated}] : [],
+                totalUsage: lineUsage,
+                totalAllocated: relevantWallets.find(it => it.wallet.id === line.projectId)?.allocated ?? 0,
+                projectId: line.projectId!,
+                projectTitle: line.projectPath!
+            };
+        } else {
+            const project = projectMap[line.projectPath!];
+            if (expanded.has(line.projectPath!)) {
+                projectMap[line.projectPath!].categories =
+                    project.categories.concat([{product: line.category, usage: lineUsage, allocated}]);
+            }
+            projectMap[line.projectPath!].totalUsage += lineUsage;
+            projectMap[line.projectPath!].totalAllocated += allocated;
+        }
+    });
+
+    const projects: AccountingProject[] = [];
+
+    for (const project of Object.keys(projectMap)) {
+        projectMap[project].categories.sort((a, b) => b.usage - a.usage);
+        projects.push(projectMap[project]);
+    }
+
+    return {provider: chart.provider, projects: projects.sort((a, b) => b.totalUsage - a.totalUsage)};
+}
+
 export interface NativeChart {
     provider: string;
     lineNames: string[];
     points: NativeChartPoint[];
-    lineNameToWallet: Record<string, Wallet>;
 }
 
 export function transformUsageChartForCharting(
@@ -229,31 +298,49 @@ export function transformUsageChartForCharting(
     type: ProductArea
 ): NativeChart {
     const builder: Record<string, NativeChartPoint> = {};
-    const lineNames: string[] = [];
-    const lineNameToWallet: Record<string, Wallet> = {};
+    let lineNames: string[] = [];
+    const numberToInclude = 4;
+    const otherId = "Others";
+
+    const usagePerProject: Record<string, number> = {};
+    for (const line of chart.lines) {
+        if (type !== line.area) continue;
+        if (line.projectPath === undefined) continue;
+
+        if (!lineNames.includes(line.projectPath)) {
+            lineNames.push(line.projectPath);
+        }
+
+        usagePerProject[line.projectPath] =
+            (usagePerProject[line.projectPath] ?? 0) +
+            line.points.reduce((prev, cur) => prev + cur.creditsUsed, 0);
+    }
+
+    lineNames.sort((a, b) => (usagePerProject[b] ?? 0) - (usagePerProject[a] ?? 0));
+    lineNames = lineNames.filter((ignored, idx) => idx < numberToInclude);
+    lineNames.push(otherId);
 
     for (const line of chart.lines) {
         if (type !== line.area) continue;
+        if (!line.projectPath) continue;
 
-        const lineId = line.projectPath ? `${line.projectPath} (${line.category})` : line.category;
-        lineNames.push(lineId);
-        lineNameToWallet[lineId] = {
-            id: line.projectId ?? Client.username ?? "",
-            type: line.projectId ? "PROJECT" : "USER",
-            paysFor: {
-                id: line.category,
-                provider: chart.provider
-            }
-        };
+        const ranking = lineNames.indexOf(line.projectPath);
+        let id = line.projectPath;
+        if (ranking === -1) {
+            id = otherId;
+        }
 
         for (const point of line.points) {
             const dataPoint = builder[`${point.timestamp}`] ?? {time: point.timestamp};
-            dataPoint[lineId] = point.creditsUsed;
+
+            if (dataPoint[id] === undefined) dataPoint[id] = 0;
+            dataPoint[id] += point.creditsUsed;
+
             builder[`${point.timestamp}`] = dataPoint;
         }
     }
 
-    return {provider: chart.provider, lineNames, points: Object.values(builder), lineNameToWallet};
+    return {provider: chart.provider, lineNames, points: Object.values(builder)};
 }
 
 

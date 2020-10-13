@@ -12,37 +12,14 @@ import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
 
 export function toggleCssColors(light: boolean): void {
+    const html = document.querySelector("html")!;
     if (light) {
-        setCSSVariable("--white", "#fff");
-        setCSSVariable("--tableRowHighlight", "var(--lightBlue, #f00)");
-        setCSSVariable("--black", "#000");
-        setCSSVariable("--text", "#1e252e");
-        setCSSVariable("--lightGray", "#f5f7f9");
-        setCSSVariable("--lightBlue", "#f0f6ff");
-        setCSSVariable("--midGray", "#c9d3df");
-        setCSSVariable("--paginationDisabled", "var(--lightGray, #f00)");
-        setCSSVariable("--paginationHoverColor", "var(--lightBlue, #f00)");
-        setCSSVariable("--appCard", "#ebeff3");
-        setCSSVariable("--borderGray", "var(--midGray, #f00)");
-        setCSSVariable("--invertedThemeColor", "#000");
+        html.classList.remove("dark");
+        html.classList.add("light");
     } else {
-        setCSSVariable("--white", "#282c35");
-        setCSSVariable("--tableRowHighlight", "#000");
-        setCSSVariable("--black", "#a4a5a9");
-        setCSSVariable("--text", "#e5e5e6");
-        setCSSVariable("--lightGray", "#111");
-        setCSSVariable("--lightBlue", "#000");
-        setCSSVariable("--midGray", "#555");
-        setCSSVariable("--paginationDisabled", "#111");
-        setCSSVariable("--paginationHoverColor", "#444");
-        setCSSVariable("--appCard", "#060707");
-        setCSSVariable("--borderGray", "#111");
-        setCSSVariable("--invertedThemeColor", "#fff");
+        html.classList.remove("light");
+        html.classList.add("dark");
     }
-}
-
-function setCSSVariable(varName: string, value: string): void {
-    document.documentElement.style.setProperty(varName, value);
 }
 
 /**
@@ -487,8 +464,8 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
 }
 
 export function shouldHideSidebarAndHeader(): boolean {
-    return ["/app/login", "/app/login/wayf"]
-        .includes(window.location.pathname) && window.location.search === "?dav=true";
+    return ["/app/login", "/app/login/wayf", "/app/login/selection"]
+        .includes(window.location.pathname) || window.location.search === "?dav=true";
 }
 
 export function getUserThemePreference(): "light" | "dark" {

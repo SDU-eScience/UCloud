@@ -3,11 +3,7 @@ package dk.sdu.cloud.grant.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
@@ -20,9 +16,7 @@ import dk.sdu.cloud.grant.utils.autoApproveTemplate
 import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
 import dk.sdu.cloud.grant.utils.responseTemplate
 import dk.sdu.cloud.grant.utils.updatedTemplate
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.project.api.ViewProjectRequest
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
@@ -68,10 +62,28 @@ class ApplicationService(
                         is GrantRecipient.NewProject -> null
                     }
                 }
-            val projectOrNull = 
+
+            if (projectId != null) {
+                val userStatus = Projects.viewMemberInProject.call(
+                    ViewMemberInProjectRequest(projectId, actor.username),
+                    serviceClient
+                ).orRethrowAs {
+                    if (it.statusCode.value in 500..599) {
+                        throw RPCException.fromStatusCode(it.statusCode)
+                    } else {
+                        throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
+                    }
+                }
+
+                if (!userStatus.member.role.isAdmin()) {
+                    throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
+                }
+            }
+
+            val projectOrNull =
                 if (projectId != null) {
-                    Projects.viewProject.call(
-                        ViewProjectRequest(projectId),
+                    Projects.lookupById.call(
+                        LookupByIdRequest(projectId),
                         serviceClient
                     ).orThrow()
                 } else {

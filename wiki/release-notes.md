@@ -7,6 +7,15 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 12-10-20
+Added new elastic-management job. Auto creation and deletion of aliases used for Grafana.
+Updated Alerting-service to handle node failures better and added 5xx check in ambassador logs.
+
+```
+✅  CronJob(manage-grafana-alias, 1.1.2): Already up-to-date.
+✅  Deployment(alerting, 1.2.3): Already up-to-date.
+```
+
 ## 29-09-20
 
 Remove limits from app-kubernetes-service resource requests. This is a temporary bug-fix to ensure that the QoS does

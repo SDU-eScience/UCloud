@@ -30,7 +30,6 @@ import {IconName} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
 import {APICallState, useCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
-import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
 import {
@@ -59,7 +58,6 @@ import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 import {creditFormatter, durationOptions} from "Project/ProjectUsage";
 import {computeUsageInPeriod} from "Project/ProjectDashboard";
 import {useProjectManagementStatus} from "Project";
-import {useHistory} from "react-router";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -82,7 +80,7 @@ export const DashboardCard: React.FunctionComponent<{
         minHeight={minHeight}
     >
         <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
-        <Box px={3} py={1} height={"100%"}>
+        <Box px={3} py={1} height={"100%"} className={"dashboard-card-inner"}>
             <Flex alignItems="center">
                 {icon !== undefined ? (
                     <Icon
@@ -411,7 +409,6 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
 function DashboardProjectUsage(): JSX.Element | null {
     const {projectId} =
         useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
-    const history = useHistory();
     const durationOption = durationOptions[3];
     const now = new Date().getTime();
     const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
@@ -432,21 +429,20 @@ function DashboardProjectUsage(): JSX.Element | null {
     const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     return (
-        <DashboardCard title={<Link to={"/app/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
+        <DashboardCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
                        icon="hourglass"
                        color="yellow"
                        isLoading={false}
-                       onClick={() => history.push("/project/usage")}
         >
             <Text color="darkGray" fontSize={1}>Past 30 days</Text>
             <Table>
                 <tbody>
-                <TableRow cursor="pointer">
+                <TableRow>
                     <TableCell>Storage</TableCell>
                     <TableCell
                         textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
                 </TableRow>
-                <TableRow cursor="pointer">
+                <TableRow>
                     <TableCell>Compute</TableCell>
                     <TableCell
                         textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
@@ -454,7 +450,7 @@ function DashboardProjectUsage(): JSX.Element | null {
                 </tbody>
             </Table>
         </DashboardCard>
-    )
+    );
 }
 function DashboardResources({wallets, loading, quota}: {
     wallets: WalletBalance[];
@@ -541,7 +537,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         title={title}
         color={"green"}
         isLoading={outgoingApps.loading}
-        icon={"search"}
+        icon={"mail"}
     >
         {ingoingApps.error !== undefined ? null : (
             <Error error={ingoingApps.error} />

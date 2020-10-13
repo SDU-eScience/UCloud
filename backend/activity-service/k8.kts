@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "activity"
-    version = "1.5.3-1"
+    version = "1.5.4"
 
     // Fetch configuration from audit-ingestion
     val elasticCredentials = Configuration.retrieve<String>(

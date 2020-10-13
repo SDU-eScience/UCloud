@@ -1,13 +1,13 @@
 package dk.sdu.cloud.file.trash.services
 
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.personalDirectory
 import io.ktor.http.HttpStatusCode
 
 class TrashDirectoryService {
     fun findPersonalTrash(username: String): String {
-        return "/home/$username/Trash"
+        return "/home/$username/$TRASH_FOLDER"
     }
 
     fun findTrashDirectory(username: String, targetPath: String): String {
@@ -17,7 +17,7 @@ class TrashDirectoryService {
         }
 
         return if (components.size >= 3 && components[0] == "projects") {
-            "/projects/${components[1]}/Personal/$username/Trash"
+            joinPath(personalDirectory(components[1], username), TRASH_FOLDER)
         } else {
             findPersonalTrash(username)
         }
@@ -28,8 +28,12 @@ class TrashDirectoryService {
         if (components.size < 2) return false
         return when {
             components[0] == "home" -> path.normalize() == findPersonalTrash(username)
-            components[0] == "projects" -> components.size >= 5 && components[4] == "Trash"
+            components[0] == "projects" -> components.size >= 5 && components[4] == TRASH_FOLDER
             else -> false
         }
+    }
+
+    companion object {
+        const val TRASH_FOLDER = "Trash"
     }
 }

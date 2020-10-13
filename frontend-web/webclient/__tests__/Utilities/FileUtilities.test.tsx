@@ -168,7 +168,7 @@ describe("isFixedFolder", () => {
     });
 
     test("Is project Trash Folder", () => {
-        expect(FileUtils.isFixedFolder("/projects/_name_/Personal/content/Trash")).toBeTruthy();
+        expect(FileUtils.isFixedFolder("/projects/_name_/Members' Files/content/Trash")).toBeTruthy();
     });
 
     test("Is home Jobs Folder", () => {
@@ -176,14 +176,14 @@ describe("isFixedFolder", () => {
     });
 
     test("Is project Jobs folder", () => {
-        expect(FileUtils.isFixedFolder("/projects/_name_/Personal/content/Jobs")).toBeTruthy();
+        expect(FileUtils.isFixedFolder("/projects/_name_/Members' Files/content/Jobs")).toBeTruthy();
     });
 
     test("In home, and isn't fixed", () => {
         expect(FileUtils.isFixedFolder("/home/user@test.dk/just a folder")).toBeFalsy();
     });
     test("In project, and isn't fixed", () => {
-        expect(FileUtils.isFixedFolder("/projects/_name_/Personal/content/just a folder")).toBeFalsy();
+        expect(FileUtils.isFixedFolder("/projects/_name_/Members' Files/content/just a folder")).toBeFalsy();
     });
 });
 
@@ -359,7 +359,7 @@ describe("isMyPersonalFolder", () => {
     });
 
     test("Is", () => {
-        expect(FileUtils.isMyPersonalFolder(`/projects/foo/Personal/${Client.username}`)).toBeTruthy();
+        expect(FileUtils.isMyPersonalFolder(`/projects/foo/Members' Files/${Client.username}`)).toBeTruthy();
     });
 });
 
@@ -369,7 +369,7 @@ describe("isPartOfSomePersonalFolder", () => {
     });
 
     test("Is", () => {
-        expect(FileUtils.isPartOfSomePersonalFolder(`/projects/foo/Personal/${Client.username}`)).toBeTruthy();
+        expect(FileUtils.isPartOfSomePersonalFolder(`/projects/foo/Members' Files/${Client.username}`)).toBeTruthy();
     });
 });
 
@@ -379,7 +379,7 @@ describe("isPersonalRootFolder", () => {
     });
 
     test("Is", () => {
-        expect(FileUtils.isPersonalRootFolder(`/projects/foo/Personal/`)).toBeTruthy();
+        expect(FileUtils.isPersonalRootFolder(`/projects/foo/Members' Files/`)).toBeTruthy();
     });
 });
 
@@ -390,7 +390,7 @@ describe("isPartOfProject", () => {
     });
 
     test("Is", () => {
-        expect(FileUtils.isPartOfProject(`/projects/foo/Personal/${Client.username}`)).toBeTruthy();
+        expect(FileUtils.isPartOfProject(`/projects/foo/Members' Files/${Client.username}`)).toBeTruthy();
     });
 });
 

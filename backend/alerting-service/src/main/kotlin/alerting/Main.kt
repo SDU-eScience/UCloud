@@ -24,6 +24,7 @@ data class Limits(
     val storageCriticalLimit: Double,
     val alertWhenNumberOfShardsAvailableIsLessThan: Int?,
     val limitFor4xx: Int?,
+    val limitFor5xx: Int?,
     val indexFor4xx: String?
 )
 

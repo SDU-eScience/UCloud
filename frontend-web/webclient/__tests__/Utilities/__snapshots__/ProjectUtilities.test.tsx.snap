@@ -227,7 +227,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
 
 .c8:checked + .c9 {
   background-color: var(--blue,#f00);
-  border: 0px solid var(--black);
+  border: 0px solid white;
   color: white;
   -webkit-transform: scale(1.2,1.2);
   -ms-transform: scale(1.2,1.2);
@@ -244,7 +244,6 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   -ms-letter-spacing: 1px;
   letter-spacing: 1px;
   line-height: 1;
-  color: var(--invertedThemeColor);
   padding-top: 0.1rem;
 }
 

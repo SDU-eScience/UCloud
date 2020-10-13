@@ -11,12 +11,25 @@ import {
     useProjectManagementStatus,
     UserInProject
 } from "Project/index";
-import {Box, Button, ButtonGroup, Flex, Input, Label, Text, TextArea} from "ui-components";
+import {
+    Box,
+    Button,
+    ButtonGroup,
+    Flex,
+    Input,
+    Label,
+    Link,
+    SelectableText,
+    SelectableTextWrapper,
+    Text,
+    TextArea,
+    Checkbox
+} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
 import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {useHistory} from "react-router";
+import {useHistory, useParams} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
@@ -31,12 +44,14 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {TextSpan} from "ui-components/Text";
 import {doNothing} from "UtilityFunctions";
 import {
+    AllowSubProjectsRenamingRequest,
+    AllowSubProjectsRenamingResponse,
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
-    ProjectGrantSettings, readGrantRequestSettings, readTemplates,
-    ReadTemplatesResponse
+    ToggleSubProjectsRenamingRequest
 } from "Project/Grant";
-import {retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {listShares} from "Shares";
 
 const ActionContainer = styled.div`
     & > * {
@@ -63,28 +78,31 @@ const ActionBox = styled.div`
     }
 `;
 
-const Smooth = styled.div`
-    & > ul > li {
-        display:inline;   
-        margin:0 20px; 
-    }
-    
-    a {
-        color:inherit;
-        text-decoration: none;
-    }
-    
-    h3:target:before {
-        content: "";
-        display: block;
-        height: 150px;
-        margin: -150px 0 0;
-    }
-`;
+enum SettingsPage {
+    AVAILABILITY = "availability",
+    INFO = "info",
+    DMP = "dmp",
+    GRANT_SETTINGS = "grant",
+    SUBPROJECTS = "subprojects"
+}
+
+const PageTab: React.FunctionComponent<{
+    page: SettingsPage,
+    title: string,
+    activePage: SettingsPage
+}> = ({page, title, activePage}) => {
+    return <SelectableText mr={"1em"} fontSize={3} selected={activePage === page}>
+        <Link to={`/project/settings/${page}`}>
+            {title}
+        </Link>
+    </SelectableText>;
+};
 
 export const ProjectSettings: React.FunctionComponent = () => {
     const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails, reloadProjectStatus} =
         useProjectManagementStatus({isRootComponent: true});
+    const params = useParams<{ page?: SettingsPage }>();
+    const page = params.page ?? SettingsPage.AVAILABILITY;
 
     useTitle("Project Settings");
     useSidebarPage(SidebarPages.Projects);
@@ -92,6 +110,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
         {noop: true},
         {enabled: false}
     );
+
     useEffect(() => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
     }, [projectId]);
@@ -99,53 +118,66 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const history = useHistory();
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]} />}
+            header={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]}/>}
             main={
                 <ActionContainer>
-                    <Smooth>
-                        <Divider/>
-                        <ul>
-                            <li><a href={"#Availability"}>Project Availability</a></li>
-                            <li><a href={"#Project Information"}>Project Information</a></li>
-                            <li><a href={"#DMP"}>Data Management Plan</a></li>
-                            {
-                                enabled.data.enabled ? <li><a href={"#AppGrantSettings"}>Grant Settings</a></li> :null
-                            }
-                        </ul>
-                        <Divider/>
-                        <Heading.h3 id={"Availability"}>Project Availability</Heading.h3>
-                        <Divider/>
-                        <ArchiveSingleProject
-                            isArchived={projectDetails.data.archived}
-                            projectId={projectId}
-                            projectRole={projectRole}
-                            title={projectDetails.data.title}
-                            onSuccess={() => history.push("/projects")}
-                        />
-                        <Divider/>
-                        <LeaveProject
-                            onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
-                            projectDetails={projectDetails.data}
-                            projectId={projectId}
-                            projectRole={projectRole}
-                        />
-                        <Divider/>
-                        <Heading.h3 id={"Project Information"}>Project Information</Heading.h3>
-                        <Divider/>
-                        <ChangeProjectTitle
-                            projectId={projectId}
-                            projectDetails={projectDetails.data}
-                            onSuccess={() => {
-                                fetchProjectDetails(projectDetailsParams);
-                                reloadProjectStatus();
-                            }}
-                        />
-                        {enabled.data.enabled ? <Divider/> : null}
-                        <LogoAndDescriptionSettings/>
-                        <DataManagementPlan />
-                        <Divider/>
+                    <SelectableTextWrapper>
+                        <PageTab activePage={page} page={SettingsPage.AVAILABILITY} title={"Project Availability"}/>
+                        <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"}/>
+                        <PageTab activePage={page} page={SettingsPage.DMP} title={"Data Management Plan"}/>
+                        <PageTab activePage={page} page={SettingsPage.SUBPROJECTS} title={"Subprojects"}/>
+                        {!enabled.data.enabled ? null :
+                            <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"}/>
+                        }
+                    </SelectableTextWrapper>
+
+                    {page !== SettingsPage.AVAILABILITY ? null : (
+                        <>
+                            <ArchiveSingleProject
+                                isArchived={projectDetails.data.archived}
+                                projectId={projectId}
+                                projectRole={projectRole}
+                                title={projectDetails.data.title}
+                                onSuccess={() => history.push("/projects")}
+                            />
+                            <Divider/>
+                            <LeaveProject
+                                onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
+                                projectDetails={projectDetails.data}
+                                projectId={projectId}
+                                projectRole={projectRole}
+                            />
+                        </>
+                    )}
+                    {page !== SettingsPage.INFO ? null : (
+                        <>
+                            <ChangeProjectTitle
+                                projectId={projectId}
+                                projectDetails={projectDetails.data}
+                                onSuccess={() => {
+                                    fetchProjectDetails(projectDetailsParams);
+                                    reloadProjectStatus();
+                                }}
+                            />
+                            {enabled.data.enabled ? <Divider/> : null}
+                            <LogoAndDescriptionSettings/>
+                        </>
+                    )}
+                    {page !== SettingsPage.DMP ? null : (
+                        <DataManagementPlan/>
+                    )}
+                    {page !== SettingsPage.GRANT_SETTINGS ? null : (
                         <GrantProjectSettings/>
-                    </Smooth>
+                    )}
+                    {page !== SettingsPage.SUBPROJECTS ? null : (
+                        <>
+                            <SubprojectSettings
+                                projectId={projectId}
+                                projectRole={projectRole}
+                                setLoading={() => false}
+                            />
+                        </>
+                    )}
                 </ActionContainer>
             }
             sidebar={null}
@@ -159,14 +191,14 @@ interface ChangeProjectTitleProps {
     onSuccess: () => void;
 }
 
-const DataManagementPlan: React.FunctionComponent = props => {
+const DataManagementPlan: React.FunctionComponent = () => {
     const [dmpResponse, fetchDmp] = useCloudAPI<FetchDataManagementPlanResponse>({noop: true}, {});
     const [, runWork] = useAsyncCommand();
     const projectManagement = useProjectManagementStatus({isRootComponent: false});
     const [hasDmp, setHasDmp] = useState<boolean>(false);
     const dmpRef = useRef<HTMLTextAreaElement>(null);
 
-    const reload = () => {
+    const reload = (): void => {
         if (projectManagement.allowManagement && Client.hasActiveProject) {
             fetchDmp(fetchDataManagementPlan({}));
         }
@@ -208,7 +240,7 @@ const DataManagementPlan: React.FunctionComponent = props => {
             confirmText: "Delete",
             onCancel: doNothing,
             onConfirm: async () => {
-                const res = await runWork(updateDataManagementPlan({ id: projectManagement.projectId }));
+                const res = await runWork(updateDataManagementPlan({id: projectManagement.projectId}));
                 if (res) {
                     snackbarStore.addSuccess("Your data management plan has been updated", false);
                 }
@@ -220,18 +252,17 @@ const DataManagementPlan: React.FunctionComponent = props => {
     if (!Client.hasActiveProject || !projectManagement.allowManagement) return null;
 
     return <Box>
-        <Divider/>
-        <Heading.h3 id={"DMP"}>Data Management Plan</Heading.h3>
-        <Divider/>
         If you have a data management plan then you can attach it to the project here.
         <TextSpan bold>
             You still need to follow your organization&apos;s policies regarding data management plans.
         </TextSpan>
-        <br />
+        <br/>
 
         <Label>
             Store a copy of this project&apos;s data management plan in UCloud?{" "}
-            <Toggle onChange={() => { console.log("...", hasDmp); setHasDmp(!hasDmp); }} checked={hasDmp} scale={1.5} />
+            <Toggle onChange={() => {
+                setHasDmp(!hasDmp);
+            }} checked={hasDmp} scale={1.5}/>
         </Label>
 
         {!hasDmp ? null : (
@@ -255,6 +286,15 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     const newProjectTitle = React.useRef<HTMLInputElement>(null);
     const [, invokeCommand] = useAsyncCommand();
     const [saveDisabled, setSaveDisabled] = React.useState<boolean>(true);
+
+    const [allowRenaming, setAllowRenaming] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
+        {noop: true},
+        {allowed: false}
+    );
+
+    useEffect(() => {
+        setAllowRenaming(getRenamingStatus({projectId: props.projectId}))
+    }, [props.projectId]);
     return (
             <Box flexGrow={1}>
                 <form onSubmit={async e => {
@@ -299,6 +339,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                                     }
                                 }}
                                 defaultValue={props.projectDetails.title}
+                                disabled={!allowRenaming.data.allowed}
                             />
                         </Box>
                         <Button
@@ -312,6 +353,90 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
             </Box>
     );
 };
+
+interface AllowRenamingProps {
+    projectId: string;
+    projectRole: ProjectRole
+    setLoading: (loading: boolean) => void;
+}
+
+export function toggleRenaming(
+    request: ToggleSubProjectsRenamingRequest
+): APICallParameters<ToggleSubProjectsRenamingRequest> {
+    return {
+        method: "POST",
+        path: "/projects/toggleRenaming",
+        payload: request,
+        reloadId: Math.random(),
+    };
+}
+
+export function getRenamingStatusForSubProject(
+    parameters: AllowSubProjectsRenamingRequest
+): APICallParameters<AllowSubProjectsRenamingRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString(
+            "/projects/renameable-sub",
+            parameters
+        ),
+        parameters,
+        reloadId: Math.random()
+    };
+}
+
+export function getRenamingStatus(
+    parameters: AllowSubProjectsRenamingRequest
+): APICallParameters<AllowSubProjectsRenamingRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString(
+            "/projects/renameable",
+            parameters
+        ),
+        parameters,
+        reloadId: Math.random()
+    };
+}
+
+const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
+    const [allowRenaming, setAllowRenaming] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
+        {noop: true},
+        {allowed: false}
+    );
+
+    useEffect(() => {
+        props.setLoading(allowRenaming.loading);
+        setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
+    }, []);
+
+    const toggleAndSet = async () => {
+        await callAPIWithErrorHandler(toggleRenaming({projectId: props.projectId}));
+        setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
+    };
+
+    return <>
+        {props.projectRole === ProjectRole.USER ? null : (
+            <ActionBox>
+                <Box flexGrow={1}>
+                    <Label
+                        fontWeight={"normal"}
+                        fontSize={"2"}
+                    >
+                        <Checkbox
+                            size={24}
+                            checked={allowRenaming.data.allowed}
+                            onClick={() => toggleAndSet()}
+                            onChange={() => undefined}
+                        />
+                        Allow subprojects to rename
+                    </Label>
+                </Box>
+            </ActionBox>
+        )}
+        </>
+}
+
 
 interface ArchiveSingleProjectProps {
     isArchived: boolean;
@@ -386,7 +511,7 @@ export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props =
             </ActionBox>
         )}
     </>;
-}
+};
 
 interface ArchiveProjectProps {
     projects: UserInProject[]
@@ -395,13 +520,13 @@ interface ArchiveProjectProps {
 
 export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
     const multipleProjects = props.projects.length > 1;
-    const archived = props.projects.every( it => it.archived);
+    const archived = props.projects.every(it => it.archived);
     let projectTitles = "";
-    props.projects.forEach( project =>
+    props.projects.forEach(project =>
         projectTitles += project.title + ","
     );
     const anyUserRoles = props.projects.some(it => it.whoami.role === ProjectRole.USER);
-    projectTitles = projectTitles.substr(0, projectTitles.length-1);
+    projectTitles = projectTitles.substr(0, projectTitles.length - 1);
     return <>
         {anyUserRoles ? null : (
             <ActionBox>
@@ -410,10 +535,12 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
                     <Text>
                         {!archived ? null : (
                             <>
-                                Unarchiving {multipleProjects ? "projects" : "a project"} will reverse the effects of archival.
+                                Unarchiving {multipleProjects ? "projects" : "a project"} will reverse the effects of
+                                archival.
                                 <ul>
                                     <li>
-                                        Your project{multipleProjects ? "s" : ""} will, once again, be visible to you and project
+                                        Your project{multipleProjects ? "s" : ""} will, once again, be visible to you
+                                        and project
                                         collaborators
                                     </li>
                                     <li>This action <i>is</i> reversible</li>
@@ -422,11 +549,13 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
                         )}
                         {archived ? null : (
                             <>
-                                You can archive {multipleProjects ? "projects" : "a project"} if it is no longer relevant for your day-to-day work.
+                                You can archive {multipleProjects ? "projects" : "a project"} if it is no longer
+                                relevant for your day-to-day work.
 
                                 <ul>
                                     <li>
-                                        The project{multipleProjects ? "s" : ""} will, by default, be hidden for you and project
+                                        The project{multipleProjects ? "s" : ""} will, by default, be hidden for you and
+                                        project
                                         collaborators
                                     </li>
                                     <li>No data will be deleted from the project{multipleProjects ? "s" : ""}</li>
@@ -503,7 +632,7 @@ export const LeaveProject: React.FC<LeaveProjectProps> = props => {
                 {props.projectRole !== ProjectRole.PI ? null : (
                     <Text>
                         <b>You must transfer the principal investigator role to another member before
-                        leaving the project!</b>
+                            leaving the project!</b>
                     </Text>
                 )}
             </Box>

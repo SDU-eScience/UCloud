@@ -175,6 +175,20 @@ data class RenameProjectRequest(
 
 typealias RenameProjectResponse = Unit
 
+data class ToggleRenamingRequest(
+    val projectId: String
+)
+
+typealias ToggleRenamingResponse = Unit
+
+data class AllowsRenamingRequest(
+    val projectId: String
+)
+
+data class AllowsRenamingResponse(
+    val allowed: Boolean
+)
+
 data class UpdateDataManagementPlanRequest(val id: String, val dmp: String?)
 typealias UpdateDataManagementPlanResponse = Unit
 
@@ -788,6 +802,64 @@ object Projects : CallDescriptionContainer("project") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val toggleRenaming = call<ToggleRenamingRequest, ToggleRenamingResponse, CommonErrorMessage>("toggleRenaming") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"toggleRenaming"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val allowedRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("allowsRenaming") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"renameable"
+            }
+
+            params {
+                +boundTo(AllowsRenamingRequest::projectId)
+            }
+        }
+    }
+
+    val allowsSubProjectRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("allowsSubProjectRenaming") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"renameable-sub"
+            }
+
+            params {
+                +boundTo(AllowsRenamingRequest::projectId)
+            }
         }
     }
 

@@ -163,7 +163,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         ) : null}
                         <DashboardCard
                             title={"Resource Allocation"}
-                            icon="projects"
+                            icon="grant"
                             color="purple"
                             isLoading={false}
                             onClick={() => history.push("/project/subprojects")}

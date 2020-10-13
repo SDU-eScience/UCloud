@@ -6,6 +6,8 @@ import java.io.File
 
 fun homeDirectory(user: String): String = "/home/$user/"
 fun projectHomeDirectory(projectId: String): String = "/projects/$projectId"
+fun personalDirectory(projectId: String, username: String) =
+    joinPath(projectHomeDirectory(projectId), PERSONAL_REPOSITORY, username)
 
 fun projectIdFromPath(path: String): String? {
     val normalizedComponents = path.normalize().components()

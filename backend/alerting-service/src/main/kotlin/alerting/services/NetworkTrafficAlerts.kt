@@ -1,6 +1,8 @@
 package dk.sdu.cloud.alerting.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.alerting.Configuration
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.delay
@@ -110,12 +112,47 @@ class NetworkTrafficAlerts(
         }
     }
 
-    suspend fun ambassador4xxAlert(
+    data class LogFileInfo(
+        val path: String
+    )
+
+    data class Info(
+        val offset: Int,
+        val file: LogFileInfo
+    )
+
+    data class Fields(
+        val index: String
+    )
+
+    data class Host(
+        val name: String
+    )
+
+    data class Agent(
+        val ephemeral_id: String,
+        val id: String,
+        val name: String,
+        val type: String,
+        val version: String,
+        val hostname:String
+    )
+
+    data class LogEntry(
+        val log: Info,
+        val message: String,
+        val fields: Fields,
+        val host: Host,
+        val agent: Agent
+    )
+
+    suspend fun ambassadorResponseAlert(
         elastic: RestHighLevelClient,
         configuration: Configuration
     ) {
         val whitelistedIPs = configuration.omissions?.whiteListedIPs ?: emptyList()
         val limitFor4xx = configuration.limits?.limitFor4xx ?: 500
+        val limitFor5xx = configuration.limits?.limitFor5xx ?: 200
         val index = configuration.limits?.indexFor4xx ?: "development_default"
         while (true) {
             val today = LocalDate.now()
@@ -123,7 +160,7 @@ class NetworkTrafficAlerts(
 
             val searchRequest = SearchRequest()
 
-            searchRequest.indices("$index-$today*", "$index-$yesterday*")
+            searchRequest.indices("$index-*", "$index-$today*", "$index-$yesterday*")
             searchRequest.source(
                 SearchSourceBuilder().query(
                     QueryBuilders.boolQuery()
@@ -136,25 +173,27 @@ class NetworkTrafficAlerts(
                                 .lt(Date(Time.now()))
                         )
                         .filter(
-                            QueryBuilders.queryStringQuery("4??").analyzeWildcard(true).field("log")
-                        )
-                        .filter(
-                            QueryBuilders.matchPhraseQuery("kubernetes.container_name", "ambassador")
+                            QueryBuilders.multiMatchQuery("ambassador")
                         )
                 )
                     .size(5000)
-                    .fetchSource("log", null)
             )
 
             val results = elastic.search(searchRequest, RequestOptions.DEFAULT)
-            log.info(results.hits.totalHits.value.toString())
             val numberOfRequestsPerIP = hashMapOf<String, Int>()
-            results.hits.hits.forEach {
-                val ambassadorLogSplitted = it.sourceAsMap["log"].toString().split(" ")
-                if (ambassadorLogSplitted.first() == "ACCESS") {
-                    val responseCode = ambassadorLogSplitted[5].toInt()
-                    if (responseCode in 399..500) {
-                        val ips = ambassadorLogSplitted[11]
+            var numberOf5xx = 0
+            results.hits.forEach {
+                val log = defaultMapper.readValue<LogEntry>(it.sourceAsString)
+                if (log.message.contains("ACCESS")) {
+                    if (log.message.contains(
+                            Regex(
+                                """
+                            "\s4[0-9]{2}\s
+                        """.trimIndent()
+                            )
+                        )
+                    ) {
+                        val ips = log.message.split(" ")[14]
                         val ip = ips.dropLast(1).drop(1).split(",").first()
                         if (ip in whitelistedIPs) {
                             return@forEach
@@ -168,6 +207,15 @@ class NetworkTrafficAlerts(
                             }
                         }
                     }
+                    if (log.message.contains(
+                            Regex(
+                                """
+                                    "\s5[0-9]{2}\s
+                                """.trimIndent()
+                            )
+                        )) {
+                        numberOf5xx++
+                    }
                 }
             }
             log.info(numberOfRequestsPerIP.toString())
@@ -176,8 +224,12 @@ class NetworkTrafficAlerts(
                 val message = "Following IPs have a high amount of 4xx: ${suspectBehaviorIPs.joinToString()}"
                 alertService.createAlert(Alert(message))
             }
+            log.info("Number of 5xx: $numberOf5xx")
+            if (numberOf5xx > limitFor5xx) {
+                val message = "Many 5xx in ambassador: $numberOf5xx"
+                alertService.createAlert(Alert(message))
+            }
             delay(FIFTEEN_MIN)
-
         }
     }
 

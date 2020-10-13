@@ -283,8 +283,8 @@ export default class HttpClient {
      * redirect back to the correct service (using serviceName).
      */
     public openBrowserLoginPage(): void {
-        if (window.location.href !== this.context + "/app/login")
-            window.location.href = this.context + "/app/login";
+        if (window.location.href !== this.context + "/app/login/selection")
+            window.location.href = this.context + "/app/login/selection";
     }
 
     public openLandingPage(): void {

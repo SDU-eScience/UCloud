@@ -178,10 +178,10 @@ const chartColors = [
     red,
     green,
     purple,
+    "#e98c33",
+    "#9065d1",
     yellow,
     gray,
-    "#9065d1",
-    "#e98c33",
     "#0c95b7",
     purple
 ];

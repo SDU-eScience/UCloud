@@ -3,7 +3,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {List} from "Pagination";
-import {Card, Box, Flex, Icon, List as UIList, Text} from "ui-components";
+import {Card, Box, Flex, Icon, List as UIList, Text, ContainerForText} from "ui-components";
 import * as React from "react";
 import {capitalized} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
@@ -19,14 +19,16 @@ import {Spacer} from "ui-components/Spacer";
 import {PRODUCT_NAME} from "../../site.config.json";
 
 function Products(): JSX.Element {
-
     const main = (
-        <>
+        <ContainerForText>
+            <Heading.h2>UCloud SKUs</Heading.h2>
             <Description />
+
+            <Box my="16px" />
             <MachineView area={ProductArea.STORAGE} />
-            <Box my="32px" />
+            <Box my="16px" />
             <MachineView area={ProductArea.COMPUTE} />
-        </>
+        </ContainerForText>
     );
 
     if (!Client.isLoggedIn) return (<>
@@ -39,6 +41,17 @@ function Products(): JSX.Element {
 
     return (<MainContainer main={main} />);
 }
+
+const DetailedView = styled(Table)`
+    th {
+        text-align: left;
+        border-top: 1px solid rgba(34,36,38,.1);
+    }
+    
+    th, ${TableCell} {
+        padding: 16px 0;
+    }
+`;
 
 function MachineView({area}: {area: string}): JSX.Element {
     const [machines, refetch] = useCloudAPI<Page<Product>>(
@@ -59,11 +72,9 @@ function MachineView({area}: {area: string}): JSX.Element {
             borderRadius={6}
         >
             <Box style={{borderTop: `5px solid var(--blue, #f00)`}} />
-            <Flex ml={"0.5em"} alignItems="center">
-                <Heading.h3>{capitalized(area)}</Heading.h3>
-                <Box flexGrow={1} />
-            </Flex>
-            <Box px={3} py={1} height={"100%"}>
+            <Box px={3} py={3} height={"100%"}>
+                <Heading.h3 mb={"16px"}>{capitalized(area)}</Heading.h3>
+
                 <Flex alignItems="center">
                     <List
                         page={machines.data}
@@ -80,8 +91,8 @@ function MachineView({area}: {area: string}): JSX.Element {
                                             {isStorage ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
                                             {isStorage ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
                                             {isStorage ? null : <TableHeaderCell>GPU</TableHeaderCell>}
-                                            <TableHeaderCell>Description</TableHeaderCell>
                                             <TableHeaderCell>Price</TableHeaderCell>
+                                            <TableHeaderCell>Description</TableHeaderCell>
                                         </TableRow>
                                     </TableHeader>
                                     <tbody>
@@ -92,8 +103,10 @@ function MachineView({area}: {area: string}): JSX.Element {
                                                 {isStorage ? null : <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>}
                                                 {isStorage ? null : <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>}
                                                 {isStorage ? null : <TableCell>{machine.gpu ?? 0}</TableCell>}
+                                                <TableCell>
+                                                    {creditFormatter(machine.pricePerUnit * (isStorage ? 31 : 60))}{isStorage ? " per GB/month" : "/hour"}
+                                                </TableCell>
                                                 <TruncatedTableCell>{machine.description}</TruncatedTableCell>
-                                                <TableCell>{creditFormatter(machine.pricePerUnit * 60)}/hour</TableCell>
                                             </TableRow>;
                                         })}
                                     </tbody>
@@ -118,20 +131,45 @@ function MachineView({area}: {area: string}): JSX.Element {
             />
             <Box maxWidth="650px">
                 {activeMachine === undefined ? null :
-                    area === ProductArea.STORAGE ?
-                        <UIList>
-                            <Flex><Text bold width="120px">Name:</Text> {activeMachine.id}</Flex>
-                            <Flex><Text bold width="120px">Price:</Text> {creditFormatter(activeMachine.pricePerUnit * 60)}/hour</Flex>
-                            <Flex><Text bold width="120px">Description:</Text> <Text pl="16px">{activeMachine.description}</Text></Flex>
-                        </UIList>
-                        : <UIList>
-                            <Flex><Text bold width="120px">Name:</Text> {activeMachine.id}</Flex>
-                            <Flex><Text bold width="120px">CPU:</Text> {activeMachine.cpu}</Flex>
-                            <Flex><Text bold width="120px">RAM:</Text> {activeMachine.memoryInGigs}</Flex>
-                            {activeMachine.gpu ? <Flex><Text bold width="120px">GPU:</Text> {activeMachine.gpu}</Flex> : null}
-                            <Flex><Text bold width="120px">Price:</Text> {creditFormatter(activeMachine.pricePerUnit * 60)}/hour</Flex>
-                            <Flex><Text bold width="120px">Description:</Text> <Text pl="16px">{activeMachine.description}</Text></Flex>
-                        </UIList>
+                    <DetailedView>
+                        <tbody>
+                        <TableRow>
+                            <TableHeaderCell>Name</TableHeaderCell>
+                            <TableCell>{activeMachine.id}</TableCell>
+                        </TableRow>
+                        {area !== ProductArea.COMPUTE ? null :
+                            <>
+                                <TableRow>
+                                    <th>vCPU</th>
+                                    <TableCell>{activeMachine.cpu}</TableCell>
+                                </TableRow>
+
+                                <TableRow>
+                                    <th>RAM (GB)</th>
+                                    <TableCell>{activeMachine.memoryInGigs ?? "Unspecified"}</TableCell>
+                                </TableRow>
+
+                                {!activeMachine.gpu ? null :
+                                    <TableRow>
+                                        <th>GPU</th>
+                                        <TableCell>{activeMachine.gpu}</TableCell>
+                                    </TableRow>
+                                }
+                            </>
+                        }
+                        <TableRow>
+                            <th>Price</th>
+                            <TableCell>
+                                {creditFormatter(activeMachine.pricePerUnit * (area === ProductArea.COMPUTE ? 60 : 31))}
+                                {area === ProductArea.COMPUTE ? "/hour" : " per GB/month"}
+                            </TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <th>Description</th>
+                            <TableCell><Text pl="16px">{activeMachine.description}</Text></TableCell>
+                        </TableRow>
+                        </tbody>
+                    </DetailedView>
                 }
             </Box>
         </ReactModal>
@@ -139,13 +177,10 @@ function MachineView({area}: {area: string}): JSX.Element {
 }
 
 function Description(): JSX.Element {
-    const loggedIn = Client.isLoggedIn;
-
     return (<>
         Below is the available SKUs on the {PRODUCT_NAME} platform.
         They are divided into different product areas, i.e. storage SKUs and compute SKUs.
         The prices for compute will be visible when starting a job.
-        {loggedIn ? "Note that this page can be viewed even if you are not logged in." : null}
     </>);
 }
 

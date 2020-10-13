@@ -14,7 +14,6 @@ object ElasticManagementService : Service {
 
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(ElasticFeature)
-        micro.install(HealthCheckFeature)
 
         val config = micro.configuration.requestChunkAtOrNull<Configuration>("elasticmanagement") ?:
             Configuration(

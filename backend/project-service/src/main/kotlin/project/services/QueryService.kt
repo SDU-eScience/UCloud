@@ -256,7 +256,7 @@ class QueryService(
                             (:group = '' or group_id = :group) and
                             (:username::text is null or check_group_acl(:username, :userIsAdmin, :group))
                         order by
-                            group_id, username
+                            title, username
                         limit :limit
                         offset :offset
                     """
@@ -553,7 +553,7 @@ class QueryService(
                             mem.username = :username and
                             (:showArchived or p.archived = false) and
                             (is_favorite(mem.username, p.id))
-                        order by is_fav desc, p.id
+                        order by is_fav desc, p.title
                         offset :offset
                         limit :limit
                     """
@@ -627,7 +627,7 @@ class QueryService(
                             (:showArchived or p.archived = false) and
                             (:projectId::text is null or p.id = :projectId) and
                             (not :noFavorites or not is_favorite(mem.username, p.id))
-                        order by is_fav desc, p.id
+                        order by is_fav desc, p.title
                         offset :offset
                         limit :limit
                     """

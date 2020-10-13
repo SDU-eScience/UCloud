@@ -102,6 +102,14 @@ hibernate:
     logSql: true
 ```
 
+## Generating Service Descriptions
+
+Every time a new service is added you will to generate service descriptions. You can do this by running:
+
+```
+gradle generateBuildConfig
+```
+
 ## Running Database Migrations
 
 This step needs to be done periodically as changes are made to the database. 

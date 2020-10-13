@@ -438,7 +438,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                         <Box my={8}>
                             <Button onClick={() => onFileNavigation(Client.homeFolder)} mr={8}>
                                 <Icon color="white" color2="gray" name="home" mr={"4px"} />
-                                Personal Home
+                                My Workspace
                             </Button>
                             <Button onClick={() => onFileNavigation(fakeProjectListPath)}>
                                 <Icon color="white" color2="gray" name="projects" mr={"4px"} />

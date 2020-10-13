@@ -3,9 +3,26 @@ import theme from "./theme";
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
 
+export function injectFonts(): void {
+    const styleTag = document.createElement("style");
+    styleTag.innerHTML = `
+        /* Custom font */
+        @font-face {
+          font-family: 'IBM Plex Sans';
+          src: url('${fontLight}');
+        }
+
+        @font-face {
+          font-family: 'IBM Plex Sans';
+          src: url('${fontRegular}');
+          font-weight: 400;
+    }`;
+    document.head.appendChild(styleTag);
+}
+
 const UIGlobalStyle = `
 /* Colors */
-:root {
+html {
     --black: #000;
     --white: #fff;
     --textBlack: #1e252e;
@@ -51,18 +68,36 @@ const UIGlobalStyle = `
     --fixedBlack: #000;
 }
 
-
-/* Custom font */
-@font-face {
-  font-family: 'IBM Plex Sans';
-  src: url('${fontLight}');
+html.light {
+    --white: #fff;
+    --tableRowHighlight: var(--lightBlue, #f00);
+    --black: #000;
+    --text: #1e252e;
+    --lightGray: #f5f7f9;
+    --lightBlue: #f0f6ff;
+    --midGray: #c9d3df;
+    --paginationDisabled: var(--lightGray, #f00);
+    --paginationHoverColor: var(--lightBlue, #f00);
+    --appCard: #ebeff3;
+    --borderGray: var(--midGray, #f00);
+    --invertedThemeColor: #000;
 }
 
-@font-face {
-  font-family: 'IBM Plex Sans';
-  src: url('${fontRegular}');
-  font-weight: 400;
+html.dark {
+    --white: #282c35;
+    --tableRowHighlight: #000;
+    --black: #a4a5a9;
+    --text: #e5e5e6;
+    --lightGray: #111;
+    --lightBlue: #000;
+    --midGray: #555;
+    --paginationDisabled: #111;
+    --paginationHoverColor: #444;
+    --appCard: #060707;
+    --borderGray: #111;
+    --invertedThemeColor: #fff;
 }
+
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
 
