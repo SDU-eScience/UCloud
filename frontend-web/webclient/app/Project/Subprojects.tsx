@@ -28,10 +28,10 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 import {Balance} from "Accounting/Balance";
 import {NamingField, shakeAnimation, shakingClassName} from "UtilityComponents";
-import { Spacer } from "ui-components/Spacer";
-import { usePromiseKeeper } from "PromiseKeeper";
-import { ListRow } from "ui-components/List";
-import { flex } from "styled-system";
+import {Spacer} from "ui-components/Spacer";
+import {usePromiseKeeper} from "PromiseKeeper";
+import {ListRow} from "ui-components/List";
+import {flex} from "styled-system";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -81,7 +81,6 @@ const SelectableWalletWrapper = styled.div`
 `;
 
 
-
 const SelectableWallet: React.FunctionComponent<{
     wallet: WalletBalance,
     allocated?: number,
@@ -94,38 +93,38 @@ const SelectableWallet: React.FunctionComponent<{
             <DashboardCard color={props.selected ? "green" : "blue"} isLoading={false}>
                 <table>
                     <tbody>
+                    <tr>
+                        <th>Product</th>
+                        <td>{props.wallet.wallet.paysFor.provider} / {props.wallet.wallet.paysFor.id}</td>
+                    </tr>
+                    <tr>
+                        <th>Balance</th>
+                        <td>
+                            <Balance amount={props.wallet.balance} productCategory={props.wallet.wallet.paysFor}/>
+                        </td>
+                    </tr>
+                    {!props.allocated ? null : (
                         <tr>
-                            <th>Product</th>
-                            <td>{props.wallet.wallet.paysFor.provider} / {props.wallet.wallet.paysFor.id}</td>
+                            <th>Allocated</th>
+                            <td>{creditFormatter(props.allocated)}</td>
                         </tr>
+                    )}
+                    {props.quotaInTotal === undefined ? null : (
                         <tr>
-                            <th>Balance</th>
-                            <td>
-                                <Balance amount={props.wallet.balance} productCategory={props.wallet.wallet.paysFor} />
-                            </td>
+                            <th>Quota</th>
+                            <td>{props.quotaInTotal === -1 ? "No quota" : sizeToString(props.quotaInTotal)}</td>
                         </tr>
-                        {!props.allocated ? null : (
-                            <tr>
-                                <th>Allocated</th>
-                                <td>{creditFormatter(props.allocated)}</td>
-                            </tr>
-                        )}
-                        {props.quotaInTotal === undefined ? null : (
-                            <tr>
-                                <th>Quota</th>
-                                <td>{props.quotaInTotal === -1 ? "No quota" : sizeToString(props.quotaInTotal)}</td>
-                            </tr>
-                        )}
-                        <tr>
-                            <th />
-                            <td>
-                                <Icon
-                                    color2={props.wallet.area === ProductArea.COMPUTE ? undefined : "white"}
-                                    name={props.wallet.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
-                                    size={32}
-                                />
-                            </td>
-                        </tr>
+                    )}
+                    <tr>
+                        <th/>
+                        <td>
+                            <Icon
+                                color2={props.wallet.area === ProductArea.COMPUTE ? undefined : "white"}
+                                name={props.wallet.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
+                                size={32}
+                            />
+                        </td>
+                    </tr>
                     </tbody>
                 </table>
             </DashboardCard>
@@ -225,7 +224,7 @@ const Subprojects: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resource Allocation"}]} />}
+            header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resource Allocation"}]}/>}
             sidebar={null}
             main={(
                 <>
@@ -234,19 +233,23 @@ const Subprojects: React.FunctionComponent = () => {
                             <Heading.h3>Resources</Heading.h3>
                         }
                         right={
-                            <Link to={
-                                !Client.hasActiveProject ?
-                                    "/projects/browser/personal" :
-                                    "/project/grants/existing"
-                            }><Button>Apply for resources</Button></Link>
+                            !isAdminOrPI(projectRole) ? null : (
+                                <Link to={
+                                    !Client.hasActiveProject ?
+                                        "/projects/browser/personal" :
+                                        "/project/grants/existing"
+                                }>
+                                <Button>Apply for resources</Button>
+                                </Link>
+                            )
                         }
                     />
                     <LoadingBox height="233px" isLoading={wallets.loading}>
                         <WalletContainer ref={walletContainer}>
                             {mainWallets.length === 0 ? <>
-                                {isAdminOrPI(projectRole) ? null :
-                                    <Heading.h4>No resources attached to project. Contact project PI</Heading.h4>
-                                } </>
+                                    {isAdminOrPI(projectRole) ? null :
+                                        <Heading.h4>No resources attached to project. Contact project PI</Heading.h4>
+                                    } </>
                                 : <>{mainWallets.map((w, i) =>
                                     <SelectableWallet
                                         key={i}
@@ -261,14 +264,15 @@ const Subprojects: React.FunctionComponent = () => {
                                         quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
                                             quota.data.quotaInTotal : undefined
                                         }
-                                        onClick={() => setSelectedWallet(w)} />
+                                        onClick={() => setSelectedWallet(w)}/>
                                 )
                                 }</>
                             }
 
                             {(!Client.hasActiveProject || isAdminOrPI(projectRole)) && mainWallets.length === 0 ?
                                 <DashboardCard color="blue" isLoading={false}>
-                                    <Flex height={"140px"} justifyContent={"center"} alignItems={"center"} flexDirection={"column"}>
+                                    <Flex height={"140px"} justifyContent={"center"} alignItems={"center"}
+                                          flexDirection={"column"}>
                                         <Heading.h4>No resources available for this project</Heading.h4>
                                         <Box mt={16}>
                                             <Link to={
@@ -290,7 +294,8 @@ const Subprojects: React.FunctionComponent = () => {
                                     <Heading.h3>Subprojects</Heading.h3>
                                 }
                                 right={
-                                    <Button height="40px" onClick={() => setCreatingSubproject(true)}>New Subproject</Button>
+                                    <Button height="40px" onClick={() => setCreatingSubproject(true)}>New
+                                        Subproject</Button>
                                 }
                             />
                             <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
@@ -319,7 +324,8 @@ const Subprojects: React.FunctionComponent = () => {
                                             customEmptyPage={
                                                 <Flex justifyContent="center" alignItems="center" height="200px">
                                                     This project doesn&apos;t have any subprojects.
-                                                    {isAdminOrPI(projectRole) ? <> You can create one by using the &apos;New Subproject&apos; button above.</> : ""}
+                                                    {isAdminOrPI(projectRole) ? <> You can create one by using
+                                                        the &apos;New Subproject&apos; button above.</> : ""}
                                                 </Flex>
                                             }
                                         />
@@ -335,10 +341,10 @@ const Subprojects: React.FunctionComponent = () => {
 
     function pageRenderer(page: Page<Project>): JSX.Element {
         const filteredItems = (subprojectSearchQuery === "" ? page.items :
-            page.items.filter(it =>
-                it.title.toLowerCase()
-                    .search(subprojectSearchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1
-            )
+                page.items.filter(it =>
+                    it.title.toLowerCase()
+                        .search(subprojectSearchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1
+                )
         );
 
         return (
@@ -392,8 +398,8 @@ const AllocationForm = styled.form`
     align-items: right;
 `;
 
-const LoadingBox = (props: React.PropsWithChildren<{height: string; isLoading: boolean}>): JSX.Element => {
-    if (props.isLoading) return <Flex alignItems="center" style={{minHeight: props.height}}><HexSpin /></Flex>;
+const LoadingBox = (props: React.PropsWithChildren<{ height: string; isLoading: boolean }>): JSX.Element => {
+    if (props.isLoading) return <Flex alignItems="center" style={{minHeight: props.height}}><HexSpin/></Flex>;
     else return <>{props.children}</>;
 };
 
@@ -491,111 +497,111 @@ const SubprojectRow: React.FunctionComponent<{
                 <Text>{subproject.title}</Text>
             }
             right={!allowManagement ? null : (
-                    <>
-                        <Flex alignItems={"center"} justifyContent={"flex-end"}>
-                            {!isEditingQuota ? (
-                                balance === undefined ? (
-                                    <>
-                                        <Button height="35px" width={"135px"} onClick={() => {
-                                            snackbarStore.addInformation("You must select a resource above", false);
-                                            if (shakeWallets) shakeWallets();
-                                        }}>
-                                            Edit allocation
-                                        </Button>
-                                    </>
-                                ) : (
-                                    <>
-                                        {!isEditing ? (
-                                            <>
-                                                <AllocationEditor>
-                                                    {creditFormatter(balance, 0)}&nbsp;
-                                                    <Tooltip
-                                                        trigger={<>({percentageUsed.toFixed(2)}% used)</>}
-                                                    >
-                                                        {creditFormatter(used, 0)} of {creditFormatter(allocated, 0)} used
-                                                    </Tooltip>
-                                                </AllocationEditor>
-                                                <Button pr={8} pl={8} onClick={() => setIsEditing(true)}>
-                                                    <Icon name="edit" size={14} />
-                                                </Button>
-                                            </>
-                                        ) : (
-                                                <AllocationForm onSubmit={onSubmit}>
-                                                    <AllocationEditor>
-                                                        <Label>Allocation:</Label>
-                                                        <Input ref={inputRef} noBorder autoFocus width={120} />
-                                                        <span>DKK</span>
-                                                        {loading ?
-                                                            <HexSpin size={16} />
-                                                            :
-                                                            <Icon
-                                                                size={16}
-                                                                ml="10px"
-                                                                cursor="pointer"
-                                                                name="close"
-                                                                color="red"
-                                                                onClick={() => setIsEditing(false)}
-                                                            />
-                                                        }
-                                                    </AllocationEditor>
+                <>
+                    <Flex alignItems={"center"} justifyContent={"flex-end"}>
+                        {!isEditingQuota ? (
+                            balance === undefined ? (
+                                <>
+                                    <Button height="35px" width={"135px"} onClick={() => {
+                                        snackbarStore.addInformation("You must select a resource above", false);
+                                        if (shakeWallets) shakeWallets();
+                                    }}>
+                                        Edit allocation
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    {!isEditing ? (
+                                        <>
+                                            <AllocationEditor>
+                                                {creditFormatter(balance, 0)}&nbsp;
+                                                <Tooltip
+                                                    trigger={<>({percentageUsed.toFixed(2)}% used)</>}
+                                                >
+                                                    {creditFormatter(used, 0)} of {creditFormatter(allocated, 0)} used
+                                                </Tooltip>
+                                            </AllocationEditor>
+                                            <Button pr={8} pl={8} onClick={() => setIsEditing(true)}>
+                                                <Icon name="edit" size={14}/>
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <AllocationForm onSubmit={onSubmit}>
+                                            <AllocationEditor>
+                                                <Label>Allocation:</Label>
+                                                <Input ref={inputRef} noBorder autoFocus width={120}/>
+                                                <span>DKK</span>
+                                                {loading ?
+                                                    <HexSpin size={16}/>
+                                                    :
+                                                    <Icon
+                                                        size={16}
+                                                        ml="10px"
+                                                        cursor="pointer"
+                                                        name="close"
+                                                        color="red"
+                                                        onClick={() => setIsEditing(false)}
+                                                    />
+                                                }
+                                            </AllocationEditor>
 
-                                                    <Button type="submit" color="green"
-                                                        disabled={loading}>
-                                                        Allocate
-                                                    </Button>
-                                                </AllocationForm>
-                                            )
-                                        }
-                                    </>
-                                )
-                            ) : null}
+                                            <Button type="submit" color="green"
+                                                    disabled={loading}>
+                                                Allocate
+                                            </Button>
+                                        </AllocationForm>
+                                    )
+                                    }
+                                </>
+                            )
+                        ) : null}
 
-                            {!isEditing ? (
-                                quotaInTotal === undefined ? null : (
-                                    <Flex alignItems={"center"} justifyContent={"flex-end"}>
-                                        {!isEditingQuota ? (
-                                            <>
-                                                <AllocationEditor width={"100px"}>
-                                                    {quotaInTotal === -1 ? "No quota" : sizeToString(quotaInTotal)}
-                                                </AllocationEditor>
-                                                <Button pl={8} pr={8} onClick={() => setIsEditingQuota(true)}>
-                                                    <Icon name="edit" size={14} />
-                                                </Button>
-                                            </>
-                                        ) : (
-                                                <AllocationForm onSubmit={onSubmitQuota}>
-                                                    <AllocationEditor>
-                                                        <Label>Quota:</Label>
-                                                        <Input ref={quotaRef} noBorder autoFocus />
-                                                        <span>GB</span>
-                                                        {loading ?
-                                                            <HexSpin size={16} />
-                                                            :
-                                                            <Icon
-                                                                size={16}
-                                                                ml="10px"
-                                                                cursor="pointer"
-                                                                name="close"
-                                                                color="red"
-                                                                onClick={() => setIsEditingQuota(false)}
-                                                            />
-                                                        }
-                                                    </AllocationEditor>
+                        {!isEditing ? (
+                            quotaInTotal === undefined ? null : (
+                                <Flex alignItems={"center"} justifyContent={"flex-end"}>
+                                    {!isEditingQuota ? (
+                                        <>
+                                            <AllocationEditor width={"100px"}>
+                                                {quotaInTotal === -1 ? "No quota" : sizeToString(quotaInTotal)}
+                                            </AllocationEditor>
+                                            <Button pl={8} pr={8} onClick={() => setIsEditingQuota(true)}>
+                                                <Icon name="edit" size={14}/>
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <AllocationForm onSubmit={onSubmitQuota}>
+                                            <AllocationEditor>
+                                                <Label>Quota:</Label>
+                                                <Input ref={quotaRef} noBorder autoFocus/>
+                                                <span>GB</span>
+                                                {loading ?
+                                                    <HexSpin size={16}/>
+                                                    :
+                                                    <Icon
+                                                        size={16}
+                                                        ml="10px"
+                                                        cursor="pointer"
+                                                        name="close"
+                                                        color="red"
+                                                        onClick={() => setIsEditingQuota(false)}
+                                                    />
+                                                }
+                                            </AllocationEditor>
 
-                                                    <Button type="submit" color="green"
-                                                        disabled={loading}>
-                                                        Allocate
-                                                    </Button>
-                                                </AllocationForm>
-                                            )}
-                                    </Flex>
-                                )
-                            ) : null}
+                                            <Button type="submit" color="green"
+                                                    disabled={loading}>
+                                                Allocate
+                                            </Button>
+                                        </AllocationForm>
+                                    )}
+                                </Flex>
+                            )
+                        ) : null}
 
 
-                        </Flex>
-                    </>
-                )
+                    </Flex>
+                </>
+            )
             }
         />
     </>;
