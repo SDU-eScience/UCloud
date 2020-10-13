@@ -8,7 +8,6 @@ bundle {
     val deployment = withDeployment {
         injectSecret("elasticsearch-logging-cluster-credentials")
         injectSecret("elasticmanagement-tokens")
-        injectSecret("elasticsearch-credentials")
     }
 
     withAdHocJob(deployment, "elastic-insta-clean", { listOf("--cleanup")}) {}

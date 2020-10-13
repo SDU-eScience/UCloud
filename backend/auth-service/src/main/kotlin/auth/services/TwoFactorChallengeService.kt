@@ -132,7 +132,7 @@ class TwoFactorChallengeService(
     companion object : Loggable {
         override val log = logger()
 
-        const val ISSUER = "SDU Cloud"
+        const val ISSUER = "UCloud"
         private const val QR_WIDTH_PX = 200
         private const val QR_HEIGHT_PX = 200
 
