@@ -1,10 +1,10 @@
 import * as React from "react";
 import styled from "styled-components";
 import Box from "ui-components/Box";
-import Card from "ui-components/Card";
 import Flex from "ui-components/Flex";
 import Icon from "ui-components/Icon";
 import Text from "ui-components/Text";
+import {ErrorWrapper} from "./Error";
 
 interface WarningProps {clearWarning?: () => void; warning?: string; width?: string | number}
 function Warning(props: WarningProps): JSX.Element | null {
@@ -16,11 +16,7 @@ function Warning(props: WarningProps): JSX.Element | null {
     }
 
     return (
-        <Card
-            borderRadius="0.5em"
-            height="auto"
-            p="1em 1em 1em 1em"
-            color="black"
+        <ErrorWrapper
             bg="lightYellow"
             borderColor="yellow"
             width={props.width}
@@ -38,7 +34,7 @@ function Warning(props: WarningProps): JSX.Element | null {
                     </Box>
                 )}
             </Flex>
-        </Card>
+        </ErrorWrapper>
     );
 }
 
