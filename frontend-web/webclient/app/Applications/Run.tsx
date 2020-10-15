@@ -569,8 +569,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
         const parameters = extractValuesFromWidgets({
             map: this.state.parameterValues,
-            appParameters: this.state.application!.invocation.parameters,
-            client: Client
+            appParameters: this.state.application!.invocation.parameters
         });
 
         if (!checkForMissingParameters(parameters, invocation)) return;

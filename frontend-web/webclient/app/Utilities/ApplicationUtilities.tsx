@@ -160,7 +160,6 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
         case ParameterTypes.Range:
             return typeof parameter === "object" && "size" in parameter;
         case ParameterTypes.Enumeration:
-            /* FIXME: Need we do more? */
             return typeof parameter === "string";
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
@@ -185,10 +184,9 @@ export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTM
 interface ExtractParametersFromMap {
     map: ParameterValues;
     appParameters: ApplicationParameter[];
-    client: HttpClient;
 }
 
-export function extractValuesFromWidgets({map, appParameters, client}: ExtractParametersFromMap): ExtractedParameters {
+export function extractValuesFromWidgets({map, appParameters}: ExtractParametersFromMap): ExtractedParameters {
     const extracted: ExtractedParameters = {};
     map.forEach((r, key) => {
         const parameter = appParameters.find(it => it.name === key);
@@ -268,9 +266,6 @@ export function validateOptionalFields(
         const {current} = parameters.get(it.name)!;
         if (current == null || !("checkValidity" in current)) return;
         if (("checkValidity" in current! && !current!.checkValidity())) optionalErrors.push(it.title);
-
-        /* FIXME/ERROR/TODO */
-        // Do we need to do anything for enumeration?
     });
 
     if (optionalErrors.length > 0) {

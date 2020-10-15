@@ -178,13 +178,11 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         }
     }
 
-    public render(): JSX.Element {
-        return (
-            <>
-                {this.renderBody()}
-                {this.renderLoadingButton()}
-            </>
-        );
+    public render(): React.ReactNode {
+        return [
+            this.renderBody(),
+            this.renderLoadingButton()
+        ];
     }
 
     private renderBody(): React.ReactNode {
@@ -238,7 +236,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         const {loading} = this.props;
 
         return (
-            <Flex justifyContent={"center"}>
+            <Flex justifyContent="center">
                 <Button
                     onClick={() => this.requestMore(true)}
                     disabled={loading}

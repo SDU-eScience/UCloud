@@ -71,7 +71,6 @@ const Icon = styled(IconBase) <IconBaseProps>`
 Icon.displayName = "Icon";
 
 Icon.defaultProps = {
-    /* FIXME: Site stops rendering if {theme} isn't provided by default props */
     theme,
     cursor: "inherit",
     name: "notification",
