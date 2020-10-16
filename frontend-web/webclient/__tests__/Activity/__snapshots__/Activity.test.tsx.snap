@@ -961,6 +961,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                         className="c34"
                         color="black"
                         cursor="inherit"
+                        title="folder in home"
                       >
                         folder in home
                       </div>
@@ -1036,6 +1037,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                         className="c34"
                         color="black"
                         cursor="inherit"
+                        title="IMG_20191206_091915.jpg"
                       >
                         IMG_20191206_091915.jpg
                       </div>
@@ -1109,6 +1111,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                         className="c34"
                         color="black"
                         cursor="inherit"
+                        title="IMG_20191206_091915.jpg"
                       >
                         IMG_20191206_091915.jpg
                       </div>
@@ -1200,6 +1203,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                         className="c34"
                         color="black"
                         cursor="inherit"
+                        title="Foo"
                       >
                         Foo
                       </div>
@@ -1275,6 +1279,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                         className="c34"
                         color="black"
                         cursor="inherit"
+                        title="IMG_20191206_091915.jpg"
                       >
                         IMG_20191206_091915.jpg
                       </div>
@@ -1348,6 +1353,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                         className="c34"
                         color="black"
                         cursor="inherit"
+                        title="IMG_20191206_091915.jpg"
                       >
                         IMG_20191206_091915.jpg
                       </div>
@@ -1423,6 +1429,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
                         className="c34"
                         color="black"
                         cursor="inherit"
+                        title="IMG_20191206_091915.jpg"
                       >
                         IMG_20191206_091915.jpg
                       </div>
