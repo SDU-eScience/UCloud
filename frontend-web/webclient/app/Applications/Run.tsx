@@ -338,7 +338,11 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
                             <RunSection>
                                 <WalletWarning errorCode={this.state.errorCode} />
-                                {this.state.errorCode ? null : <Error error={this.state.inlineError} clearError={() => this.setState({inlineError: undefined})} />}
+                                {this.state.errorCode ? null :
+                                    <Error
+                                        error={this.state.inlineError}
+                                        clearError={() => this.setState({inlineError: undefined})}
+                                    />}
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
@@ -801,8 +805,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     // Remove invalid input files from userInputValues
                     const fileParams = thisApp.invocation.parameters.filter(p => isFileOrDirectoryParam(p));
                     const invalidFiles: string[] = [];
-                    for (const paramKey in fileParams) {
-                        const param = fileParams[paramKey];
+                    for (const param of fileParams) {
                         if (userInputValues[param.name]) {
                             // Defensive use of expandHomeOrProjectFolder. I am not sure if any parameter files
                             // contain these paths (they shouldn't)
@@ -823,8 +826,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     // Verify and load additional mounts
                     const validMountFolders = [] as AdditionalMountedFolder[];
 
-                    for (let i = 0; i < mountedFolders.length; i++) {
-                        if (await checkIfFileExists(expandHomeOrProjectFolder(mountedFolders[i].ref, Client), Client)) {
+                    for (const mountedFolder of mountedFolders) {
+                        if (await checkIfFileExists(expandHomeOrProjectFolder(mountedFolder.ref, Client), Client)) {
                             const ref = React.createRef<HTMLInputElement>();
                             validMountFolders.push({ref});
                         }
@@ -1007,7 +1010,8 @@ const ApplicationUrl: React.FunctionComponent<{
                 {props.enabled ? (
                     <>
                         <Warning
-                            warning="By enabling this setting, anyone with a link can gain access to the application." />
+                            warning="By enabling this setting, anyone with a link can gain access to the application."
+                        />
                         <Label mt={20}>
                             <Flex alignItems={"center"}>
                                 <TextSpan>https://app-</TextSpan>

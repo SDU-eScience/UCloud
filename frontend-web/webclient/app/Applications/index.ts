@@ -318,7 +318,6 @@ export interface DetailedApplicationOperations {
     clearTags: () => void;
     setSearch: (search: string) => void;
     setShowAllVersions: () => void;
-    // tslint:disable-next-line:ban-types
     fetchApplications: (b: AdvancedSearchRequest, c?: Function) => void;
 }
 

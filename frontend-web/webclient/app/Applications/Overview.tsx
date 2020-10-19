@@ -10,7 +10,7 @@ import * as React from "react";
 import {connect, useSelector} from "react-redux";
 import {Dispatch} from "redux";
 import styled from "styled-components";
-import {Box, Flex, Link, Card} from "ui-components";
+import {Box, Flex, Link} from "ui-components";
 import Grid from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -177,124 +177,6 @@ function Applications(props: ApplicationsProps): JSX.Element {
         });
     }
 }
-
-interface FeaturedTagAsCardProps {
-    tag: string;
-    loading: boolean;
-    onFavoriteApp(name: string, version: string, page: Page<FullAppInfo>): void;
-}
-
-function FeaturedTagAsCard({tag, loading, onFavoriteApp}: FeaturedTagAsCardProps): JSX.Element | null {
-    const page = useSelector<ReduxObject, Page<FullAppInfo>>(it =>
-        it.applicationsBrowse.applications.get(tag) ?? emptyPage
-    );
-
-    let c = {c1: "black", c2: "white"};
-    switch (tag) {
-        case "Engineering":
-            c.c1 = "#3f87a6";
-            c.c2 = "#f69d3c";
-            break;
-        case "Data Analytics":
-            c.c1 = "#e66465";
-            c.c2 = "#9198e5";
-            break;
-        case "Bioinformatics":
-            c.c1 = "var(--green)";
-            c.c2 = "#6c63f6";
-            break;
-    }
-
-    return (
-        <>
-            <FeaturedTagCard gradientColor={c.c1} gradientColor2={c.c2}>
-                <div>
-                    <Spacer
-                        pt="15px"
-                        left={<Heading.h2>{tag}</Heading.h2>}
-                        right={(
-                            <ShowAllTagItem tag={tag}>
-                                <Heading.h4 pt="15px"><strong>Show All</strong></Heading.h4>
-                            </ShowAllTagItem>
-                        )}
-                    />
-                </div>
-                <div>
-                    <Pagination.List
-                        loading={loading}
-                        page={page}
-                        customEmptyPage="No apps with that tag found"
-                        onPageChanged={() => undefined}
-                        pageRenderer={page => <Box>
-                            {page.items.map(app => <ApplicationCard
-                                key={`${app.metadata.name}-${app.metadata.version}`}
-                                onFavorite={async (name, version) => onFavoriteApp(name, version, page)}
-                                app={app}
-                                isFavorite={false}
-                                tags={app.tags}
-                            />)}
-                        </Box>}
-                    />
-                </div>
-            </FeaturedTagCard>
-            <FeaturedTagCard gradientColor={c.c1} gradientColor2={"var(--white)"}>
-                <div>
-                    <Spacer
-                        pt="15px"
-                        left={<Heading.h2>{tag}</Heading.h2>}
-                        right={(
-                            <ShowAllTagItem tag={tag}>
-                                <Heading.h4 pt="15px"><strong>Show All</strong></Heading.h4>
-                            </ShowAllTagItem>
-                        )}
-                    />
-                </div>
-                <div>
-                    <Pagination.List
-                        loading={loading}
-                        page={page}
-                        customEmptyPage="No apps with that tag found"
-                        onPageChanged={() => undefined}
-                        pageRenderer={page => <Box>
-                            {page.items.map(app => <ApplicationCard
-                                key={`${app.metadata.name}-${app.metadata.version}`}
-                                onFavorite={async (name, version) => onFavoriteApp(name, version, page)}
-                                app={app}
-                                isFavorite={false}
-                                tags={app.tags}
-                            />)}
-                        </Box>}
-                    />
-                </div>
-            </FeaturedTagCard>
-        </>
-    );
-}
-
-const FeaturedTagCard = styled(Card) <{gradientColor: string; gradientColor2: string}>`
-    border-width: 2px;
-    border-radius: 25px;
-    background: linear-gradient(${props => props.gradientColor + ", " + props.gradientColor2});
-    max-height: 550px;
-    padding-bottom: 10px;
-    padding-left: 10px;
-    padding-right: 10px;
-
-    & > div > div > a:hover {
-        transform: scale(0.95);
-    }
-
-    & > div {
-        max-height: 450px;
-        overflow-y: scroll;
-        overflow-x: hidden;
-    }
-
-    & > div > div > a {
-        transform: scale(0.95);
-        margin-top: 3px;
-    }
-`;
 
 const ScrollBox = styled(Box)`
     overflow-x: auto;

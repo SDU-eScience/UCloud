@@ -2,7 +2,6 @@ import {Client} from "Authentication/HttpClientInstance";
 import {KeyCode} from "DefaultObjects";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as Heading from "ui-components/Heading";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -130,11 +129,11 @@ export default function Support(): JSX.Element {
         </ClickableDropdown >
     );
 
-    function setBug() {
+    function setBug(): void {
         setType(SupportType.BUG);
     }
 
-    function setSuggestion() {
+    function setSuggestion(): void {
         setType(SupportType.SUGGESTION);
     }
 }
