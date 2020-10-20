@@ -54,16 +54,17 @@ function Applications(props: ApplicationsProps): JSX.Element {
         "MACS2",
         "Salmon",
         "SAMtools",
+        "seqtk"
     ];
 
     const featuredTags = [
         "Engineering",
         "Data Analytics",
-        "Bioinformatics",
         "Social Science",
         "Applied Science",
         "Natural Science",
-        "Development"
+        "Development",
+        "Bioinformatics"
     ];
 
     React.useEffect(() => {
