@@ -5,8 +5,6 @@ bundle { ctx ->
     name = "project"
     version = "3.2.10"
 
-    val enabled: Boolean = config("enabled", "Should projects be enabled", false)
-
     withAmbassador("/api/projects") {}
 
     val deployment = withDeployment {
@@ -18,15 +16,4 @@ bundle { ctx ->
 
     //withCronJob(deployment, "0 */12 * * *", listOf("--remind")) {}
     withAdHocJob(deployment, "remind-now", { listOf("--remind") })
-
-    withConfigMap("project-config", version = "1") {
-        addConfig(
-            "config.yml",
-            mapOf<String, Any?>(
-                "project" to mapOf<String, Any?>(
-                    "enabled" to enabled
-                )
-            )
-        )
-    }
 }

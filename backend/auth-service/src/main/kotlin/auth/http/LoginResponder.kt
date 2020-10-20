@@ -18,9 +18,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.accept
 import io.ktor.request.userAgent
-import io.ktor.response.header
-import io.ktor.response.respond
-import io.ktor.response.respondRedirect
+import io.ktor.response.*
 import io.ktor.util.date.GMTDate
 
 /**
@@ -124,7 +122,24 @@ class LoginResponder(
             // This will happen if we get a redirect from SAML (WAYF)
             appendAuthStateInCookie(call, tokens)
             appendRefreshToken(call, refreshToken, expiry)
-            call.respondRedirect(resolvedService.endpoint)
+
+            // Using a 301 redirect causes Apple browsers (at least Safari likely more) to ignore the cookie.
+            // Using a redirect via HTML works.
+            call.respondText(ContentType.Text.Html, HttpStatusCode.OK) {
+                //language=html
+                """
+                <!DOCTYPE html>
+                <html lang="en">
+                    <head>
+                        <title>UCloud</title>
+                        <meta http-equiv='refresh' content="0; url='${resolvedService.endpoint}'" />
+                    </head>
+                    <body>
+                        <p>Please click <a href='${resolvedService.endpoint}'>here</a> if your browser does not redirect you automatically</p>
+                    </body>
+                </html>
+                """
+            }
         }
     }
 
