@@ -280,7 +280,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                             fontSize={1}
                                             mt="5px"
                                         >
-                                            More {PRODUCT_NAME} login options
+                                            More login options
                                         </LoginText>
                                     )}
                                 >
