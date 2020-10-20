@@ -19,7 +19,6 @@ import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro,
-    private val configuration: Configuration
 ) : CommonServer {
     override val log = logger()
 
@@ -57,7 +56,7 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                ProjectController(db, projects, queries, configuration),
+                ProjectController(db, projects, queries),
                 GroupController(db, groups, queries),
                 MembershipController(db, queries),
                 FavoritesController(db, favorites)

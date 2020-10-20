@@ -187,7 +187,7 @@ class AvatarAsyncDao {
                     """
                 ).rows
                 .map {
-                    it.toUserAndAvatar()
+                    it.getField(AvatarTable.username) to it.toAvatar().toSerializedAvatar()
                 }
 
             users.associateWith { user ->
@@ -210,21 +210,4 @@ class AvatarAsyncDao {
         clothesGraphic.string,
         hatColor.string
     )
-
-    private fun RowData.toUserAndAvatar(): Pair<String, SerializedAvatar> =
-        getField(AvatarTable.username) to SerializedAvatar(
-            getField(AvatarTable.top),
-            getField(AvatarTable.topAccessory),
-            getField(AvatarTable.hairColor),
-            getField(AvatarTable.facialHair),
-            getField(AvatarTable.facialHairColor),
-            getField(AvatarTable.clothes),
-            getField(AvatarTable.colorFabric),
-            getField(AvatarTable.eyes),
-            getField(AvatarTable.eyebrows),
-            getField(AvatarTable.mouthTypes),
-            getField(AvatarTable.skinColors),
-            getField(AvatarTable.clothesGraphic),
-            getField(AvatarTable.hatColor)
-        )
 }

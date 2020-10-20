@@ -34,7 +34,7 @@ export function useFilePermissions(): FilePermissions {
             if (entry.rights.some(it => it === right)) {
                 if (typeof entry.entity === "object" && "projectId" in entry.entity) {
                     const {group, projectId} = entry.entity;
-                    if (projectStatus.groups.some(it => it.group === group && it.projectId === projectId)) {
+                    if (projectStatus.groups.some(it => it.group === group && it.project === projectId)) {
                         return true;
                     }
                 }

@@ -104,7 +104,7 @@ function MachineView({area}: {area: string}): JSX.Element {
                                                 {isStorage ? null : <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>}
                                                 {isStorage ? null : <TableCell>{machine.gpu ?? 0}</TableCell>}
                                                 <TableCell>
-                                                    {creditFormatter(machine.pricePerUnit * (isStorage ? 31 : 60))}{isStorage ? " per GB/month" : "/hour"}
+                                                    {creditFormatter(machine.pricePerUnit * (isStorage ? 30 : 60), 3)}{isStorage ? " per GB/month" : "/hour"}
                                                 </TableCell>
                                                 <TruncatedTableCell>{machine.description}</TruncatedTableCell>
                                             </TableRow>;
@@ -160,7 +160,7 @@ function MachineView({area}: {area: string}): JSX.Element {
                         <TableRow>
                             <th>Price</th>
                             <TableCell>
-                                {creditFormatter(activeMachine.pricePerUnit * (area === ProductArea.COMPUTE ? 60 : 31))}
+                                {creditFormatter(activeMachine.pricePerUnit * (area === ProductArea.COMPUTE ? 60 : 30))}
                                 {area === ProductArea.COMPUTE ? "/hour" : " per GB/month"}
                             </TableCell>
                         </TableRow>

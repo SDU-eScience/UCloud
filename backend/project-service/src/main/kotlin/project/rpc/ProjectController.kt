@@ -15,11 +15,9 @@ class ProjectController(
     private val db: DBContext,
     private val projects: ProjectService,
     private val queries: QueryService,
-    private val configuration: Configuration
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
-            checkEnabled(configuration)
             val pi = request.principalInvestigator.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEGED }
             ok(FindByStringId(projects.create(db, ctx.securityPrincipal.toActor(), request.title, request.parent, pi)))
         }
@@ -318,11 +316,5 @@ class ProjectController(
 
     companion object : Loggable {
         override val log = logger()
-    }
-}
-
-private fun CallHandler<*, *, *>.checkEnabled(configuration: Configuration) {
-    if (!configuration.enabled && ctx.securityPrincipal.role !in Roles.ADMIN) {
-        throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 }
