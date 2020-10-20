@@ -567,13 +567,6 @@ export function updateDataManagementPlan(
     };
 }
 
-export function areProjectsEnabled(): boolean {
-    if ([DEV_SITE, STAGING_SITE].includes(window.location.host) || inDevEnvironment()) {
-        return true;
-    }
-    return Client.userRole === "ADMIN";
-}
-
 export function useProjectId(): string | undefined {
     return useSelector<ReduxObject, string | undefined>(it => it.project.project);
 }

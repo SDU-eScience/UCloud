@@ -11,7 +11,7 @@ spec:
 
       containers:
       - name: psql-client
-        image: registry.cloud.sdu.dk/sdu-cloud/psql-client:0.1.2
+        image: dreg.cloud.sdu.dk/sdu-cloud/psql-client:0.1.2
         command:
         - /bin/sleep
         - "100000"

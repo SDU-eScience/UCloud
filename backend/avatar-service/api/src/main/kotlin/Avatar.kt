@@ -55,7 +55,8 @@ enum class Top(val string: String) {
 
     companion object {
         private val map = Top.values().associateBy(Top::string)
-        fun fromString(type: String): Top = map[type] ?: throw IllegalArgumentException()
+        private val altMap = Top.values().associateBy(Top::name)
+        fun fromString(type: String): Top = map[type] ?: altMap[type] ?: throw IllegalArgumentException()
     }
 }
 
@@ -69,8 +70,9 @@ enum class TopAccessory(val string: String) {
     WAYFARERS("Wayfarers");
 
     companion object {
-        private val map = TopAccessory.values().associateBy(TopAccessory::string)
-        fun fromString(type: String): TopAccessory = map[type] ?: throw IllegalArgumentException()
+        private val map = values().associateBy(TopAccessory::string)
+        private val altMap = values().associateBy(TopAccessory::name)
+        fun fromString(type: String): TopAccessory = map[type] ?: altMap[type] ?: throw IllegalArgumentException()
     }
 }
 
@@ -88,7 +90,8 @@ enum class HairColor(val string: String) {
 
     companion object {
         private val map = HairColor.values().associateBy(HairColor::string)
-        fun fromString(type: String): HairColor = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(HairColor::name)
+        fun fromString(type: String) = map[type] ?: altMap[type] ?: throw IllegalArgumentException()
     }
 }
 
@@ -111,7 +114,8 @@ enum class HatColor(val string: String) {
 
     companion object {
         private val map = values().associateBy(HatColor::string)
-        fun fromString(type: String): HatColor = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(HatColor::name)
+        fun fromString(type: String) = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -124,8 +128,9 @@ enum class FacialHair(val string: String) {
     MOUSTACHE_MAGNUM("MoustacheMagnum");
 
     companion object {
-        private val map = FacialHair.values().associateBy(FacialHair::string)
-        fun fromString(type: String): FacialHair = map[type] ?: throw IllegalArgumentException()
+        private val map = values().associateBy(FacialHair::string)
+        private val altMap = values().associateBy(FacialHair::name)
+        fun fromString(type: String) = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -141,7 +146,8 @@ enum class FacialHairColor(val string: String) {
 
     companion object {
         private val map = FacialHairColor.values().associateBy(FacialHairColor::string)
-        fun fromString(type: String): FacialHairColor = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(FacialHairColor::name)
+        fun fromString(type: String) = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -158,7 +164,8 @@ enum class Clothes(val string: String) {
 
     companion object {
         private val map = Clothes.values().associateBy(Clothes::string)
-        fun fromString(type: String): Clothes = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(Clothes::name)
+        fun fromString(type: String): Clothes = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -181,7 +188,8 @@ enum class ColorFabric(val string: String) {
 
     companion object {
         private val map = ColorFabric.values().associateBy(ColorFabric::string)
-        fun fromString(type: String): ColorFabric = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(ColorFabric::name)
+        fun fromString(type: String): ColorFabric = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -201,7 +209,8 @@ enum class Eyes(val string: String) {
 
     companion object {
         private val map = Eyes.values().associateBy(Eyes::string)
-        fun fromString(type: String): Eyes = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(Eyes::name)
+        fun fromString(type: String): Eyes = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -221,7 +230,8 @@ enum class Eyebrows(val string: String) {
 
     companion object {
         private val map = Eyebrows.values().associateBy(Eyebrows::string)
-        fun fromString(type: String): Eyebrows = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(Eyebrows::name)
+        fun fromString(type: String): Eyebrows = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -241,7 +251,8 @@ enum class MouthTypes(val string: String) {
 
     companion object {
         private val map = MouthTypes.values().associateBy(MouthTypes::string)
-        fun fromString(type: String): MouthTypes = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(MouthTypes::name)
+        fun fromString(type: String): MouthTypes = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -256,7 +267,8 @@ enum class SkinColors(val string: String) {
 
     companion object {
         private val map = SkinColors.values().associateBy(SkinColors::string)
-        fun fromString(type: String): SkinColors = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(SkinColors::name)
+        fun fromString(type: String): SkinColors = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
 
@@ -278,6 +290,7 @@ enum class ClothesGraphic(val string: String) {
 
     companion object {
         private val map = ClothesGraphic.values().associateBy(ClothesGraphic::string)
-        fun fromString(type: String): ClothesGraphic = map[type] ?: throw IllegalArgumentException()
+        private val altMap = values().associateBy(ClothesGraphic::name)
+        fun fromString(type: String): ClothesGraphic = map[type] ?:  altMap[type] ?:throw IllegalArgumentException()
     }
 }
