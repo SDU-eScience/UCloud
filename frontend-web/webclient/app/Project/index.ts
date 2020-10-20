@@ -248,7 +248,7 @@ export interface UserInProject {
 }
 
 export interface UserGroupSummary {
-    projectId: string;
+    project: string;
     group: string;
     username: string;
 }
