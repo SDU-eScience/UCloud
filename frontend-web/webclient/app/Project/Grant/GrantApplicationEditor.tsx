@@ -374,7 +374,9 @@ const StorageRequestCard: React.FunctionComponent<{
 
         const durationMonths = parseInt(duration.value, 10);
         const quotaGb = parseInt(quota.value, 10);
-        balance.value = Math.ceil((durationMonths * 30 * quotaGb * storagePrice) / 1000000).toString();
+        if (balance) {
+            balance.value = Math.ceil((durationMonths * 30 * quotaGb * storagePrice) / 1000000).toString();
+        }
     };
 
     return <RequestForSingleResourceWrapper>
@@ -722,46 +724,78 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 const credits = resource.creditsRequested;
                 const quota = resource.quotaRequested;
 
-                if (credits) {
-                    const input = document.querySelector<HTMLInputElement>(
+                // TODO(Dan): The following code is a terrible idea.
+                // This code is in here only because we did not notice the error until it was already in production
+                // and was causing a lot of crashes. A proper solution is tracked in #1928.
+                //
+                // The code tends to crash because React has not yet rendered the inputs and we attempt to write to
+                // the inputs before they are actually ready. We solve it in the code below by simply retrying
+                // (via setTimeout) until React has rendered our input elements. This is obviously a bad idea and the
+                // code should be refactored to avoid this. The error only manifests itself if the loading of network
+                // resources occur in a specific order, an order which happens to occur often in production but for
+                // some reason not in dev.
+                let attempts = 0;
+                const work = (): void => {
+                    let success = true;
+                    const creditsInput = document.querySelector<HTMLInputElement>(
                         `input[data-target="${productCategoryId({
                             provider: resource.productProvider,
                             id: resource.productCategory
                         })}"]`
                     );
 
-                    if (input) {
-                        input.value = (credits / 1000000).toFixed(0);
-                    }
-                }
-
-                if (quota) {
-                    const input = document.querySelector<HTMLInputElement>(
+                    const quotaCredits = document.querySelector<HTMLInputElement>(
                         `input[data-target="quota-${productCategoryId({
                             provider: resource.productProvider,
                             id: resource.productCategory
                         })}"]`
                     );
 
-                    if (input) {
-                        input.value = (quota / (1000 * 1000 * 1000)).toFixed(0);
-                    }
-                }
-
-                console.log(quota, credits, storagePrice);
-                if (quota && credits) {
-                    const input = document.querySelector<HTMLInputElement>(
+                    const durationInput = document.querySelector<HTMLInputElement>(
                         `input[data-target="duration-${productCategoryId({
                             provider: resource.productProvider,
                             id: resource.productCategory
                         })}"]`
                     )!;
 
-                    const pricePerMonth = ((quota / (1000 * 1000 * 1000)) * 30 * storagePrice);
-                    if (pricePerMonth !== 0) {
-                        input.value = Math.floor(credits / pricePerMonth).toString();
+                    if (credits) {
+                        if (creditsInput) {
+                            creditsInput.value = (credits / 1000000).toFixed(0);
+                        } else {
+                            success = false;
+                        }
                     }
-                }
+
+                    if (quota) {
+                        if (quotaCredits) {
+                            quotaCredits.value = (quota / (1000 * 1000 * 1000)).toFixed(0);
+                        } else {
+                            success = false;
+                        }
+                    }
+
+                    if (quota != null && credits != null && storagePrice != null) {
+                        const pricePerMonth = ((quota / (1000 * 1000 * 1000)) * 30 * storagePrice);
+                        if (durationInput) {
+                            if (pricePerMonth !== 0) {
+                                durationInput.value = Math.floor(credits / pricePerMonth).toString();
+                            }
+                        } else {
+                            success = false;
+                        }
+                    }
+
+                    if (!success) {
+                        if (attempts > 10) {
+                            snackbarStore.addFailure("Unable to render application", true);
+                        } else {
+                            attempts++;
+                            setTimeout(work, 500);
+                        }
+                    }
+                };
+
+                setTimeout(work, 0);
             }
         }
     }, [state.editingApplication, storagePrice]);
@@ -1116,7 +1150,7 @@ const PostCommentWidget: React.FunctionComponent<{
             comment: commentBoxRef.current!.value
         }));
         reload();
-        commentBoxRef.current!.value = "";
+        if (commentBoxRef.current) commentBoxRef.current!.value = "";
     }, [runWork, applicationId, commentBoxRef.current]);
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">
