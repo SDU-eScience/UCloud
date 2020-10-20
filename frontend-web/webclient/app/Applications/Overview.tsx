@@ -171,10 +171,10 @@ function Applications(props: ApplicationsProps): JSX.Element {
 
     function fetch(): void {
         const featuredPage = props.applications.get("Featured") ?? emptyPage;
-        fetchFeatured(featuredPage.itemsPerPage, featuredPage.pageNumber);
+        fetchFeatured(50, featuredPage.pageNumber);
         [...featuredTags, ...defaultTools].forEach(tag => {
             const page = props.applications.get(tag) ?? emptyPage;
-            props.receiveAppsByKey(page.itemsPerPage, page.pageNumber, tag);
+            props.receiveAppsByKey(50, page.pageNumber, tag);
         });
     }
 }

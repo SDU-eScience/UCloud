@@ -12,7 +12,6 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Box} from "ui-components";
 import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
-import {Spacer} from "ui-components/Spacer";
 import {hpcFavoriteApp} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {ApplicationCard} from "./Card";
@@ -41,7 +40,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Eleme
     function refresh(): void {
         const {content} = props.applications;
         const pageNumber = content?.pageNumber ?? 0;
-        const itemsPerPage = content?.itemsPerPage ?? 25;
+        const itemsPerPage = content?.itemsPerPage ?? 50;
         if (props.header !== null) props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage));
     }
 
@@ -57,10 +56,6 @@ function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Eleme
         }
     }
 
-    function onItemsPerPageChange(items: number): void {
-        props.fetchItems(0, items);
-    }
-
     function pageRenderer(page: Page<FullAppInfo>): JSX.Element {
         return (
             <Box mt="5px">
@@ -74,19 +69,9 @@ function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Eleme
     }
 
     const page = props.applications.content as Page<FullAppInfo>;
-    const itemsPerPage = page?.itemsPerPage ?? 25;
     const main = (
         <Box maxWidth="98%">
-            <Spacer
-                left={<Heading.h2>Favorites</Heading.h2>}
-                right={props.applications.loading ? null : (
-                    <Pagination.EntriesPerPageSelector
-                        content="Apps per page"
-                        entriesPerPage={itemsPerPage}
-                        onChange={onItemsPerPageChange}
-                    />
-                )}
-            />
+            <Heading.h2>Favorites</Heading.h2>
             <Pagination.List
                 loading={props.applications.loading}
                 page={page}
