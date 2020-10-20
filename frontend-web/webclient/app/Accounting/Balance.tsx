@@ -107,6 +107,8 @@ export const BalanceExplainer: React.FunctionComponent<{
         const unitText = productArea === "compute" ? "hours on" : "months of 50 GB on";
         if (productArea === "storage") {
             units = Math.floor(units / (30 * 50));
+        } else if (productArea === "compute") {
+            units = Math.floor(units / 60);
         }
 
         return <>{addThousandSeparators(units)} {unitText} {productName}</>;
