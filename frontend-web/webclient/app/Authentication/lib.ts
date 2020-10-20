@@ -24,7 +24,7 @@ export default class HttpClient {
     private readonly redirectOnInvalidTokens: boolean;
     private readonly guestPages: string[] = ["/skus/", "/skus"];
 
-    private apiContext: string;
+    public apiContext: string;
     private accessToken: string;
     private csrfToken: string;
     private decodedToken: any;
@@ -208,9 +208,10 @@ export default class HttpClient {
      */
     public async get<T = any>(
         path: string,
-        context = this.apiContext
+        context = this.apiContext,
+        maxRetries: number = 5
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "GET", path, body: undefined, context});
+        return this.call({method: "GET", path, body: undefined, context, maxRetries});
     }
 
     /**
@@ -219,9 +220,10 @@ export default class HttpClient {
     public async post<T = any>(
         path: string,
         body?: object,
-        context = this.apiContext
+        context = this.apiContext,
+        maxRetries: number = 5
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "POST", path, body, context});
+        return this.call({method: "POST", path, body, context, maxRetries});
     }
 
     /**
@@ -230,9 +232,10 @@ export default class HttpClient {
     public async put<T = any>(
         path: string,
         body: object,
-        context = this.apiContext
+        context = this.apiContext,
+        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "PUT", path, body, context});
+        return this.call({method: "PUT", path, body, context, maxRetries});
     }
 
     /**
@@ -241,9 +244,10 @@ export default class HttpClient {
     public async delete<T = void>(
         path: string,
         body: object,
-        context = this.apiContext
+        context = this.apiContext,
+        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "DELETE", path, body, context});
+        return this.call({method: "DELETE", path, body, context, maxRetries});
     }
 
     /**
@@ -252,9 +256,10 @@ export default class HttpClient {
     public async patch<T = any>(
         path: string,
         body: object,
-        context = this.apiContext
+        context = this.apiContext,
+        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "PATCH", path, body, context});
+        return this.call({method: "PATCH", path, body, context, maxRetries});
     }
 
     /**
@@ -263,9 +268,10 @@ export default class HttpClient {
     public async options<T = any>(
         path: string,
         body: object,
-        context = this.apiContext
+        context = this.apiContext,
+        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest; response: T}> {
-        return this.call({method: "OPTIONS", path, body, context});
+        return this.call({method: "OPTIONS", path, body, context, maxRetries});
     }
 
     /**
@@ -273,9 +279,10 @@ export default class HttpClient {
      */
     public async head<T = any>(
         path: string,
-        context = this.apiContext
+        context = this.apiContext,
+        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest; response: T}> {
-        return this.call({method: "HEAD", path, body: undefined, context});
+        return this.call({method: "HEAD", path, body: undefined, context, maxRetries});
     }
 
     /**

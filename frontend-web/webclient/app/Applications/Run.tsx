@@ -662,7 +662,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         try {
             this.setState({jobSubmitted: true});
             this.props.setLoading(true);
-            const req = await Client.post(hpcJobQueryPost, job);
+            const req = await Client.post(hpcJobQueryPost, job, Client.apiContext, 1);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
             if (err.request.status === 409) {
