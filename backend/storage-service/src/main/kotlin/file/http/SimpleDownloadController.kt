@@ -30,6 +30,8 @@ import io.ktor.request.ranges
 import io.ktor.response.header
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -103,10 +105,10 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                         principal.subject,
                                         principalToVerify = principal.toSecurityToken().principal
                                     ) { ctx ->
-                                        ZipOutputStream(toOutputStream()).use { os ->
+                                        ZipArchiveOutputStream(toOutputStream()).use { os ->
                                             val rootFileName = stat.path.fileName()
-                                            os.putNextEntry(ZipEntry("$rootFileName/"))
-                                            os.closeEntry()
+                                            os.putArchiveEntry(ZipArchiveEntry("$rootFileName/"))
+                                            os.closeArchiveEntry()
 
                                             val tree = fs.tree(
                                                 ctx,
@@ -131,19 +133,19 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                                 }
 
                                                 if (item.fileType == FileType.FILE) {
-                                                    os.putNextEntry(ZipEntry(filePath))
+                                                    os.putArchiveEntry(ZipArchiveEntry(filePath))
 
                                                     try {
                                                         fs.read(ctx, item.path) { copyTo(os) }
-                                                        os.closeEntry()
+                                                        os.closeArchiveEntry()
                                                     } catch (ex: FSException.PermissionException) {
                                                         // Skip files we don't have permissions for
                                                     } finally {
-                                                        os.closeEntry()
+                                                        os.closeArchiveEntry()
                                                     }
                                                 } else if (item.fileType == FileType.DIRECTORY) {
-                                                    os.putNextEntry(ZipEntry(filePath.removeSuffix("/") + "/"))
-                                                    os.closeEntry()
+                                                    os.putArchiveEntry(ZipArchiveEntry(filePath.removeSuffix("/") + "/"))
+                                                    os.closeArchiveEntry()
                                                 }
                                             }
                                         }
