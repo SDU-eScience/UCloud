@@ -255,25 +255,27 @@ export function transformUsageChartForTable(
     const relevantWallets = wallets.filter(it => it.area === type && it.wallet.type === "PROJECT");
 
     chart.lines.filter(it => it.area === type).forEach(line => {
+        const projectName = line.projectPath ? line.projectPath : line.projectId;
+        if (!projectName) return;
         const lineUsage = line.points.reduce((acc, p) => p.creditsUsed + acc, 0);
         const allocated = relevantWallets.find(it => it.wallet.id === line.projectId)?.allocated ?? 0;
-        if (!projectMap[line.projectPath!]) {
-            projectMap[line.projectPath!] = {
-                categories: expanded.has(line.projectPath!) ?
+        if (!projectMap[projectName]) {
+            projectMap[projectName] = {
+                categories: expanded.has(projectName) ?
                     [{product: line.category, usage: lineUsage, allocated}] : [],
                 totalUsage: lineUsage,
                 totalAllocated: relevantWallets.find(it => it.wallet.id === line.projectId)?.allocated ?? 0,
                 projectId: line.projectId!,
-                projectTitle: line.projectPath!
+                projectTitle: projectName
             };
         } else {
-            const project = projectMap[line.projectPath!];
-            if (expanded.has(line.projectPath!)) {
-                projectMap[line.projectPath!].categories =
+            const project = projectMap[projectName];
+            if (expanded.has(projectName)) {
+                projectMap[projectName].categories =
                     project.categories.concat([{product: line.category, usage: lineUsage, allocated}]);
             }
-            projectMap[line.projectPath!].totalUsage += lineUsage;
-            projectMap[line.projectPath!].totalAllocated += allocated;
+            projectMap[projectName].totalUsage += lineUsage;
+            projectMap[projectName].totalAllocated += allocated;
         }
     });
 
@@ -303,29 +305,34 @@ export function transformUsageChartForCharting(
     const otherId = "Others";
 
     const usagePerProject: Record<string, number> = {};
+
     for (const line of chart.lines) {
         if (type !== line.area) continue;
-        if (line.projectPath === undefined) continue;
+        const projectName = line.projectPath ? line.projectPath : line.projectId;
+        if (!projectName) continue;
 
-        if (!lineNames.includes(line.projectPath)) {
-            lineNames.push(line.projectPath);
+
+        if (!lineNames.includes(projectName)) {
+            lineNames.push(projectName);
         }
 
-        usagePerProject[line.projectPath] =
-            (usagePerProject[line.projectPath] ?? 0) +
+        usagePerProject[projectName] =
+            (usagePerProject[projectName] ?? 0) +
             line.points.reduce((prev, cur) => prev + cur.creditsUsed, 0);
     }
 
     lineNames.sort((a, b) => (usagePerProject[b] ?? 0) - (usagePerProject[a] ?? 0));
     lineNames = lineNames.filter((ignored, idx) => idx < numberToInclude);
-    lineNames.push(otherId);
+    if (lineNames.length === numberToInclude) lineNames.push(otherId);
 
     for (const line of chart.lines) {
         if (type !== line.area) continue;
-        if (!line.projectPath) continue;
+        const projectName = line.projectPath ? line.projectPath : line.projectId;
+        if (!projectName) continue;
 
-        const ranking = lineNames.indexOf(line.projectPath);
-        let id = line.projectPath;
+
+        const ranking = lineNames.indexOf(projectName);
+        let id = projectName;
         if (ranking === -1) {
             id = otherId;
         }
