@@ -29,6 +29,25 @@ class NewsController(
             ok(Unit)
         }
 
+        implement(News.updatePost) {
+            ok(
+                newsService.updateNewsPost(
+                    db,
+                    request.id,
+                    request.title,
+                    request.subtitle,
+                    request.body,
+                    request.showFrom,
+                    request.hideFrom,
+                    request.category
+                )
+            )
+        }
+
+        implement(News.deletePost) {
+            ok(newsService.deleteNewsPost(db, request.id))
+        }
+
         implement(News.togglePostHidden) {
             ok(newsService.togglePostHidden(db, request.id))
         }
