@@ -75,7 +75,7 @@ export const MachineTypes: React.FunctionComponent<{
                                 <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>
                                 <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
                                 <TableCell>{machine.gpu ?? 0}</TableCell>
-                                <TableCell>{creditFormatter(machine.pricePerUnit * 60)}/hour</TableCell>
+                                <TableCell>{creditFormatter(machine.pricePerUnit * 60, 3)}/hour</TableCell>
                             </TableRow>;
                         })}
                     </tbody>

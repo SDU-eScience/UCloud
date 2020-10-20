@@ -374,7 +374,7 @@ const StorageRequestCard: React.FunctionComponent<{
 
         const durationMonths = parseInt(duration.value, 10);
         const quotaGb = parseInt(quota.value, 10);
-        balance.value = Math.ceil((durationMonths * 31 * quotaGb * storagePrice) / 1000000).toString();
+        balance.value = Math.ceil((durationMonths * 30 * quotaGb * storagePrice) / 1000000).toString();
     };
 
     return <RequestForSingleResourceWrapper>
@@ -757,7 +757,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         })}"]`
                     )!;
 
-                    const pricePerMonth = ((quota / (1000 * 1000 * 1000)) * 31 * storagePrice);
+                    const pricePerMonth = ((quota / (1000 * 1000 * 1000)) * 30 * storagePrice);
                     if (pricePerMonth !== 0) {
                         input.value = Math.floor(credits / pricePerMonth).toString();
                     }
