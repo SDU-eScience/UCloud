@@ -7,6 +7,44 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 21-10-20
+
+```
+✅  Deployment(task, 0.3.1) (UP-TO-DATE)
+✅  Deployment(mail, 0.2.2) (UP-TO-DATE)
+✅  Deployment(notification, 1.3.2) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.3.7) (UP-TO-DATE)
+[main] WARN io.fabric8.kubernetes.client.internal.VersionUsageUtils - The client is using resource type 'cronjobs' with unstable version 'v1beta1'
+✅  Deployment(project, 3.2.10) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.2.4) (UP-TO-DATE)
+✅  Deployment(webdav, 0.2.2) (UP-TO-DATE)
+[main] WARN io.fabric8.kubernetes.client.internal.VersionUsageUtils - The client is using resource type 'ingresses' with unstable version 'v1beta1'
+✅  Deployment(alerting, 1.2.3) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.1) (UP-TO-DATE)
+✅  Deployment(app-license, 0.2.2) (UP-TO-DATE)
+✅  Deployment(storage, 4.2.14) (UP-TO-DATE)
+✅  Deployment(activity, 1.5.4) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.3.2) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.19.11) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.2.1) (UP-TO-DATE)
+✅  Deployment(avatar, 1.4.5) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.5.2) (UP-TO-DATE)
+✅  Deployment(share, 1.8.3) (UP-TO-DATE)
+✅  Deployment(app-kubernetes-watcher, 0.2.3) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.2.2) (UP-TO-DATE)
+✅  Deployment(news, 0.1.1) (UP-TO-DATE)
+✅  Deployment(auth, 1.28.3) (UP-TO-DATE)
+✅  Deployment(app-store, 0.14.3) (UP-TO-DATE)
+✅  Deployment(accounting, 1.4.11) (UP-TO-DATE)
+✅  Deployment(support, 1.4.2) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.2.1) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.2.1) (UP-TO-DATE)
+✅  Deployment(indexing, 1.17.3) (UP-TO-DATE)
+✅  Deployment(grant, 0.1.7) (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.6.3) (UP-TO-DATE)
+✅  Deployment(webclient, 0.38.25) (UP-TO-DATE)
+```
+
 ## 12-10-20
 Added new elastic-management job. Auto creation and deletion of aliases used for Grafana.
 Updated Alerting-service to handle node failures better and added 5xx check in ambassador logs.
