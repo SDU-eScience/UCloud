@@ -3,9 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "project"
-    version = "3.2.9"
-
-    val enabled: Boolean = config("enabled", "Should projects be enabled", false)
+    version = "3.2.11"
 
     withAmbassador("/api/projects") {}
 
@@ -18,15 +16,4 @@ bundle { ctx ->
 
     //withCronJob(deployment, "0 */12 * * *", listOf("--remind")) {}
     withAdHocJob(deployment, "remind-now", { listOf("--remind") })
-
-    withConfigMap("project-config", version = "1") {
-        addConfig(
-            "config.yml",
-            mapOf<String, Any?>(
-                "project" to mapOf<String, Any?>(
-                    "enabled" to enabled
-                )
-            )
-        )
-    }
 }

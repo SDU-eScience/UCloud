@@ -194,7 +194,7 @@ class AppStoreService(
         } else if (!entity.project.isNullOrBlank() && !entity.group.isNullOrBlank()) {
             log.debug("Verifying that project exists")
 
-            val projectLookup = Projects.lookupByTitle.call(
+            val projectLookup = Projects.lookupByPath.call(
                 LookupByTitleRequest(entity.project!!),
                 authenticatedClient
             ).orRethrowAs {

@@ -4,6 +4,8 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI} from "Authentication/DataHook";
 import {
     GrantApplication,
+    GrantApplicationFilter,
+    grantApplicationFilterPrettify,
     GrantApplicationStatus,
     ingoingGrantApplications,
     IngoingGrantApplicationsResponse
@@ -12,7 +14,7 @@ import {emptyPage} from "DefaultObjects";
 import {useProjectManagementStatus} from "Project";
 import * as Pagination from "Pagination";
 import {ListRow, ListRowStat} from "ui-components/List";
-import {Flex, Icon, List, Text, Tooltip} from "ui-components";
+import {Flex, Icon, Label, List, Text, Tooltip, VerticalButtonGroup} from "ui-components";
 import {creditFormatter} from "Project/ProjectUsage";
 import {EllipsedText} from "ui-components/Text";
 import {useAvatars} from "AvataaarLib/hook";
@@ -20,43 +22,66 @@ import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import {useHistory} from "react-router";
-import {useDispatch} from "react-redux";
-import {setActivePage} from "Navigation/Redux/StatusActions";
-import {SidebarPages} from "ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {dateToString} from "Utilities/DateUtilities";
 import {IconName} from "ui-components/Icon";
 import {ThemeColor} from "ui-components/theme";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {FilterTrigger} from "./OutgoingApplications";
+import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
-    const dispatch = useDispatch();
+    const [filter, setFilter] = React.useState<GrantApplicationFilter>(GrantApplicationFilter.ACTIVE);
     const [ingoingApplications, fetchIngoingApplications] = useCloudAPI<IngoingGrantApplicationsResponse>(
         {noop: true},
         emptyPage
     );
 
-    useEffect(() => {
-        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: 0}));
-    }, [projectId]);
+
+    useRefreshFunction(() => {
+        fetchIngoingApplications(
+            ingoingGrantApplications({
+                itemsPerPage: 25,
+                page: ingoingApplications.data.pageNumber,
+                filter
+            })
+        );
+    });
 
     useEffect(() => {
-        dispatch(setActivePage(SidebarPages.Projects));
-        return () => {
-            dispatch(setActivePage(SidebarPages.None));
-        };
-    }, []);
+        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: 0, filter}));
+    }, [projectId, filter]);
+
+    useSidebarPage(SidebarPages.Projects);
 
     return <MainContainer
-        header={<ProjectBreadcrumbs crumbs={[{title: "Ingoing Applications"}]}/>}
-        sidebar={null}
+        header={<ProjectBreadcrumbs crumbs={[{title: "Ingoing Applications"}]} />}
+        sidebar={<VerticalButtonGroup>
+            <Label>Filter</Label>
+            <ClickableDropdown
+                chevron
+                trigger={<FilterTrigger>{grantApplicationFilterPrettify(filter)}</FilterTrigger>}
+                options={
+                    Object
+                        .keys(GrantApplicationFilter)
+                        .map(it => ({
+                            text: grantApplicationFilterPrettify(it as GrantApplicationFilter),
+                            value: it
+                        }))
+                }
+                onChange={(value: GrantApplicationFilter) => setFilter(value)}
+            />
+        </VerticalButtonGroup>
+        }
         main={
             <Pagination.List
                 page={ingoingApplications.data}
                 loading={ingoingApplications.loading}
                 onPageChanged={(newPage) => {
-                    fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: newPage}));
+                    fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: newPage, filter}));
                 }}
-                pageRenderer={page => <GrantApplicationList applications={page.items}/>}
+                pageRenderer={page => <GrantApplicationList applications={page.items} />}
             />
         }
     />;
@@ -128,7 +153,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                                                 (prev, curr) => prev + (curr.creditsRequested ?? 0), 0
                                             ), 0)}
                                     </Flex>
-                                    <Icon name={icon} color={iconColor} ml={8}/>
+                                    <Icon name={icon} color={iconColor} ml={8} />
                                 </Flex>
                             }
                         >

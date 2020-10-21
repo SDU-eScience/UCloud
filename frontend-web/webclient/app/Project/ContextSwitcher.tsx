@@ -10,7 +10,7 @@ import {Flex, Truncate, Text, Icon, Divider} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {useCloudAPI} from "Authentication/DataHook";
-import {UserInProject, ListProjectsRequest, listProjects, areProjectsEnabled} from "Project";
+import {UserInProject, ListProjectsRequest, listProjects} from "Project";
 import {useHistory} from "react-router";
 import {History} from "history";
 import {fileTablePage} from "Utilities/FileUtilities";
@@ -19,8 +19,6 @@ import {useProjectStatus} from "Project/cache";
 
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
-    if (!areProjectsEnabled()) return null;
-
     const projectStatus = useProjectStatus();
     const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 10, archived: false}),

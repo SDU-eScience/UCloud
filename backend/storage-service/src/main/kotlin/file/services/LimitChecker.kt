@@ -78,7 +78,7 @@ class LimitChecker<Ctx : FSUserContext>(
                     { setParameter("homeDirectory", homeDirectory) },
                     """
                         with used_quota as (
-                            select coalesce(sum(allocation), 0)::bigint as used 
+                            select coalesce(sum(allocation), 0)::bigint as used
                             from quota_allocation where from_directory = :homeDirectory
                         )
 
@@ -91,9 +91,9 @@ class LimitChecker<Ctx : FSUserContext>(
                 .rows
                 .singleOrNull()
                 ?.let {
-                    val used = it.getLong(0)!!
-                    val quotaInBytes = it.getLong(1)!!
-                    Quota(quotaInBytes, quotaInBytes - used, used)
+                    val allocated = it.getLong(0)!!
+                    val totalQuota = it.getLong(1)!!
+                    Quota(totalQuota, totalQuota - allocated, allocated)
                 }
                 ?: Quota(productConfiguration.defaultQuota, 0, 0)
         }
@@ -155,8 +155,8 @@ class LimitChecker<Ctx : FSUserContext>(
                     },
 
                     """
-                        insert into quotas values (:path, :quota) 
-                        on conflict (path) do update set 
+                        insert into quotas values (:path, :quota)
+                        on conflict (path) do update set
                             quota_in_bytes = excluded.quota_in_bytes + (
                                 case
                                     when :additive then quotas.quota_in_bytes
@@ -200,9 +200,9 @@ class LimitChecker<Ctx : FSUserContext>(
                         setParameter("allocation", quotaInBytes)
                     },
                     """
-                        insert into quota_allocation (from_directory, to_directory, allocation) 
+                        insert into quota_allocation (from_directory, to_directory, allocation)
                         values (:fromHome, :toHome, :allocation)
-                        on conflict (from_directory, to_directory) do update set 
+                        on conflict (from_directory, to_directory) do update set
                             allocation = quota_allocation.allocation + excluded.allocation
                     """
                 )
@@ -214,9 +214,9 @@ class LimitChecker<Ctx : FSUserContext>(
                         setParameter("quotaInBytes", quotaInBytes)
                     },
                     """
-                        insert into quotas (path, quota_in_bytes) 
+                        insert into quotas (path, quota_in_bytes)
                         values (:toHome, :quotaInBytes)
-                        on conflict (path) do update set 
+                        on conflict (path) do update set
                             quota_in_bytes = excluded.quota_in_bytes + quotas.quota_in_bytes
                     """
                 )

@@ -197,7 +197,7 @@ function NewsManagement(): JSX.Element | null {
         const title = titleRef.current?.value;
         const subtitle = subtitleRef.current?.value;
         const body = bodyRef.current?.value;
-        const category = categoryRef.current?.value;
+        let category = categoryRef.current?.value;
         if (start == null) {
             snackbarStore.addFailure("Please add a starting time and date.", false);
             return;
@@ -212,7 +212,7 @@ function NewsManagement(): JSX.Element | null {
             return;
         }
 
-        if (!categories.data.includes(category.toLocaleLowerCase())) {
+        if (!(categories.data).map(it => it.toLocaleLowerCase()).includes(category.toLocaleLowerCase())) {
             const proceed = await new Promise(resolve => addStandardDialog({
                 title: "Create category?",
                 message: `${category} doesn't exist, create it?`,
@@ -220,6 +220,8 @@ function NewsManagement(): JSX.Element | null {
                 onCancel: () => resolve(false)
             }));
             if (!proceed) return;
+        } else {
+            category = categories.data.find(it => it.toLowerCase() === category?.toLowerCase());
         }
 
         try {
@@ -229,7 +231,7 @@ function NewsManagement(): JSX.Element | null {
                 })
             ).promise;
             snackbarStore.addSuccess("Submitted", false, 2_000);
-            fetchNewsPost(0, news.itemsInTotal);
+            fetchNewsPost(0, news.itemsPerPage);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not add post.");
         }

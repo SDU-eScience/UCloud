@@ -60,7 +60,7 @@ export const TextDiv = Text;
 export const TextSpan = (props: any) => <Text as="span" {...props} />;
 export const TextP = (props: any) => <Text as="p" {...props} />;
 
-interface EllipsedTextProps extends TextProps, WidthProps, MaxWidthProps {}
+type EllipsedTextProps = TextProps & WidthProps & MaxWidthProps;
 export const EllipsedText = styled(Text) <EllipsedTextProps>`
   white-space: nowrap;
   overflow: hidden;

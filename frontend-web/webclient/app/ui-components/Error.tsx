@@ -37,7 +37,13 @@ function Error(props: ErrorProps): JSX.Element | null {
     );
 }
 
-export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<{width?: string | number, bg: string; borderColor: string}>> = props => (
+interface ErrorWrapperProps {
+    width?: string | number;
+    bg: string;
+    borderColor: string;
+}
+
+export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<ErrorWrapperProps>> = props => (
     <Card
         borderRadius="6px"
         height="auto"

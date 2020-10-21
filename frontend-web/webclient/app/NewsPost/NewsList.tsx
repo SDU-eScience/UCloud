@@ -27,8 +27,8 @@ function newsPostRequest(payload: NewsPostRequestProps): APICallParameters<NewsP
 }
 
 export const NewsList: React.FC = () => {
-    const {filter} = useParams<{ filter?: string }>();
-    const [newsPosts, setParams, params] = useCloudAPI<Page<NewsPost>>(newsPostRequest({
+    const {filter} = useParams<{filter?: string}>();
+    const [newsPosts, setParams] = useCloudAPI<Page<NewsPost>>(newsPostRequest({
         itemsPerPage: 25,
         page: 0,
         withHidden: false,
@@ -57,7 +57,7 @@ export const NewsList: React.FC = () => {
                         <Link to="/news/list/">
                             <Text mt="14px" ml="10px" fontSize={1}>
                                 Clear category
-                                <Icon color="black" name="close" size={12}/>
+                                <Icon color="black" name="close" size={12} />
                             </Text>
                         </Link>
                     }
@@ -86,17 +86,17 @@ export const NewsList: React.FC = () => {
             {page.items.map(item => (
                 <DashboardCard color={"blue"} isLoading={false} key={item.id}>
                     <Box mb={16}>
-                    <Link to={`/news/detailed/${item.id}`}>
-                        <Flex><Heading.h3>{item.title}</Heading.h3><IsHidden hidden={item.hidden}/></Flex>
-                    </Link>
-                    <Heading.h5>{item.subtitle}</Heading.h5>
-                    <Flex>
-                        <Text fontSize={1}>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
-                        <Box mt="-3px" ml="4px">
-                            <Tag bg={theme.appColors[appColor(hashF(item.category))][0]} label={item.category}/>
-                        </Box>
-                    </Flex>
-                    <IsExpired now={now} expiration={item.hideFrom}/>
+                        <Link to={`/news/detailed/${item.id}`}>
+                            <Flex><Heading.h3>{item.title}</Heading.h3><IsHidden hidden={item.hidden} /></Flex>
+                        </Link>
+                        <Heading.h5>{item.subtitle}</Heading.h5>
+                        <Flex>
+                            <Text fontSize={1}>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
+                            <Box mt="-3px" ml="4px">
+                                <Tag bg={theme.appColors[appColor(hashF(item.category))][0]} label={item.category} />
+                            </Box>
+                        </Flex>
+                        <IsExpired now={now} expiration={item.hideFrom} />
                     </Box>
                 </DashboardCard>
             ))}
@@ -104,13 +104,13 @@ export const NewsList: React.FC = () => {
     }
 };
 
-const IsExpired = (props: { now: number, expiration: number | null }): JSX.Element | null => {
-    if (props.expiration != null && props.now > props.expiration) return <Text fontSize={1} color="red">Expired
-        at {format(props.expiration, "HH:mm dd/MM/yy")}</Text>;
+const IsExpired = (props: {now: number, expiration: number | null}): JSX.Element | null => {
+    if (props.expiration != null && props.now > props.expiration)
+        return <Text fontSize={1} color="red">Expired at {format(props.expiration, "HH:mm dd/MM/yy")}</Text>;
     return null;
 };
 
-const IsHidden = (props: { hidden: boolean }): JSX.Element | null => {
+const IsHidden = (props: {hidden: boolean}): JSX.Element | null => {
     if (props.hidden) return <Text ml="8px" mt="8px" color="gray">Hidden</Text>;
     return null;
-}
+};

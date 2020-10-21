@@ -1,11 +1,11 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {useCallback, useEffect, useMemo, useReducer, useState} from "react";
+import {useCallback, useEffect, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {useGlobal, ValueOrSetter} from "Utilities/ReduxHooks";
 import {HookStore} from "DefaultObjects";
 import {usePromiseKeeper} from "PromiseKeeper";
 
-function dataFetchReducer(state, action) {
+function dataFetchReducer<T>(state: APICallState<T>, action): APICallState<T> {
     switch (action.type) {
         case "FETCH_INIT":
             return {
@@ -146,7 +146,7 @@ export function useCloudAPI<T, Parameters = any>(
         setParams(params);
     }
 
-    const returnedState: APICallState<T> = {...state};
+    const returnedState = {...state} as APICallState<T>;
     return [returnedState, doFetch, params];
 }
 

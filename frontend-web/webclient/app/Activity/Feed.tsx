@@ -50,7 +50,10 @@ const ActivityEvent: React.FunctionComponent<{
             <b>
                 <ReactRouterLink to={fileInfoPage(props.event.activityEvent.filePath)}>
                     <div className="ellipsis">
-                        <Text color="black">{getFilenameFromPath(props.event.activityEvent.filePath, projects)}</Text>
+                        <Text
+                            title={getFilenameFromPath(props.event.activityEvent.filePath, projects)}
+                            color="black"
+                        >{shorten(getFilenameFromPath(props.event.activityEvent.filePath, projects))}</Text>
                     </div>
                 </ReactRouterLink>
             </b>
@@ -310,3 +313,8 @@ const TFRow = styled(TableRow)`
         vertical-align: bottom;
     }
 `;
+
+function shorten(path: string): string {
+    if (path.length > 40) return path.substr(0, 40) + "...";
+    return path;
+}

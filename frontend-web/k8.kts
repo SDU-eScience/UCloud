@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "webclient"
-    version = "0.38.17"
+    version = "0.38.27"
 
     withAmbassador(null) {
         services.add(
@@ -17,7 +17,7 @@ bundle {
                     prefix_regex: true
                     service: webclient:8080
                     rewrite: ""
-                    
+
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
@@ -26,7 +26,7 @@ bundle {
                     prefix_regex: true
                     service: webclient:8080
                     rewrite: ""
-                    
+
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
@@ -35,7 +35,7 @@ bundle {
                     prefix_regex: true
                     service: webclient:8080
                     rewrite: ""
-                    
+
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
@@ -44,7 +44,7 @@ bundle {
                     prefix_regex: true
                     service: webclient:8080
                     rewrite: ""
-                    
+
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
@@ -53,7 +53,7 @@ bundle {
                     prefix_regex: true
                     service: webclient:8080
                     rewrite: ""
-                    
+
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
@@ -62,7 +62,7 @@ bundle {
                     prefix_regex: true
                     service: webclient:8080
                     rewrite: ""
-                    
+
                 """.trimIndent()
             )
         )

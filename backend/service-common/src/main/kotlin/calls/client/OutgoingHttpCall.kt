@@ -27,6 +27,7 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.utils.io.jvm.javaio.*
 import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import java.net.ConnectException
 import java.net.URLEncoder
 import java.util.*
@@ -56,6 +57,10 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             config {
                 readTimeout(5, TimeUnit.MINUTES)
                 writeTimeout(5, TimeUnit.MINUTES)
+                dispatcher(Dispatcher().apply {
+                    maxRequests = 10_000
+                    maxRequestsPerHost = 10_000
+                })
 
                 // All of our connections are going to the same address (cloud.sdu.dk). So we keep a large pool
                 // ready with a large timeout. (This doesn't apply to local dev but this won't break anything)

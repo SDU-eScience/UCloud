@@ -18,8 +18,6 @@ import {ActivityFeedFrame, ActivityFeedItem, ActivityFeedSpacer} from "./Feed";
 import {fetchActivity, resetActivity, setLoading, updateActivityFilter} from "./Redux/ActivityActions";
 import Input from "ui-components/Input";
 import {Client} from "Authentication/HttpClientInstance";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
 import {useCloudAPI} from "Authentication/DataHook";
 import {groupSummaryRequest} from "Project";
 import {GroupWithSummary} from "Project/GroupList";

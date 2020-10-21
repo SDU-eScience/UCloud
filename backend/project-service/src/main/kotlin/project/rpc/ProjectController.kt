@@ -3,7 +3,6 @@ package dk.sdu.cloud.project.rpc
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.project.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.services.*
 import dk.sdu.cloud.project.services.ProjectService
@@ -15,11 +14,9 @@ class ProjectController(
     private val db: DBContext,
     private val projects: ProjectService,
     private val queries: QueryService,
-    private val configuration: Configuration
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
-            checkEnabled(configuration)
             val pi = request.principalInvestigator.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEGED }
             ok(FindByStringId(projects.create(db, ctx.securityPrincipal.toActor(), request.title, request.parent, pi)))
         }
@@ -234,9 +231,9 @@ class ProjectController(
             )
         }
 
-        implement(Projects.lookupByTitle) {
+        implement(Projects.lookupByPath) {
             ok(
-                queries.lookupByTitle(db, request.title) ?: throw RPCException(
+                queries.lookupByPath(db, request.title) ?: throw RPCException(
                     "No project with that name",
                     HttpStatusCode.BadRequest
                 )
@@ -318,11 +315,5 @@ class ProjectController(
 
     companion object : Loggable {
         override val log = logger()
-    }
-}
-
-private fun CallHandler<*, *, *>.checkEnabled(configuration: Configuration) {
-    if (!configuration.enabled && ctx.securityPrincipal.role !in Roles.ADMIN) {
-        throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 }

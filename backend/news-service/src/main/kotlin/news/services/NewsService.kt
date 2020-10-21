@@ -43,7 +43,7 @@ class NewsService {
                 set(NewsTable.body, body)
                 set(NewsTable.postedBy, postedBy)
                 set(NewsTable.showFrom, LocalDateTime(showFrom, DateTimeZone.UTC))
-                set(NewsTable.hideFrom, LocalDateTime(hideFrom, DateTimeZone.UTC))
+                set(NewsTable.hideFrom, if (hideFrom != null) LocalDateTime(hideFrom, DateTimeZone.UTC) else null)
                 set(NewsTable.hidden, false)
                 set(NewsTable.category, category)
             }

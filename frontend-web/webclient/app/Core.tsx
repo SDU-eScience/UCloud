@@ -41,7 +41,6 @@ import Uploader from "Uploader/Uploader";
 import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
-import {areProjectsEnabled} from "Project";
 import ProjectDashboard from "Project/ProjectDashboard";
 import {ProjectSettings} from "Project/ProjectSettings";
 import ProjectUsage from "Project/ProjectUsage";
@@ -56,6 +55,7 @@ import {LandingPage} from "Project/Grant/LandingPage";
 import Products from "Products/Products";
 import {AppK8Admin} from "Admin/AppK8Admin";
 import {ShellDemo} from "Applications/Shell";
+import {DEV_SITE} from "../site.config.json";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -68,7 +68,10 @@ const Core = (): JSX.Element => (
         <ErrorBoundary>
             <Switch>
                 <Route exact path="/login" component={LoginPage} />
-                <Route exact path="/login/selection" component={LoginSelection} />
+                {inDevEnvironment() || window.location.host === DEV_SITE ?
+                    <Route exact path="/login/selection" component={LoginSelection}/> :
+                    <Route exact path="/login/selection" component={LoginPage}/>
+                }
                 <Route exact path="/loginSuccess" component={LoginSuccess} />
                 <Route exact path="/login/wayf" component={Wayf} />
                 <Route exact path="/" component={requireAuth(Dashboard)} />
@@ -127,50 +130,46 @@ const Core = (): JSX.Element => (
 
                 <Route exact path="/skus" component={Products} />
 
-                {areProjectsEnabled() ? (
-                    <>
-                        <Route exact path="/projects" component={requireAuth(ProjectList)} />
-                        <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
-                        <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
-                        <Route exact path="/project/usage" component={requireAuth(ProjectUsage)} />
-                        <Route exact path="/project/subprojects" component={requireAuth(Subprojects)} />
-                        <Route
-                            exact
-                            path="/project/grants-landing"
-                            component={requireAuth(LandingPage)}
-                        />
-                        <Route
-                            exact
-                            path="/project/grants/existing"
-                            component={requireAuth(GrantApplicationEditor(RequestTarget.EXISTING_PROJECT))}
-                        />
-                        <Route
-                            exact
-                            path="/project/grants/personal/:projectId"
-                            component={requireAuth(GrantApplicationEditor(RequestTarget.PERSONAL_PROJECT))}
-                        />
-                        <Route
-                            exact
-                            path="/project/grants/new/:projectId"
-                            component={requireAuth(GrantApplicationEditor(RequestTarget.NEW_PROJECT))}
-                        />
-                        <Route
-                            exact
-                            path="/project/grants/view/:appId"
-                            component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
-                        />
-                        <Route
-                            exact
-                            path="/project/members/:group?/:member?"
-                            component={requireAuth(ProjectMembers)}
-                        />
-                        <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
-                        <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
-                        <Route exact path="/projects/browser/:action" component={requireAuth(ProjectBrowser)} />
-                    </>
-                )
-                    : null
-                }
+                <>
+                    <Route exact path="/projects" component={requireAuth(ProjectList)} />
+                    <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
+                    <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
+                    <Route exact path="/project/usage" component={requireAuth(ProjectUsage)} />
+                    <Route exact path="/project/subprojects" component={requireAuth(Subprojects)} />
+                    <Route
+                        exact
+                        path="/project/grants-landing"
+                        component={requireAuth(LandingPage)}
+                    />
+                    <Route
+                        exact
+                        path="/project/grants/existing"
+                        component={requireAuth(GrantApplicationEditor(RequestTarget.EXISTING_PROJECT))}
+                    />
+                    <Route
+                        exact
+                        path="/project/grants/personal/:projectId"
+                        component={requireAuth(GrantApplicationEditor(RequestTarget.PERSONAL_PROJECT))}
+                    />
+                    <Route
+                        exact
+                        path="/project/grants/new/:projectId"
+                        component={requireAuth(GrantApplicationEditor(RequestTarget.NEW_PROJECT))}
+                    />
+                    <Route
+                        exact
+                        path="/project/grants/view/:appId"
+                        component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
+                    />
+                    <Route
+                        exact
+                        path="/project/members/:group?/:member?"
+                        component={requireAuth(ProjectMembers)}
+                    />
+                    <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
+                    <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
+                    <Route exact path="/projects/browser/:action" component={requireAuth(ProjectBrowser)} />
+                </>
 
                 <Route
                     exact

@@ -24,7 +24,7 @@ interface DetailedApplicationSearchProps extends
     search: string;
 }
 
-function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProps>) {
+function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProps>): JSX.Element {
     React.useEffect(() => {
         if (!!props.defaultAppQuery) props.setAppQuery(props.defaultAppQuery);
     }, []);
@@ -32,7 +32,7 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
     const history = useHistory();
     const ref = React.useRef<HTMLInputElement>(null);
 
-    function onSearch(e: React.FormEvent<HTMLFormElement>) {
+    function onSearch(e: React.FormEvent<HTMLFormElement>): void {
         e.preventDefault();
         props.addTag(ref.current!.value);
         ref.current!.value = "";
@@ -85,7 +85,10 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
     );
 }
 
-const mapStateToProps = ({detailedApplicationSearch, simpleSearch}: ReduxObject) => ({
+const mapStateToProps = ({
+    detailedApplicationSearch,
+    simpleSearch
+}: ReduxObject): DetailedApplicationSearchReduxState & {search: string, sizeCount: number} => ({
     ...detailedApplicationSearch,
     search: simpleSearch.search,
     sizeCount: detailedApplicationSearch.tags.size
