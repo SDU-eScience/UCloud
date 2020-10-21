@@ -20,8 +20,6 @@ function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> 
     };
 }
 
-const editingEnabled = false;
-
 export const DetailedNews: React.FC = () => {
     const {id} = useParams<{id: string}>();
     const [newsPost, setParams] = useCloudAPI<NewsPost | null, {id: string}>(getByIdRequest({id}), null);
@@ -46,7 +44,7 @@ export const DetailedNews: React.FC = () => {
                 <Box m={"0 auto"} maxWidth={"1200px"}>
                     <Spacer
                         left={<Heading.h2>{newsPost.data.title}</Heading.h2>}
-                        right={isAdmin && editingEnabled ? <Button onClick={() => setEditing(true)}>Edit post</Button> : null}
+                        right={isAdmin ? <Button onClick={() => setEditing(true)}>Edit post</Button> : null}
                     />
                     <Heading.h4>{newsPost.data.subtitle}</Heading.h4>
                     <Box>
@@ -82,13 +80,16 @@ function Editing(props: {post: NewsPost; stopEditing: () => void;}): JSX.Element
         headerSize={0}
         main={
             <Box m="0 auto" maxWidth="1200px">
-                <Flex>Title: <Input noBorder defaultValue={props.post.title} ref={titleRef} fontSize={5} /></Flex>
-                <Flex>Subtitle: <Input noBorder defaultValue={props.post.subtitle} ref={subtitleRef} fontSize={3} /></Flex>
+                <Flex><Text fontSize={5}>Title: </Text><Input pt={0} pb={0} noBorder defaultValue={props.post.title} ref={titleRef} fontSize={5} /></Flex>
+                <Flex><Text fontSize={3}>Subtitle: </Text><Input pt={0} pb={0} noBorder defaultValue={props.post.subtitle} ref={subtitleRef} fontSize={3} /></Flex>
                 <Box>
                     <Text fontSize={1}><Flex>By: <Text mx="6px" bold>{props.post.postedBy}</Text></Flex></Text>
                     <Text fontSize={1}><Flex>Visible from {format(props.post.showFrom, "HH:mm dd/MM/yy")}</Flex></Text>
                     <Text fontSize={1}><Flex>Hidden from {props.post.hideFrom ? format(props.post.hideFrom, "HH:mm dd/MM/yy") : "NOT SET"}</Flex></Text>
-                    Category: <Input noBorder defaultValue={props.post.category} ref={categoryRef} />
+                    <Tag
+                        label={props.post.category}
+                        bg={theme.appColors[appColor(hashF(props.post.category))][0]}
+                    />
                 </Box>
                 <SelectableTextWrapper>
                     <SelectableText onClick={() => setPreview(false)} selected={preview === false}>Edit</SelectableText>
