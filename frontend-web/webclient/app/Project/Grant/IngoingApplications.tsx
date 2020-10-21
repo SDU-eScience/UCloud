@@ -14,7 +14,7 @@ import {emptyPage} from "DefaultObjects";
 import {useProjectManagementStatus} from "Project";
 import * as Pagination from "Pagination";
 import {ListRow, ListRowStat} from "ui-components/List";
-import {Box, Flex, Icon, Label, List, Text, Tooltip, VerticalButtonGroup} from "ui-components";
+import {Flex, Icon, Label, List, Text, Tooltip, VerticalButtonGroup} from "ui-components";
 import {creditFormatter} from "Project/ProjectUsage";
 import {EllipsedText} from "ui-components/Text";
 import {useAvatars} from "AvataaarLib/hook";
@@ -28,6 +28,7 @@ import {IconName} from "ui-components/Icon";
 import {ThemeColor} from "ui-components/theme";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {FilterTrigger} from "./OutgoingApplications";
+import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
@@ -38,7 +39,15 @@ export const IngoingApplications: React.FunctionComponent = () => {
     );
 
 
-    /* FIXME: Add refresh function */
+    useRefreshFunction(() => {
+        fetchIngoingApplications(
+            ingoingGrantApplications({
+                itemsPerPage: 25,
+                page: ingoingApplications.data.pageNumber,
+                filter
+            })
+        );
+    });
 
     useEffect(() => {
         fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: 0, filter}));
@@ -70,7 +79,7 @@ export const IngoingApplications: React.FunctionComponent = () => {
                 page={ingoingApplications.data}
                 loading={ingoingApplications.loading}
                 onPageChanged={(newPage) => {
-                    fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: newPage}));
+                    fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: newPage, filter}));
                 }}
                 pageRenderer={page => <GrantApplicationList applications={page.items} />}
             />
