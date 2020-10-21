@@ -67,14 +67,14 @@ class NewsService {
                     setParameter("title", title)
                     setParameter("subtitle", subtitle)
                     setParameter("body", body)
-                    setParameter("showFrom", LocalDateTime(showFrom, DateTimeZone.UTC))
-                    setParameter("hideFrom", if (hideFrom != null) LocalDateTime(hideFrom, DateTimeZone.UTC) else null)
+                    setParameter("show_from", LocalDateTime(showFrom, DateTimeZone.UTC))
+                    setParameter("hide_from", if (hideFrom != null) LocalDateTime(hideFrom, DateTimeZone.UTC) else null)
                     setParameter("category", category)
                 },
                 """
                     UPDATE news
-                    SET title = :title, subtitle = :subtitle, body = :body, showFrom = :showFrom,
-                        hideFrom = :hideFrom, category = :category 
+                    SET title = :title, subtitle = :subtitle, body = :body, show_from = :show_from,
+                        hide_from = :hide_from, category = :category 
                     WHERE :id = id
                 """.trimIndent()
             )
