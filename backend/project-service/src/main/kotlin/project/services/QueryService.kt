@@ -1055,8 +1055,6 @@ class QueryService(
                         {
                             setParameter("parent", currentProject?.id)
                             setParameter("title", project)
-
-                            log.info("looking for ${currentProject?.id} and ${project}")
                         },
                         """
                             select * from projects
