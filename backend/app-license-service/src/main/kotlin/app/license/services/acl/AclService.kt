@@ -75,7 +75,7 @@ class AclService(
             if(!project.isNullOrBlank() && !group.isNullOrBlank()) {
                 AppLicenseController.log.debug("Verifying that project and group exists")
 
-                val projectInfo = Projects.lookupByTitle.call(
+                val projectInfo = Projects.lookupByPath.call(
                         LookupByTitleRequest(project),
                         authenticatedClient
                 ).orRethrowAs {

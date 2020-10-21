@@ -158,7 +158,7 @@ class QueryService(
                     select g.id, g.title, count(gm.username)
                     from groups g left join group_members gm on g.id = gm.group_id
                     where
-                        title = :title and project = :project
+                        lower(title) = lower(:title) and project = :project
                     group by g.id
                 """
             ).rows
@@ -1041,18 +1041,39 @@ class QueryService(
         )
     }
 
-    suspend fun lookupByTitle(
+    suspend fun lookupByPath(
         ctx: DBContext,
-        title: String
+        path: String
     ): Project? {
+        val projectPath = path.split("/").filter { it.isNotEmpty() }
+        var currentProject: Project? = null
+
         return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    { setParameter("title", title) },
-                    "select * from projects where title = :title"
-                )
-                .rows
-                .singleOrNull()?.toProject() ?: null
+            for (project in projectPath) {
+                currentProject = session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("parent", currentProject?.id)
+                            setParameter("title", project)
+
+                            log.info("looking for ${currentProject?.id} and ${project}")
+                        },
+                        """
+                            select * from projects
+                            where 
+                                lower(title) = lower(:title) and
+                                (
+                                    (parent is null and :parent::text is null) or
+                                    (:parent::text is not null and parent = :parent)
+                                )
+                        """
+                    )
+                    .rows
+                    .singleOrNull()
+                    ?.toProject() ?: return@withSession null
+            }
+
+            currentProject
         }
     }
 

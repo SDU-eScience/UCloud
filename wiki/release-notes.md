@@ -7,6 +7,13 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 21-10-20
+
+```
+✅  Deployment(project, 3.2.11) (UP-TO-DATE)
+✅  Deployment(webclient, 0.38.27) (UP-TO-DATE)
+```
+
 ## 19-10-20
 
 ```
