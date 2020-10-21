@@ -232,6 +232,12 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
                 sidebar={(
                     <VerticalButtonGroup>
+                        {this.state.application ?
+                            <Link to={`/applications/details/${this.state.application.metadata.name}/${this.state.application.metadata.version}/`}>
+                                <OutlineButton fullWidth>
+                                    App details
+                                </OutlineButton>
+                            </Link> : null}
                         <OutlineButton
                             onClick={() => importParameterDialog(
                                 file => this.importParameters(file),
