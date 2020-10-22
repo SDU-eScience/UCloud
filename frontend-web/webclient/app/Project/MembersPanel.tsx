@@ -42,7 +42,7 @@ const MembersPanel: React.FunctionComponent = () => {
     const onSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
         const inputField = newMemberRef.current!;
-        const username = inputField.value;
+        const username = inputField.value.trim();
         try {
             await runCommand(inviteMember({
                 projectId,
@@ -65,9 +65,6 @@ const MembersPanel: React.FunctionComponent = () => {
                         autoComplete="off"
                         disabled={isLoading}
                         ref={newMemberRef}
-                        onChange={e => {
-                            newMemberRef.current!.value = e.target.value;
-                        }}
                         rightLabel
                     />
                     <Button
