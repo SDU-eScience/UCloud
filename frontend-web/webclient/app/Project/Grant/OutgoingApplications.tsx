@@ -3,7 +3,6 @@ import {useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 import * as Heading from "ui-components/Heading";
-import {listOutgoingInvites} from "Project";
 import {List as PaginationList} from "Pagination";
 import {MainContainer} from "MainContainer/MainContainer";
 import {GrantApplication, GrantApplicationFilter, grantApplicationFilterPrettify, listOutgoingApplications} from ".";
@@ -17,7 +16,7 @@ import {TextP} from "ui-components/Text";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 
-const FilterTrigger = styled.div`
+export const FilterTrigger = styled.div`
     user-select: none;
     display: inline-block;
     width: calc(100% - 30px);

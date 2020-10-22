@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.escapeHtml
 import io.ktor.application.ApplicationCall
 import io.ktor.content.TextContent
 import io.ktor.features.origin
@@ -132,10 +133,10 @@ class LoginResponder(
                 <html lang="en">
                     <head>
                         <title>UCloud</title>
-                        <meta http-equiv='refresh' content="0; url='${resolvedService.endpoint}'" />
+                        <meta http-equiv='refresh' content="0; url='${escapeHtml(resolvedService.endpoint)}'" />
                     </head>
                     <body>
-                        <p>Please click <a href='${resolvedService.endpoint}'>here</a> if your browser does not redirect you automatically</p>
+                        <p>Please click <a href='${escapeHtml(resolvedService.endpoint)}'>here</a> if your browser does not redirect you automatically</p>
                     </body>
                 </html>
                 """

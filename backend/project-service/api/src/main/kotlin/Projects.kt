@@ -704,7 +704,7 @@ object Projects : CallDescriptionContainer("project") {
         }
     }
 
-    val lookupByTitle = call<LookupByTitleRequest, Project, CommonErrorMessage>("lookupByTitle") {
+    val lookupByPath = call<LookupByTitleRequest, Project, CommonErrorMessage>("lookupByPath") {
         auth {
             access = AccessRight.READ
             roles = Roles.PRIVILEGED

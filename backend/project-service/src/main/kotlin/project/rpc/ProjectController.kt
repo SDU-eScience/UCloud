@@ -3,7 +3,6 @@ package dk.sdu.cloud.project.rpc
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.project.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.services.*
 import dk.sdu.cloud.project.services.ProjectService
@@ -232,9 +231,9 @@ class ProjectController(
             )
         }
 
-        implement(Projects.lookupByTitle) {
+        implement(Projects.lookupByPath) {
             ok(
-                queries.lookupByTitle(db, request.title) ?: throw RPCException(
+                queries.lookupByPath(db, request.title) ?: throw RPCException(
                     "No project with that name",
                     HttpStatusCode.BadRequest
                 )
