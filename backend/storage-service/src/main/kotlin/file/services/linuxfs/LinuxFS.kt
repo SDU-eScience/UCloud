@@ -54,6 +54,144 @@ class LinuxFS(
         copyPreAuthorized(ctx, from, to, writeConflictPolicy)
     }
 
+    enum class PosixType{
+        OWNER,
+        GROUP,
+        OTHER
+    }
+
+    private fun setPermissions(originalPermission: String): MutableSet<PosixFilePermission> {
+        val permissions = mutableSetOf<PosixFilePermission>()
+        for (i in 0..2) {
+            val permissionTypeValue = Character.getNumericValue(originalPermission[i])
+            val permissionType = when (i) {
+                0 -> PosixType.OWNER
+                1 -> PosixType.GROUP
+                2 -> PosixType.OTHER
+                else -> null
+            }
+            if (permissionType == null) {
+                //Should never happen since its a for loop 0,1,2
+            } else {
+                when (permissionTypeValue) {
+                    0 -> {
+                        //DO NOTHING
+                    }
+                    1 -> {
+                        when (permissionType) {
+                            PosixType.OWNER -> {
+                                permissions.add(PosixFilePermission.OWNER_EXECUTE)
+                            }
+                            PosixType.GROUP -> {
+                                permissions.add(PosixFilePermission.GROUP_EXECUTE)
+                            }
+                            PosixType.OTHER -> {
+                                permissions.add(PosixFilePermission.OTHERS_EXECUTE)
+                            }
+                        }
+                    }
+                    2 -> {
+                        when (permissionType) {
+                            PosixType.OWNER -> {
+                                permissions.add(PosixFilePermission.OWNER_WRITE)
+                            }
+                            PosixType.GROUP -> {
+                                permissions.add(PosixFilePermission.GROUP_WRITE)
+                            }
+                            PosixType.OTHER -> {
+                                permissions.add(PosixFilePermission.OTHERS_WRITE)
+                            }
+                        }
+                    }
+                    3 -> {
+                        when (permissionType) {
+                            PosixType.OWNER -> {
+                                permissions.add(PosixFilePermission.OWNER_EXECUTE)
+                                permissions.add(PosixFilePermission.OWNER_WRITE)
+                            }
+                            PosixType.GROUP -> {
+                                permissions.add(PosixFilePermission.GROUP_EXECUTE)
+                                permissions.add(PosixFilePermission.GROUP_WRITE)
+                            }
+                            PosixType.OTHER -> {
+                                permissions.add(PosixFilePermission.OTHERS_EXECUTE)
+                                permissions.add(PosixFilePermission.OTHERS_WRITE)
+                            }
+                        }
+                    }
+                    4 -> {
+                        when (permissionType) {
+                            PosixType.OWNER -> {
+                                permissions.add(PosixFilePermission.OWNER_READ)
+                            }
+                            PosixType.GROUP -> {
+                                permissions.add(PosixFilePermission.GROUP_READ)
+                            }
+                            PosixType.OTHER -> {
+                                permissions.add(PosixFilePermission.OTHERS_READ)
+                            }
+                        }
+                    }
+                    5 -> {
+                        when (permissionType) {
+                            PosixType.OWNER -> {
+                                permissions.add(PosixFilePermission.OWNER_EXECUTE)
+                                permissions.add(PosixFilePermission.OWNER_READ)
+                            }
+                            PosixType.GROUP -> {
+                                permissions.add(PosixFilePermission.GROUP_EXECUTE)
+                                permissions.add(PosixFilePermission.GROUP_READ)
+                            }
+                            PosixType.OTHER -> {
+                                permissions.add(PosixFilePermission.OTHERS_EXECUTE)
+                                permissions.add(PosixFilePermission.OTHERS_READ)
+                            }
+                        }
+                    }
+                    6 -> {
+                        when (permissionType) {
+                            PosixType.OWNER -> {
+                                permissions.add(PosixFilePermission.OWNER_WRITE)
+                                permissions.add(PosixFilePermission.OWNER_READ)
+                            }
+                            PosixType.GROUP -> {
+                                permissions.add(PosixFilePermission.GROUP_WRITE)
+                                permissions.add(PosixFilePermission.GROUP_READ)
+                            }
+                            PosixType.OTHER -> {
+                                permissions.add(PosixFilePermission.OTHERS_WRITE)
+                                permissions.add(PosixFilePermission.OTHERS_READ)
+                            }
+                        }
+                    }
+                    7 -> {
+                        when (permissionType) {
+                            PosixType.OWNER -> {
+                                permissions.add(PosixFilePermission.OWNER_WRITE)
+                                permissions.add(PosixFilePermission.OWNER_READ)
+                                permissions.add(PosixFilePermission.OWNER_EXECUTE)
+                            }
+                            PosixType.GROUP -> {
+                                permissions.add(PosixFilePermission.GROUP_WRITE)
+                                permissions.add(PosixFilePermission.GROUP_READ)
+                                permissions.add(PosixFilePermission.GROUP_EXECUTE)
+                            }
+                            PosixType.OTHER -> {
+                                permissions.add(PosixFilePermission.OTHERS_WRITE)
+                                permissions.add(PosixFilePermission.OTHERS_READ)
+                                permissions.add(PosixFilePermission.OTHERS_EXECUTE)
+                            }
+                        }
+                    }
+                    else -> {
+                        //DO NOTHING
+                    }
+                }
+            }
+        }
+        return permissions
+    }
+
     private fun copyPreAuthorized(
         ctx: LinuxFSRunner,
         from: String,
@@ -86,6 +224,9 @@ class LinuxFS(
                     ins.copyTo(outs)
                 }
             }
+            val originalPermission = Integer.toOctalString(NativeFS.readNativeFilePermissons(systemFrom)).drop(3)
+            val permissionSet = setPermissions(originalPermission)
+            Files.setPosixFilePermissions(Paths.get(systemTo.absolutePath), permissionSet)
         }
     }
 

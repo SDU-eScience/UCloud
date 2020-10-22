@@ -11,10 +11,23 @@ import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.BulkFileAudit
+import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.StorageFileAttribute
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.linuxfs.NativeFS
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -28,19 +41,25 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.defaultForFilePath
 import io.ktor.request.ranges
 import io.ktor.response.header
-import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
+import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.jvm.javaio.toOutputStream
+import org.apache.commons.compress.archivers.zip.AsiExtraField
+import org.apache.commons.compress.archivers.zip.UnrecognizedExtraField
+import org.apache.commons.compress.archivers.zip.Zip64Mode
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
+import org.apache.commons.compress.archivers.zip.ZipExtraField
+import org.apache.commons.compress.archivers.zip.ZipShort
+import java.io.File
 import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 
 class SimpleDownloadController<Ctx : FSUserContext>(
     private val cloud: AuthenticatedClient,
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val fileLookupService: FileLookupService<Ctx>
+    private val fileLookupService: FileLookupService<Ctx>,
+    private val cephFsRoot: String
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileDescriptions.download) {
@@ -105,7 +124,9 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                         principal.subject,
                                         principalToVerify = principal.toSecurityToken().principal
                                     ) { ctx ->
-                                        ZipArchiveOutputStream(toOutputStream()).use { os ->
+                                        val zaos = ZipArchiveOutputStream(toOutputStream())
+                                        zaos.setUseZip64(Zip64Mode.Always)
+                                        zaos.use { os ->
                                             val rootFileName = stat.path.fileName()
                                             os.putArchiveEntry(ZipArchiveEntry("$rootFileName/"))
                                             os.closeArchiveEntry()
@@ -133,11 +154,18 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                                 }
 
                                                 if (item.fileType == FileType.FILE) {
-                                                    os.putArchiveEntry(ZipArchiveEntry(filePath))
+                                                    val absoFilePath = joinPath(
+                                                        cephFsRoot,
+                                                        stat.path,
+                                                        item.path.substringAfter(stat.path).removePrefix("/")
+                                                    )
+                                                    val perm = NativeFS.readNativeFilePermissons(File(absoFilePath))
+                                                    val entry = ZipArchiveEntry(filePath)
+                                                    entry.unixMode = perm
+                                                    os.putArchiveEntry(entry)
 
                                                     try {
                                                         fs.read(ctx, item.path) { copyTo(os) }
-                                                        os.closeArchiveEntry()
                                                     } catch (ex: FSException.PermissionException) {
                                                         // Skip files we don't have permissions for
                                                     } finally {

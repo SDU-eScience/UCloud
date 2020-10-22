@@ -1,4 +1,4 @@
-version = "4.2.15-ZipApache"
+version = "4.2.15"
 
 application {
     mainClassName = "dk.sdu.cloud.file.MainKt"

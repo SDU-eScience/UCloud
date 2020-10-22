@@ -364,6 +364,25 @@ object NativeFS : Loggable {
         }
     }
 
+    fun readNativeFilePermissons(path: File): Int {
+        return if (Platform.isLinux()) {
+            val fd = openFile(path.absolutePath)
+            if (fd < 0) throw FSException.NotFound()
+            val st = stat()
+            st.write()
+            val err = CLibrary.INSTANCE.__fxstat64(1, fd, st.pointer)
+            st.read()
+            CLibrary.INSTANCE.close(fd)
+            if (err < 0) {
+                throw FSException.NotFound()
+            }
+            st.st_mode
+        } else {
+            // rw-rw-rw- in octal
+            304472
+        }
+    }
+
     fun stat(path: File): NativeStat {
         if (Platform.isLinux()) {
             val fd = openFile(path.absolutePath)
