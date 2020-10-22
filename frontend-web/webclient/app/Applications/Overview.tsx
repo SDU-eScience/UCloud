@@ -334,7 +334,7 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
 
 function removeTagFromTitle(tag: string, title: string): string {
     if (title.startsWith(tag)) {
-        const titlenew = title.replace(/homerTools/g, "").replace(/seqtk/i, "");
+        const titlenew = title.replace(/homerTools/g, "").replace(/seqtk: /i, "");
         if (titlenew.endsWith("pl")) {
             return titlenew.slice(tag.length + 2, -3);
         } else {
