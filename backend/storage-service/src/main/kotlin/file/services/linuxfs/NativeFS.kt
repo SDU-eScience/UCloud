@@ -188,7 +188,7 @@ object NativeFS : Loggable {
         }
     }
 
-    fun openForWriting(path: File, allowOverwrite: Boolean, owner: Int? = LINUX_FS_USER_UID): OutputStream {
+    fun openForWriting(path: File, allowOverwrite: Boolean, owner: Int? = LINUX_FS_USER_UID, permissions: Int?): OutputStream {
         if (Platform.isLinux()) {
             val exists = if (owner != null) runCatching { stat(path) }.isSuccess else null
 
@@ -205,6 +205,9 @@ object NativeFS : Loggable {
 
             if (owner != null && exists == false) {
                 CLibrary.INSTANCE.fchown(fd, owner, owner)
+            }
+            if (permissions != null && exists == false) {
+                CLibrary.INSTANCE.fchmod(fd, permissions)
             }
 
             return LinuxOutputStream(fd)
