@@ -13,10 +13,11 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {Client} from "Authentication/HttpClientInstance";
 import {Spacer} from "ui-components/Spacer";
 import {DatePicker} from "ui-components/DatePicker";
-import {DATE_FORMAT} from "Admin/NewsManagement";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {Categories, DATE_FORMAT} from "Admin/NewsManagement";
+import {capitalized, errorMessageOrDefault} from "UtilityFunctions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {addStandardDialog} from "UtilityComponents";
+import Fuse from "fuse.js";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
@@ -102,8 +103,36 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
     const [body, setBody] = React.useState(props.post.body);
     const [showFrom, setShowFrom] = React.useState(new Date(props.post.showFrom));
     const [hideFrom, setHideFrom] = React.useState(props.post.hideFrom != null ? new Date(props.post.hideFrom) : null);
-    const categoryRef = React.useRef(props.post.category);
+    const categoryRef = React.useRef<HTMLInputElement>(null);
     const [preview, setPreview] = React.useState(false);
+
+    const [categories] = useCloudAPI<string[]>({
+        path: "/news/listCategories"
+    }, []);
+
+    const [fuse, setFuse] = React.useState(new Fuse([] as string[], {
+        shouldSort: true,
+        threshold: 0.2,
+        location: 0,
+        distance: 100,
+        minMatchCharLength: 1,
+    }));
+
+    React.useEffect(() => {
+        setFuse(new Fuse(categories.data, {
+            shouldSort: true,
+            threshold: 0.2,
+            location: 0,
+            distance: 100,
+            minMatchCharLength: 1,
+        }));
+    }, [categories.data, categories.data.length]);
+
+    const [results, setResults] = React.useState<string[]>([]);
+    const onKeyUp = React.useCallback((e) => {
+        const category = e.target?.value ?? "";
+        setResults(fuse.search(category).map(it => capitalized(it.item)));
+    }, [categoryRef.current, categories.data, categories.data.length, fuse]);
 
     return <MainContainer
         headerSize={0}
@@ -154,10 +183,20 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                                 />
                             </Flex>
                         </Text>
-                        <Tag
-                            label={props.post.category}
-                            bg={theme.appColors[appColor(hashF(props.post.category))][0]}
+                        <Input
+                            width={1}
+                            autoComplete="off"
+                            onKeyUp={onKeyUp}
+                            defaultValue={props.post.category}
+                            my="3px"
+                            placeholder="Category"
+                            required
+                            ref={categoryRef}
                         />
+                        <Categories categories={results} onSelect={category => {
+                            categoryRef.current!.value = category;
+                            setResults([]);
+                        }} />
                     </Box>
                     <SelectableTextWrapper>
                         <SelectableText onClick={() => setPreview(false)} selected={preview === false}>Edit</SelectableText>
@@ -177,15 +216,48 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
     async function onSubmit(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
 
+        const title = titleRef.current?.value;
+        const subtitle = subtitleRef.current?.value;
+        let category = categoryRef.current?.value;
+
+        if (title == null || title === "") {
+            snackbarStore.addFailure("Title can't be empty", false);
+            return;
+        } else if (subtitle == null || subtitle === "") {
+            snackbarStore.addFailure("Subtitle can't be empty", false);
+            return;
+        } else if (body == null || body === "") {
+            snackbarStore.addFailure("Body can't be empty.", false);
+            return;
+        } else if (hideFrom != null && showFrom.getTime() > hideFrom.getTime()) {
+            snackbarStore.addFailure("End time cannot be before start.", false);
+            return;
+        } else if (category == null || category === "") {
+            snackbarStore.addFailure("Please add a category.", false);
+            return;
+        }
+
         try {
+            if (!(categories.data).map(it => it.toLocaleLowerCase()).includes(category.toLocaleLowerCase())) {
+                const proceed = await new Promise(resolve => addStandardDialog({
+                    title: "Create category?",
+                    message: `${category} doesn't exist, create it?`,
+                    onConfirm: () => resolve(true),
+                    onCancel: () => resolve(false)
+                }));
+                if (!proceed) return;
+            } else {
+                category = categories.data.find(it => it.toLowerCase() === category?.toLowerCase());
+            }
+
             await Client.post("/news/update", {
                 id: props.post.id,
-                title: titleRef.current?.value ?? "",
-                subtitle: subtitleRef.current?.value ?? "",
+                title,
+                subtitle,
                 body,
                 showFrom: showFrom.getTime(),
                 hideFrom: hideFrom?.getTime() ?? null,
-                category: props.post.category
+                category
             } as NewsPost);
             props.stopEditing(true);
         } catch (err) {
