@@ -3,14 +3,10 @@ package dk.sdu.cloud.news.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
-import io.ktor.http.HttpMethod
+import io.ktor.http.*
 
 data class NewsPost(
     val id: Long,
@@ -54,6 +50,20 @@ typealias TogglePostHiddenResponse = Unit
 data class GetPostByIdRequest(val id: Long)
 typealias GetPostByIdResponse = NewsPost
 
+data class UpdatePostRequest(
+    val id: Long,
+    val title: String,
+    val subtitle: String,
+    val body: String,
+    val showFrom: Long,
+    val hideFrom: Long?,
+    val category: String
+)
+typealias UpdatePostResponse = Unit
+
+data class DeleteNewsPostRequest(val id: Long)
+typealias DeleteNewsPostResponse = Unit;
+
 object News : CallDescriptionContainer("news") {
     val baseContext = "/api/news"
 
@@ -75,7 +85,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val togglePostHidden = call<TogglePostHiddenRequest, TogglePostHiddenResponse, CommonErrorMessage>("togglePostHidden") {
+    val updatePost = call<UpdatePostRequest, UpdatePostResponse, CommonErrorMessage>("updatePost") {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.ADMIN
@@ -86,12 +96,49 @@ object News : CallDescriptionContainer("news") {
 
             path {
                 using(baseContext)
-                +"toggleHidden"
-
-                body { bindEntireRequestFromBody() }
+                +"update"
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
+
+    val deletePost = call<DeleteNewsPostRequest, DeleteNewsPostResponse, CommonErrorMessage>("deletePost") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.ADMIN
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+                +"delete"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val togglePostHidden =
+        call<TogglePostHiddenRequest, TogglePostHiddenResponse, CommonErrorMessage>("togglePostHidden") {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.ADMIN
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"toggleHidden"
+
+                    body { bindEntireRequestFromBody() }
+                }
+            }
+        }
 
     val listCategories = call<ListCategoriesRequest, ListCategoriesResponse, CommonErrorMessage>("listCategories") {
         auth {

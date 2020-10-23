@@ -50,6 +50,54 @@ class NewsService {
         }
     }
 
+    suspend fun updateNewsPost(
+        ctx: DBContext,
+        id: Long,
+        title: String,
+        subtitle: String,
+        body: String,
+        showFrom: Long,
+        hideFrom: Long?,
+        category: String
+    ) {
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                    setParameter("title", title)
+                    setParameter("subtitle", subtitle)
+                    setParameter("body", body)
+                    setParameter("show_from", LocalDateTime(showFrom, DateTimeZone.UTC))
+                    setParameter("hide_from", if (hideFrom != null) LocalDateTime(hideFrom, DateTimeZone.UTC) else null)
+                    setParameter("category", category)
+                },
+                """
+                    UPDATE news
+                    SET title = :title, subtitle = :subtitle, body = :body, show_from = :show_from,
+                        hide_from = :hide_from, category = :category 
+                    WHERE :id = id
+                """.trimIndent()
+            )
+        }
+    }
+
+    suspend fun deleteNewsPost(
+        ctx: DBContext,
+        id: Long
+    ) {
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
+                """
+                    DELETE FROM News
+                    WHERE id = :id
+                """.trimIndent()
+            )
+        }
+    }
+
     suspend fun listNewsPosts(
         ctx: DBContext,
         pagination: NormalizedPaginationRequest,

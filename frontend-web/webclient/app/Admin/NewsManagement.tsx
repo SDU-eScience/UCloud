@@ -22,7 +22,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import Fuse from "fuse.js";
 import {addStandardDialog} from "UtilityComponents";
 
-const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
+export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
 function NewsManagement(): JSX.Element | null {
     const [start, setStart] = React.useState<Date | null>(null);
