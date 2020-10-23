@@ -1386,7 +1386,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              6 months
               <br />
               11 May 2020 10:52
             </div>
