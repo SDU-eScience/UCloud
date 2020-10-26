@@ -267,6 +267,11 @@ export const isFixedFolder = (filePath: string): boolean => {
     else return false;
 };
 
+export function isMembersFiles(filePath: string): boolean {
+    const components = pathComponents(filePath);
+    return components.length === 3 && components[0] === "projects" && components[2] === "Members' Files";
+}
+
 interface ReclassifyFile {
     file: File;
     sensitivity: SensitivityLevelMap;
