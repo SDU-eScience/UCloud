@@ -358,3 +358,44 @@ export function listJobs(props: ListJobsProps): APICallParameters<ListJobsProps>
         )
     };
 }
+
+export const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
+    switch (state) {
+        case JobState.IN_QUEUE:
+            return 0;
+        case JobState.RUNNING:
+            return 1;
+        /*
+        case JobState.READY:
+        return 2;
+        */
+        case JobState.SUCCESS:
+            return 3;
+        case JobState.FAILURE:
+            return 3;
+        default:
+            return 0;
+    }
+};
+
+export const isStateComplete = (state: JobState, currentState: JobState): boolean =>
+    stateToOrder(state) < stateToOrder(currentState);
+
+export const stateToTitle = (state: JobState): string => {
+    switch (state) {
+        case JobState.FAILURE:
+            return "Failure";
+        case JobState.IN_QUEUE:
+            return "In queue";
+        case JobState.RUNNING:
+            return "Running";
+        case JobState.SUCCESS:
+            return "Success";
+        /*
+        case JobState.READY:
+        return "Ready";
+        */
+        default:
+            return "Unknown";
+    }
+};

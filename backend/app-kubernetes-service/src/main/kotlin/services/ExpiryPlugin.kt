@@ -28,6 +28,7 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
     override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {
         val metadata = jobFromServer.metadata ?: return
         val maxTime = jobFromServer.maxTime ?: error("no max time attached to job: $jobId")
+        if (jobFromServer.jobStart != null) return // Job had already been started earlier
 
         val start = Time.now()
         val expiry = (start + maxTime)
@@ -64,7 +65,9 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
             val metadata = job.metadata ?: continue
             val name = metadata.name ?: error("no name")
             val namespace = metadata.namespace ?: error("no namespace")
+            log.debug("looking at $$name")
             val expiry = metadata.annotations?.get(EXPIRY_ANNOTATION)?.toString()?.toLongOrNull() ?: continue
+            log.debug("expiry in ${expiry - now}")
             if (now >= expiry) {
                 k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
             } else {

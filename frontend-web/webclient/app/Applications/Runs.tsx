@@ -39,6 +39,7 @@ import {AppToolLogo} from "./AppToolLogo";
 import styled from "styled-components";
 import {ListRow, ListRowStat} from "ui-components/List";
 import {creditFormatter} from "Project/ProjectUsage";
+import {stateToTitle} from "Applications/api";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -195,7 +196,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                         )}
                                         <Flex width="110px">
                                             <JobStateIcon state={it.state} isExpired={isExpired} mr="8px" />
-                                            <Flex mt="-3px">{isExpired ? "Expired" : capitalized(it.state)}</Flex>
+                                            <Flex mt="-3px">{isExpired ? "Expired" : stateToTitle(it.state)}</Flex>
                                         </Flex>
                                     </>}
                                 />

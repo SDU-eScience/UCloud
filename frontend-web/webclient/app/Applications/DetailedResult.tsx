@@ -39,6 +39,7 @@ import {JobStateIcon} from "./JobStateIcon";
 import {runApplication} from "./Pages";
 import {pad} from "./View";
 import {callAPIWithErrorHandler} from "Authentication/DataHook";
+import {isStateComplete, stateToOrder, stateToTitle} from "Applications/api";
 
 interface DetailedResultOperations {
     setPageTitle: (jobId: string) => void;
@@ -240,13 +241,21 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                             <b>Time remaining:&nbsp;</b>
                                             <TimeRemaining timeInMs={timeLeft}/>
 
-                                            <Box flexGrow={1} />
+                                            <Box flexGrow={1}/>
 
                                             <ButtonGroup>
-                                                <Button onClick={() => { extend(1); }}>+1 hr</Button>
-                                                <Button onClick={() => { extend(10); }}>+10 hrs</Button>
-                                                <Button onClick={() => { extend(24); }}>+24 hrs</Button>
-                                                <Button onClick={() => { extend(48); }}>+48 hrs</Button>
+                                                <Button onClick={() => {
+                                                    extend(1);
+                                                }}>+1 hr</Button>
+                                                <Button onClick={() => {
+                                                    extend(10);
+                                                }}>+10 hrs</Button>
+                                                <Button onClick={() => {
+                                                    extend(24);
+                                                }}>+24 hrs</Button>
+                                                <Button onClick={() => {
+                                                    extend(48);
+                                                }}>+48 hrs</Button>
                                             </ButtonGroup>
                                         </Flex>
                                     </InfoBox>
@@ -258,12 +267,21 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     <Spacer
                         width={1}
                         left={
-                            appState !== JobState.RUNNING || interactiveLink === null ? null : (
-                                <InteractiveApplicationLink
-                                    type={application.invocation.applicationType}
-                                    interactiveLink={interactiveLink}
-                                />
-                            )}
+                            <>
+                                {appState !== JobState.RUNNING || interactiveLink === null ? null : (
+                                    <InteractiveApplicationLink
+                                        type={application.invocation.applicationType}
+                                        interactiveLink={interactiveLink}
+                                    />
+                                )}
+
+                                {appState !== JobState.RUNNING ? null : (
+                                    <Link to={`/applications/shell/${jobId}/0`}>
+                                        <Button color={"green"} type={"button"}>Go to shell</Button>
+                                    </Link>
+                                )}
+                            </>
+                        }
                         right={
                             !inCancelableState(appState) ? null :
                                 <Button ml="8px" color="red" onClick={() => onCancelJob(jobId)}>Cancel job</Button>
@@ -354,47 +372,6 @@ const InteractiveApplicationLink: React.FunctionComponent<{
             return <Link to={props.interactiveLink}><Button color="green">Go to interface</Button></Link>;
         case ApplicationType.BATCH:
             return null;
-    }
-};
-
-const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
-    switch (state) {
-        case JobState.IN_QUEUE:
-            return 0;
-        case JobState.RUNNING:
-            return 1;
-        /*
-        case JobState.READY:
-            return 2;
-        */
-        case JobState.SUCCESS:
-            return 3;
-        case JobState.FAILURE:
-            return 3;
-        default:
-            return 0;
-    }
-};
-
-const isStateComplete = (state: JobState, currentState: JobState): boolean =>
-    stateToOrder(state) < stateToOrder(currentState);
-
-const stateToTitle = (state: JobState): string => {
-    switch (state) {
-        case JobState.FAILURE:
-            return "Failure";
-        case JobState.IN_QUEUE:
-            return "In queue";
-        case JobState.RUNNING:
-            return "Running";
-        case JobState.SUCCESS:
-            return "Success";
-        /*
-        case JobState.READY:
-            return "Ready";
-        */
-        default:
-            return "Unknown";
     }
 };
 
