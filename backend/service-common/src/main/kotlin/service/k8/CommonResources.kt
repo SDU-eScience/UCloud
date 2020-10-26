@@ -18,6 +18,7 @@ object KubernetesResources {
     val namespaces = KubernetesResourceLocator(API_GROUP_CORE, "v1", "namespaces", namespace = NAMESPACE_ANY)
     val persistentVolumes = KubernetesResourceLocator(API_GROUP_CORE, "v1", "persistentvolumes", null, NAMESPACE_ANY)
     val services = KubernetesResourceLocator(API_GROUP_CORE, "v1", "services")
+    val networkPolicies = KubernetesResourceLocator("networking.k8s.io", "v1", "networkpolicies")
 }
 
 typealias KubernetesTimestamp = Date
@@ -550,6 +551,46 @@ data class ServicePort(
     var protocol: String? = null,
     var targetPort: Any? = null
 )
+
+data class NetworkPolicy(
+    var apiVersion: String = "networking.k8s.io/v1",
+    var kind: String = "NetworkPolicy",
+    var metadata: ObjectMeta? = null,
+    var spec: Spec? = null
+) {
+    data class Spec(
+        var egress: List<EgressRule>? = emptyList(),
+        var ingress: List<IngressRule>? = emptyList(),
+        var podSelector: LabelSelector? = null,
+        var policyTypes: List<String>? = emptyList()
+    )
+
+    data class EgressRule(
+        var ports: List<Port>? = emptyList(),
+        var to: List<Peer>? = emptyList()
+    )
+
+    data class Port(
+        var port: Any? = null,
+        var protocol: String? = null
+    )
+
+    data class Peer(
+        var ipBlock: IPBlock? = null,
+        var namespaceSelector: LabelSelector? = null,
+        var podSelector: LabelSelector? = null,
+    )
+
+    data class IPBlock(
+        var cidr: String? = null,
+        var except: List<String>? = emptyList()
+    )
+
+    data class IngressRule(
+        var from: List<Peer>? = emptyList(),
+        var ports: List<Port>? = emptyList()
+    )
+}
 
 inline class KubernetesNode(val raw: JsonNode)
 
