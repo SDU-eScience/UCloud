@@ -994,7 +994,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              6 months
               <br />
               12 May 2020 15:56
             </div>
@@ -1068,7 +1068,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              6 months
               <br />
               12 May 2020 11:57
             </div>
@@ -1160,7 +1160,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              6 months
               <br />
               12 May 2020 11:57
             </div>
@@ -1236,7 +1236,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              6 months
               <br />
               12 May 2020 11:09
             </div>
@@ -1310,7 +1310,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              6 months
               <br />
               11 May 2020 14:52
             </div>
