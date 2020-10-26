@@ -68,6 +68,7 @@ class JobManagement(
     private val fullScanFrequency: Long = 1000L * 60 * 15
 ) {
     private val plugins = ArrayList<JobManagementPlugin>()
+
     data class ScheduledMonitoringJob(val jobId: String, val timestamp: Long) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -78,6 +79,7 @@ class JobManagement(
             return jobId.hashCode()
         }
     }
+
     private val scheduledForMonitoring = HashSet<ScheduledMonitoringJob>()
     private val mutex = Mutex()
 
@@ -218,7 +220,7 @@ class JobManagement(
 
                 var nextFullScan = 0L
 
-                listenerLoop@while (currentCoroutineContext().isActive) {
+                listenerLoop@ while (currentCoroutineContext().isActive) {
                     if (volcanoWatch.isClosedForReceive) {
                         log.info("Stopped receiving new Volcano job watch events. Restarting watcher.")
                         volcanoWatch = k8.client.watchResource(
@@ -486,25 +488,20 @@ class JobManagement(
 
     fun verifyJobs(jobs: List<VerifiedJob>) {
         k8.scope.launch {
-            for (job in jobs) {
-                val name = k8.nameAllocator.jobIdToJobName(job.id)
-                val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
-                try {
-                    k8.client.getResource<VolcanoJob>(
-                        KubernetesResources.volcanoJob.withNameAndNamespace(
-                            name,
-                            namespace
-                        )
-                    )
-                } catch (ex: KubernetesException) {
-                    if (ex.statusCode == HttpStatusCode.NotFound) {
-                        log.info("We appear to have lost the following job: ${job.id}")
+            val jobsByNamespace = jobs.map { it.id }.groupBy { k8.nameAllocator.jobIdToNamespace(it) }
+            for ((ns, jobs) in jobsByNamespace) {
+                val knownJobs = k8.client
+                    .listResources<VolcanoJob>(KubernetesResources.volcanoJob.withNamespace(ns))
+                    .mapNotNull { k8.nameAllocator.jobNameToJobId(it.metadata?.name ?: return@mapNotNull null) }
+                    .toSet()
+
+                for (job in jobs) {
+                    if (job !in knownJobs) {
+                        log.info("We appear to have lost the following job: ${job}")
                         ComputationCallbackDescriptions.completed.call(
-                            JobCompletedRequest(job.id, SimpleDuration.fromMillis(0), true),
+                            JobCompletedRequest(job, SimpleDuration.fromMillis(0), true),
                             k8.serviceClient
                         ).orThrow()
-                    } else {
-                        throw ex
                     }
                 }
             }
