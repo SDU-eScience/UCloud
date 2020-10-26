@@ -176,7 +176,7 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
         } catch (ex: KubernetesException) {
             if (ex.statusCode == HttpStatusCode.BadRequest || ex.statusCode == HttpStatusCode.NotFound) {
                 // Generally ignored but log to debug in case this wasn't supposed to happen
-                log.debug(ex.stackTraceToString())
+                log.trace("Failed to cleanup after $jobId. Resources does not exist.")
             } else {
                 throw ex
             }

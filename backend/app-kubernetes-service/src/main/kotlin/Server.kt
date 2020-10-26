@@ -40,10 +40,8 @@ class Server(
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
-        val distributedStateFactory = RedisDistributedStateFactory(micro)
         val jobCache = VerifiedJobCache(serviceClient)
-        val uidCache = UserUidCache(serviceClient)
-        val nameAllocator = NameAllocator(jobCache, uidCache)
+        val nameAllocator = NameAllocator()
         val db = AsyncDBSessionFactory(micro.databaseConfig)
 
         val k8sClient = KubernetesClient()

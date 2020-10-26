@@ -111,6 +111,11 @@ class AppKubernetesController(
             ok(Unit)
         }
 
+        implement(AppKubernetesDescriptions.verifyJobs) {
+            jobManagement.verifyJobs(request.jobs)
+            ok(Unit)
+        }
+
         return@configure
     }
 

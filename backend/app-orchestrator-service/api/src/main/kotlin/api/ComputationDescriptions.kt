@@ -54,6 +54,9 @@ data class UpdateJobDeadlineRequest(
 
 typealias UpdateJobDeadlineResponse = Unit
 
+data class ComputeVerifyJobsRequest(val jobs: List<VerifiedJob>)
+typealias ComputeVerifyJobsResponse = Unit
+
 /**
  * Abstract [RESTDescriptions] for computation backends.
  *
@@ -278,6 +281,24 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
             path {
                 using(baseContext)
                 +"update-deadline"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val verifyJobs = call<ComputeVerifyJobsRequest, ComputeVerifyJobsResponse, CommonErrorMessage>("verifyJobs") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"verify"
             }
 
             body { bindEntireRequestFromBody() }

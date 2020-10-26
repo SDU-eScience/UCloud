@@ -1,7 +1,10 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.app.orchestrator.api.ComputeVerifyJobsRequest
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobStateChange
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.DistributedLock
 import dk.sdu.cloud.service.DistributedLockFactory
@@ -10,10 +13,8 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import io.ktor.http.*
+import kotlinx.coroutines.*
 import kotlin.random.Random
 
 class JobMonitoringService(
@@ -23,6 +24,8 @@ class JobMonitoringService(
     private val applicationService: ApplicationService,
     private val verificationService: JobVerificationService,
     private val jobOrchestrator: JobOrchestrator,
+    private val computationBackendService: ComputationBackendService,
+    private val serviceClient: AuthenticatedClient,
 ) {
     suspend fun initialize() {
         scope.launch {
@@ -75,6 +78,17 @@ class JobMonitoringService(
                         )
                         .rows
                         .mapNotNull { it.toVerifiedJob(false, applicationService) }
+
+                    val jobsByBackend = jobs.map { it.job }.groupBy { it.backend }
+                    scope.launch {
+                        jobsByBackend.forEach { (backend, jobs) ->
+                            val service = computationBackendService.getAndVerifyByName(backend)
+                            val resp = service.verifyJobs.call(ComputeVerifyJobsRequest(jobs), serviceClient)
+                            if (!resp.statusCode.isSuccess()) {
+                                log.info("Failed to verify block in $backend. Jobs: ${jobs.map { it.id }}")
+                            }
+                        }
+                    }
 
                     for (jobWithToken in jobs) {
                         log.debug("Checking permissions of ${jobWithToken.job.id}")

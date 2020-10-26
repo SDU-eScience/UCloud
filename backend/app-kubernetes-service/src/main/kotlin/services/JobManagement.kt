@@ -484,6 +484,33 @@ class JobManagement(
         }
     }
 
+    fun verifyJobs(jobs: List<VerifiedJob>) {
+        k8.scope.launch {
+            for (job in jobs) {
+                val name = k8.nameAllocator.jobIdToJobName(job.id)
+                val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
+                try {
+                    k8.client.getResource<VolcanoJob>(
+                        KubernetesResources.volcanoJob.withNameAndNamespace(
+                            name,
+                            namespace
+                        )
+                    )
+                } catch (ex: KubernetesException) {
+                    if (ex.statusCode == HttpStatusCode.NotFound) {
+                        log.info("We appear to have lost the following job: ${job.id}")
+                        ComputationCallbackDescriptions.completed.call(
+                            JobCompletedRequest(job.id, SimpleDuration.fromMillis(0), true),
+                            k8.serviceClient
+                        ).orThrow()
+                    } else {
+                        throw ex
+                    }
+                }
+            }
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
     }

@@ -98,7 +98,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             distributedLocks,
             applicationService,
             jobVerificationService,
-            jobOrchestrator
+            jobOrchestrator,
+            computationBackendService,
+            serviceClient
         )
 
         val streamFollowService =
