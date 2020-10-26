@@ -70,6 +70,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val normalizedFrom = from.normalize()
         val fromStat = stat(ctx, from, setOf(StorageFileAttribute.fileType, StorageFileAttribute.size))
 
+
         // The to stat makes sure that we have checked permissions against the target before we continue
         stat(ctx, to.parent(), setOf(StorageFileAttribute.fileType, StorageFileAttribute.size))
         limitChecker.checkLimitAndQuota(to)
