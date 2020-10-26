@@ -463,7 +463,7 @@ class LinuxFS(
                 NativeFS.openForWriting(
                     systemFile,
                     allowOverwrite,
-                    permissions = NativeFS.readNativeFilePermissons(systemFile)
+                    permissions = null
                 ))
             ctx.outputSystemFile = systemFile
         } else {
