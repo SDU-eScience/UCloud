@@ -177,10 +177,8 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         let intervalId: number = -1;
         if (appState === JobState.RUNNING && jobWithStatus !== null &&
             (jobWithStatus.maxTime !== null || jobWithStatus.expiresAt !== null)) {
-            console.log("Installing new setInterval");
+            const expiresAt = jobWithStatus.expiresAt ? jobWithStatus.expiresAt : Date.now() + jobWithStatus.maxTime!;
             intervalId = window.setInterval(() => {
-                const expiresAt = jobWithStatus.expiresAt ? jobWithStatus.expiresAt : Date.now() + jobWithStatus.maxTime!;
-                console.log(jobWithStatus.expiresAt);
                 setTimeLeft(expiresAt - Date.now());
             }, 500);
         }
