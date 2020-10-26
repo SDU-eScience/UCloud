@@ -199,7 +199,6 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         case RequestTarget.PERSONAL_PROJECT: {
             const {projectId} = useParams<{ projectId: string }>();
             targetProject = projectId;
-            console.log(targetProject)
             const [w, fetchWallets] = useCloudAPI<RetrieveBalanceResponse>(
                 {noop: true},
                 {wallets: []}
