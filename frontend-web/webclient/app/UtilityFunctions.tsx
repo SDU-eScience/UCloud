@@ -143,6 +143,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "txt":
         case "doc":
         case "docx":
+        case "log":
         case "csv":
         case "plist":
             return "text";
