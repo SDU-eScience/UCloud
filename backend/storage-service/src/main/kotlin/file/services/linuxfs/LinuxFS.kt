@@ -81,8 +81,13 @@ class LinuxFS(
                 NativeFS.createDirectories(systemTo)
             }
         } else {
+            val originalPermission = NativeFS.readNativeFilePermissons(systemFrom)
             NativeFS.openForReading(systemFrom).use { ins ->
-                NativeFS.openForWriting(systemTo, writeConflictPolicy.allowsOverwrite()).use { outs ->
+                NativeFS.openForWriting(
+                    systemTo,
+                    writeConflictPolicy.allowsOverwrite(),
+                    permissions = originalPermission
+                ).use { outs ->
                     ins.copyTo(outs)
                 }
             }
@@ -444,7 +449,6 @@ class LinuxFS(
         log.debug("${ctx.user} is attempting to open $path")
         val systemFile = File(translateAndCheckFile(ctx, path))
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
-
         val components = path.normalize().components()
         if (ctx.user != SERVICE_USER) {
             if ((components.size == 3 && components[0] == "projects") ||
@@ -455,7 +459,12 @@ class LinuxFS(
         }
 
         if (ctx.outputStream == null) {
-            ctx.outputStream = BufferedOutputStream(NativeFS.openForWriting(systemFile, allowOverwrite))
+            ctx.outputStream = BufferedOutputStream(
+                NativeFS.openForWriting(
+                    systemFile,
+                    allowOverwrite,
+                    permissions = NativeFS.readNativeFilePermissons(systemFile)
+                ))
             ctx.outputSystemFile = systemFile
         } else {
             log.warn("openForWriting called twice without closing old file!")

@@ -56,6 +56,7 @@ class Server(
         val fsRootFile =
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+        val cephFsRootPath = (cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder
 
         log.info("Serving files from ${fsRootFile.absolutePath}")
 
@@ -146,7 +147,8 @@ class Server(
                     commandRunnerForCalls,
                     coreFileSystem,
                     tokenValidation,
-                    fileLookupService
+                    fileLookupService,
+                    cephFsRootPath
                 ),
 
                 MultiPartUploadController(
