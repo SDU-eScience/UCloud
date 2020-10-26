@@ -11,7 +11,6 @@ import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch

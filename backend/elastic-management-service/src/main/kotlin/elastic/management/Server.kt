@@ -14,7 +14,6 @@ import dk.sdu.cloud.micro.commandLineArguments
 import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import elastic.management.services.ElasticEntryCleanupService
 import elastic.management.services.Grafana

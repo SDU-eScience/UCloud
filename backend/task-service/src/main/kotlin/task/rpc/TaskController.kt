@@ -6,7 +6,6 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.task.api.Tasks
 import dk.sdu.cloud.task.services.SubscriptionService
 import dk.sdu.cloud.task.services.TaskService

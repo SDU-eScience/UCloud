@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.services.linuxfs.NativeFS
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import java.io.File
 
 object CephFsFastDirectoryStats : Loggable {

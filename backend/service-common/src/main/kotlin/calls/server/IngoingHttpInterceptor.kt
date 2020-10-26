@@ -14,7 +14,6 @@ import dk.sdu.cloud.calls.httpOrNull
 import dk.sdu.cloud.calls.toKtorTemplate
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.content.TextContent

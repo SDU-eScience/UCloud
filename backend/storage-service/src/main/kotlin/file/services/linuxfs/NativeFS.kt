@@ -249,7 +249,7 @@ object NativeFS : Loggable {
     }
 
     fun listFiles(path: File): List<String> {
-        if (Platform.isLinux()) {
+        if (Platform.isLinux()){
             with(CLibrary.INSTANCE) {
                 val fd = openFile(path.absolutePath)
                 if (fd < 0) {

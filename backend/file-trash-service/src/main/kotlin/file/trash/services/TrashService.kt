@@ -7,7 +7,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.task.api.Progress
 import dk.sdu.cloud.task.api.runTask
 import io.ktor.http.HttpStatusCode

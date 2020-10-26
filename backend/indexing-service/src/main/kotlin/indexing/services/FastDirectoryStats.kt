@@ -1,7 +1,6 @@
 package dk.sdu.cloud.indexing.services
 
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 
 interface FastDirectoryStats {
     fun getRecursiveSize(path: String): Long

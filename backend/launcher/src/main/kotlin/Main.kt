@@ -12,7 +12,6 @@ import dk.sdu.cloud.micro.migrateAll
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.ClassDiscovery
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.webdav.WebdavService
 import kotlin.system.exitProcess
 

@@ -3,7 +3,6 @@ package dk.sdu.cloud.calls.server
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import java.lang.reflect.Type
 import kotlin.reflect.KClass

@@ -21,7 +21,6 @@ import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Job

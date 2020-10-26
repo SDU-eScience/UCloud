@@ -131,7 +131,7 @@ data class Pod(
         var dnsPolicy: String? = null,
         var enableServiceLinks: Boolean? = null,
         //var ephemeralContainers: List<EphemeralContainer>?,
-        //var hostAliases: List<HostAlias>,
+        var hostAliases: List<HostAlias>? = emptyList(),
         var hostIPC: Boolean? = null,
         var hostNetwork: Boolean? = null,
         var hostPID: Boolean? = null,
@@ -152,6 +152,11 @@ data class Pod(
         var subdomain: String? = null,
         var tolerations: List<Toleration>? = null,
         var volumes: List<Volume>? = null
+    )
+
+    data class HostAlias(
+        var hostnames: List<String>? = emptyList(),
+        var ip: String? = null
     )
 
     data class SpecTemplate(

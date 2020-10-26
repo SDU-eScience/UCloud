@@ -13,19 +13,10 @@ import dk.sdu.cloud.service.k8.*
  */
 object FairSharePlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
-        val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
-        @Suppress("BlockingMethodInNonBlockingContext")
-        try {
-            k8.client.createResource(
-                KubernetesResources.namespaces,
-                defaultMapper.writeValueAsString(Namespace(metadata = ObjectMeta(namespace)))
-            )
-        } catch (ex: KubernetesException) {
-            if (ex.statusCode.value in setOf(400, 404, 409)) {
-                // Expected
-            } else {
-                throw ex
-            }
+        val jobMetadata = builder.metadata ?: error("no metadata")
+        (jobMetadata.annotations?.toMutableMap() ?: HashMap()).let { annotations ->
+            annotations["ucloud.dk/user"] = job.project ?: job.owner
+            jobMetadata.annotations = annotations
         }
     }
 }

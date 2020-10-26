@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.store.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.BashEscaper
-import dk.sdu.cloud.service.stackTraceToString
 import org.slf4j.LoggerFactory
 
 private val log = LoggerFactory.getLogger(InvocationParameter::class.java)

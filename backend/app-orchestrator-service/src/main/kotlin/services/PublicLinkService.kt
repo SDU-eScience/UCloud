@@ -7,7 +7,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 
 object PublicLinkTable : SQLTable("public_links") {

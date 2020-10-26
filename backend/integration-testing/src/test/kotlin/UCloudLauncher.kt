@@ -51,7 +51,6 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.share.ShareService
 import dk.sdu.cloud.support.SupportService

@@ -61,7 +61,7 @@ data class ApplicationInvocationDescription(
     val shouldAllowAdditionalPeers: Boolean
         get() {
             if (allowAdditionalPeers != null) return allowAdditionalPeers
-            return applicationType in setOf(ApplicationType.VNC, ApplicationType.WEB)
+            return applicationType in setOf(ApplicationType.VNC, ApplicationType.WEB, ApplicationType.BATCH)
         }
 }
 
