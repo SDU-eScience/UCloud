@@ -341,7 +341,6 @@ class IngoingHttpInterceptor(
         call: CallDescription<R, S, E>,
         callResult: OutgoingCallResponse<S, E>
     ) {
-        log.debug("Producing response: $ctx, $call, $callResult")
         val (type, responseItem) = when (callResult) {
             is OutgoingCallResponse.Ok -> Pair(call.successType, callResult.result)
             is OutgoingCallResponse.Error -> Pair(call.errorType, callResult.error)

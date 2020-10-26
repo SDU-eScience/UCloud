@@ -231,7 +231,6 @@ sealed class KubernetesAuthenticationMethod {
 
         override fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {
             with(httpRequestBuilder) {
-                println(header)
                 header(HttpHeaders.Authorization, header)
             }
         }
@@ -351,7 +350,6 @@ class KubernetesClient(
             .joinToString("&")
             .takeIf { it.isNotEmpty() }
             ?.let { "?$it" } ?: ""
-            .also { println(it) }
     }
 
     suspend inline fun <reified T> parseResponse(resp: HttpResponse): T {
@@ -382,7 +380,7 @@ class KubernetesClient(
     ): T {
         return httpClient.request {
             this.method = method
-            url(buildUrl(locator, queryParameters, operation).also { log.debug("$method $it") })
+            url(buildUrl(locator, queryParameters, operation).also { log.debug("${method.value} $it") })
             header(HttpHeaders.Accept, ContentType.Application.Json)
             if (content != null) body = content
             configureRequest(this)

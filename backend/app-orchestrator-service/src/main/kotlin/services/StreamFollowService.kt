@@ -24,6 +24,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.delay
@@ -80,7 +81,7 @@ class StreamFollowService(
         callContext: CallHandler<*, FollowWSResponse, *>
     ): Job {
         fun debug(message: String) {
-            log.debug("[${request.jobId}] $message")
+            log.trace("[${request.jobId}] $message")
         }
 
         return backgroundScope.launch {
@@ -166,7 +167,8 @@ class StreamFollowService(
 
                     delay(1000)
                 } catch (ex: Throwable) {
-                    if (ex !is ClosedReceiveChannelException && ex.cause !is ClosedReceiveChannelException) {
+                    if (ex !is ClosedReceiveChannelException && ex.cause !is ClosedReceiveChannelException &&
+                        ex !is CancellationException) {
                         log.info(ex.stackTraceToString())
                     }
                     break

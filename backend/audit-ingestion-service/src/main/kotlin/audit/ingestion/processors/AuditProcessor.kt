@@ -32,7 +32,7 @@ class AuditProcessor(
 ) {
     fun init() {
         events.subscribe(HttpLogsStream, EventConsumer.Batched() { rawBatch ->
-            if (rawBatch.isNotEmpty()) log.debug("Accepting batch of size ${rawBatch.size}")
+            if (rawBatch.isNotEmpty()) log.trace("Accepting batch of size ${rawBatch.size}")
 
             rawBatch
                 .asSequence()

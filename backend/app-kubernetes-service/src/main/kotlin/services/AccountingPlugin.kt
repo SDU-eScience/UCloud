@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.k8.KubernetesException
 import dk.sdu.cloud.service.k8.KubernetesResources
 import dk.sdu.cloud.service.k8.patchResource
 import io.ktor.http.*
@@ -61,24 +62,32 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
             k8.serviceClient
         ).orThrow()
 
-        k8.client.patchResource(
-            KubernetesResources.volcanoJob.withNameAndNamespace(
-                name,
-                namespace
-            ),
-            defaultMapper.writeValueAsString(
-                // http://jsonpatch.com/
-                listOf(
-                    mapOf(
-                        "op" to "add",
-                        // https://tools.ietf.org/html/rfc6901#section-3
-                        "path" to "/metadata/annotations/${LAST_PERFORMED_AT_ANNOTATION.replace("/", "~1")}",
-                        "value" to now.toString()
+        try {
+            k8.client.patchResource(
+                KubernetesResources.volcanoJob.withNameAndNamespace(
+                    name,
+                    namespace
+                ),
+                defaultMapper.writeValueAsString(
+                    // http://jsonpatch.com/
+                    listOf(
+                        mapOf(
+                            "op" to "add",
+                            // https://tools.ietf.org/html/rfc6901#section-3
+                            "path" to "/metadata/annotations/${LAST_PERFORMED_AT_ANNOTATION.replace("/", "~1")}",
+                            "value" to now.toString()
+                        )
                     )
-                )
-            ),
-            ContentType("application", "json-patch+json")
-        )
+                ),
+                ContentType("application", "json-patch+json")
+            )
+        } catch (ex: KubernetesException) {
+            if (ex.statusCode == HttpStatusCode.NotFound) {
+                // Ignored
+            } else {
+                throw ex
+            }
+        }
     }
 
     private val VolcanoJob.lastAccountingTs: Long? get() {

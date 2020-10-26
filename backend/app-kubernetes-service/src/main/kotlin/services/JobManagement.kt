@@ -376,10 +376,7 @@ class JobManagement(
                                 if (newState != null) {
                                     if (newState == JobState.SUCCESS) {
                                         val didChange = k8.addStatus(jobId, statusUpdate)
-                                        println("Job is done! didChange = $didChange")
                                         if (didChange) {
-
-
                                             markJobAsComplete(jobId, ev.theObject)
                                         }
                                     } else {

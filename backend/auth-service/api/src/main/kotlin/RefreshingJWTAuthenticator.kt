@@ -42,7 +42,7 @@ class RefreshingJWTAuthenticator(
     }
 
     private suspend fun refresh(attempts: Int = 0): String {
-        log.debug("Refreshing token")
+        log.trace("Refreshing token")
         val validatedToken = tokenValidation.validateOrNull(currentAccessToken)
         if (validatedToken.isExpiringSoon()) {
             val result = client.call(AuthDescriptions.refresh, Unit, OutgoingHttpCall) {

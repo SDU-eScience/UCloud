@@ -125,32 +125,32 @@ class JobOrchestrator(
         userCloud: AuthenticatedClient,
         project: String?
     ): String {
-        log.debug("Starting job ${req.application.name}@${req.application.version}")
+        log.trace("Starting job ${req.application.name}@${req.application.version}")
         val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend, defaultBackend))
 
-        log.debug("Verifying job")
+        log.trace("Verifying job")
         val unverifiedJob = UnverifiedJob(req, decodedToken, refreshToken, project)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
 
-        log.debug("Checking if duplicate")
+        log.trace("Checking if duplicate")
         if (!req.acceptSameDataRetry) {
             if (checkForDuplicateJob(decodedToken, jobWithToken)) {
                 throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "Job with same parameters already running")
             }
         }
 
-        log.debug("Switching state and preparing job...")
+        log.trace("Switching state and preparing job...")
         val (outputFolder) = jobFileService.initializeResultFolder(jobWithToken)
         jobFileService.exportParameterFile(outputFolder, jobWithToken, req.parameters)
         val jobWithOutputFolder = jobWithToken.job.copy(outputFolder = outputFolder)
         val jobWithTokenAndFolder = jobWithToken.copy(job = jobWithOutputFolder)
         paymentService.reserve(jobWithOutputFolder)
 
-        log.debug("Notifying compute")
+        log.trace("Notifying compute")
         val initialState = JobStateChange(jobWithToken.job.id, JobState.IN_QUEUE)
         backend.jobVerified.call(jobWithOutputFolder, serviceClient).orThrow()
 
-        log.debug("Saving job state")
+        log.trace("Saving job state")
         jobDao.create(
             db,
             jobWithTokenAndFolder

@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.channels.ClosedSendChannelException
+import kotlin.random.Random
 import kotlin.reflect.KClass
 
 interface IngoingCall {
@@ -173,14 +174,14 @@ sealed class OutgoingCallResponse<S : Any, E : Any> {
         val result: S,
         override val statusCode: HttpStatusCode
     ) : OutgoingCallResponse<S, E>() {
-        override fun toString() = "OutgoingCallResponse.Ok($statusCode, ${result.toString().take(100)})"
+        override fun toString() = "$statusCode, ${result.toString().take(240)}"
     }
 
     class Error<S : Any, E : Any>(
         val error: E?,
         override val statusCode: HttpStatusCode
     ) : OutgoingCallResponse<S, E>() {
-        override fun toString() = "OutgoingCallResponse.Error($statusCode, ${error.toString().take(100)})"
+        override fun toString() = "$statusCode, ${error.toString().take(240)}"
     }
 
     /**
@@ -368,7 +369,9 @@ class RpcServer {
             val afterParsing = filters.filterIsInstance<IngoingCallFilter.AfterParsing>()
             afterParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call, capturedRequest) }
 
-            log.info("Incoming call: $call ($request)")
+            val jobIdForDebug = ctx.jobIdOrNull?.take(4) ?: Random.nextInt(10_000)
+
+            log.info("Incoming call [$jobIdForDebug]: ${call.fullName} ($request)")
             val callHandler = CallHandler(ctx, capturedRequest, call).also { handler(it) }
 
             val responseResult = callHandler.result
@@ -383,7 +386,7 @@ class RpcServer {
             beforeResponse
                 .filter { it.canUseContext(ctx) }
                 .forEach { it.run(ctx, call, capturedRequest, responseResult) }
-            log.debug("Result of $call is $responseResult")
+            log.debug("   Responding [$jobIdForDebug]: ${call.fullName} ($responseResult)")
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
             val isEarlyClose = ex is ClosedSendChannelException || ex.javaClass.simpleName == "JobCancellationException"

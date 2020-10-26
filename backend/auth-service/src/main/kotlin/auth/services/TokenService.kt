@@ -252,7 +252,7 @@ class TokenService(
     }
 
     suspend fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
-        log.debug("Refreshing token: rawToken='$rawToken'")
+        log.trace("Refreshing token: rawToken='$rawToken'")
         return db.withSession { session ->
             val token = refreshTokenDao.findById(session, rawToken) ?: run {
                 log.debug("Could not find token!")

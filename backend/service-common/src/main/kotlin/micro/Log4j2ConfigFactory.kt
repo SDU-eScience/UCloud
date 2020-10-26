@@ -55,7 +55,7 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
                                 "pattern",
                                 "%highlight{" +
                                         "%d{HH:mm:ss.SSS} " +
-                                        "[%t] " +
+                                        //"[%t] " +
                                         "(%X{request-id}) " +
                                         "%level{TRACE=T, DEBUG=D, INFO=I, WARN=WARNING, ERROR=ERROR, FATAL=FATAL} " +
                                         "%c{-2} - " +

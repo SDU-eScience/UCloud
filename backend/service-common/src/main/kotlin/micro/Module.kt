@@ -3,6 +3,7 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.FrontendOverrides
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.isRunning
 import dk.sdu.cloud.service.startServices
 import org.slf4j.Logger
@@ -104,6 +105,9 @@ class ServiceRegistry(
         for (service in services) {
             service.server.onKtorReady()
         }
+
+        // Note this code runs before logger is ready
+        println("============ UCloud is ready ============")
 
         while (rootServer.isRunning) {
             Thread.sleep(50)

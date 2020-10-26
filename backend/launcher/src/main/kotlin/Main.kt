@@ -2,17 +2,12 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.PlaceholderServiceDescription
-import dk.sdu.cloud.micro.Service
-import dk.sdu.cloud.micro.ServiceRegistry
-import dk.sdu.cloud.micro.databaseConfig
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.migrateAll
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.ClassDiscovery
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.webdav.WebdavService
+import org.apache.logging.log4j.Level
 import kotlin.system.exitProcess
 
 object Launcher : Loggable {
@@ -62,6 +57,11 @@ suspend fun main(args: Array<String>) {
             }
         }
     }.detect()
+
+    reg.rootMicro.feature(LogFeature).configureLevels(mapOf(
+        // Don't display same information twice
+        "dk.sdu.cloud.calls.client.OutgoingHttpRequestInterceptor" to Level.INFO
+    ))
 
     reg.start()
 }

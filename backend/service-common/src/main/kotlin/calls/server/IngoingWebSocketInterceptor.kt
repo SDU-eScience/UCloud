@@ -152,7 +152,7 @@ class IngoingWebSocketInterceptor(
         engine.application.routing {
             handlers.forEach { (path, calls) ->
                 webSocket(path) {
-                    log.info("New websocket connection at $path")
+                    log.trace("New websocket connection at $path")
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
 
@@ -192,7 +192,7 @@ class IngoingWebSocketInterceptor(
                                         ?.textValue()
                                         ?: continue
 
-                                log.debug("RequestedCall: $requestedCall")
+                                log.trace("RequestedCall: $requestedCall")
 
                                 if (parsedMessage[WSRequest.PAYLOAD_FIELD]?.isNull != false) continue
 
