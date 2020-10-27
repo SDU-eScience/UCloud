@@ -78,6 +78,16 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("com.zaxxer.hikari", Level.INFO)
             configureLogLevelForPackage("io.mockk.impl", Level.INFO)
             configureLogLevelForPackage("com.github.jasync.sql.db.postgresql.codec.PostgreSQLConnectionHandler", Level.WARN)
+            configureLogLevelForPackage("io.lettuce.core.EpollProvider", Level.WARN)
+            configureLogLevelForPackage("io.lettuce.core.KqueueProvider", Level.WARN)
+            configureLogLevelForPackage("com.github.jasync.sql.db.util", Level.WARN)
+            configureLogLevelForPackage("com.github.jasync.sql.db.pool.ActorBasedObjectPool", Level.WARN)
+            configureLogLevelForPackage("com.github.jasync.sql.db.pool.ConnectionPool", Level.INFO)
+            configureLogLevelForPackage("com.github.jasync.sql.db.postgresql.pool.PostgreSQLConnectionFactory", Level.INFO)
+            configureLogLevelForPackage("org.apache.xml.security.Init", Level.INFO)
+            configureLogLevelForPackage("reactor.util.Loggers\$LoggerFactory", Level.INFO)
+            configureLogLevelForPackage("reactor.core.publisher.UnsafeSupport", Level.INFO)
+            configureLogLevelForPackage("ktor.application", Level.WARN)
         }.build().also {
             initializeFn?.invoke()
             initializeFn = null

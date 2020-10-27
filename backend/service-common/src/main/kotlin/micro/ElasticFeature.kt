@@ -10,13 +10,15 @@ import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import java.net.InetAddress
 import java.net.UnknownHostException
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ElasticFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         ctx.requireFeature(ConfigurationFeature)
 
+        val shouldLog = didLog.compareAndSet(false, true)
         val configuration = ctx.configuration.requestChunkAtOrNull(*CONFIG_PATH) ?: run {
-            log.warn(
+            if (shouldLog) log.trace(
                 "No elastic configuration provided at ${CONFIG_PATH.toList()}. " +
                         "Using default localhost settings (not secured cluster)"
             )
@@ -54,6 +56,11 @@ class ElasticFeature : MicroFeature {
         ctx.elasticHighLevelClient = RestHighLevelClient(
             lowLevelClient
         )
+
+        if (shouldLog) {
+            log.info("Connected to elasticsearch at ${configuration.hostname}. " +
+                "Config is loaded from ${CONFIG_PATH.joinToString("/")}.")
+        }
     }
 
     companion object Feature : MicroFeatureFactory<ElasticFeature, Unit>, Loggable {
@@ -89,6 +96,7 @@ class ElasticFeature : MicroFeature {
             val credentials: Credentials? = null
         )
 
+        private val didLog = AtomicBoolean(false)
     }
 }
 

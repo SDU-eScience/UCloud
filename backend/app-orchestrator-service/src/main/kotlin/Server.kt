@@ -144,7 +144,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             )
         }
 
-        log.info("Starting application services")
         startServices()
     }
 }

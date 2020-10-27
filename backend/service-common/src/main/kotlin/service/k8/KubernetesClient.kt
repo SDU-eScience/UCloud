@@ -86,7 +86,7 @@ sealed class KubernetesConfigurationSource {
                     }
 
                     user.user.clientCertificate != null && user.user.clientKey != null -> {
-                        log.info(
+                        log.debug(
                             "Client certificate authentication is not currently supported. " +
                                 "Falling back to kubectl proxy approach."
                         )
@@ -299,7 +299,7 @@ class KubernetesClient(
     }
 
     init {
-        log.info("Kubernetes client will use the following connection parameters: $conn")
+        log.debug("Kubernetes client will use the following connection parameters: $conn")
     }
 
     fun buildUrl(

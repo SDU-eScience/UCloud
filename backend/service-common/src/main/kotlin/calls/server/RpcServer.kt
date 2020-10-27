@@ -268,20 +268,20 @@ class RpcServer {
         private set
 
     fun attachFilter(serverFilter: IngoingCallFilter) {
-        log.debug("Attaching filter: $serverFilter")
+        log.trace("Attaching filter: $serverFilter")
         filters.add(serverFilter)
     }
 
     fun <Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> attachRequestInterceptor(
         interceptor: IngoingRequestInterceptor<Ctx, Companion>
     ) {
-        log.debug("Attaching interceptor for ${interceptor.companion}: $interceptor")
+        log.trace("Attaching interceptor for ${interceptor.companion}: $interceptor")
         requestInterceptors[interceptor.companion] = interceptor
     }
 
     private fun <R : Any, S : Any, E : Any> notifyInterceptors(delayedHandler: DelayedHandler<R, S, E>): Unit =
         with(delayedHandler) {
-            log.debug("Adding call handler for $call")
+            log.trace("Adding call handler for $call")
 
             val existingHandler = handlers[call]
             if (existingHandler != null) {

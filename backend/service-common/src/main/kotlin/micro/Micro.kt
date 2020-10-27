@@ -44,8 +44,11 @@ fun <Feature : MicroFeature, Config> Micro.install(
         feature.init(this, serviceDescription, commandLineArguments)
     }
 
-    // TODO Logging hasn't been initialized yet
-    println("Installing feature: ${featureFactory.key.name}. Took: ${time}")
+    /*
+    if (time.inMilliseconds > 500) {
+        println("Installing feature: ${featureFactory.key.name}. Took: ${time}")
+    }
+     */
 }
 
 fun <T : Any> delegate(key: String): ReadWriteProperty<Micro, T> {

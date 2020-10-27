@@ -49,7 +49,6 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
 
     micro.featureOrNull(FrontendOverrides)?.generate()
 
-    log.info("Starting Event Stream Services")
     @Suppress("TooGenericExceptionCaught")
     try {
         micro.eventStreamService.start()
@@ -62,8 +61,6 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
     val serverFeature = micro.featureOrNull(ServerFeature)
     if (serverFeature != null) {
         launch {
-            log.info("Starting RPC server...")
-
             val ktorApplicationEngine = serverFeature.ktorApplicationEngine
             if (ktorApplicationEngine != null) {
                 if (micro.developmentModeEnabled) {

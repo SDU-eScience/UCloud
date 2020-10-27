@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.findValidHostname
 import io.lettuce.core.RedisClient
 import org.slf4j.Logger
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class RedisConfiguration(
     val hostname: String? = null,
@@ -16,22 +17,23 @@ data class RedisConfiguration(
 class RedisFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         ctx.requireFeature(ConfigurationFeature)
-        log.info("Connecting to redis")
+        val shouldLog = didLog.compareAndSet(false, true)
+        if (shouldLog) log.trace("Connecting to redis")
 
         val userConfig = ctx.configuration.requestChunkAtOrNull("redis") ?: RedisConfiguration()
         val hostname = userConfig.hostname?.takeIf { it.isNotEmpty() } ?: run {
-            log.info("No available configuration found at 'redis/hostname'.")
-            log.info("Attempting to look for defaults.")
+            if (shouldLog) log.trace("No available configuration found at 'redis/hostname'.")
+            if (shouldLog) log.trace("Attempting to look for defaults.")
 
             val hostname = findValidHostname(defaultHostNames)
                 ?: throw IllegalStateException("Could not find a valid redis host")
 
-            log.info("$hostname is a valid host, assuming redis is running on this machine.")
+            if (shouldLog) log.trace("$hostname is a valid host, assuming redis is running on this machine.")
 
             hostname
         }
 
-        log.info("Connected to redis")
+        if (shouldLog) log.info("Connected to redis at $hostname. Config is loaded from redis/hostname.")
 
         val port = userConfig.port ?: 6379
         ctx.redisConnectionManager = RedisConnectionManager(RedisClient.create("redis://$hostname:$port"))
@@ -53,6 +55,7 @@ class RedisFeature : MicroFeature {
         override fun create(config: Unit): RedisFeature = RedisFeature()
 
         private val defaultHostNames = listOf("redis", "localhost")
+        private val didLog = AtomicBoolean(false)
     }
 }
 

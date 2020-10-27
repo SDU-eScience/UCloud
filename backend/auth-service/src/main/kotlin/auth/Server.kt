@@ -44,7 +44,6 @@ class Server(
     private lateinit var userIterator: UserIterationService
 
     override fun start() {
-        log.info("Creating core services...")
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
         val streams = micro.eventStreamService
@@ -108,8 +107,6 @@ class Server(
         val sessionService = SessionService(db, refreshTokenDao)
         val slaService = SLAService(config.serviceLicenseAgreement ?: ServiceAgreementText(0, ""), db, userDao)
 
-        log.info("Core services constructed!")
-
         if (micro.commandLineArguments.contains("--tokenScan")) {
             log.info("Scanning for expired refresh tokens.")
             runBlocking {
@@ -122,10 +119,10 @@ class Server(
 
         if (micro.developmentModeEnabled) {
             runBlocking {
-                log.info("In development mode. Checking if we need to create a dummy account.")
                 val existingDevAdmin = db.withTransaction { userDao.findByIdOrNull(it, "admin@dev") }
                 val adminUser = "admin@dev"
                 if (existingDevAdmin == null) {
+                    log.info("Initializing dummy account for development environment")
                     createTestAccount(personService, userCreationService, tokenService, adminUser, Role.ADMIN)
                     createTestAccount(personService, userCreationService, tokenService, "user@dev", Role.USER)
                 } else {
@@ -153,14 +150,9 @@ class Server(
 
         val serverFeature = micro.feature(ServerFeature)
         with(serverFeature.ktorApplicationEngine!!.application) {
-            log.info("Configuring HTTP server")
-
-            log.info("Creating HTTP controllers")
-
             val loginService =
                 LoginService(db, passwordHashingService, userDao, LoginAttemptAsyncDao(), loginResponder)
             val passwordController = PasswordController(loginService)
-            log.info("HTTP controllers configured!")
 
             if (config.enableWayf) {
                 val samlController = SAMLController(
@@ -210,8 +202,6 @@ class Server(
                     SLAController(slaService)
                 )
             }
-
-            log.info("HTTP server successfully configured!")
         }
 
         startServices()

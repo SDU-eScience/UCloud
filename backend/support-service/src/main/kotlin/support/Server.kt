@@ -28,7 +28,6 @@ class Server(
         if (ticketNotifiers.isEmpty() && !micro.developmentModeEnabled) {
             throw IllegalStateException("Need at least one notifier!")
         }
-        log.info("Service started!")
         with(micro.server) {
             configureControllers(
                 SupportController(ticketService)

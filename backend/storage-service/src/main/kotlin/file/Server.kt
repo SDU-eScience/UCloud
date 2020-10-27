@@ -46,8 +46,6 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val wsClient = micro.authenticator.authenticateClient(OutgoingWSCall)
 
-        log.info("Creating core services")
-
         require(Platform.isLinux() || micro.developmentModeEnabled) {
             "This service is only able to run on GNU/Linux in production mode"
         }
@@ -88,8 +86,6 @@ class Server(
                 exitProcess(1)
             }
         }
-
-        log.info("Core services constructed!")
 
         UserProcessor(
             streams,

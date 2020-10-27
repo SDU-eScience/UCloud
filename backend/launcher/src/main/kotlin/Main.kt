@@ -48,7 +48,7 @@ suspend fun main(args: Array<String>) {
             if (objectInstance is Service) {
                 if (objectInstance !in blacklist) {
                     try {
-                        Launcher.log.info("Registering ${objectInstance.javaClass.canonicalName}")
+                        Launcher.log.trace("Registering ${objectInstance.javaClass.canonicalName}")
                         reg.register(objectInstance)
                     } catch (ex: Throwable) {
                         Launcher.log.error("Caught error: ${ex.stackTraceToString()}")

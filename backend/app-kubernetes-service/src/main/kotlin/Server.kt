@@ -107,9 +107,6 @@ class Server(
             val configFile = File("./envoy/config.yaml")
             configFile.writeText(renderedConfig)
             log.info("Wrote configuration at ${configFile.absolutePath}")
-            if (micro.developmentModeEnabled) {
-                log.warn("For proxying to work you must point envoy at the configuration file mentioned above!")
-            }
         }
 
         val authenticationService = AuthenticationService(serviceClient, micro.tokenValidation)
