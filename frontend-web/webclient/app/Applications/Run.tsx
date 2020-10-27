@@ -839,7 +839,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                         }
                     }
 
-                    this.setState(() => ({mountedFolders: this.state.mountedFolders.concat(validMountFolders)}));
+                    this.setState(() => ({mountedFolders: validMountFolders}));
                     const emptyMountedFolders = this.state.mountedFolders.slice(
                         this.state.mountedFolders.length - mountedFolders.length
                     );
