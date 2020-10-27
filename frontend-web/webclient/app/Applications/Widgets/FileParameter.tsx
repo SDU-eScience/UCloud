@@ -6,12 +6,18 @@ import {replaceHomeOrProjectFolder, resolvePath} from "Utilities/FileUtilities";
 import {addTrailingSlash} from "UtilityFunctions";
 import {useProjectStatus} from "Project/cache";
 import {getProjectNames} from "Utilities/ProjectUtilities";
+import {AdditionalMountedFolder} from "Applications";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 interface InputFileParameterProps extends ParameterProps {
     onRemove?: () => void;
     defaultValue?: string;
     unitWidth?: string | number;
     parameterRef: React.RefObject<HTMLInputElement>;
+}
+
+interface InputFolderParameterProps extends InputFileParameterProps {
+    mountedFolders: AdditionalMountedFolder[];
 }
 
 export const InputFileParameter = (props: InputFileParameterProps): JSX.Element => {
@@ -35,7 +41,7 @@ export const InputFileParameter = (props: InputFileParameterProps): JSX.Element 
     );
 };
 
-export const InputDirectoryParameter = (props: InputFileParameterProps): JSX.Element => {
+export const InputDirectoryParameter = (props: InputFolderParameterProps): JSX.Element => {
     const projectNames = getProjectNames(useProjectStatus());
     return (
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
@@ -45,6 +51,11 @@ export const InputDirectoryParameter = (props: InputFileParameterProps): JSX.Ele
                 key={props.parameter.name}
                 path={props.parameterRef.current?.value ?? ""}
                 onFileSelect={file => {
+                    const paths = props.mountedFolders.map(it => it.ref.current?.value ?? "").filter(it => it);
+                    if (paths.includes(`/${replaceHomeOrProjectFolder(file.path, Client, projectNames)}/`)) {
+                        snackbarStore.addFailure("Folder already added.", false);
+                        return;
+                    }
                     props.parameterRef.current!.dataset.path = file.path;
                     props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeOrProjectFolder(file.path, Client, projectNames)));
                 }}

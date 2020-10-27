@@ -440,6 +440,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                                     initialSubmit={false}
                                                     parameterRef={entry.ref}
                                                     unitWidth="180px"
+                                                    mountedFolders={this.state.mountedFolders}
                                                     onRemove={() => {
                                                         this.setState(s => ({
                                                             mountedFolders: removeEntry(s.mountedFolders, i)
