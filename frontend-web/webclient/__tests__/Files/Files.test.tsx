@@ -18,7 +18,7 @@ jest.mock("Project/index", () => ({
     useProjectManagementStatus: () => ({projectRole: "USER"})
 }));
 
-test("Mount Files component", async () => {
+test.skip("Mount Files component", async () => {
     const history = createBrowserHistory();
     history.push("app/files?path=%2Fhome%2Fjonas%40hinchely.dk");
     let comp;

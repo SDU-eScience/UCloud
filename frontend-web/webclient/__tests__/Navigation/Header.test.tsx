@@ -17,7 +17,7 @@ jest.mock("Authentication/HttpClientInstance", () => ({
 }));
 
 
-describe("Header", () => {
+describe.skip("Header", () => {
     test("Mount header", () => {
         expect(create(
             <Provider store={store}>
