@@ -391,6 +391,8 @@ export const stateToTitle = (state: JobState): string => {
             return "Running";
         case JobState.SUCCESS:
             return "Success";
+        case JobState.CANCELING:
+            return "Canceling";
         /*
         case JobState.READY:
         return "Ready";

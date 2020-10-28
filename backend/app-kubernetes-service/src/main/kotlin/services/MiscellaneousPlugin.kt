@@ -23,6 +23,9 @@ object MiscellaneousPlugin : JobManagementPlugin {
             val template = task.template ?: error("no task template")
             val pSpec = template.spec ?: error("no template spec")
 
+            // Don't restart the job
+            pSpec.restartPolicy = "Never"
+
             // Disable auto-mount of service account token
             //
             // Even though the associated service account shouldn't have any rights we perform this to be absolutely

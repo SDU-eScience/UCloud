@@ -83,7 +83,7 @@ object MultiNodePlugin : JobManagementPlugin {
                               fi
 
                               wildcard=${'$'}(echo "${'$'}{FILE_NODE_PREFIX}"*)
-                              node_file_count=`ls -1 "${'$'}{wildcard}" | trim | wc -l`
+                              node_file_count=`ls -1 ${'$'}wildcard | trim | wc -l`
                               if [ ${'$'}node_file_count != ${'$'}node_count_from_file ]; then
                                 echo "Not enough individual node entries (Looking for: ${'$'}{FILE_NODE_PREFIX}*)"
                                 continue;

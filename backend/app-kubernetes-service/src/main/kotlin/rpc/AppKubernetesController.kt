@@ -71,7 +71,7 @@ class AppKubernetesController(
             try {
                 while (streams[streamId] != null) {
                     val ev = logWatch.receiveOrNull() ?: break
-                    sendWSMessage(InternalFollowWSStreamResponse(streamId, ev, null))
+                    sendWSMessage(InternalFollowWSStreamResponse(streamId, ev.message, rank = ev.rank))
                 }
             } finally {
                 streams.remove(streamId)?.cancel()

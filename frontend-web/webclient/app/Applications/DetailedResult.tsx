@@ -138,7 +138,9 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                             }
                             if (streamEntry.status !== null) setStatus(streamEntry.status);
                             if (streamEntry.failedState !== null) setFailedState(streamEntry.failedState);
-                            if (streamEntry.stdout !== null) appendToXterm(terminal, streamEntry.stdout);
+                            if (streamEntry.stdout !== null && (streamEntry.rank == null || streamEntry.rank === 0)) {
+                                appendToXterm(terminal, streamEntry.stdout);
+                            }
                         }
                     });
                 }

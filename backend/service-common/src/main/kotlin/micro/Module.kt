@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.isRunning
 import dk.sdu.cloud.service.startServices
 import org.slf4j.Logger
+import kotlin.system.exitProcess
 
 var Micro.isEmbeddedService: Boolean by delegate("isRootContainer")
 
@@ -84,11 +85,17 @@ class ServiceRegistry(
 
     fun start() {
         var scriptHandlerExit = false
-        for (service in services) {
-            if (service.scope.runScriptHandler()) {
-                scriptHandlerExit = true
-                continue
+        try {
+            for (service in services) {
+                if (service.scope.runScriptHandler()) {
+                    scriptHandlerExit = true
+                    continue
+                }
             }
+        } catch (ex: Throwable) {
+            println("CAUGHT FATAL ERROR DURING SCRIPT HANDLER EXECUTION")
+            println(ex.stackTraceToString())
+            exitProcess(1)
         }
 
         if (scriptHandlerExit) {
@@ -96,14 +103,32 @@ class ServiceRegistry(
             return
         }
 
-        for (service in services) {
-            service.server.start()
+        try {
+            for (service in services) {
+                service.server.start()
+            }
+        } catch (ex: Throwable) {
+            println("CAUGHT FATAL ERROR DURING SERVER START")
+            println(ex.stackTraceToString())
+            exitProcess(1)
         }
 
-        rootServer.startServices(wait = false)
+        try {
+            rootServer.startServices(wait = false)
+        } catch (ex: Throwable) {
+            println("CAUGHT FATAL ERROR WHILE STARTING SERVICES")
+            println(ex.stackTraceToString())
+            exitProcess(1)
+        }
 
-        for (service in services) {
-            service.server.onKtorReady()
+        try {
+            for (service in services) {
+                service.server.onKtorReady()
+            }
+        } catch (ex: Throwable) {
+            println("CAUGHT FATAL ERROR WHILE REPORTING KTOR READY")
+            println(ex.stackTraceToString())
+            exitProcess(1)
         }
 
         // Note this code runs before logger is ready

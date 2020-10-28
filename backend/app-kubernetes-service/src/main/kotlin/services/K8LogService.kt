@@ -27,8 +27,10 @@ class K8LogService(
         return Pair("", 0)
     }
 
+    data class LogMessage(val rank: Int, val message: String)
+
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun useLogWatch(requestId: String): ReceiveChannel<String> {
+    fun useLogWatch(requestId: String): ReceiveChannel<LogMessage> {
         return k8.scope.produce {
             val jobName = k8.nameAllocator.jobIdToJobName(requestId)
             val namespace = k8.nameAllocator.jobIdToNamespace(requestId)
@@ -45,6 +47,10 @@ class K8LogService(
             var nextCheck = 0L
 
             loop@ while (isActive) {
+                // Guarantee that we don't spin too much. Unfortunately we don't have an API for selecting on the
+                // ByteReadChannel.
+                delay(50)
+
                 if (Time.now() > nextCheck) {
                     val pods = k8.client.listResources<Pod>(
                         KubernetesResources.pod.withNamespace(namespace),
@@ -79,7 +85,7 @@ class K8LogService(
 
                     if (knownPods.isEmpty()) {
                         // Check often while there are no pods
-                        nextCheck = Time.now() + 5_00
+                        nextCheck = Time.now() + 1_000
                     } else {
                         // Check less often while we have some pods
                         // TODO Ideally this would not trigger before all pods are ready
@@ -92,18 +98,16 @@ class K8LogService(
                 while (logIterator.hasNext()) {
                     val (podName, listener) = logIterator.next()
                     val rank = k8.nameAllocator.rankFromPodName(podName)
-                    if (rank == 0) {
-                        if (listener.availableForRead > 0) {
-                            val read = listener.readAvailable(readBuffer)
-                            if (read > 0) {
-                                send(String(readBuffer, 0, read, Charsets.UTF_8))
-                            } else if (read < 0) {
-                                runCatching { listener.cancel() }
-                                logIterator.remove()
-                            }
+                    if (listener.availableForRead > 0) {
+                        val read = listener.readAvailable(readBuffer)
+                        if (read > 0) {
+                            send(LogMessage(rank, String(readBuffer, 0, read, Charsets.UTF_8)))
+                        } else if (read < 0) {
+                            runCatching { listener.cancel() }
+                            logIterator.remove()
                         }
+                        continue@loop
                     }
-                    continue@loop
                 }
 
                 val ev = events.poll()
@@ -118,7 +122,7 @@ class K8LogService(
 
                     if (ev.theObject.reason == "Pulling") {
                         if (!pullSent.contains(rank)) {
-                            send(prefix + message + "\n")
+                            send(LogMessage(rank.toIntOrNull() ?: 0, prefix + message + "\n"))
                             pullSent.add(rank)
                             launch {
                                 val estimatedSize = try {
@@ -132,7 +136,12 @@ class K8LogService(
 
                                 runCatching {
                                     if (estimatedSize != null) {
-                                        send(prefix + "Image size: ${bytesToString(estimatedSize)}\n")
+                                        send(
+                                            LogMessage(
+                                                rank.toIntOrNull() ?: 0,
+                                                prefix + "Image size: ${bytesToString(estimatedSize)}\n"
+                                            )
+                                        )
                                     }
                                 }
                             }
@@ -146,7 +155,7 @@ class K8LogService(
                             }
 
                             else -> {
-                                send(prefix + message + "\n")
+                                send(LogMessage(rank.toIntOrNull() ?: 0, prefix + message + "\n"))
                             }
                         }
                     }

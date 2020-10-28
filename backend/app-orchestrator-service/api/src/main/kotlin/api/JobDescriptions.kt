@@ -457,7 +457,8 @@ data class FollowWSResponse(
     val stderr: String? = null,
     val status: String? = null,
     val state: JobState? = null,
-    val failedState: JobState? = null
+    val failedState: JobState? = null,
+    val rank: Int? = null,
 )
 
 data class CancelWSStreamRequest(val streamId: String)
@@ -472,7 +473,8 @@ data class InternalFollowWSStreamRequest(
 data class InternalFollowWSStreamResponse(
     val streamId: String,
     val stdout: String? = null,
-    val stderr: String? = null
+    val stderr: String? = null,
+    val rank: Int? = null
 )
 
 data class QueryVncParametersRequest(

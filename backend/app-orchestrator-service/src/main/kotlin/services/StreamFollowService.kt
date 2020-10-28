@@ -131,7 +131,8 @@ class StreamFollowService(
                                         callContext.sendWSMessage(
                                             FollowWSResponse(
                                                 message.stdout,
-                                                message.stderr
+                                                message.stderr,
+                                                rank = message.rank
                                             )
                                         )
                                     }

@@ -419,6 +419,7 @@ export interface FollowStdStreamResponse {
     status: string | null;
     stdout: string | null;
     stderr: string | null;
+    rank?: number;
 }
 
 export type FullAppInfo = WithAppFavorite & WithAppInvocation & WithAppMetadata & WithAllAppTags;
