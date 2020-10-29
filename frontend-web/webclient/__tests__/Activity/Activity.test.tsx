@@ -7,6 +7,8 @@ import Activity from "../../app/Activity/Page";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
 
+
+
 const result = {
     endOfScroll: true,
     items: [{
@@ -46,6 +48,11 @@ jest.mock("Authentication/HttpClientInstance", () => ({
         call: () => ({request: {status: 401}, response: result}),
         hasActiveProject: () => false
     }
+}));
+
+jest.mock("date-fns/esm", () => ({
+    formatDistanceToNow: () => "MOCKED DATE",
+    format: () => "MOCKED DATE"
 }));
 
 jest.mock("Utilities/ProjectUtilities", () => ({

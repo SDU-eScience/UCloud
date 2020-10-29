@@ -188,7 +188,7 @@ object NativeFS : Loggable {
         }
     }
 
-    fun openForWriting(path: File, allowOverwrite: Boolean, owner: Int? = LINUX_FS_USER_UID): OutputStream {
+    fun openForWriting(path: File, allowOverwrite: Boolean, owner: Int? = LINUX_FS_USER_UID, permissions: Int?): OutputStream {
         if (Platform.isLinux()) {
             val exists = if (owner != null) runCatching { stat(path) }.isSuccess else null
 
@@ -205,6 +205,9 @@ object NativeFS : Loggable {
 
             if (owner != null && exists == false) {
                 CLibrary.INSTANCE.fchown(fd, owner, owner)
+            }
+            if (permissions != null && exists == false) {
+                CLibrary.INSTANCE.fchmod(fd, permissions)
             }
 
             return LinuxOutputStream(fd)
@@ -361,6 +364,25 @@ object NativeFS : Loggable {
             }
         } else {
             XAttrOSX.INSTANCE.removexattr(path.absolutePath, attribute, 0)
+        }
+    }
+
+    fun readNativeFilePermissons(path: File): Int {
+        return if (Platform.isLinux()) {
+            val fd = openFile(path.absolutePath)
+            if (fd < 0) throw FSException.NotFound()
+            val st = stat()
+            st.write()
+            val err = CLibrary.INSTANCE.__fxstat64(1, fd, st.pointer)
+            st.read()
+            CLibrary.INSTANCE.close(fd)
+            if (err < 0) {
+                throw FSException.NotFound()
+            }
+            st.st_mode
+        } else {
+            // rw-rw-rw- in octal
+            304472
         }
     }
 

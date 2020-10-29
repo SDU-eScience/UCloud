@@ -10,6 +10,7 @@ import {
     MOCK_VIRTUAL,
     mockFile,
     resolvePath,
+    isMembersFiles,
 } from "Utilities/FileUtilities";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
@@ -76,6 +77,10 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             }
 
                             if (files.some(it => it.mockTag !== undefined && it.mockTag !== MOCK_RELATIVE)) {
+                                return true;
+                            }
+
+                            if (files.some(it => isMembersFiles(it.path))) {
                                 return true;
                             }
 

@@ -301,7 +301,6 @@ const VisualizationForArea: React.FunctionComponent<{
         else return sum;
     }, 0);
 
-
     const balanceAllocatedToChildren = balance.data.wallets.reduce((sum, wallet) => {
         if (wallet.area === area && wallet.wallet.id !== projectId) return sum + wallet.balance;
         else return sum;

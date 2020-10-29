@@ -20,7 +20,7 @@ export const Parameter = (props: ParameterProps): JSX.Element => {
         }
         case Types.ParameterTypes.InputDirectory: {
             const p = {...props, parameterRef: props.parameterRef as React.RefObject<HTMLInputElement>};
-            component = <InputDirectoryParameter {...p} />;
+            component = <InputDirectoryParameter mountedFolders={[]} {...p} />;
             break;
         }
         case Types.ParameterTypes.Integer:

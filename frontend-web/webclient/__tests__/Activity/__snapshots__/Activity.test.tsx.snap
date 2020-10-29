@@ -918,9 +918,9 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              4 months
+              MOCKED DATE
               <br />
-              24 Jun 2020 12:25
+              MOCKED DATE
             </div>
           </td>
           <td
@@ -994,9 +994,9 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              MOCKED DATE
               <br />
-              12 May 2020 15:56
+              MOCKED DATE
             </div>
           </td>
           <td
@@ -1068,9 +1068,9 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              MOCKED DATE
               <br />
-              12 May 2020 11:57
+              MOCKED DATE
             </div>
           </td>
           <td
@@ -1160,9 +1160,9 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              MOCKED DATE
               <br />
-              12 May 2020 11:57
+              MOCKED DATE
             </div>
           </td>
           <td
@@ -1236,9 +1236,9 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              MOCKED DATE
               <br />
-              12 May 2020 11:09
+              MOCKED DATE
             </div>
           </td>
           <td
@@ -1310,9 +1310,9 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              MOCKED DATE
               <br />
-              11 May 2020 14:52
+              MOCKED DATE
             </div>
           </td>
           <td
@@ -1386,9 +1386,9 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
               cursor="inherit"
               fontSize={1}
             >
-              5 months
+              MOCKED DATE
               <br />
-              11 May 2020 10:52
+              MOCKED DATE
             </div>
           </td>
           <td

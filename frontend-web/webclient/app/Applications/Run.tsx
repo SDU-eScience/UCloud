@@ -232,6 +232,12 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
                 sidebar={(
                     <VerticalButtonGroup>
+                        {this.state.application ?
+                            <Link to={`/applications/details/${this.state.application.metadata.name}/${this.state.application.metadata.version}/`}>
+                                <OutlineButton fullWidth>
+                                    App details
+                                </OutlineButton>
+                            </Link> : null}
                         <OutlineButton
                             onClick={() => importParameterDialog(
                                 file => this.importParameters(file),
@@ -434,6 +440,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                                     initialSubmit={false}
                                                     parameterRef={entry.ref}
                                                     unitWidth="180px"
+                                                    mountedFolders={this.state.mountedFolders}
                                                     onRemove={() => {
                                                         this.setState(s => ({
                                                             mountedFolders: removeEntry(s.mountedFolders, i)
@@ -833,7 +840,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                         }
                     }
 
-                    this.setState(() => ({mountedFolders: this.state.mountedFolders.concat(validMountFolders)}));
+                    this.setState(() => ({mountedFolders: validMountFolders}));
                     const emptyMountedFolders = this.state.mountedFolders.slice(
                         this.state.mountedFolders.length - mountedFolders.length
                     );

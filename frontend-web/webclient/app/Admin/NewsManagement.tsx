@@ -22,7 +22,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import Fuse from "fuse.js";
 import {addStandardDialog} from "UtilityComponents";
 
-const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
+export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
 function NewsManagement(): JSX.Element | null {
     const [start, setStart] = React.useState<Date | null>(null);
@@ -198,6 +198,7 @@ function NewsManagement(): JSX.Element | null {
         const subtitle = subtitleRef.current?.value;
         const body = bodyRef.current?.value;
         let category = categoryRef.current?.value;
+
         if (start == null) {
             snackbarStore.addFailure("Please add a starting time and date.", false);
             return;
@@ -207,7 +208,7 @@ function NewsManagement(): JSX.Element | null {
         } else if (end != null && start.getTime() > end.getTime()) {
             snackbarStore.addFailure("End time cannot be before start.", false);
             return;
-        } else if (category == null) {
+        } else if (category == null || "") {
             snackbarStore.addFailure("Please add a category.", false);
             return;
         }
@@ -303,7 +304,7 @@ function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => v
     }
 }
 
-const Categories = (props: {categories: string[], onSelect: (cat: string) => void}): JSX.Element | null => {
+export const Categories = (props: {categories: string[], onSelect: (cat: string) => void}): JSX.Element | null => {
     if (props.categories.length === 0) return null;
     return (
         <Card p="10px" borderRadius="6px" my="3px">
