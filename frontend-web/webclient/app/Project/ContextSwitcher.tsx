@@ -2,7 +2,7 @@ import {emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
-import {addTrailingSlash, shortUUID} from "UtilityFunctions";
+import {addTrailingSlash, shortUUID, stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
@@ -47,9 +47,17 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
             <ClickableDropdown
                 trigger={
                     <HoverBox>
-                        <Icon name={"projects"} color2="midGray" mr={".5em"}/>
+                        <HoverIcon
+                            onClick={e => {
+                                stopPropagationAndPreventDefault(e);
+                                history.push("/project/dashboard");
+                            }}
+                            name="projects"
+                            color2="midGray"
+                            mr=".5em"
+                        />
                         <Truncate width={"150px"}>{activeContext}</Truncate>
-                        <Icon name={"chevronDown"} size={"12px"} ml={"4px"}/>
+                        <Icon name={"chevronDown"} size={"12px"} ml={"4px"} />
                     </HoverBox>
                 }
                 onTriggerClick={() => (setFetchParams({...params}), projectStatus.reload())}
@@ -68,15 +76,26 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         key={project.projectId}
                         onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
                     >
-                        <Truncate width={"215px"}>{project.title}</Truncate>
+                        <Truncate width="215px">{project.title}</Truncate>
                     </Text>
                 )}
-                {props.activeProject || response.data.items.length > 0 ? <Divider/> : null}
+                {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
                 <Link to="/projects"><Text>Manage projects</Text></Link>
+                {!props.activeProject ? null :
+                    <Link to={"/project/dashboard"}>
+                        Manage active project
+                    </Link>
+                }
             </ClickableDropdown>
         </Flex>
     );
 }
+
+const HoverIcon = styled(Icon)`
+    &:hover {
+        transform: scale(1.1);
+    }
+`;
 
 const filesPathname = "/app/files/";
 const filesSearch = "?path=";
