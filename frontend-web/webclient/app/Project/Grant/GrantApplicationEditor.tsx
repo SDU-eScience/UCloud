@@ -199,7 +199,14 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         case RequestTarget.PERSONAL_PROJECT: {
             const {projectId} = useParams<{ projectId: string }>();
             targetProject = projectId;
-
+            const [w, fetchWallets] = useCloudAPI<RetrieveBalanceResponse>(
+                {noop: true},
+                {wallets: []}
+            );
+            wallets = w.data.wallets;
+            reloadWallets = useCallback(() => {
+                fetchWallets(retrieveBalance({id: Client.username!, type: "USER", includeChildren: false}));
+            }, [projectId]);
             if (target === RequestTarget.NEW_PROJECT) {
                 recipient = {type: "new_project", projectTitle: "placeholder"};
             } else {
