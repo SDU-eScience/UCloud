@@ -66,7 +66,8 @@ class DownloadTests : WithBackgroundScope() {
                     CommandRunnerFactoryForCalls(it.runner, mockk(relaxed = true)),
                     it.coreFs,
                     tokenValidation,
-                    it.lookupService
+                    it.lookupService,
+                    it.fsRoot
                 )
             )
         }

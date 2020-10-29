@@ -73,11 +73,31 @@ class LimitChecker<Ctx : FSUserContext>(
             }
 
             val homeDirectory = findHomeDirectoryFromPath(path)
-            session
+            val subProjectsPaths = session
                 .sendPreparedStatement(
                     { setParameter("homeDirectory", homeDirectory) },
                     """
-                        with used_quota as (
+                        SELECT quota_allocation.to_directory 
+                        FROM quota_allocation 
+                        WHERE from_directory =:homeDirectory
+                    """
+                )
+                .rows
+
+            var usedQuota = 0L
+            runnerFactory.withContext(SERVICE_USER) { fsCtx ->
+                subProjectsPaths.forEach {
+                    val path = it.getString(0)!!
+                    usedQuota += fs.calculateRecursiveStorageUsed(fsCtx, path)
+                }
+            }
+            var allocated = 0L
+            var totalQuota = 0L
+            session
+                .sendPreparedStatement(
+                    { setParameter("homeDirectory", homeDirectory)},
+                    """
+                       with used_quota as (
                             select coalesce(sum(allocation), 0)::bigint as used
                             from quota_allocation where from_directory = :homeDirectory
                         )
@@ -85,17 +105,16 @@ class LimitChecker<Ctx : FSUserContext>(
                         select used_quota.used, quotas.quota_in_bytes
                         from quotas, used_quota
                         where path = :homeDirectory
-                        limit 1
+                        limit 1 
                     """
-                )
-                .rows
+                ).rows
                 .singleOrNull()
                 ?.let {
-                    val allocated = it.getLong(0)!!
-                    val totalQuota = it.getLong(1)!!
-                    Quota(totalQuota, totalQuota - allocated, allocated)
+                    allocated = it.getLong(0)!!
+                    totalQuota = it.getLong(1)!!
                 }
-                ?: Quota(productConfiguration.defaultQuota, 0, 0)
+
+            Quota(totalQuota, totalQuota - usedQuota, allocated)
         }
     }
 
