@@ -340,7 +340,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 .c36 {
   -webkit-transition: background-color 0.3s;
   transition: background-color 0.3s;
-  background-color: var(--white);
 }
 
 .c36:hover {

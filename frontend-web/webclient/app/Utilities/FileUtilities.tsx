@@ -494,6 +494,8 @@ export function clearTrashDialog({onConfirm}: {onConfirm: () => void}): void {
         message: "",
         confirmText: "Confirm",
         cancelText: "Cancel",
+        confirmButtonColor: "red",
+        cancelButtonColor: "gray",
         onConfirm
     });
 }

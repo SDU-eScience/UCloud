@@ -25,6 +25,7 @@ import {useEffect, useRef} from "react";
 import {Client} from "Authentication/HttpClientInstance";
 import {Spacer} from "ui-components/Spacer";
 import {ErrorWrapper} from "ui-components/Error";
+import {ThemeColor} from "ui-components/theme";
 
 interface StandardDialog {
     title?: string;
@@ -35,6 +36,8 @@ interface StandardDialog {
     confirmText?: string;
     validator?: () => boolean;
     addToFront?: boolean;
+    confirmButtonColor?: ThemeColor;
+    cancelButtonColor?: ThemeColor;
 }
 
 export function addStandardDialog({
@@ -45,7 +48,9 @@ export function addStandardDialog({
     validator = () => true,
     cancelText = "Cancel",
     confirmText = "Confirm",
-    addToFront = false
+    addToFront = false,
+    cancelButtonColor = "red",
+    confirmButtonColor = "green"
 }: StandardDialog): void {
     const validate = (): void => {
         if (validator()) onConfirm();
@@ -60,10 +65,10 @@ export function addStandardDialog({
                 <div>{message}</div>
             </div>
             <Flex mt="20px">
-                <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
+                <Button onClick={dialogStore.failure} color={cancelButtonColor} mr="5px">{cancelText}</Button>
                 <Button
                     onClick={validate}
-                    color="green"
+                    color={confirmButtonColor}
                 >
                     {confirmText}
                 </Button>

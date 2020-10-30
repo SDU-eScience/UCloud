@@ -245,6 +245,8 @@ export const defaultFileOperations: FileOperation[] = [
                 title: "Delete files",
                 message,
                 confirmText: "Delete files",
+                confirmButtonColor: "red",
+                cancelButtonColor: "gray",
                 onConfirm: () => {
                     cb.invokeAsyncWork(async () => {
                         const promises: Array<{status?: number; response?: string}> =
