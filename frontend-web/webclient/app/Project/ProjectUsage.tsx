@@ -294,8 +294,10 @@ const VisualizationForArea: React.FunctionComponent<{
 }> = ({area, projectId, usageResponse, balance, durationOption}) => {
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
-    const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
-        if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
+
+    const remainingBalance = balance.data.wallets.filter(it => it.area === area).reduce((sum, wallet) => {
+        if (wallet.wallet.type === "PROJECT" && wallet.wallet.id === projectId) return sum + wallet.balance;
+        if (wallet.wallet.type === "USER" && wallet.wallet.id === Client.username) return sum + wallet.balance;
         else return sum;
     }, 0);
 

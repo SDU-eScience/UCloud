@@ -322,7 +322,7 @@ export function transformUsageChartForCharting(
     }
 
     lineNames.sort((a, b) => (usagePerProject[b] ?? 0) - (usagePerProject[a] ?? 0));
-    lineNames = lineNames.filter((ignored, idx) => idx < numberToInclude);
+    lineNames = lineNames.filter((_, idx) => idx < numberToInclude);
     if (lineNames.length === numberToInclude) lineNames.push(otherId);
 
     for (const line of chart.lines) {
