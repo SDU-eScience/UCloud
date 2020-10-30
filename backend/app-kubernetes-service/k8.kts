@@ -4,7 +4,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "0.20.0-beta.0"
+    version = "0.20.0-beta.3"
 
     val prefix: String = config("prefix", "Application name prefix (e.g. 'app-')", "app-")
     val domain: String = config("domain", "Application domain (e.g. 'cloud.sdu.dk')")
@@ -65,13 +65,12 @@ bundle { ctx ->
     withPostgresMigration(deployment)
 
     listOf("", "-dev").forEach { suffix ->
-        val networkPolicyPodSelector = mapOf("role" to "sducloud-app$suffix")
-        withNetworkPolicy("app-policy$suffix", version = "3") {
+        withNetworkPolicy("app-policy$suffix", version = "4") {
             policy.metadata.namespace = "app-kubernetes"
 
             policy.spec = NetworkPolicySpec().apply {
                 podSelector = LabelSelector().apply {
-                    matchLabels = networkPolicyPodSelector
+                    matchExpressions = listOf(LabelSelectorRequirement("volcano.sh/job-name", "Exists", null))
                 }
 
                 ingress = emptyList()
@@ -92,8 +91,8 @@ bundle { ctx ->
                                     "172.16.0.0/12",
                                     "192.168.0.0/16",
                                     // smtp.sdu.dk
-                                    "130.225.156.18",
-                                    "130.225.156.19"
+                                    "130.225.156.18/32",
+                                    "130.225.156.19/32"
                                 )
                             )
                         )
@@ -104,12 +103,12 @@ bundle { ctx ->
             }
         }
 
-        withNetworkPolicy("app-allow-proxy$suffix", version = "3") {
+        withNetworkPolicy("app-allow-proxy$suffix", version = "4") {
             policy.metadata.namespace = "app-kubernetes"
 
             policy.spec = NetworkPolicySpec().apply {
                 podSelector = LabelSelector().apply {
-                    matchLabels = networkPolicyPodSelector
+                    matchExpressions = listOf(LabelSelectorRequirement("volcano.sh/job-name", "Exists", null))
                 }
 
                 ingress = listOf(
@@ -122,7 +121,7 @@ bundle { ctx ->
     withClusterServiceAccount {
         addRule(
             apiGroups = listOf(""),
-            resources = listOf("pods", "pods/log", "pods/portforward", "pods/exec", "services"),
+            resources = listOf("pods", "pods/log", "pods/portforward", "pods/exec", "services", "events"),
             verbs = listOf("*")
         )
 

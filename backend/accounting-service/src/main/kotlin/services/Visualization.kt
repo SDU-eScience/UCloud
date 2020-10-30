@@ -8,16 +8,12 @@ import dk.sdu.cloud.accounting.api.UsageLine
 import dk.sdu.cloud.accounting.api.UsagePoint
 import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
 import java.util.*
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
@@ -62,9 +58,9 @@ class VisualizationService(
                             extract(epoch from timestamps.ts)::bigint
                         from (
                              Select generate_series(
-                                     to_timestamp(?periodStart) :: timestamp,
-                                     to_timestamp(?periodEnd) :: timestamp,
-                                     ?bucketSize :: interval
+                                     to_timestamp(:periodStart) :: timestamp,
+                                     to_timestamp(:periodEnd) :: timestamp,
+                                     :bucketSize :: interval
                               ) as ts
                         ) as timestamps;
                     """
@@ -94,16 +90,16 @@ class VisualizationService(
                         from
                             (
                                 select generate_series(
-                                    to_timestamp(?periodStart)::timestamp,
-                                    to_timestamp(?periodEnd)::timestamp,
-                                    ?bucketSize::interval
+                                    to_timestamp(:periodStart)::timestamp,
+                                    to_timestamp(:periodEnd)::timestamp,
+                                    :bucketSize::interval
                                 ) as ts
                             ) as timestamps left outer join transactions t on (
                                 t.completed_at >= timestamps.ts and
-                                t.completed_at <= timestamps.ts + ?bucketSize and
+                                t.completed_at <= timestamps.ts + :bucketSize and
                                 t.is_reserved = false and
-                                t.account_id = ?accountId and
-                                t.account_type = ?accountType
+                                t.account_id = :accountId and
+                                t.account_type = :accountType
                             ),
                             product_categories pc
                         where
@@ -145,10 +141,8 @@ class VisualizationService(
                 val allProjects = relevantAccountsByProvider.values.flatten().toSet()
                 for (project in allProjects) {
                     if (project in knownProjects) continue
-                    val ancestors = projectCache.ancestors.get(project)
-                        ?: throw RPCException("Could not find ancestors", HttpStatusCode.BadGateway)
-
-                    ancestors.forEach { newProject ->
+                    val ancestors = runCatching { projectCache.ancestors.get(project) }.getOrNull()
+                    ancestors?.forEach { newProject ->
                         knownProjects[newProject.id] = newProject
                     }
                 }
@@ -159,7 +153,7 @@ class VisualizationService(
                 return buildList {
                     var currentProject = knownProjects[projectId]
                     while (currentProject != null) {
-                        add(currentProject!!)
+                        add(currentProject)
                         currentProject = knownProjects[currentProject.parent]
                     }
                 }.asReversed()

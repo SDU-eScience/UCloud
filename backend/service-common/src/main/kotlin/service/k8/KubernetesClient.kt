@@ -137,7 +137,7 @@ sealed class KubernetesConfigurationSource {
 
             return KubernetesConnection(
                 "https://kubernetes.default.svc",
-                KubernetesAuthenticationMethod.Token(token),
+                KubernetesAuthenticationMethod.Proxy(null),
                 namespace ?: "default"
             )
         }
@@ -174,16 +174,21 @@ fun URLBuilder.fixedClone(): Url {
 sealed class KubernetesAuthenticationMethod {
     open fun configureClient(httpClientConfig: HttpClientConfig<*>) {}
     open fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {}
-    class Proxy(val context: String) : KubernetesAuthenticationMethod() {
+    class Proxy(val context: String?) : KubernetesAuthenticationMethod() {
+        @OptIn(ExperimentalStdlibApi::class)
         private fun startProxy(): Process {
             return ProcessBuilder(
-                "kubectl",
-                "--context",
-                context,
-                "proxy",
-                "--disable-filter=true", // allow exec into pods, TODO Put this behind a flag to opt-in
-                "--port",
-                "42010"
+                *buildList {
+                    add("kubectl")
+                    if(context != null) {
+                        add("--context")
+                        add(context)
+                    }
+                    add("proxy")
+                    add("--disable-filter=true")
+                    add("--port")
+                    add("42010")
+                }.toTypedArray()
             ).start()
         }
 
