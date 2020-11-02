@@ -11,7 +11,7 @@ The auditing feature is written as a piece of middleware for ktor. It logs all
 calls made to the backend. It is further enriched by metadata provided by the
 `callDescription`.
 
-The resulting audit log is dispatched to Kafka in two different topics. 
+The resulting audit log is dispatched to the event stream in two different topics. 
 
 ---
 
