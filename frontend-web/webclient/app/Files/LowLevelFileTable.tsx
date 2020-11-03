@@ -1019,7 +1019,7 @@ const MembersFileRowStat: React.FunctionComponent<{
                     }
                 }}
             >
-                {aclLength} {aclLength === 1 ? "member" : "members"}
+                {aclLength} {aclLength === 1 ? "group" : "groups"}
             </Text>
         );
     }
