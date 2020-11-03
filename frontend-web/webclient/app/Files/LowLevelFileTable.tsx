@@ -865,7 +865,7 @@ const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: st
                 onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
             />
             <ConfirmCancelButtons
-                confirmText="Create"
+                confirmText={props.file.mockTag ? "Create" : "Rename"}
                 cancelText="Cancel"
                 onConfirm={() => props.onRenameFile?.(KeyCode.ENTER, ref.current?.value ?? "")}
                 onCancel={() => props.onRenameFile?.(KeyCode.ESC, "")}

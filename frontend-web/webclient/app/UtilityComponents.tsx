@@ -179,7 +179,7 @@ export const ConfirmCancelButtons = ({
     onCancel,
     height
 }: ConfirmCancelButtonsProps): JSX.Element => (
-        <ButtonGroup width="150px" height={height}>
+        <ButtonGroup width="175px" height={height}>
             <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
             <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
         </ButtonGroup>
