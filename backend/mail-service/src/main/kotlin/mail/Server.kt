@@ -7,8 +7,11 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.mail.rpc.*
+import dk.sdu.cloud.mail.services.AlertingService
 import dk.sdu.cloud.mail.services.MailService
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import kotlinx.coroutines.runBlocking
+import mail.services.SlackNotifier
 import kotlin.system.exitProcess
 
 class Server(private val config: MailConfiguration, override val micro: Micro) : CommonServer {
@@ -16,7 +19,18 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
 
     override fun start() {
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val mailService = MailService(authenticatedClient, config.fromAddress, config.whitelist, micro.developmentModeEnabled)
+        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val alertService = AlertingService(listOf(SlackNotifier(config.notifiers.slack?.hook!!)))
+
+        val mailService = MailService(
+            authenticatedClient,
+            config.fromAddress,
+            config.whitelist,
+            micro.developmentModeEnabled,
+            db,
+            alertService
+        )
+
         if (micro.commandLineArguments.contains("--send-test-mail")) {
             try {
                 val principal = SecurityPrincipal("_password-reset", Role.SERVICE, "", "", 0)

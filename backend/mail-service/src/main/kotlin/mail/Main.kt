@@ -7,8 +7,19 @@ import dk.sdu.cloud.service.CommonServer
 
 data class MailConfiguration(
     val whitelist: List<String> = emptyList(),
-    val fromAddress: String = "support@escience.sdu.dk"
+    val fromAddress: String = "support@escience.sdu.dk",
+    val notifiers: Notifiers = Notifiers()
+
+    )
+
+data class Notifiers(
+    val slack: SlackNotifierConfig? = null
 )
+
+data class SlackNotifierConfig(
+    val hook: String
+)
+
 object MailService : Service {
     override val description = MailServiceDescription
 
