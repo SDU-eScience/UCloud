@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
-import {Button, Text, Input, List, Icon, Flex, Box} from "ui-components";
+import {Button, Text, List, Icon, Flex, Box} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {Operation} from "Types";
 import {useHistory} from "react-router";
@@ -9,14 +9,13 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
-import {addStandardDialog, ConfirmCancelButtons, NamingField} from "UtilityComponents";
-import {KeyCode} from "DefaultObjects";
+import {addStandardDialog, NamingField} from "UtilityComponents";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/index";
 import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project";
-import {MutableRefObject, useCallback, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {Spacer} from "ui-components/Spacer";
 

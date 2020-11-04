@@ -651,4 +651,4 @@ export function isPartOfProject(path: string): boolean {
 }
 
 
-const PERSONAL_REPOSITORY = "Members' Files"
+const PERSONAL_REPOSITORY = "Members' Files";

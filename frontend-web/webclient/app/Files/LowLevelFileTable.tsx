@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import {AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
+import {AsyncWorker, callAPI, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, SensitivityLevelMap} from "DefaultObjects";
@@ -41,7 +41,7 @@ import {ListRow} from "ui-components/List";
 import {
     createRepository, isRepository, renameRepository, getProjectNames, isAdminOrPI, updatePermissionsPrompt
 } from "Utilities/ProjectUtilities";
-import {ProjectRole, useProjectManagementStatus} from "Project";
+import {membershipSearch, ProjectMember, ProjectRole, useProjectManagementStatus} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
@@ -243,6 +243,11 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
 
     const {projectRole} = useProjectManagementStatus({isRootComponent: !props.embedded, allowPersonalProject: true});
 
+    /* FIXME: Doesn't handle 100+ project members */
+    const [projectMembers] = useCloudAPI<Page<ProjectMember>>(
+        membershipSearch({itemsPerPage: 100, page: 0, query: ""}), emptyPage
+    );
+
     // Hooks
     const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
@@ -304,6 +309,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     // Callbacks for operations
     const callbacks: FileOperationCallback = {
         projects: projectNames,
+        projectMembers: projectMembers.data.items.map(it => it.username),
         permissions,
         invokeAsyncWork: fn => invokeWork(fn),
         requestReload: () => {

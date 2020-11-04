@@ -21,6 +21,7 @@ import {
     isArchiveExtension, isAUserPersonalFolder, isPartOfProject, isPersonalRootFolder,
     isTrashFolder,
     moveToTrash,
+    pathComponents,
     shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
@@ -38,6 +39,7 @@ import {ProjectName} from "Project";
 
 export interface FileOperationCallback {
     permissions: FilePermissions;
+    projectMembers: string[];
     invokeAsyncWork: (fn: () => Promise<void>) => void;
     requestFolderCreation: () => void;
     requestReload: () => void;
@@ -228,7 +230,10 @@ export const defaultFileOperations: FileOperation[] = [
             if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
             else if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
-            else if (files.find(it => isAUserPersonalFolder(it.path)) !== undefined) return true;
+            else if (
+                files.find(it => (isAUserPersonalFolder(it.path)) !== undefined &&
+                cb.projectMembers.includes(pathComponents(it.path)[3]))
+            ) return true;
             else return files.every(({path}) => isTrashFolder(path) || isTrashFolder(getParentPath(path)));
         },
         icon: "trash",
