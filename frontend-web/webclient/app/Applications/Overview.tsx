@@ -19,7 +19,7 @@ import {EllipsedText} from "ui-components/Text";
 import theme from "ui-components/theme";
 import {favoriteApplicationFromPage, toolImageQuery} from "Utilities/ApplicationUtilities";
 import {RouterLocationProps} from "Utilities/URIUtilities";
-import {FullAppInfo, WithAppMetadata} from ".";
+import {FullAppInfo} from ".";
 import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import Installed from "./Installed";
 import * as Pages from "./Pages";
@@ -78,76 +78,32 @@ function Applications(props: ApplicationsProps): JSX.Element {
         fetch();
     }, [props.location]);
 
-    function getFeatured(): Page<FullAppInfo> {
-        const {favorites} = props;
-        if (props.favorites.items.length > 0) {
-            const favPairs = favorites.items.map(it => ({name: it.metadata.name, version: it.metadata.version}));
-            const featuredPage: Page<FullAppInfo> = props.applications.get("Featured") ?? emptyPage;
-            const featured = {...emptyPage};
-            featured.items = featuredPage.items.filter(featApp =>
-                !favPairs.some(it => it.name === featApp.metadata.name && it.version === featApp.metadata.version)
-            );
-            featured.itemsInTotal = featured.items.length;
-            return featured;
-        } else {
-            return props.applications.get("Featured") ?? emptyPage;
-        }
-    }
-
-    const featured = getFeatured();
+    const featured = props.applications.get("Featured") ?? emptyPage;
     const {favorites} = props;
+    const favPairs = favorites.items.map(it => ({name: it.metadata.name, version: it.metadata.version}));
     const main = (
         <>
             <Installed header={null} />
             <Pagination.List
                 loading={props.loading}
-                pageRenderer={page => (
-                    <>
-                        <div>
-                            <Spacer
-                                pt="15px"
-                                left={<Heading.h2>Featured</Heading.h2>}
-                                right={(
-                                    <ShowAllTagItem tag="Featured">
-                                        <Heading.h4 pt="15px" ><strong>Show All</strong></Heading.h4>
-                                    </ShowAllTagItem>
-                                )}
-                            />
-                        </div>
-                        <Box pl="10px" style={{overflowX: "scroll"}} pb="15px">
-                            <Grid
-                                pt="20px"
-                                gridTemplateRows="repeat(3, 1fr)"
-                                gridTemplateColumns="repeat(7, 1fr)"
-                                gridGap="15px"
-                                style={{gridAutoFlow: "column"}}
-                            >
-                                {page.items.map(app => (
-                                    <ApplicationCard
-                                        key={`${app.metadata.name}-${app.metadata.version}`}
-                                        onFavorite={async () => {
-                                            props.receiveApplications(await favoriteApplicationFromPage({
-                                                name: app.metadata.name,
-                                                version: app.metadata.version,
-                                                client: Client,
-                                                page
-                                            }));
-                                            props.fetchFavorites(favorites.itemsPerPage, favorites.pageNumber);
-                                        }}
-                                        app={app}
-                                        isFavorite={false}
-                                        tags={app.tags}
-                                    />
-                                ))}
-                            </Grid>
-                        </Box>
-                    </>
+                pageRenderer={() => (
+                    <TagGrid favorites={favPairs} omit={[]} tag={"Featured"} columns={7} rows={3}
+                        setFavorite={async (name, version, page) => {
+                            props.receiveApplications(await favoriteApplicationFromPage({
+                                name,
+                                version,
+                                client: Client,
+                                page
+                            }));
+                            props.fetchFavorites(100, favorites.pageNumber);
+                        }} />
                 )}
                 page={featured}
                 onPageChanged={pageNumber => fetchFeatured(featured.itemsPerPage, pageNumber)}
             />
+
             {featuredTags.map(tag =>
-                <FeaturedTag key={tag} tag={tag} omit={defaultTools} rows={1} columns={7}
+                <TagGrid key={tag} favorites={favPairs} tag={tag} omit={defaultTools} rows={1} columns={7}
                     setFavorite={async (name, version, page) => {
                         props.receiveApplications(await favoriteApplicationFromPage({
                             name,
@@ -155,7 +111,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
                             client: Client,
                             page
                         }));
-                        props.fetchFavorites(favorites.itemsPerPage, favorites.pageNumber);
+                        props.fetchFavorites(100, favorites.pageNumber);
                     }}
                 />
             )}
@@ -215,18 +171,22 @@ const ToolImage = styled.img`
     width: 100%;
 `;
 
-interface FeaturedTagProps {
+interface TagGridProps {
     tag: string;
     omit: string[];
     setFavorite(appName: string, appVersion: string, page: Page<FullAppInfo>): void;
     columns: number;
     rows: number;
+    favorites: {name: string, version: string}[]
 }
 
-function FeaturedTag({tag, setFavorite, columns, rows, omit}: FeaturedTagProps): JSX.Element {
+function TagGrid({tag, setFavorite, favorites, columns, rows, omit}: TagGridProps): JSX.Element {
     const page = useSelector<ReduxObject, Page<FullAppInfo>>(it =>
         it.applicationsBrowse.applications.get(tag) ?? emptyPage
     );
+
+    const filteredItems = page.items.filter(it => !it.tags.some(_tag => omit.includes(_tag)))
+        .filter(it => !favorites.some(fav => fav.name === it.metadata.name && it.metadata.version === fav.version));
 
     return (
         <>
@@ -249,26 +209,28 @@ function FeaturedTag({tag, setFavorite, columns, rows, omit}: FeaturedTagProps):
                     gridGap="15px"
                     style={{gridAutoFlow: "column"}}
                 >
-                    {page.items.filter(it => !it.tags.some(_tag => omit.includes(_tag))).map(app => (
-                        <ApplicationCard
-                            key={`${app.metadata.name}-${app.metadata.version}`}
-                            onFavorite={(name, version) => setFavorite(name, version, page)}
-                            colorBySpecificTag={tag}
-                            app={app}
-                            isFavorite={false}
-                            tags={app.tags}
-                        />
-                    ))}
+                    {filteredItems.map(app => (
+                            <ApplicationCard
+                                key={`${app.metadata.name}-${app.metadata.version}`}
+                                onFavorite={(name, version) => setFavorite(name, version, page)}
+                                colorBySpecificTag={tag}
+                                app={app}
+                                isFavorite={app.favorite}
+                                tags={app.tags}
+                            />
+                        ))}
                 </Grid>
             </Box>
         </>
     );
 }
 
-
-// eslint-disable-next-line no-underscore-dangle
-const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}): JSX.Element => {
-    const allTags = props.page.items.map(it => it.tags);
+const ToolGroup = (props: {tag: string; cacheBust?: string}): JSX.Element => {
+    const page = useSelector<ReduxObject, Page<FullAppInfo>>(it => {
+        const {applications} = it.applicationsBrowse;
+        return applications.get(props.tag) ?? emptyPage;
+    });
+    const allTags = page.items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
     const url = Client.computeURL("/api", toolImageQuery(props.tag.toLowerCase().replace(/\s+/g, ""), props.cacheBust));
@@ -300,7 +262,7 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
                         gridGap="8px"
                         gridAutoFlow="column"
                     >
-                        {props.page.items.map(application => {
+                        {page.items.map(application => {
                             const [first, second, third] = getColorFromName(application.metadata.name);
                             const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
                             return (
@@ -344,17 +306,6 @@ function removeTagFromTitle(tag: string, title: string): string {
         return title;
     }
 }
-
-const mapToolGroupStateToProps = (
-    {applicationsBrowse}: ReduxObject,
-    ownProps: {tag: string}
-): {page: Page<WithAppMetadata>} => {
-    const {applications} = applicationsBrowse;
-    const page = applications.get(ownProps.tag) ?? emptyPage;
-    return {page};
-};
-
-const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_);
 
 const mapDispatchToProps = (
     dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | Favorites.Type>

@@ -14,7 +14,7 @@ const reducer = (state: ReduxType = init().applicationsFavorite, action: ActionT
         }
 
         default: {
-            return state
+            return state;
         }
     }
 };
