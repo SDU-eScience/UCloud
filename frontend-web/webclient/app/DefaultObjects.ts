@@ -144,6 +144,7 @@ export interface HookStore {
     projectManagementOutgoingInvites?: APICallStateWithParams<Page<OutgoingInvite>, ListOutgoingInvitesRequest>;
     computeProducts?: APICallStateWithParams<Page<Product>>;
     storageProducts?: APICallStateWithParams<Page<Product>>;
+    frameHidden?: boolean;
 }
 
 interface LegacyReduxObject {

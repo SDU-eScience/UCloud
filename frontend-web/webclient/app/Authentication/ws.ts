@@ -75,7 +75,7 @@ export class WebSocketConnection {
 
     public close(): void {
         this.internalClosed = true;
-        this.socket.close();
+        this.socket?.close();
         const closeScript = this.settings.onClose ?? (() => {
             // Empty
         });

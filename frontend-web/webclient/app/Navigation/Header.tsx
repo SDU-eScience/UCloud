@@ -38,7 +38,7 @@ import {
     inDevEnvironment,
     isLightThemeStored,
     prettierString,
-    shouldHideSidebarAndHeader,
+    useFrameHidden,
     stopPropagationAndPreventDefault
 } from "UtilityFunctions";
 import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
@@ -80,10 +80,7 @@ function Header(props: HeaderProps): JSX.Element | null {
         return () => {if (intervalId !== -1) clearInterval(intervalId);};
     }, [Client.isLoggedIn]);
 
-    // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
-    // The following is only supposed to work for the initial load.
-    if (shouldHideSidebarAndHeader()) return null;
-
+    if (useFrameHidden()) return null;
     if (!Client.isLoggedIn) return null;
 
     function toSearch(): void {

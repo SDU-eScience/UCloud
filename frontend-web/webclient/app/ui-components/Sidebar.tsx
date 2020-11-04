@@ -3,7 +3,7 @@ import * as React from "react";
 import {connect, useDispatch} from "react-redux";
 import styled, {css} from "styled-components";
 import {fileTablePage} from "Utilities/FileUtilities";
-import {copyToClipboard, inDevEnvironment, shouldHideSidebarAndHeader} from "UtilityFunctions";
+import {copyToClipboard, inDevEnvironment, useFrameHidden} from "UtilityFunctions";
 import {DATA_PROTECTION_LINK, DATA_PROTECTION_TEXT, PRODUCT_NAME, SITE_DOCUMENTATION_URL} from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -213,9 +213,7 @@ interface SidebarProps extends SidebarStateProps {
 const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps): JSX.Element | null => {
     if (!loggedIn) return null;
 
-    // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
-    // The following is only supposed to work for the initial load.
-    if (shouldHideSidebarAndHeader()) return null;
+    if (useFrameHidden()) return null;
 
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])

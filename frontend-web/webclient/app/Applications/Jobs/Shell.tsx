@@ -9,6 +9,7 @@ import {queryShellParameters, QueryShellParametersResponse} from "Applications";
 import {useParams} from "react-router";
 import Warning from "ui-components/Warning";
 import {Box, Button} from "ui-components";
+import {useGlobal} from "Utilities/ReduxHooks";
 
 export const ShellDemo: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
@@ -19,6 +20,10 @@ export const ShellDemo: React.FunctionComponent = () => {
     );
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnect, setReconnect] = useState<number>(0);
+    const [frameHidden, setFrameHidden] = useGlobal("frameHidden", false);
+    useEffect(() => {
+        setFrameHidden(true);
+    }, []);
 
     useEffect(() => {
         fetchPath(queryShellParameters({jobId, rank: parseInt(rank, 10)}));
@@ -94,6 +99,7 @@ export const ShellDemo: React.FunctionComponent = () => {
         header={<Heading.h2>Shell Demo</Heading.h2>}
         main={
             <>
+                <Button onClick={() => setFrameHidden(!frameHidden)}>Toggle frame</Button>
                 {!closed ? null : (
                     <Box mb={"16px"}>
                         <Warning>

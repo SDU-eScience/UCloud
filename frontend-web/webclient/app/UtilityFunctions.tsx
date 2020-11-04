@@ -10,6 +10,7 @@ import {
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
+import {useGlobal} from "Utilities/ReduxHooks";
 
 export function toggleCssColors(light: boolean): void {
     const html = document.querySelector("html")!;
@@ -464,9 +465,11 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
     snackbarStore.addFailure(errorMessageOrDefault(e, fallback), false);
 }
 
-export function shouldHideSidebarAndHeader(): boolean {
-    return ["/app/login", "/app/login/wayf", "/app/login/selection"]
+export function useFrameHidden(): boolean {
+    const [frameHidden] = useGlobal("frameHidden", false);
+    const legacyHide = ["/app/login", "/app/login/wayf", "/app/login/selection"]
         .includes(window.location.pathname) || window.location.search === "?dav=true";
+    return legacyHide || frameHidden;
 }
 
 export function getUserThemePreference(): "light" | "dark" {
