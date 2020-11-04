@@ -11,6 +11,7 @@ import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
 import {useGlobal} from "Utilities/ReduxHooks";
+import {useEffect} from "react";
 
 export function toggleCssColors(light: boolean): void {
     const html = document.querySelector("html")!;
@@ -467,9 +468,22 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
 
 export function useFrameHidden(): boolean {
     const [frameHidden] = useGlobal("frameHidden", false);
-    const legacyHide = ["/app/login", "/app/login/wayf", "/app/login/selection"]
-        .includes(window.location.pathname) || window.location.search === "?dav=true";
+    const legacyHide =
+        ["/app/login", "/app/login/wayf", "/app/login/selection"].includes(window.location.pathname) ||
+        window.location.search === "?dav=true" ||
+        window.location.search === "?hide-frame";
     return legacyHide || frameHidden;
+}
+
+export function useNoFrame(): void {
+    const [frameHidden, setFrameHidden] = useGlobal("frameHidden", false);
+    useEffect(() => {
+        const wasFrameHidden = frameHidden;
+        setFrameHidden(true);
+        return () => {
+            setFrameHidden(wasFrameHidden);
+        };
+    }, []);
 }
 
 export function getUserThemePreference(): "light" | "dark" {

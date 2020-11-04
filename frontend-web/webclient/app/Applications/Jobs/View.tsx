@@ -11,7 +11,7 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {shortUUID} from "UtilityFunctions";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
-import {Box, Button, Flex, Icon} from "ui-components";
+import {Box, Button, Flex, Icon, Link} from "ui-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {IconName} from "ui-components/Icon";
 import * as anims from "react-animations";
@@ -25,7 +25,6 @@ import {fileTablePage, mockFile} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 
 const enterAnimation = keyframes`${anims.pulse}`;
-const dataExit = keyframes`${anims.fadeOut}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
 
 const Container = styled.div`
@@ -555,7 +554,7 @@ const RunningJobRankWrapper = styled.div`
         flex-direction: column;
     }
     
-    .buttons > ${Button} {
+    .buttons ${Button} {
         margin-top: 8px;
         width: 100%;
     }
@@ -616,8 +615,20 @@ const RunningJobRank: React.FunctionComponent<{ job: Jobs.Job, rank: number }> =
                 <div className={"term"} ref={termRef}/>
 
                 <div className="buttons">
-                    <Button><b>&gt;_{"  "}</b> Open terminal</Button>
-                    <Button>Open website</Button>
+                    <Link to={`/applications/shell/${job.jobId}/${rank}?hide-frame`} onClick={e => {
+                        e.preventDefault();
+
+                        window.open(
+                            ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                            `shell-${job.jobId}-${rank}`,
+                            "width=800,height=600,status=no"
+                        );
+                    }}>
+                        <Button type={"button"}>
+                            <b>&gt;_{"  "}</b> Open terminal
+                        </Button>
+                    </Link>
+                    <Button>Open interface</Button>
                     <Button className={"expand-btn"} onClick={toggleExpand}>
                         {expanded ? "Shrink" : "Expand"} output
                     </Button>

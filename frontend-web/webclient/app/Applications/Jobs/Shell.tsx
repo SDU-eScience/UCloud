@@ -9,9 +9,23 @@ import {queryShellParameters, QueryShellParametersResponse} from "Applications";
 import {useParams} from "react-router";
 import Warning from "ui-components/Warning";
 import {Box, Button} from "ui-components";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {shortUUID, useNoFrame} from "UtilityFunctions";
+import styled from "styled-components";
+import {useTitle} from "Navigation/Redux/StatusActions";
 
-export const ShellDemo: React.FunctionComponent = () => {
+const ShellWrapper = styled.div`
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    flex-direction: column;
+    
+    .term {
+        width: 100%;
+        flex-grow: 1;
+    }
+`;
+
+export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
     const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
     const [path, fetchPath] = useCloudAPI<QueryShellParametersResponse>(
@@ -20,10 +34,8 @@ export const ShellDemo: React.FunctionComponent = () => {
     );
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnect, setReconnect] = useState<number>(0);
-    const [frameHidden, setFrameHidden] = useGlobal("frameHidden", false);
-    useEffect(() => {
-        setFrameHidden(true);
-    }, []);
+    useNoFrame();
+    useTitle(`Job ${shortUUID(jobId)} [Rank: ${parseInt(rank) + 1}]`);
 
     useEffect(() => {
         fetchPath(queryShellParameters({jobId, rank: parseInt(rank, 10)}));
@@ -95,24 +107,18 @@ export const ShellDemo: React.FunctionComponent = () => {
         };
     }, [termRef.current, path.data.path, reconnect]);
 
-    return <MainContainer
-        header={<Heading.h2>Shell Demo</Heading.h2>}
-        main={
-            <>
-                <Button onClick={() => setFrameHidden(!frameHidden)}>Toggle frame</Button>
-                {!closed ? null : (
-                    <Box mb={"16px"}>
-                        <Warning>
-                            Your connection has been closed!
-                            <Button ml={"16px"} onClick={() => {
-                                setReconnect(reconnect + 1);
-                            }}>Reconnect</Button>
-                        </Warning>
-                    </Box>
-                )}
+    return <ShellWrapper>
+        {!closed ? null : (
+            <Box m={"16px"}>
+                <Warning>
+                    Your connection has been closed!
+                    <Button ml={"16px"} onClick={() => {
+                        setReconnect(reconnect + 1);
+                    }}>Reconnect</Button>
+                </Warning>
+            </Box>
+        )}
 
-                <div style={{width: "100%", height: "calc(100vh - 250px)"}} ref={termRef}/>
-            </>
-        }
-    />;
+        <div style={{width: "100vw", height: "100vh"}} ref={termRef}/>
+    </ShellWrapper>;
 };

@@ -54,7 +54,7 @@ import {ProjectBrowser} from "Project/Grant/ProjectBrowser";
 import {LandingPage} from "Project/Grant/LandingPage";
 import Products from "Products/Products";
 import {AppK8Admin} from "Admin/AppK8Admin";
-import {ShellDemo} from "Applications/Jobs/Shell";
+import {Shell} from "Applications/Jobs/Shell";
 import {DEV_SITE} from "../site.config.json";
 import * as Jobs from "Applications/Jobs";
 
@@ -102,7 +102,7 @@ const Core = (): JSX.Element => (
                 <Route exact path="/applications/jobs/:id" component={requireAuth(Jobs.View)} />
                 <Route exact path="/applications/results" component={requireAuth(Runs)} />
                 <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)} />
-                <Route exact path={"/applications/shell/:jobId/:rank"} component={ShellDemo} />
+                <Route exact path={"/applications/shell/:jobId/:rank"} component={Shell} />
                 <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)} />
 
                 <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
