@@ -230,7 +230,7 @@ class MailService(
                         VALUES (:count, :username, :time)
                         ON CONFLICT (username) 
                         DO 
-                            UPDATE SET mail_count = mail_count + 1
+                            UPDATE SET mail_count = mail_counting.mail_count + 1
                     """
                 )
         }
@@ -272,12 +272,11 @@ class MailService(
                     """
                 ).rows
                 .singleOrNull()
-                ?.toModel()
+                ?.toMailCountInfo()
                 ?: throw RPCException.fromStatusCode(
                     HttpStatusCode.InternalServerError,
                     "Mail count does not exist. Should just have been initialized or updated")
         }
-
         if(LocalDateTime.now(DateTimeZone.UTC).isAfter(countInfoForUser.timestamp.plusMinutes(30))) {
             resetMailCount(recipient)
             return true
@@ -322,7 +321,7 @@ class MailService(
         val alertedFor: Boolean
     )
 
-    fun RowData.toModel(): MailCountInfo {
+    fun RowData.toMailCountInfo(): MailCountInfo {
         return MailCountInfo(
             getField(MailCounterTable.username),
             getField(MailCounterTable.periodStart),
