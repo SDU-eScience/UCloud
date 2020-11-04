@@ -1,4 +1,5 @@
 import theme from "./theme";
+import {device} from "ui-components/Hide";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
@@ -66,6 +67,11 @@ html {
     --wayfGreen: #66b340;
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
+    
+    /* TODO This is not currently enforced in the header */
+    --headerHeight: 48px;
+    /* TODO This is not currently enforced in the sidebar */
+    --sidebarWidth: 68px;
 }
 
 html.light {
@@ -96,6 +102,13 @@ html.dark {
     --appCard: #060707;
     --borderGray: #111;
     --invertedThemeColor: #fff;
+}
+
+${device("xxl")} {
+    html {
+        /* TODO This is not currently enforced in the sidebar */
+        --sidebarWidth: 190px;
+    }
 }
 
 

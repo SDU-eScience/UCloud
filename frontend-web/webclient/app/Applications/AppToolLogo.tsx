@@ -12,7 +12,7 @@ interface AppToolLogoProps {
 }
 
 export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
-    const [hasLoadedImage, setLoadedImage] = useState(true);
+    const [hasLoadedImage, setLoadedImage] = useState(false);
     const size = props.size !== undefined ? props.size : "48px";
     const context = props.type === "APPLICATION" ? "apps" : "tools";
 
@@ -21,6 +21,9 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
     return (
         <>
             <img
+                onLoad={() => {
+                    setLoadedImage(true);
+                }}
                 onErrorCapture={() => {
                     setLoadedImage(false);
                     // For some reason the state is not always correctly set. This is the worst possible work around.

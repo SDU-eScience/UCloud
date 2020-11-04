@@ -1,4 +1,4 @@
-import {appendToXterm, useXTerm} from "Applications/xterm";
+import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {EmbeddedFileTable} from "Files/FileTable";
 import {History} from "history";

@@ -70,7 +70,7 @@ import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
 import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
-import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
+import {buildQueryString, getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import * as PublicLinks from "Applications/PublicLinks/Management";
 import {creditFormatter} from "Project/ProjectUsage";
 import {Product, retrieveBalance, RetrieveBalanceResponse} from "Accounting";
@@ -173,7 +173,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
     public render(): JSX.Element {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
-        if (!application) return <MainContainer main={<LoadingIcon size={36} />} />;
+        if (!application) return <MainContainer main={<LoadingIcon size={36}/>}/>;
 
         const parameters = application.invocation.parameters;
         const mandatory = parameters.filter(parameter => !parameter.optional);
@@ -226,14 +226,15 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                 headerSize={48}
                 header={(
                     <Flex mx={["0px", "0px", "0px", "0px", "0px", "50px"]}>
-                        <AppHeader slim application={application} />
+                        <AppHeader slim application={application}/>
                     </Flex>
                 )}
 
                 sidebar={(
                     <VerticalButtonGroup>
                         {this.state.application ?
-                            <Link to={`/applications/details/${this.state.application.metadata.name}/${this.state.application.metadata.version}/`}>
+                            <Link
+                                to={`/applications/details/${this.state.application.metadata.name}/${this.state.application.metadata.version}/`}>
                                 <OutlineButton fullWidth>
                                     App details
                                 </OutlineButton>
@@ -263,8 +264,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                         <Box mt={32} color={this.state.balance >= estimatedCost ? "black" : "red"} textAlign="center">
                             {!this.state.reservationMachine ? null : (
                                 <>
-                                    <Icon name={"grant"} />{" "}
-                                    Estimated cost: <br />
+                                    <Icon name={"grant"}/>{" "}
+                                    Estimated cost: <br/>
 
                                     {creditFormatter(estimatedCost, 3)}
                                 </>
@@ -273,8 +274,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                         <Box mt={32} color="black" textAlign="center">
                             {!this.state.reservationMachine ? null : (
                                 <>
-                                    <Icon name="grant" />{" "}
-                                    Current balance: <br />
+                                    <Icon name="grant"/>{" "}
+                                    Current balance: <br/>
 
                                     {creditFormatter(this.state.balance)}
                                 </>
@@ -343,7 +344,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                             )}
 
                             <RunSection>
-                                <WalletWarning errorCode={this.state.errorCode} />
+                                <WalletWarning errorCode={this.state.errorCode}/>
                                 {this.state.errorCode ? null :
                                     <Error
                                         error={this.state.inlineError}
@@ -406,30 +407,30 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                                     Your files will be available at <code>/work/</code>.
                                                 </>
                                             ) : (
-                                                    <>
-                                                        If you need to use your {" "}
-                                                        <Link
-                                                            to={fileTablePage(Client.homeFolder)}
-                                                            target="_blank"
-                                                        >
-                                                            files
+                                                <>
+                                                    If you need to use your {" "}
+                                                    <Link
+                                                        to={fileTablePage(Client.homeFolder)}
+                                                        target="_blank"
+                                                    >
+                                                        files
                                                     </Link>
-                                                        {" "}
+                                                    {" "}
                                                     in this job then click {" "}
-                                                        <BaseLink
-                                                            href="#"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                this.addFolder();
-                                                            }}
-                                                        >
-                                                            &quot;Add folder&quot;
+                                                    <BaseLink
+                                                        href="#"
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            this.addFolder();
+                                                        }}
+                                                    >
+                                                        &quot;Add folder&quot;
                                                     </BaseLink>
-                                                        {" "}
+                                                    {" "}
                                                     to select the relevant
                                                     files.
                                                 </>
-                                                )}
+                                            )}
                                         </Box>
 
                                         {this.state.mountedFolders.map((entry, i) => (
@@ -482,21 +483,21 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                                 File systems used by the <b>job</b> are automatically added to this job.
                                             </>
                                         ) : (
-                                                <>
-                                                    If you need to use the services of another job click{" "}
-                                                    <BaseLink
-                                                        href="#"
-                                                        onClick={e => {
-                                                            e.preventDefault();
-                                                            this.connectToJob();
-                                                        }}
-                                                    >
-                                                        &quot;Connect to job&quot;.
+                                            <>
+                                                If you need to use the services of another job click{" "}
+                                                <BaseLink
+                                                    href="#"
+                                                    onClick={e => {
+                                                        e.preventDefault();
+                                                        this.connectToJob();
+                                                    }}
+                                                >
+                                                    &quot;Connect to job&quot;.
                                                 </BaseLink>
-                                                    {" "}
+                                                {" "}
                                                 This includes networking.
                                             </>
-                                            )}
+                                        )}
                                     </Box>
 
                                     {
@@ -607,7 +608,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             };
         });
 
-        const peers = [] as Array<{name: string; jobId: string}>;
+        const peers = [] as Array<{ name: string; jobId: string }>;
         {
             // Validate additional mounts
             for (const peer of this.state.additionalPeers) {
@@ -670,7 +671,12 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             this.setState({jobSubmitted: true});
             this.props.setLoading(true);
             const req = await Client.post(hpcJobQueryPost, job, Client.apiContext, 1);
-            this.props.history.push(`/applications/results/${req.response.jobId}`);
+            this.props.history.push(
+                buildQueryString(
+                    `/applications/jobs/${req.response.jobId}`,
+                    {app: job.application.name, action: "start"}
+                )
+            );
         } catch (err) {
             if (err.request.status === 409) {
                 addStandardDialog({
@@ -903,7 +909,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         fileReader.readAsText(file);
     }
 
-    private onImportFileSelected(file: {path: string}): void {
+    private onImportFileSelected(file: { path: string }): void {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -916,7 +922,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: {path: string}): Promise<void> => {
+    private fetchAndImportParameters = async (file: { path: string }): Promise<void> => {
         const fileStat = await Client.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.", false);
@@ -1008,7 +1014,7 @@ const ApplicationUrl: React.FunctionComponent<{
                         if (!props.enabled && props.jobName.current !== null) {
                             setUrl(urlify(props.jobName.current!.value));
                         }
-                    }} />
+                    }}/>
                     <TextSpan>Public link</TextSpan>
                 </Label>
             </div>
@@ -1091,7 +1097,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     value={maxTime.hours}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     max={59}
@@ -1116,7 +1122,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
             )}
 
             <div>
-                <Label>Machine type <MandatoryField /></Label>
+                <Label>Machine type <MandatoryField/></Label>
                 <MachineTypes
                     reservation={props.reservation}
                     setReservation={props.setReservation}
@@ -1162,7 +1168,7 @@ const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     setLoading: loading => dispatch(setLoading(loading))
 });
 
-const mapStateToProps = (redux: ReduxObject): {project?: string} => ({
+const mapStateToProps = (redux: ReduxObject): { project?: string } => ({
     project: redux.project.project
 });
 

@@ -1,11 +1,11 @@
 import * as React from "react";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
-import {useXTerm} from "Applications/xterm";
+import {useXTerm} from "Applications/Jobs/xterm";
 import {WSFactory} from "Authentication/HttpClientInstance";
 import {useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
-import {queryShellParameters, QueryShellParametersResponse} from "Applications/index";
+import {queryShellParameters, QueryShellParametersResponse} from "Applications";
 import {useParams} from "react-router";
 import Warning from "ui-components/Warning";
 import {Box, Button} from "ui-components";

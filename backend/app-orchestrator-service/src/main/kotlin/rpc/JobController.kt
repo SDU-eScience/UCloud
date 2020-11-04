@@ -21,6 +21,7 @@ import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.delay
 
 class JobController(
     private val jobQueryService: JobQueryService,

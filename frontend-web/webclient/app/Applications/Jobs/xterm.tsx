@@ -1,9 +1,9 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {isLightThemeStored} from "UtilityFunctions";
-import {Terminal} from "xterm";
 import {FitAddon} from "xterm-addon-fit";
 import "xterm/css/xterm.css";
+import {Terminal} from "xterm";
 
 interface XtermHook {
     termRef: React.RefObject<HTMLDivElement>;
@@ -11,7 +11,7 @@ interface XtermHook {
     fitAddon: FitAddon;
 }
 
-export function useXTerm(): XtermHook {
+export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
     const [didMount, setDidMount] = useState(false);
 
     const [term] = useState(() => new Terminal({theme: getTheme()}));
@@ -29,7 +29,20 @@ export function useXTerm(): XtermHook {
         } else if (elem.current === null) {
             setDidMount(false);
         }
-    });
+    }, []);
+
+    useEffect(() => {
+        const listener = (): void => {
+            if (props.autofit) {
+                fitAddon.fit();
+            }
+        };
+        window.addEventListener("resize", listener);
+
+        return () => {
+            window.removeEventListener("resize", listener);
+        };
+    }, [props.autofit]);
 
     const [storedTheme, setStoredTheme] = useState(isLightThemeStored());
 
@@ -55,9 +68,9 @@ function getTheme() {
         background: "#f5f7f9",
         foreground: "#073642",
     } : {
-            background: "#073642",
-            foreground: "#e0e0e0",
-        };
+        background: "#073642",
+        foreground: "#e0e0e0",
+    };
     return {
         ...themeColors,
         black: "#073642",

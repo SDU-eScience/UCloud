@@ -66,14 +66,17 @@ export const DashboardCard: React.FunctionComponent<{
     isLoading: boolean;
     icon?: IconName,
     height?: string,
-    minHeight?: string
+    minHeight?: string,
+    width?: string,
+    minWidth?: string,
     onClick?: () => void;
-}> = ({title, subtitle, onClick, color, isLoading, icon = undefined, children, height = "auto", minHeight}) => (
+}> = ({title, subtitle, onClick, color, isLoading, icon = undefined, children, height = "auto", minHeight, width = "100%", minWidth}) => (
     <Card
         onClick={onClick}
         overflow="hidden"
         height={height}
-        width={1}
+        width={width}
+        minWidth={minWidth}
         boxShadow="sm"
         borderWidth={0}
         borderRadius={6}
