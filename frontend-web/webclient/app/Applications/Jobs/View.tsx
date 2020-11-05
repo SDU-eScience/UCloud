@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {MutableRefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI} from "Authentication/DataHook";
@@ -18,11 +18,13 @@ import * as anims from "react-animations";
 import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
-import {useXTerm} from "Applications/Jobs/xterm";
+import {appendToXterm, useXTerm, XtermHook} from "Applications/Jobs/xterm";
 import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
+import {Client, WSFactory} from "Authentication/HttpClientInstance";
+import {FollowStdStreamResponse} from "Applications";
+import {WebSocketConnection} from "Authentication/ws";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -154,6 +156,32 @@ const Container = styled.div`
         --logoScale: 0.5;
     }
 `;
+
+function useJobUpdates(jobId: string, callback: (entry: FollowStdStreamResponse) => void): void {
+    const conn: MutableRefObject<WebSocketConnection | null> = useRef(null);
+    useMemo(() => {
+        conn.current = WSFactory.open(
+            "/hpc/jobs", {
+                init: conn => {
+                    conn.subscribe({
+                        call: "hpc.jobs.followWS",
+                        payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
+                        handler: message => {
+                            const streamEntry = message.payload as FollowStdStreamResponse;
+                            callback(streamEntry);
+                        }
+                    });
+                }
+            }
+        );
+    }, [jobId]);
+
+    useEffect(() => {
+        return () => {
+            conn.current?.close();
+        };
+    }, [conn.current]);
+}
 
 export const View: React.FunctionComponent = () => {
     const {id} = useParams<{ id: string }>();

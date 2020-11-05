@@ -1,6 +1,8 @@
 import {buildQueryString} from "Utilities/URIUtilities";
 import {View} from "./View" ;
 
+// ~~~ Start of generated code ~~~
+
 export interface FindByIdRequest {
     id: string,
 }
@@ -302,8 +304,19 @@ export function extendDuration(
     };
 }
 
+// ~~~ End of generate code ~~~
+
 export {View};
 
 export function isJobStateTerminal(state: JobState): boolean {
     return state === JobState.SUCCESS || state === JobState.FAILURE;
+}
+
+export interface FollowStdStreamResponse {
+    failedState: JobState | null;
+    state: JobState | null;
+    status: string | null;
+    stdout: string | null;
+    stderr: string | null;
+    rank?: number;
 }
