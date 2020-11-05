@@ -7,6 +7,42 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 05-11-20
+
+Todays UCloud update brings a range of various bug fixes and minor tweaks.
+
+## Fixes
+
+  - #1952, #1953: Fixes an internal issue with mails. You should now be able to receive mails from UCloud again.
+  - #1970: Application favoriting issue in the frontend
+  - #1959: Renaming buttons has 'Create' instead of 'Update'/'Rename'
+  - #1955: 'Remaining' value is incorrect in usage table for 'My workspace'
+  - #1954: Project name is no longer displayed for 'usage' page for 'My workspace' 
+  - #1966: Indent products when viewing table
+  - #1965: New button colors when deleting files
+  - #1964: Highlights the active project when viewing project list
+  - #1962: Add "Manage Active Project" shortcut (You can access this by clicking the project icon in the header)
+  - #1956: Allow renaming of subprojects in resource page (Note: This requires permissions by the parent project)
+  - #1910: Mounted folders allows duplicates
+  - #1798, #1943: Improvements to internal tests
+  - #1925: Do not allow "Members' Files" as a copy/move target
+  - #1945: Bug fix
+  - #1944: .log files are now recognized as text files
+  - #1937: Usernames aren't trimmed for whitespace when searching/adding
+  - #1930: Add link to documentation on app run page
+  - #1933: App License ACLs does not handle project group entities correctly
+
+```
+✅  Deployment(accounting, 1.4.12) (UP-TO-DATE)
+✅  Deployment(app-license, 0.2.3) (UP-TO-DATE)
+✅  Deployment(app-store, 0.14.4) (UP-TO-DATE)
+✅  Deployment(mail, 0.2.4) (UP-TO-DATE)
+✅  Deployment(news, 0.1.2) (UP-TO-DATE)
+✅  Deployment(project, 3.2.12) (UP-TO-DATE)
+✅  Deployment(storage, 4.2.16) (NOT UP-TO-DATE)
+✅  Deployment(webclient, 0.38.28) (UP-TO-DATE)
+```
+
 ## 21-10-20
 
 ```
