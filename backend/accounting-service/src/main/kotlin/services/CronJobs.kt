@@ -23,7 +23,6 @@ import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.escapeHtml
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import java.lang.Exception
 

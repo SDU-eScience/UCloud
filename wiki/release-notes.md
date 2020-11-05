@@ -9,6 +9,14 @@ For details look in the `k8.kts` folders of each microservice.
 
 ## 05-11-20
 
+Minor hotfix
+
+```
+✅  Deployment(storage, 4.2.16) (NOT UP-TO-DATE)
+```
+
+## 05-11-20
+
 Todays UCloud update brings a range of various bug fixes and minor tweaks.
 
 ## Fixes

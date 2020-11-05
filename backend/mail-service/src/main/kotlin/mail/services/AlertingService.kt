@@ -2,7 +2,6 @@ package dk.sdu.cloud.mail.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -17,12 +16,6 @@ interface AlertNotifier {
 }
 
 class AlertingService(private val notifiers: List<AlertNotifier>) {
-    init {
-        if (notifiers.isEmpty()) {
-            throw IllegalArgumentException("Need at least one notifier!")
-        }
-    }
-
     suspend fun createAlert(alert: Alert) {
         coroutineScope {
             val result = notifiers.map {

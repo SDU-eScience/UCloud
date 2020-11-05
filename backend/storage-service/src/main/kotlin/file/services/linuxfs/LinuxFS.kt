@@ -110,7 +110,7 @@ class LinuxFS(
 
         val fromComponents = from.normalize().components()
         val toComponents = to.normalize().components()
-        if ((fromComponents.size in setOf(3, 4) && fromComponents[0] == "projects" && fromComponents[2] == PERSONAL_REPOSITORY) ||
+        if ((fromComponents.size in setOf(3) && fromComponents[0] == "projects" && fromComponents[2] == PERSONAL_REPOSITORY) ||
             (toComponents.size in setOf(3, 4) && toComponents[0] == "projects" && toComponents[2] == PERSONAL_REPOSITORY)) {
             // The personal repository and direct children can _only_ be changed by the service user
             throw FSException.PermissionException()
