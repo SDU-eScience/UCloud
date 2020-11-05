@@ -47,6 +47,7 @@ interface ListRowProps {
     left: React.ReactNode;
     leftSub?: React.ReactNode;
     icon?: React.ReactNode;
+    bg?: string;
     right: React.ReactNode;
 }
 
@@ -69,6 +70,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
     ) : props.left;
     return (
         <HoverColorFlex
+            backgroundColor={props.bg}
             isSelected={isSelected}
             onClick={props.select}
             pt="5px"
@@ -108,7 +110,7 @@ export const ListRowStat: React.FunctionComponent<{icon?: IconName; color?: Them
 
 const HoverColorFlex = styled(Flex) <{isSelected: boolean}>`
     transition: background-color 0.3s;
-    background-color: var(--${p => p.isSelected ? "lightBlue" : "white"});
+    ${p => p.isSelected ? "background-color: var(--lightBlue);" : null}
     &:hover {
         background-color: var(--lightBlue, #f00);
     }

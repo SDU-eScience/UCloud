@@ -686,7 +686,7 @@ export function useProjectManagementStatus(args: {
     }, [projectMemberParams, groupMembersParams, setProjectMemberParams, groupId]);
 
     return {
-        locationParams, projectId: projectId ?? Client.username!, groupId, groupDetails, fetchGroupDetails, groupDetailsParams,
+        locationParams, projectId: projectId ?? "", groupId, groupDetails, fetchGroupDetails, groupDetailsParams,
         projectMembers, setProjectMemberParams, groupMembers, fetchGroupMembers, groupMembersParams, groupList,
         fetchGroupList, groupListParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
         reloadProjectStatus, outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,

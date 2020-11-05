@@ -1,9 +1,9 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {createProject, listSubprojects, Project, useProjectManagementStatus} from "Project";
+import {createProject, listSubprojects, Project, renameProject, useProjectManagementStatus} from "Project";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Box, Button, Card, Flex, Icon, Input, Label, Link, List, Text, Tooltip} from "ui-components";
+import {Box, Button, ButtonGroup, Card, Flex, Icon, Input, Label, Link, List, Text, Tooltip} from "ui-components";
 import styled from "styled-components";
 import {emptyPage} from "DefaultObjects";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -32,6 +32,8 @@ import {Spacer} from "ui-components/Spacer";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {ListRow} from "ui-components/List";
 import {flex} from "styled-system";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {getRenamingStatusForSubProject, toggleRenaming} from "./ProjectSettings";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -93,38 +95,38 @@ const SelectableWallet: React.FunctionComponent<{
             <DashboardCard color={props.selected ? "green" : "blue"} isLoading={false}>
                 <table>
                     <tbody>
-                    <tr>
-                        <th>Product</th>
-                        <td>{props.wallet.wallet.paysFor.provider} / {props.wallet.wallet.paysFor.id}</td>
-                    </tr>
-                    <tr>
-                        <th>Balance</th>
-                        <td>
-                            <Balance amount={props.wallet.balance} productCategory={props.wallet.wallet.paysFor}/>
-                        </td>
-                    </tr>
-                    {!props.allocated ? null : (
                         <tr>
-                            <th>Allocated</th>
-                            <td>{creditFormatter(props.allocated)}</td>
+                            <th>Product</th>
+                            <td>{props.wallet.wallet.paysFor.provider} / {props.wallet.wallet.paysFor.id}</td>
                         </tr>
-                    )}
-                    {props.quotaInTotal === undefined ? null : (
                         <tr>
-                            <th>Quota</th>
-                            <td>{props.quotaInTotal === -1 ? "No quota" : sizeToString(props.quotaInTotal)}</td>
+                            <th>Balance</th>
+                            <td>
+                                <Balance amount={props.wallet.balance} productCategory={props.wallet.wallet.paysFor} />
+                            </td>
                         </tr>
-                    )}
-                    <tr>
-                        <th/>
-                        <td>
-                            <Icon
-                                color2={props.wallet.area === ProductArea.COMPUTE ? undefined : "white"}
-                                name={props.wallet.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
-                                size={32}
-                            />
-                        </td>
-                    </tr>
+                        {!props.allocated ? null : (
+                            <tr>
+                                <th>Allocated</th>
+                                <td>{creditFormatter(props.allocated)}</td>
+                            </tr>
+                        )}
+                        {props.quotaInTotal === undefined ? null : (
+                            <tr>
+                                <th>Quota</th>
+                                <td>{props.quotaInTotal === -1 ? "No quota" : sizeToString(props.quotaInTotal)}</td>
+                            </tr>
+                        )}
+                        <tr>
+                            <th />
+                            <td>
+                                <Icon
+                                    color2={props.wallet.area === ProductArea.COMPUTE ? undefined : "white"}
+                                    name={props.wallet.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
+                                    size={32}
+                                />
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </DashboardCard>
@@ -224,7 +226,7 @@ const Subprojects: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resource Allocation"}]}/>}
+            header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resource Allocation"}]} />}
             sidebar={null}
             main={(
                 <>
@@ -239,7 +241,7 @@ const Subprojects: React.FunctionComponent = () => {
                                         "/projects/browser/personal" :
                                         "/project/grants/existing"
                                 }>
-                                <Button>Apply for resources</Button>
+                                    <Button>Apply for resources</Button>
                                 </Link>
                             )
                         }
@@ -247,9 +249,9 @@ const Subprojects: React.FunctionComponent = () => {
                     <LoadingBox height="233px" isLoading={wallets.loading}>
                         <WalletContainer ref={walletContainer}>
                             {mainWallets.length === 0 ? <>
-                                    {isAdminOrPI(projectRole) ? null :
-                                        <Heading.h4>No resources attached to project. Contact project PI</Heading.h4>
-                                    } </>
+                                {isAdminOrPI(projectRole) ? null :
+                                    <Heading.h4>No resources attached to project. Contact project PI</Heading.h4>
+                                } </>
                                 : <>{mainWallets.map((w, i) =>
                                     <SelectableWallet
                                         key={i}
@@ -264,7 +266,7 @@ const Subprojects: React.FunctionComponent = () => {
                                         quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
                                             quota.data.quotaInTotal : undefined
                                         }
-                                        onClick={() => setSelectedWallet(w)}/>
+                                        onClick={() => setSelectedWallet(w)} />
                                 )
                                 }</>
                             }
@@ -272,7 +274,7 @@ const Subprojects: React.FunctionComponent = () => {
                             {(!Client.hasActiveProject || isAdminOrPI(projectRole)) && mainWallets.length === 0 ?
                                 <DashboardCard color="blue" isLoading={false}>
                                     <Flex height={"140px"} justifyContent={"center"} alignItems={"center"}
-                                          flexDirection={"column"}>
+                                        flexDirection={"column"}>
                                         <Heading.h4>No resources available for this project</Heading.h4>
                                         <Box mt={16}>
                                             <Link to={
@@ -341,10 +343,10 @@ const Subprojects: React.FunctionComponent = () => {
 
     function pageRenderer(page: Page<Project>): JSX.Element {
         const filteredItems = (subprojectSearchQuery === "" ? page.items :
-                page.items.filter(it =>
-                    it.title.toLowerCase()
-                        .search(subprojectSearchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1
-                )
+            page.items.filter(it =>
+                it.title.toLowerCase()
+                    .search(subprojectSearchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1
+            )
         );
 
         return (
@@ -355,6 +357,7 @@ const Subprojects: React.FunctionComponent = () => {
                         subproject={subproject}
                         shakeWallets={shakeWallets}
                         requestReload={reloadWallets}
+                        reloadSubprojects={reloadSubprojects}
                         walletBalance={selectedWallet === null ?
                             undefined :
                             subprojectWallets.find(it => it.wallet.id === subproject.id) ??
@@ -398,8 +401,8 @@ const AllocationForm = styled.form`
     align-items: right;
 `;
 
-const LoadingBox = (props: React.PropsWithChildren<{ height: string; isLoading: boolean }>): JSX.Element => {
-    if (props.isLoading) return <Flex alignItems="center" style={{minHeight: props.height}}><HexSpin/></Flex>;
+const LoadingBox = (props: React.PropsWithChildren<{height: string; isLoading: boolean}>): JSX.Element => {
+    if (props.isLoading) return <Flex alignItems="center" style={{minHeight: props.height}}><HexSpin /></Flex>;
     else return <>{props.children}</>;
 };
 
@@ -408,19 +411,23 @@ const SubprojectRow: React.FunctionComponent<{
     walletBalance?: WalletBalance,
     shakeWallets?: () => void,
     requestReload?: () => void,
+    reloadSubprojects?: () => void,
     allowManagement: boolean
-}> = ({subproject, walletBalance, shakeWallets, requestReload, allowManagement}) => {
+}> = ({subproject, walletBalance, shakeWallets, requestReload, allowManagement, reloadSubprojects}) => {
     const balance = walletBalance?.balance;
     const used = walletBalance?.used ?? 0;
     const allocated = walletBalance?.allocated ?? 0;
     const percentageUsed = allocated === 0 ? 0 : (used / allocated) * 100;
     const [isEditing, setIsEditing] = useState<boolean>(false);
+    const [isEditingName, setEditingName] = useState(false);
     const [isEditingQuota, setIsEditingQuota] = useState<boolean>(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const subprojectRenamingRef = useRef<HTMLInputElement>(null);
     const quotaRef = useRef<HTMLInputElement>(null);
     const [loading, runCommand] = useAsyncCommand();
+    const [canRename, fetchCanRename] = useCloudAPI<{allowed: boolean}>({noop: true}, {allowed: false});
     const [quota, fetchQuota, quotaParams] = useCloudAPI<RetrieveQuotaResponse>(
-        {noop: true},
+        getRenamingStatusForSubProject({projectId: subproject.id}),
         {quotaInBytes: 0, quotaInTotal: 0}
     );
     const quotaInTotal = walletBalance && isQuotaSupported(walletBalance.wallet.paysFor) ?
@@ -430,6 +437,8 @@ const SubprojectRow: React.FunctionComponent<{
         if (walletBalance && isQuotaSupported(walletBalance.wallet.paysFor)) {
             fetchQuota(retrieveQuota({path: `/projects/${subproject.id}`}));
         }
+
+        fetchCanRename(getRenamingStatusForSubProject({projectId: subproject.id}));
     }, [subproject.id, walletBalance?.wallet?.paysFor?.id, walletBalance?.wallet?.paysFor?.provider]);
 
     const onSubmit = useCallback(async (e) => {
@@ -491,12 +500,52 @@ const SubprojectRow: React.FunctionComponent<{
         }
     }, [quotaRef.current, isEditingQuota]);
 
+    async function renameSubproject(): Promise<void> {
+        const title = subprojectRenamingRef.current?.value;
+        if (!title) {
+            snackbarStore.addFailure("Project title can't be empty.", false);
+            return;
+        }
+
+        if (title === subproject.title) {
+            snackbarStore.addFailure("Project is already named that.", false);
+            return;
+        }
+
+        try {
+            await runCommand(renameProject({
+                id: subproject.id,
+                newTitle: title
+            }));
+            snackbarStore.addSuccess("Subproject renamed", false);
+            setEditingName(false);
+            reloadSubprojects?.();
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to rename project"), false);
+        }
+    }
+
     return <>
         <ListRow
             left={
-                <Text>{subproject.title}</Text>
+                isEditingName && allowManagement ?
+                    <>
+                        <Input ref={subprojectRenamingRef} fontSize="large" defaultValue={subproject.title} />
+                        <ButtonGroup ml="8px" width="130px">
+                            <Button width="45px" color="green" onClick={renameSubproject} attached><Icon name="check" /></Button>
+                            <Button width="45px" color="red" onClick={() => setEditingName(false)}><Icon name="close" /></Button>
+                        </ButtonGroup>
+                    </>
+                    : <>
+                        <Text>{subproject.title}</Text>
+                        {!canRename.data.allowed || isEditingQuota || isEditing ? null :
+                            <Button ml="14px" pr={8} pl={8} onClick={() => setEditingName(true)}>
+                                <Icon name="edit" size={14} />
+                            </Button>
+                        }
+                    </>
             }
-            right={!allowManagement ? null : (
+            right={!allowManagement || isEditingName ? null : (
                 <>
                     <Flex alignItems={"center"} justifyContent={"flex-end"}>
                         {!isEditingQuota ? (
@@ -510,50 +559,48 @@ const SubprojectRow: React.FunctionComponent<{
                                     </Button>
                                 </>
                             ) : (
-                                <>
-                                    {!isEditing ? (
-                                        <>
-                                            <AllocationEditor>
-                                                {creditFormatter(balance, 0)}&nbsp;
-                                                <Tooltip
-                                                    trigger={<>({percentageUsed.toFixed(2)}% used)</>}
-                                                >
-                                                    {creditFormatter(used, 0)} of {creditFormatter(allocated, 0)} used
-                                                </Tooltip>
-                                            </AllocationEditor>
-                                            <Button pr={8} pl={8} onClick={() => setIsEditing(true)}>
-                                                <Icon name="edit" size={14}/>
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        <AllocationForm onSubmit={onSubmit}>
-                                            <AllocationEditor>
-                                                <Label>Allocation:</Label>
-                                                <Input ref={inputRef} noBorder autoFocus width={120}/>
-                                                <span>DKK</span>
-                                                {loading ?
-                                                    <HexSpin size={16}/>
-                                                    :
-                                                    <Icon
-                                                        size={16}
-                                                        ml="10px"
-                                                        cursor="pointer"
-                                                        name="close"
-                                                        color="red"
-                                                        onClick={() => setIsEditing(false)}
-                                                    />
-                                                }
-                                            </AllocationEditor>
+                                    <>
+                                        {!isEditing ? (
+                                            <>
+                                                <AllocationEditor>
+                                                    {creditFormatter(balance, 0)}&nbsp;
+                                                    <Tooltip trigger={<>({percentageUsed.toFixed(2)}% used)</>}>
+                                                        {creditFormatter(used, 0)} of {creditFormatter(allocated, 0)} used
+                                                    </Tooltip>
+                                                </AllocationEditor>
+                                                <Button pr={8} pl={8} onClick={() => setIsEditing(true)}>
+                                                    <Icon name="edit" size={14} />
+                                                </Button>
+                                            </>
+                                        ) : (
+                                                <AllocationForm onSubmit={onSubmit}>
+                                                    <AllocationEditor>
+                                                        <Label>Allocation:</Label>
+                                                        <Input ref={inputRef} noBorder autoFocus width={120} />
+                                                        <span>DKK</span>
+                                                        {loading ?
+                                                            <HexSpin size={16} />
+                                                            :
+                                                            <Icon
+                                                                size={16}
+                                                                ml="10px"
+                                                                cursor="pointer"
+                                                                name="close"
+                                                                color="red"
+                                                                onClick={() => setIsEditing(false)}
+                                                            />
+                                                        }
+                                                    </AllocationEditor>
 
-                                            <Button type="submit" color="green"
-                                                    disabled={loading}>
-                                                Allocate
+                                                    <Button type="submit" color="green"
+                                                        disabled={loading}>
+                                                        Allocate
                                             </Button>
-                                        </AllocationForm>
-                                    )
-                                    }
-                                </>
-                            )
+                                                </AllocationForm>
+                                            )
+                                        }
+                                    </>
+                                )
                         ) : null}
 
                         {!isEditing ? (
@@ -565,35 +612,35 @@ const SubprojectRow: React.FunctionComponent<{
                                                 {quotaInTotal === -1 ? "No quota" : sizeToString(quotaInTotal)}
                                             </AllocationEditor>
                                             <Button pl={8} pr={8} onClick={() => setIsEditingQuota(true)}>
-                                                <Icon name="edit" size={14}/>
+                                                <Icon name="edit" size={14} />
                                             </Button>
                                         </>
                                     ) : (
-                                        <AllocationForm onSubmit={onSubmitQuota}>
-                                            <AllocationEditor>
-                                                <Label>Quota:</Label>
-                                                <Input ref={quotaRef} noBorder autoFocus/>
-                                                <span>GB</span>
-                                                {loading ?
-                                                    <HexSpin size={16}/>
-                                                    :
-                                                    <Icon
-                                                        size={16}
-                                                        ml="10px"
-                                                        cursor="pointer"
-                                                        name="close"
-                                                        color="red"
-                                                        onClick={() => setIsEditingQuota(false)}
-                                                    />
-                                                }
-                                            </AllocationEditor>
+                                            <AllocationForm onSubmit={onSubmitQuota}>
+                                                <AllocationEditor>
+                                                    <Label>Quota:</Label>
+                                                    <Input ref={quotaRef} noBorder autoFocus />
+                                                    <span>GB</span>
+                                                    {loading ?
+                                                        <HexSpin size={16} />
+                                                        :
+                                                        <Icon
+                                                            size={16}
+                                                            ml="10px"
+                                                            cursor="pointer"
+                                                            name="close"
+                                                            color="red"
+                                                            onClick={() => setIsEditingQuota(false)}
+                                                        />
+                                                    }
+                                                </AllocationEditor>
 
-                                            <Button type="submit" color="green"
+                                                <Button type="submit" color="green"
                                                     disabled={loading}>
-                                                Allocate
+                                                    Allocate
                                             </Button>
-                                        </AllocationForm>
-                                    )}
+                                            </AllocationForm>
+                                        )}
                                 </Flex>
                             )
                         ) : null}

@@ -494,6 +494,8 @@ export function clearTrashDialog({onConfirm}: {onConfirm: () => void}): void {
         message: "",
         confirmText: "Confirm",
         cancelText: "Cancel",
+        confirmButtonColor: "red",
+        cancelButtonColor: "gray",
         onConfirm
     });
 }
@@ -649,4 +651,4 @@ export function isPartOfProject(path: string): boolean {
 }
 
 
-const PERSONAL_REPOSITORY = "Members' Files"
+const PERSONAL_REPOSITORY = "Members' Files";

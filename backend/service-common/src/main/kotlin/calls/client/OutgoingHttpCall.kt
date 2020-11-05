@@ -155,7 +155,9 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
             if (resp.status.value in 500..599) {
                 log.info("[$callId] name=${call.fullName} Failed with status ${resp.status}. Retrying...")
-                continue
+                if (call.http.method == HttpMethod.Get) {
+                    continue
+                }
             }
 
             val result = parseResponse(resp, call, callId)

@@ -281,7 +281,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   flex: 1 1 auto;
 }
 
-.c22 .sc-fnVYJo {
+.c22 .sc-fodVxV {
   border: 0;
   box-shadow: none;
 }
@@ -340,7 +340,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 .c36 {
   -webkit-transition: background-color 0.3s;
   transition: background-color 0.3s;
-  background-color: var(--white);
 }
 
 .c36:hover {

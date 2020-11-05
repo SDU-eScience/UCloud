@@ -12,7 +12,6 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {
-    NativeChart,
     ProductArea,
     productAreaTitle,
     retrieveBalance,
@@ -26,7 +25,6 @@ import {useProjectManagementStatus} from "Project";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import styled from "styled-components";
 import {ThemeColor} from "ui-components/theme";
-import {Toggle} from "ui-components/Toggle";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Client} from "Authentication/HttpClientInstance";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
@@ -296,8 +294,10 @@ const VisualizationForArea: React.FunctionComponent<{
 }> = ({area, projectId, usageResponse, balance, durationOption}) => {
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
-    const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
-        if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
+
+    const remainingBalance = balance.data.wallets.filter(it => it.area === area).reduce((sum, wallet) => {
+        if (wallet.wallet.type === "PROJECT" && wallet.wallet.id === projectId) return sum + wallet.balance;
+        if (wallet.wallet.type === "USER" && wallet.wallet.id === Client.username) return sum + wallet.balance;
         else return sum;
     }, 0);
 
@@ -413,7 +413,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                         <TableRow key={p.projectTitle}>
                                             <TableCell>
                                                 <Box width={20} height={20}
-                                                    backgroundColor={idx > 3 ? undefined : theme.chartColors[idx % theme.chartColors.length]} />
+                                                    backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]} />
                                             </TableCell>
                                             <TableCell>
                                                 {p.projectTitle}
@@ -431,10 +431,10 @@ const VisualizationForArea: React.FunctionComponent<{
                                         for (const category of p.categories) {
                                             result.push(<TableRow key={category.product}>
                                                 <TableCell>
-                                                    <Box pl="6px" width={20} height={20}
-                                                        backgroundColor={idx > 3 ? undefined : theme.chartColors[idx % theme.chartColors.length]} />
+                                                    <Box ml="20px" pl="6px" width={20} height={20}
+                                                        backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]} />
                                                 </TableCell>
-                                                <TableCell>{category.product} </TableCell>
+                                                <TableCell><Text pl="20px">{category.product}</Text></TableCell>
                                                 <TableCell textAlign="right">
                                                     {creditFormatter(category.usage)}
                                                 </TableCell>

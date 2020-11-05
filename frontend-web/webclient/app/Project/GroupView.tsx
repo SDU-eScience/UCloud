@@ -55,8 +55,10 @@ const GroupView: React.FunctionComponent = () => {
             renameGroup();
         }}>
             <Flex>
-                <Link to={`/project/members/-/${membersPage ?? ""}`}><Text fontSize={"25px"}>Groups</Text></Link>
-                <Text mx="8px" fontSize="25px">/</Text>
+                <Link to={`/project/members/-/${membersPage ?? ""}`}>
+                    <Button mt="4px" width="42px" height="34px"><Icon rotation={90} name="arrowDown" /></Button>
+                </Link>
+                <Text mx="8px" fontSize="25px">|</Text>
                 {renamingGroup ? (
                     <Flex width={"100%"}>
                         <Input
@@ -76,10 +78,10 @@ const GroupView: React.FunctionComponent = () => {
                         />
                     </Flex>
                 ) : (
-                    <Flex width={"100%"}>
-                        <Truncate fontSize="25px" width={1}>{groupDetails.data.groupTitle}</Truncate>
-                    </Flex>
-                )}
+                        <Flex width={"100%"}>
+                            <Truncate fontSize="25px" width={1}>{groupDetails.data.groupTitle}</Truncate>
+                        </Flex>
+                    )}
 
                 {allowManagement ?
                     renamingGroup ? (
@@ -96,9 +98,9 @@ const GroupView: React.FunctionComponent = () => {
                             />
                         </Box>
                     ) : (
-                        <Button onClick={() => setRenamingGroup(true)}>Rename</Button>
-                    )
-                : null}
+                            <Button onClick={() => setRenamingGroup(true)}>Rename</Button>
+                        )
+                    : null}
             </Flex>
         </form>
     );
@@ -139,7 +141,7 @@ const GroupView: React.FunctionComponent = () => {
                         allowRoleManagement={false}
                         showRole={false}
                     />
-                    <GroupPermissions projectId={projectId} groupId={groupId}/>
+                    <GroupPermissions projectId={projectId} groupId={groupId} />
                 </>
             }
         />
@@ -163,7 +165,7 @@ const GroupView: React.FunctionComponent = () => {
     }
 };
 
-const GroupPermissions: React.FunctionComponent<{ projectId: string, groupId: string }> = props => {
+const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: string}> = props => {
     const {allowManagement} = useProjectManagementStatus({isRootComponent: false});
     const [repoFiles, fetchRepoFiles, repoParams] = useCloudAPI<Page<File>>(
         {noop: true},
@@ -191,7 +193,7 @@ const GroupPermissions: React.FunctionComponent<{ projectId: string, groupId: st
 
     return <Box mt={32}>
         {!allowManagement ? null : <Heading.h4>File Permissions</Heading.h4>}
-        {repoFiles.loading && allowManagement ? <Spinner/> : null}
+        {repoFiles.loading && allowManagement ? <Spinner /> : null}
         {reposWithPermissions.length > 0 || repoFiles.loading || repoParams.noop || !allowManagement ? null : (
             <>
                 <ShakingBox className={"shaking"}>
@@ -205,7 +207,7 @@ const GroupPermissions: React.FunctionComponent<{ projectId: string, groupId: st
                     </li>
                     <li>
                         You can assign permissions by clicking on a file and selecting
-                        &quot;<Icon name={"properties"} size={16}/> Permissions&quot;
+                        &quot;<Icon name={"properties"} size={16} /> Permissions&quot;
                     </li>
                 </ul>
 
