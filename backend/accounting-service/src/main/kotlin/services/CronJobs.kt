@@ -17,12 +17,15 @@ import dk.sdu.cloud.project.api.LookupAdminsRequest
 import dk.sdu.cloud.project.api.LookupByIdBulkRequest
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.escapeHtml
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import java.lang.Exception
 
 
 class CronJobs(
@@ -133,10 +136,15 @@ class CronJobs(
                         }
                     }
                 }
-                MailDescriptions.sendBulk.call(
-                    SendBulkRequest(sendRequests),
-                    serviceClient
-                ).orThrow()
+                try {
+                    MailDescriptions.sendBulk.call(
+                        SendBulkRequest(sendRequests),
+                        serviceClient
+                    ).orThrow()
+                } catch (ex: Exception) {
+                    log.info("Exception caught: ${ex.stackTraceToString()}")
+                    log.info("Continuing")
+                }
 
             }
 
@@ -162,5 +170,9 @@ class CronJobs(
                     """
                 )
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

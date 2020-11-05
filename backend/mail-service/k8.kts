@@ -10,6 +10,7 @@ bundle {
     val deployment = withDeployment {
         deployment.spec.replicas = 1
         injectConfiguration("mail-config")
+        injectSecret("alerting-tokens")
     }
 
     withConfigMap("mail-config") {
