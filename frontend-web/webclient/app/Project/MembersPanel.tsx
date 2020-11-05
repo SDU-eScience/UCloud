@@ -4,13 +4,14 @@ import * as React from "react";
 import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
-import {Button, Flex, Icon, Input, Absolute, Label, Relative} from "ui-components";
+import {Button, Flex, Icon, Input, Absolute, Label, Relative, Text, Tooltip, Box} from "ui-components";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/index";
 import {addGroupMember} from "Project";
 import {MembersList} from "Project/MembersList";
 import * as Pagination from "Pagination";
 import styled from "styled-components";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;
@@ -55,23 +56,41 @@ const MembersPanel: React.FunctionComponent = () => {
         }
     };
 
+    const [showId, setShowId] = React.useState(true);
+
     return <>
         <SearchContainer>
             {!allowManagement ? null : (
                 <form onSubmit={onSubmit}>
+                    <Absolute>
+                        <Relative left="94px" top="8px">
+                            {showId && allowManagement ?
+                                <Tooltip tooltipContentWidth="160px" trigger={
+                                    <Circle>
+                                        <Text mt="-3px" ml="5px">?</Text>
+                                    </Circle>
+                                }>
+                                    <Text color="black" fontSize={12}>Your username can be found at the bottom of the sidebar next to <Icon name="id" />.</Text>
+                                </Tooltip> : null}
+                        </Relative>
+                    </Absolute>
                     <Input
                         id="new-project-member"
                         placeholder="Username"
                         autoComplete="off"
                         disabled={isLoading}
                         ref={newMemberRef}
+                        onChange={e => {
+                            const shouldShow = e.target.value === "";
+                            if (showId !== shouldShow) setShowId(shouldShow);
+                        }}
                         rightLabel
                     />
                     <Button
                         asSquare
-                        color={"green"}
-                        type={"button"}
-                        title={"Bulk invite"}
+                        color="green"
+                        type="button"
+                        title="Bulk invite"
                         onClick={async () => {
                             try {
                                 const res = await addStandardInputDialog({
@@ -102,7 +121,7 @@ const MembersPanel: React.FunctionComponent = () => {
             <form onSubmit={preventDefault}>
                 <Input
                     id="project-member-search"
-                    placeholder="Enter username to search..."
+                    placeholder="Search existing project members..."
                     pr="30px"
                     autoComplete="off"
                     disabled={isLoading}
@@ -128,7 +147,7 @@ const MembersPanel: React.FunctionComponent = () => {
                 message: `Remove ${member}?`,
                 onConfirm: async () => {
                     await runCommand(deleteMemberInProject({
-                        projectId: projectId,
+                        projectId,
                         member
                     }));
 
@@ -150,7 +169,7 @@ const MembersPanel: React.FunctionComponent = () => {
                 loading={outgoingInvites.loading}
                 page={outgoingInvites.data}
                 onPageChanged={(newPage) => {
-                    fetchOutgoingInvites(listOutgoingInvites({ ...outgoingInvitesParams.parameters, page: newPage }));
+                    fetchOutgoingInvites(listOutgoingInvites({...outgoingInvitesParams.parameters, page: newPage}));
                 }}
                 customEmptyPage={<></>}
                 pageRenderer={() => (
@@ -161,7 +180,7 @@ const MembersPanel: React.FunctionComponent = () => {
                             role: ProjectRole.USER
                         }))}
                         onRemoveMember={async (member) => {
-                            await runCommand(rejectInvite({ projectId, username: member }));
+                            await runCommand(rejectInvite({projectId, username: member}));
                             reloadMembers();
                         }}
                         projectRole={projectRole}
@@ -174,5 +193,15 @@ const MembersPanel: React.FunctionComponent = () => {
         }
     </>;
 };
+
+const Circle = styled(Box)`
+    border-radius: 500px;
+    width: 20px;
+    height: 20px;
+    border: 1px solid ${getCssVar("black")};
+    margin: 4px;
+    marginLeft: 2px;
+    cursor: pointer;
+`;
 
 export default MembersPanel;
