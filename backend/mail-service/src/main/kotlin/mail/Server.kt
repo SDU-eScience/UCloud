@@ -20,7 +20,7 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
     override fun start() {
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val db = AsyncDBSessionFactory(micro.databaseConfig)
-        val alertService = AlertingService(listOf(SlackNotifier(config.notifiers.slack?.hook!!)))
+        val alertService = AlertingService(listOfNotNull(config.notifiers.slack?.hook?.let { SlackNotifier(it) }))
 
         val mailService = MailService(
             authenticatedClient,

@@ -84,7 +84,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         setFavoriteParams(listFavoriteProjects({
             page: favorites.data.pageNumber,
             itemsPerPage: response.data.itemsPerPage,
-            archived: true,
+            archived,
             showAncestorPath: true
         }));
         setFetchParams(listProjects({
