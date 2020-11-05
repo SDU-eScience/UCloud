@@ -81,6 +81,7 @@ html.light {
     --appCard: #ebeff3;
     --borderGray: var(--midGray, #f00);
     --invertedThemeColor: #000;
+    --projectHighlight: #dfffee;
 }
 
 html.dark {
@@ -96,6 +97,7 @@ html.dark {
     --appCard: #060707;
     --borderGray: #111;
     --invertedThemeColor: #fff;
+    --projectHighlight: #00c05a;
 }
 
 
