@@ -1,5 +1,6 @@
 import * as React from "react";
-import {MutableRefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {PRODUCT_NAME} from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI} from "Authentication/DataHook";
@@ -18,13 +19,12 @@ import * as anims from "react-animations";
 import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
-import {appendToXterm, useXTerm, XtermHook} from "Applications/Jobs/xterm";
+import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {FollowStdStreamResponse} from "Applications";
-import {WebSocketConnection} from "Authentication/ws";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -158,9 +158,8 @@ const Container = styled.div`
 `;
 
 function useJobUpdates(jobId: string, callback: (entry: FollowStdStreamResponse) => void): void {
-    const conn: MutableRefObject<WebSocketConnection | null> = useRef(null);
-    useMemo(() => {
-        conn.current = WSFactory.open(
+    useEffect(() => {
+        const conn = WSFactory.open(
             "/hpc/jobs", {
                 init: conn => {
                     conn.subscribe({
@@ -174,19 +173,20 @@ function useJobUpdates(jobId: string, callback: (entry: FollowStdStreamResponse)
                 }
             }
         );
-    }, [jobId]);
 
-    useEffect(() => {
         return () => {
-            conn.current?.close();
+            conn.close();
         };
-    }, [conn.current]);
+    }, [jobId, callback]);
+}
+
+interface JobUpdateListener {
+    handler: (e: FollowStdStreamResponse) => void;
 }
 
 export const View: React.FunctionComponent = () => {
     const {id} = useParams<{ id: string }>();
     const history = useHistory();
-    const ref = useRef<HTMLDivElement>(null);
 
     // Note: This might not match the real app name
     const appNameHint = getQueryParamOrElse(history.location.search, "app", "");
@@ -196,32 +196,22 @@ export const View: React.FunctionComponent = () => {
     const [jobFetcher, fetchJob] = useCloudAPI<Jobs.Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
 
+    const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
+
     useSidebarPage(SidebarPages.Runs);
     useTitle(`Job ${shortUUID(id)}`);
     useEffect(() => {
         fetchJob(Jobs.findById({id}));
     }, [id]);
 
-    const [stateAndAnim, setState] = useState<{ state: JobState, animationAllowed: boolean }>({
-        state: JobState.IN_QUEUE,
-        animationAllowed: false
-    });
-    const {state, animationAllowed} = stateAndAnim;
-
-    const transitionToState = useCallback((newState: JobState) => {
-        if (newState === state) {
-            // Do nothing
-        } else {
-            // NOTE(Dan): We need to disable animation immediately such that the next stage doesn't begin entering
-            // until the old animation has finished (via onExited)
-            setState({animationAllowed: true, state: newState});
-        }
-    }, [state]);
+    const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
+    const [logoAnimationAllowed, setLogoAnimationAllowed] = useState<boolean>(false);
+    const [state, setState] = useState<Jobs.JobState | null>(null);
 
     useEffect(() => {
-        if (localStorage.getItem("useFakeState") !== null) {
+        if (useFakeState) {
             const t = setInterval(() => {
-                transitionToState(
+                setState(
                     (window["fakeState"] as JobState | undefined) ??
                     (localStorage.getItem("fakeState") as JobState | null) ??
                     state
@@ -239,27 +229,18 @@ export const View: React.FunctionComponent = () => {
     }, [state]);
 
     useEffect(() => {
-        if (localStorage.getItem("useFakeState") === null) {
-            if (job?.state) {
-                transitionToState(job.state);
-            }
-        }
-    }, [job?.state]);
-
-    useEffect(() => {
         let t1;
         let t2;
         if (job) {
             t1 = setTimeout(() => {
-                setState({animationAllowed: true, state});
+                setDataAnimationAllowed(true);
 
                 // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
                 history.replace(buildQueryString(history.location.pathname, {app: appNameHint}));
-            }, delayInitialAnim ? 3000 : 800);
+            }, delayInitialAnim ? 3000 : 400);
 
             t2 = setTimeout(() => {
-                const wrapper = ref.current?.querySelector(".logo-wrapper");
-                if (wrapper) wrapper.classList.add("active");
+                setLogoAnimationAllowed(true);
             }, delayInitialAnim ? 2200 : 0);
         }
 
@@ -269,14 +250,38 @@ export const View: React.FunctionComponent = () => {
         };
     }, [job]);
 
+    const jobUpdateCallbackHandlers = useRef<JobUpdateListener[]>([]);
+    useEffect(() => {
+        let lastState = state;
+        jobUpdateCallbackHandlers.current = [{
+            handler: (e) => {
+                if (!e) return;
+                if (!useFakeState) {
+                    if (e.state != null) {
+                        if (e.state !== lastState) {
+                            setState(e.state);
+                        }
+                        lastState = e.state;
+                    }
+                }
+            }
+        }];
+    }, [id]);
+    const jobUpdateListener = useCallback((e: FollowStdStreamResponse) => {
+        jobUpdateCallbackHandlers.current.forEach(({handler}) => {
+            handler(e);
+        });
+    }, [id]);
+    useJobUpdates(id, jobUpdateListener);
+
     if (jobFetcher.error !== undefined) {
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>}/>;
     }
 
     return <MainContainer
         main={
-            <Container className={state} ref={ref}>
-                <div className={`logo-wrapper`}>
+            <Container className={state ?? "state-loading"}>
+                <div className={`logo-wrapper ${logoAnimationAllowed && state ? "active" : ""}`}>
                     <div className="logo-scale">
                         <div className={"logo"}>
                             <AppToolLogo name={job?.metadata?.name ?? appNameHint} type={"APPLICATION"} size={"200px"}/>
@@ -286,7 +291,7 @@ export const View: React.FunctionComponent = () => {
 
                 {!job ? null : (
                     <CSSTransition
-                        in={state === JobState.IN_QUEUE && animationAllowed}
+                        in={state === JobState.IN_QUEUE && dataAnimationAllowed}
                         timeout={{
                             enter: 1000,
                             exit: 0,
@@ -312,7 +317,7 @@ export const View: React.FunctionComponent = () => {
 
                 {!job ? null : (
                     <CSSTransition
-                        in={state === JobState.RUNNING && animationAllowed}
+                        in={state === JobState.RUNNING && dataAnimationAllowed}
                         timeout={{enter: 1000, exit: 0}}
                         classNames={"data"}
                         unmountOnExit
@@ -325,14 +330,14 @@ export const View: React.FunctionComponent = () => {
                                 </div>
                             </Flex>
 
-                            <RunningContent job={job}/>
+                            <RunningContent job={job} updateListeners={jobUpdateCallbackHandlers}/>
                         </div>
                     </CSSTransition>
                 )}
 
                 {!job ? null : (
                     <CSSTransition
-                        in={isJobStateTerminal(state) && animationAllowed}
+                        in={state != null && isJobStateTerminal(state) && dataAnimationAllowed}
                         timeout={{enter: 1000, exit: 0}}
                         classNames={"data"}
                         unmountOnExit
@@ -365,7 +370,7 @@ const Content = styled.div`
 
 const InQueueText: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
     return <>
-        <Heading.h2>UCloud is preparing your job</Heading.h2>
+        <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
             {job.name ?
                 (<>
@@ -510,7 +515,10 @@ const AltButtonGroup = styled.div<{ minButtonWidth: string }>`
     margin-bottom: 8px;
 `;
 
-const RunningContent: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
+const RunningContent: React.FunctionComponent<{
+    job: Jobs.Job,
+    updateListeners: React.RefObject<JobUpdateListener[]>
+}> = ({job, updateListeners}) => {
     return <>
         <RunningInfoWrapper>
             <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"hourglass"}>
@@ -537,7 +545,7 @@ const RunningContent: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
 
         <RunningJobsWrapper>
             {Array(10).fill(0).map((_, i) => {
-                return <RunningJobRank key={i} job={job} rank={i}/>;
+                return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
             })}
         </RunningJobsWrapper>
     </>;
@@ -616,7 +624,11 @@ const RunningJobRankWrapper = styled.div`
     }
 `;
 
-const RunningJobRank: React.FunctionComponent<{ job: Jobs.Job, rank: number }> = ({job, rank}) => {
+const RunningJobRank: React.FunctionComponent<{
+    job: Jobs.Job,
+    rank: number,
+    updateListeners: React.RefObject<JobUpdateListener[]>,
+}> = ({job, rank, updateListeners}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
     const [expanded, setExpanded] = useState(false);
     const toggleExpand = useCallback(() => {
@@ -632,6 +644,23 @@ const RunningJobRank: React.FunctionComponent<{ job: Jobs.Job, rank: number }> =
             }, 0);
         }
     }, [expanded, termRef]);
+
+    useEffect(() => {
+        updateListeners.current?.push({
+            handler: e => {
+                if (e.rank === rank && e.stderr !== null) {
+                    appendToXterm(terminal, e.stderr);
+                }
+
+                if (e.rank === rank && e.stdout !== null) {
+                    appendToXterm(terminal, e.stdout);
+                }
+            }
+        });
+
+        // NOTE(Dan): Clean up is performed by the parent object
+    }, [job.jobId, rank]);
+
     return <>
         <DashboardCard color={"purple"} isLoading={false}>
             <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
@@ -677,7 +706,7 @@ const CompletedTextWrapper = styled.div`
 const CompletedText: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
     const success = job.state === JobState.SUCCESS;
     return <CompletedTextWrapper>
-        <Heading.h2>UCloud has processed your job</Heading.h2>
+        <Heading.h2>{PRODUCT_NAME} has processed your job</Heading.h2>
         <Heading.h3>
             <i>{job.metadata.title} v{job.metadata.version}</i>
             {" "}{success ? "succeeded" : "failed"}{" "}
