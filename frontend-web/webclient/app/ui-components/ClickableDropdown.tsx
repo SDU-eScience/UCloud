@@ -56,9 +56,6 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
                     cursor="pointer"
                     width="auto"
                     key={i}
-                    ml="-17px"
-                    pl="15px"
-                    mr="-17px"
                     onClick={() => onChange!(opt.value)}
                 >
                     {opt.text}

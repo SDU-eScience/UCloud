@@ -67,9 +67,14 @@ export const DropdownContent = styled.div<DropdownContentProps>`
 
     ${props => props.colorOnHover ? `
         & > *:hover:not(${Button}) {
-            background-color: rgba(0, 0, 0, 0.05);
+            background-color: var(--lightBlue);
         }` : null};
 
+    & > div {
+        margin-left: -17px;
+        margin-right: -17px;
+        padding-left: 17px;
+    }
 
     ${top} ${left} ${right} ${bottom} ${height};
 `;

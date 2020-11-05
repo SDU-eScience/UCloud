@@ -250,10 +250,8 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
             <Box
                 onClick={() => op.onClick(props.selectedGroups, Client)}
                 key={op.text}
-                ml="-17px"
-                mr="-17px"
                 cursor="pointer"
-                pl="15px">
+            >
                 <span>
                     <Icon size={16} mr="1em" color={op.color} name={op.icon} />{op.text}
                 </span>

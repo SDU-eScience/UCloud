@@ -771,9 +771,6 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                                     file={f}
                                                     applications={applications.get(f.path)}
                                                     history={history}
-                                                    ml="-17px"
-                                                    mr="-17px"
-                                                    pl="15px"
                                                 />
                                             </ClickableDropdown>
                                         )
@@ -1148,9 +1145,6 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 color={fileOp.color}
                 alignItems="center"
                 onClick={() => fileOp.onClick(filesInCallback, props.callback)}
-                ml={props.inDropdown ? "-17px" : undefined}
-                mr={props.inDropdown ? "-17px" : undefined}
-                pl={props.inDropdown ? "15px" : undefined}
                 data-tag={`${fileOp.text}-action`}
                 {...props}
             >

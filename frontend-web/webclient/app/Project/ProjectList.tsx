@@ -469,9 +469,6 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
         return (
             <Box
                 key={op.text}
-                ml="-17px"
-                mr="-17px"
-                pl="15px"
                 cursor="pointer"
                 onClick={() => op.onClick(props.selectedProjects, Client)}
             >

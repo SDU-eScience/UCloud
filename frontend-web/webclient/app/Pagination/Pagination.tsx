@@ -142,9 +142,6 @@ export const EntriesPerPageSelector = ({
         >
             {EntriesPerPageSelectorOptions.map((opt, i) => (
                 <Text
-                    ml="-17px"
-                    pl="17px"
-                    mr="-17px"
                     cursor="pointer"
                     key={i}
                     onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}
