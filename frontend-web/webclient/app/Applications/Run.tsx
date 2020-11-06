@@ -266,7 +266,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                     <Icon name={"grant"} />{" "}
                                     Estimated cost: <br />
 
-                                    {creditFormatter(estimatedCost, 3)}
+                                    {creditFormatter(estimatedCost, 0)}
                                 </>
                             )}
                         </Box>
@@ -276,7 +276,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                     <Icon name="grant" />{" "}
                                     Current balance: <br />
 
-                                    {creditFormatter(this.state.balance)}
+                                    {creditFormatter(this.state.balance, 0)}
                                 </>
                             )}
                         </Box>
