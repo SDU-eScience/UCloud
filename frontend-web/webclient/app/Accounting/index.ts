@@ -260,8 +260,6 @@ export function transformUsageChartForTable(
             (!rootProject  && it.wallet.type === "USER"))
     );
 
-    console.log("relevant?", relevantWallets);
-
     chart.lines.filter(it => it.area === type).forEach(line => {
         const projectName = !rootProject ? Client.username :
             line.projectPath !== undefined ? line.projectPath : line.projectId;
