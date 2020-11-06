@@ -295,8 +295,9 @@ const ToolGroup = (props: {tag: string; cacheBust?: string}): JSX.Element => {
 
 
 function removeTagFromTitle(tag: string, title: string): string {
+    const titlenew = title.replace(/homerTools/g, "").replace(/seqtk: /i, "");
+    if (titlenew !== title) return titlenew;
     if (title.startsWith(tag)) {
-        const titlenew = title.replace(/homerTools/g, "").replace(/seqtk: /i, "");
         if (titlenew.endsWith("pl")) {
             return titlenew.slice(tag.length + 2, -3);
         } else {
