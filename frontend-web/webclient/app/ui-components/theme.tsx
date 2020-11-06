@@ -255,6 +255,7 @@ const colors = {
     tableRowHighlight,
     wayfGreen: "#66b340",
     appCard,
+    projectHighlight: "#dfffee",
     yellow
 };
 
@@ -271,7 +272,8 @@ export const invertedColors = {
     paginationDisabled: "#111",
     paginationHoverColor: "#444",
     appCard: "#060707",
-    borderGray: "#111"
+    borderGray: "#111",
+    projectHighlight: "#00823c"
 };
 
 export type ThemeColor = keyof typeof colors;

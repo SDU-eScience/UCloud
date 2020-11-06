@@ -160,6 +160,12 @@ exports[`FileIcon FileIcon, shared 1`] = `
   pointer-events: none;
 }
 
+.c6 > div {
+  margin-left: -17px;
+  margin-right: -17px;
+  padding-left: 17px;
+}
+
 .c1 {
   position: relative;
 }

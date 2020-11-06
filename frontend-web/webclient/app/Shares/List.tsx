@@ -550,7 +550,7 @@ export const ShareRow: React.FunctionComponent<{
 };
 
 const OptionItem: React.FunctionComponent<{onClick: () => void; text: string; color?: string}> = props => (
-    <Box cursor="pointer" width="auto" ml="-17px" pl="15px" mr="-17px" onClick={props.onClick}>
+    <Box cursor="pointer" width="auto" onClick={props.onClick}>
         <TextSpan color={props.color}>{props.text}</TextSpan>
     </Box>
 );

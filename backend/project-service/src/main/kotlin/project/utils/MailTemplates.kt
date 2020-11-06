@@ -11,8 +11,8 @@ fun userRoleChangeTemplate(
 ) = """
     <p>Dear ${escapeHtml(recipient)}</p>    
     <p>
-        We write to you to inform you that ${escapeHtml(subjectToChange)}, has had their role changed to: 
-        ${roleChange.name} in the project: ${escapeHtml(projectTitle)}.
+        The role of the user ${escapeHtml(subjectToChange)} was changed to 
+        ${roleChange.name} in the project ${escapeHtml(projectTitle)}.
     </p>
     $NO_NOTIFICATIONS_DISCLAIMER
     
@@ -25,7 +25,7 @@ fun userLeftTemplate(
 ) = """
     <p>Dear ${escapeHtml(recipient)}</p>
     <p>
-        We write to you to inform you that ${escapeHtml(leavingUser)} has left the project: ${escapeHtml(projectTitle)}.
+        The user ${escapeHtml(leavingUser)} has left the project ${escapeHtml(projectTitle)}.
     </p>
     $NO_NOTIFICATIONS_DISCLAIMER
 """.trimIndent()
@@ -37,8 +37,7 @@ fun userRemovedTemplate(
 ) = """
     <p>Dear ${escapeHtml(recipient)}</p>    
     <p>
-        We write to you to inform you that ${escapeHtml(leavingUser)} has been removed the project: 
-        ${escapeHtml(projectTitle)}.
+        The user ${escapeHtml(leavingUser)} has been removed the project ${escapeHtml(projectTitle)}.
     </p>
     $NO_NOTIFICATIONS_DISCLAIMER
 """.trimIndent()
@@ -48,7 +47,7 @@ fun userRemovedToPersonRemovedTemplate(
     projectTitle: String
 ) = """
     <p>Dear ${escapeHtml(recipient)}</p>
-    <p>We write to you to inform you that you have been removed the project: ${escapeHtml(projectTitle)}.</p>
+    <p>you have been removed from the project ${escapeHtml(projectTitle)}.</p>
     $NO_NOTIFICATIONS_DISCLAIMER
 """.trimIndent()
 
@@ -58,11 +57,11 @@ fun userInvitedToInviteeTemplate(
 ) = """
     <p>Dear ${escapeHtml(recipient)}</p>    
     <p>
-        We write to you to inform you that you have been invited to the project: ${escapeHtml(projectTitle)} on UCloud.
+        you have been invited to join the project ${escapeHtml(projectTitle)} on UCloud.
     </p>
     $NO_NOTIFICATIONS_DISCLAIMER
 """.trimIndent()
 
 
-const val NO_NOTIFICATIONS_DISCLAIMER = "<p>If you do not want to receive these notifications per mail, " +
-    "you can unsubscribe to non-crucial emails in your personal settings on UCloud</p>"
+const val NO_NOTIFICATIONS_DISCLAIMER = """<p>If you do not want to receive these email notifications, 
+    you can unsubscribe to non-critical emails in your personal settings on UCloud</p>"""

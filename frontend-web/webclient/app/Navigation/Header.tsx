@@ -132,14 +132,13 @@ function Header(props: HeaderProps): JSX.Element | null {
             <Notification />
             <AutomaticGiftClaim />
             <ClickableDropdown
-                colorOnHover={false}
                 width="200px"
                 left="-180%"
                 trigger={<ui.Flex>{Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</ui.Flex>}
             >
                 {!STATUS_PAGE ? null : (
                     <>
-                        <ui.Box ml="-17px" mr="-17px" pl="15px">
+                        <ui.Box>
                             <ui.ExternalLink color="black" href={STATUS_PAGE}>
                                 <ui.Flex color="black">
                                     <ui.Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
@@ -150,7 +149,7 @@ function Header(props: HeaderProps): JSX.Element | null {
                         <ui.Divider />
                     </>
                 )}
-                <ui.Box ml="-17px" mr="-17px" pl="15px">
+                <ui.Box>
                     <Link color="black" to="/users/settings">
                         <ui.Flex color="black">
                             <ui.Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
@@ -158,7 +157,7 @@ function Header(props: HeaderProps): JSX.Element | null {
                         </ui.Flex>
                     </Link>
                 </ui.Box>
-                <ui.Flex ml="-17px" mr="-17px" pl="15px">
+                <ui.Flex>
                     <Link to={"/users/avatar"}>
                         <ui.Flex color="black">
                             <ui.Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
@@ -166,17 +165,19 @@ function Header(props: HeaderProps): JSX.Element | null {
                         </ui.Flex>
                     </Link>
                 </ui.Flex>
-                <ui.Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Client.logout()}>
+                <ui.Flex onClick={() => Client.logout()}>
                     <ui.Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </ui.Flex>
                 <ui.Divider />
-                <ui.Flex cursor="auto">
-                    <ThemeToggler
-                        isLightTheme={isLightThemeStored()}
-                        onClick={onToggleTheme}
-                    />
-                </ui.Flex>
+                <span>
+                    <ui.Flex cursor="auto">
+                        <ThemeToggler
+                            isLightTheme={isLightThemeStored()}
+                            onClick={onToggleTheme}
+                        />
+                    </ui.Flex>
+                </span>
             </ClickableDropdown>
         </HeaderContainer>
     );

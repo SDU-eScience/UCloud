@@ -80,11 +80,11 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                     </Text>
                 )}
                 {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
-                <Link to="/projects"><Text>Manage projects</Text></Link>
+                <Text onClick={() => history.push("/projects")}>Manage projects</Text>
                 {!props.activeProject ? null :
-                    <Link to={"/project/dashboard"}>
+                    <Text onClick={() => history.push("/project/dashboard")}>
                         Manage active project
-                    </Link>
+                    </Text>
                 }
             </ClickableDropdown>
         </Flex>
