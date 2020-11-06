@@ -3,21 +3,28 @@ import {device} from "ui-components/Hide";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
+const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");
     styleTag.innerHTML = `
         /* Custom font */
         @font-face {
-          font-family: 'IBM Plex Sans';
-          src: url('${fontLight}');
+            font-family: 'IBM Plex Sans';
+            src: url('${fontLight}');
         }
 
         @font-face {
-          font-family: 'IBM Plex Sans';
-          src: url('${fontRegular}');
-          font-weight: 400;
-    }`;
+            font-family: 'IBM Plex Sans';
+            src: url('${fontRegular}');
+            font-weight: 400;
+        }
+        
+        @font-face {
+            font-family: "Jetbrains Mono";
+            src: url("${monoFont}");
+        }
+    `;
     document.head.appendChild(styleTag);
 }
 

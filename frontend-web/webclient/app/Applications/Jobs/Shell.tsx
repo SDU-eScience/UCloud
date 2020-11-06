@@ -1,15 +1,12 @@
 import * as React from "react";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as Heading from "ui-components/Heading";
 import {useXTerm} from "Applications/Jobs/xterm";
 import {WSFactory} from "Authentication/HttpClientInstance";
 import {useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {queryShellParameters, QueryShellParametersResponse} from "Applications";
 import {useParams} from "react-router";
-import Warning from "ui-components/Warning";
 import {Box, Button} from "ui-components";
-import {shortUUID, useNoFrame} from "UtilityFunctions";
+import {isLightThemeStored, shortUUID, useNoFrame} from "UtilityFunctions";
 import styled from "styled-components";
 import {useTitle} from "Navigation/Redux/StatusActions";
 
@@ -18,10 +15,32 @@ const ShellWrapper = styled.div`
     height: 100vh;
     width: 100vw;
     flex-direction: column;
+    padding: 16px;
+    
+    &.light {
+        background: #ffffff;
+    }
+    
+    &.dark {
+        background: #282a36;
+    }
     
     .term {
         width: 100%;
-        flex-grow: 1;
+        height: 100%;
+    }
+    
+    .warn {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        z-index: 1000000;
+        width: 100vw;
+        display: flex;
+        padding: 16px;
+        align-items: center;
+        background: black;
+        color: white;
     }
 `;
 
@@ -107,18 +126,17 @@ export const Shell: React.FunctionComponent = () => {
         };
     }, [termRef.current, path.data.path, reconnect]);
 
-    return <ShellWrapper>
+    return <ShellWrapper className={isLightThemeStored() ? "light" : "dark"}>
         {!closed ? null : (
-            <Box m={"16px"}>
-                <Warning>
-                    Your connection has been closed!
-                    <Button ml={"16px"} onClick={() => {
-                        setReconnect(reconnect + 1);
-                    }}>Reconnect</Button>
-                </Warning>
+            // NOTE(Dan): Theme cannot change in practice, as a result we can safely use the stored value
+            <Box className={`warn`}>
+                <Box flexGrow={1}>Your connection has been closed!</Box>
+                <Button ml={"16px"} onClick={() => {
+                    setReconnect(reconnect + 1);
+                }}>Reconnect</Button>
             </Box>
         )}
 
-        <div style={{width: "100vw", height: "100vh"}} ref={termRef}/>
+        <div className={"term"} ref={termRef}/>
     </ShellWrapper>;
 };

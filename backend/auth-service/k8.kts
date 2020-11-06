@@ -24,6 +24,8 @@ bundle { ctx ->
         injectSecret("auth-wayf", "/etc/wayf-certs")
         injectSecret("auth-wayf-config")
         injectConfiguration("auth-config")
+        injectConfiguration("auth-sla")
+        println("NOTE: You must have a configmap called auth-sla")
     }
 
     withPostgresMigration(deployment) {

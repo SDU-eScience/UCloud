@@ -133,6 +133,12 @@ const Core = (): JSX.Element => (
 
                 <Route exact path="/skus" component={Products} />
 
+                <Route
+                    exact
+                    path="/sla"
+                    component={requireAuth(ServiceLicenseAgreement, {requireTwoFactor: false, requireSla: false})}
+                />
+
                 <>
                     <Route exact path="/projects" component={requireAuth(ProjectList)} />
                     <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
@@ -173,12 +179,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
                     <Route exact path="/projects/browser/:action" component={requireAuth(ProjectBrowser)} />
                 </>
-
-                <Route
-                    exact
-                    path="/sla"
-                    component={requireAuth(ServiceLicenseAgreement, {requireTwoFactor: false, requireSla: false})}
-                />
 
                 <Route component={NotFound} />
             </Switch>

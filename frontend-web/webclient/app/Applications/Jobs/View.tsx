@@ -149,7 +149,7 @@ const Container = styled.div`
     }
     
     &.IN_QUEUE .logo {
-        animation: 3s ${enterAnimation} infinite;
+        animation: 2s ${enterAnimation} infinite;
     }
     
     &.RUNNING {
@@ -255,7 +255,6 @@ export const View: React.FunctionComponent = () => {
         let lastState = state;
         jobUpdateCallbackHandlers.current = [{
             handler: (e) => {
-                if (!e) return;
                 if (!useFakeState) {
                     if (e.state != null) {
                         if (e.state !== lastState) {
@@ -263,11 +262,17 @@ export const View: React.FunctionComponent = () => {
                         }
                         lastState = e.state;
                     }
+                } else {
+                    if (e.state != null) {
+                        console.log("Wanted to switch state, but didn't. " +
+                            "Remove localStorage useFakeState if you wish to use real state.");
+                    }
                 }
             }
         }];
     }, [id]);
     const jobUpdateListener = useCallback((e: FollowStdStreamResponse) => {
+        if (!e) return;
         jobUpdateCallbackHandlers.current.forEach(({handler}) => {
             handler(e);
         });
@@ -346,7 +351,7 @@ export const View: React.FunctionComponent = () => {
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                                 <div className={"fake-logo"}/>
                                 <div className={"header-text"}>
-                                    <CompletedText job={job!}/>
+                                    <CompletedText job={job} state={state ?? JobState.FAILURE}/>
                                 </div>
                             </Flex>
 
@@ -636,10 +641,12 @@ const RunningJobRank: React.FunctionComponent<{
         const targetView = termRef.current?.parentElement;
         if (targetView != null) {
             setTimeout(() => {
+                // FIXME(Dan): Work around a weird resizing bug in xterm.js
+                fitAddon.fit();
+                fitAddon.fit();
                 fitAddon.fit();
                 window.scrollTo({
                     top: targetView.getBoundingClientRect().top - 100 + window.pageYOffset,
-                    behavior: "smooth"
                 });
             }, 0);
         }
@@ -682,7 +689,7 @@ const RunningJobRank: React.FunctionComponent<{
                         );
                     }}>
                         <Button type={"button"}>
-                            <b>&gt;_{"  "}</b> Open terminal
+                            Open terminal
                         </Button>
                     </Link>
                     <Button>Open interface</Button>
@@ -703,8 +710,8 @@ const CompletedTextWrapper = styled.div`
     }
 `;
 
-const CompletedText: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
-    const success = job.state === JobState.SUCCESS;
+const CompletedText: React.FunctionComponent<{ job: Jobs.Job, state: Jobs.JobState }> = ({job, state}) => {
+    const success = state === JobState.SUCCESS;
     return <CompletedTextWrapper>
         <Heading.h2>{PRODUCT_NAME} has processed your job</Heading.h2>
         <Heading.h3>

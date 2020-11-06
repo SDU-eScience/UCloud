@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from "react";
 import {isLightThemeStored} from "UtilityFunctions";
 import {FitAddon} from "xterm-addon-fit";
 import "xterm/css/xterm.css";
-import {Terminal} from "xterm";
+import {ITheme, Terminal} from "xterm";
 
 export interface XtermHook {
     termRef: React.RefObject<HTMLDivElement>;
@@ -14,7 +14,13 @@ export interface XtermHook {
 export function useXTerm(props: { autofit?: boolean } = {}): XtermHook {
     const [didMount, setDidMount] = useState(false);
 
-    const [term] = useState(() => new Terminal({theme: getTheme()}));
+    const [term] = useState(() => new Terminal({
+        theme: getTheme(),
+        fontFamily: "Jetbrains Mono, Ubuntu Mono, courier-new, courier, monospace",
+        rendererType: "canvas",
+        fontSize: 16
+    }));
+
     const [fitAddon] = useState(() => new FitAddon());
     const elem = useRef<HTMLDivElement>(null);
 
@@ -63,33 +69,41 @@ export function appendToXterm(term: Terminal, textToAppend: string): void {
     term.write(remainingString);
 }
 
-function getTheme() {
-    const themeColors = isLightThemeStored() ? {
-        background: "#f5f7f9",
-        foreground: "#073642",
-    } : {
-        background: "#073642",
-        foreground: "#e0e0e0",
-    };
-    return {
-        ...themeColors,
-        black: "#073642",
-        brightBlack: "#002b36",
-        white: "#eee8d5",
-        brightWhite: "#fdf6e3",
-        cursor: "#eee8d5",
-        cursorAccent: "#eee8d5",
-        brightGreen: "#586e75",
-        brightYellow: "#657b83",
-        brightBlue: "#839496",
-        brightCyan: "#93a1a1",
-        yellow: "#b58900",
-        brightRed: "#cb4b16",
-        red: "#dc322f",
-        magenta: "#d33682",
-        brightMagenta: "#6c71c4",
-        blue: "#268bd2",
-        cyan: "#2aa198",
-        green: "#859900"
-    };
+function getTheme(): ITheme {
+    if (!isLightThemeStored()) {
+        return {
+            background: "#282a36",
+            selection: "#44475a",
+            foreground: "#f8f8f2",
+            cyan: "#8be9fd",
+            green: "#50fa7b",
+            black: "#21222C",
+            red: "#FF5555",
+            yellow: "#F1FA8C",
+            blue: "#BD93F9",
+            magenta: "#FF79C6",
+            white: "#F8F8F2",
+            brightBlack: "#6272A4",
+            brightRed: "#FF6E6E",
+            brightGreen: "#69FF94",
+            brightYellow: "#FFFFA5",
+            brightBlue: "#D6ACFF",
+            brightMagenta: "#FF92DF",
+            brightCyan: "#A4FFFF",
+            brightWhite: "#FFFFFF",
+        };
+    } else {
+        return {
+            background: "#ffffff",
+            selection: "#d6d6d6",
+            foreground: "#4d4d4c",
+            red: "#c82829",
+            yellow: "#eab700",
+            green: "#718c00",
+            cyan: "#3e999f",
+            blue: "#4271ae",
+            magenta: "#8959a8",
+            cursor: "#4d4d4c"
+        };
+    }
 }
