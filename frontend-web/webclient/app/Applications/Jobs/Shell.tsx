@@ -54,7 +54,7 @@ export const Shell: React.FunctionComponent = () => {
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnect, setReconnect] = useState<number>(0);
     useNoFrame();
-    useTitle(`Job ${shortUUID(jobId)} [Rank: ${parseInt(rank) + 1}]`);
+    useTitle(`Job ${shortUUID(jobId)} [Rank: ${parseInt(rank, 10) + 1}]`);
 
     useEffect(() => {
         fetchPath(queryShellParameters({jobId, rank: parseInt(rank, 10)}));
