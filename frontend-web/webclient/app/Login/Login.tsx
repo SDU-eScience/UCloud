@@ -316,7 +316,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                     <>
                                         <LoginText fontSize={1} mt="5px">
                                             To reset your password, enter your email address
-                                </LoginText>
+                                    </LoginText>
                                         <LoginDropdownContent
                                             overflow="visible"
                                             squareTop={false}
@@ -413,6 +413,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                     squareTop={false}
                                     cursor="pointer"
                                     width="315px"
+                                    colorOnHover={false}
                                     hover={false}
                                     visible
                                 >
@@ -491,7 +492,7 @@ const LoginTextSpan = styled(TextSpan)`
 
 const DropdownContentWrapper = styled.div`
     & > ${Dropdown} > ${DropdownContent} {
-                                    color: black;
+        color: black;
         background-color: white;
     }
 `;
