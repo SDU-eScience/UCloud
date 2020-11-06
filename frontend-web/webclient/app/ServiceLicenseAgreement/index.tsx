@@ -7,6 +7,7 @@ import {RouteComponentProps} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, ContainerForText, Markdown} from "ui-components";
 import * as Heading from "ui-components/Heading";
+import styled from "styled-components";
 
 function fetchSla(): APICallParameters {
     return {
@@ -30,6 +31,12 @@ interface ServiceAgreementText {
     text: string;
 }
 
+const Container = styled.div`
+    margin: 0 auto;
+    min-width: 300px;
+    max-width: 1000px;
+`;
+
 const ServiceLicenseAgreement: React.FunctionComponent<RouteComponentProps> = props => {
     const [sla] = useCloudAPI<ServiceAgreementText>(fetchSla(), {version: 0, text: ""});
     const [commandLoading, invokeCommand] = useAsyncCommand();
@@ -49,18 +56,16 @@ const ServiceLicenseAgreement: React.FunctionComponent<RouteComponentProps> = pr
         <LoadingMainContainer
             loading={sla.loading || commandLoading}
             error={sla.error?.why}
-            header={<Heading.h2>Service License Agreement</Heading.h2>}
+            header={null}
             main={
                 (
-                    <>
-                        <ContainerForText>
-                            <Markdown>{sla.data.text}</Markdown>
-                        </ContainerForText>
+                    <Container>
+                        <Markdown>{sla.data.text}</Markdown>
 
-                        <Button color={"green"} onClick={onAccept}>
-                            Accept
+                        <Button color={"green"} onClick={onAccept} fullWidth>
+                            I have read and accept the terms of service
                         </Button>
-                    </>
+                    </Container>
                 )
             }
         />
