@@ -1,4 +1,5 @@
 import {buildQueryString} from "Utilities/URIUtilities";
+import {Client} from "Authentication/HttpClientInstance";
 
 export type AccountType = "USER" | "PROJECT";
 
@@ -246,25 +247,37 @@ interface CategoryUsage {
 }
 
 export function transformUsageChartForTable(
+    rootProject: string | undefined,
     chart: UsageChart,
     type: ProductArea,
     wallets: WalletBalance[],
     expanded: Set<string>
 ): {provider: string; projects: AccountingProject[]} {
     const projectMap: Record<string, AccountingProject> = {};
-    const relevantWallets = wallets.filter(it => it.area === type && it.wallet.type === "PROJECT");
+    const relevantWallets = wallets.filter(it =>
+        it.area === type &&
+        ((rootProject && it.wallet.type === "PROJECT") ||
+            (!rootProject  && it.wallet.type === "USER"))
+    );
+
+    console.log("relevant?", relevantWallets);
 
     chart.lines.filter(it => it.area === type).forEach(line => {
-        const projectName = line.projectPath ? line.projectPath : line.projectId;
+        const projectName = !rootProject ? Client.username :
+            line.projectPath !== undefined ? line.projectPath : line.projectId;
         if (!projectName) return;
+
         const lineUsage = line.points.reduce((acc, p) => p.creditsUsed + acc, 0);
-        const allocated = relevantWallets.find(it => it.wallet.id === line.projectId)?.allocated ?? 0;
+        const allocated = relevantWallets
+            .find(it => !rootProject || it.wallet.id === line.projectId)
+            ?.allocated ?? 0;
+
         if (!projectMap[projectName]) {
             projectMap[projectName] = {
                 categories: expanded.has(projectName) ?
                     [{product: line.category, usage: lineUsage, allocated}] : [],
                 totalUsage: lineUsage,
-                totalAllocated: relevantWallets.find(it => it.wallet.id === line.projectId)?.allocated ?? 0,
+                totalAllocated: allocated,
                 projectId: line.projectId!,
                 projectTitle: projectName
             };
