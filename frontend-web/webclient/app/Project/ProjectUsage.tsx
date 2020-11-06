@@ -234,12 +234,12 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
             header={
                 <Box>
                     <UsageHeader>
-                        <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]} />
+                        <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]}/>
                         <ClickableDropdown
                             trigger={
                                 <Flex alignItems={"center"}>
                                     <Heading.h4 mr={8}>{durationOption.text}</Heading.h4>
-                                    <Icon name={"chevronDown"} size={16} />
+                                    <Icon name={"chevronDown"} size={16}/>
                                 </Flex>
                             }
                             onChange={opt => setDurationOption(durationOptions[parseInt(opt, 10)])}
@@ -325,7 +325,10 @@ const VisualizationForArea: React.FunctionComponent<{
         }
     }
 
-    const tableCharts = usageResponse.data.charts.map(it => transformUsageChartForTable(it, area, balance.data.wallets, expanded));
+    const tableCharts = usageResponse
+        .data
+        .charts
+        .map(it => transformUsageChartForTable(projectId, it, area, balance.data.wallets, expanded));
 
     const [, forceUpdate] = useState(false);
 
@@ -353,9 +356,9 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 top: 10, right: 30, left: 0, bottom: 0,
                                             }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)} />
-                                            <YAxis width={150} tickFormatter={creditFormatter} />
+                                            <CartesianGrid strokeDasharray="3 3"/>
+                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)}/>
+                                            <YAxis width={150} tickFormatter={creditFormatter}/>
                                             <Tooltip
                                                 labelFormatter={getDateFormatter(durationOption)}
                                                 formatter={n => creditFormatter(n as number, 2)}
@@ -398,54 +401,51 @@ const VisualizationForArea: React.FunctionComponent<{
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHeaderCell width={30} />
-                                    <TableHeaderCell />
+                                    <TableHeaderCell width={30}/>
+                                    <TableHeaderCell/>
                                     <TableHeaderCell textAlign="right">
                                         Credits Used In Period
-                                                </TableHeaderCell>
-                                    <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
+                                    </TableHeaderCell>
                                 </TableRow>
                             </TableHeader>
                             <tbody>
-                                {chart.projects.map((p, idx) => {
-                                    const isExpanded = expanded.has(p.projectTitle);
-                                    const result = [
-                                        <TableRow key={p.projectTitle}>
+                            {chart.projects.map((p, idx) => {
+                                const isExpanded = expanded.has(p.projectTitle);
+                                const result = [
+                                    <TableRow key={p.projectTitle}>
+                                        <TableCell>
+                                            <Box width={20} height={20}
+                                                 backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]}/>
+                                        </TableCell>
+                                        <TableCell>
+                                            {p.projectTitle}
+                                            <Button ml="6px" width="6px" height="16px"
+                                                    onClick={() => onExpandOrDeflate(p.projectTitle)}>{isExpanded ? "-" : "+"}</Button>
+                                        </TableCell>
+                                        <TableCell textAlign="right">
+                                            {creditFormatter(p.totalUsage)}
+                                        </TableCell>
+                                    </TableRow>
+                                ];
+                                if (isExpanded) {
+                                    for (const category of p.categories) {
+                                        result.push(<TableRow key={category.product}>
                                             <TableCell>
-                                                <Box width={20} height={20}
-                                                    backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]} />
+                                                <Box ml="20px" pl="6px" width={20} height={20}
+                                                     backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]}/>
                                             </TableCell>
-                                            <TableCell>
-                                                {p.projectTitle}
-                                                <Button ml="6px" width="6px" height="16px" onClick={() => onExpandOrDeflate(p.projectTitle)}>{isExpanded ? "-" : "+"}</Button>
+                                            <TableCell><Text pl="20px">{category.product}</Text></TableCell>
+                                            <TableCell textAlign="right">
+                                                {creditFormatter(category.usage)}
                                             </TableCell>
                                             <TableCell textAlign="right">
-                                                {creditFormatter(p.totalUsage)}
+                                                {creditFormatter(category.allocated - category.usage)}
                                             </TableCell>
-                                            <TableCell textAlign="right">
-                                                {creditFormatter(p.totalAllocated - p.totalUsage)}
-                                            </TableCell>
-                                        </TableRow>
-                                    ];
-                                    if (isExpanded) {
-                                        for (const category of p.categories) {
-                                            result.push(<TableRow key={category.product}>
-                                                <TableCell>
-                                                    <Box ml="20px" pl="6px" width={20} height={20}
-                                                        backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]} />
-                                                </TableCell>
-                                                <TableCell><Text pl="20px">{category.product}</Text></TableCell>
-                                                <TableCell textAlign="right">
-                                                    {creditFormatter(category.usage)}
-                                                </TableCell>
-                                                <TableCell textAlign="right">
-                                                    {creditFormatter(category.allocated - category.usage)}
-                                                </TableCell>
-                                            </TableRow>);
-                                        }
+                                        </TableRow>);
                                     }
-                                    return result;
-                                })}
+                                }
+                                return result;
+                            })}
                             </tbody>
                         </Table>
                     </Box>
@@ -497,7 +497,7 @@ const PercentageDisplay: React.FunctionComponent<{
     numerator: number,
     denominator: number,
     // Note this must be sorted ascending by breakpoint
-    colorRanges: {breakpoint: number, color: ThemeColor}[]
+    colorRanges: { breakpoint: number, color: ThemeColor }[]
 }> = props => {
     if (props.denominator === 0) {
         return null;
