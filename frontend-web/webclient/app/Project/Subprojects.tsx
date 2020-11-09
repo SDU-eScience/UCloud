@@ -88,7 +88,9 @@ const SelectableWallet: React.FunctionComponent<{
     allocated?: number,
     selected?: boolean,
     onClick?: () => void,
-    quotaInTotal?: number
+    quotaInTotal?: number,
+    usage?: number,
+    subprojectQuotaSum?: number
 }> = props => {
     return (
         <SelectableWalletWrapper className={props.selected === true ? "selected" : ""} onClick={props.onClick}>
@@ -109,6 +111,12 @@ const SelectableWallet: React.FunctionComponent<{
                             <tr>
                                 <th>Allocated</th>
                                 <td>{creditFormatter(props.allocated)}</td>
+                            </tr>
+                        )}
+                        {props.usage === undefined ? null : (
+                            <tr>
+                                <th>Usage</th>
+                                <td>{sizeToString(props.usage)}</td>
                             </tr>
                         )}
                         {props.quotaInTotal === undefined ? null : (
@@ -159,7 +167,11 @@ const Subprojects: React.FunctionComponent = () => {
 
     const reloadWallets = useCallback(() => {
         setWalletParams(retrieveBalance({includeChildren: true}));
-        fetchQuota(retrieveQuota({path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder}));
+        fetchQuota(retrieveQuota(
+            {
+                path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder,
+                includeUsage: true
+            }));
     }, [setWalletParams, projectId]);
 
     const [creatingSubproject, setCreatingSubproject] = useState(false);
@@ -265,6 +277,12 @@ const Subprojects: React.FunctionComponent = () => {
                                         }
                                         quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
                                             quota.data.quotaInTotal : undefined
+                                        }
+                                        usage={isQuotaSupported(w.wallet.paysFor) ?
+                                            quota.data.quotaUsed : undefined
+                                        }
+                                        subprojectQuotaSum={isQuotaSupported(w.wallet.paysFor) ?
+                                            quota.data.quotaInBytes : undefined
                                         }
                                         onClick={() => setSelectedWallet(w)} />
                                 )
