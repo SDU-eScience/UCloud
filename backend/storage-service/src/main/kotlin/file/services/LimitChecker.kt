@@ -127,7 +127,7 @@ class LimitChecker<Ctx : FSUserContext>(
                 ?.getLong(0)
                 ?: 0
             if (projectAllocationInBytes > quotaInBytes) {
-                val allocationInGB = projectAllocationInBytes / 1000000000L
+                val allocationInGB = projectAllocationInBytes / 1.GiB
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
                     "Project have already allocated $allocationInGB GB, and can therefore not have less allocated." +
@@ -205,7 +205,7 @@ class LimitChecker<Ctx : FSUserContext>(
                 ?: throw RPCException("You can only transfer to personal projects", HttpStatusCode.Forbidden)
 
             val quota = retrieveQuota(actor, fromHome, session)
-            if (quota.quotaInBytes < quotaInBytes) {
+            if (quota.remainingQuota < quotaInBytes) {
                 throw RPCException(
                     "Your project does not have enough available quota to initiate this transfer",
                     HttpStatusCode.PaymentRequired
@@ -424,12 +424,12 @@ class LimitChecker<Ctx : FSUserContext>(
 
     private suspend fun internalPerformQuotaCheck(homeDirectory: String, usage: Long) {
         val quota = retrieveQuota(Actor.System, homeDirectory)
-        if (quota.quotaInBytes == NO_QUOTA) {
+        if (quota.remainingQuota == NO_QUOTA) {
             log.debug("Owner of $homeDirectory has no storage quota")
             return
         }
 
-        if (usage > quota.quotaInBytes) {
+        if (usage > quota.remainingQuota) {
             throw RPCException(
                 "Storage quota has been exceeded. ${bytesToString(usage)} of ${bytesToString(quota.quotaInBytes)} used",
                 HttpStatusCode.PaymentRequired,

@@ -1,4 +1,4 @@
-version = "4.2.18-QUOTA4"
+version = "4.2.18"
 
 application {
     mainClassName = "dk.sdu.cloud.file.MainKt"
