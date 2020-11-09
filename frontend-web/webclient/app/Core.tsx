@@ -53,7 +53,7 @@ import {OutgoingApplications} from "Project/Grant/OutgoingApplications";
 import {ProjectBrowser} from "Project/Grant/ProjectBrowser";
 import {LandingPage} from "Project/Grant/LandingPage";
 import Products from "Products/Products";
-import {DEV_SITE} from "../site.config.json";
+import CONF from "../site.config.json";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -66,7 +66,7 @@ const Core = (): JSX.Element => (
         <ErrorBoundary>
             <Switch>
                 <Route exact path="/login" component={LoginPage} />
-                {inDevEnvironment() || window.location.host === DEV_SITE ?
+                {inDevEnvironment() || window.location.host === CONF.DEV_SITE ?
                     <Route exact path="/login/selection" component={LoginSelection} /> :
                     <Route exact path="/login/selection" component={LoginPage} />
                 }

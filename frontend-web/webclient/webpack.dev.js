@@ -17,7 +17,7 @@ module.exports = merge(commonConfig, {
     },
 
     output: {
-        path: path.join(process.cwd(), "/dist"),
+        path: path.join(__dirname, "/dist"),
         publicPath: "/",
         filename: "[name].js",
     },
@@ -45,7 +45,7 @@ module.exports = merge(commonConfig, {
         disableHostCheck: true,
         historyApiFallback: true,
         stats: "minimal",
-        contentBase: path.join(process.cwd(), "/dist"),
+        contentBase: path.join(__dirname, "/dist"),
         index: "app/index.html",
         headers: {
             "Access-Control-Allow-Origin": "*",

@@ -1,5 +1,5 @@
 import {ApplicationMetadata} from "Applications";
-import {QUICK_LAUNCH_PRODUCT} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import {Client} from "Authentication/HttpClientInstance";
 import {History} from "history";
 import {setLoading} from "Navigation/Redux/StatusActions";
@@ -48,7 +48,7 @@ export async function quickLaunchCallback(
         }],
         numberOfNodes: 1,
         peers: [],
-        reservation: QUICK_LAUNCH_PRODUCT,
+        reservation: CONF.QUICK_LAUNCH_PRODUCT,
         type: "start",
         name: null,
         parameters: {}

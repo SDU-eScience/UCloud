@@ -28,7 +28,7 @@ module.exports = {
             },
             {
                 test: /\.css$/,
-                exclude: path.join(process.cwd(), '/app'),
+                exclude: path.join(__dirname, '/app'),
                 use: ["style-loader", "css-loader"]
             },
             {

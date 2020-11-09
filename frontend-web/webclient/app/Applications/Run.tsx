@@ -64,7 +64,7 @@ import {
     WithAppInvocation,
     WithAppMetadata
 } from ".";
-import {PRODUCT_NAME} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
@@ -1191,7 +1191,7 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                     />
                 </Button>
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
-                    Select file from {PRODUCT_NAME}
+                    Select file from {CONF.PRODUCT_NAME}
                 </Button>
             </div>
             <Flex mt="20px">

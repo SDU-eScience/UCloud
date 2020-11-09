@@ -27,7 +27,7 @@ import {
 } from "Utilities/FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
-import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import {
     explainPersonalRepo,
     promptDeleteRepository,
@@ -210,7 +210,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (!UF.isExtPreviewSupported(UF.extensionFromPath(files[0].path))) return true;
             else if (!cb.permissions.requireForAll(files, AccessRight.READ)) return true;
             else if (isAnyMockFile(files)) return true;
-            else if (!UF.inRange({status: files[0].size ?? 0, min: 1, max: PREVIEW_MAX_SIZE})) return true;
+            else if (!UF.inRange({status: files[0].size ?? 0, min: 1, max: CONF.PREVIEW_MAX_SIZE})) return true;
             return false;
         },
         icon: "preview"

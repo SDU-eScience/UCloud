@@ -36,7 +36,7 @@ import * as FUtils from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon, ConfirmCancelButtons, shareDialog} from "UtilityComponents";
-import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {
     createRepository, isRepository, renameRepository, getProjectNames, isAdminOrPI, updatePermissionsPrompt
@@ -706,7 +706,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                     )}
                                     {!(props.previewEnabled && FUtils.isFilePreviewSupported(f)) ? null :
                                         f.size != null
-                                            && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
+                                            && UF.inRange({status: f.size, max: CONF.PREVIEW_MAX_SIZE, min: 1}) ? (
                                                 <Tooltip
                                                     wrapperOffsetLeft="0"
                                                     wrapperOffsetTop="4px"
@@ -943,7 +943,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         {fileName}
                     </BaseLink>
                 ) : props.previewEnabled && FUtils.isFilePreviewSupported(props.file) && !beingRenamed &&
-                    UF.inRange({status: props.file.size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) ?
+                    UF.inRange({status: props.file.size ?? 0, min: 1, max: CONF.PREVIEW_MAX_SIZE}) ?
                         <Link to={FUtils.filePreviewQuery(props.file.path)}>{fileName}</Link> : fileName
                 }
 

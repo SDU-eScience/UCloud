@@ -5,7 +5,7 @@ import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as Heading from "ui-components/Heading";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {SITE_DOCUMENTATION_URL} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import Box from "./Box";
 import Button from "./Button";
 import ClickableDropdown from "./ClickableDropdown";
@@ -83,8 +83,8 @@ export default function Support(): JSX.Element {
             <Box color="text">
                 <Spacer alignItems="center"
                     left={<Heading.h3>Support Form</Heading.h3>}
-                    right={!SITE_DOCUMENTATION_URL ? null : (
-                        <ExternalLink href={SITE_DOCUMENTATION_URL}>
+                    right={!CONF.SITE_DOCUMENTATION_URL ? null : (
+                        <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
                             <Icon name="docs" mr=".5em"/>Documentation
                         </ExternalLink>
                     )}

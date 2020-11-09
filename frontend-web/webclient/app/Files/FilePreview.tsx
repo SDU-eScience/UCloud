@@ -14,7 +14,7 @@ import {
     isExtPreviewSupported,
     ExtensionType,
 } from "UtilityFunctions";
-import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
 import {useAsyncCommand, useAsyncWork} from "Authentication/DataHook";
@@ -59,7 +59,7 @@ function useFileContent(): {
                 snackbarStore.addFailure("Directories cannot be previewed.", false);
                 setError("Preview for folders not supported");
                 setDownloadButton(true);
-            } else if (stat.size! > PREVIEW_MAX_SIZE) {
+            } else if (stat.size! > CONF.PREVIEW_MAX_SIZE) {
                 snackbarStore.addFailure("File size too large. Download instead.", false);
                 setError("File size too large to preview.");
                 setDownloadButton(true);

@@ -12,7 +12,7 @@ import {TextSpan} from "ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
-import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, LOGIN_PAGE_PRODUCTS} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import {BG1} from "./BG1";
 import * as Heading from "ui-components/Heading";
 
@@ -254,7 +254,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
 
                     {!isWebDav ? null : (
                         <LoginBox mb={32}>
-                            You must re-authenticate with {PRODUCT_NAME} to use your files locally.
+                            You must re-authenticate with {CONF.PRODUCT_NAME} to use your files locally.
                         </LoginBox>
                     )}
                     {enabledWayf && !challengeId && !isPasswordReset ? (
@@ -527,7 +527,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
     return (<>
         <Absolute right="1em" top=".5em">
             {props.selection ? <div>
-                {!SUPPORT_EMAIL ? null : (
+                {!CONF.SUPPORT_EMAIL ? null : (
                     <ClickableDropdown
                         width="224px"
                         top="36px"
@@ -535,14 +535,14 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                         colorOnHover={false}
                         trigger={<LoginIcon mr={"1em"} name="suggestion" />}
                     >
-                        <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
+                        <ExternalLink href={`mailto:${CONF.SUPPORT_EMAIL}`}>
                             Need help?
-                                    {" "}<b>{SUPPORT_EMAIL}</b>
+                                    {" "}<b>{CONF.SUPPORT_EMAIL}</b>
                         </ExternalLink>
                     </ClickableDropdown>
                 )}
-                {!SITE_DOCUMENTATION_URL ? null : (
-                    <LoginExternalLink href={SITE_DOCUMENTATION_URL}>
+                {!CONF.SITE_DOCUMENTATION_URL ? null : (
+                    <LoginExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
                         <LoginIcon name="docs" /> Docs
                     </LoginExternalLink>
                 )}
@@ -577,7 +577,7 @@ export function LoginSelection(): JSX.Element {
         <LoginWrapper selection>
             <Flex justifyContent="center">
                 <CenteredGrid>
-                    {LOGIN_PAGE_PRODUCTS.map(product => (
+                    {CONF.LOGIN_PAGE_PRODUCTS.map(product => (
                         <Card
                             key={product.name}
                             width={1}

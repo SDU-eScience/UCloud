@@ -1,5 +1,5 @@
 import * as React from "react";
-import {LOGIN_PRODUCT_NAME, VERSION_TEXT, PRODUCT_NAME} from "../../site.config.json";
+import CONF from "../../site.config.json";
 
 export function BG1(props: {selection?: boolean}): JSX.Element {
     return (
@@ -50,10 +50,10 @@ export function BG1(props: {selection?: boolean}): JSX.Element {
             </g>
             <path d="M368.231,274.126l171.842,99.213l171.841,-99.213l1583.39,0l0,2300l-2295.31,0l0,-2300l368.231,0Z" fill="url(#_Linear11)" />
             <text pointerEvents="none" x="722.462px" y="247.713px" fontFamily="'IBMPlexSans', 'IBM Plex Sans', sans-serif" fontSize={props.selection ? "80px" : "200px"} fill="#fff">
-                {props.selection ? LOGIN_PRODUCT_NAME : PRODUCT_NAME}
+                {props.selection ? CONF.LOGIN_PRODUCT_NAME : CONF.PRODUCT_NAME}
             </text>
             <text pointerEvents="none" x="1420px" y="350.713px" fontFamily="'IBMPlexSans', 'IBM Plex Sans', sans-serif" fontSize="80px" fill="#ff0024">
-                {VERSION_TEXT}
+                {CONF.VERSION_TEXT}
             </text>
             <defs>
                 <linearGradient id="_Linear1" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(85.7479,-26.9821,26.9821,85.7479,434.129,99.833)">
