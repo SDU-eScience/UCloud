@@ -91,9 +91,9 @@ class LimitChecker<Ctx : FSUserContext>(
                 .rows
                 .singleOrNull()
                 ?.let {
-                    val allocated = it.getLong(0)!!
+                    val allocatedToSubProjects = it.getLong(0)!!
                     val totalQuota = it.getLong(1)!!
-                    Quota(totalQuota, totalQuota - allocated, allocated)
+                    Quota(totalQuota, totalQuota - allocatedToSubProjects, allocatedToSubProjects)
                 }
                 ?: Quota(productConfiguration.defaultQuota, 0, 0)
         }
@@ -112,6 +112,28 @@ class LimitChecker<Ctx : FSUserContext>(
                 ?: throw RPCException("This endpoint is only for projects", HttpStatusCode.BadRequest)
             val (_, parentProject) = fetchProjectWithParent(projectId)
             verifyPermissionsAndFindParentQuota(actor, toProject) // throws if permission denied.
+            //Check if new quota is below what the subproject has allocted to its own subprojects (over allocate)
+            val projectAllocationInBytes = session.sendPreparedStatement(
+                {
+                    setParameter("projectPath", path)
+                },
+                """
+                    SELECT sum(allocation)::bigint
+                    FROM quota_allocation
+                    WHERE from_directory = :projectPath
+                """
+            ).rows
+                .singleOrNull()
+                ?.getLong(0)
+                ?: 0
+            if (projectAllocationInBytes > quotaInBytes) {
+                val allocationInGB = projectAllocationInBytes / 1000000000L
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Project have already allocated $allocationInGB GB, and can therefore not have less allocated." +
+                            "If need to allocate lower then contact the PI of the project and make them allocate less")
+            }
+            //Set new quota
             if (parentProject != null) {
                 // This means that we are transferring from a project
                 val fromProject = projectHomeDirectory(parentProject.id)

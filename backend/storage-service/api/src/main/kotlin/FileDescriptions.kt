@@ -254,15 +254,37 @@ data class CreatePersonalRepositoryRequest(val project: String, val username: St
 
 typealias CreatePersonalRepositoryResponse = Unit
 
-data class RetrieveQuotaRequest(val path: String, val includeUsage: Boolean = false)
+data class RetrieveQuotaRequest(
+    val path: String,
+    /**
+     * Include own usage in response
+     */
+    val includeUsage: Boolean = false
+)
 typealias RetrieveQuotaResponse = Quota
 
 data class Quota(
+    /**
+     * allocated quota from other projects
+     */
     val quotaInTotal: Long,
-    val quotaInBytes: Long,
-    val allocated: Long,
-    val quotaUsed: Long? = null
-)
+    /**
+     * quota which has not yet been allocated to sub-projects
+     */
+    val remainingQuota: Long,
+    /**
+     * quota which has been allocated to sub-projects
+     */
+    val allocatedToSubProjects: Long,
+    /**
+     * actual usage in the current project
+     */
+    val inProjectUsage: Long? = null
+) {
+    val quotaInBytes = remainingQuota
+    val allocated = allocatedToSubProjects
+    val quotaUsed = inProjectUsage
+}
 
 data class UpdateQuotaRequest(val path: String, val quotaInBytes: Long, val additive: Boolean = false)
 typealias UpdateQuotaResponse = Unit
