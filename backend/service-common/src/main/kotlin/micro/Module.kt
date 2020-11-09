@@ -83,7 +83,7 @@ class ServiceRegistry(
         services.add(ConfiguredService(service.description, service, scopedMicro, server))
     }
 
-    fun start() {
+    fun start(wait: Boolean = true) {
         var scriptHandlerExit = false
         try {
             for (service in services) {
@@ -134,8 +134,10 @@ class ServiceRegistry(
         // Note this code runs before logger is ready
         println("============ UCloud is ready ============")
 
-        while (rootServer.isRunning) {
-            Thread.sleep(50)
+        if (wait) {
+            while (rootServer.isRunning) {
+                Thread.sleep(50)
+            }
         }
     }
 

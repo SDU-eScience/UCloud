@@ -40,6 +40,36 @@ object Launcher : Loggable {
     override val log = logger()
 }
 
+val services = setOf(
+    AccountingService,
+    ActivityService,
+    AppKubernetesService,
+    AppLicenseService,
+    AppOrchestratorService,
+    AppStoreService,
+    AuditIngestionService,
+    AuthService,
+    AvatarService,
+    ContactBookService,
+    ElasticManagementService,
+    FileFavoriteService,
+    FileStatsService,
+    FileTrashService,
+    FileSearchService,
+    GrantService,
+    IndexingService,
+    MailService,
+    NewsService,
+    NotificationService,
+    PasswordResetService,
+    ProjectRepositoryService,
+    ProjectService,
+    ShareService,
+    StorageService,
+    SupportService,
+    TaskService
+)
+
 suspend fun main(args: Array<String>) {
     if (args.contains("--run-script") && args.contains("migrate-db")) {
         val micro = Micro().apply {
@@ -67,36 +97,6 @@ suspend fun main(args: Array<String>) {
     )
 
     val loader = Launcher::class.java.classLoader
-
-    val services = setOf(
-        AccountingService,
-        ActivityService,
-        AppKubernetesService,
-        AppLicenseService,
-        AppOrchestratorService,
-        AppStoreService,
-        AuditIngestionService,
-        AuthService,
-        AvatarService,
-        ContactBookService,
-        ElasticManagementService,
-        FileFavoriteService,
-        FileStatsService,
-        FileTrashService,
-        FileSearchService,
-        GrantService,
-        IndexingService,
-        MailService,
-        NewsService,
-        NotificationService,
-        PasswordResetService,
-        ProjectRepositoryService,
-        ProjectService,
-        ShareService,
-        StorageService,
-        SupportService,
-        TaskService
-    )
 
     services.forEach { objectInstance ->
         try {

@@ -1,8 +1,19 @@
 package dk.sdu.cloud
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import dk.sdu.cloud.calls.UCloudApiDoc
+import dk.sdu.cloud.calls.UCloudApiStable
 
-data class CommonErrorMessage(val why: String, val errorCode: String? = null)
+@UCloudApiStable
+@UCloudApiDoc("Generic error message")
+data class CommonErrorMessage(
+    @UCloudApiDoc("Human readable description of why the error occurred. This value is generally not stable.")
+    val why: String,
+    @UCloudApiDoc(
+        "Machine readable description of why the error occurred. This value is stable and can be relied upon."
+    )
+    val errorCode: String? = null
+)
 
 typealias FindByNameBulk = FindByName
 

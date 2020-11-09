@@ -40,7 +40,8 @@ class CallDescription<Request : Any, Success : Any, Error : Any> internal constr
     val attributes: AttributeContainer,
     val requestType: TypeReference<Request>,
     val successType: TypeReference<Success>,
-    val errorType: TypeReference<Error>
+    val errorType: TypeReference<Error>,
+    val containerRef: CallDescriptionContainer,
 ) {
     val fullName: String get() = "$namespace.$name"
 
@@ -60,7 +61,7 @@ abstract class CallDescriptionContainer(val namespace: String) {
         errorType: TypeReference<Error>
     ): CallDescription<Request, Success, Error> {
         val callDescription =
-            CallDescription(name, namespace, AttributeContainer(), requestType, successType, errorType)
+            CallDescription(name, namespace, AttributeContainer(), requestType, successType, errorType, this)
         callDescription.handler()
         _callContainer.add(callDescription)
         onBuildHandlers.forEach { it(callDescription) }
