@@ -23,7 +23,7 @@ module.exports = env => merge(commonConfig, {
     },
 
     plugins: [
-        // Enables Hot Module Replacement, otherwise known as HMR.
+        // Enables Hot Module Replacement.
         // Note: HMR should never be used in production.
         new webpack.HotModuleReplacementPlugin(),
         // new MiniCSSExtractPlugin({

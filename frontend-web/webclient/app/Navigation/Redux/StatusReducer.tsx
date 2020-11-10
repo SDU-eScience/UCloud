@@ -1,5 +1,5 @@
 import {initStatus, StatusReduxObject} from "DefaultObjects";
-import CONF from "../../../site.config.json";
+const CONF = require("../../../site.config.json");
 import {StatusActions} from "./StatusActions";
 
 export const UPDATE_PAGE_TITLE = "UPDATE_PAGE_TITLE";
