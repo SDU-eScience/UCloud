@@ -4,8 +4,8 @@
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
-        "start": "webpack serve --config webpack.dev.js --inline --progress --port 9000 --host 0.0.0.0",
-        "start_use_local_backend": "local_dev=true npm run start",
+        "start": "webpack serve --config webpack.dev.js --inline --progress --port 9000 --host 0.0.0.0 --env foo",
+        "start_use_local_backend": "npm run start -- --env local_dev",
         "clean": "rm -rf dist/",
         "build": "npm run clean && webpack --config webpack.prod.js --progress",
         "test": "jest --runInBand",
