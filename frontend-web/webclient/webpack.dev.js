@@ -6,7 +6,7 @@ var commonConfig = require("./webpack.config.js");
 var path = require("path");
 var {DEV_SITE} = require("./site.config.json")
 
-module.exports = merge(commonConfig, {
+module.exports = env => merge(commonConfig, {
     devtool: "eval-source-map",
 
     mode: "development",

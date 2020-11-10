@@ -5,13 +5,20 @@ const path = require("path");
 const baseHref = "/app";
 
 module.exports = {
-
     entry: "./app/App.tsx",
 
     resolve: {
         //root: path.join(__dirname, ''),
         modules: [path.resolve(__dirname, "app"), "node_modules"],
-        extensions: [".js", ".jsx", ".json", ".ts", ".tsx"]
+        extensions: [".js", ".jsx", ".json", ".ts", ".tsx"],
+        // For webpack 5. Remember to install the 3 require.resolve packages
+        //
+        /* fallback: {
+            buffer: require.resolve("buffer"),
+            util: require.resolve("util"),
+            stream: require.resolve("stream-browserify"),
+            path: false, http: false, crypto: false
+        } */
     },
 
     module: {
