@@ -1,5 +1,12 @@
 package dk.sdu.cloud
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.module.kotlin.isKotlinClass
+import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingRequestInterceptor
@@ -25,9 +32,14 @@ import io.swagger.v3.oas.models.servers.Server
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.*
+import java.math.BigDecimal
+import java.math.BigInteger
+import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.hasAnnotation
 import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.javaType
+import kotlin.reflect.jvm.javaField
 import kotlin.system.exitProcess
 
 private val componentsRef = "#/components/schemas/"
@@ -56,11 +68,7 @@ fun main() {
 
         // NOTE(Dan): Currently made to be rendered by https://github.com/Redocly/redoc
 
-        // TODO(Dan): Namespacing is not perfect but changing it will require writing our own schema generator
-        // TODO(Dan): Nullability information is lost but changing it will require writing our own schema generator
-        // TODO(Dan): Field documentation from @UCloudApiDoc does not work currently
-        // TODO(Dan): Discriminator is not correctly parsed by swagger-core. It correctly find the discriminator
-        //  property but does not detect the values
+        val typeRegistry = HashMap<String, ComputedType>()
 
         val reg = ServiceRegistry(arrayOf("--dev"), PlaceholderServiceDescription)
         val knownCalls = ArrayList<CallDescription<*, *, *>>()
@@ -94,12 +102,8 @@ fun main() {
 
         reg.start(wait = false)
 
-        val converters = ModelConverters()
-        converters.addPackageToSkip("kotlin")
-
         paths = Paths()
         components = Components()
-        components.schemas = HashMap()
 
         knownCalls
             .groupBy { it.httpOrNull?.path?.toKtorTemplate(true) ?: "" }
@@ -145,7 +149,7 @@ fun main() {
                     op.operationId = call.fullName
                     op.tags = listOf(call.namespace)
                     op.responses = ApiResponses().apply {
-                        set("200", apiResponse(call.namespace, call.successType.type).apply {
+                        set("200", apiResponse(call.successType.type, typeRegistry).apply {
                             if (doc != null) {
                                 val json = this.content[ContentType.Application.Json.toString()]
                                 if (json != null) {
@@ -161,7 +165,7 @@ fun main() {
 
                         doc?.examples?.groupBy { it.statusCode }?.filterKeys { !it.isSuccess() }
                             ?.forEach { (code, examples) ->
-                                set(code.value.toString(), apiResponse(call.namespace, call.errorType.type).apply {
+                                set(code.value.toString(), apiResponse(call.errorType.type, typeRegistry).apply {
                                     val json = this.content[ContentType.Application.Json.toString()]
                                     if (json != null) {
                                         json.examples = HashMap()
@@ -175,18 +179,18 @@ fun main() {
                         doc?.errors?.forEach { err ->
                             val description = computeIfAbsent(
                                 err.statusCode.value.toString(),
-                                { apiResponse(call.namespace, call.errorType.type) }
+                                { apiResponse(call.errorType.type, typeRegistry) }
                             )
 
                             description.description = err.description
                         }
 
-                        default = apiResponse(call.namespace, call.errorType.type)
+                        default = apiResponse(call.errorType.type, typeRegistry)
                     }
 
                     val body = http.body
                     if (body != null && body.ref.type != Unit::class.java) {
-                        addTypeTree(converters, call.namespace, body.ref.type)
+                        val requestType = traverseType(call.requestType.type, typeRegistry)
                         op.requestBody = RequestBody()
                         op.requestBody.content = Content().apply {
                             set(ContentType.Application.Json.toString(), MediaType().apply {
@@ -196,38 +200,36 @@ fun main() {
                                         examples[example.name] = createExample(example)
                                     }
                                 }
-                                schema = schemaFromType(body.ref.type, call.namespace)
+                                schema = requestType.toOpenApiSchema()
                             })
                         }
                     }
 
                     val params = http.params
                     if (params != null) {
+                        val requestType = traverseType(call.requestType.type, typeRegistry) as? ComputedType.Struct
+                            ?: error("Query params bound to a non-class")
+
                         op.parameters = params.parameters.map { p ->
                             when (p) {
                                 is HttpQueryParameter.Property<*, *> -> {
                                     val type = p.property.returnType.javaType
-                                    addTypeTree(converters, call.namespace, type)
 
                                     Parameter().apply {
                                         name = p.property.name
-                                        description = p.property.returnType.javaClass.apiDoc()
+                                        schema = requestType.properties[name]!!.toOpenApiSchema()
                                         `in` = "query"
-
-                                        val jvmClass = type.jvmClass
-                                        schema = schemaFromType(jvmClass, call.namespace)
-
                                     }
                                 }
                             }
                         }
                     }
-
-                    // NOTE(Dan): Request type is added above
-                    addTypeTree(converters, call.namespace, call.successType.type)
-                    addTypeTree(converters, call.namespace, call.errorType.type)
                 }
             }
+
+        components.schemas = typeRegistry.map { (k, v) ->
+            (k) to v.toOpenApiSchema()
+        }.toMap()
     }
 
     val output = File("/tmp/swagger").also { it.mkdirs() }
@@ -244,171 +246,399 @@ private fun createExample(example: UCloudCallDoc.Example<out Any, out Any, out A
     }
 }
 
-private fun schemaFromType(type: Type, namespace: String): Schema<*> {
-    var baseType: Class<*>? = null
-    var reference = ""
-    when (type) {
-        java.lang.Short::class.java, Short::class.java -> {
-            return Schema<Any?>().apply {
-                this.type = "integer"
-                this.format = "int16"
-            }
-        }
-
-        Integer::class.java, Int::class.java -> {
-            return Schema<Any?>().apply {
-                this.type = "integer"
-                this.format = "int32"
-            }
-        }
-
-        java.lang.Long::class.java, Long::class.java -> {
-            return Schema<Any?>().apply {
-                this.type = "integer"
-                this.format = "int64"
-            }
-        }
-
-        java.lang.Float::class.java, Float::class.java -> {
-            return Schema<Any?>().apply {
-                this.type = "number"
-                this.format = "float32"
-            }
-        }
-
-        java.lang.Double::class.java, Double::class.java -> {
-            return Schema<Any?>().apply {
-                this.type = "number"
-                this.format = "float64"
-            }
-        }
-
-        String::class.java -> {
-            return Schema<Any?>().apply {
-                this.type = "string"
-            }
-        }
-
-        java.lang.Boolean::class.java, Boolean::class.java -> {
-            return Schema<Any?>().apply {
-                this.type = "boolean"
-            }
-        }
-
-        is Class<*> -> {
-            baseType = type
-            reference = type.simpleName
-        }
-
-        is GenericArrayType -> {
-
-        }
-
-        is ParameterizedType -> {
-            if (type.rawType.jvmClass == List::class.java) {
-                return ArraySchema().apply {
-                    items = schemaFromType(
-                        (type.actualTypeArguments.first() as? WildcardType)
-                            ?.upperBounds
-                            ?.firstOrNull() ?: error("Unsupported array type"),
-                        namespace
-                    )
-                }
-            } else {
-                reference = type.rawType.jvmClass.simpleName +
-                    type.actualTypeArguments.joinToString("") {
-                        (it as? WildcardType)?.upperBounds?.firstOrNull()?.typeName?.substringAfterLast('.')
-                            ?: it.typeName.substringAfterLast('.')
-                    }
-            }
-        }
-
-        is TypeVariable<*> -> {
-
-        }
-
-        is WildcardType -> {
-
-        }
-    }
-
-    return Schema<Any?>().apply {
-        if (type == Unit::class.java) {
-            this.example(Unit)
-            this.type = "object"
-        } else if (type is Class<*> && type.isEnum) {
-            this.type = "string"
-            enum = type.enumConstants.map { it.toString() }
-        } else {
-            `$ref` = "$componentsRef${namespace}.${reference}"
-        }
-    }
-}
-
-private fun OpenAPI.addTypeTree(
-    converters: ModelConverters,
-    namespace: String,
-    type: Type
-) {
-    // NOTE(Dan):
-    //   Doing this takes care of most of the work, unfortunately, we really want this to do some
-    //   namespacing. We do some over simplification and simply put all of the types in the same
-    //   namespace. To do this we must seek out all refs and update them with the namespaced version.
-    val requestTree = converters.readAll(type)
-    for ((name, schema) in requestTree) {
-        components.schemas["${namespace}.$name"] = schema.namespace(namespace)
-    }
-}
-
-private fun <T> Schema<T>.namespace(namespace: String): Schema<T> {
-    `$ref` = `$ref`.putRefInNamespace(namespace)
-    if (properties != null) {
-        for ((_, prop) in properties) {
-            prop.namespace(namespace)
-        }
-    }
-
-    if (this is ArraySchema) {
-        if (items != null) {
-            items.namespace(namespace)
-        }
-    }
-
-    if (this is ComposedSchema) {
-        allOf?.forEach { it.namespace(namespace) }
-        anyOf?.forEach { it.namespace(namespace) }
-        oneOf?.forEach { it.namespace(namespace) }
-    }
-
-    val additionalProperties = additionalProperties
-    if (additionalProperties is Schema<*>) {
-        additionalProperties.namespace(namespace)
-    }
-
-    return this
-}
-
-private fun String?.putRefInNamespace(namespace: String): String? {
-    if (this == null) return null
-    return componentsRef + namespace + "." + removePrefix(componentsRef)
-}
-
-private fun Class<*>.apiDoc(): String {
-    return annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()?.documentation ?: "No documentation provided"
-}
-
-private fun apiResponse(ns: String, type: Type): ApiResponse {
+private fun apiResponse(type: Type, registry: HashMap<String, ComputedType>): ApiResponse {
     return ApiResponse().apply {
-        description = (type as? Class<*>)?.apiDoc() ?: "No documentation provided"
-
+        val computedType = traverseType(type, registry)
+        description = computedType.documentation
         if (type == Unit::class.java) {
             description = "No response"
         }
 
         content = Content().apply {
             set("application/json", MediaType().apply {
-                schema = schemaFromType(type, ns)
+                schema = computedType.asRef().toOpenApiSchema()
             })
+        }
+    }
+}
+
+// Call tree traversal
+sealed class ComputedType {
+    var documentation: String? = null
+    var deprecated: Boolean = false
+    var nullable: Boolean = false
+    var optional: Boolean = false
+
+    protected fun baseSchema(): Schema<*> {
+        return Schema<Any?>().apply {
+            this.description = this@ComputedType.documentation
+            this.deprecated = this@ComputedType.deprecated
+            this.nullable = this@ComputedType.nullable
+        }
+    }
+
+    abstract fun toOpenApiSchema(): Schema<*>
+
+    open fun asRef(): ComputedType {
+        return this
+    }
+
+    class Integer(val size: Int) : ComputedType() {
+        override fun toString(): String = "int$size"
+
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "integer"
+                format = "int$size"
+            }
+        }
+    }
+
+    class FloatingPoint(val size: Int) : ComputedType() {
+        override fun toString() = "float$size"
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "number"
+                format = "float$size"
+            }
+        }
+    }
+
+    class Text() : ComputedType() {
+        override fun toString() = "text"
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "string"
+            }
+        }
+    }
+
+    class Bool() : ComputedType() {
+        override fun toString() = "bool"
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "boolean"
+            }
+        }
+    }
+
+    class Array(val itemType: ComputedType) : ComputedType() {
+        override fun toString() = "$itemType[]"
+
+        override fun toOpenApiSchema(): Schema<*> {
+            return ArraySchema().apply {
+                type = "array"
+                this.description = this@Array.documentation
+                this.deprecated = this@Array.deprecated
+                this.nullable = this@Array.nullable
+                items = itemType.toOpenApiSchema()
+            }
+        }
+    }
+
+    data class Dictionary(val itemType: ComputedType) : ComputedType() {
+        override fun toString() = "dict<$itemType>"
+
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                additionalProperties = itemType.toOpenApiSchema()
+            }
+        }
+    }
+
+    class Unknown : ComputedType() {
+        override fun toString() = "unknown"
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "object"
+            }
+        }
+    }
+
+    class Generic(val id: String) : ComputedType() {
+        override fun toString() = "($id)"
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "object"
+            }
+        }
+    }
+
+    class Struct(
+        var qualifiedName: String,
+        var type: Type,
+        var properties: MutableMap<String, ComputedType>,
+        var discriminator: Discriminator? = null,
+    ) : ComputedType() {
+        override fun asRef() = StructRef(qualifiedName)
+
+        override fun toString() = qualifiedName
+
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "object"
+
+                val discRef = this@Struct.discriminator
+                if (discRef != null) {
+                    discriminator = Discriminator().apply {
+                        this.propertyName = discRef.property
+                        this.mapping = discRef.valueToQualifiedName.mapValues {
+                            componentsRef + it.value
+                        }
+                    }
+                }
+
+                properties = this@Struct.properties.map {
+                    it.key to it.value.toOpenApiSchema()
+                }.toMap()
+            }
+        }
+    }
+
+    class StructRef(val qualifiedName: String) : ComputedType() {
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                `$ref` = componentsRef + qualifiedName
+            }
+        }
+    }
+
+    class Enum(val options: List<String>) : ComputedType() {
+        override fun toString() = "enum(${options.joinToString(", ")})"
+        override fun toOpenApiSchema(): Schema<*> {
+            return baseSchema().apply {
+                type = "string"
+                enum = options
+            }
+        }
+    }
+
+    data class Discriminator(
+        val property: String,
+        val valueToQualifiedName: Map<String, String>
+    )
+}
+
+@OptIn(ExperimentalStdlibApi::class)
+private fun traverseType(type: Type, visitedTypes: HashMap<String, ComputedType>): ComputedType {
+    when (type) {
+        is GenericArrayType -> {
+            return ComputedType.Array(traverseType(type.genericComponentType, visitedTypes))
+        }
+
+        is ParameterizedType -> {
+            when {
+                type.rawType == List::class.java || type.rawType == Set::class.java -> {
+                    return ComputedType.Array(traverseType(type.actualTypeArguments.first(), visitedTypes))
+                }
+
+                type.rawType == Map::class.java -> {
+                    return ComputedType.Dictionary(traverseType(type.actualTypeArguments[1], visitedTypes))
+                }
+
+                else -> {
+                    val rawType = type.rawType
+                    if (rawType !is Class<*>) {
+                        TODO("Not yet implemented: $type is not a class")
+                    }
+
+                    val rawComputedType = traverseType(type.rawType, visitedTypes)
+                    if (rawComputedType !is ComputedType.Struct) error("Expected raw type to be a struct")
+                    visitedTypes.remove(rawComputedType.qualifiedName) // We don't want to leave in the generic type
+
+                    val actualTypeArgs = type.actualTypeArguments.map { traverseType(it, visitedTypes) }
+                    val typeParams = rawType.typeParameters
+
+                    rawComputedType.qualifiedName = "$rawComputedType<${actualTypeArgs.joinToString(",")}>"
+                    visitedTypes[rawComputedType.qualifiedName] = rawComputedType
+
+                    for (entry in rawComputedType.properties.entries) {
+                        val value = entry.value
+                        if (value is ComputedType.Array && value.itemType is ComputedType.Generic) {
+                            val typeIdx = typeParams.indexOfFirst { it.name == value.itemType.id }
+                            if (typeIdx == -1) error("type idx is -1")
+                            val newValue = actualTypeArgs[typeIdx].asRef()
+                            entry.setValue(ComputedType.Array(newValue).apply {
+                                documentation = entry.value.documentation
+                                nullable = entry.value.nullable
+                                optional = entry.value.optional
+                                deprecated = entry.value.deprecated
+                            })
+                        } else if (value is ComputedType.Generic) {
+                            val typeIdx = typeParams.indexOfFirst { it.name == value.id }
+                            if (typeIdx == -1) error("type idx is -1")
+                            val newValue = actualTypeArgs[typeIdx].asRef()
+                            entry.setValue(newValue)
+                        } else if (value is ComputedType.Dictionary && value.itemType is ComputedType.Generic) {
+                            val typeIdx = typeParams.indexOfFirst { it.name == value.itemType.id }
+                            if (typeIdx == -1) error("type idx is -1")
+                            val newValue = actualTypeArgs[typeIdx].asRef()
+                            entry.setValue(ComputedType.Dictionary(newValue).apply {
+                                documentation = entry.value.documentation
+                                nullable = entry.value.nullable
+                                optional = entry.value.optional
+                                deprecated = entry.value.deprecated
+                            })
+                        }
+                    }
+
+                    return rawComputedType
+                }
+            }
+        }
+
+        is TypeVariable<*> -> {
+            return ComputedType.Generic(type.name)
+        }
+
+        is WildcardType -> {
+            // This is probably a huge oversimplification
+            return traverseType(type.upperBounds.firstOrNull() ?: Unit::class.java, visitedTypes)
+        }
+
+        java.lang.Short::class.java, Short::class.java -> {
+            return ComputedType.Integer(16)
+        }
+
+        Integer::class.java, Int::class.java -> {
+            return ComputedType.Integer(32)
+        }
+
+        java.lang.Long::class.java, Long::class.java, BigInteger::class.java -> {
+            return ComputedType.Integer(64)
+        }
+
+        java.lang.Float::class.java, Float::class.java, BigDecimal::class.java -> {
+            return ComputedType.FloatingPoint(32)
+        }
+
+        java.lang.Double::class.java, Double::class.java -> {
+            return ComputedType.FloatingPoint(64)
+        }
+
+        String::class.java -> {
+            return ComputedType.Text()
+        }
+
+        java.lang.Boolean::class.java, Boolean::class.java -> {
+            return ComputedType.Bool()
+        }
+
+        is Class<*> -> {
+            if (type.isEnum) {
+                return ComputedType.Enum(type.enumConstants.map { it.toString() })
+            }
+
+            if (type == Unit::class.java || type == Any::class.java) {
+                return ComputedType.Unknown()
+            }
+
+            val qualifiedName = type.canonicalName
+            val existing = visitedTypes[qualifiedName]
+            if (existing != null) return existing
+
+            val properties = HashMap<String, ComputedType>()
+            val struct = ComputedType.Struct(qualifiedName, type, properties)
+            visitedTypes[qualifiedName] = struct
+
+            if (type.isKotlinClass()) {
+                val kotlinType = type.kotlin
+
+                val apiDoc = kotlinType.findAnnotation<UCloudApiDoc>()
+                if (apiDoc != null) {
+                    struct.documentation = apiDoc.documentation
+                }
+
+                kotlinType.primaryConstructor?.parameters?.forEach { prop ->
+                    if (prop.name == null) return@forEach
+
+                    val classProp = kotlinType.memberProperties.find { it.name == prop.name }
+                    val javaFieldAnnotations = (classProp?.javaField?.annotations?.toList() ?: emptyList())
+                    val getterAnnotations = classProp?.getter?.annotations ?: emptyList()
+                    val annotations: Set<Annotation> = (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
+                    if (annotations.any { it is JsonIgnore }) return@forEach
+
+                    var propType = traverseType(prop.type.javaType, visitedTypes)
+                    if (propType is ComputedType.Struct) {
+                        // We use a struct ref since classes store them by reference (base class can have doc and ref
+                        // can have doc)
+                        propType = ComputedType.StructRef(propType.qualifiedName)
+                    }
+
+                    val propApiDoc = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()
+                    if (propApiDoc != null) {
+                        propType.documentation = propApiDoc.documentation
+                    }
+
+                    var propName = prop.name!!
+                    val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
+                    if (jsonPropAnnotation != null) {
+                        propName = jsonPropAnnotation.value
+                    }
+
+                    propType.deprecated = annotations.any { it is Deprecated }
+                    propType.nullable = prop.type.isMarkedNullable
+                    propType.optional = prop.isOptional
+
+                    properties[propName] = propType
+                }
+
+                // Almost the identical code for the properties which are not part of the primary constructor.
+                // The code is unfortunately not easily refactorable due to slightly different types.
+                kotlinType.memberProperties.forEach { prop ->
+                    if (prop.name in properties) return@forEach
+
+                    val javaFieldAnnotations = prop.javaField?.annotations?.toList() ?: emptyList()
+                    val getterAnnotations = prop.getter?.annotations ?: emptyList()
+                    val annotations: Set<Annotation> = (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
+                    if (annotations.any { it is JsonIgnore }) return@forEach
+
+                    var propType = traverseType(prop.returnType.javaType, visitedTypes)
+                    if (propType is ComputedType.Struct) {
+                        // We use a struct ref since classes store them by reference (base class can have doc and ref
+                        // can have doc)
+                        propType = ComputedType.StructRef((propType as ComputedType.Struct).qualifiedName)
+                    }
+
+                    val propApiDoc = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()
+                    if (propApiDoc != null) {
+                        propType.documentation = propApiDoc.documentation
+                    }
+
+                    var propName = prop.name!!
+                    val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
+                    if (jsonPropAnnotation != null) {
+                        propName = jsonPropAnnotation.value
+                    }
+
+                    propType.deprecated = annotations.any { it is Deprecated }
+                    propType.nullable = prop.returnType.isMarkedNullable
+
+                    properties[propName] = propType
+                }
+
+                val jsonTypeInfo = kotlinType.findAnnotation<JsonTypeInfo>()
+                val jsonSubTypes = kotlinType.findAnnotation<JsonSubTypes>()
+                if (jsonTypeInfo != null && jsonSubTypes != null) {
+                    // We have a discriminator
+                    struct.discriminator = ComputedType.Discriminator(
+                        jsonTypeInfo.property,
+                        jsonSubTypes.value.mapNotNull {
+                            val subType = traverseType(it.value.java, visitedTypes)
+                            if (subType !is ComputedType.Struct) return@mapNotNull null
+                            it.name to subType.qualifiedName
+                        }.toMap()
+                    )
+                }
+
+                return struct
+            } else {
+                TODO("Non-primitive and non-kotlin class $type")
+            }
+        }
+
+        else -> {
+            error("Unknown thing: $type")
         }
     }
 }
