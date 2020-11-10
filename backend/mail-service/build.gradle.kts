@@ -7,4 +7,5 @@ application {
 dependencies {
     implementation(project(":auth-service:api"))
     implementation("com.sun.mail:javax.mail:1.5.5")
+    implementation(project(":slack-service:api"))
 }

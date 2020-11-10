@@ -20,8 +20,9 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.slack.api.SendMessageRequest
+import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.ktor.http.HttpStatusCode
-import okhttp3.internal.UTC
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.io.ByteArrayOutputStream
@@ -41,8 +42,7 @@ class MailService(
     private val fromAddress: String,
     private val whitelist: List<String>,
     private val devMode: Boolean = false,
-    private val ctx: DBContext,
-    private val alerting: AlertingService
+    private val ctx: DBContext
 ) {
 
     object MailCounterTable: SQLTable("mail_counting") {
@@ -284,10 +284,11 @@ class MailService(
             when {
                 countInfoForUser.count > 60 -> {
                     if (!countInfoForUser.alertedFor) {
-                        alerting.createAlert(
-                            Alert(
+                        SlackDescriptions.sendMessage.call(
+                            SendMessageRequest(
                                 "Mail service have exceeded 60 attempts of sending a mail to $recipient"
-                            )
+                            ),
+                            authenticatedClient
                         )
                         ctx.withSession { session ->
                             session.sendPreparedStatement(

@@ -19,6 +19,7 @@ import org.junit.Test
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import dk.sdu.cloud.mail.services.MailService.MailCountInfo
+import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -122,14 +123,12 @@ class MailServiceTest {
 
     @Test
     fun `Allowed to send`() {
-        val alerting = mockk<AlertingService>()
         val service = MailService(
             ClientMock.authenticatedClient,
             "support@escience.sdu.dk",
             emptyList(),
             true,
-            db,
-            alerting
+            db
         )
         val user = TestUsers.user
         val user2 = TestUsers.user2
@@ -174,11 +173,13 @@ class MailServiceTest {
                 assertFalse(info.alertedFor)
             }
             run {
-                coEvery { alerting.createAlert(any()) } just Runs
+                ClientMock.mockCallSuccess(
+                    SlackDescriptions.sendMessage,
+                    Unit
+                )
                 for (i in 0..40) {
                     service.allowedToSend(user.username)
                 }
-                coVerify { alerting.createAlert(any()) }
                 val allowed = service.allowedToSend(user.username)
                 assertFalse(allowed)
                 val info = getInfo(user.username, db)
