@@ -1,14 +1,19 @@
 package dk.sdu.cloud.alerting.services
 
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.service.Loggable
-import io.fabric8.kubernetes.api.model.NodeCondition
+import dk.sdu.cloud.slack.api.SendMessageRequest
+import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 
-class KubernetesAlerting {
+class KubernetesAlerting(
+    private val client: AuthenticatedClient
+) {
 
     private fun cleanSet(
         setToClean: MutableSet<String>,
@@ -28,7 +33,14 @@ class KubernetesAlerting {
         return newSet
     }
 
-    suspend fun crashLoopAndFailedDetection(alertService: AlertingService) {
+    private suspend fun sendMessage(message: String){
+        SlackDescriptions.sendMessage.call(
+            SendMessageRequest(message),
+            client
+        )
+    }
+
+    suspend fun crashLoopAndFailedDetection() {
         val client = DefaultKubernetesClient()
 
         var alreadyAlerted = mutableSetOf<String>()
@@ -42,12 +54,12 @@ class KubernetesAlerting {
                 when {
                     it.status.phase == "CrashLoopBackOff" && !alreadyAlerted.contains(podPrefix) -> {
                         val message = "ALERT: Pod: ${it.metadata.name} state is ${it.status.phase}"
-                        alertService.createAlert(Alert(message))
+                        sendMessage(message)
                         alreadyAlerted.add(podPrefix)
                     }
                     it.status.phase == "Failed" && !alreadyAlerted.contains(podPrefix) -> {
                         val message = "ALERT: Pod: ${it.metadata.name} status is ${it.status.phase}"
-                        alertService.createAlert(Alert(message))
+                        sendMessage(message)
                         alreadyAlerted.add(podPrefix)
                     }
                     else -> return@forEach
@@ -63,7 +75,7 @@ class KubernetesAlerting {
         }
     }
 
-    suspend fun nodeStatus(alertService: AlertingService) {
+    suspend fun nodeStatus() {
         val client = DefaultKubernetesClient()
         val alerts = mutableListOf<String>()
         while (true) {
@@ -120,7 +132,7 @@ class KubernetesAlerting {
             }
             else {
                 val allAlerts = alerts.joinToString("\n")
-                alertService.createAlert(Alert(allAlerts))
+                sendMessage(allAlerts)
             }
             alerts.clear()
             delay(FIVE_MIN)
