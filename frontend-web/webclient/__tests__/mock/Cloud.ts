@@ -1,22 +1,7 @@
-import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
-import HttpClient, {MissingAuthError} from "../../app/Authentication/lib";
+import HttpClient, {JWT, MissingAuthError} from "../../app/Authentication/lib";
 import {emptyPage} from "../../app/DefaultObjects";
-
-interface JWT {
-    sub: string;
-    uid: number;
-    lastName: string;
-    aud: string;
-    role: string;
-    iss: string;
-    firstNames: string;
-    exp: number;
-    extendedByChain: string[];
-    iat: number;
-    principalType: string;
-    publicSessionReference: string;
-}
+import {parseJWT} from "../../app/UtilityFunctions";
 
 class MockHttpClient {
 
@@ -130,10 +115,10 @@ class MockHttpClient {
     private projectDecodedToken: any | undefined = undefined;
 
     constructor() {
-        this.decodedToken = jwt.decode("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
+        this.decodedToken = parseJWT("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
             "lzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJ0ZXN0IiwiZXhwIjozNjE1NDkxMDkzLCJpYXQiOjE1MTU0ODkyO" +
             "TMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsImF1ZCI6WyJhcGkiLCJpcm9kcyJdfQ.gfLvmBWET-WpwtWLdrN9SL0tD" +
-            "-0vrHrriWWDxnQljB8", {complete: true});
+            "-0vrHrriWWDxnQljB8");
     }
 
     public call = ({
@@ -258,35 +243,9 @@ class MockHttpClient {
             return void (0) as never;
         };
         try {
-            const token = jwt.decode(accessToken, {complete: true});
-
-            if (token === null) {
-                return bail();
-            }
-
-            if (typeof token === "string") {
-                return bail();
-            } else if (typeof token === "object") {
-                const payload = token.payload;
-                const isValid = "sub" in payload &&
-                    "uid" in payload &&
-                    "aud" in payload &&
-                    "role" in payload &&
-                    "iss" in payload &&
-                    "exp" in payload &&
-                    "extendedByChain" in payload &&
-                    "iat" in payload &&
-                    "principalType" in payload;
-
-                if (!isValid) {
-                    console.log("Bailing. Bad JWT");
-                    return bail();
-                }
-
-                return token;
-            } else {
-                return bail();
-            }
+            const token = {payload: parseJWT(accessToken)};
+            if (token.payload == null) return bail();
+            return token;
         } catch (e) {
             return bail();
         }

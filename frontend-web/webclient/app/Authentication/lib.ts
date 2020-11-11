@@ -1,7 +1,6 @@
-import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {inRange, inSuccessRange, is5xxStatusCode} from "UtilityFunctions";
+import {inRange, inSuccessRange, is5xxStatusCode, parseJWT} from "UtilityFunctions";
 import {setStoredProject} from "Project/Redux";
 
 interface CallParameters {
@@ -505,42 +504,17 @@ export default class HttpClient {
         this.decodedToken = this.decodeToken(accessToken);
     }
 
-    private decodeToken(accessToken: string): any {
+    private decodeToken(accessToken: string): {payload: any} | never {
         const bail = (): never => {
             HttpClient.clearTokens();
             this.openBrowserLoginPage();
             return void (0) as never;
         };
+
         try {
-            const token = jwt.decode(accessToken, {complete: true});
-
-            if (token === null) {
-                return bail();
-            }
-
-            if (typeof token === "string") {
-                return bail();
-            } else if (typeof token === "object") {
-                const payload = token.payload;
-                const isValid = "sub" in payload &&
-                    "uid" in payload &&
-                    "aud" in payload &&
-                    "role" in payload &&
-                    "iss" in payload &&
-                    "exp" in payload &&
-                    "extendedByChain" in payload &&
-                    "iat" in payload &&
-                    "principalType" in payload;
-
-                if (!isValid) {
-                    console.log("Bailing. Bad JWT");
-                    return bail();
-                }
-
-                return token;
-            } else {
-                return bail();
-            }
+            const token = {payload: parseJWT(accessToken)};
+            if (token.payload == null) return bail();
+            return token;
         } catch (e) {
             return bail();
         }
@@ -608,7 +582,7 @@ export default class HttpClient {
     }
 }
 
-interface JWT {
+export interface JWT {
     sub: string;
     uid: number;
     lastName?: string;
