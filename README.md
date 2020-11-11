@@ -10,7 +10,7 @@ environments or other computing environments such as Kubernetes clusters. UCloud
 ## End-Users: Documentation
 
 If you are a user and just want to know how to use UCloud, check out our
-[getting started guide](https://docs.cloud.sdu.dk/user). 
+[getting started guide](https://docs.cloud.sdu.dk/user/). 
 
 ## Application Developers: Getting Started
 
