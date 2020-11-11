@@ -5,8 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingRequestInterceptor
@@ -15,7 +13,6 @@ import dk.sdu.cloud.micro.PlaceholderServiceDescription
 import dk.sdu.cloud.micro.ServiceRegistry
 import dk.sdu.cloud.micro.server
 import io.ktor.http.*
-import io.swagger.v3.core.converter.ModelConverters
 import io.swagger.v3.core.util.Json
 import io.swagger.v3.core.util.Yaml
 import io.swagger.v3.oas.models.*
@@ -29,7 +26,7 @@ import io.swagger.v3.oas.models.parameters.RequestBody
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.servers.Server
-import org.slf4j.LoggerFactory
+import io.swagger.v3.oas.models.tags.Tag
 import java.io.File
 import java.lang.reflect.*
 import java.math.BigDecimal
@@ -68,7 +65,7 @@ fun main() {
 
         // NOTE(Dan): Currently made to be rendered by https://github.com/Redocly/redoc
 
-        val typeRegistry = HashMap<String, ComputedType>()
+        val typeRegistry = LinkedHashMap<String, ComputedType>()
 
         val reg = ServiceRegistry(arrayOf("--dev"), PlaceholderServiceDescription)
         val knownCalls = ArrayList<CallDescription<*, *, *>>()
@@ -102,6 +99,7 @@ fun main() {
 
         reg.start(wait = false)
 
+        tags = arrayListOf()
         paths = Paths()
         components = Components()
 
@@ -115,6 +113,15 @@ fun main() {
 
                 for (call in calls) {
                     val http = call.httpOrNull ?: continue
+
+                    if (tags.none { it.name == call.containerRef.namespace }) {
+                        tags.add(Tag().apply {
+                            name = call.containerRef.namespace
+                            val displayTitle = call.containerRef.title
+                            if (displayTitle != null) addExtension("x-displayName", displayTitle)
+                            description = call.containerRef.description
+                        })
+                    }
 
                     val doc = call.docOrNull
                     val matchingField = call.containerRef.javaClass.kotlin.memberProperties.find {
@@ -142,7 +149,7 @@ fun main() {
 
                     if (doc != null) {
                         op.description = doc.description
-                        op.summary = doc.summary
+                        op.summary = doc.summary + " (${call.name})"
                         op.deprecated = matchingField?.hasAnnotation<Deprecated>()
                     }
 
@@ -153,12 +160,13 @@ fun main() {
                             if (doc != null) {
                                 val json = this.content[ContentType.Application.Json.toString()]
                                 if (json != null) {
-                                    json.examples = HashMap()
+                                    json.examples = LinkedHashMap()
                                     for (example in doc.examples) {
                                         if (example.statusCode.isSuccess()) {
                                             json.examples[example.name] = createExample(example)
                                         }
                                     }
+                                    if (json.examples.isEmpty()) json.examples = null
                                 }
                             }
                         })
@@ -168,10 +176,11 @@ fun main() {
                                 set(code.value.toString(), apiResponse(call.errorType.type, typeRegistry).apply {
                                     val json = this.content[ContentType.Application.Json.toString()]
                                     if (json != null) {
-                                        json.examples = HashMap()
+                                        json.examples = LinkedHashMap()
                                         for (example in examples) {
                                             json.examples[example.name] = createExample(example)
                                         }
+                                        if (json.examples.isEmpty()) json.examples = null
                                     }
                                 })
                             }
@@ -195,10 +204,11 @@ fun main() {
                         op.requestBody.content = Content().apply {
                             set(ContentType.Application.Json.toString(), MediaType().apply {
                                 if (doc != null && body is HttpBody.BoundToEntireRequest<*>) {
-                                    examples = HashMap()
+                                    examples = LinkedHashMap()
                                     doc.examples.forEach { example ->
                                         examples[example.name] = createExample(example)
                                     }
+                                    if (examples.isEmpty()) examples = null
                                 }
                                 schema = requestType.toOpenApiSchema()
                             })
@@ -246,7 +256,7 @@ private fun createExample(example: UCloudCallDoc.Example<out Any, out Any, out A
     }
 }
 
-private fun apiResponse(type: Type, registry: HashMap<String, ComputedType>): ApiResponse {
+private fun apiResponse(type: Type, registry: LinkedHashMap<String, ComputedType>): ApiResponse {
     return ApiResponse().apply {
         val computedType = traverseType(type, registry)
         description = computedType.documentation
@@ -397,8 +407,15 @@ sealed class ComputedType {
 
     class StructRef(val qualifiedName: String) : ComputedType() {
         override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                `$ref` = componentsRef + qualifiedName
+            return ComposedSchema().apply {
+                this.description = this@StructRef.documentation
+                this.deprecated = this@StructRef.deprecated
+                this.nullable = this@StructRef.nullable
+                oneOf = listOf(
+                    Schema<Any?>().apply {
+                        `$ref` = componentsRef + qualifiedName
+                    }
+                )
             }
         }
     }
@@ -413,6 +430,10 @@ sealed class ComputedType {
         }
     }
 
+    class CustomSchema(private val schema: Schema<*>) : ComputedType() {
+        override fun toOpenApiSchema(): Schema<*> = schema
+    }
+
     data class Discriminator(
         val property: String,
         val valueToQualifiedName: Map<String, String>
@@ -420,7 +441,7 @@ sealed class ComputedType {
 }
 
 @OptIn(ExperimentalStdlibApi::class)
-private fun traverseType(type: Type, visitedTypes: HashMap<String, ComputedType>): ComputedType {
+private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, ComputedType>): ComputedType {
     when (type) {
         is GenericArrayType -> {
             return ComputedType.Array(traverseType(type.genericComponentType, visitedTypes))
@@ -449,7 +470,31 @@ private fun traverseType(type: Type, visitedTypes: HashMap<String, ComputedType>
                     val actualTypeArgs = type.actualTypeArguments.map { traverseType(it, visitedTypes) }
                     val typeParams = rawType.typeParameters
 
-                    rawComputedType.qualifiedName = "$rawComputedType<${actualTypeArgs.joinToString(",")}>"
+                    if (rawType == BulkRequest::class.java) {
+                        return ComputedType.CustomSchema(ComposedSchema().apply {
+                            oneOf = listOf(
+                                actualTypeArgs[0].asRef().toOpenApiSchema().apply {
+                                    this.name = "Single (${actualTypeArgs[0]})"
+                                },
+                                Schema<Any?>().apply {
+                                    this.type = "object"
+                                    this.name = "Bulk (${actualTypeArgs[0]})"
+
+                                    properties = mapOf(
+                                        "type" to Schema<Any?>().apply {
+                                            this.type = "string"
+                                            enum = listOf("bulk")
+                                        },
+                                        "items" to ArraySchema().apply {
+                                            items = actualTypeArgs[0].asRef().toOpenApiSchema()
+                                        }
+                                    )
+                                }
+                            )
+                        })
+                    }
+
+                    rawComputedType.qualifiedName = "$rawComputedType(${actualTypeArgs.joinToString(",")})"
                     visitedTypes[rawComputedType.qualifiedName] = rawComputedType
 
                     for (entry in rawComputedType.properties.entries) {
@@ -537,7 +582,7 @@ private fun traverseType(type: Type, visitedTypes: HashMap<String, ComputedType>
             val existing = visitedTypes[qualifiedName]
             if (existing != null) return existing
 
-            val properties = HashMap<String, ComputedType>()
+            val properties = LinkedHashMap<String, ComputedType>()
             val struct = ComputedType.Struct(qualifiedName, type, properties)
             visitedTypes[qualifiedName] = struct
 
@@ -558,12 +603,7 @@ private fun traverseType(type: Type, visitedTypes: HashMap<String, ComputedType>
                     val annotations: Set<Annotation> = (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
                     if (annotations.any { it is JsonIgnore }) return@forEach
 
-                    var propType = traverseType(prop.type.javaType, visitedTypes)
-                    if (propType is ComputedType.Struct) {
-                        // We use a struct ref since classes store them by reference (base class can have doc and ref
-                        // can have doc)
-                        propType = ComputedType.StructRef(propType.qualifiedName)
-                    }
+                    val propType = traverseType(prop.type.javaType, visitedTypes).asRef()
 
                     val propApiDoc = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()
                     if (propApiDoc != null) {
@@ -593,12 +633,7 @@ private fun traverseType(type: Type, visitedTypes: HashMap<String, ComputedType>
                     val annotations: Set<Annotation> = (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
                     if (annotations.any { it is JsonIgnore }) return@forEach
 
-                    var propType = traverseType(prop.returnType.javaType, visitedTypes)
-                    if (propType is ComputedType.Struct) {
-                        // We use a struct ref since classes store them by reference (base class can have doc and ref
-                        // can have doc)
-                        propType = ComputedType.StructRef((propType as ComputedType.Struct).qualifiedName)
-                    }
+                    val propType = traverseType(prop.returnType.javaType, visitedTypes).asRef()
 
                     val propApiDoc = annotations.filterIsInstance<UCloudApiDoc>().firstOrNull()
                     if (propApiDoc != null) {

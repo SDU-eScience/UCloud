@@ -34,6 +34,30 @@ class JobController(
     private val machineCache: MachineTypeCache
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(Jobs.create) {
+            TODO()
+        }
+
+        implement(Jobs.delete) {
+            TODO()
+        }
+
+        implement(Jobs.retrieve) {
+            TODO()
+        }
+
+        implement(Jobs.browse) {
+            TODO()
+        }
+
+        implement(Jobs.follow) {
+            TODO()
+        }
+
+        implement(Jobs.extend) {
+            TODO()
+        }
+
         implement(JobDescriptions.findById) {
             verifySlaFromPrincipal()
             ok(jobQueryService.asJobWithStatus(jobQueryService.findById(ctx.securityToken, request.id)))

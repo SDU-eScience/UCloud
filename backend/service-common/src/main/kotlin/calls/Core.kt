@@ -49,6 +49,7 @@ class CallDescription<Request : Any, Success : Any, Error : Any> internal constr
 }
 
 abstract class CallDescriptionContainer(val namespace: String) {
+    val attributes = AttributeContainer()
     private val _callContainer = ArrayList<CallDescription<*, *, *>>()
     val callContainer: List<CallDescription<*, *, *>>
         get() = Collections.unmodifiableList(_callContainer)

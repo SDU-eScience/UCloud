@@ -2,6 +2,7 @@ package dk.sdu.cloud.calls
 
 import io.ktor.http.*
 import org.intellij.lang.annotations.Language
+import kotlin.reflect.KProperty
 
 /**
  * The [UCloudApiDoc] annotation is used to annotate request/response types and their properties
@@ -82,3 +83,29 @@ fun <E : Any> UCloudCallDocBuilder<*, *, E>.error(handler: UCloudCallDocBuilder.
     errors.add(UCloudCallDocBuilder.ErrorBuilder<E>().also(handler))
 }
 
+fun CallDescriptionContainer.docRef(call: KProperty<CallDescription<*, *, *>>, qualified: Boolean = false): String {
+    return if (qualified) "[`${namespace}.${call.name}`](#operation/${call.name})"
+        else "[`${call.name}`](#operation/${namespace}.${call.name})"
+}
+
+private val containerTitle = AttributeKey<String>("docTitle")
+var CallDescriptionContainer.title: String?
+    get() = attributes.getOrNull(containerTitle)
+    set(value) {
+        if (value == null) {
+            attributes.remove(containerTitle)
+        } else {
+            attributes[containerTitle] = value
+        }
+    }
+
+private val containerDescription = AttributeKey<String>("docDescription")
+var CallDescriptionContainer.description: String?
+    get() = attributes.getOrNull(containerDescription)
+    set(value) {
+        if (value == null) {
+            attributes.remove(containerDescription)
+        } else {
+            attributes[containerDescription] = value
+        }
+    }
