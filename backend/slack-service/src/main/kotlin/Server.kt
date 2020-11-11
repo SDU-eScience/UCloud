@@ -19,7 +19,7 @@ class Server(
     
     override fun start() {
         val alertSlackService = AlertSlackService(listOf(SlackNotifier(alertConfiguration.notifiers.slack?.hook!!)))
-        val supportSlackService = SupportSlackService(listOf(SlackNotifier(alertConfiguration.notifiers.slack?.hook!!)))
+        val supportSlackService = SupportSlackService(listOf(SlackNotifier(supportConfiguration.notifiers.slack?.hook!!)))
         with(micro.server) {
             configureControllers(
                 SlackController(alertSlackService, supportSlackService)
