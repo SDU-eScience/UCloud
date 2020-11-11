@@ -13,6 +13,7 @@ object UCloudApi {
     const val RETRIEVE = "retrieve"
     const val BROWSE = "browse"
     const val SEARCH = "search"
+    const val VERIFY = "verify"
 }
 
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(baseContext: String) {
@@ -127,7 +128,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpDelete(
 
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
     baseContext: String,
-    informationToVerify: String = "",
+    informationToVerify: String? = null,
 ) {
     auth {
         access = AccessRight.READ_WRITE
@@ -139,7 +140,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
 
         path {
             using(baseContext)
-            +"verify${informationToVerify.capitalize()}"
+            +"${UCloudApi.VERIFY}${informationToVerify?.capitalize() ?: ""}"
         }
 
         body { bindEntireRequestFromBody() }
