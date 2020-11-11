@@ -1,12 +1,20 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.app.store.api.BooleanFlagParameter
+import dk.sdu.cloud.app.store.api.EnvironmentVariableParameter
+import dk.sdu.cloud.app.store.api.VariableInvocationParameter
+import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.calls.title
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.service.TYPE_PROPERTY
 
 typealias ComputeCreateRequest = BulkRequest<ComputeCreateRequestItem>
 typealias ComputeCreateResponse = Unit
@@ -27,6 +35,43 @@ typealias ComputeSuspendRequestItem = FindByStringId
 typealias ComputeVerifyRequest = BulkRequest<ComputeVerifyRequestItem>
 typealias ComputeVerifyResponse = Unit
 typealias ComputeVerifyRequestItem = Job
+
+typealias ComputeRetrieveManifestRequest = Unit
+data class ComputeRetrieveManifestResponse(
+    // Provided directly to UCloud by provider:
+    //  - Provider ID (Namespace)
+    //  - Hostname
+
+    val features: ManifestFeatureSupport,
+)
+
+data class ManifestFeatureSupport(
+    val web: Boolean = false,
+    val vnc: Boolean = false,
+    val batch: Boolean = false,
+    val docker: Boolean = false,
+    val virtualMachine: Boolean = false,
+    val logs: Boolean = false,
+)
+
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = ComputeFollowRequest.Init::class, name = "init"),
+    JsonSubTypes.Type(value = ComputeFollowRequest.CancelStream::class, name = "cancel"),
+)
+sealed class ComputeFollowRequest {
+    class Init(val job: Job) : ComputeFollowRequest()
+    class CancelStream : ComputeFollowRequest()
+}
+data class ComputeFollowResponse(
+    val rank: Int,
+    val stdout: String?,
+    val stderr: String?
+)
 
 @UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
 abstract class Compute(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
@@ -82,5 +127,23 @@ abstract class Compute(namespace: String) : CallDescriptionContainer("jobs.compu
                 The backend should _not_ attempt to start the job.
             """.trimIndent()
         }
+    }
+
+    val retrieveManifest = call<ComputeRetrieveManifestRequest, ComputeRetrieveManifestResponse, CommonErrorMessage>(
+        "retrieveManifest"
+    ) {
+        httpRetrieve(baseContext, "manifest")
+
+        documentation {
+            summary = "Retrieves the compute provider manifest"
+        }
+    }
+
+    val follow = call<ComputeFollowRequest, ComputeFollowResponse, CommonErrorMessage>("follow") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
     }
 }

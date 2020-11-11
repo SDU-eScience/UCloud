@@ -48,7 +48,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(baseContext: St
     }
 }
 
-inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(baseContext: String) {
+inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(baseContext: String, subResource: String? = null) {
     auth {
         access = AccessRight.READ
     }
@@ -58,7 +58,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(baseContext: 
 
         path {
             using(baseContext)
-            +UCloudApi.RETRIEVE
+            +"${UCloudApi.RETRIEVE}${subResource?.capitalize() ?: ""}"
         }
 
         params {
