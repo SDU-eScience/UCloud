@@ -351,7 +351,7 @@ sealed class ComputedType {
 
         override fun toOpenApiSchema(): Schema<*> {
             return baseSchema().apply {
-                additionalProperties = itemType.toOpenApiSchema()
+                additionalProperties = itemType.asRef().toOpenApiSchema()
             }
         }
     }
@@ -374,7 +374,7 @@ sealed class ComputedType {
         }
     }
 
-    class Struct(
+    data class Struct(
         var qualifiedName: String,
         var type: Type,
         var properties: MutableMap<String, ComputedType>,
@@ -408,14 +408,10 @@ sealed class ComputedType {
     class StructRef(val qualifiedName: String) : ComputedType() {
         override fun toOpenApiSchema(): Schema<*> {
             return ComposedSchema().apply {
+                `$ref` = componentsRef + qualifiedName + if (this@StructRef.nullable == true) "_Opt" else ""
                 this.description = this@StructRef.documentation
                 this.deprecated = this@StructRef.deprecated
                 this.nullable = this@StructRef.nullable
-                oneOf = listOf(
-                    Schema<Any?>().apply {
-                        `$ref` = componentsRef + qualifiedName
-                    }
-                )
             }
         }
     }
@@ -496,6 +492,10 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
 
                     rawComputedType.qualifiedName = "$rawComputedType(${actualTypeArgs.joinToString(",")})"
                     visitedTypes[rawComputedType.qualifiedName] = rawComputedType
+
+                    val nullableType = rawComputedType.copy()
+                    nullableType.nullable = true
+                    visitedTypes[nullableType.qualifiedName + "_Opt"] = nullableType
 
                     for (entry in rawComputedType.properties.entries) {
                         val value = entry.value
@@ -665,6 +665,10 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                         }.toMap()
                     )
                 }
+
+                val nullableStruct = struct.copy()
+                nullableStruct.nullable = true
+                visitedTypes[nullableStruct.qualifiedName + "_Opt"] = nullableStruct
 
                 return struct
             } else {

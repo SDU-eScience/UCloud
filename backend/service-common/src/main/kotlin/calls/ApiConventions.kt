@@ -162,3 +162,9 @@ sealed class BulkRequest<T> {
     }
     data class Bulk<T>(override val items: List<T>) : BulkRequest<T>()
 }
+
+fun <T> bulkRequestOf(vararg items: T): BulkRequest<T> {
+    if (items.isEmpty()) error("No items provided")
+    return if (items.size == 1) BulkRequest.Single(items.single())
+    else BulkRequest.Bulk(listOf(*items))
+}

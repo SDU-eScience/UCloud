@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.CallDescriptionContainer
@@ -20,13 +21,6 @@ data class Job(
             "UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier."
     )
     val id: String,
-
-    @UCloudApiDoc(
-        "A name for this job assigned by the user.\n\n" +
-            "The name can help a user identify why and with which parameters a job was started. " +
-            "This value is suitable for display in user interfaces."
-    )
-    val name: String?,
 
     @UCloudApiDoc("A reference to the owner of this job")
     val owner: JobOwner,
@@ -54,7 +48,7 @@ data class Job(
 
     val web: JobWebLink?,
 
-    val shell: JobShellLink?
+    val shell: JobShellLink?,
 )
 
 @UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
@@ -76,15 +70,50 @@ data class JobUpdate(
 )
 
 data class JobParameters(
+    @UCloudApiDoc("A reference to the application which this job should execute")
     val application: NameAndVersion,
+
+    @UCloudApiDoc("A reference to the product that this job will be executed on")
     val product: ComputeProductReference,
+
+    @UCloudApiDoc(
+        "A name for this job assigned by the user.\n\n" +
+            "The name can help a user identify why and with which parameters a job was started. " +
+            "This value is suitable for display in user interfaces."
+    )
     val name: String? = null,
+
+    @UCloudApiDoc(
+        "The number of replicas to start this job in\n\n" +
+            "The `resources` supplied will be mounted in every replica. Some `resources` might only be supported in " +
+            "an 'exclusive use' mode. This will cause the job to fail if `replicas != 1`."
+    )
     val replicas: Int = 1,
+
+    @UCloudApiDoc(
+        "Allows the job to be started even when a job is running in an identical configuration\n\n" +
+            "By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. " +
+            "This field must be set to `true` to allow you to create two jobs with identical configuration."
+    )
     val allowDuplicateJob: Boolean = false,
-    val parameters: Map<String, Any> = emptyMap(),
-    val mounts: List<Any> = emptyList(),
-    val peers: List<ApplicationPeer> = emptyList(),
-    val publicUrl: String? = null,
+
+    @UCloudApiDoc(
+        "Parameters which are consumed by the job\n\n" +
+            "The available parameters are defined by the `application`"
+    )
+    val parameters: Map<String, AppParameter> = emptyMap(),
+
+    @UCloudApiDoc(
+        "Additional resources which are made available into the job\n\n" +
+            "Note: Not all resources can be attached to a job. UCloud supports the following parameter types as " +
+            "resources:\n\n" +
+            " - `file`\n" +
+            " - `peer`\n" +
+            " - `network`\n" +
+            " - `block_storage`\n" +
+            " - `ingress`\n"
+    )
+    val resources: List<AppParameter> = emptyList(),
 )
 
 data class ComputeProductReference(
@@ -138,18 +167,25 @@ typealias JobsDeleteRequest = BulkRequest<FindByStringId>
 typealias JobsDeleteResponse = Unit
 
 typealias JobsFollowRequest = FindByStringId
+
 data class JobsFollowResponse(
     val updates: List<JobUpdate>,
-    val log: List<JobsLog>
+    val log: List<JobsLog>,
 )
+
 data class JobsLog(val rank: Int, val stdout: String?, val stderr: String?)
 
-typealias JobsExtendRequest = BulkRequest<JobsExtensionRequest>
+typealias JobsExtendRequest = BulkRequest<JobsExtendRequestItem>
 typealias JobsExtendResponse = Unit
-data class JobsExtensionRequest(
+
+data class JobsExtendRequestItem(
     val jobId: String,
-    val requestedTime: SimpleDuration
+    val requestedTime: SimpleDuration,
 )
+
+typealias JobsSuspendRequest = BulkRequest<JobsSuspendRequestItem>
+typealias JobsSuspendResponse = Unit
+typealias JobsSuspendRequestItem = FindByStringId
 
 @UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
 object Jobs : CallDescriptionContainer("jobs") {
@@ -217,6 +253,19 @@ object Jobs : CallDescriptionContainer("jobs") {
 
         documentation {
             summary = "Extend the duration of a job"
+        }
+    }
+
+    val suspend = call<JobsSuspendRequest, JobsSuspendResponse, CommonErrorMessage>("suspend") {
+        httpUpdate(baseContext, "suspend")
+
+        documentation {
+            summary = "Suspend a job"
+            description = """
+                Suspends the job, putting it in a paused state. Not all compute backends support this operation.
+                For compute backends which deals with Virtual Machines this will shutdown the Virtual Machine
+                without deleting any data.
+            """.trimIndent()
         }
     }
 }
