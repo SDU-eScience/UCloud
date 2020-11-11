@@ -45,6 +45,7 @@ import CONF from "../../site.config.json";
 import {ContextSwitcher} from "Project/ContextSwitcher";
 import {NewsPost} from "Dashboard/Dashboard";
 import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
+import {VersionManager} from "VersionManager/VersionManager";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -127,6 +128,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             <ui.Hide xs sm md lg>
                 <DevelopmentBadge />
             </ui.Hide>
+            <VersionManager />
             <BackgroundTask />
             <ui.Flex width="48px" justifyContent="center">
                 <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />
