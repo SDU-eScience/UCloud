@@ -6,21 +6,23 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.slack.rpc.SlackController
+import dk.sdu.cloud.slack.services.AlertSlackService
 import dk.sdu.cloud.slack.services.SlackNotifier
-import dk.sdu.cloud.slack.services.SlackService
+import dk.sdu.cloud.slack.services.SupportSlackService
 
 class Server(
     override val micro: Micro,
-    private val configuration: Configuration
+    private val alertConfiguration: Configuration,
+    private val supportConfiguration: Configuration
 ) : CommonServer {
     override val log = logger()
     
     override fun start() {
-        val slackService = SlackService(listOf(SlackNotifier(configuration.notifiers.slack?.hook!!)))
-
+        val alertSlackService = AlertSlackService(listOf(SlackNotifier(alertConfiguration.notifiers.slack?.hook!!)))
+        val supportSlackService = SupportSlackService(listOf(SlackNotifier(alertConfiguration.notifiers.slack?.hook!!)))
         with(micro.server) {
             configureControllers(
-                SlackController(slackService)
+                SlackController(alertSlackService, supportSlackService)
             )
         }
         

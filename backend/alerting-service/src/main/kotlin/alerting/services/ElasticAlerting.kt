@@ -3,8 +3,9 @@ package dk.sdu.cloud.alerting.services
 import dk.sdu.cloud.alerting.Configuration
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.slack.api.SendMessageRequest
+import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import kotlinx.coroutines.delay
 import org.apache.http.util.EntityUtils
@@ -62,11 +63,11 @@ class ElasticAlerting(
         }
     }
 
-    private suspend fun sendMessage(message: String){
-        SlackDescriptions.sendMessage.call(
-            SendMessageRequest(message),
+    private suspend fun sendAlert(message: String){
+        SlackDescriptions.sendAlert.call(
+            SendAlertRequest(message),
             client
-        )
+        ).orThrow()
     }
 
     private suspend fun checkClusterStatus() {
@@ -86,7 +87,7 @@ class ElasticAlerting(
                     status = Status.GREEN
                     errorCount = 0
                     if (alertSent) {
-                        sendMessage("OK: Elastic is in GREEN again")
+                        sendAlert("OK: Elastic is in GREEN again")
                         alertSent = false
                     }
                     return
@@ -110,7 +111,7 @@ class ElasticAlerting(
                     delay(if (testMode) 1000 else THIRTY_SEC)
                 } else {
                     if (!alertSent) {
-                        sendMessage("ALERT: Elastic has status: $status")
+                        sendAlert("ALERT: Elastic has status: $status")
                         alertSent = true
                     }
                     delay(if (testMode) 1000 else THIRTY_SEC)
@@ -151,18 +152,18 @@ class ElasticAlerting(
                     usedStoragePercentage > highLimitPercentage && alertCounter == 2 -> {
                         val message =
                             "ALERT: Available storage of ${fields.last()} is below ${highLimitPercentage}"
-                        sendMessage(message)
+                        sendAlert(message)
                         alertCounter++
                     }
                     usedStoragePercentage > midLimitPercentage && alertCounter == 1 -> {
                         val message = "WARNING: storage of ${fields.last()} is below ${midLimitPercentage}%"
-                        sendMessage(message)
+                        sendAlert(message)
                         alertCounter++
                     }
                     usedStoragePercentage > lowLimitPercentage && !alertSent -> {
                         val message =
                             "INFO: Available storage of ${fields.last()} is below ${lowLimitPercentage}%"
-                        sendMessage(message)
+                        sendAlert(message)
                         alertCounter++
                         alertSent = true
                     }
@@ -200,12 +201,12 @@ class ElasticAlerting(
                     "Number of shards remaining before hard limit of $totalMaximumNumberOfShards is reached is " +
                             "below $alertLimit (Used: $numberOfActiveShards). " +
                             "Either reduce number of shards or increase limit."
-                sendMessage(message)
+                sendAlert(message)
                 alertSent = true
             }
             if ((totalMaximumNumberOfShards - numberOfActiveShards) > alertLimit && alertSent) {
                 val message = "Number of available shards are acceptable again."
-                sendMessage(message)
+                sendAlert(message)
                 alertSent = false
             }
             if (alertSent)
@@ -237,7 +238,7 @@ class ElasticAlerting(
                     val docCount = docCountString.toInt()
                     if (docCount > DOC_HIGH_LIMIT) {
                         log.warn("docCount of index: $index is above High limit: $docCount")
-                        sendMessage(
+                        sendAlert(
                             "Alert: Doc count of index: $index is to high. Reindex or delete entires. " +
                             "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible"
                         )
@@ -246,7 +247,7 @@ class ElasticAlerting(
                         }
                     } else if (docCount > DOC_LOW_LIMIT) {
                         log.warn("docCount of index: $index is above low limit: $docCount")
-                        sendMessage(
+                        sendAlert(
                             "Alert: Doc count of index: $index has reached low limit. " +
                             "Be aware of potential need for reindexing index. " +
                             "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible"

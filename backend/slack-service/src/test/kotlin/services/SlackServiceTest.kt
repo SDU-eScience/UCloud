@@ -22,7 +22,7 @@ class SlackServiceTest{
     @Test
     fun `test create`() {
         coEvery { slack.onAlert(any()) } just runs
-        val alertService = SlackService(listOf(slack))
+        val alertService = AlertSlackService(listOf(slack))
 
         runBlocking {
             alertService.createAlert(alert)
@@ -32,7 +32,7 @@ class SlackServiceTest{
     @Test(expected = RPCException::class)
     fun `test create - failure`() {
         coEvery { slack.onAlert(any()) } throws RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        val ticketService = SlackService(listOf(slack))
+        val ticketService = AlertSlackService(listOf(slack))
 
         runBlocking {
             ticketService.createAlert(alert)
@@ -41,6 +41,6 @@ class SlackServiceTest{
 
     @Test(expected = IllegalArgumentException::class)
     fun `test create - failure - empty notifier list`() {
-        SlackService(emptyList())
+        AlertSlackService(emptyList())
     }
 }

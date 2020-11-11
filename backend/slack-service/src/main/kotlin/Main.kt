@@ -23,8 +23,9 @@ object SlackService : Service {
     
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(RefreshingJWTCloudFeature)
-        val configuration = micro.configuration.requestChunkAt<Configuration>("alerting")
-        return Server(micro, configuration)
+        val alertConfiguration = micro.configuration.requestChunkAt<Configuration>("alerting")
+        val supportConfiguration = micro.configuration.requestChunkAt<Configuration>("ticket")
+        return Server(micro, alertConfiguration, supportConfiguration)
     }
 }
 

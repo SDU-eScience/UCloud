@@ -3,7 +3,7 @@ package dk.sdu.cloud.alerting.services
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.slack.api.SendMessageRequest
+import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
@@ -33,9 +33,9 @@ class KubernetesAlerting(
         return newSet
     }
 
-    private suspend fun sendMessage(message: String){
-        SlackDescriptions.sendMessage.call(
-            SendMessageRequest(message),
+    private suspend fun sendAlert(message: String){
+        SlackDescriptions.sendAlert.call(
+            SendAlertRequest(message),
             client
         )
     }
@@ -54,12 +54,12 @@ class KubernetesAlerting(
                 when {
                     it.status.phase == "CrashLoopBackOff" && !alreadyAlerted.contains(podPrefix) -> {
                         val message = "ALERT: Pod: ${it.metadata.name} state is ${it.status.phase}"
-                        sendMessage(message)
+                        sendAlert(message)
                         alreadyAlerted.add(podPrefix)
                     }
                     it.status.phase == "Failed" && !alreadyAlerted.contains(podPrefix) -> {
                         val message = "ALERT: Pod: ${it.metadata.name} status is ${it.status.phase}"
-                        sendMessage(message)
+                        sendAlert(message)
                         alreadyAlerted.add(podPrefix)
                     }
                     else -> return@forEach
@@ -132,7 +132,7 @@ class KubernetesAlerting(
             }
             else {
                 val allAlerts = alerts.joinToString("\n")
-                sendMessage(allAlerts)
+                sendAlert(allAlerts)
             }
             alerts.clear()
             delay(FIVE_MIN)

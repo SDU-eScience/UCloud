@@ -11,13 +11,16 @@ import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
 
-typealias SendMessageRequest = Alert
-typealias SendMessageResponse = Unit
+typealias SendAlertRequest = Alert
+typealias SendAlertResponse = Unit
+
+typealias SendSupportRequest = Ticket
+typealias SendSupportResponse = Unit
 
 object SlackDescriptions : CallDescriptionContainer("slack") {
     val baseContext = "/api/slack"
 
-    val sendMessage = call<SendMessageRequest, SendMessageResponse, CommonErrorMessage>("sendMessage") {
+    val sendAlert = call<SendAlertRequest, SendAlertResponse, CommonErrorMessage>("sendAlert") {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED
@@ -28,7 +31,25 @@ object SlackDescriptions : CallDescriptionContainer("slack") {
 
             path {
                 using(baseContext)
-                +"send"
+                +"sendAlert"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val sendSupport = call<SendSupportRequest, SendSupportResponse, CommonErrorMessage>("sendSupport") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"sendSupport"
             }
 
             body { bindEntireRequestFromBody() }

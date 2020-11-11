@@ -20,7 +20,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.slack.api.SendMessageRequest
+import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
@@ -284,12 +284,12 @@ class MailService(
             when {
                 countInfoForUser.count > 60 -> {
                     if (!countInfoForUser.alertedFor) {
-                        SlackDescriptions.sendMessage.call(
-                            SendMessageRequest(
+                        SlackDescriptions.sendAlert.call(
+                            SendAlertRequest(
                                 "Mail service have exceeded 60 attempts of sending a mail to $recipient"
                             ),
                             authenticatedClient
-                        )
+                        ).orThrow()
                         ctx.withSession { session ->
                             session.sendPreparedStatement(
                                 {

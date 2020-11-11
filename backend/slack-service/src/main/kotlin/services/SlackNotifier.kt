@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.slack.api.Alert
+import dk.sdu.cloud.slack.api.Ticket
 import io.ktor.client.HttpClient
 import io.ktor.client.call.receive
 import io.ktor.client.engine.cio.FailToConnectException
@@ -22,13 +23,39 @@ private data class SlackMessage(val text: String)
 
 class SlackNotifier(
     val hook: String
-) : AlertNotifier {
+) : Notifier {
     private val httpClient = HttpClient()
 
     @OptIn(KtorExperimentalAPI::class)
     override suspend fun onAlert(alert: Alert) {
         val message = alert.message.lines().joinToString("\n") { "> $it" }
 
+        attemptSend(message)
+    }
+
+    @OptIn(KtorExperimentalAPI::class)
+    override suspend fun onTicket(ticket: Ticket) {
+        val message = """
+            New ticket via UCloud:
+
+            *User information:*
+              - *Username:* ${ticket.principal.username}
+              - *Role:* ${ticket.principal.role}
+              - *Real name:* ${ticket.principal.firstName} ${ticket.principal.lastName}
+              - *Email:* ${ticket.principal.email}
+
+            *Technical info:*
+              - *Request ID (Audit):* ${ticket.requestId}
+              - *User agent:* ${ticket.userAgent}
+
+            The following message was attached:
+
+        """.trimIndent() + ticket.message.lines().joinToString("\n") { "> $it" }
+
+        attemptSend(message)
+    }
+
+    private suspend fun attemptSend(message: String) {
         var retries = 0
         while (true) {
             retries++
@@ -43,8 +70,16 @@ class SlackNotifier(
                         ContentType.Application.Json
                     )
                 }
-            } catch (ex: FailToConnectException) {
-                log.debug("Connect Exception caught : ${ex.message}")
+            } catch (ex: Exception) {
+                when (ex) {
+                    is java.net.ConnectException -> {
+                        log.debug("Java.net.Connect Exception caught : ${ex.message}")
+
+                    }
+                    is FailToConnectException -> {
+                        log.debug("Cio ConnectException caught : ${ex.message}")
+                    }
+                }
                 continue
             }
             val status = postResult.response.status

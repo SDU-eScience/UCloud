@@ -8,7 +8,11 @@ bundle {
     withAmbassador() {}
     
     val deployment = withDeployment {
-        deploy.spec.replicas = 1
+        deployment.spec.replicas = 1
+
+        injectSecret("support-notifiers")
+        injectSecret("alerting-tokens")
+
     }
     
     withPostgresMigration(deployment)
