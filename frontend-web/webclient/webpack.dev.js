@@ -6,7 +6,7 @@ var commonConfig = require("./webpack.config.js");
 var path = require("path");
 var {DEV_SITE} = require("./site.config.json")
 
-module.exports = merge(commonConfig, {
+module.exports = env => merge(commonConfig, {
     devtool: "eval-source-map",
 
     mode: "development",
@@ -23,7 +23,7 @@ module.exports = merge(commonConfig, {
     },
 
     plugins: [
-        // Enables Hot Module Replacement, otherwise known as HMR.
+        // Enables Hot Module Replacement.
         // Note: HMR should never be used in production.
         new webpack.HotModuleReplacementPlugin(),
         // new MiniCSSExtractPlugin({
@@ -57,7 +57,7 @@ module.exports = merge(commonConfig, {
         host: "0.0.0.0",
         proxy: [{
             context: ["/auth", "/api"],
-            target: process.env["local_dev"] !== undefined ? `http://localhost:8080` : `https://${DEV_SITE}`,
+            target: env.local_dev !== undefined ? `http://localhost:8080` : `https://${DEV_SITE}`,
             secure: false,
             changeOrigin: true,
             ws: true,

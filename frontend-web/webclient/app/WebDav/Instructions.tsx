@@ -7,7 +7,7 @@ import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import {inDevEnvironment} from "UtilityFunctions";
-import CONF from "../../site.config.json";
+const CONF = require("../../site.config.json");
 
 const win1 = require("Assets/Images/webdav/win_dav_1.png");
 const win2 = require("Assets/Images/webdav/win_dav_2.png");

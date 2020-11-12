@@ -80,53 +80,55 @@ export default function Support(): JSX.Element {
             right="10px"
             top="37px"
         >
-            <Box color="text">
-                <Spacer alignItems="center"
-                    left={<Heading.h3>Support Form</Heading.h3>}
-                    right={!CONF.SITE_DOCUMENTATION_URL ? null : (
-                        <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
-                            <Icon name="docs" mr=".5em"/>Documentation
-                        </ExternalLink>
-                    )}
-                />
-                <Flex mt="8px">
-                    <Label>
-                        <Radio
-                            checked={type === SupportType.SUGGESTION}
-                            onChange={setSuggestion}
-                        />
-                        <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
+            <div>
+                <Box width="100%" pr={"16px"} color="text">
+                    <Spacer alignItems="center"
+                        left={<Heading.h3>Support Form</Heading.h3>}
+                        right={!CONF.SITE_DOCUMENTATION_URL ? null : (
+                            <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
+                                <Icon name="docs" mr=".5em" />Documentation
+                            </ExternalLink>
+                        )}
+                    />
+                    <Flex mt="8px">
+                        <Label>
+                            <Radio
+                                checked={type === SupportType.SUGGESTION}
+                                onChange={setSuggestion}
+                            />
+                            <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
                         Suggestion
                     </Label>
-                    <Label>
-                        <Radio
-                            checked={type === SupportType.BUG}
-                            onChange={setBug}
-                        />
-                        <Icon name="bug" size="1.5em" mr=".5em" />
+                        <Label>
+                            <Radio
+                                checked={type === SupportType.BUG}
+                                onChange={setBug}
+                            />
+                            <Icon name="bug" size="1.5em" mr=".5em" />
                         Bug
                     </Label>
-                </Flex>
-                <TextDiv mt={"10px"}>
-                {type === SupportType.BUG ? "Describe your problem below and we will investigate it.":
-                    "Describe your suggestion and we will look into it."
-                }
-                </TextDiv>
+                    </Flex>
+                    <TextDiv mt="10px">
+                        {type === SupportType.BUG ? "Describe your problem below and we will investigate it." :
+                            "Describe your suggestion and we will look into it."
+                        }
+                    </TextDiv>
 
-                <form onSubmit={onSubmit}>
-                    <TextArea width="100%" ref={textArea} rows={6} />
-                    <Button
-                        mt="6px"
-                        fullWidth
-                        type="submit"
-                        disabled={loading}
-                    >
-                        <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
-                        <TextSpan fontSize={2}>Send</TextSpan>
-                    </Button>
-                </form>
-            </Box>
-        </ClickableDropdown >
+                    <form onSubmit={onSubmit}>
+                        <TextArea width="100%" ref={textArea} rows={6} />
+                        <Button
+                            mt="6px"
+                            fullWidth
+                            type="submit"
+                            disabled={loading}
+                        >
+                            <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
+                            <TextSpan fontSize={2}>Send</TextSpan>
+                        </Button>
+                    </form>
+                </Box>
+            </div>
+        </ClickableDropdown>
     );
 
     function setBug(): void {

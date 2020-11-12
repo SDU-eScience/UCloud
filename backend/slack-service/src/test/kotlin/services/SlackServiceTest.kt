@@ -1,6 +1,7 @@
-package dk.sdu.cloud.alerting.services
+package dk.sdu.cloud.slack.services
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.slack.api.Alert
 import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
 import io.mockk.just
@@ -9,18 +10,19 @@ import io.mockk.runs
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
+
 internal val alert = Alert(
     "This is the alert message"
 )
 
-class AlertingServiceTest{
+class SlackServiceTest{
 
     private val slack = mockk<SlackNotifier>()
 
     @Test
     fun `test create`() {
         coEvery { slack.onAlert(any()) } just runs
-        val alertService = AlertingService(listOf(slack))
+        val alertService = AlertSlackService(listOf(slack))
 
         runBlocking {
             alertService.createAlert(alert)
@@ -30,7 +32,7 @@ class AlertingServiceTest{
     @Test(expected = RPCException::class)
     fun `test create - failure`() {
         coEvery { slack.onAlert(any()) } throws RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        val ticketService = AlertingService(listOf(slack))
+        val ticketService = AlertSlackService(listOf(slack))
 
         runBlocking {
             ticketService.createAlert(alert)
@@ -39,6 +41,6 @@ class AlertingServiceTest{
 
     @Test(expected = IllegalArgumentException::class)
     fun `test create - failure - empty notifier list`() {
-        AlertingService(emptyList())
+        AlertSlackService(emptyList())
     }
 }

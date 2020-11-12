@@ -13,4 +13,4 @@ const template = icons =>
 const content = template(icons)
 const filename = path.join(__dirname, '../app/ui-components/icons/index.ts')
 
-fs.writeFileSync(filename, content)
+fs.writeFileSync(filename, content);

@@ -10,6 +10,7 @@ import {
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
+import {JWT} from "Authentication/lib";
 
 export function toggleCssColors(light: boolean): void {
     const html = document.querySelector("html")!;
@@ -517,4 +518,24 @@ export function onNotificationAction(
             break;
     }
     markAsRead(notification.id);
+}
+
+export function parseJWT(encodedJWT: string): JWT | null {
+    const [, right] = encodedJWT.split(".");
+    if (right == null) return null;
+
+    const decoded = atob(right);
+    const parsed = JSON.parse(decoded);
+    const isValid = "sub" in parsed &&
+        "uid" in parsed &&
+        "aud" in parsed &&
+        "role" in parsed &&
+        "iss" in parsed &&
+        "exp" in parsed &&
+        "extendedByChain" in parsed &&
+        "iat" in parsed &&
+        "principalType" in parsed;
+    if (!isValid) return null;
+
+    return parsed;
 }

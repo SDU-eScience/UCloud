@@ -1,28 +1,37 @@
-package dk.sdu.cloud.support.services
+package dk.sdu.cloud.slack.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.slack.api.Alert
+import dk.sdu.cloud.slack.api.Ticket
 import io.ktor.client.HttpClient
-import io.ktor.client.call.call
 import io.ktor.client.call.receive
 import io.ktor.client.engine.cio.FailToConnectException
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
+import io.ktor.client.request.request
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.response
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
-import io.ktor.util.*
+import io.ktor.util.KtorExperimentalAPI
 import org.slf4j.Logger
 
 private data class SlackMessage(val text: String)
 
 class SlackNotifier(
     val hook: String
-) : TicketNotifier {
+) : Notifier {
     private val httpClient = HttpClient()
+
+    @OptIn(KtorExperimentalAPI::class)
+    override suspend fun onAlert(alert: Alert) {
+        val message = alert.message.lines().joinToString("\n") { "> $it" }
+
+        attemptSend(message)
+    }
 
     @OptIn(KtorExperimentalAPI::class)
     override suspend fun onTicket(ticket: Ticket) {
@@ -43,7 +52,10 @@ class SlackNotifier(
 
         """.trimIndent() + ticket.message.lines().joinToString("\n") { "> $it" }
 
+        attemptSend(message)
+    }
 
+    private suspend fun attemptSend(message: String) {
         var retries = 0
         while (true) {
             retries++
