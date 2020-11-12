@@ -27,6 +27,11 @@ const GlobalStyle = createGlobalStyle`
   ${UIGlobalStyle}
 `;
 
+/* FIXME: Find better placement */
+declare global {
+    const DEVELOPMENT_ENV: boolean;
+}
+
 Client.initializeStore(store);
 
 function App({children}: React.PropsWithChildren<{}>): JSX.Element {

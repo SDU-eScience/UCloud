@@ -127,7 +127,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             />
                         )
                     }
-                    truncateWidth={"300px"}
+                    truncateWidth="300px"
                     left={
                         <Flex width={1}>
                             <Text title={app.grantRecipientTitle} mr={16}>
@@ -165,7 +165,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                     leftSub={
                         <>
                             {slim ? null : (
-                                <ListRowStat icon={"calendar"}>{dateToString(app.createdAt)}</ListRowStat>
+                                <ListRowStat icon="calendar">{dateToString(app.createdAt)}</ListRowStat>
                             )}
 
                             <ListRowStat icon={"edit"}>

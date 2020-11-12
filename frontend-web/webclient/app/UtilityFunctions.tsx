@@ -433,7 +433,7 @@ export function delay(ms: number): Promise<void> {
     });
 }
 
-export const inDevEnvironment = (): boolean => process.env.NODE_ENV === "development";
+export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();

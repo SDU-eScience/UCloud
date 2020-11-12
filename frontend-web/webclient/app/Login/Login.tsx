@@ -26,7 +26,7 @@ const BackgroundImage = styled.div<{image: string}>`
     overflow: hidden;
 `;
 
-const inDevEnvironment = process.env.NODE_ENV === "development";
+const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
 const wayfService = inDevEnvironment ? "dev-web" : "web";
 
