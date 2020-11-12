@@ -3,6 +3,8 @@ import styled, {keyframes} from "styled-components";
 import {Box} from "ui-components";
 import {addStandardDialog} from "UtilityComponents";
 
+const TIMEOUT_DURATION = 180_000;
+
 export function VersionManager(): JSX.Element {
     const [initialVersion, setInitialVersion] = React.useState("");
     const [newVersion, setNewVersion] = React.useState("");
@@ -11,7 +13,7 @@ export function VersionManager(): JSX.Element {
     React.useEffect(() => {
         initialFetch(v => {
             setInitialVersion(v);
-            setTimeout(() => fetchNewVersion(v, setNewVersion), 15_000);
+            setTimeout(() => fetchNewVersion(v, setNewVersion), TIMEOUT_DURATION);
         });
     }, []);
 
@@ -22,7 +24,7 @@ export function VersionManager(): JSX.Element {
         }
     }, [newVersion]);
 
-    if (!Math.random() && newVersion === "" || initialVersion === newVersion) {
+    if (newVersion === "" || initialVersion === newVersion) {
         return <Box />;
     } else {
         return <NotifyBox onClick={notifyModal}>!</NotifyBox>;
@@ -55,10 +57,10 @@ function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => v
         if (it.ok) {
             it.text().then(version => {
                 if (currentVersion !== version) setNewVersion(version);
-                setTimeout(() => fetchNewVersion(version, setNewVersion), 15_000);
+                setTimeout(() => fetchNewVersion(version, setNewVersion), TIMEOUT_DURATION);
             });
-        } else setTimeout(() => fetchNewVersion(currentVersion, setNewVersion), 15_000);
-    }).catch(() => setTimeout(() => fetchNewVersion(currentVersion, setNewVersion), 15_000));
+        } else setTimeout(() => fetchNewVersion(currentVersion, setNewVersion), TIMEOUT_DURATION);
+    }).catch(() => setTimeout(() => fetchNewVersion(currentVersion, setNewVersion), TIMEOUT_DURATION));
 }
 
 async function initialFetch(setInitial: (v: string) => void): Promise<void> {
@@ -67,9 +69,9 @@ async function initialFetch(setInitial: (v: string) => void): Promise<void> {
             it.text().then(version => setInitial(version));
         } else {
             console.warn("Failed to fetch version from backend. Retrying.");
-            setTimeout(initialFetch(setInitial), 15_000);
+            setTimeout(initialFetch(setInitial), TIMEOUT_DURATION);
         }
-    }).catch(() => setTimeout(initialFetch(setInitial), 15_000));
+    }).catch(() => setTimeout(initialFetch(setInitial), TIMEOUT_DURATION));
 }
 
 function notifyModal(): void {
