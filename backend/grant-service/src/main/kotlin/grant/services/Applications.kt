@@ -32,7 +32,7 @@ object ApplicationTable : SQLTable("applications") {
     val document = text("document", notNull = true)
     val createdAt = timestamp("created_at", notNull = true)
     val updatedAt = timestamp("updated_at", notNull = true)
-    val approvedBy = text("approved_by")
+    val statusChangedBy = text("status_changed_by")
 }
 
 object RequestedResourceTable : SQLTable("requested_resources") {
@@ -231,11 +231,11 @@ class ApplicationService(
                         {
                             setParameter("status", ApplicationStatus.APPROVED.name)
                             setParameter("id", application.id)
-                            setParameter("approval", "automatic-approval")
+                            setParameter("changedBy", "automatic-approval")
                         },
                         """
                             update applications 
-                            set status = :status, approved_by = :approval
+                            set status = :status, status_changed_by = :changedBy
                             where id = :id
                         """
                     )
@@ -387,7 +387,7 @@ class ApplicationService(
                     {
                         setParameter("id", id)
                         setParameter("status", newStatus.name)
-                        setParameter("approvedBy",
+                        setParameter("changedBy",
                             if (newStatus == ApplicationStatus.APPROVED ||
                                 newStatus == ApplicationStatus.REJECTED ||
                                 newStatus == ApplicationStatus.CLOSED
@@ -398,7 +398,7 @@ class ApplicationService(
                     },
                     """
                         update "grant".applications
-                        set status = :status, approved_by = :approvedBy
+                        set status = :status, status_changed_by = :changedBy
                         where id = :id
                         returning resources_owned_by, requested_by
                     """
@@ -709,7 +709,7 @@ class ApplicationService(
                 },
                 it.getField(ApplicationTable.createdAt).toDate().time,
                 it.getField(ApplicationTable.updatedAt).toDate().time,
-                it.getField(ApplicationTable.approvedBy)
+                it.getField(ApplicationTable.statusChangedBy)
             )
         }
             .groupingBy { it.id }

@@ -897,9 +897,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                             <TableCell>
                                                 {
                                                     state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                        state.editingApplication!.status === GrantApplicationStatus.APPROVED ? ( state.editingApplication?.approvedBy === null ? "Approved" : "Approved by " + state.editingApplication?.approvedBy):
-                                                            state.editingApplication!.status === GrantApplicationStatus.REJECTED ? ( state.editingApplication?.approvedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.approvedBy) :
-                                                                (state.editingApplication?.approvedBy === null ? "Closed" : "Closed by " + state.editingApplication?.approvedBy)
+                                                        state.editingApplication!.status === GrantApplicationStatus.APPROVED ? ( state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy):
+                                                            state.editingApplication!.status === GrantApplicationStatus.REJECTED ? ( state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
+                                                                (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
                                                 }
                                                 <ButtonGroup>
                                                     {target !== RequestTarget.VIEW_APPLICATION ? null : (

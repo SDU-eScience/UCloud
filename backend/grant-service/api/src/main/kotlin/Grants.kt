@@ -291,7 +291,7 @@ data class Application(
     val grantRecipientTitle: String,
     val createdAt: Long,
     val updatedAt: Long,
-    val approvedBy: String?
+    val statusChangedBy: String?
 )
 
 data class ViewApplicationRequest(val id: Long)

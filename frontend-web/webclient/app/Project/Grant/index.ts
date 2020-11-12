@@ -79,7 +79,7 @@ export interface GrantApplication {
     id: number;
     updatedAt: number;
     createdAt: number;
-    approvedBy?: string;
+    statusChangedBy?: string;
 }
 
 export type SubmitGrantApplicationRequest = CreateGrantApplication;
