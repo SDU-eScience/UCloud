@@ -91,9 +91,9 @@ class LimitChecker<Ctx : FSUserContext>(
                 .rows
                 .singleOrNull()
                 ?.let {
-                    val allocated = it.getLong(0)!!
+                    val allocatedToSubProjects = it.getLong(0)!!
                     val totalQuota = it.getLong(1)!!
-                    Quota(totalQuota, totalQuota - allocated, allocated)
+                    Quota(totalQuota, totalQuota - allocatedToSubProjects, allocatedToSubProjects)
                 }
                 ?: Quota(productConfiguration.defaultQuota, 0, 0)
         }
@@ -112,6 +112,28 @@ class LimitChecker<Ctx : FSUserContext>(
                 ?: throw RPCException("This endpoint is only for projects", HttpStatusCode.BadRequest)
             val (_, parentProject) = fetchProjectWithParent(projectId)
             verifyPermissionsAndFindParentQuota(actor, toProject) // throws if permission denied.
+            //Check if new quota is below what the subproject has allocted to its own subprojects (over allocate)
+            val projectAllocationInBytes = session.sendPreparedStatement(
+                {
+                    setParameter("projectPath", path)
+                },
+                """
+                    SELECT sum(allocation)::bigint
+                    FROM quota_allocation
+                    WHERE from_directory = :projectPath
+                """
+            ).rows
+                .singleOrNull()
+                ?.getLong(0)
+                ?: 0
+            if (projectAllocationInBytes > quotaInBytes) {
+                val allocationInGB = projectAllocationInBytes / 1.GiB
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Project have already allocated $allocationInGB GB, and can therefore not have less allocated." +
+                            "If need to allocate lower then contact the PI of the project and make them allocate less")
+            }
+            //Set new quota
             if (parentProject != null) {
                 // This means that we are transferring from a project
                 val fromProject = projectHomeDirectory(parentProject.id)
@@ -183,7 +205,7 @@ class LimitChecker<Ctx : FSUserContext>(
                 ?: throw RPCException("You can only transfer to personal projects", HttpStatusCode.Forbidden)
 
             val quota = retrieveQuota(actor, fromHome, session)
-            if (quota.quotaInBytes < quotaInBytes) {
+            if (quota.remainingQuota < quotaInBytes) {
                 throw RPCException(
                     "Your project does not have enough available quota to initiate this transfer",
                     HttpStatusCode.PaymentRequired
@@ -402,12 +424,12 @@ class LimitChecker<Ctx : FSUserContext>(
 
     private suspend fun internalPerformQuotaCheck(homeDirectory: String, usage: Long) {
         val quota = retrieveQuota(Actor.System, homeDirectory)
-        if (quota.quotaInBytes == NO_QUOTA) {
+        if (quota.remainingQuota == NO_QUOTA) {
             log.debug("Owner of $homeDirectory has no storage quota")
             return
         }
 
-        if (usage > quota.quotaInBytes) {
+        if (usage > quota.remainingQuota) {
             throw RPCException(
                 "Storage quota has been exceeded. ${bytesToString(usage)} of ${bytesToString(quota.quotaInBytes)} used",
                 HttpStatusCode.PaymentRequired,
