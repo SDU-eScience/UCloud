@@ -1,5 +1,7 @@
 package dk.sdu.cloud.alerting.services
 
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
@@ -24,8 +26,7 @@ class ElasticAlertingTest {
     @Test
     fun `test status green`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
-
+        val client = ClientMock.authenticatedClient
         every { rest.cluster() } answers {
             val clusterClient = mockk<ClusterClient>()
             every { clusterClient.health(any(), any()) } answers {
@@ -36,7 +37,7 @@ class ElasticAlertingTest {
             clusterClient
         }
 
-        val ea = ElasticAlerting(rest, alerting, true)
+        val ea = ElasticAlerting(rest, client, true)
         runBlocking {
             ea.alertOnClusterHealth()
         }
@@ -45,7 +46,7 @@ class ElasticAlertingTest {
     @Test
     fun `test status green - alert active`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
+        val client = ClientMock.authenticatedClient
 
         every { rest.cluster() } answers {
             val clusterClient = mockk<ClusterClient>()
@@ -56,9 +57,11 @@ class ElasticAlertingTest {
             }
             clusterClient
         }
-        coEvery { alerting.createAlert(any())} just runs
-
-        val ea = ElasticAlerting(rest, alerting, true)
+        ClientMock.mockCallSuccess(
+            SlackDescriptions.sendMessage,
+            Unit
+        )
+        val ea = ElasticAlerting(rest, client, true)
         ea.setAlertSent(true)
         runBlocking {
             ea.alertOnClusterHealth()
@@ -68,7 +71,7 @@ class ElasticAlertingTest {
     @Test (expected = ConnectException::class)
     fun `test lost connection`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
+        val client = ClientMock.authenticatedClient
 
         every { rest.cluster() } answers {
             val clusterClient = mockk<ClusterClient>()
@@ -78,7 +81,7 @@ class ElasticAlertingTest {
             clusterClient
         }
 
-        val ea = ElasticAlerting(rest, alerting, true)
+        val ea = ElasticAlerting(rest, client, true)
 
         runBlocking {
             ea.alertOnClusterHealth()
@@ -88,7 +91,7 @@ class ElasticAlertingTest {
     @Test
     fun `test status yellow - zero error count and raise until alert`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
+        val client = ClientMock.authenticatedClient
 
         every { rest.cluster() } answers {
             val clusterClient = mockk<ClusterClient>()
@@ -99,9 +102,11 @@ class ElasticAlertingTest {
             }
             clusterClient
         }
-        coEvery { alerting.createAlert(any())} just runs
-
-        val ea = ElasticAlerting(rest, alerting, true)
+        ClientMock.mockCallSuccess(
+            SlackDescriptions.sendMessage,
+            Unit
+        )
+        val ea = ElasticAlerting(rest, client, true)
 
         assertEquals(Status.GREEN, ea.getStatus())
         assertEquals(0, ea.getErrorCount())
@@ -137,7 +142,7 @@ class ElasticAlertingTest {
     @Test
     fun `test status red - zero error count`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
+        val client = ClientMock.authenticatedClient
 
         every { rest.cluster() } answers {
             val clusterClient = mockk<ClusterClient>()
@@ -149,9 +154,11 @@ class ElasticAlertingTest {
             clusterClient
         }
 
-        coEvery { alerting.createAlert(any())} just runs
-
-        val ea = ElasticAlerting(rest, alerting, true)
+        ClientMock.mockCallSuccess(
+            SlackDescriptions.sendMessage,
+            Unit
+        )
+        val ea = ElasticAlerting(rest, client, true)
 
         assertEquals(Status.GREEN, ea.getStatus())
         assertEquals(0, ea.getErrorCount())
@@ -178,8 +185,9 @@ class ElasticAlertingTest {
     @Test
     fun `alert on doc count - not 200 response`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
-        val ea = ElasticAlerting(rest, alerting, true)
+        val client = ClientMock.authenticatedClient
+
+        val ea = ElasticAlerting(rest, client, true)
 
         val lowRest = mockk<RestClient>()
 
@@ -197,8 +205,9 @@ class ElasticAlertingTest {
     @Test
     fun `alert on doc count - low limit`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
-        val ea = ElasticAlerting(rest, alerting, true)
+        val client = ClientMock.authenticatedClient
+
+        val ea = ElasticAlerting(rest, client, true)
 
         val lowRest = mockk<RestClient>()
 
@@ -219,8 +228,10 @@ class ElasticAlertingTest {
             response
         }
 
-        coEvery { alerting.createAlert(any()) } just runs
-
+        ClientMock.mockCallSuccess(
+            SlackDescriptions.sendMessage,
+            Unit
+        )
         runBlocking {
             ea.alertOnNumberOfDocs(lowRest)
         }
@@ -229,8 +240,9 @@ class ElasticAlertingTest {
     @Test
     fun `alert on doc count - high limit`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
-        val ea = ElasticAlerting(rest, alerting, true)
+        val client = ClientMock.authenticatedClient
+
+        val ea = ElasticAlerting(rest, client, true)
 
         val lowRest = mockk<RestClient>()
 
@@ -251,8 +263,10 @@ class ElasticAlertingTest {
             response
         }
 
-        coEvery { alerting.createAlert(any()) } just runs
-
+        ClientMock.mockCallSuccess(
+            SlackDescriptions.sendMessage,
+            Unit
+        )
         runBlocking {
             ea.alertOnNumberOfDocs(lowRest)
         }
@@ -261,8 +275,9 @@ class ElasticAlertingTest {
     @Test
     fun `alert on doc count`() {
         val rest = mockk<RestHighLevelClient>()
-        val alerting = mockk<AlertingService>()
-        val ea = ElasticAlerting(rest, alerting, true)
+        val client = ClientMock.authenticatedClient
+
+        val ea = ElasticAlerting(rest, client, true)
 
         val lowRest = mockk<RestClient>()
 
@@ -283,8 +298,10 @@ class ElasticAlertingTest {
             response
         }
 
-        coEvery { alerting.createAlert(any()) } just runs
-
+        ClientMock.mockCallSuccess(
+            SlackDescriptions.sendMessage,
+            Unit
+        )
         runBlocking {
             ea.alertOnNumberOfDocs(lowRest)
         }

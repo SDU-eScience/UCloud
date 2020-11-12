@@ -3,11 +3,12 @@ package dk.sdu.cloud.support.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.slack.api.SlackDescriptions
+import dk.sdu.cloud.slack.api.Ticket
 import io.ktor.http.HttpStatusCode
 import io.mockk.Runs
 import io.mockk.coEvery
-import io.mockk.just
-import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
@@ -21,12 +22,14 @@ internal val ticket = Ticket(
 
 class TicketServiceTest {
 
-    private val slack = mockk<SlackNotifier>()
-
     @Test
     fun `test create`() {
-        coEvery { slack.onTicket(any()) } just Runs
-        val ticketService = TicketService(listOf(slack))
+        val client = ClientMock.authenticatedClient
+        ClientMock.mockCallSuccess(
+            SlackDescriptions.sendSupport,
+            Unit
+        )
+        val ticketService = TicketService(client)
 
         runBlocking {
             ticketService.createTicket(ticket)
@@ -35,16 +38,14 @@ class TicketServiceTest {
 
     @Test(expected = RPCException::class)
     fun `test create - failure`() {
-        coEvery { slack.onTicket(any()) } throws RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        val ticketService = TicketService(listOf(slack))
-
+        val client = ClientMock.authenticatedClient
+        ClientMock.mockCallError(
+            SlackDescriptions.sendSupport,
+            statusCode = HttpStatusCode.InternalServerError
+        )
+        val ticketService = TicketService(client)
         runBlocking {
             ticketService.createTicket(ticket)
         }
-    }
-
-    @Test
-    fun `test create - failure - empty notifier list`() {
-        val ticketService = TicketService(emptyList())
     }
 }

@@ -1,19 +1,15 @@
-package dk.sdu.cloud.kubernetes.monitor.services
+package dk.sdu.cloud.slack.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.slack.api.Alert
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
-
-data class Alert(
-    val message: String
-)
-
-class AlertingService(private val notifiers: List<AlertNotifier>) {
+class AlertSlackService(private val notifiers: List<Notifier>) {
     init {
         if (notifiers.isEmpty()) {
             throw IllegalArgumentException("Need at least one notifier!")
@@ -28,14 +24,13 @@ class AlertingService(private val notifiers: List<AlertNotifier>) {
                 }
             }.awaitAll()
 
-            val someFailed = result.any { it.isFailure }
-            if (someFailed) {
+            val hasSuccess = result.any { it.isSuccess }
+            if (!hasSuccess) {
                 val exceptions = result.mapNotNull { it.exceptionOrNull() }
                 log.warn("Caught exception for alert: $alert")
                 exceptions.forEach { log.warn(it.stackTraceToString()) }
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
-            // in the case non was successful throw exception
-            if (result.any { !it.isSuccess }) throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }
     }
 
