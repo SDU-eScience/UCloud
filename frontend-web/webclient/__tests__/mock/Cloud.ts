@@ -1,7 +1,6 @@
 import {Store} from "redux";
 import HttpClient, {JWT, MissingAuthError} from "../../app/Authentication/lib";
 import {emptyPage} from "../../app/DefaultObjects";
-import {parseJWT} from "../../app/UtilityFunctions";
 
 class MockHttpClient {
 
@@ -253,6 +252,27 @@ class MockHttpClient {
 }
 
 export const Client = new MockHttpClient();
+
+function parseJWT(encodedJWT: string): JWT | null {
+    const [, right] = encodedJWT.split(".");
+    if (right == null) return null;
+
+    const decoded = atob(right);
+    const parsed = JSON.parse(decoded);
+    const isValid = "sub" in parsed &&
+        "uid" in parsed &&
+        "aud" in parsed &&
+        "role" in parsed &&
+        "iss" in parsed &&
+        "exp" in parsed &&
+        "extendedByChain" in parsed &&
+        "iat" in parsed &&
+        "principalType" in parsed;
+    if (!isValid) return null;
+
+    return parsed;
+}
+
 
 /* Why is this necessary? */
 test("Silencer", () => {/*  */});

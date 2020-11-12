@@ -31,9 +31,7 @@ import {NamingField, shakeAnimation, shakingClassName} from "UtilityComponents";
 import {Spacer} from "ui-components/Spacer";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {ListRow} from "ui-components/List";
-import {flex} from "styled-system";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {getRenamingStatusForSubProject, toggleRenaming} from "./ProjectSettings";
+import {getRenamingStatusForSubProject} from "./ProjectSettings";
 
 const WalletContainer = styled.div`
     display: grid;
