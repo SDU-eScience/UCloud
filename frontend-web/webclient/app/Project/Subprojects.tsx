@@ -34,6 +34,7 @@ import {ListRow} from "ui-components/List";
 import {flex} from "styled-system";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {getRenamingStatusForSubProject, toggleRenaming} from "./ProjectSettings";
+import {TableCell} from "ui-components/Table";
 
 const WalletContainer = styled.div`
     display: grid;
@@ -90,7 +91,7 @@ const SelectableWallet: React.FunctionComponent<{
     onClick?: () => void,
     quotaInTotal?: number,
     usage?: number,
-    subprojectQuotaSum?: number
+    remainingQuota?: number
 }> = props => {
     return (
         <SelectableWalletWrapper className={props.selected === true ? "selected" : ""} onClick={props.onClick}>
@@ -113,16 +114,16 @@ const SelectableWallet: React.FunctionComponent<{
                                 <td>{creditFormatter(props.allocated)}</td>
                             </tr>
                         )}
-                        {props.usage === undefined ? null : (
-                            <tr>
-                                <th>Usage</th>
-                                <td>{sizeToString(props.usage)}</td>
-                            </tr>
-                        )}
                         {props.quotaInTotal === undefined ? null : (
                             <tr>
-                                <th>Quota</th>
-                                <td>{props.quotaInTotal === -1 ? "No quota" : sizeToString(props.quotaInTotal)}</td>
+                                <th>Used/Quota</th>
+                                <td>{sizeToString(props.usage ?? 0)}
+                                    {" "}/{" "}
+                                    {sizeToString(props.remainingQuota!!)}
+                                    {" "}({(100 * (props.remainingQuota !== 0 ?
+                                            ((props.usage ?? 0) / props.remainingQuota!!) : 1
+                                    )).toFixed(2)}%)
+                                </td>
                             </tr>
                         )}
                         <tr>
@@ -281,7 +282,7 @@ const Subprojects: React.FunctionComponent = () => {
                                         usage={isQuotaSupported(w.wallet.paysFor) ?
                                             quota.data.quotaUsed : undefined
                                         }
-                                        subprojectQuotaSum={isQuotaSupported(w.wallet.paysFor) ?
+                                        remainingQuota={isQuotaSupported(w.wallet.paysFor) ?
                                             quota.data.quotaInBytes : undefined
                                         }
                                         onClick={() => setSelectedWallet(w)} />
