@@ -7,8 +7,8 @@ import dk.sdu.cloud.calls.server.jobId
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.slack.api.Ticket
 import dk.sdu.cloud.support.api.SupportDescriptions
-import dk.sdu.cloud.support.services.Ticket
 import dk.sdu.cloud.support.services.TicketService
 import dk.sdu.cloud.support.util.LocalRateLimiter
 import io.ktor.application.call

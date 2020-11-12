@@ -2,9 +2,14 @@ package dk.sdu.cloud.alerting.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.alerting.Configuration
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.slack.api.SendAlertRequest
+import dk.sdu.cloud.slack.api.SlackDescriptions
 import kotlinx.coroutines.delay
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
@@ -17,8 +22,15 @@ import java.util.*
 
 class NetworkTrafficAlerts(
     private val elastic: RestHighLevelClient,
-    private val alertService: AlertingService
+    private val client: AuthenticatedClient
 ) {
+    private suspend fun sendAlert(message: String){
+        SlackDescriptions.sendAlert.call(
+            SendAlertRequest(message),
+            client
+        ).orThrow()
+    }
+
     suspend fun alertOnStatusCode(configuration: Configuration) {
         var alertOnStatus = false
         val limit5xxPercentage = configuration.limits?.percentLimit500Status ?: 10.0
@@ -97,14 +109,13 @@ class NetworkTrafficAlerts(
                         "Entries last 15 min: $totalNumberOfEntries \n" +
                         "Number of 5XX status codes: $numberOf5XXStatusCodes \n" +
                         "Percentage: $percentage % (Limit is $limit5xxPercentage %)"
-                alertService.createAlert(Alert(message))
+                sendAlert(message)
                 alertOnStatus = true
             }
             if (percentage < limit5xxPercentage && alertOnStatus) {
                 val message = "OK: 5XX statusCodes percentage back below limit"
-                println(message)
 
-                alertService.createAlert(Alert(message))
+                sendAlert(message)
                 alertOnStatus = false
             }
             delay(FIVE_MIN)
@@ -222,12 +233,12 @@ class NetworkTrafficAlerts(
             val suspectBehaviorIPs = numberOfRequestsPerIP.filter { it.value > limitFor4xx }.map { it.key }
             if (suspectBehaviorIPs.isNotEmpty()) {
                 val message = "Following IPs have a high amount of 4xx: ${suspectBehaviorIPs.joinToString()}"
-                alertService.createAlert(Alert(message))
+                sendAlert(message)
             }
             log.info("Number of 5xx: $numberOf5xx")
             if (numberOf5xx > limitFor5xx) {
                 val message = "Many 5xx in ambassador: $numberOf5xx"
-                alertService.createAlert(Alert(message))
+                sendAlert(message)
             }
             delay(FIFTEEN_MIN)
         }

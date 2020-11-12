@@ -1,12 +1,17 @@
 package dk.sdu.cloud.kubernetes.monitor.services
 
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.slack.api.SendAlertRequest
+import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import kotlinx.coroutines.runBlocking
 import java.time.LocalDate
 import kotlin.system.exitProcess
 
-class KubernetesLogChecker(val alertingService: AlertingService) {
+class KubernetesLogChecker(private val authenticatedClient: AuthenticatedClient) {
     private val client: DefaultKubernetesClient = DefaultKubernetesClient()
     private val namespace = "cattle-logging"
     private var numberOfRestarts = 0
@@ -42,9 +47,10 @@ class KubernetesLogChecker(val alertingService: AlertingService) {
                 if (currentTime == nextReportTime) {
                     if (numberOfRestarts > 0) {
                         runBlocking {
-                            alertingService.createAlert(
-                                Alert("Number of restarts for $currentTime was: $numberOfRestarts")
-                            )
+                            SlackDescriptions.sendAlert.call(
+                                SendAlertRequest("Number of restarts for $currentTime was: $numberOfRestarts"),
+                                authenticatedClient
+                            ).orThrow()
                         }
                         numberOfRestarts = 0
                     }
