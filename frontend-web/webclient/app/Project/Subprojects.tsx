@@ -133,7 +133,7 @@ const SelectableWallet: React.FunctionComponent<{
 };
 
 const Subprojects: React.FunctionComponent = () => {
-    const [isLoading, runCommand] = useAsyncCommand();
+    const [, runCommand] = useAsyncCommand();
 
     useTitle("Resources");
     useSidebarPage(SidebarPages.Projects);
@@ -206,7 +206,7 @@ const Subprojects: React.FunctionComponent = () => {
                     title: subprojectName,
                     parent: projectId
                 }))
-            );
+            ).promise;
 
             snackbarStore.addSuccess(`Subproject created`, true);
             createSubprojectRef.current!.value = "";

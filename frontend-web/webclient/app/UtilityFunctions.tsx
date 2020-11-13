@@ -275,7 +275,7 @@ export const iconFromFilePath = (
             return icon;
 
         case "FILE":
-        default:
+        default: {
             const filename = getFilenameFromPath(filePath, []);
             if (!filename.includes(".")) {
                 return icon;
@@ -283,6 +283,7 @@ export const iconFromFilePath = (
             icon.ext = extensionFromPath(filePath);
 
             return icon;
+        }
     }
 };
 
@@ -499,11 +500,12 @@ export function onNotificationAction(
         case "NEW_GRANT_APPLICATION":
         case "COMMENT_GRANT_APPLICATION":
         case "GRANT_APPLICATION_RESPONSE":
-        case "GRANT_APPLICATION_UPDATED":
+        case "GRANT_APPLICATION_UPDATED": {
             const {meta} = notification;
             history.push(`/project/grants/view/${meta.appId}`);
             break;
-        case "PROJECT_ROLE_CHANGE":
+        }
+        case "PROJECT_ROLE_CHANGE": {
             const {projectId} = notification.meta;
             if (currentProject !== projectId) {
                 setProject(projectId);
@@ -512,6 +514,7 @@ export function onNotificationAction(
             }
             history.push("/project/members");
             break;
+        }
         default:
             console.warn("unhandled");
             console.warn(notification);

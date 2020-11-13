@@ -770,7 +770,6 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                                 <QuickLaunchApps
                                                     file={f}
                                                     applications={applications.get(f.path)}
-                                                    history={history}
                                                 />
                                             </ClickableDropdown>
                                         )
@@ -1196,10 +1195,11 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
 interface QuickLaunchApps extends SpaceProps {
     file: File;
     applications: QuickLaunchApp[] | undefined;
-    history: History<any>;
 }
 
 const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.Element | null => {
+
+    const history = useHistory();
     if (applications === undefined) return null;
     if (applications.length < 1) return null;
 
@@ -1208,7 +1208,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
             <Flex
                 cursor="pointer"
                 alignItems="center"
-                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), props.history)}
+                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), history)}
                 width="auto"
                 {...props}
             >

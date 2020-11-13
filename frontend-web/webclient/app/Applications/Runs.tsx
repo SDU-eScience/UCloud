@@ -3,7 +3,6 @@ import {Client} from "Authentication/HttpClientInstance";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
 import {SortOrder} from "Files";
-import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -39,6 +38,7 @@ import {AppToolLogo} from "./AppToolLogo";
 import styled from "styled-components";
 import {ListRow, ListRowStat} from "ui-components/List";
 import {creditFormatter} from "Project/ProjectUsage";
+import {useHistory} from "react-router";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -56,7 +56,7 @@ const StickyBox = styled(Box)`
     z-index: 50;
 `;
 
-function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
+function Runs(props: AnalysesProps): React.ReactElement {
 
     React.useEffect(() => {
         props.onInit();
@@ -83,8 +83,9 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
         );
     }
 
-    const {page, loading, history, sortBy, sortOrder} = props;
+    const {page, loading, sortBy, sortOrder} = props;
     const {itemsPerPage, pageNumber} = page;
+    const history = useHistory();
 
     const selectedAnalyses = page.items.filter(it => it.checked);
     const cancelableAnalyses = selectedAnalyses.filter(it => inCancelableState(it.state));

@@ -82,7 +82,8 @@ class MockHttpClient {
     }
 
     public get fakeFolders(): string[] {
-        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.currentProjectFolder] : []);
+        return [this.sharesFolder, this.favoritesFolder]
+            .concat(this.hasActiveProject ? [this.currentProjectFolder] : []);
     }
 
     public get hasActiveProject(): boolean {
@@ -114,33 +115,33 @@ class MockHttpClient {
     private projectDecodedToken: any | undefined = undefined;
 
     constructor() {
-        this.decodedToken = parseJWT("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
+        this.decodedToken = parseJWT(
+            "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
             "lzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJ0ZXN0IiwiZXhwIjozNjE1NDkxMDkzLCJpYXQiOjE1MTU0ODkyO" +
             "TMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsImF1ZCI6WyJhcGkiLCJpcm9kcyJdfQ.gfLvmBWET-WpwtWLdrN9SL0tD" +
             "-0vrHrriWWDxnQljB8");
     }
 
-    public call = ({
-        method,
-        path,
-        body,
-        context = this.apiContext,
-        maxRetries = 5,
-        withCredentials = false
-    }): Promise<any> =>
+    public call = (req): Promise<any> =>
         new Promise(resolve => {
-            switch (path) {
+            switch (req.path) {
                 case "/accounting/storage/bytesUsed/usage":
-                    resolve({request: {} as XMLHttpRequest, response: {usage: 14690218167, quota: null, dataType: "bytes", title: "Storage Used"}});
+                    resolve({
+                        request: {} as XMLHttpRequest,
+                        response: {usage: 14690218167, quota: null, dataType: "bytes", title: "Storage Used"}
+                    });
                     return;
                 case "/accounting/compute/timeUsed/usage":
-                    resolve({request: {} as XMLHttpRequest, response: {usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"}});
+                    resolve({
+                        request: {} as XMLHttpRequest,
+                        response: {usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"}
+                    });
                     return;
             }
             resolve({request: {} as XMLHttpRequest, response: emptyPage});
         })
 
-    public get = (path: string, context = this.apiContext) =>
+    public get = (path: string, context = this.apiContext): Promise<void> =>
         this.call({method: "GET", path, body: undefined, context});
 
     public post = (path: string, body?: object, context = this.apiContext) =>
@@ -212,12 +213,12 @@ class MockHttpClient {
         return this.context + absolutePath;
     }
 
-    public openLandingPage() {
+    public openLandingPage(): void {
         if (window.location.href !== this.context + "/app/")
             window.location.href = this.context + "/app/";
     }
 
-    private refresh() {
+    private refresh(): Promise<string> {
         return new Promise<string>(() => "Hello");
     }
 
@@ -235,7 +236,7 @@ class MockHttpClient {
         return this.projectId !== undefined && !disallowProjects;
     }
 
-    private decodeToken(accessToken: string): any {
+    private decodeToken(accessToken: string): {payload: JWT} | never {
         const bail = (): never => {
             HttpClient.clearTokens();
             this.openBrowserLoginPage();

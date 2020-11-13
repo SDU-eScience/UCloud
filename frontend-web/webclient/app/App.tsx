@@ -27,14 +27,9 @@ const GlobalStyle = createGlobalStyle`
   ${UIGlobalStyle}
 `;
 
-/* FIXME: Find better placement */
-declare global {
-    const DEVELOPMENT_ENV: boolean;
-}
-
 Client.initializeStore(store);
 
-function App({children}: React.PropsWithChildren<{}>): JSX.Element {
+function App({children}: {children?: React.ReactNode}): JSX.Element {
     const [isLightTheme, setTheme] = React.useState(() => {
         const isLight = isLightThemeStored();
         toggleCssColors(isLight);
