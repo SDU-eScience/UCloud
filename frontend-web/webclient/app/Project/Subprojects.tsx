@@ -119,9 +119,9 @@ const SelectableWallet: React.FunctionComponent<{
                                 <th>Used/Quota</th>
                                 <td>{sizeToString(props.usage ?? 0)}
                                     {" "}/{" "}
-                                    {sizeToString(props.remainingQuota!!)}
-                                    {" "}({(100 * (props.remainingQuota !== 0 ?
-                                            ((props.usage ?? 0) / props.remainingQuota!!) : 1
+                                    {sizeToString(props.remainingQuota!)}
+                                    {" "}({(100 * (props.remainingQuota ?
+                                            ((props.usage ?? 0) / props.remainingQuota!) : 1
                                     )).toFixed(2)}%)
                                 </td>
                             </tr>
@@ -266,7 +266,8 @@ const Subprojects: React.FunctionComponent = () => {
                                     <Heading.h4>No resources attached to project. Contact project PI</Heading.h4>
                                 } </>
                                 : <>{mainWallets.map((w, i) =>
-                                    <SelectableWallet
+                                    isQuotaSupported(w.wallet.paysFor) ?
+                                        <SelectableWallet
                                         key={i}
                                         wallet={w}
                                         selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
@@ -276,16 +277,22 @@ const Subprojects: React.FunctionComponent = () => {
                                                     prev + it.balance : prev
                                             ), 0)
                                         }
-                                        quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
-                                            quota.data.quotaInTotal : undefined
-                                        }
-                                        usage={isQuotaSupported(w.wallet.paysFor) ?
-                                            quota.data.quotaUsed : undefined
-                                        }
-                                        remainingQuota={isQuotaSupported(w.wallet.paysFor) ?
-                                            quota.data.quotaInBytes : undefined
-                                        }
+                                        quotaInTotal= {quota.data.quotaInTotal}
+                                        usage= {quota.data.quotaUsed}
+                                        remainingQuota={quota.data.quotaInBytes}
                                         onClick={() => setSelectedWallet(w)} />
+                                    : <SelectableWallet
+                                            key={i}
+                                            wallet={w}
+                                            selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
+                                            allocated={
+                                                wallets.data.wallets.reduce((prev, it) => (
+                                                    it.wallet.id !== projectId && productCategoryEquals(w.wallet.paysFor, it.wallet.paysFor) ?
+                                                        prev + it.balance : prev
+                                                ), 0)
+                                            }
+                                            onClick={() => setSelectedWallet(w)}
+                                        />
                                 )
                                 }</>
                             }
