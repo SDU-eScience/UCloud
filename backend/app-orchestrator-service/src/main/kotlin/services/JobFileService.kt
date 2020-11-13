@@ -1,7 +1,8 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
-import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
+import dk.sdu.cloud.app.orchestrator.api.AppParameterValue
+import dk.sdu.cloud.app.orchestrator.api.files
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream
@@ -28,22 +29,19 @@ data class JobDirectory(val path: String)
 class JobFileService(
     private val userClientFactory: UserClientFactory,
     private val parameterExportService: ParameterExportService,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val appStoreCache: AppStoreCache,
 ) {
     suspend fun initializeResultFolder(jobWithToken: VerifiedJobWithAccessToken): JobDirectory {
-        val (job, accessToken, refreshToken) = jobWithToken
-        val userClient = userClientFactory(accessToken, refreshToken)
+        val (job, refreshToken) = jobWithToken
+        val userClient = userClientFactory(refreshToken)
 
-        val sensitivityLevel =
-            jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
-                ?: SensitivityLevel.PRIVATE
-
-        val project = job.project
-        val jobsFolder = jobsFolder(job.owner, project)
+        val project = job.owner.project
+        val jobsFolder = jobsFolder(job.owner.launchedBy, project)
         if (project != null) {
             // Create the personal repository lazily
             FileDescriptions.createPersonalRepository.call(
-                CreatePersonalRepositoryRequest(project, job.owner),
+                CreatePersonalRepositoryRequest(project, job.owner.launchedBy),
                 serviceClient
             )
         }
@@ -55,7 +53,7 @@ class JobFileService(
 
         val path = jobFolder(jobWithToken, true)
         FileDescriptions.createDirectory.call(
-            CreateDirectoryRequest(path.parent(), null, sensitivity = sensitivityLevel),
+            CreateDirectoryRequest(path.parent()),
             userClient
         )
 
@@ -83,12 +81,12 @@ class JobFileService(
     suspend fun exportParameterFile(
         jobFolder: String,
         jobWithToken: VerifiedJobWithAccessToken,
-        rawParameters: Map<String, Any?>
     ) {
-        val userClient = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
+        val userClient = userClientFactory(jobWithToken.refreshToken)
 
+        TODO("Raw params")
         val fileData =
-            defaultMapper.writeValueAsBytes(parameterExportService.exportParameters(jobWithToken.job, rawParameters))
+            defaultMapper.writeValueAsBytes(parameterExportService.exportParameters(jobWithToken.job))
 
         MultiPartUploadDescriptions.simpleUpload.call(
             SimpleUploadRequest(
@@ -110,11 +108,11 @@ class JobFileService(
 
         filePath: String,
         length: Long,
-        fileData: ByteReadChannel
+        fileData: ByteReadChannel,
     ) {
         val userClient = run {
-            val (_, accessToken, refreshToken) = jobWithToken
-            userClientFactory(accessToken, refreshToken)
+            val (_, refreshToken) = jobWithToken
+            userClientFactory(refreshToken)
         }
 
         log.debug("Accepting file at $filePath for ${jobWithToken.job.id}")
@@ -133,14 +131,10 @@ class JobFileService(
 
         log.debug("The destination path is ${destPath.path}")
 
-        val sensitivityLevel =
-            jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
-                ?: SensitivityLevel.PRIVATE
-
         val uploadResp = MultiPartUploadDescriptions.simpleUpload.call(
             SimpleUploadRequest(
                 location = destPath.path,
-                sensitivity = sensitivityLevel,
+                sensitivity = null,
                 file = BinaryStream.outgoingFromChannel(
                     fileData,
                     contentLength = length,
@@ -162,7 +156,7 @@ class JobFileService(
 
     fun jobsFolder(
         ownerUsername: String,
-        project: String?
+        project: String?,
     ): String {
         return if (project == null) {
             joinPath(homeDirectory(ownerUsername), "Jobs")
@@ -186,15 +180,17 @@ class JobFileService(
         }
 
         if (cachedPath != null) return cachedPath
+        val parameters = jobWithToken.job.parameters ?: error("missing job parameters")
+        val application = appStoreCache.apps.get(parameters.application)
+            ?: throw RPCException("Unknown application", HttpStatusCode.InternalServerError)
+        val (job, refreshToken) = jobWithToken
+        val userClient = userClientFactory(refreshToken)
 
-        val (job, accessToken, refreshToken) = jobWithToken
-        val userClient = userClientFactory(accessToken, refreshToken)
-
-        val outputFolder = job.outputFolder
+        val outputFolder = job.output?.outputFolder
         if (outputFolder != null) {
             return outputFolder
         } else {
-            val jobsFolder = jobsFolder(job.owner, job.project)
+            val jobsFolder = jobsFolder(job.owner.launchedBy, job.owner.project)
             var folderName = job.id
 
             if (new) {
@@ -205,17 +201,17 @@ class JobFileService(
                 while (folderNameLength < job.id.length) {
                     shortJobId = job.id.take(folderNameLength)
 
-                    folderName = if (job.name.isNullOrBlank()) {
+                    folderName = if (job.parameters?.name.isNullOrBlank()) {
                         shortJobId
                     } else {
-                        job.name + "-" + shortJobId
+                        job.parameters?.name + "-" + shortJobId
                     }
 
                     val statStatusCode = FileDescriptions.stat.call(
                         StatRequest(
                             joinPath(
                                 jobsFolder,
-                                job.archiveInCollection,
+                                application.metadata.title,
                                 folderName
                             )
                         ),
@@ -236,18 +232,20 @@ class JobFileService(
             } else {
                 // No file id was found, nor is this `new`. Assume old format (timestamp)
                 val timestamp =
-                    timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+                    timestampFormatter.format(
+                        LocalDateTime.ofInstant(Date(job.updates.first().timestamp).toInstant(), zoneId)
+                    )
 
-                folderName = if (job.name == null) {
+                folderName = if (parameters.name == null) {
                     timestamp
                 } else {
-                    job.name + "-" + timestamp
+                    parameters.name + "-" + timestamp
                 }
             }
 
             return joinPath(
                 jobsFolder,
-                job.archiveInCollection,
+                application.metadata.title,
                 folderName
             ).also { cacheJobFolder(job.id, it) }
         }
@@ -256,10 +254,10 @@ class JobFileService(
     suspend fun cleanupAfterMounts(jobWithToken: VerifiedJobWithAccessToken) {
         // Some minor cleanup #1358 (TODO This probably needs to be more centralized)
         val job = jobWithToken.job
-        val outputFolder = job.outputFolder ?: return
+        val outputFolder = job.output?.outputFolder ?: return
 
-        val mounts = job.mounts.map { it.toMountName() } + job.files.map { it.toMountName() }
-        val userClient = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
+        val mounts = job.files.map { it.toMountName() }
+        val userClient = userClientFactory(jobWithToken.refreshToken)
 
         mounts.forEach { mountName ->
             FileDescriptions.deleteFile.call(
@@ -269,7 +267,7 @@ class JobFileService(
         }
     }
 
-    private fun ValidatedFileForUpload.toMountName(): String = sourcePath.normalize().fileName()
+    private fun AppParameterValue.File.toMountName(): String = path.normalize().fileName()
 
     companion object : Loggable {
         override val log = logger()

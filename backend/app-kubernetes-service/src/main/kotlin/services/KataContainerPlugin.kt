@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.service.k8.Pod
 import kotlin.math.max
 
@@ -9,7 +9,7 @@ import kotlin.math.max
  * A plugin which enables support for Kata Containers
  */
 object KataContainerPlugin : JobManagementPlugin {
-    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
         tasks.forEach { task ->
             val pTemplate = task.template ?: error("no template")
@@ -39,7 +39,9 @@ object KataContainerPlugin : JobManagementPlugin {
         }
     }
 
-    private fun removeKataOverhead(job: VerifiedJob, request: Map<String, Any?>): HashMap<String, Any?> {
+    private fun removeKataOverhead(job: Job, request: Map<String, Any?>): HashMap<String, Any?> {
+        TODO()
+        /*
         val clone = HashMap(request)
         val cpu = job.reservation.cpu
         if (cpu != null) {
@@ -50,5 +52,6 @@ object KataContainerPlugin : JobManagementPlugin {
             clone["memory"] = "${max(1, mem - 6)}Gi"
         }
         return clone
+         */
     }
 }

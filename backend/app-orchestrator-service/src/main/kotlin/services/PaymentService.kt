@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
@@ -29,15 +29,15 @@ class PaymentService(
         object InsufficientFunds : ChargeResult()
     }
 
-
     suspend fun charge(
-        job: VerifiedJob,
+        job: Job,
         timeUsedInMillis: Long,
         chargeId: String = ""
     ): ChargeResult {
-        val pricePerUnit = job.reservation.pricePerUnit
+        val parameters = job.parameters ?: error("no parameters")
+        val pricePerUnit = job.billing.pricePerUnit
 
-        val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * job.nodes
+        val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * parameters.replicas
         val price = pricePerUnit * units
         val result = Wallets.reserveCredits.call(
             ReserveCreditsRequest(
@@ -45,12 +45,12 @@ class PaymentService(
                 price,
                 Time.now(),
                 Wallet(
-                    job.project ?: job.owner,
-                    if (job.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
-                    job.reservation.category
+                    job.owner.project ?: job.owner.launchedBy,
+                    if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
+                    ProductCategoryId(parameters.product.category, parameters.product.provider),
                 ),
-                job.owner,
-                job.reservation.id,
+                job.owner.launchedBy,
+                parameters.product.id,
                 units,
                 chargeImmediately = true,
                 skipIfExists = true
@@ -75,23 +75,27 @@ class PaymentService(
         return ChargeResult.Charged(price, pricePerUnit)
     }
 
-    suspend fun reserve(job: VerifiedJob) {
-        val pricePerUnit = job.reservation.pricePerUnit
-        val units = ceil(job.maxTime.toMillis() / MILLIS_PER_MINUTE.toDouble()).toLong() * job.nodes
+    suspend fun reserve(job: Job) {
+        val parameters = job.parameters ?: error("no parameters")
+        val pricePerUnit = job.billing.pricePerUnit
+
+        // Note: We reserve credits for a single hour if there is no explicit allocation
+        val timeAllocationMillis = parameters.timeAllocation?.toMillis() ?: 3600 * 1000L
+        val units = ceil(timeAllocationMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * parameters.replicas
         val price = pricePerUnit * units
 
         val code = Wallets.reserveCredits.call(
             ReserveCreditsRequest(
                 job.id,
                 price,
-                Time.now() + job.maxTime.toMillis() * 3,
+                Time.now() + timeAllocationMillis * 3,
                 Wallet(
-                    job.project ?: job.owner,
-                    if (job.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
-                    job.reservation.category
+                    job.owner.project ?: job.owner.launchedBy,
+                    if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
+                    ProductCategoryId(parameters.product.category, parameters.product.provider)
                 ),
-                job.owner,
-                job.reservation.id,
+                job.owner.launchedBy,
+                parameters.product.id,
                 units,
                 discardAfterLimitCheck = true
             ),
@@ -103,7 +107,7 @@ class PaymentService(
                 throw RPCException(
                     "Insufficient funds for job",
                     HttpStatusCode.PaymentRequired,
-                    "NOT_ENOUGH_${job.reservation.area.name}_CREDITS"
+                    "NOT_ENOUGH_${ProductArea.COMPUTE}_CREDITS"
                 )
             }
 

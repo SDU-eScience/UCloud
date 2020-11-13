@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
@@ -30,7 +31,7 @@ import kotlin.time.measureTime
 import kotlin.time.minutes
 
 interface JobManagementPlugin {
-    suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {}
+    suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {}
     suspend fun JobManagement.onCleanup(jobId: String) {}
 
     /**
@@ -113,7 +114,7 @@ class JobManagement(
         plugins.add(plugin)
     }
 
-    suspend fun create(verifiedJob: VerifiedJob) {
+    suspend fun create(verifiedJob: Job) {
         if (maintenance.isPaused()) {
             throw RPCException(
                 "UCloud does not currently accept new jobs",
@@ -165,11 +166,11 @@ class JobManagement(
         }
     }
 
-    suspend fun extend(job: VerifiedJob, newMaxTime: SimpleDuration) {
+    suspend fun extend(job: Job, newMaxTime: SimpleDuration) {
         ExpiryPlugin.extendJob(k8, job.id, newMaxTime)
     }
 
-    suspend fun cancel(verifiedJob: VerifiedJob) {
+    suspend fun cancel(verifiedJob: Job) {
         markJobAsComplete(verifiedJob.id, null)
     }
 
@@ -449,6 +450,8 @@ class JobManagement(
     }
 
     private suspend fun markJobAsComplete(jobId: String, volcanoJob: VolcanoJob?) {
+        TODO()
+        /*
         val job = volcanoJob ?: run {
             val name = k8.nameAllocator.jobIdToJobName(jobId)
             val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
@@ -484,9 +487,12 @@ class JobManagement(
         } finally {
             dir?.deleteRecursively()
         }
+         */
     }
 
-    fun verifyJobs(jobs: List<VerifiedJob>) {
+    fun verifyJobs(jobs: List<Job>) {
+        TODO()
+        /*
         k8.scope.launch {
             val jobsByNamespace = jobs.map { it.id }.groupBy { k8.nameAllocator.jobIdToNamespace(it) }
             for ((ns, jobs) in jobsByNamespace) {
@@ -506,6 +512,7 @@ class JobManagement(
                 }
             }
         }
+         */
     }
 
     companion object : Loggable {

@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesShell
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.orchestrator.api.ShellRequest
 import dk.sdu.cloud.app.orchestrator.api.ShellResponse
 import dk.sdu.cloud.calls.AttributeKey

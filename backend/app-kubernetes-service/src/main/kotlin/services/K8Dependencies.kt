@@ -1,9 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.orchestrator.api.AddStatusJob
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.StateChangeRequest
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -24,6 +21,8 @@ data class K8Dependencies(
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 
     suspend fun addStatus(jobId: String, message: String): Boolean {
+        TODO()
+        /*
         val last = lastMessage.get(jobId)
         if (last != message) {
             ComputationCallbackDescriptions.addStatus.call(
@@ -34,6 +33,7 @@ data class K8Dependencies(
             return true
         }
         return false
+         */
     }
 
     suspend fun changeState(
@@ -41,6 +41,8 @@ data class K8Dependencies(
         state: JobState,
         newStatus: String? = null
     ): Boolean {
+        TODO()
+        /*
         val last = lastMessage.get(jobId)
         val messageAsString = "${state}-${newStatus}"
         if (last != messageAsString) {
@@ -52,5 +54,6 @@ data class K8Dependencies(
             return true
         }
         return false
+         */
     }
 }

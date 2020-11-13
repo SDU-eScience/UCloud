@@ -93,9 +93,12 @@ class ApplicationProxyService(
     }
 
     private suspend fun createOrUseExistingTunnel(incomingId: String): Tunnel {
+        TODO()
+        /*
         val job = jobCache.findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val remotePort = job.application.invocation.web?.port ?: 80
         return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, job.url)
+         */
     }
 
     companion object : Loggable {

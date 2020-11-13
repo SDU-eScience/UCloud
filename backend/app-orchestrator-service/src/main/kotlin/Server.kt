@@ -1,6 +1,11 @@
 package dk.sdu.cloud.app.orchestrator
 
 import app.orchestrator.rpc.PublicLinkController
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
+import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
+import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifestBody
+import dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.services.JobDao
 import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
@@ -11,14 +16,12 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
-import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import kotlinx.coroutines.runBlocking
 
-typealias UserClientFactory = (accessToken: String?, refreshToken: String?) -> AuthenticatedClient
+typealias UserClientFactory = (refreshToken: String) -> AuthenticatedClient
 
 class Server(override val micro: Micro, val config: Configuration) : CommonServer {
     override val log = logger()
@@ -29,52 +32,50 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val serviceClientWS = micro.authenticator.authenticateClient(OutgoingWSCall)
         val streams = micro.eventStreamService
         val distributedLocks = DistributedLockBestEffortFactory(micro)
-        val applicationService = ApplicationService(serviceClient)
-        val jobHibernateDao = JobDao()
-        val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
-        val userClientFactory: UserClientFactory = { accessToken, refreshToken ->
-            when {
-                accessToken != null -> {
-                    serviceClient.withoutAuthentication().bearerAuth(accessToken)
-                }
-
-                refreshToken != null -> {
-                    RefreshingJWTAuthenticator(
-                        micro.client,
-                        refreshToken,
-                        micro.tokenValidation as TokenValidationJWT
-                    ).authenticateClient(OutgoingHttpCall)
-                }
-
-                else -> {
-                    throw IllegalStateException("No token found!")
-                }
-            }
+        val appStoreCache = AppStoreCache(serviceClient)
+        val jobDao = JobDao()
+        val userClientFactory: UserClientFactory = { refreshToken ->
+            RefreshingJWTAuthenticator(
+                micro.client,
+                refreshToken,
+                micro.tokenValidation as TokenValidationJWT
+            ).authenticateClient(OutgoingHttpCall)
         }
 
         val machineCache = MachineTypeCache(serviceClient)
         val paymentService = PaymentService(db, serviceClient)
         val parameterExportService = ParameterExportService()
-        val jobFileService = JobFileService(userClientFactory, parameterExportService, serviceClient)
+        val jobFileService = JobFileService(userClientFactory, parameterExportService, serviceClient, appStoreCache)
         val publicLinks = PublicLinkService()
 
         val jobQueryService = JobQueryService(
             db,
             jobFileService,
             ProjectCache(serviceClient),
-            applicationService,
+            appStoreCache,
             publicLinks
         )
 
-        val vncService = VncService(computationBackendService, db, jobQueryService, serviceClient)
-        val webService = WebService(computationBackendService, db, jobQueryService, serviceClient)
+        val providers = Providers(serviceClient, ComputeProviderManifest(
+            ComputeProvider(UCLOUD_PROVIDER, "localhost", false, 8080),
+            ComputeProviderManifestBody(
+                ManifestFeatureSupport(
+                    web = true,
+                    vnc = true,
+                    batch = true,
+                    docker = true,
+                    virtualMachine = false,
+                    logs = true
+                )
+            )
+        ))
 
         val jobVerificationService = JobVerificationService(
-            applicationService,
-            config.defaultBackend,
+            appStoreCache,
             db,
             jobQueryService,
             serviceClient,
+            providers,
             machineCache
         )
 
@@ -83,11 +84,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 serviceClient,
                 db,
                 jobVerificationService,
-                computationBackendService,
                 jobFileService,
-                jobHibernateDao,
+                jobDao,
                 jobQueryService,
-                config.defaultBackend,
                 micro.backgroundScope,
                 paymentService
             )
@@ -96,10 +95,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             db,
             micro.backgroundScope,
             distributedLocks,
-            applicationService,
+            appStoreCache,
             jobVerificationService,
             jobOrchestrator,
-            computationBackendService,
             serviceClient
         )
 
@@ -108,7 +106,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 jobFileService,
                 serviceClient,
                 serviceClientWS,
-                computationBackendService,
                 jobQueryService,
                 micro.backgroundScope
             )
@@ -116,7 +113,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         AppProcessor(
             streams,
             jobOrchestrator,
-            applicationService
+            appStoreCache
         ).init()
 
         runBlocking { jobMonitoring.initialize() }
@@ -129,8 +126,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                     streamFollowService,
                     userClientFactory,
                     serviceClient,
-                    vncService,
-                    webService,
                     machineCache
                 ),
 

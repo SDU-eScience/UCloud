@@ -37,22 +37,7 @@ typealias ComputeVerifyResponse = Unit
 typealias ComputeVerifyRequestItem = Job
 
 typealias ComputeRetrieveManifestRequest = Unit
-data class ComputeRetrieveManifestResponse(
-    // Provided directly to UCloud by provider:
-    //  - Provider ID (Namespace)
-    //  - Hostname
-
-    val features: ManifestFeatureSupport,
-)
-
-data class ManifestFeatureSupport(
-    val web: Boolean = false,
-    val vnc: Boolean = false,
-    val batch: Boolean = false,
-    val docker: Boolean = false,
-    val virtualMachine: Boolean = false,
-    val logs: Boolean = false,
-)
+typealias ComputeRetrieveManifestResponse = ComputeProviderManifestBody
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -74,7 +59,7 @@ data class ComputeFollowResponse(
 )
 
 @UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
-abstract class Compute(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
+open class Compute(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
     val baseContext = "/api/jobs/compute/$namespace"
 
     init {

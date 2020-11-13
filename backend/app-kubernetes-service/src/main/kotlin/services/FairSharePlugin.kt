@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.k8.*
 
@@ -12,10 +12,10 @@ import dk.sdu.cloud.service.k8.*
  * the project. Namespace creation is done, as needed, by the [FairSharePlugin].
  */
 object FairSharePlugin : JobManagementPlugin {
-    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val jobMetadata = builder.metadata ?: error("no metadata")
         (jobMetadata.annotations?.toMutableMap() ?: HashMap()).let { annotations ->
-            annotations["ucloud.dk/user"] = job.project ?: job.owner
+            annotations["ucloud.dk/user"] = job.owner.project ?: job.owner.launchedBy
             jobMetadata.annotations = annotations
         }
     }

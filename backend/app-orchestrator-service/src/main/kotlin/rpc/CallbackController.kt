@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
-import dk.sdu.cloud.app.orchestrator.api.JobStateChange
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
@@ -19,6 +17,7 @@ class CallbackController(
     private val jobOrchestrator: JobOrchestrator
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        /*
         implement(ComputationCallbackDescriptions.submitFile) {
             withContext<HttpCall> {
                 val length = ctx.call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
@@ -74,6 +73,7 @@ class CallbackController(
         implement(ComputationCallbackDescriptions.lookupUrl) {
             ok(jobOrchestrator.lookupOwnJobByUrl(request.id, ctx.securityPrincipal))
         }
+         */
     }
 
     companion object : Loggable {

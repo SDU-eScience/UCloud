@@ -2,8 +2,6 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
-import dk.sdu.cloud.app.orchestrator.api.ChargeCreditsRequest
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -57,10 +55,14 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         val name = k8.nameAllocator.jobIdToJobName(jobId)
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
+        TODO()
+        /*
         ComputationCallbackDescriptions.chargeCredits.call(
             ChargeCreditsRequest(jobId, lastTs.toString(), SimpleDuration.fromMillis(timespent)),
             k8.serviceClient
         ).orThrow()
+
+         */
 
         try {
             k8.client.patchResource(

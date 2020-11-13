@@ -1,13 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.CancelWSStreamRequest
-import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsRequest
-import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsResponse
-import dk.sdu.cloud.app.orchestrator.api.FollowWSRequest
-import dk.sdu.cloud.app.orchestrator.api.FollowWSResponse
-import dk.sdu.cloud.app.orchestrator.api.InternalFollowStdStreamsRequest
-import dk.sdu.cloud.app.orchestrator.api.InternalFollowWSStreamRequest
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.calls.RPCException
@@ -34,10 +27,10 @@ class StreamFollowService(
     private val jobFileService: JobFileService,
     private val serviceClient: AuthenticatedClient,
     private val serviceClientWS: AuthenticatedClient,
-    private val computationBackendService: ComputationBackendService,
     private val jobQueryService: JobQueryService,
     private val backgroundScope: BackgroundScope
 ) {
+    /*
     suspend fun followStreams(
         request: FollowStdStreamsRequest,
         requestedBy: SecurityPrincipalToken
@@ -180,6 +173,7 @@ class StreamFollowService(
             callContext.ok(FollowWSResponse())
         }
     }
+     */
 
     companion object : Loggable {
         override val log = logger()

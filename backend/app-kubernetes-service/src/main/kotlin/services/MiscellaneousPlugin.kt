@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.service.k8.Pod
 
@@ -15,7 +15,9 @@ import dk.sdu.cloud.service.k8.Pod
  * - They can all be run near the end of the plugin pipeline
  */
 object MiscellaneousPlugin : JobManagementPlugin {
-    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+        TODO()
+        /*
         val containerConfig = job.application.invocation.container ?: ContainerDescription()
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
 
@@ -54,5 +56,6 @@ object MiscellaneousPlugin : JobManagementPlugin {
                 )
             }
         }
+         */
     }
 }

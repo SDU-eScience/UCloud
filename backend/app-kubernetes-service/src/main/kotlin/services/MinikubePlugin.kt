@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.k8.*
 
@@ -12,7 +12,9 @@ import dk.sdu.cloud.service.k8.*
 object MinikubePlugin : JobManagementPlugin {
     const val SERVICE_SUFFIX = "-mk"
 
-    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+        TODO()
+        /*
         val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
         val name = k8.nameAllocator.jobIdToJobName(job.id)
 
@@ -44,6 +46,7 @@ object MinikubePlugin : JobManagementPlugin {
                 )
             )
         )
+         */
     }
 
     override suspend fun JobManagement.onCleanup(jobId: String) {

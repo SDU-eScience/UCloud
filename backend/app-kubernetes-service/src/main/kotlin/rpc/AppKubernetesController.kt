@@ -6,8 +6,6 @@ import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
-import dk.sdu.cloud.app.orchestrator.api.InternalFollowWSStreamResponse
-import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
@@ -43,6 +41,7 @@ class AppKubernetesController(
             }
         }
 
+        /*
         implement(AppKubernetesDescriptions.cleanup) {
             jobManagement.cleanup(request.id)
             ok(Unit)
@@ -115,6 +114,7 @@ class AppKubernetesController(
             jobManagement.verifyJobs(request.jobs)
             ok(Unit)
         }
+         */
 
         return@configure
     }

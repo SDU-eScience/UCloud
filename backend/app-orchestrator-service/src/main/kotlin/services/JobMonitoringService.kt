@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.app.orchestrator.api.ComputeVerifyJobsRequest
 import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobStateChange
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.DistributedLock
 import dk.sdu.cloud.service.DistributedLockFactory
@@ -13,7 +10,6 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
@@ -21,10 +17,9 @@ class JobMonitoringService(
     private val db: DBContext,
     private val scope: BackgroundScope,
     private val distributedLocks: DistributedLockFactory,
-    private val applicationService: ApplicationService,
+    private val appStoreCache: AppStoreCache,
     private val verificationService: JobVerificationService,
     private val jobOrchestrator: JobOrchestrator,
-    private val computationBackendService: ComputationBackendService,
     private val serviceClient: AuthenticatedClient,
 ) {
     suspend fun initialize() {
@@ -47,6 +42,8 @@ class JobMonitoringService(
     }
 
     private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock) {
+        TODO()
+        /*
         var nextScan = 0L
         while (isActive) {
             val now = Time.now()
@@ -77,7 +74,7 @@ class JobMonitoringService(
                             """
                         )
                         .rows
-                        .mapNotNull { it.toVerifiedJob(false, applicationService) }
+                        .mapNotNull { it.toVerifiedJob(false, appStoreCache) }
 
                     val jobsByBackend = jobs.map { it.job }.groupBy { it.backend }
                     scope.launch {
@@ -113,6 +110,7 @@ class JobMonitoringService(
                 break
             }
         }
+         */
     }
 
     companion object : Loggable {

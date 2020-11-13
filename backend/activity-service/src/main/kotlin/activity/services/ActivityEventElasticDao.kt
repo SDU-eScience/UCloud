@@ -8,8 +8,6 @@ import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.type
-import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
-import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
@@ -544,6 +542,8 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 }
             }
 
+            /*
+            TODO
             object ApplicationStart : CallWithActivity<StartJobRequest>(
                 ActivityEventType.usedInApp,
                 JobDescriptions.start,
@@ -649,6 +649,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     return activityEventList
                 }
             }
+             */
 
             object ShareCreated : CallWithActivity<Shares.Create.Request>(
                 ActivityEventType.sharedWith,

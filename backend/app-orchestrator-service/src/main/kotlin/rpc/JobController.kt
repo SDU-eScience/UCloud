@@ -29,35 +29,41 @@ class JobController(
     private val streamFollowService: StreamFollowService,
     private val userClientFactory: UserClientFactory,
     private val serviceClient: AuthenticatedClient,
-    private val vncService: VncService,
-    private val webService: WebService,
     private val machineCache: MachineTypeCache
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Jobs.create) {
+            verifySlaFromPrincipal()
+            jobOrchestrator.startJob()
             TODO()
         }
 
         implement(Jobs.delete) {
+            verifySlaFromPrincipal()
             TODO()
         }
 
         implement(Jobs.retrieve) {
+            verifySlaFromPrincipal()
             TODO()
         }
 
         implement(Jobs.browse) {
+            verifySlaFromPrincipal()
             TODO()
         }
 
         implement(Jobs.follow) {
+            verifySlaFromPrincipal()
             TODO()
         }
 
         implement(Jobs.extend) {
+            verifySlaFromPrincipal()
             TODO()
         }
 
+        /*
         implement(JobDescriptions.findById) {
             verifySlaFromPrincipal()
             ok(jobQueryService.asJobWithStatus(jobQueryService.findById(ctx.securityToken, request.id)))
@@ -179,6 +185,7 @@ class JobController(
                 ?: throw RPCException("Internal server error", HttpStatusCode.InternalServerError)
             ok(machines)
         }
+         */
     }
 
     private fun CallHandler<*, *, *>.verifySlaFromPrincipal() {

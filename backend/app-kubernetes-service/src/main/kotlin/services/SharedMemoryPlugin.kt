@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.service.k8.Pod
 import dk.sdu.cloud.service.k8.Volume
 
@@ -12,7 +12,9 @@ import dk.sdu.cloud.service.k8.Volume
  * no RAM reservation attached it will default to 1GB of RAM.
  */
 object SharedMemoryPlugin : JobManagementPlugin {
-    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+        TODO()
+        /*
         val sizeInGigs = job.reservation.memoryInGigs ?: 1
 
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
@@ -43,5 +45,6 @@ object SharedMemoryPlugin : JobManagementPlugin {
                 spec.volumes = volumes
             }
         }
+         */
     }
 }

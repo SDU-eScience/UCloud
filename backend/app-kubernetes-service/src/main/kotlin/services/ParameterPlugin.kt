@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
 import dk.sdu.cloud.service.k8.Pod
@@ -16,7 +16,9 @@ import dk.sdu.cloud.service.k8.Pod
  * - Environment variables will be initialized with values from the user
  */
 object ParameterPlugin : JobManagementPlugin {
-    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+        TODO()
+        /*
         val app = job.application.invocation
         val givenParameters =
             job.jobInput.asMap().mapNotNull { (paramName, value) ->
@@ -49,5 +51,7 @@ object ParameterPlugin : JobManagementPlugin {
                 }
             }
         }
+
+         */
     }
 }

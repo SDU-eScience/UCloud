@@ -10,7 +10,7 @@ import dk.sdu.cloud.service.SimpleCache
 /**
  * Acts as a cache of applications and tools
  */
-class ApplicationService(private val serviceClient: AuthenticatedClient) {
+class AppStoreCache(private val serviceClient: AuthenticatedClient) {
     val tools = SimpleCache<NameAndVersion, Tool>(SimpleCache.DONT_EXPIRE) {
         ToolStore.findByNameAndVersion
             .call(FindByNameAndVersion(it.name, it.version), serviceClient)

@@ -4,8 +4,6 @@ import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
 import dk.sdu.cloud.app.kubernetes.services.MinikubePlugin
 import dk.sdu.cloud.app.kubernetes.services.VerifiedJobCache
-import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -47,6 +45,8 @@ class WebService(
     private val devMode: Boolean = false
 ) {
     fun install(routing: Route): Unit = with(routing) {
+        TODO()
+        /*
         // Called when entering the application. This sets the cookie containing the refresh token.
         get("${AppKubernetesDescriptions.baseContext}/authorize-app/{id}") {
             val id = call.parameters["id"] ?: run {
@@ -145,9 +145,12 @@ class WebService(
                 }
             }
         }
+         */
     }
 
     private suspend fun authorizeUser(call: ApplicationCall, jobId: String, sendResponse: Boolean = true): Boolean {
+        TODO()
+        /*
         if (!performAuthentication) return true
         val job = jobCache.findJob(jobId) ?: run {
             if (sendResponse) {
@@ -182,13 +185,16 @@ class WebService(
         }
 
         return true
+         */
     }
 
+    /*
     suspend fun queryParameters(job: VerifiedJob): QueryInternalWebParametersResponse {
         jobCache.cacheJob(job)
         broadcastingStream.broadcast(ProxyEvent(job.id, true), ProxyEvents.events)
         return QueryInternalWebParametersResponse("${AppKubernetesDescriptions.baseContext}/authorize-app/${job.id}")
     }
+     */
 
     companion object : Loggable {
         override val log = logger()

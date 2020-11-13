@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -16,13 +16,16 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
     const val EXPIRY_ANNOTATION = "ucloud.dk/expiry"
     const val JOB_START = "ucloud.dk/jobStart"
 
-    override suspend fun JobManagement.onCreate(job: VerifiedJob, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+        TODO()
+        /*
         val maxTimeMillis = job.maxTime.toMillis()
         val jobMetadata = builder.metadata ?: error("no metadata")
         (jobMetadata.annotations?.toMutableMap() ?: HashMap()).let { annotations ->
             annotations[MAX_TIME_ANNOTATION] = "$maxTimeMillis"
             jobMetadata.annotations = annotations
         }
+         */
     }
 
     override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {

@@ -25,7 +25,8 @@ class PublicLinkController(
         }
 
         implement(PublicLinks.list) {
-            ok(jobQueryService.listPublicUrls(db, ctx.securityPrincipal.username, request.normalize()))
+            //ok(jobQueryService.listPublicUrls(db, ctx.securityPrincipal.username, request.normalize()))
+            TODO()
         }
 
         Unit

@@ -2,50 +2,46 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
-import java.lang.IllegalArgumentException
+import io.ktor.http.*
+import kotlin.IllegalArgumentException
 
-object JobInformationTable : SQLTable("job_information") {
-    val systemId = text("system_id", notNull = true)
-    val owner = text("owner", notNull = true)
-    val accessToken = text("access_token")
-    val applicationName = text("application_name", notNull = true)
-    val applicationVersion = text("application_version", notNull = true)
-    val backendName = text("backend_name", notNull = false)
-    val files = jsonb("files")
-    val parameters = jsonb("parameters")
-    val nodes = int("nodes")
-    val maxTimeHours = int("max_time_hours")
-    val maxTimeMinutes = int("max_time_minutes")
-    val maxTimeSeconds = int("max_time_seconds")
+object JobsTable : SQLTable("jobs") {
+    val id = text("id")
+    val launchedBy = text("launched_by")
+    val project = text("project")
+    val refreshToken = text("refreshToken")
+    val applicationName = text("application_name")
+    val applicationVersion = text("application_version")
+    val pricePerUnit = long("price_per_unit")
+    val timeAllocationMillis = long("time_allocation_millis")
+    val creditsCharged = long("credits_charged")
+    val productProvider = text("product_provider")
+    val productCategory = text("product_category")
+    val productId = text("product_id")
+    val replicas = int("replicas")
+    val name = text("name")
+    val outputFolder = text("output_folder")
+}
+
+object JobUpdatesTable : SQLTable("job_updates") {
+    val jobId = text("job_id")
+    val ts = timestamp("ts")
     val state = text("state")
     val status = text("status")
-    val createdAt = timestamp("created_at")
-    val modifiedAt = timestamp("modified_at")
-    val archiveInCollection = text("archive_in_collection")
-    val mounts = jsonb("mounts")
-    val startedAt = timestamp("started_at")
-    val username = text("username")
-    val peers = jsonb("peers")
+}
+
+object JobInputParametersTable : SQLTable("job_input_parameters") {
+    val jobId = text("job_id")
     val name = text("name")
-    val failedState = text("failed_state")
-    val refreshToken = text("refresh_token")
-    val reservedCpus = int("reserved_cpus")
-    val reservedMemoryInGigs = int("reserved_memory_in_gigs")
-    val reservedGpus = int("reserved_gpus")
-    val reservedPricePerUnit = long("reserved_price_per_unit")
-    val reservedProvider = text("reserved_provider")
-    val reservedCategory = text("reserved_category")
-    val reservationType = text("reservation_type")
-    val outputFolder = text("output_folder")
-    val url = text("url")
-    val project = text("project")
-    val creditsCharged = long("credits_charged")
-    val lastScan = timestamp("last_scan")
+    val value = jsonb("value")
+}
+
+object JobResourcesTable : SQLTable("job_resources") {
+    val jobId = text("job_id")
+    val resource = jsonb("resource")
 }
 
 class JobDao {
@@ -54,96 +50,118 @@ class JobDao {
         jobWithToken: VerifiedJobWithAccessToken
     ) {
         ctx.withSession { session ->
-            val (job, token, refreshToken) = jobWithToken
+            val (job, refreshToken) = jobWithToken
+            val parameters = job.parameters ?: error("no parameters")
 
-            session.insert(JobInformationTable) {
-                set(JobInformationTable.systemId, job.id)
-                set(JobInformationTable.owner, job.owner)
-                set(JobInformationTable.name, job.name)
-                set(JobInformationTable.applicationName, job.application.metadata.name)
-                set(JobInformationTable.applicationVersion, job.application.metadata.version)
-                set(JobInformationTable.status, "Verified")
-                set(JobInformationTable.state, job.currentState.name)
-                set(JobInformationTable.failedState, job.failedState?.name)
-                set(JobInformationTable.nodes, job.nodes)
-                set(JobInformationTable.parameters, defaultMapper.writeValueAsString(job.jobInput.asMap()))
-                set(JobInformationTable.files, defaultMapper.writeValueAsString(job.files.toList()))
-                set(JobInformationTable.mounts, defaultMapper.writeValueAsString(job.mounts.toList()))
-                set(JobInformationTable.maxTimeHours, job.maxTime.hours)
-                set(JobInformationTable.maxTimeMinutes, job.maxTime.minutes)
-                set(JobInformationTable.maxTimeSeconds, job.maxTime.seconds)
-                set(JobInformationTable.accessToken, token)
-                set(JobInformationTable.archiveInCollection, job.archiveInCollection)
-                set(JobInformationTable.backendName, job.backend)
-                set(JobInformationTable.startedAt, null)
-                set(JobInformationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                set(JobInformationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
-                set(JobInformationTable.peers, defaultMapper.writeValueAsString(job.peers.toList()))
-                set(JobInformationTable.refreshToken, refreshToken)
-                set(JobInformationTable.reservationType, job.reservation.id)
-                set(JobInformationTable.reservedCpus, job.reservation.cpu)
-                set(JobInformationTable.reservedMemoryInGigs, job.reservation.memoryInGigs)
-                set(JobInformationTable.reservedGpus, job.reservation.gpu)
-                set(JobInformationTable.reservedPricePerUnit, job.reservation.pricePerUnit)
-                set(JobInformationTable.reservedCategory, job.reservation.category.id)
-                set(JobInformationTable.reservedProvider, job.reservation.category.provider)
-                set(JobInformationTable.outputFolder, job.outputFolder)
-                set(JobInformationTable.url, job.url)
-                set(JobInformationTable.project, job.project)
+            session.insert(JobsTable) {
+                set(JobsTable.id, job.id)
+                set(JobsTable.launchedBy, job.owner.launchedBy)
+                set(JobsTable.project, job.owner.project)
+                set(JobsTable.refreshToken, refreshToken)
+                set(JobsTable.applicationName, parameters.application.name)
+                set(JobsTable.applicationVersion, parameters.application.version)
+                set(JobsTable.pricePerUnit, job.billing.pricePerUnit)
+                set(JobsTable.timeAllocationMillis, parameters.timeAllocation?.toMillis())
+                set(JobsTable.creditsCharged, job.billing.creditsCharged)
+                set(JobsTable.productProvider, parameters.product.provider)
+                set(JobsTable.productCategory, parameters.product.category)
+                set(JobsTable.productId, parameters.product.id)
+                set(JobsTable.replicas, parameters.replicas)
+                set(JobsTable.name, parameters.name)
+                set(JobsTable.outputFolder, job.output?.outputFolder)
+            }
+
+            for (update in job.updates) {
+                session.insert(JobUpdatesTable) {
+                    set(JobUpdatesTable.jobId, job.id)
+                    set(JobUpdatesTable.state, update.state?.name)
+                    set(JobUpdatesTable.status, update.status)
+                }
+            }
+
+            for (resource in parameters.resources) {
+                session.insert(JobResourcesTable) {
+                    set(JobResourcesTable.jobId, job.id)
+                    set(JobResourcesTable.resource, defaultMapper.writeValueAsString(resource))
+                }
+            }
+
+            for ((param, value) in parameters.parameters) {
+                session.insert(JobInputParametersTable) {
+                    set(JobInputParametersTable.jobId, job.id)
+                    set(JobInputParametersTable.name, param)
+                    set(JobInputParametersTable.value, defaultMapper.writeValueAsString(value))
+                }
             }
         }
     }
 
-    suspend fun updateStatus(
+    suspend fun insertUpdate(
         ctx: DBContext,
-        systemId: String,
-        status: String? = null,
-        state: JobState? = null,
-        failedState: JobState? = null,
-        creditsCharged: Long? = null
+        jobId: String,
+        timestamp: Long,
+        state: JobState?,
+        status: String?
     ) {
-        if (status == null && state == null && failedState == null && creditsCharged == null) {
-            throw IllegalArgumentException("No changes are going to be made!")
+        if (state == null && status == null) {
+            throw IllegalArgumentException("Must supply at least one change")
         }
 
         ctx.withSession { session ->
-            val rowsAffected = session
+            session
                 .sendPreparedStatement(
                     {
-                        setParameter("systemId", systemId)
-                        setParameter("status", status)
-                        setParameter("failedState", failedState?.name)
+                        setParameter("jobId", jobId)
                         setParameter("state", state?.name)
-                        setParameter("creditsCharged", creditsCharged)
+                        setParameter("status", status)
+                        setParameter("ts", timestamp)
                     },
+
                     """
-                        update job_information
-                        set
-                            modified_at = now(),
-                            status = coalesce(:status::text, status),
-                            state = coalesce(:state::text, state),
-                            failed_state = coalesce(:failedState::text, failed_state),
-                            credits_charged = coalesce(:creditsCharged::bigint, 0) + coalesce(credits_charged, 0),
-                            started_at = (case
-                                when :state::text = 'RUNNING' then timezone('utc', now())
-                                else started_at
-                            end)
-                        where
-                            system_id = :systemId
+                        insert into job_updates values (
+                            :jobId, 
+                            to_timestamp(:timestamp / 1000) at time zone 'UTC', 
+                            :state::text, 
+                            :status::text
+                        )
                     """
                 )
-                .rowsAffected
-
-            if (rowsAffected != 1L) throw JobException.NotFound(systemId)
         }
     }
 
+    suspend fun updateCreditsCharged(
+        ctx: DBContext,
+        jobId: String,
+        creditsCharged: Long
+    ) {
+        ctx.withSession { session ->
+            val found = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("jobId", jobId)
+                        setParameter("creditsCharged", creditsCharged)
+                    },
+
+                    """
+                        update jobs
+                        set
+                            credits_charged = :creditsCharged::bigint + credits_charged
+                        where
+                            id = :jobId
+                    """
+                )
+                .rowsAffected != 1L
+
+            if (!found) throw JobException.NotFound(jobId)
+        }
+    }
 
     suspend fun deleteJobInformation(
         ctx: DBContext,
         appName: String,
         appVersion: String
     ) {
+        TODO("we probably still want a record of the job")
         ctx.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -153,7 +171,7 @@ class JobDao {
                     },
 
                     """
-                        delete from job_information  
+                        delete from jobs
                         where
                             application_name = :appName and
                             application_version = :appVersion
@@ -168,18 +186,14 @@ class JobDao {
                 .sendPreparedStatement(
                     {
                         setParameter("jobId", jobId)
-                        setParameter("hours", maxTime.hours)
-                        setParameter("minutes", maxTime.minutes)
-                        setParameter("seconds", maxTime.seconds)
+                        setParameter("millis", maxTime.toMillis())
                     },
                     """
-                        update job_information
+                        update jobs
                         set 
-                            max_time_hours = :hours,
-                            max_time_minutes = :minutes,
-                            max_time_seconds = :seconds
+                            time_allocation_millis = :millis
                         where
-                            system_id = :jobId
+                            id = :jobId
                     """
                 )
         }

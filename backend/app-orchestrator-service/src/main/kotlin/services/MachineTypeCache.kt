@@ -10,20 +10,15 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.SimpleCache
 
 class MachineTypeCache(private val serviceClient: AuthenticatedClient) {
-    val machines = SimpleCache<Unit, List<Product.Compute>> {
+    val machines = SimpleCache<String, List<Product.Compute>> { provider ->
         Products.retrieveAllFromProvider
-            .call(RetrieveAllFromProviderRequest(UCLOUD_PROVIDER), serviceClient)
+            .call(RetrieveAllFromProviderRequest(provider), serviceClient)
             .orThrow()
             .filterIsInstance<Product.Compute>()
     }
 
-    suspend fun find(name: String): Product.Compute? {
-        val machines = machines.get(Unit) ?: return null
-        return machines.find { it.id == name }
-    }
-
-    suspend fun findDefault(): Product.Compute {
-        // Machines should be ordered by their priority
-        return machines.get(Unit)?.firstOrNull() ?: throw IllegalStateException("No default machine exists")
+    suspend fun find(provider: String, id: String, category: String): Product.Compute? {
+        val machines = machines.get(provider) ?: return null
+        return machines.find { it.id == id && it.category.id == category && it.category.provider == provider }
     }
 }

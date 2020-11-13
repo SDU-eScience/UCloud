@@ -28,7 +28,7 @@ sealed class ApplicationDescription(val application: String) {
         val title: String,
         val description: String,
         invocation: List<Any>,
-        val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
+        val parameters: Map<String, ApplicationParameter> = emptyMap(),
         outputFileGlobs: List<String> = emptyList(),
         applicationType: String? = null,
         val vnc: VncDescription? = null,

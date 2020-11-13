@@ -59,7 +59,8 @@ data class WordInvocationParameter(val word: String) : InvocationParameter() {
     }
 }
 
-typealias AppParametersWithValues = Map<ApplicationParameter<*>, ParsedApplicationParameter?>
+typealias ParsedApplicationParameter = Any?
+typealias AppParametersWithValues = Map<ApplicationParameter, ParsedApplicationParameter?>
 
 data class VariableInvocationParameter(
     val variableNames: List<String>,
@@ -74,67 +75,70 @@ data class VariableInvocationParameter(
         parameters: AppParametersWithValues,
         context: InvocationParameterContext
     ): List<String> {
-        val prefixGlobal = this.prefixGlobal.trim()
-        val suffixGlobal = this.suffixGlobal.trim()
-        val prefixVariable = this.prefixVariable.trim()
-        val suffixVariable = this.suffixVariable.trim()
+        /*
+    val prefixGlobal = this.prefixGlobal.trim()
+    val suffixGlobal = this.suffixGlobal.trim()
+    val prefixVariable = this.prefixVariable.trim()
+    val suffixVariable = this.suffixVariable.trim()
 
-        val fieldToValue = parameters.filter { it.key.name in variableNames }
-        val nameToFieldAndValue = fieldToValue.entries.associateBy { it.key.name }
+    val fieldToValue = parameters.filter { it.key.name in variableNames }
+    val nameToFieldAndValue = fieldToValue.entries.associateBy { it.key.name }
 
-        // We assume that verification has already taken place. If we have no values it should mean that they are all
-        // optional. We don't include anything (including prefixGlobal) if no values were given.
-        if (fieldToValue.isEmpty()) {
-            return emptyList()
+    // We assume that verification has already taken place. If we have no values it should mean that they are all
+    // optional. We don't include anything (including prefixGlobal) if no values were given.
+    if (fieldToValue.isEmpty()) {
+        return emptyList()
+    }
+
+    val middlePart = variableNames.flatMap {
+        val fieldAndValue = nameToFieldAndValue[it] ?: return@flatMap emptyList<String>()
+        val value = fieldAndValue.value ?: return@flatMap emptyList<String>()
+
+        @Suppress("UNCHECKED_CAST")
+        val parameter = fieldAndValue.key as ApplicationParameter
+
+        val args = ArrayList<String>()
+        val mainArg = StringBuilder()
+        if (isPrefixVariablePartOfArg) {
+            mainArg.append(prefixVariable)
+        } else {
+            if (prefixVariable.isNotBlank()) {
+                args.add(prefixVariable)
+            }
         }
 
-        val middlePart = variableNames.flatMap {
-            val fieldAndValue = nameToFieldAndValue[it] ?: return@flatMap emptyList<String>()
-            val value = fieldAndValue.value ?: return@flatMap emptyList<String>()
 
-            @Suppress("UNCHECKED_CAST")
-            val parameter = fieldAndValue.key as ApplicationParameter<ParsedApplicationParameter>
+        mainArg.append(parameter.toInvocationArgument(value))
 
-            val args = ArrayList<String>()
-            val mainArg = StringBuilder()
-            if (isPrefixVariablePartOfArg) {
-                mainArg.append(prefixVariable)
-            } else {
-                if (prefixVariable.isNotBlank()) {
-                    args.add(prefixVariable)
-                }
+        if (isSuffixVariablePartOfArg) {
+            mainArg.append(suffixVariable)
+            args.add(mainArg.toString())
+        } else {
+            args.add(mainArg.toString())
+            if (suffixVariable.isNotBlank()) {
+                args.add(suffixVariable)
             }
-
-            mainArg.append(parameter.toInvocationArgument(value))
-
-            if (isSuffixVariablePartOfArg) {
-                mainArg.append(suffixVariable)
-                args.add(mainArg.toString())
-            } else {
-                args.add(mainArg.toString())
-                if (suffixVariable.isNotBlank()) {
-                    args.add(suffixVariable)
-                }
-            }
-
-            args
         }
 
-        return run {
-            val result = ArrayList<String>()
-            if (prefixGlobal.isNotBlank()) {
-                result.add(prefixGlobal)
-            }
+        args
+    }
 
-            result.addAll(middlePart)
-
-            if (suffixGlobal.isNotBlank()) {
-                result.add(suffixGlobal)
-            }
-
-            result
+    return run {
+        val result = ArrayList<String>()
+        if (prefixGlobal.isNotBlank()) {
+            result.add(prefixGlobal)
         }
 
+        result.addAll(middlePart)
+
+        if (suffixGlobal.isNotBlank()) {
+            result.add(suffixGlobal)
+        }
+
+        result
+    }
+         */
+        TODO()
     }
 }
 
@@ -149,6 +153,8 @@ data class BooleanFlagParameter(
         val parameter = parameters.filterKeys { it.name == variableName }.keys.singleOrNull()
             ?: return emptyList()
 
+        TODO()
+        /*
         val value = parameters[parameter] as? BooleanApplicationParameter ?: throw InvalidParamUsage(
             "Invalid type",
             this,
@@ -156,13 +162,16 @@ data class BooleanFlagParameter(
         )
 
         return if (value.value) listOf(flag.trim()) else emptyList()
+
+         */
     }
 }
+
 
 private data class InvalidParamUsage(
     val why: String,
     val param: InvocationParameter,
-    val parameters: Map<ApplicationParameter<*>, Any?>
+    val parameters: Map<ApplicationParameter, Any?>
 ) : RuntimeException(why) {
     override fun toString(): String {
         return "InvalidParamUsage(why='$why', param=$param, parameters=$parameters)"

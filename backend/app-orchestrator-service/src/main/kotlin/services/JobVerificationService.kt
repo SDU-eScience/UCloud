@@ -1,16 +1,12 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
 import dk.sdu.cloud.app.license.api.LicenseServerRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
@@ -19,38 +15,89 @@ import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.runBlocking
 import java.util.*
 
 data class UnverifiedJob(
-    val request: StartJobRequest,
-    val decodedToken: SecurityPrincipalToken,
-    val refreshToken: String,
-    val project: String?
+    val request: JobParameters,
+    val username: String,
+    val project: String?,
 )
 
 data class VerifiedJobWithAccessToken(
-    val job: VerifiedJob,
-    val accessToken: String?,
-    val refreshToken: String?
+    val job: Job,
+    val refreshToken: String,
 )
 
-private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransferDescription>, FileTransferDescription>
-
 class JobVerificationService(
-    private val appService: ApplicationService,
-    private val defaultBackend: String,
+    private val appService: AppStoreCache,
     private val db: DBContext,
     private val jobs: JobQueryService,
     private val serviceClient: AuthenticatedClient,
-    private val machineCache: MachineTypeCache
+    private val providers: Providers,
+    private val machineTypeCache: MachineTypeCache,
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
-        userClient: AuthenticatedClient
+        userClient: AuthenticatedClient,
     ): VerifiedJobWithAccessToken {
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
+
+        // Check provider support
+        val (provider, manifest) = providers.fetchManifest(unverifiedJob.request.product.provider)
+        run {
+            when (application.invocation.applicationType) {
+                ApplicationType.BATCH -> {
+                    if (!manifest.features.batch) {
+                        throw RPCException(
+                            "Batch applications are not supported at ${provider.id}",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+                }
+
+                ApplicationType.VNC -> {
+                    if (!manifest.features.vnc) {
+                        throw RPCException(
+                            "Interactive applications are not supported at ${provider.id}",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+                }
+
+                ApplicationType.WEB -> {
+                    if (!manifest.features.web) {
+                        throw RPCException(
+                            "Web applications are not supported at ${provider.id}",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+                }
+            }
+
+            when (tool.description.backend) {
+                ToolBackend.SINGULARITY -> {
+                    throw RPCException("Unsupported UCloud application. Please contact support.",
+                        HttpStatusCode.BadRequest)
+                }
+
+                ToolBackend.DOCKER -> {
+                    if (!manifest.features.docker) {
+                        throw RPCException(
+                            "Docker applications are not supported at ${provider.id}",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+                }
+            }
+        }
+
+        // Check product
+        val machine = machineTypeCache.find(
+            unverifiedJob.request.product.provider,
+            unverifiedJob.request.product.id,
+            unverifiedJob.request.product.category
+        ) ?: throw RPCException("Invalid machine type selected", HttpStatusCode.BadRequest)
 
         // Check input parameters
         val verifiedParameters = verifyParameters(
@@ -59,56 +106,43 @@ class JobVerificationService(
         )
 
         // Check files
-        val files = findAndCollectFromInput(
-            unverifiedJob.decodedToken.principal.username,
+        val files = collectFilesFromParameters(
+            unverifiedJob.username,
             application,
             verifiedParameters,
             userClient
         )
 
         // Check mounts
-        val mounts = findAndCollectFromMounts(
-            unverifiedJob.decodedToken.principal.username,
+        collectFilesFromMounts(
+            unverifiedJob.username,
             unverifiedJob,
             userClient
         )
 
-        // Check name
-        val name = unverifiedJob.request.name
-        if (name != null) {
-            val invalidChars = Regex("""([./\\\n])""")
-            if (invalidChars.containsMatchIn(name)) {
-                throw RPCException("Provided name not allowed", HttpStatusCode.BadRequest)
-            }
-        }
-
         // Check URL
-        val url = unverifiedJob.request.url
-        if (url != null) {
+        unverifiedJob.request.resources.filterIsInstance<AppParameterValue.Ingress>().forEach { ingress ->
+            val url = ingress.domain
             if (jobs.isUrlOccupied(db, url)) {
                 throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
             }
 
-            if (!jobs.canUseUrl(db, unverifiedJob.decodedToken.principal.username, url)) {
+            if (!jobs.canUseUrl(db, unverifiedJob.username, url)) {
                 throw RPCException("Not allowed to use selected URL", HttpStatusCode.BadRequest)
             }
         }
 
         // Check peers
-        val (allPeers, _) = run {
-            // TODO we should enforce in the app store that the parameter is a valid hostname
+        run {
             val parameterPeers = application.invocation.parameters
                 .filterIsInstance<ApplicationParameter.Peer>()
-                .map { parameter ->
-                    val peerApplicationParameter = verifiedParameters[parameter]!!
-                    ApplicationPeer(parameter.name, peerApplicationParameter.peerJobId)
-                }
+                .map { verifiedParameters[it.name] as AppParameterValue.Peer }
 
-            val allPeers = (unverifiedJob.request.peers + parameterPeers)
-                .map { ApplicationPeer(it.name.toLowerCase(), it.jobId) }
+            val allPeers =
+                unverifiedJob.request.resources.filterIsInstance<AppParameterValue.Peer>() + parameterPeers
 
             val duplicatePeers = allPeers
-                .map { it.name }
+                .map { it.hostname }
                 .groupBy { it }
                 .filter { it.value.size > 1 }
 
@@ -121,7 +155,7 @@ class JobVerificationService(
             val resolvedPeers = jobs.find(
                 db,
                 allPeers.map { it.jobId },
-                unverifiedJob.decodedToken.principal.username
+                unverifiedJob.username
             )
 
             val resolvedPeerIds = resolvedPeers.map { it.job.id }
@@ -130,18 +164,6 @@ class JobVerificationService(
             if (missingPeer != null) {
                 throw JobException.VerificationError("Could not find peer with id '${missingPeer.jobId}'")
             }
-
-            Pair(allPeers, resolvedPeers)
-        }
-
-        // Check machine reservation
-        val reservation = run {
-            val machineName = unverifiedJob.request.reservation
-            val reservation =
-                if (machineName != null) machineCache.find(machineName)
-                else machineCache.findDefault()
-
-            reservation ?: throw JobException.VerificationError("Invalid machine type")
         }
 
         // Verify membership of project
@@ -149,36 +171,32 @@ class JobVerificationService(
             Projects.viewMemberInProject.call(
                 ViewMemberInProjectRequest(
                     unverifiedJob.project,
-                    unverifiedJob.decodedToken.principal.username
+                    unverifiedJob.username
                 ),
                 serviceClient
             ).orNull() ?: throw RPCException("Unable to verify membership of project", HttpStatusCode.Forbidden)
         }
 
+        val id = UUID.randomUUID().toString()
         return VerifiedJobWithAccessToken(
-            VerifiedJob(
-                id = UUID.randomUUID().toString(),
-                name = name,
-                owner = unverifiedJob.decodedToken.principal.username,
-                application = application,
-                backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
-                nodes = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes,
-                maxTime = unverifiedJob.request.maxTime ?: tool.description.defaultTimeAllocation,
-                reservation = reservation,
-                jobInput = verifiedParameters,
-                files = files,
-                _mounts = mounts,
-                _peers = allPeers.toSet(),
-                currentState = JobState.IN_QUEUE,
-                failedState = null,
-                status = "Validated",
-                archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title,
-                startedAt = null,
-                url = url,
-                project = unverifiedJob.project
+            Job(
+                id,
+                JobOwner(
+                    unverifiedJob.username,
+                    unverifiedJob.project
+                ),
+                listOf(
+                    JobUpdate(
+                        id,
+                        System.currentTimeMillis(),
+                        JobState.IN_QUEUE,
+                        "UCloud has accepted your job into the queue"
+                    )
+                ),
+                JobBilling(creditsCharged = 0L, pricePerUnit = machine.pricePerUnit),
+                unverifiedJob.request.copy(parameters = verifiedParameters),
             ),
-            null,
-            unverifiedJob.refreshToken
+            "TO BE REPLACED"
         )
     }
 
@@ -194,182 +212,147 @@ class JobVerificationService(
         return result.copy(invocation = result.invocation.copy(tool = ToolReference(toolName, toolVersion, loadedTool)))
     }
 
+    private fun badValue(param: ApplicationParameter): Nothing {
+        throw RPCException("Bad value provided for '${param.name}'", HttpStatusCode.BadRequest)
+    }
+
     private suspend fun verifyParameters(
         app: Application,
-        job: UnverifiedJob
-    ): VerifiedJobInput {
-        val userParameters = job.request.parameters.toMutableMap()
-        return VerifiedJobInput(
-            app.invocation.parameters
-                .asSequence()
-                .map { appParameter ->
-                    if (appParameter is ApplicationParameter.LicenseServer) {
-                        val licenseServerId = userParameters[appParameter.name]
-                        if (licenseServerId != null) {
-                            // Transform license server
-                            val lookupLicenseServer = runBlocking {
-                                AppLicenseDescriptions.get.call(
-                                    LicenseServerRequest(licenseServerId.toString()),
-                                    serviceClient
-                                )
-                            }.orThrow()
+        job: UnverifiedJob,
+    ): Map<String, AppParameterValue> {
+        val userParameters = HashMap(job.request.parameters)
 
-                            userParameters[appParameter.name] = mapOf(
-                                "id" to licenseServerId,
-                                "address" to lookupLicenseServer.address,
-                                "port" to lookupLicenseServer.port,
-                                "license" to lookupLicenseServer.license
-                            )
-                        }
-                    }
-                    appParameter
+        // TODO FIXME IMPORTANT
+        // Check if we have any apps which use defaultValue for advanced types
+
+        for (param in app.invocation.parameters) {
+            var providedValue = userParameters[param.name]
+            if (!param.optional && param.defaultValue == null && providedValue == null) {
+                throw RPCException("Missing value for '${param.name}'", HttpStatusCode.BadRequest)
+            }
+
+            if (param.defaultValue == null && providedValue == null) {
+                providedValue = TODO("Extract default value")
+            }
+
+            check(providedValue != null)
+
+            when (param) {
+                is ApplicationParameter.InputDirectory, is ApplicationParameter.InputFile -> {
+                    if (providedValue !is AppParameterValue.File) badValue(param)
                 }
-                .map { appParameter ->
-                    try {
-                        appParameter to appParameter.map(userParameters[appParameter.name])
-                    } catch (ex: IllegalArgumentException) {
-                        log.debug(ex.stackTraceToString())
-                        log.debug("Invocation: ${app.invocation}")
-                        throw JobException.VerificationError("Bad parameter: ${appParameter.name}. ${ex.message}")
-                    }
+
+                is ApplicationParameter.Text -> {
+                    if (providedValue !is AppParameterValue.Text) badValue(param)
                 }
-                .map { paramWithValue ->
-                    // Fix path for InputFiles
-                    val (param, value) = paramWithValue
-                    if (param is ApplicationParameter.InputFile && value != null) {
-                        value as FileTransferDescription
-                        param to value.copy(
-                            invocationParameter = "/work/${
-                                value.source.parent().removeSuffix("/")
-                                    .fileName()
-                            }/${value.source.fileName()}"
-                        )
-                    } else {
-                        paramWithValue
-                    }
+
+                is ApplicationParameter.Integer -> {
+                    if (providedValue !is AppParameterValue.Integer) badValue(param)
                 }
-                .map { paramWithValue ->
-                    // Fix path for InputDirectory
-                    val (param, value) = paramWithValue
-                    if (param is ApplicationParameter.InputDirectory && value != null) {
-                        value as FileTransferDescription
-                        param to value.copy(
-                            invocationParameter = "/work/${value.source.normalize().fileName()}/"
-                        )
-                    } else {
-                        paramWithValue
-                    }
+
+                is ApplicationParameter.FloatingPoint -> {
+                    if (providedValue !is AppParameterValue.FloatingPoint) badValue(param)
                 }
-                .map { (param, value) ->
-                    param.name to value
+
+                is ApplicationParameter.Bool -> {
+                    if (providedValue !is AppParameterValue.Bool) badValue(param)
                 }
-                .toMap()
-        )
+
+                is ApplicationParameter.Enumeration -> {
+                    if (providedValue !is AppParameterValue.Text) badValue(param)
+                    val enumValue = param.options.find { it.name == providedValue.value } ?: badValue(param)
+
+                    userParameters[param.name] = AppParameterValue.Text(enumValue.value)
+                }
+
+                is ApplicationParameter.Peer -> {
+                    if (providedValue !is AppParameterValue.Peer) badValue(param)
+                }
+
+                is ApplicationParameter.LicenseServer -> {
+                    if (providedValue !is AppParameterValue.License) badValue(param)
+                    val license = AppLicenseDescriptions.get.call(
+                        LicenseServerRequest(providedValue.id),
+                        serviceClient
+                    ).orRethrowAs { badValue(param) }
+
+                    userParameters[param.name] = AppParameterValue.License(
+                        id = license.id,
+                        address = license.address,
+                        port = license.port,
+                        license = license.license
+                    )
+                }
+            }
+        }
+
+        return userParameters
     }
 
-    private suspend fun findAndCollectFromMounts(
+    private data class FilePathAndType(
+        val value: AppParameterValue.File,
+        val desiredFileType: FileType,
+        val name: String? = null,
+    )
+
+    private suspend fun collectFilesFromMounts(
         username: String,
         job: UnverifiedJob,
-        userClient: AuthenticatedClient
-    ): Set<ValidatedFileForUpload> {
-        val fakeParameter = ApplicationParameter.InputDirectory(name = "mount", optional = false)
-        val transfers = job.request.mounts
-            .mapNotNull { fakeParameter.map(it) }
-            .mapIndexed { i, transfer -> Pair(fakeParameter.copy(name = "mount-$i"), transfer) }
-        return collectAllFromTransfers(username, transfers, userClient)
+        userClient: AuthenticatedClient,
+    ) {
+        val transfers = job.request.resources
+            .filterIsInstance<AppParameterValue.File>()
+            .mapIndexed { i, transfer ->
+                FilePathAndType(transfer, FileType.DIRECTORY, "mount-$i")
+            }
+        return collectFileBatch(username, userClient, transfers)
     }
 
-    private suspend fun findAndCollectFromInput(
+    private suspend fun collectFilesFromParameters(
         username: String,
         application: Application,
-        verifiedParameters: VerifiedJobInput,
-        userClient: AuthenticatedClient
-    ): Set<ValidatedFileForUpload> {
+        verifiedParameters: Map<String, AppParameterValue>,
+        userClient: AuthenticatedClient,
+    ) {
         return coroutineScope {
             val transfersFromParameters = application.invocation.parameters
                 .asSequence()
                 .filter { it is ApplicationParameter.InputFile || it is ApplicationParameter.InputDirectory }
-                .mapNotNull {
-                    @Suppress("UNCHECKED_CAST")
-                    val fileAppParameter = it as ApplicationParameter<FileTransferDescription>
-                    val transfer = verifiedParameters[fileAppParameter] ?: return@mapNotNull null
-                    ParameterWithTransfer(fileAppParameter, transfer)
+                .mapNotNull { param ->
+                    val transfer = verifiedParameters[param.name] ?: return@mapNotNull null
+                    check(transfer is AppParameterValue.File)
+                    FilePathAndType(
+                        transfer,
+                        if (param is ApplicationParameter.InputFile) FileType.FILE else FileType.DIRECTORY,
+                        param.name
+                    )
                 }
                 .toList()
 
-            collectAllFromTransfers(username, transfersFromParameters, userClient)
+            collectFileBatch(username, userClient, transfersFromParameters)
         }
     }
 
-    data class HasPermissionForExistingMount(val hasPermissions: Boolean, val pathToFile: String?)
-
-    suspend fun hasPermissionsForExistingMounts(
-        jobWithToken: VerifiedJobWithAccessToken
-    ): HasPermissionForExistingMount {
-        val outputFolder = run {
-            val path = jobWithToken.job.outputFolder
-            if (path != null) {
-                listOf(ValidatedFileForUpload("", StorageFile(FileType.DIRECTORY, path), path, false))
-            } else {
-                emptyList()
-            }
-        }
-
-        val allFiles = jobWithToken.job.files + jobWithToken.job.mounts + outputFolder
-        val readOnlyFiles = allFiles.filter { it.readOnly }.map { it.sourcePath }
-        val readWriteFiles = allFiles.filter { !it.readOnly }.map { it.sourcePath }
-        if (readOnlyFiles.isNotEmpty()) {
-            val knowledge = FileDescriptions.verifyFileKnowledge.call(
-                VerifyFileKnowledgeRequest(jobWithToken.job.owner, readOnlyFiles, KnowledgeMode.Permission(false)),
-                serviceClient
-            ).orThrow()
-            val lackingPermissions = knowledge.responses.indexOf(false)
-            if (lackingPermissions != -1) {
-                return HasPermissionForExistingMount(false, readOnlyFiles[lackingPermissions])
-            }
-        }
-
-        if (readWriteFiles.isNotEmpty()) {
-            val knowledge = FileDescriptions.verifyFileKnowledge.call(
-                VerifyFileKnowledgeRequest(jobWithToken.job.owner, readWriteFiles, KnowledgeMode.Permission(true)),
-                serviceClient
-            ).orThrow()
-            val lackingPermissions = knowledge.responses.indexOf(false)
-            if (lackingPermissions != -1) {
-                return HasPermissionForExistingMount(false, readWriteFiles[lackingPermissions])
-            }
-        }
-
-        return HasPermissionForExistingMount(true, null)
-    }
-
-    private suspend fun collectAllFromTransfers(
+    private suspend fun collectFileBatch(
         username: String,
-        transfers: List<ParameterWithTransfer>,
-        userClient: AuthenticatedClient
-    ): Set<ValidatedFileForUpload> {
+        userClient: AuthenticatedClient,
+        transfers: List<FilePathAndType>,
+    ) {
         return coroutineScope {
             transfers
-                .map { (parameter, transfer) ->
-                    async { collectSingleFile(username, transfer, userClient, parameter) }
-                }
-                .mapNotNull { it.await() }
+                .map { async { collectSingleFile(username, userClient, it) } }
+                .map { it.await() }
                 .toSet()
         }
     }
 
     private suspend fun collectSingleFile(
         username: String,
-        transferDescription: FileTransferDescription,
         userClient: AuthenticatedClient,
-        fileAppParameter: ApplicationParameter<FileTransferDescription>
-    ): ValidatedFileForUpload? {
-        val desiredFileType = when (fileAppParameter) {
-            is ApplicationParameter.InputDirectory -> FileType.DIRECTORY
-            else -> FileType.FILE
-        }
-
-        val sourcePath = transferDescription.source
+        fileToCollect: FilePathAndType,
+    ) {
+        val (param, desiredFileType, paramName) = fileToCollect
+        val sourcePath = param.path
         val stat = FileDescriptions.stat.call(StatRequest(sourcePath), userClient)
             .orThrowOnError {
                 throw JobException.VerificationError("File not found or permission denied: $sourcePath")
@@ -378,7 +361,7 @@ class JobVerificationService(
 
         if (stat.fileType != desiredFileType) {
             throw JobException.VerificationError(
-                "Expected type of ${fileAppParameter.name} to be " +
+                "Expected type of ${paramName} to be " +
                     "$desiredFileType, but instead got a ${stat.fileType}"
             )
         }
@@ -402,12 +385,62 @@ class JobVerificationService(
 
         val hasWritePermission = res.responses.single()
 
-        return ValidatedFileForUpload(
-            fileAppParameter.name,
-            fileToMount,
-            fileToMount.path,
-            readOnly = !hasWritePermission
-        )
+        param.readOnly = param.readOnly || !hasWritePermission
+    }
+
+    data class HasPermissionForExistingMount(val hasPermissions: Boolean, val pathToFile: String?)
+
+    suspend fun hasPermissionsForExistingMounts(
+        jobWithToken: VerifiedJobWithAccessToken,
+    ): HasPermissionForExistingMount {
+        val outputFolder = run {
+            val path = jobWithToken.job.output?.outputFolder
+            if (path != null) {
+                listOf(AppParameterValue.File(path, false))
+            } else {
+                emptyList()
+            }
+        }
+
+        val job = jobWithToken.job
+        val parameters = job.parameters ?: return HasPermissionForExistingMount(false, "/")
+        val allFiles =
+            parameters.parameters.values.filterIsInstance<AppParameterValue.File>() +
+                parameters.resources.filterIsInstance<AppParameterValue.File>() +
+                outputFolder
+        val readOnlyFiles = allFiles.filter { it.readOnly }.map { it.path }
+        val readWriteFiles = allFiles.filter { !it.readOnly }.map { it.path }
+        if (readOnlyFiles.isNotEmpty()) {
+            val knowledge = FileDescriptions.verifyFileKnowledge.call(
+                VerifyFileKnowledgeRequest(
+                    jobWithToken.job.owner.launchedBy,
+                    readOnlyFiles,
+                    KnowledgeMode.Permission(false)
+                ),
+                serviceClient
+            ).orThrow()
+            val lackingPermissions = knowledge.responses.indexOf(false)
+            if (lackingPermissions != -1) {
+                return HasPermissionForExistingMount(false, readOnlyFiles[lackingPermissions])
+            }
+        }
+
+        if (readWriteFiles.isNotEmpty()) {
+            val knowledge = FileDescriptions.verifyFileKnowledge.call(
+                VerifyFileKnowledgeRequest(
+                    jobWithToken.job.owner.launchedBy,
+                    readWriteFiles,
+                    KnowledgeMode.Permission(true)
+                ),
+                serviceClient
+            ).orThrow()
+            val lackingPermissions = knowledge.responses.indexOf(false)
+            if (lackingPermissions != -1) {
+                return HasPermissionForExistingMount(false, readWriteFiles[lackingPermissions])
+            }
+        }
+
+        return HasPermissionForExistingMount(true, null)
     }
 
     companion object : Loggable {

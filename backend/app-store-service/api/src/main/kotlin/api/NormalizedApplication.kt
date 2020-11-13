@@ -39,7 +39,7 @@ data class ContainerDescription(
 data class ApplicationInvocationDescription(
     val tool: ToolReference,
     val invocation: List<InvocationParameter>,
-    val parameters: List<ApplicationParameter<*>>,
+    val parameters: List<ApplicationParameter>,
     val outputFileGlobs: List<String>,
     val applicationType: ApplicationType = ApplicationType.BATCH,
     val vnc: VncDescription? = null,
