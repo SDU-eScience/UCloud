@@ -218,37 +218,8 @@ class MockHttpClient {
             window.location.href = this.context + "/app/";
     }
 
-    private refresh(): Promise<string> {
-        return new Promise<string>(() => "Hello");
-    }
-
-    private isTokenExpired = () => false;
-
-    private missingAuth(): 0 | MissingAuthError {
-        return 0;
-    }
-
-    private retrieveToken(disallowProjects: boolean): string {
-        return HttpClient.storedAccessToken;
-    }
-
     private useProjectToken(disallowProjects: boolean): boolean {
         return this.projectId !== undefined && !disallowProjects;
-    }
-
-    private decodeToken(accessToken: string): {payload: JWT} | never {
-        const bail = (): never => {
-            HttpClient.clearTokens();
-            this.openBrowserLoginPage();
-            return void (0) as never;
-        };
-        try {
-            const token = {payload: parseJWT(accessToken)};
-            if (token.payload == null) return bail();
-            return token;
-        } catch (e) {
-            return bail();
-        }
     }
 }
 
