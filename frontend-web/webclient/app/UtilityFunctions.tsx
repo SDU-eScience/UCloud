@@ -240,6 +240,11 @@ export const isExtPreviewSupported = (ext: string): boolean => {
         case "mov":
         case "wmv":
         case "log":
+        case "f":
+        case "for":
+        case "f90":
+        case "f95":
+        case "ini":
             return true;
         default:
             return false;
