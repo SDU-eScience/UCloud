@@ -229,8 +229,11 @@ Steps:
 9. `audit2` moves the file to the project
 
 Verification:
+
 Be aware that the responses contain project IDs that changes for each test. These are noted as PROJECTID in the response
+
 ---
+
 Request #1:
 
 ```
