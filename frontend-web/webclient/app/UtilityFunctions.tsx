@@ -12,6 +12,10 @@ import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
 import {JWT} from "Authentication/lib";
 
+/**
+ * Toggles CSS classes to use dark theme.
+ * @param light the theme to be changed to.
+ */
 export function toggleCssColors(light: boolean): void {
     const html = document.querySelector("html")!;
     if (light) {
@@ -45,7 +49,7 @@ export function isLightThemeStored(): boolean {
 }
 
 /**
- * Capitalizes the input string
+ * Capitalizes the input string.
  * @param str string to be capitalized
  * @return {string}
  */
@@ -74,7 +78,7 @@ export const extensionFromPath = (path: string): string => {
 };
 
 export type ExtensionType =
-    null
+    | null
     | "code"
     | "image"
     | "text"
@@ -288,7 +292,7 @@ export const iconFromFilePath = (
 };
 
 /**
- *
+ * Calculates if status number is in a given range.
  * @param params: { status, min, max } (both inclusive)
  */
 export const inRange = ({status, min, max}: {status: number; min: number; max: number}): boolean =>
@@ -314,7 +318,7 @@ export const downloadAllowed = (files: File[]): boolean => files.every(f => f.se
 
 /**
  * Capitalizes the input string and replaces _ (underscores) with whitespace.
- * @param str
+ * @param str input string.
  */
 export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
@@ -365,8 +369,13 @@ export function sortByToPrettierString(sortBy: SortBy): string {
     }
 }
 
+/**
+ * Requests full screen on an HTML element. Handles both Safari fullscreen, and Chrome/Firefox.
+ * @param el The element to be fullscreened.
+ * @param onFailure Method called if fullscreen can't be done.
+ */
 export function requestFullScreen(el: Element, onFailure: () => void): void {
-    // @ts-ignore
+    // @ts-expect-error - Handles the fullscreen request for Safari.
     if (el.webkitRequestFullScreen) el.webkitRequestFullScreen();
     else if (el.requestFullscreen) el.requestFullscreen();
     else onFailure();
@@ -381,6 +390,13 @@ export function timestampUnixMs(): number {
         Date.now();
 }
 
+/**
+ * Used to format numbers to a more human readable number by dividing it up by thousands and using custom delimiters.
+ * @param value numerical value to be formatted.
+ * @param sectionDelim used for deliminate every thousand. Default: , 
+ * @param decimalDelim used to deliminate the decimals. Default: .
+ * @param numDecimals number of decimals in the formatted number. Default: 2
+ */
 export function humanReadableNumber(
     value: number,
     sectionDelim = ",",
@@ -400,6 +416,10 @@ interface CopyToClipboard {
     message: string;
 }
 
+/**
+ * Copies a string to the users clipboard.
+ * @param param0 contains the value to be copied and the message to show the user on success. 
+ */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
     const input = document.createElement("input");
     input.value = value ?? "";
@@ -434,6 +454,10 @@ export function delay(ms: number): Promise<void> {
     });
 }
 
+/**
+ * A function used to check if the DEVELOPMENT_ENV variable is set to true. Used to block features that are in progress,
+ * even if the code may be deployed on production.
+ */
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
 
 export const generateId = ((): (target: string) => string => {
@@ -445,18 +469,33 @@ export const generateId = ((): (target: string) => string => {
     };
 })();
 
+/**
+ * Helper function intended for use in cases: `e => e.stopPropagation` so one instead can write `stopPropagation`.
+ * @param e Event object to stop propagation for.
+ */
 export function stopPropagation(e: {stopPropagation(): void}): void {
     e.stopPropagation();
 }
 
+/**
+ * Helper function intended for use in cases: `e => e.preventDefault` so one instead can write `preventDefault`.
+ * @param e Event object to preventDefault for.
+ */
 export function preventDefault(e: {preventDefault(): void}): void {
     e.preventDefault();
 }
 
+/**
+ * A no op function.
+ */
 export function doNothing(): void {
     return undefined;
 }
 
+/**
+ * Calls both stopProgation and preventDefault for 
+ * @param e to stop propagation and preventdefault for.
+ */
 export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}): void {
     preventDefault(e);
     stopPropagation(e);
@@ -466,18 +505,32 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
     snackbarStore.addFailure(errorMessageOrDefault(e, fallback), false);
 }
 
+/**
+ * Used to know to hide the header and sidebar in some cases.
+ */
 export function shouldHideSidebarAndHeader(): boolean {
     return ["/app/login", "/app/login/wayf", "/app/login/selection"]
         .includes(window.location.pathname) || window.location.search === "?dav=true";
 }
 
+/**
+ * Matches the CSS rule to see if the user's system uses a dark theme.
+ * Used to set the theme variable if the user has not explicitely set the theme on the site.
+ */
 export function getUserThemePreference(): "light" | "dark" {
     // options: dark, light and no-preference
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
     return "light";
 }
 
-
+/**
+ * Used when a user clicks a notification to handle what happens based on the notification type.
+ * @param history used for redirection in some cases.
+ * @param setProject used for setting the active project for some cases.
+ * @param notification the notification that is being handled.
+ * @param projectNames existing project names, used to map id to shown project name.
+ * @param markAsRead used to mark the notification as read.
+ */
 export function onNotificationAction(
     history: History,
     setProject: (projectId: string) => void,
@@ -523,6 +576,11 @@ export function onNotificationAction(
     markAsRead(notification.id);
 }
 
+/**
+ * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as 
+ * a an object.
+ * @param encodedJWT The JWT sent from the backend, in the form of a string.
+ */
 export function parseJWT(encodedJWT: string): JWT | null {
     const [, right] = encodedJWT.split(".");
     if (right == null) return null;
