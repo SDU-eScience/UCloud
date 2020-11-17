@@ -9,7 +9,7 @@ Placeholders:
 
 - `$DATE` should be replaced with the current date (format YYYY.MM.DD)
 - `$USERNAME` should be replaced with your username
-- `$ELASTIC_USER` should be a admin user of the elastic cluster
+- `$ELASTIC_USER` an admin user of the elastic cluster
 - `$ELASTIC_PASSWORD` matching password of the admin user
 
 Steps:
@@ -167,7 +167,7 @@ AND
 
 ---
 
-Request #6:
+Request #6 (finds both the favorite and unfavorite):
 
 ```
 curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.favorite.togglefavorite-$DATE/_search?pretty -d '
@@ -203,17 +203,17 @@ feed visible on UCloud.
 ## Internal Auditing: #2 Project Activity
 
 This Audit requires 3 different users. 
-There have been created 2 users on the production system to help with this test:
+There has been created 2 users on the production system to help with this test:
 - `audit1`
 - `audit2`
 
-The person responsible for logging has the 2FA and other credentials to these users.
+The person responsible for our logging architecture has the 2FA and other credentials to these users.
 
 Placeholders:
 
 - `$DATE` should be replaced with the current date (format YYYY.MM.DD)
 - `$USERNAME` should be replaced with your username
-- `$ELASTIC_USER` should be a admin user of the elastic cluster
+- `$ELASTIC_USER` an admin user of the elastic cluster
 - `$ELASTIC_PASSWORD` matching password of the admin user
 
 Steps:
