@@ -34,7 +34,7 @@ class JobController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Jobs.create) {
             verifySlaFromPrincipal()
-            jobOrchestrator.startJob()
+            jobOrchestrator.startJob(request, ctx.bearer!!, ctx.securityPrincipal, ctx.project)
             TODO()
         }
 

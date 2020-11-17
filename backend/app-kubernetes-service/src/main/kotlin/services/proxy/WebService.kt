@@ -45,7 +45,7 @@ class WebService(
     private val devMode: Boolean = false
 ) {
     fun install(routing: Route): Unit = with(routing) {
-        TODO()
+        // TODO()
         /*
         // Called when entering the application. This sets the cookie containing the refresh token.
         get("${AppKubernetesDescriptions.baseContext}/authorize-app/{id}") {

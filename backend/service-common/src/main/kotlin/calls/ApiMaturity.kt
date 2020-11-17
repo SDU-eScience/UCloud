@@ -1,5 +1,9 @@
 package dk.sdu.cloud.calls
 
+import kotlin.reflect.KProperty
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.memberProperties
+
 /**
  * Reserved for internal APIs, provides no guarantees wrt. stability
  *
@@ -17,12 +21,8 @@ package dk.sdu.cloud.calls
  *       perfectly okay)
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FIELD, AnnotationTarget.TYPEALIAS)
-annotation class UCloudApiInternal(val level: Level) {
-    enum class Level {
-        BETA,
-        STABLE
-    }
-}
+annotation class UCloudApiInternal(val level: InternalLevel)
+typealias InternalLevel = UCloudApiMaturity.Internal.Level
 
 /**
  * Used for APIs which are maturing into a stable state, provides some guarantees wrt. stability
@@ -46,56 +46,52 @@ annotation class UCloudApiInternal(val level: Level) {
  * External clients are encouraged to use beta-level APIs and to try out alpha-level APIs.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FIELD, AnnotationTarget.TYPEALIAS)
-annotation class UCloudApiExperimental(val level: Level) {
-    enum class Level {
-        ALPHA,
-        BETA
-    }
-}
+annotation class UCloudApiExperimental(val level: ExperimentalLevel)
+typealias ExperimentalLevel = UCloudApiMaturity.Experimental.Level
 
 /**
  * Used for mature and stable APIs, provides strong guarantees wrt. stability
- * 
+ *
  * A stable API is considered done and will require a deprecation cycle for any breaking change to be made. The only
  * exception to this rule is if the change is required for security reasons. See below for a definition of a breaking
  * change. Stable APIs must be documented.
- * 
+ *
  * The deprecation cycle is as follows:
- * 
+ *
  *   1. Mark the API with `@Deprecated`
  *   2. Implement a replacement (if relevant)
  *   3. Develop a migration path and announce removal date
  *     - Note: This is a a rough time-frame, will not be removed earlier than announced
  *     - Note: Migration path and removal date will be released at least 6 months before removal of old API
  *   4. No earlier than announced removal date, remove the functionality
- * 
+ *
  * Note: Security patches do not follow the deprecation cycle. Instead,
  * security patches are released as quickly as possible. Migration paths,
  * if needed, will be released later.
- * 
+ *
  * ## Definition of a breaking change
- * 
+ *
  * Breaking changes can be considered in different contexts, these are as follows:
- * 
+ *
  * - Source code compatibility (Kotlin `api` module)
  * - Binary code compatibility (Kotlin `api` module)
  * - Network-level compatibility
- * 
+ *
  * For the time being we will only consider network-level compatibility.
  * In the future we might consider source code compatibility and binary code
  * compatibility.
- * 
+ *
  * The contract of an API is defined by its documentation.
- * 
+ *
  * A UCloud API is backwards compatible at the network-level if:
- * 
+ *
  * - A valid request payload of a previous version is still supported in the new version
  * - Fields which were mandatory in a previous version are still mandatory and returned. In other words, the API must
  *   return a super-set of the previous response payload.
  * - The API follows the same contract as the previous version
- * 
+ *
  * This means that the following is not considered a breaking change:
- * 
+ *
  * - Adding an optional field anywhere in the response payload
  *   - Developer note: be careful with types which are used as part of request
  *   and response
@@ -103,12 +99,68 @@ annotation class UCloudApiExperimental(val level: Level) {
  * - Marking an optional field anywhere in the response payload as mandatory
  * - Any change which changes the implementation while still conforming to the contract
  * - Clarifying the API contract
- * 
+ *
  * The following is considered a breaking change:
- * 
+ *
  * - Marking a mandatory field in the response payload as optional
  * - Marking an optional field anywhere in the request payload as mandatory
  * - Changing the API contract
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FIELD, AnnotationTarget.TYPEALIAS)
 annotation class UCloudApiStable
+
+sealed class UCloudApiMaturity {
+    data class Internal(val level: Level) : UCloudApiMaturity() {
+        enum class Level {
+            BETA,
+            STABLE
+        }
+    }
+
+    data class Experimental(val level: Level) : UCloudApiMaturity() {
+        enum class Level {
+            ALPHA,
+            BETA
+        }
+    }
+
+    object Stable : UCloudApiMaturity()
+}
+
+val CallDescription<*, *, *>.field: KProperty1<CallDescriptionContainer, *>?
+    get() {
+        val call = this
+        return call.containerRef.javaClass.kotlin.memberProperties.find {
+            runCatching {
+                val value = it.get(call.containerRef)
+                val maybeCall = value as? CallDescription<*, *, *>
+                maybeCall != null && maybeCall.name == call.name && maybeCall.namespace == call.namespace
+            }.getOrElse { false }
+        }
+    }
+
+val CallDescription<*, *, *>.apiMaturityOrNull: UCloudApiMaturity?
+    get() {
+        val callMaturity = findApiMaturity(field?.annotations ?: emptyList())
+        if (callMaturity != null)  return callMaturity
+        return findApiMaturity(containerRef.javaClass.kotlin.annotations)
+    }
+
+private fun findApiMaturity(annotations: List<Annotation>): UCloudApiMaturity? {
+    annotations
+        .singleOrNull {
+            it is UCloudApiInternal ||
+                it is UCloudApiExperimental ||
+                it is UCloudApiStable
+        }
+        ?.let {
+            return when (it) {
+                is UCloudApiInternal -> UCloudApiMaturity.Internal(it.level)
+                is UCloudApiExperimental -> UCloudApiMaturity.Experimental(it.level)
+                is UCloudApiStable -> UCloudApiMaturity.Stable
+                else -> null
+            }
+        }
+
+    return null
+}

@@ -52,7 +52,7 @@ enum class JobState {
         }
 }
 
-@UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class Job(
     @UCloudApiDoc(
         "Unique identifier for this job.\n\n" +
@@ -96,7 +96,7 @@ data class JobBilling(
     val pricePerUnit: Long
 )
 
-@UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class JobOwner(
     @UCloudApiDoc("The username of the user which started the job")
     val launchedBy: String,
@@ -285,7 +285,7 @@ val Job.blockStorage: List<AppParameterValue.BlockStorage>
 val Job.currentState: JobState
     get() = updates.findLast { it.state != null }?.state ?: error("job contains no states")
 
-@UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object Jobs : CallDescriptionContainer("jobs") {
     const val baseContext = "/api/jobs"
 
@@ -316,7 +316,7 @@ object Jobs : CallDescriptionContainer("jobs") {
                 deleted only temporary data from the job will be deleted.
                 
                 This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
-                be followed using the ${docRef(::retrieve)}, ${docRef(::browse)}, ${docRef(::follow)} calls.
+                be followed using the ${docCallRef(::retrieve)}, ${docCallRef(::browse)}, ${docCallRef(::follow)} calls.
             """.trimIndent()
         }
     }

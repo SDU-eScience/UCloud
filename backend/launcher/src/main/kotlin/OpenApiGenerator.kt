@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
+import dk.sdu.cloud.app.orchestrator.api.Compute
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingRequestInterceptor
@@ -27,6 +29,7 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.servers.Server
 import io.swagger.v3.oas.models.tags.Tag
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.*
 import java.math.BigDecimal
@@ -43,11 +46,130 @@ private val componentsRef = "#/components/schemas/"
 
 @OptIn(ExperimentalStdlibApi::class)
 fun main() {
+    val reg = ServiceRegistry(arrayOf("--dev"), PlaceholderServiceDescription)
+    val knownCalls = ArrayList<CallDescription<*, *, *>>()
+    reg.rootMicro.server.attachRequestInterceptor(object : IngoingRequestInterceptor<HttpCall, HttpCall.Companion> {
+        override val companion = HttpCall.Companion
+        override fun addCallListenerForCall(call: CallDescription<*, *, *>) {
+            knownCalls.add(call)
+        }
+
+        override suspend fun <R : Any> parseRequest(ctx: HttpCall, call: CallDescription<R, *, *>): R {
+            error("Will not parse")
+        }
+
+        override suspend fun <R : Any, S : Any, E : Any> produceResponse(
+            ctx: HttpCall,
+            call: CallDescription<R, S, E>,
+            callResult: OutgoingCallResponse<S, E>
+        ) {
+            error("Will not respond")
+        }
+    })
+
+    services.forEach { objectInstance ->
+        try {
+            Launcher.log.trace("Registering ${objectInstance.javaClass.canonicalName}")
+            reg.register(objectInstance)
+        } catch (ex: Throwable) {
+            Launcher.log.error("Caught error: ${ex.stackTraceToString()}")
+        }
+    }
+
+    reg.start(wait = false)
+
+    val log = LoggerFactory.getLogger("dk.sdu.cloud.OpenApiGenerator")
+    val maturityWarnings = HashSet<String>()
+    fun warnMissingMaturity(call: CallDescription<*, *, *>) {
+        if (!maturityWarnings.contains(call.namespace)) {
+            maturityWarnings.add(call.namespace)
+            log.warn("${call.namespace} has no maturity associated with it")
+            log.warn("Future warnings for this namespace will be supressed")
+        }
+    }
+
+    val groupedCalls = knownCalls.groupBy { call ->
+        val maturity = call.apiMaturityOrNull
+        if (maturity == null) {
+            warnMissingMaturity(call)
+        }
+
+        maturity ?: UCloudApiMaturity.Internal(InternalLevel.BETA)
+    }
+
+    writeSpecification(
+        groupedCalls.filterKeys { it is UCloudApiMaturity.Internal }.values.flatten().toMutableList(),
+        File("/tmp/swagger/internal"),
+        subtitle = "Internal API"
+    )
+    writeSpecification(
+        groupedCalls.filterKeys { it !is UCloudApiMaturity.Internal }.values.flatten().toMutableList(),
+        File("/tmp/swagger/public"),
+        subtitle = "Public API"
+    )
+
+    run {
+        // Provider calls
+        val calls = buildList {
+            addAll(Compute("PROVIDERID").callContainer)
+            addAll(JobsControl.callContainer)
+        }
+
+        writeSpecification(
+            calls.toMutableList(),
+            File("/tmp/swagger/providers"),
+            subtitle = "Provider API"
+        )
+    }
+    exitProcess(0)
+}
+
+private fun badge(
+    label: String,
+    message: String,
+    color: String,
+    altText: String = "$label: $message"
+): String {
+    return "![$altText](https://img.shields.io/static/v1?label=$label&message=$message&color=$color&style=flat-square)"
+}
+
+private fun apiMaturityBadge(level: UCloudApiMaturity): String {
+    val label = "API"
+    fun normalizeEnum(enum: Enum<*>): String {
+        return enum.name.toLowerCase().capitalize()
+    }
+    return when (level) {
+        is UCloudApiMaturity.Internal -> badge(label, "Internal/${normalizeEnum(level.level)}", "red")
+        is UCloudApiMaturity.Experimental -> badge(label, "Experimental/${normalizeEnum(level.level)}", "orange")
+        UCloudApiMaturity.Stable -> badge(label, "Stable", "green")
+    }
+}
+
+private fun rolesBadge(roles: Set<Role>): String {
+    val message = when (roles) {
+        Roles.AUTHENTICATED -> "Authenticated"
+        Roles.PRIVILEGED -> "Services"
+        Roles.END_USER -> "Users"
+        Roles.ADMIN -> "Admin"
+        Roles.PUBLIC -> "Public"
+        Roles.PROVIDER -> "Provider"
+        else -> roles.joinToString(", ")
+    }
+
+    return badge("Auth", message, "informational")
+}
+
+private fun writeSpecification(
+    knownCalls: MutableList<CallDescription<*, *, *>>,
+    output: File,
+    subtitle: String? = null,
+    documentation: String? = null
+) {
     val doc = OpenAPI().apply {
         servers = listOf(Server().url("https://cloud.sdu.dk"))
         info = Info().apply {
             version = "1.0.0"
-            title = "UCloud"
+            title = "UCloud" + if (subtitle == null) "" else " | $subtitle"
             license = License().apply {
                 name = "EUPL-1.2"
                 url = "https://github.com/SDU-eScience/UCloud/blob/master/LICENSE.md"
@@ -57,6 +179,7 @@ fun main() {
             contact = Contact().apply {
                 email = "support@escience.sdu.dk"
             }
+            this.description = documentation
         }
 
         externalDocs = ExternalDocumentation().apply {
@@ -66,39 +189,6 @@ fun main() {
         // NOTE(Dan): Currently made to be rendered by https://github.com/Redocly/redoc
 
         val typeRegistry = LinkedHashMap<String, ComputedType>()
-
-        val reg = ServiceRegistry(arrayOf("--dev"), PlaceholderServiceDescription)
-        val knownCalls = ArrayList<CallDescription<*, *, *>>()
-        reg.rootMicro.server.attachRequestInterceptor(object : IngoingRequestInterceptor<HttpCall, HttpCall.Companion> {
-            override val companion = HttpCall.Companion
-            override fun addCallListenerForCall(call: CallDescription<*, *, *>) {
-                knownCalls.add(call)
-            }
-
-            override suspend fun <R : Any> parseRequest(ctx: HttpCall, call: CallDescription<R, *, *>): R {
-                error("Will not parse")
-            }
-
-            override suspend fun <R : Any, S : Any, E : Any> produceResponse(
-                ctx: HttpCall,
-                call: CallDescription<R, S, E>,
-                callResult: OutgoingCallResponse<S, E>
-            ) {
-                error("Will not respond")
-            }
-        })
-
-        services.forEach { objectInstance ->
-            try {
-                Launcher.log.trace("Registering ${objectInstance.javaClass.canonicalName}")
-                reg.register(objectInstance)
-            } catch (ex: Throwable) {
-                Launcher.log.error("Caught error: ${ex.stackTraceToString()}")
-            }
-        }
-
-        reg.start(wait = false)
-
         tags = arrayListOf()
         paths = Paths()
         components = Components()
@@ -124,13 +214,7 @@ fun main() {
                     }
 
                     val doc = call.docOrNull
-                    val matchingField = call.containerRef.javaClass.kotlin.memberProperties.find {
-                        runCatching {
-                            val value = it.get(call.containerRef)
-                            val maybeCall = value as? CallDescription<*, *, *>
-                            maybeCall != null && maybeCall.name == call.name && maybeCall.namespace == call.namespace
-                        }.getOrElse { false }
-                    }
+                    val matchingField = call.field
 
                     if (matchingField == null) {
                         Launcher.log.warn("Could not find call $call")
@@ -147,8 +231,16 @@ fun main() {
                         HttpMethod.Patch -> pathItem.patch = op
                     }
 
+                    val maturity = call.apiMaturityOrNull ?: UCloudApiMaturity.Internal(InternalLevel.BETA)
+
+                    op.description = """
+                        ${apiMaturityBadge(maturity)}
+                        ${rolesBadge(call.authDescription.roles)}
+                        
+                        
+                    """.trimIndent()
                     if (doc != null) {
-                        op.description = doc.description
+                        if (doc.description != null) op.description += doc.description
                         op.summary = doc.summary + " (${call.name})"
                         op.deprecated = matchingField?.hasAnnotation<Deprecated>()
                     }
@@ -162,8 +254,10 @@ fun main() {
                                 if (json != null) {
                                     json.examples = LinkedHashMap()
                                     for (example in doc.examples) {
-                                        if (example.statusCode.isSuccess()) {
-                                            json.examples[example.name] = createExample(example)
+                                        if (example.statusCode.isSuccess() && example.response != null) {
+                                            json.examples[example.name] = createExample(example).apply {
+                                                value = example.response
+                                            }
                                         }
                                     }
                                     if (json.examples.isEmpty()) json.examples = null
@@ -174,11 +268,16 @@ fun main() {
                         doc?.examples?.groupBy { it.statusCode }?.filterKeys { !it.isSuccess() }
                             ?.forEach { (code, examples) ->
                                 set(code.value.toString(), apiResponse(call.errorType.type, typeRegistry).apply {
+                                    this.description = code.description
                                     val json = this.content[ContentType.Application.Json.toString()]
                                     if (json != null) {
                                         json.examples = LinkedHashMap()
                                         for (example in examples) {
-                                            json.examples[example.name] = createExample(example)
+                                            if (example.error != null) {
+                                                json.examples[example.name] = createExample(example).apply {
+                                                    value = example.error
+                                                }
+                                            }
                                         }
                                         if (json.examples.isEmpty()) json.examples = null
                                     }
@@ -206,7 +305,11 @@ fun main() {
                                 if (doc != null && body is HttpBody.BoundToEntireRequest<*>) {
                                     examples = LinkedHashMap()
                                     doc.examples.forEach { example ->
-                                        examples[example.name] = createExample(example)
+                                        if (example.request != null) {
+                                            examples[example.name] = createExample(example).apply {
+                                                value = example.request
+                                            }
+                                        }
                                     }
                                     if (examples.isEmpty()) examples = null
                                 }
@@ -218,13 +321,11 @@ fun main() {
                     val params = http.params
                     if (params != null) {
                         val requestType = traverseType(call.requestType.type, typeRegistry) as? ComputedType.Struct
-                            ?: error("Query params bound to a non-class")
+                            ?: error("Query params bound to a non-class ${call.fullName}")
 
                         op.parameters = params.parameters.map { p ->
                             when (p) {
                                 is HttpQueryParameter.Property<*, *> -> {
-                                    val type = p.property.returnType.javaType
-
                                     Parameter().apply {
                                         name = p.property.name
                                         schema = requestType.properties[name]!!.toOpenApiSchema()
@@ -242,17 +343,15 @@ fun main() {
         }.toMap()
     }
 
-    val output = File("/tmp/swagger").also { it.mkdirs() }
+    output.mkdirs()
     File(output, "swagger.yaml").writeText(Yaml.pretty(doc))
     File(output, "swagger.json").writeText(Json.pretty(doc))
-    exitProcess(0)
 }
 
 private fun createExample(example: UCloudCallDoc.Example<out Any, out Any, out Any>): Example {
     return Example().apply {
         summary = example.summary
         description = example.description
-        value = example.response
     }
 }
 

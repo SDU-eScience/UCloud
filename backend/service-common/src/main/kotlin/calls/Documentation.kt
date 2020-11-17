@@ -2,7 +2,10 @@ package dk.sdu.cloud.calls
 
 import io.ktor.http.*
 import org.intellij.lang.annotations.Language
+import kotlin.jvm.internal.CallableReference
+import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
+import kotlin.reflect.KProperty1
 
 /**
  * The [UCloudApiDoc] annotation is used to annotate request/response types and their properties
@@ -83,9 +86,23 @@ fun <E : Any> UCloudCallDocBuilder<*, *, E>.error(handler: UCloudCallDocBuilder.
     errors.add(UCloudCallDocBuilder.ErrorBuilder<E>().also(handler))
 }
 
-fun CallDescriptionContainer.docRef(call: KProperty<CallDescription<*, *, *>>, qualified: Boolean = false): String {
-    return if (qualified) "[`${namespace}.${call.name}`](#operation/${call.name})"
+fun CallDescriptionContainer.docCallRef(call: KProperty<CallDescription<*, *, *>>, qualified: Boolean? = null): String {
+    val namespace = if (call is CallableReference) {
+        runCatching {
+            ((call.owner as KClass<*>).objectInstance as CallDescriptionContainer).namespace
+        }.getOrDefault(this.namespace)
+    } else {
+        this.namespace
+    }
+
+    val isQualified = qualified ?: (this.namespace != namespace)
+    return if (isQualified) "[`${namespace}.${call.name}`](#operation/${call.name})"
         else "[`${call.name}`](#operation/${namespace}.${call.name})"
+}
+
+// NOTE(Dan): Not type-safe to avoid cyclic dependencies
+fun CallDescriptionContainer.docNamespaceRef(namespace: String): String {
+    return "[`$namespace`](#tag/$namespace)"
 }
 
 private val containerTitle = AttributeKey<String>("docTitle")

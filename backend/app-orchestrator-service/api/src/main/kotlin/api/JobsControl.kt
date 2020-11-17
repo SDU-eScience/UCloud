@@ -45,6 +45,7 @@ data class JobsControlSubmitFileRequest(
 )
 typealias JobsControlSubmitFileResponse = Unit
 
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object JobsControl : CallDescriptionContainer("jobs.control") {
     const val baseContext = "/api/jobs/control"
 
@@ -57,10 +58,10 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
     }
 
     val update = call<JobsControlUpdateRequest, JobsControlUpdateResponse, CommonErrorMessage>("update") {
-        httpUpdate(baseContext, "update")
+        httpUpdate(baseContext, "update", roles = Roles.PROVIDER)
 
         documentation {
-            title = "Push state changes to UCloud"
+            summary = "Push state changes to UCloud"
             description = """
                 Pushes one or more state changes to UCloud. UCloud will always treat all updates as a single
                 transaction. UCloud may reject the status updates if it deems them to be invalid. For example, an
@@ -71,6 +72,7 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
             example("State transition to running") {
                 request = bulkRequestOf(
                     JobUpdate(
+                        "jobId",
                         System.currentTimeMillis(),
                         JobState.RUNNING,
                         "The job is now running"
@@ -79,6 +81,7 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
             }
 
             example("Invalid state transition") {
+                statusCode = HttpStatusCode.BadRequest
                 error = CommonErrorMessage(
                     "Invalid state transition",
                     "INVALID_TRANSITION"
@@ -90,18 +93,18 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
     val chargeCredits = call<JobsControlChargeCreditsRequest, JobsControlChargeCreditsResponse, CommonErrorMessage>(
         "chargeCredits"
     ) {
-        httpUpdate(baseContext, "chargeCredits")
+        httpUpdate(baseContext, "chargeCredits", roles = Roles.PROVIDER)
 
         documentation {
-            title = "Charge the user for the job"
+            summary = "Charge the user for the job"
         }
     }
 
     val retrieve = call<JobsControlRetrieveRequest, JobsControlRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
+        httpRetrieve(baseContext, roles = Roles.PROVIDER)
 
         documentation {
-            title = "Retrieve job information"
+            summary = "Retrieve job information"
             description = """
                 Allows the compute backend to query the UCloud database for a job owned by the compute provider.
             """.trimIndent()
@@ -116,7 +119,7 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
         }
 
         auth {
-            roles = Roles.AUTHENTICATED
+            roles = Roles.PROVIDER
             access = AccessRight.READ_WRITE
         }
 
@@ -137,7 +140,7 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
         }
 
         documentation {
-            title = "Submit output file to UCloud"
+            summary = "Submit output file to UCloud"
             description = """
                 Submits an output file to UCloud which is not available to be put directly into the storage resources
                 mounted by the compute provider.

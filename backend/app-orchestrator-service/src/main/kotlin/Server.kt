@@ -88,7 +88,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 jobDao,
                 jobQueryService,
                 micro.backgroundScope,
-                paymentService
+                paymentService,
+                providers,
+                userClientFactory
             )
 
         val jobMonitoring = JobMonitoringService(

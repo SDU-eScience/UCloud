@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.orchestrator.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
@@ -10,7 +11,7 @@ import io.ktor.http.*
 import java.math.BigDecimal
 import java.math.BigInteger
 
-@UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("A parameter supplied to a compute job")
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -81,15 +82,15 @@ sealed class AppParameterValue {
         val license: String? = null,
     ) : AppParameterValue()
 
-    @UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage")
     data class BlockStorage(val id: String)
 
-    @UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage")
     data class Network(val id: String)
 
-    @UCloudApiExperimental(UCloudApiExperimental.Level.ALPHA)
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("HTTP Ingress")
     data class Ingress(val domain: String) {
         init {

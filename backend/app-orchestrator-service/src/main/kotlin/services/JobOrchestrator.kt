@@ -73,7 +73,8 @@ class JobOrchestrator(
             try {
                 val existingJob = db.withSession { session ->
                     jobDao.insertUpdate(session, jobId, System.currentTimeMillis(), null, message ?: "Internal error")
-                    jobQueryService.find(session, listOf(jobId), null).singleOrNull()
+                    //jobQueryService.find(session, listOf(jobId), null).singleOrNull()
+                    TODO()
                 }
 
                 failJob(existingJob)
@@ -502,7 +503,7 @@ class JobOrchestrator(
         val charge = paymentService.charge(jobWithToken.job, wallDuration.toMillis(), chargeId)
         when (charge) {
             is PaymentService.ChargeResult.Charged -> {
-                jobDao.updateStatus(db, jobWithToken.job.id, creditsCharged = charge.amountCharged)
+                TODO() // jobDao.updateStatus(db, jobWithToken.job.id, creditsCharged = charge.amountCharged)
             }
 
             PaymentService.ChargeResult.InsufficientFunds -> {

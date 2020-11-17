@@ -152,6 +152,8 @@ class JobVerificationService(
                 )
             }
 
+            TODO()
+            /*
             val resolvedPeers = jobs.find(
                 db,
                 allPeers.map { it.jobId },
@@ -164,6 +166,8 @@ class JobVerificationService(
             if (missingPeer != null) {
                 throw JobException.VerificationError("Could not find peer with id '${missingPeer.jobId}'")
             }
+
+             */
         }
 
         // Verify membership of project

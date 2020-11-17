@@ -5,9 +5,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonUnwrapped
 import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import io.ktor.http.*
 import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.primaryConstructor
 
 object UCloudApi {
     const val RETRIEVE = "retrieve"
@@ -16,9 +18,13 @@ object UCloudApi {
     const val VERIFY = "verify"
 }
 
-inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(baseContext: String) {
+inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(
+    baseContext: String,
+    roles: Set<Role> = Roles.END_USER,
+) {
     auth {
         access = AccessRight.READ_WRITE
+        this.roles = roles
     }
 
     http {
@@ -28,9 +34,13 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(ba
     }
 }
 
-inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(baseContext: String) {
+inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
+    baseContext: String,
+    roles: Set<Role> = Roles.END_USER,
+) {
     auth {
         access = AccessRight.READ
+        this.roles = roles
     }
 
     http {
@@ -41,17 +51,26 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(baseContext: St
             +UCloudApi.BROWSE
         }
 
-        params {
-            R::class.memberProperties.forEach {
-                +boundTo(it)
+        if (R::class != Unit::class) {
+            params {
+                R::class.memberProperties.forEach { param ->
+                    if (R::class.primaryConstructor?.parameters?.any { it.name == param.name } == true) {
+                        +boundTo(param)
+                    }
+                }
             }
         }
     }
 }
 
-inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(baseContext: String, subResource: String? = null) {
+inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
+    baseContext: String,
+    subResource: String? = null,
+    roles: Set<Role> = Roles.END_USER
+) {
     auth {
         access = AccessRight.READ
+        this.roles = roles
     }
 
     http {
@@ -62,17 +81,25 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(baseContext: 
             +"${UCloudApi.RETRIEVE}${subResource?.capitalize() ?: ""}"
         }
 
-        params {
-            R::class.memberProperties.forEach {
-                +boundTo(it)
+        if (R::class != Unit::class) {
+            params {
+                R::class.memberProperties.forEach { param ->
+                    if (R::class.primaryConstructor?.parameters?.any { it.name == param.name } == true) {
+                        +boundTo(param)
+                    }
+                }
             }
         }
     }
 }
 
-inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(baseContext: String) {
+inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
+    baseContext: String,
+    roles: Set<Role> = Roles.END_USER
+) {
     auth {
         access = AccessRight.READ
+        this.roles = roles
     }
 
     http {
@@ -90,9 +117,11 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(baseContext: St
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpUpdate(
     baseContext: String,
     operation: String,
+    roles: Set<Role> = Roles.END_USER
 ) {
     auth {
         access = AccessRight.READ_WRITE
+        this.roles = roles
     }
 
     http {
@@ -110,9 +139,11 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpUpdate(
 
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpDelete(
     baseContext: String,
+    roles: Set<Role> = Roles.END_USER
 ) {
     auth {
         access = AccessRight.READ_WRITE
+        this.roles = roles
     }
 
     http {
@@ -129,10 +160,11 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpDelete(
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
     baseContext: String,
     informationToVerify: String? = null,
+    roles: Set<Role> = Roles.PRIVILEGED
 ) {
     auth {
         access = AccessRight.READ_WRITE
-        roles = Roles.PRIVILEGED
+        this.roles = roles
     }
 
     http {
@@ -158,9 +190,12 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
 )
 sealed class BulkRequest<T> {
     abstract val items: List<T>
+
     data class Single<T>(@JsonUnwrapped val item: T) : BulkRequest<T>() {
-        @JsonIgnore override val items = listOf(item)
+        @JsonIgnore
+        override val items = listOf(item)
     }
+
     data class Bulk<T>(override val items: List<T>) : BulkRequest<T>()
 }
 
