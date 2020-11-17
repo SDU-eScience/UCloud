@@ -208,7 +208,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 quota={quota.data}
                 loading={wallets.loading || quota.loading}
             />
-            <DashboardProjectUsage/>
+            <DashboardProjectUsage />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
         </GridCardGroup>
     );
@@ -430,23 +430,23 @@ function DashboardProjectUsage(): JSX.Element | null {
 
     return (
         <DashboardCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
-                       icon="hourglass"
-                       color="yellow"
-                       isLoading={false}
+            icon="hourglass"
+            color="yellow"
+            isLoading={false}
         >
             <Text color="darkGray" fontSize={1}>Past 30 days</Text>
             <Table>
                 <tbody>
-                <TableRow>
-                    <TableCell>Storage</TableCell>
-                    <TableCell
-                        textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
-                </TableRow>
-                <TableRow>
-                    <TableCell>Compute</TableCell>
-                    <TableCell
-                        textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
-                </TableRow>
+                    <TableRow>
+                        <TableCell>Storage</TableCell>
+                        <TableCell
+                            textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                        <TableCell>Compute</TableCell>
+                        <TableCell
+                            textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
+                    </TableRow>
                 </tbody>
             </Table>
         </DashboardCard>
@@ -522,9 +522,9 @@ const DashboardGrantApplications: React.FunctionComponent<{
     outgoingApps: APICallState<Page<GrantApplication>>,
     ingoingApps: APICallState<Page<GrantApplication>>
 }> = ({outgoingApps, ingoingApps}) => {
-    const none = outgoingApps.data.itemsInTotal === 0 && ingoingApps.data.itemsPerPage === 0;
-    const both = outgoingApps.data.itemsInTotal > 0 && ingoingApps.data.itemsInTotal > 0;
-    const anyOutgoing = outgoingApps.data.itemsInTotal > 0;
+    const none = outgoingApps.data.items.length === 0 && ingoingApps.data.items.length === 0;
+    const both = outgoingApps.data.items.length > 0 && ingoingApps.data.items.length > 0;
+    const anyOutgoing = outgoingApps.data.items.length > 0;
 
     const title = (none ? <Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>
         : both ? <Heading.h3>Grant Applications</Heading.h3>
@@ -535,9 +535,9 @@ const DashboardGrantApplications: React.FunctionComponent<{
 
     return <DashboardCard
         title={title}
-        color={"green"}
+        color="green"
         isLoading={outgoingApps.loading}
-        icon={"mail"}
+        icon="mail"
     >
         {ingoingApps.error !== undefined ? null : (
             <Error error={ingoingApps.error} />
@@ -545,22 +545,23 @@ const DashboardGrantApplications: React.FunctionComponent<{
 
         {outgoingApps.error !== undefined ? null : (
             <Error error={outgoingApps.error} />
-        )}
-        {both ? <Heading.h5 color="gray" my="4px">Ingoing</Heading.h5> : null}
+        )} 
+        {ingoingApps.data.items.length ? <Heading.h5 color="gray" my="4px">Ingoing</Heading.h5> : null}
         {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim />)}
 
         {both ? <Heading.h5 color="gray" my="4px">Outgoing</Heading.h5> : null}
         {outgoingApps.error ? null : (
             <>
                 {outgoingApps.data.items.length !== 0 ? null : (
-                    <NoResultsCardBody title={"No recent outgoing grant applications"}>
+                    <>
+                        <Heading.h3>No recent outgoing grant applications</Heading.h3>
                         <Text>
                             Apply for resources to use storage and compute on UCloud.
-                                <Link to={"/project/grants-landing"}>
+                            <Link to={"/project/grants-landing"}>
                                 <Button fullWidth mt={8}>Apply for resources</Button>
                             </Link>
                         </Text>
-                    </NoResultsCardBody>
+                    </>
                 )}
                 <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
             </>
@@ -571,7 +572,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
 function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
     return (
         <DashboardCard
-            title={<Link to={"/news/list/"}><Heading.h3>News</Heading.h3></Link>}
+            title={<Link to="/news/list/"><Heading.h3>News</Heading.h3></Link>}
             color="orange"
             isLoading={loading}
             icon={"favIcon"}

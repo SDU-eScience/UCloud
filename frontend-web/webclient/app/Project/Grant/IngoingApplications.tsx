@@ -127,7 +127,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             />
                         )
                     }
-                    truncateWidth="300px"
+                    truncateWidth="230px"
                     left={
                         <Flex width={1}>
                             <Text title={app.grantRecipientTitle} mr={16}>

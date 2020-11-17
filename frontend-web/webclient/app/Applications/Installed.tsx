@@ -48,9 +48,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Eleme
         try {
             await Client.post(hpcFavoriteApp(name, version));
             const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
-            const pageNumber = page.pageNumber < (page.itemsInTotal - 1) / page.itemsPerPage ?
-                page.pageNumber : Math.max(page.pageNumber - 1, 0);
-            props.fetchItems(pageNumber, page.itemsPerPage);
+            props.fetchItems(page.pageNumber, page.itemsPerPage);
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Could not favorite app"), false);
         }
@@ -90,7 +88,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Eleme
             );
         }
         return (<Spinner />);
-    } else if (props.applications.content.itemsInTotal === 0) {
+    } else if (props.applications.content.items.length === 0) {
         return null;
     } else {
         return main;

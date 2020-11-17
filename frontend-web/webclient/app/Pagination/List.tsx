@@ -39,7 +39,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
 
     private renderBody(): React.ReactNode {
         const {props} = this;
-        if (props.loading && props.page.itemsInTotal === 0) {
+        if (props.loading && props.page.items.length === 0) {
             return (<Spinner />);
         } else {
             if (props.page == null || props.page.items.length === 0) {
