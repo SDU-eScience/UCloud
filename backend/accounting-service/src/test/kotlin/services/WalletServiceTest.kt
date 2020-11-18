@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.accounting.api.AccountingServiceDescription
 import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
+import dk.sdu.cloud.accounting.api.TransactionComment
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.utils.insertAll
 import dk.sdu.cloud.accounting.utils.project
@@ -282,12 +283,13 @@ class WalletServiceTest {
                     walletProjectStandard,
                     user.username,
                     walletUserStandard.paysFor.id,
-                    400
+                    400,
+                    transactionComment = TransactionComment.TRANSFERRED_TO_PROJECT
                 )
             )
             val reserved = walletService.getReservedCredits(db, walletProjectStandard)
             assertEquals(25000, reserved)
-            walletService.chargeFromReservation(db, "jobId", 25000, 400)
+            walletService.chargeFromReservation(db, "jobId", 25000, 400, TransactionComment.TRANSFERRED_TO_PROJECT)
 
             val reservedAfterCharge = walletService.getReservedCredits(db, walletProjectStandard)
             assertEquals(0, reservedAfterCharge)

@@ -59,7 +59,8 @@ class AccountingController(
                 db,
                 request.name,
                 request.amount,
-                request.productUnits
+                request.productUnits,
+                request.transactionComment
             )
 
             ok(Unit)

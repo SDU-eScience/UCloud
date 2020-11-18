@@ -73,7 +73,8 @@ class AccountingScan(
 
                                 // This resource has already been consumed, don't check if we are reaching the limit
                                 // just charge the amount they have used.
-                                skipLimitCheck = true
+                                skipLimitCheck = true,
+                                transactionComment = TransactionComment.PAYMENT
                             )
                         )
                     }

@@ -58,6 +58,7 @@ object TransactionTable : SQLTable("transactions") {
     val initiatedBy = text("initiated_by")
     val completedAt = timestamp("completed_at")
     val expiresAt = timestamp("expires_at")
+    val transactionComment = text("transaction_comment")
 }
 
 class BalanceService(
@@ -525,6 +526,7 @@ class BalanceService(
                         set(TransactionTable.completedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                         set(TransactionTable.originalAccountId, originalWallet.id)
                         set(TransactionTable.id, jobId)
+                        set(TransactionTable.transactionComment, request.transactionComment.toString())
                     }
                 }
 
@@ -549,7 +551,7 @@ class BalanceService(
                 }
 
                 if (chargeImmediately) {
-                    chargeFromReservation(session, request.jobId, request.amount, request.productUnits)
+                    chargeFromReservation(session, request.jobId, request.amount, request.productUnits, request.transactionComment)
                 }
             }
         } catch (ignored: ReservationUserRequestedAbortException) {
@@ -579,7 +581,8 @@ class BalanceService(
         ctx: DBContext,
         reservationId: String,
         amount: Long,
-        units: Long
+        units: Long,
+        transactionComment: TransactionComment
     ) {
         ctx.withSession { session ->
             session
@@ -588,6 +591,7 @@ class BalanceService(
                         setParameter("amount", amount)
                         setParameter("units", units)
                         setParameter("reservationId", reservationId)
+                        setParameter("transactionComment", transactionComment.toString())
                     },
                     """
                         update transactions     
@@ -596,7 +600,8 @@ class BalanceService(
                             units = :units,
                             is_reserved = false,
                             completed_at = now(),
-                            expires_at = null
+                            expires_at = null,
+                            transaction_comment = :transactionComment
                         where
                             id = :reservationId 
                     """
@@ -642,7 +647,8 @@ class BalanceService(
                     jobInitiatedBy = actor.safeUsername(),
                     productId = "",
                     productUnits = 1L,
-                    chargeImmediately = true
+                    chargeImmediately = true,
+                    transactionComment = TransactionComment.TRANSFERRED_TO_PERSONAL
                 )
             )
 
