@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.server.FrontendOverrides
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.isRunning
+import dk.sdu.cloud.service.db.async.PaginationV2Cache
 import dk.sdu.cloud.service.startServices
 import org.slf4j.Logger
 import kotlin.system.exitProcess
@@ -67,9 +68,13 @@ class ServiceRegistry(
             install(FrontendOverrides)
             install(ServerFeature)
             install(HealthCheckFeature)
+            install(BackgroundScopeFeature)
             //install(DatabaseConfigurationFeature)
             //install(FlywayFeature)
         }
+
+        // TODO Move it somewhere else
+        PaginationV2Cache.init(rootMicro.backgroundScope)
     }
 
     fun register(service: Service) {

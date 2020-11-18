@@ -19,4 +19,6 @@ sealed class JobException(why: String, httpStatusCode: HttpStatusCode) : RPCExce
 
     class BadStateTransition(from: JobState, to: JobState) :
         JobException("Bad state transition ($from -> $to)", HttpStatusCode.BadRequest)
+
+    class Duplicate() : JobException("Duplicate job is already running", HttpStatusCode.Conflict)
 }

@@ -10,8 +10,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.WithPaginationRequest
+import dk.sdu.cloud.service.*
 import io.ktor.http.*
 
 enum class JobState {
@@ -93,7 +92,7 @@ data class JobBilling(
     val creditsCharged: Long,
 
     @UCloudApiDoc("The unit price of this job")
-    val pricePerUnit: Long
+    val pricePerUnit: Long,
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -109,7 +108,6 @@ data class JobOwner(
 )
 
 data class JobUpdate(
-    val jobId: String,
     val timestamp: Long,
     val state: JobState? = null,
     val status: String? = null,
@@ -203,7 +201,24 @@ interface JobDataIncludeFlags {
     val includeWeb: Boolean?
     val includeVnc: Boolean?
     val includeShell: Boolean?
+    val includeUpdates: Boolean?
 }
+
+fun JobDataIncludeFlags(
+    includeParameters: Boolean? = null,
+    includeWeb: Boolean? = null,
+    includeVnc: Boolean? = null,
+    includeShell: Boolean? = null,
+    includeUpdates: Boolean? = null,
+) = JobDataIncludeFlagsImpl(includeParameters, includeWeb, includeVnc, includeShell, includeUpdates)
+
+data class JobDataIncludeFlagsImpl(
+    override val includeParameters: Boolean? = null,
+    override val includeWeb: Boolean? = null,
+    override val includeVnc: Boolean? = null,
+    override val includeShell: Boolean? = null,
+    override val includeUpdates: Boolean? = null,
+) : JobDataIncludeFlags
 
 typealias JobsCreateRequest = BulkRequest<JobParameters>
 
@@ -211,22 +226,26 @@ data class JobsCreateResponse(val ids: List<String>)
 
 data class JobsRetrieveRequest(
     val id: String,
-    override val includeParameters: Boolean?,
-    override val includeWeb: Boolean?,
-    override val includeVnc: Boolean?,
-    override val includeShell: Boolean?,
+    override val includeParameters: Boolean? = null,
+    override val includeWeb: Boolean? = null,
+    override val includeVnc: Boolean? = null,
+    override val includeShell: Boolean? = null,
+    override val includeUpdates: Boolean? = null,
 ) : JobDataIncludeFlags
 typealias JobsRetrieveResponse = Job
 
 data class JobsBrowseRequest(
-    override val itemsPerPage: Int?,
-    override val page: Int?,
-    override val includeParameters: Boolean?,
-    override val includeWeb: Boolean?,
-    override val includeVnc: Boolean?,
-    override val includeShell: Boolean?,
-) : WithPaginationRequest, JobDataIncludeFlags
-typealias JobsBrowseResponse = Page<Job>
+    override val itemsPerPage: Int,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+    override val includeParameters: Boolean? = null,
+    override val includeWeb: Boolean? = null,
+    override val includeVnc: Boolean? = null,
+    override val includeShell: Boolean? = null,
+    override val includeUpdates: Boolean? = null,
+) : WithPaginationRequestV2, JobDataIncludeFlags
+typealias JobsBrowseResponse = PageV2<Job>
 
 typealias JobsDeleteRequest = BulkRequest<FindByStringId>
 typealias JobsDeleteResponse = Unit
@@ -350,7 +369,22 @@ object Jobs : CallDescriptionContainer("jobs") {
         httpUpdate(baseContext, "extend")
 
         documentation {
-            summary = "Extend the duration of a job"
+            summary = "Extend the duration of one or more jobs"
+            description = """
+                This will extend the duration of one or more jobs in a bulk request. Extension of a job will add to
+                the current deadline of a job. Note that not all providers support this features. Providers which
+                do not support it will have it listed in their manifest. If a provider is asked to extend a deadline
+                when not supported it will send back a 400 bad request.
+                
+                This call makes no guarantee that all jobs are extended in a single transaction. If the provider
+                supports it, then all requests made against a single provider should be made in a single transaction.
+                Clients can determine if their extension request against a specific target was successful by checking
+                if the time remaining of the job has been updated.
+                
+                This call will return 2XX if all jobs have successfully been extended. The job will fail with a
+                status code from the provider one the first extension which fails. UCloud will not attempt to extend
+                more jobs after the first failure.
+            """.trimIndent()
         }
     }
 

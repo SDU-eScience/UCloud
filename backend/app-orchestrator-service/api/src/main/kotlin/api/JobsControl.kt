@@ -11,11 +11,24 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.types.BinaryStream
 import io.ktor.http.*
 
-typealias JobsControlUpdateRequest = BulkRequest<JobUpdate>
+typealias JobsControlUpdateRequest = BulkRequest<JobsControlUpdateRequestItem>
 typealias JobsControlUpdateResponse = Unit
+data class JobsControlUpdateRequestItem(
+    val jobId: String,
+    val state: JobState? = null,
+    val status: String? = null,
+)
 
 typealias JobsControlChargeCreditsRequest = BulkRequest<JobsControlChargeCreditsRequestItem>
-typealias JobsControlChargeCreditsResponse = Unit
+data class JobsControlChargeCreditsResponse(
+    @UCloudApiDoc("A list of jobs which could not be charged due to lack of funds. " +
+        "If all jobs were charged successfully then this will empty.")
+    val insufficientFunds: List<FindByStringId>,
+
+    @UCloudApiDoc("A list of jobs which could not be charged due to it being a duplicate charge. " +
+        "If all jobs were charged successfully this will be empty.")
+    val duplicateCharges: List<FindByStringId>,
+)
 
 typealias JobsControlRetrieveRequest = FindByStringId
 typealias JobsControlRetrieveResponse = Job
@@ -71,9 +84,8 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
 
             example("State transition to running") {
                 request = bulkRequestOf(
-                    JobUpdate(
+                    JobsControlUpdateRequestItem(
                         "jobId",
-                        System.currentTimeMillis(),
                         JobState.RUNNING,
                         "The job is now running"
                     )

@@ -27,6 +27,7 @@ class PaymentService(
     sealed class ChargeResult {
         data class Charged(val amountCharged: Long, val pricePerUnit: Long) : ChargeResult()
         object InsufficientFunds : ChargeResult()
+        object Duplicate : ChargeResult()
     }
 
     suspend fun charge(
@@ -61,6 +62,9 @@ class PaymentService(
         if (result is IngoingCallResponse.Error) {
             if (result.statusCode == HttpStatusCode.PaymentRequired) {
                 return ChargeResult.InsufficientFunds
+            }
+            if (result.statusCode == HttpStatusCode.Conflict) {
+                return ChargeResult.Duplicate
             }
             log.error("Failed to charge payment for job: ${job.id} $result")
             db.withSession { session ->

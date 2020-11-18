@@ -45,17 +45,15 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val machineCache = MachineTypeCache(serviceClient)
         val paymentService = PaymentService(db, serviceClient)
         val parameterExportService = ParameterExportService()
-        val jobFileService = JobFileService(userClientFactory, parameterExportService, serviceClient, appStoreCache)
+        val jobFileService = JobFileService(userClientFactory, serviceClient, appStoreCache)
         val publicLinks = PublicLinkService()
 
         val jobQueryService = JobQueryService(
             db,
-            jobFileService,
             ProjectCache(serviceClient),
-            appStoreCache,
-            publicLinks
         )
 
+        // TODO Providers
         val providers = Providers(serviceClient, ComputeProviderManifest(
             ComputeProvider(UCLOUD_PROVIDER, "localhost", false, 8080),
             ComputeProviderManifestBody(
@@ -87,20 +85,19 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 jobFileService,
                 jobDao,
                 jobQueryService,
-                micro.backgroundScope,
                 paymentService,
                 providers,
-                userClientFactory
+                userClientFactory,
+                parameterExportService
             )
 
         val jobMonitoring = JobMonitoringService(
             db,
             micro.backgroundScope,
             distributedLocks,
-            appStoreCache,
             jobVerificationService,
             jobOrchestrator,
-            serviceClient
+            providers,
         )
 
         val streamFollowService =
@@ -125,10 +122,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 JobController(
                     jobQueryService,
                     jobOrchestrator,
-                    streamFollowService,
-                    userClientFactory,
-                    serviceClient,
-                    machineCache
                 ),
 
                 CallbackController(jobOrchestrator),

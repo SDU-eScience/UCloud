@@ -2,6 +2,8 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.AppParameterValue
+import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobParameters
 import dk.sdu.cloud.app.orchestrator.api.files
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
@@ -28,7 +30,6 @@ data class JobDirectory(val path: String)
 
 class JobFileService(
     private val userClientFactory: UserClientFactory,
-    private val parameterExportService: ParameterExportService,
     private val serviceClient: AuthenticatedClient,
     private val appStoreCache: AppStoreCache,
 ) {
@@ -81,12 +82,9 @@ class JobFileService(
     suspend fun exportParameterFile(
         jobFolder: String,
         jobWithToken: VerifiedJobWithAccessToken,
+        fileData: ByteArray,
     ) {
         val userClient = userClientFactory(jobWithToken.refreshToken)
-
-        TODO("Raw params")
-        val fileData =
-            defaultMapper.writeValueAsBytes(parameterExportService.exportParameters(jobWithToken.job))
 
         MultiPartUploadDescriptions.simpleUpload.call(
             SimpleUploadRequest(

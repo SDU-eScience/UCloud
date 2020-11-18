@@ -7,22 +7,24 @@ drop table if exists jobs;
 
 create table if not exists jobs
 (
-    id                     text   not null primary key,
-    launched_by            text   not null,
+    id                     text      not null primary key,
+    launched_by            text      not null,
     project                text,
     refresh_token          text,
-    application_name       text   not null,
-    application_version    text   not null,
-    price_per_unit         bigint not null,
-    time_allocation_millis bigint          default null,
-    credits_charged        bigint not null default 0,
-    product_provider       text   not null,
-    product_category       text   not null,
-    product_id             text   not null,
-    replicas               int    not null default 1,
-    name                   text            default null,
-    output_folder          text            default null,
-    last_scan              timestamp       default now()
+    application_name       text      not null,
+    application_version    text      not null,
+    price_per_unit         bigint    not null,
+    time_allocation_millis bigint             default null,
+    credits_charged        bigint    not null default 0,
+    product_provider       text      not null,
+    product_category       text      not null,
+    product_id             text      not null,
+    replicas               int       not null default 1,
+    name                   text               default null,
+    output_folder          text               default null,
+    last_scan              timestamp          default now(),
+    current_state          text      not null,
+    last_update            timestamp not null default now()
 );
 
 create table if not exists job_updates
@@ -75,9 +77,7 @@ $$ language plpgsql;
 create or replace function migrate_bool(obj jsonb) returns jsonb as
 $$
 begin
-    if obj ? 'type' and obj ->> 'type' = 'boolean' and obj ? 'value' then
-        return obj;
-    end if;
+    if obj ? 'type' and obj ->> 'type' = 'boolean' and obj ? 'value' then return obj; end if;
     return null;
 end;
 $$ language plpgsql;
@@ -85,9 +85,7 @@ $$ language plpgsql;
 create or replace function migrate_text(obj jsonb) returns jsonb as
 $$
 begin
-    if obj ? 'type' and obj ->> 'type' = 'text' and obj ? 'value' then
-        return obj;
-    end if;
+    if obj ? 'type' and obj ->> 'type' = 'text' and obj ? 'value' then return obj; end if;
     return null;
 end;
 $$ language plpgsql;
@@ -95,9 +93,7 @@ $$ language plpgsql;
 create or replace function migrate_int(obj jsonb) returns jsonb as
 $$
 begin
-    if obj ? 'type' and obj ->> 'type' = 'integer' and obj ? 'value' then
-        return obj;
-    end if;
+    if obj ? 'type' and obj ->> 'type' = 'integer' and obj ? 'value' then return obj; end if;
     return null;
 end;
 $$ language plpgsql;
@@ -105,9 +101,7 @@ $$ language plpgsql;
 create or replace function migrate_floating_point(obj jsonb) returns jsonb as
 $$
 begin
-    if obj ? 'type' and obj ->> 'type' = 'floating_point' and obj ? 'value' then
-        return obj;
-    end if;
+    if obj ? 'type' and obj ->> 'type' = 'floating_point' and obj ? 'value' then return obj; end if;
     return null;
 end;
 $$ language plpgsql;
@@ -159,10 +153,9 @@ declare
     peer_name           text;
     peer_id             text;
 begin
-    for job in (select * from app_orchestrator.job_information)
-        loop
-        -- We start with the easy stuff. The overall metadata about the job. This should be enough that
-        -- old jobs still have a valid enough record in the new system.
+    for job in ( select * from app_orchestrator.job_information )
+        loop -- We start with the easy stuff. The overall metadata about the job. This should be enough that
+    -- old jobs still have a valid enough record in the new system.
             insert into app_orchestrator.jobs
             values (job.system_id,
                     job.owner,
@@ -180,7 +173,9 @@ begin
                     job.nodes,
                     job.name,
                     job.output_folder,
-                    job.last_scan);
+                    job.last_scan,
+                    job.state,
+                    job.modified_at);
 
             insert into app_orchestrator.job_updates
             values (job.system_id,
@@ -207,7 +202,7 @@ begin
                     job.status);
 
             -- Now for the tricky part, we want to insert entries about our parameters
-            for parameter_name in (select jsonb_object_keys(job.parameters))
+            for parameter_name in ( select jsonb_object_keys(job.parameters) )
                 loop
                     parameter_value := job.parameters -> parameter_name;
                     parameter_type := parameter_value ->> 'type';
@@ -237,7 +232,7 @@ begin
                     end if;
                 end loop;
 
-            for parameter_value in (select jsonb_array_elements(job.mounts))
+            for parameter_value in ( select jsonb_array_elements(job.mounts) )
                 loop
                     select parameter_value -> 'stat' ->> 'path' into file_path;
 
@@ -248,7 +243,7 @@ begin
                     end if;
                 end loop;
 
-            for parameter_value in (select jsonb_array_elements(job.peers))
+            for parameter_value in ( select jsonb_array_elements(job.peers) )
                 loop
                     select parameter_value ->> 'name' into peer_name;
                     select parameter_value ->> 'jobId' into peer_id;
@@ -279,3 +274,24 @@ drop function if exists app_orchestrator.migrate_int;
 drop function if exists app_orchestrator.migrate_license_server;
 drop function if exists app_orchestrator.migrate_peer;
 drop function if exists app_orchestrator.migrate_text;
+
+create or replace function app_orchestrator.update_state() returns trigger as
+$$
+begin
+    update app_orchestrator.jobs
+    set
+        current_state = coalesce(new.state, current_state) ,
+        last_update = new.ts
+    where
+          id = new.job_id and
+          new.ts >= last_update;
+    return null;
+end;
+$$ language plpgsql;
+
+drop trigger if exists update_state on app_orchestrator.job_updates;
+create trigger update_state
+    after insert
+    on app_orchestrator.job_updates
+    for each row
+execute procedure update_state();

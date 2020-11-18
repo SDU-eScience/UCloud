@@ -24,6 +24,9 @@ object JobsTable : SQLTable("jobs") {
     val replicas = int("replicas")
     val name = text("name")
     val outputFolder = text("output_folder")
+    val lastScan = timestamp("last_scan")
+    val currentState = text("current_state")
+    val lastUpdate = timestamp("last_update")
 }
 
 object JobUpdatesTable : SQLTable("job_updates") {

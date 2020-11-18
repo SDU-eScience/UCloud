@@ -1,15 +1,18 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobsControlUpdateRequestItem
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.micro.BackgroundScope
-import dk.sdu.cloud.service.DistributedLock
-import dk.sdu.cloud.service.DistributedLockFactory
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlin.random.Random
 
@@ -17,10 +20,9 @@ class JobMonitoringService(
     private val db: DBContext,
     private val scope: BackgroundScope,
     private val distributedLocks: DistributedLockFactory,
-    private val appStoreCache: AppStoreCache,
     private val verificationService: JobVerificationService,
     private val jobOrchestrator: JobOrchestrator,
-    private val serviceClient: AuthenticatedClient,
+    private val providers: Providers,
 ) {
     suspend fun initialize() {
         scope.launch {
@@ -42,9 +44,8 @@ class JobMonitoringService(
     }
 
     private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock) {
-        TODO()
-        /*
         var nextScan = 0L
+
         while (isActive) {
             val now = Time.now()
             if (now >= nextScan) {
@@ -60,13 +61,13 @@ class JobMonitoringService(
                                 setParameter("now", now)
                             },
                             """
-                                update job_information
+                                update jobs
                                 set last_scan = to_timestamp(cast(:now as bigint))
                                 where
-                                    system_id in (
-                                        select system_id from job_information
+                                    id in (
+                                        select id from jobs
                                         where
-                                            state in (select unnest(:nonFinalStates::text[])) and
+                                            current_state in (select unnest(:nonFinalStates::text[])) and
                                             last_scan <= to_timestamp(cast(:before as bigint))
                                         limit 100
                                     )
@@ -74,15 +75,19 @@ class JobMonitoringService(
                             """
                         )
                         .rows
-                        .mapNotNull { it.toVerifiedJob(false, appStoreCache) }
+                        .mapNotNull { VerifiedJobWithAccessToken(it.toJob(), it.getField(JobsTable.refreshToken)) }
 
-                    val jobsByBackend = jobs.map { it.job }.groupBy { it.backend }
+                    val jobsByProvider = jobs.map { it.job }.groupBy { it.parameters!!.product.provider }
                     scope.launch {
-                        jobsByBackend.forEach { (backend, jobs) ->
-                            val service = computationBackendService.getAndVerifyByName(backend)
-                            val resp = service.verifyJobs.call(ComputeVerifyJobsRequest(jobs), serviceClient)
+                        jobsByProvider.forEach { (provider, jobs) ->
+                            val comm = providers.prepareCommunication(provider)
+                            val resp = comm.api.verify.call(
+                                bulkRequestOf(jobs),
+                                comm.client
+                            )
+
                             if (!resp.statusCode.isSuccess()) {
-                                log.info("Failed to verify block in $backend. Jobs: ${jobs.map { it.id }}")
+                                log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
                             }
                         }
                     }
@@ -94,9 +99,20 @@ class JobMonitoringService(
                         )
 
                         if (!hasPermissions) {
-                            jobOrchestrator.handleProposedStateChange(
-                                JobStateChange(jobWithToken.job.id, JobState.CANCELING),
-                                "System initiated cancel: You no longer have permissions to use '${file}'"
+                            jobOrchestrator.cancel(
+                                bulkRequestOf(FindByStringId(jobWithToken.job.id)),
+                                Actor.System
+                            )
+
+                            jobOrchestrator.updateState(
+                                bulkRequestOf(
+                                    JobsControlUpdateRequestItem(
+                                        jobWithToken.job.id,
+                                        status = "System initiated cancel: " +
+                                            "You no longer have permissions to use '${file}'"
+                                    )
+                                ),
+                                Actor.System
                             )
                         }
                     }
@@ -110,7 +126,6 @@ class JobMonitoringService(
                 break
             }
         }
-         */
     }
 
     companion object : Loggable {

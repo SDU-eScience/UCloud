@@ -1,6 +1,8 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.RPCException
+import io.ktor.http.*
 import kotlin.math.ceil
 import kotlin.math.min
 
@@ -9,7 +11,7 @@ data class Page<out T>(
     val itemsPerPage: Int,
 
     val pageNumber: Int,
-    val items: List<T>
+    val items: List<T>,
 ) {
     val pagesInTotal: Int = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 
@@ -21,6 +23,7 @@ data class Page<out T>(
     }
 }
 
+
 interface WithPaginationRequest {
     val itemsPerPage: Int?
     val page: Int?
@@ -30,7 +33,7 @@ interface WithPaginationRequest {
 
 fun WithPaginationRequest.normalizeWithFullReadEnabled(
     actor: Actor,
-    privilegedOnly: Boolean = true
+    privilegedOnly: Boolean = true,
 ): NormalizedPaginationRequest? {
     if (!privilegedOnly || actor == Actor.System ||
         (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED)
@@ -42,7 +45,7 @@ fun WithPaginationRequest.normalizeWithFullReadEnabled(
 
 data class PaginationRequest(
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null
+    override val page: Int? = null,
 ) : WithPaginationRequest {
     companion object {
         const val FULL_READ = -1
@@ -51,7 +54,7 @@ data class PaginationRequest(
 
 class NormalizedPaginationRequest(
     itemsPerPage: Int?,
-    page: Int?
+    page: Int?,
 ) {
     val itemsPerPage = when (itemsPerPage) {
         10, 25, 50, 100, 250 -> itemsPerPage
@@ -108,3 +111,52 @@ fun <T> List<T>.paginate(request: NormalizedPaginationRequest?): Page<T> {
 
 val NormalizedPaginationRequest.offset: Int
     get() = itemsPerPage * page
+
+
+// Version 2 API
+data class PageV2<out T>(
+    val itemsPerPage: Int,
+    val items: List<T>,
+    val next: String?,
+)
+
+data class NormalizedPaginationRequestV2(
+    val itemsPerPage: Int,
+    val next: String?,
+    val consistency: PaginationRequestV2Consistency,
+    val itemsToSkip: Long?,
+)
+
+data class PaginationRequestV2(
+    override val itemsPerPage: Int,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
+
+interface WithPaginationRequestV2 {
+    val itemsPerPage: Int
+    val next: String?
+    val consistency: PaginationRequestV2Consistency?
+    val itemsToSkip: Long?
+
+    fun normalize(): NormalizedPaginationRequestV2 {
+        if ((itemsToSkip ?: 0) < 0) throw RPCException("Invalid offset", HttpStatusCode.BadRequest)
+
+        return NormalizedPaginationRequestV2(
+            when (itemsPerPage) {
+                10, 25, 50, 100, 250 -> itemsPerPage
+                else -> 50
+            },
+            next,
+            consistency ?: PaginationRequestV2Consistency.PREFER,
+            itemsToSkip
+        )
+    }
+}
+
+enum class PaginationRequestV2Consistency {
+    PREFER,
+    REQUIRE
+}
+

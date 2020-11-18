@@ -10,8 +10,7 @@ data class ExportedParameters(
 )
 
 class ParameterExportService {
-    fun exportParameters(verifiedJob: Job): ExportedParameters {
-        val parameters = verifiedJob.parameters ?: error("no params")
+    fun exportParameters(parameters: JobParameters): ExportedParameters {
         return ExportedParameters(VERSION, parameters)
     }
 

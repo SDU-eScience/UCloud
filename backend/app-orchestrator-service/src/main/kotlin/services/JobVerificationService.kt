@@ -152,22 +152,22 @@ class JobVerificationService(
                 )
             }
 
-            TODO()
-            /*
-            val resolvedPeers = jobs.find(
+            val resolvedPeers = jobs.retrievePrivileged(
                 db,
                 allPeers.map { it.jobId },
-                unverifiedJob.username
+                JobDataIncludeFlags()
             )
 
-            val resolvedPeerIds = resolvedPeers.map { it.job.id }
+            if (!resolvedPeers.values.all { it.job.owner.launchedBy == unverifiedJob.username }) {
+                throw JobException.VerificationError("You do not have permissions to connect to some of your peers")
+            }
+
+            val resolvedPeerIds = resolvedPeers.keys
 
             val missingPeer = allPeers.find { it.jobId !in resolvedPeerIds }
             if (missingPeer != null) {
                 throw JobException.VerificationError("Could not find peer with id '${missingPeer.jobId}'")
             }
-
-             */
         }
 
         // Verify membership of project
@@ -191,7 +191,6 @@ class JobVerificationService(
                 ),
                 listOf(
                     JobUpdate(
-                        id,
                         System.currentTimeMillis(),
                         JobState.IN_QUEUE,
                         "UCloud has accepted your job into the queue"
@@ -200,7 +199,7 @@ class JobVerificationService(
                 JobBilling(creditsCharged = 0L, pricePerUnit = machine.pricePerUnit),
                 unverifiedJob.request.copy(parameters = verifiedParameters),
             ),
-            "TO BE REPLACED"
+            "REPLACED_LATER"
         )
     }
 

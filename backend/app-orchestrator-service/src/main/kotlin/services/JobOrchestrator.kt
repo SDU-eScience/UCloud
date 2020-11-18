@@ -5,27 +5,24 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.requiredAuthScope
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.PaginationRequestV2
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
-import io.ktor.utils.io.*
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
 
 data class JobStateChange(val systemId: String, val newState: JobState)
 
@@ -39,68 +36,16 @@ data class JobStateChange(val systemId: String, val newState: JobState)
  */
 class JobOrchestrator(
     private val serviceClient: AuthenticatedClient,
-    private val db: DBContext,
+    private val db: AsyncDBSessionFactory,
     private val jobVerificationService: JobVerificationService,
     private val jobFileService: JobFileService,
     private val jobDao: JobDao,
     private val jobQueryService: JobQueryService,
-    private val scope: BackgroundScope,
     private val paymentService: PaymentService,
     private val providers: Providers,
     private val userClientFactory: UserClientFactory,
+    private val parameterExportService: ParameterExportService,
 ) {
-    /**
-     * Shared error handling for methods that work with a live job.
-     */
-    @Suppress("TooGenericExceptionCaught")
-    private suspend inline fun <R> withJobExceptionHandler(jobId: String, rethrow: Boolean = true, body: () -> R): R? {
-        return try {
-            body()
-        } catch (ex: Exception) {
-            val message =
-                if (ex is RPCException && ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why else null
-
-            log.info("Exception: $ex")
-
-            if (ex !is RPCException) {
-                log.warn("Unexpected exception caught while handling a job callback! ($jobId)")
-                log.warn(ex.stackTraceToString())
-            } else {
-                log.debug("Expected exception caught while handling a job callback! ($jobId)")
-                log.debug(ex.stackTraceToString())
-            }
-
-            try {
-                val existingJob = db.withSession { session ->
-                    jobDao.insertUpdate(session, jobId, System.currentTimeMillis(), null, message ?: "Internal error")
-                    //jobQueryService.find(session, listOf(jobId), null).singleOrNull()
-                    TODO()
-                }
-
-                failJob(existingJob)
-            } catch (cleanupException: Exception) {
-                log.info("Exception while cleaning up (most likely to job not existing)")
-                log.info(cleanupException.stackTraceToString())
-            }
-
-            if (rethrow) {
-                log.debug("Rethrowing exception")
-                throw ex
-            } else {
-                log.debug("Not rethrowing exception")
-                null
-            }
-        }
-    }
-
-    private fun failJob(existingJob: VerifiedJobWithAccessToken?) {
-        // If we don't check for an existing failure state we can loop forever in a crash
-        if (existingJob != null && existingJob.job.currentState != JobState.FAILURE) {
-            val stateChange = JobStateChange(existingJob.job.id, JobState.FAILURE)
-            handleStateChange(existingJob, stateChange)
-        }
-    }
-
     private suspend fun extendToken(accessToken: String, allowRefreshes: Boolean): Pair<String?, AuthenticatedClient> {
         return AuthDescriptions.tokenExtension.call(
             TokenExtensionRequest(
@@ -128,7 +73,7 @@ class JobOrchestrator(
     suspend fun startJob(
         req: BulkRequest<JobParameters>,
         accessToken: String,
-        principal: SecurityPrincipal,
+        principal: Actor,
         project: String?,
     ): JobsCreateResponse {
         data class JobWithProvider(val jobId: String, val provider: String)
@@ -137,9 +82,19 @@ class JobOrchestrator(
             val tokensToInvalidateInCaseOfFailure = ArrayList<String>()
             val jobsToInvalidateInCaseOfFailure = ArrayList<JobWithProvider>()
 
+            val parameters = ArrayList<ByteArray>()
+
             try {
                 val (_, tmpUserClient) = extendToken(accessToken, allowRefreshes = false)
                 val verifiedJobs = req.items
+                    // Immediately export parameters (before verification code changes it)
+                    .onEach { request ->
+                        parameters.add(
+                            defaultMapper.writeValueAsBytes(
+                                parameterExportService.exportParameters(request)
+                            )
+                        )
+                    }
                     // Verify tokens
                     .map { jobRequest ->
                         jobVerificationService.verifyOrThrow(
@@ -149,7 +104,11 @@ class JobOrchestrator(
                     }
                     // Check for duplicates
                     .onEach { job ->
-                        TODO("Check them")
+                        if (!job.job.parameters!!.allowDuplicateJob) {
+                            if (!checkForDuplicateJob(principal, project, job)) {
+                                throw JobException.Duplicate()
+                            }
+                        }
                     }
                     // Extend tokens needed for jobs
                     .map { job ->
@@ -164,9 +123,9 @@ class JobOrchestrator(
                 }
 
                 // Prepare job folders (needs to happen before database insertion)
-                for (job in verifiedJobs) {
+                for ((index, job) in verifiedJobs.withIndex()) {
                     val jobFolder = jobFileService.initializeResultFolder(job)
-                    jobFileService.exportParameterFile(jobFolder.path, job)
+                    jobFileService.exportParameterFile(jobFolder.path, job, parameters[index])
                 }
 
                 // Insert into databases
@@ -205,232 +164,211 @@ class JobOrchestrator(
     }
 
     private suspend fun checkForDuplicateJob(
-        securityPrincipalToken: SecurityPrincipalToken,
+        securityPrincipal: Actor,
+        project: String?,
         jobWithToken: VerifiedJobWithAccessToken,
     ): Boolean {
-        TODO("""
-        val jobs = findLast10JobsForUser(
-            securityPrincipalToken,
-            jobWithToken.job.application.metadata.name,
-            jobWithToken.job.application.metadata.version
-        )
-
-        return jobs.any { it.job == jobWithToken.job }
-        """)
+        return findLast10JobsForUser(securityPrincipal, project).any { it.job == jobWithToken.job }
     }
 
     private suspend fun findLast10JobsForUser(
-        securityPrincipalToken: SecurityPrincipalToken,
-        application: String,
-        version: String,
+        principal: Actor,
+        project: String?,
     ): List<VerifiedJobWithAccessToken> {
-        TODO("""
-        return jobQueryService.list(
-            db,
-            securityPrincipalToken.principal.username,
-            PaginationRequest(10).normalize(),
-            ListRecentRequest(
-                sortBy = JobSortBy.CREATED_AT,
-                order = SortOrder.DESCENDING,
-                filter = JobState.RUNNING,
-                application = application,
-                version = version
-            )
+        return jobQueryService.browse(
+            principal,
+            project,
+            PaginationRequestV2(10).normalize(),
+            JobDataIncludeFlags()
         ).items
-        """)
     }
 
-    suspend fun handleProposedStateChange(
-        event: JobStateChange,
-        newStatus: String?,
-        computeBackend: SecurityPrincipal? = null,
-        jobOwner: SecurityPrincipalToken? = null,
-    ) {
-        TODO("""
-        val jobWithToken = findJobForId(event.systemId, jobOwner)
+    suspend fun updateState(request: JobsControlUpdateRequest, providerActor: Actor) {
+        val requests = request.items.groupBy { it.jobId }
+        val comm = providers.prepareCommunication(providerActor)
+        db.withSession { session ->
+            val loadedJobs = loadAndVerifyProviderJobs(session, requests.keys, comm)
 
-        withJobExceptionHandler(event.systemId) {
-            val proposedState = event.newState
-            val (job) = jobWithToken
-            computationBackendService.getAndVerifyByName(job.backend, computeBackend)
+            for ((jobId, updates) in requests) {
+                val jobWithToken = loadedJobs[jobId] ?: error("Job not found, this should have failed earlier")
+                val (job) = jobWithToken
+                var currentState = job.currentState
+                for (update in updates) {
+                    val newState = update.state
+                    val newStatus = update.status
 
-            if (job.currentState.isFinal()) {
-                if (proposedState != JobState.CANCELING) {
-                    log.info("Ignoring bad state transition from $\{job.currentState} to $\proposedState")
-                }
-                return
-            }
+                    if (newState != null && !currentState.isFinal()) {
+                        currentState = newState
 
-            if (proposedState != job.currentState) {
-                handleStateChange(jobWithToken, event, newStatus)
-            }
-        }
-        """)
-    }
-
-    suspend fun handleJobComplete(
-        jobId: String,
-        wallDuration: SimpleDuration?,
-        success: Boolean,
-        securityPrincipal: SecurityPrincipal,
-    ) {
-        TODO("""
-        withJobExceptionHandler(jobId) {
-            val jobWithToken = findJobForId(jobId)
-            val job = jobWithToken.job
-            computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
-
-            val actualDuration = if (wallDuration != null) {
-                wallDuration
-            } else {
-                val startedAt = job.startedAt
-                if (startedAt == null) {
-                    SimpleDuration.fromMillis(5000L)
-                } else {
-                    SimpleDuration.fromMillis(Time.now() - startedAt)
-                }
-            }
-
-            log.debug("Job completed $jobId took $\actualDuration")
-
-            jobFileService.cleanupAfterMounts(jobWithToken)
-
-            handleProposedStateChange(
-                JobStateChange(jobId, if (success) JobState.SUCCESS else JobState.FAILURE),
-                null,
-                securityPrincipal
-            )
-
-            chargeCredits(jobWithToken, actualDuration, "", false)
-        }
-        """)
-    }
-
-    suspend fun handleIncomingFile(
-        jobId: String,
-        securityPrincipal: SecurityPrincipal,
-        filePath: String,
-        length: Long,
-        data: ByteReadChannel,
-    ) {
-        TODO("""
-        withJobExceptionHandler(jobId) {
-            val jobWithToken = findJobForId(jobId)
-            computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
-
-            jobFileService.acceptFile(jobWithToken, filePath, length, data)
-        }
-        """)
-    }
-
-    /**
-     * Handles a state change
-     */
-    private fun handleStateChange(
-        jobWithToken: VerifiedJobWithAccessToken,
-        event: JobStateChange,
-        newStatus: String? = null,
-        isReplay: Boolean = false,
-    ): Job = scope.launch {
-        TODO("""
-        withJobExceptionHandler(event.systemId, rethrow = false) {
-            if (!isReplay) {
-                val failedStateOrNull =
-                    if (event.newState == JobState.FAILURE) jobWithToken.job.currentState else null
-
-                jobDao.updateStatus(
-                    db,
-                    event.systemId,
-                    state = event.newState,
-                    status = newStatus,
-                    failedState = failedStateOrNull
-                )
-            }
-
-            val (job) = jobWithToken
-            val backend = computationBackendService.getAndVerifyByName(job.backend)
-
-            when (event.newState) {
-                JobState.IN_QUEUE -> {
-                    jobDao.updateStatus(
-                        db,
-                        event.systemId,
-                        state = JobState.IN_QUEUE,
-                        status = "Your job is currently in the process of being scheduled."
-                    )
-
-                    backend.jobPrepared.call(jobWithToken.job, serviceClient).orThrow()
-                }
-
-                JobState.RUNNING -> {
-                    // Do nothing (apart from updating state).
-                }
-
-                JobState.CANCELING -> {
-                    backend.cancel.call(CancelInternalRequest(job), serviceClient).orThrow()
-                }
-
-                JobState.SUCCESS, JobState.FAILURE -> {
-                    if (job.currentState == JobState.CANCELING) {
-                        jobDao.updateStatus(
-                            db,
-                            event.systemId,
-                            state = event.newState,
-                            status = "Job cancelled ($\{jobWithToken.job.status})."
-                        )
+                        if (newState.isFinal()) {
+                            handleFinalState(jobWithToken)
+                        }
+                    } else if (newState != null && currentState.isFinal()) {
+                        log.info("Ignoring job update for $jobId by ${comm.provider} (bad state transition)")
+                        continue
                     }
 
-                    if (jobWithToken.refreshToken != null) {
-                        AuthDescriptions.logout.call(
-                            Unit,
-                            serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
-                        ).throwIfInternal()
-                    }
-
-                    MetadataDescriptions.verify.call(
-                        VerifyRequest(
-                            job.files.map { it.sourcePath } + job.mounts.map { it.sourcePath }
-                        ),
-                        serviceClient
-                    ).orThrow()
-
-                    // This one should _NEVER_ throw an exception
-                    val resp = backend.cleanup.call(job, serviceClient)
-                    if (resp is IngoingCallResponse.Error) {
-                        log.info("unable to clean up for job $\job.")
-                        log.info(resp.toString())
-                    }
+                    jobDao.insertUpdate(session, jobId, System.currentTimeMillis(), newState, newStatus)
                 }
             }
-            return@withJobExceptionHandler
         }
-        """)
     }
 
+    private suspend fun handleFinalState(jobWithToken: VerifiedJobWithAccessToken) {
+        jobFileService.cleanupAfterMounts(jobWithToken)
 
-    suspend fun extendDuration(
-        jobId: String,
-        extendWith: SimpleDuration,
-        jobOwner: SecurityPrincipalToken,
-    ) {
-        TODO("""
-        val jobWithToken = findJobForId(jobId, jobOwner)
-        val backend = computationBackendService.getAndVerifyByName(jobWithToken.job.backend)
+        AuthDescriptions.logout.call(
+            Unit,
+            serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
+        ).throwIfInternal()
+
+        MetadataDescriptions.verify.call(
+            VerifyRequest(jobWithToken.job.files.map { it.path }),
+            serviceClient
+        ).orThrow()
+    }
+
+    suspend fun deleteJobInformation(appName: String, appVersion: String) {
+        jobDao.deleteJobInformation(
+            db,
+            appName,
+            appVersion
+        )
+    }
+
+    suspend fun charge(
+        request: JobsControlChargeCreditsRequest,
+        providerActor: Actor,
+    ): JobsControlChargeCreditsResponse {
+        val comm = providers.prepareCommunication(providerActor)
+        val requests = request.items.groupBy { it.id }
+
+        val duplicates = ArrayList<FindByStringId>()
+        val insufficient = ArrayList<FindByStringId>()
 
         db.withSession { session ->
-            val newMaxTime = SimpleDuration.fromMillis(jobWithToken.job.maxTime.toMillis() + extendWith.toMillis())
-            jobDao.updateMaxTime(
-                session,
-                jobId,
-                newMaxTime
-            )
+            val loadedJobs = loadAndVerifyProviderJobs(session, requests.keys, comm)
 
-            backend.updateJobDeadline.call(
-                UpdateJobDeadlineRequest(jobWithToken.job.copy(maxTime = newMaxTime), newMaxTime),
-                serviceClient
-            ).orThrow()
+            for ((jobId, charges) in requests) {
+                val jobWithToken = loadedJobs[jobId] ?: error("Job should have been loaded by now")
+                for (charge in charges) {
+                    val chargeResult = paymentService.charge(
+                        jobWithToken.job,
+                        charge.wallDuration.toMillis(),
+                        charge.chargeId
+                    )
+
+                    when (chargeResult) {
+                        is PaymentService.ChargeResult.Charged -> {
+                            jobDao.updateCreditsCharged(session, jobId, chargeResult.amountCharged)
+                        }
+
+                        PaymentService.ChargeResult.InsufficientFunds -> {
+                            insufficient.add(FindByStringId(jobId))
+                        }
+
+                        PaymentService.ChargeResult.Duplicate -> {
+                            duplicates.add(FindByStringId(jobId))
+                        }
+                    }
+                }
+            }
         }
-        """)
+
+        return JobsControlChargeCreditsResponse(insufficient, duplicates)
+    }
+
+    private suspend fun loadAndVerifyProviderJobs(
+        session: DBContext,
+        jobIds: Set<String>,
+        comm: ProviderCommunication,
+        flags: JobDataIncludeFlags = JobDataIncludeFlags(),
+    ): Map<String, VerifiedJobWithAccessToken> {
+        val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
+        if (loadedJobs.keys.size != jobIds.size) {
+            throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
+        }
+
+        val ownsAllJobs = loadedJobs.values.all { (it.job).parameters!!.product.provider == comm.provider }
+        if (!ownsAllJobs) {
+            throw RPCException("Provider is not authorized to perform these updates", HttpStatusCode.Forbidden)
+        }
+        return loadedJobs
+    }
+
+    private suspend fun loadAndVerifyUserJobs(
+        session: AsyncDBConnection,
+        jobIds: Set<String>,
+        user: Actor,
+        flags: JobDataIncludeFlags = JobDataIncludeFlags()
+    ): Map<String, VerifiedJobWithAccessToken> {
+        val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
+        if (loadedJobs.keys.size != jobIds.size) {
+            throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
+        }
+
+        val ownsAllJobs = loadedJobs.values.all { (it.job).owner.launchedBy == user.safeUsername() }
+        if (!ownsAllJobs) {
+            throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
+        }
+        return loadedJobs
+    }
+
+    suspend fun submitFile(request: JobsControlSubmitFileRequest, providerActor: Actor) {
+        val comm = providers.prepareCommunication(providerActor)
+        val jobWithToken = loadAndVerifyProviderJobs(db, setOf(request.jobId), comm).getValue(request.jobId)
+
+        val ingoing = request.fileData.asIngoing()
+        jobFileService.acceptFile(
+            jobWithToken,
+            request.filePath,
+            ingoing.length ?: throw RPCException("Unknown length of payload", HttpStatusCode.BadRequest),
+            ingoing.channel
+        )
+    }
+
+    suspend fun retrieveAsProvider(
+        request: JobsControlRetrieveRequest,
+        providerActor: Actor,
+    ): Job {
+        val comm = providers.prepareCommunication(providerActor)
+        return loadAndVerifyProviderJobs(db, setOf(request.id), comm).getValue(request.id).job
+    }
+
+    suspend fun extendDuration(request: BulkRequest<JobsExtendRequestItem>, userActor: Actor.User) {
+        val extensions = request.items.groupBy { it.jobId }
+        db.withSession { session ->
+            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor)
+            val providers = jobs.values.map { it.job.parameters!!.product.provider }
+                .map { providers.prepareCommunication(it) }
+
+            for (comm in providers) {
+                comm.api.extend.call(
+                    bulkRequestOf(request.items.mapNotNull { extensionRequest ->
+                        val (job) = jobs.getValue(extensionRequest.jobId)
+                        if (job.parameters!!.product.provider != comm.provider) null
+                        else extensionRequest
+                    }),
+                    comm.client
+                ).orThrow()
+            }
+        }
+    }
+
+    suspend fun cancel(request: BulkRequest<FindByStringId>, userActor: Actor) {
+        val extensions = request.items.groupBy { it.id }
+
+        db.withSession { session ->
+            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor)
+            val jobsByProvider = jobs.values.groupBy { it.job.parameters!!.product.provider }
+            for ((provider, providerJobs) in jobsByProvider) {
+                val comm = providers.prepareCommunication(provider)
+                comm.api.delete.call(
+                    bulkRequestOf(providerJobs.map { FindByStringId(it.job.id) }),
+                    comm.client
+                ).orThrow()
+            }
+        }
     }
 
     suspend fun lookupOwnJob(jobId: String, securityPrincipal: SecurityPrincipal): Job {
@@ -449,18 +387,6 @@ class JobOrchestrator(
         """)
     }
 
-    private suspend fun findJobForId(id: String, jobOwner: SecurityPrincipalToken? = null): VerifiedJobWithAccessToken {
-        /*
-        return if (jobOwner == null) {
-            jobQueryService.find(db, listOf(id), null).singleOrNull()
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        } else {
-            jobQueryService.findById(jobOwner, id)
-        }
-         */
-        TODO()
-    }
-
     private suspend fun findJobForUrl(
         urlId: String,
         jobOwner: SecurityPrincipalToken? = null,
@@ -472,55 +398,7 @@ class JobOrchestrator(
         TODO()
     }
 
-    suspend fun deleteJobInformation(appName: String, appVersion: String) {
-        jobDao.deleteJobInformation(
-            db,
-            appName,
-            appVersion
-        )
-    }
-
-    suspend fun charge(
-        jobId: String,
-        chargeId: String,
-        wallDuration: SimpleDuration,
-        securityPrincipal: SecurityPrincipal,
-    ) {
-        TODO("""
-        val jobWithToken = findJobForUrl(jobId)
-        computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
-
-        chargeCredits(jobWithToken, wallDuration, "-$chargeId", cancelIfInsufficient = true)
-        """)
-    }
-
-    private suspend fun chargeCredits(
-        jobWithToken: VerifiedJobWithAccessToken,
-        wallDuration: SimpleDuration,
-        chargeId: String,
-        cancelIfInsufficient: Boolean,
-    ) {
-        val charge = paymentService.charge(jobWithToken.job, wallDuration.toMillis(), chargeId)
-        when (charge) {
-            is PaymentService.ChargeResult.Charged -> {
-                TODO() // jobDao.updateStatus(db, jobWithToken.job.id, creditsCharged = charge.amountCharged)
-            }
-
-            PaymentService.ChargeResult.InsufficientFunds -> {
-                if (cancelIfInsufficient) {
-                    handleStateChange(
-                        jobWithToken,
-                        JobStateChange(jobWithToken.job.id, JobState.CANCELING),
-                        "Insufficient funds"
-                    )
-                }
-            }
-        }
-    }
-
     companion object : Loggable {
         override val log = logger()
     }
 }
-
-fun resolveBackend(backend: String?, defaultBackend: String): String = backend ?: defaultBackend

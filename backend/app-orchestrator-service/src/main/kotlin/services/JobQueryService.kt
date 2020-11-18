@@ -1,105 +1,208 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.SecurityPrincipal
+import com.fasterxml.jackson.module.kotlin.readValue
+import com.github.jasync.sql.db.ResultSet
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.offset
+import io.ktor.http.*
 
 @Suppress("SqlResolve")
 class JobQueryService(
-    private val db: DBContext,
-    private val jobFileService: JobFileService,
+    private val db: AsyncDBSessionFactory,
     private val projectCache: ProjectCache,
-    private val appService: AppStoreCache,
-    private val publicLinks: PublicLinkService,
 ) {
     suspend fun browse(
-        ctx: DBContext,
-        securityPrincipal: SecurityPrincipal,
+        securityPrincipal: Actor,
         project: String?,
-        pagination: NormalizedPaginationRequest,
+        pagination: NormalizedPaginationRequestV2,
         flags: JobDataIncludeFlags,
-    ): Page<Job> {
-        ctx.withSession { session ->
+    ): PageV2<VerifiedJobWithAccessToken> {
+        return db.paginateV2(
+            securityPrincipal,
+            pagination,
+            create = { session ->
+                val isAdmin =
+                    if (project == null) false
+                    else projectCache.retrieveRole(securityPrincipal.username, project)?.isAdmin() == true
+
+                val isSystem = securityPrincipal == Actor.System
+
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("username", securityPrincipal.username)
+                            setParameter("project", project)
+                            setParameter("isAdmin", isAdmin)
+                            setParameter("isSystem", isSystem)
+                        },
+
+                        """
+                            declare c cursor for
+                                select * 
+                                from app_orchestrator.jobs j
+                                where 
+                                    (
+                                        :isSystem or
+                                        (j.launched_by = :username and project is null or j.project = :project::text) or
+                                        (:isAdmin and :project::text is not null and j.project = :project::text)
+                                    )
+                                order by
+                                    last_update
+                        """
+                    )
+            },
+            mapper = { session, rows -> mapJobs(rows, flags, session) }
+        )
+    }
+
+    private suspend fun mapJobs(
+        rows: ResultSet,
+        flags: JobDataIncludeFlags,
+        session: AsyncDBConnection,
+    ): List<VerifiedJobWithAccessToken> {
+        val tokens = rows
+            .map { it.getField(JobsTable.id) to it.getField(JobsTable.refreshToken) }
+            .associateBy { it.first }
+        var jobs = rows.map { it.toJob() }
+        val jobIds = jobs.map { it.id }
+
+        if (flags.includeParameters == true) {
+            val resources = session
+                .sendPreparedStatement(
+                    { setParameter("ids", jobIds) },
+                    """
+                        select *
+                        from job_resources
+                        where job_id in (select unnest(:ids::text[]))
+                    """
+                )
+                .rows
+                .map { it.toAppResource() }
+                .groupBy { it.jobId }
+
+            val params = session
+                .sendPreparedStatement(
+                    { setParameter("ids", jobIds) },
+                    """
+                        select *
+                        from job_input_parameters
+                        where job_id in (select unnest(:ids::text[]))
+                    """
+                )
+                .rows
+                .map { it.toAppParameterValue() }
+                .groupBy { it.jobId }
+
+            jobs = jobs.map { job ->
+                val newParams = job.parameters!!.copy(
+                    parameters = params[job.id]?.asSequence()?.map { it.name to it.value }?.toMap()
+                        ?: emptyMap(),
+                    resources = resources[job.id]?.map { it.resource } ?: emptyList()
+                )
+
+                job.copy(parameters = newParams)
+            }
+        }
+
+        if (flags.includeUpdates == true) {
+            val updates = session
+                .sendPreparedStatement(
+                    { setParameter("ids", jobIds) },
+                    """
+                        select *
+                        from job_updates
+                        where job_id in (select unnest(:ids::text[]))
+                    """
+                )
+                .rows
+                .map { it.toJobUpdate() }
+                .groupBy { it.jobId }
+
+            jobs = jobs.map { job ->
+                job.copy(updates = updates[job.id]?.map { it.update } ?: job.updates)
+            }
+        }
+
+        if (flags.includeShell == true) {
+            TODO()
+        }
+
+        if (flags.includeVnc == true) {
+            TODO()
+        }
+
+        if (flags.includeWeb == true) {
+            TODO()
+        }
+
+        return jobs.map { VerifiedJobWithAccessToken(it, tokens.getValue(it.id).second) }
+    }
+
+    suspend fun retrieve(
+        securityPrincipal: Actor,
+        project: String?,
+        jobId: String,
+        flags: JobDataIncludeFlags,
+    ): VerifiedJobWithAccessToken {
+        return db.withSession { session ->
             val isAdmin =
                 if (project == null) false
                 else projectCache.retrieveRole(securityPrincipal.username, project)?.isAdmin() == true
 
-            val sqlParams: EnhancedPreparedStatement.() -> Unit = {
+            val isSystem = securityPrincipal == Actor.System
 
-            }
-
-            session
+            val rows = session
                 .sendPreparedStatement(
                     {
-                        setParameter("username", securityPrincipal.username)
-                        setParameter("project", project)
                         setParameter("isAdmin", isAdmin)
-                        setParameter("offset", pagination.offset)
-                        setParameter("limit", pagination.itemsPerPage)
-                        setParameter("jobId", null as String?)
+                        setParameter("project", project)
+                        setParameter("jobId", jobId)
+                        setParameter("username", securityPrincipal.username)
+                        setParameter("isSystem", isSystem)
                     },
-
                     """
-                        create or replace temporary view jobs_page as
-                            select * 
-                            from app_orchestrator.jobs j
-                            where 
-                                (
-                                    (j.launched_by = :username and project is null or j.project = :project::text) or
-                                    (:isAdmin and :project::text is not null and j.project = :project::text)
-                                ) and 
-                                (
-                                    :jobId is null or 
-                                    j.id = :jobId
-                                )
-                            limit :limit
-                            offset :offset
+                        select * 
+                        from app_orchestrator.jobs j
+                        where 
+                            j.id = :jobId and
+                            (
+                                :isSystem or
+                                (j.launched_by = :username and project is null or j.project = :project::text) or
+                                (:isAdmin and :project::text is not null and j.project = :project::text)
+                            )
                     """
                 )
+                .rows
 
-            val jobs = session.sendPreparedStatement({}, "select * from jobs_page")
-
-            val parameters = session
-                .sendPreparedStatement(
-                    sqlParams,
-
-                    """
-                        select ip.*
-                        from
-                            job_input_parameters ip,
-                            jobs_page p
-                        where
-                            ip.job_id = p.id
-                    """
-                )
-
-            session
-                .sendPreparedStatement(
-                    {
-
-                    },
-
-                    """
-                        select *
-                        from
-                        job_resources
-                    """
-                )
+            mapJobs(rows, flags, session).singleOrNull()
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
-        TODO()
     }
 
-    suspend fun retrieve(
+    suspend fun retrievePrivileged(
         ctx: DBContext,
-        securityPrincipal: SecurityPrincipal,
-        project: String?,
-        jobId: String,
+        jobIds: Collection<String>,
         flags: JobDataIncludeFlags,
-    ): Job {
-        TODO()
+    ): Map<String, VerifiedJobWithAccessToken> {
+        return ctx.withSession { session ->
+            mapJobs(
+                session
+                    .sendPreparedStatement(
+                        { setParameter("jobIds", jobIds.toList()) },
+                        """
+                        select * from app_orchestrator.jobs j
+                        where j.id in (select unnest(:jobIds::text[]))
+                    """
+                    ).rows,
+                flags,
+                session
+            ).associateBy { it.job.id }
+        }
     }
 
     suspend fun findFromUrlId(
@@ -265,4 +368,68 @@ class JobQueryService(
         }
     }
      */
+}
+
+fun RowData.toJob(): Job {
+    return Job(
+        getField(JobsTable.id),
+        JobOwner(
+            getField(JobsTable.launchedBy),
+            getFieldNullable(JobsTable.project)
+        ),
+        listOf(
+            JobUpdate(
+                getField(JobsTable.lastUpdate).toDateTime().millis,
+                JobState.valueOf(getField(JobsTable.currentState))
+            )
+        ),
+        JobBilling(
+            getField(JobsTable.creditsCharged),
+            getField(JobsTable.pricePerUnit)
+        ),
+        JobParameters(
+            NameAndVersion(getField(JobsTable.applicationName), getField(JobsTable.applicationVersion)),
+            ComputeProductReference(
+                getField(JobsTable.productId),
+                getField(JobsTable.productCategory),
+                getField(JobsTable.productProvider),
+            ),
+            getFieldNullable(JobsTable.name),
+            getField(JobsTable.replicas),
+            true
+        ),
+        output = getFieldNullable(JobsTable.outputFolder)?.let { JobOutput(it) }
+    )
+}
+
+data class SqlAppParameterValue(val jobId: String, val name: String, val value: AppParameterValue)
+
+fun RowData.toAppParameterValue(): SqlAppParameterValue {
+    return SqlAppParameterValue(
+        getField(JobInputParametersTable.jobId),
+        getField(JobInputParametersTable.name),
+        defaultMapper.readValue(getField(JobInputParametersTable.value))
+    )
+}
+
+data class SqlAppResource(val jobId: String, val resource: AppParameterValue)
+
+fun RowData.toAppResource(): SqlAppResource {
+    return SqlAppResource(
+        getField(JobResourcesTable.jobId),
+        defaultMapper.readValue(getField(JobResourcesTable.resource))
+    )
+}
+
+data class SqlJobUpdate(val jobId: String, val update: JobUpdate)
+
+fun RowData.toJobUpdate(): SqlJobUpdate {
+    return SqlJobUpdate(
+        getField(JobUpdatesTable.jobId),
+        JobUpdate(
+            getField(JobUpdatesTable.ts).toDateTime().millis,
+            getFieldNullable(JobUpdatesTable.state)?.let { JobState.valueOf(it) },
+            getFieldNullable(JobUpdatesTable.status)
+        )
+    )
 }

@@ -1,9 +1,6 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
-import dk.sdu.cloud.app.orchestrator.api.JobWithStatus
-import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -131,6 +128,8 @@ object SampleApplications {
 }
 @Ignore
 class ApplicationTest : IntegrationTest() {
+    // TODO
+    /*
     @Test
     fun `test figlet`() = t {
         UCloudLauncher.requireK8s()
@@ -338,4 +337,5 @@ class ApplicationTest : IntegrationTest() {
             "fails with payment required"
         ) { it.statusCode == HttpStatusCode.PaymentRequired }
     }
+     */
 }
