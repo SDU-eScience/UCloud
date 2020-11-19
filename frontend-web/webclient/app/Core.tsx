@@ -55,8 +55,8 @@ import {LandingPage} from "Project/Grant/LandingPage";
 import Products from "Products/Products";
 import {AppK8Admin} from "Admin/AppK8Admin";
 import {Shell} from "Applications/Jobs/Shell";
-import {DEV_SITE} from "../site.config.json";
 import * as Jobs from "Applications/Jobs";
+import CONF from "../site.config.json";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -69,7 +69,7 @@ const Core = (): JSX.Element => (
         <ErrorBoundary>
             <Switch>
                 <Route exact path="/login" component={LoginPage} />
-                {inDevEnvironment() || window.location.host === DEV_SITE ?
+                {inDevEnvironment() || window.location.host === CONF.DEV_SITE ?
                     <Route exact path="/login/selection" component={LoginSelection} /> :
                     <Route exact path="/login/selection" component={LoginPage} />
                 }

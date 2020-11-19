@@ -1,17 +1,25 @@
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 const path = require("path");
 const baseHref = "/app";
 
 module.exports = {
-
     entry: "./app/App.tsx",
 
     resolve: {
         //root: path.join(__dirname, ''),
         modules: [path.resolve(__dirname, "app"), "node_modules"],
-        extensions: [".js", ".jsx", ".json", ".ts", ".tsx"]
+        extensions: [".js", ".jsx", ".json", ".ts", ".tsx"],
+        // For webpack 5. Remember to install the 3 require.resolve packages
+        //
+        /* fallback: {
+            buffer: require.resolve("buffer"),
+            util: require.resolve("util"),
+            stream: require.resolve("stream-browserify"),
+            path: false, http: false, crypto: false
+        } */
     },
 
     module: {
@@ -28,7 +36,7 @@ module.exports = {
             },
             {
                 test: /\.css$/,
-                exclude: path.join(process.cwd(), '/app'),
+                exclude: path.join(__dirname, '/app'),
                 use: ["style-loader", "css-loader"]
             },
             {
@@ -74,5 +82,13 @@ module.exports = {
             favicon: "app/Assets/Images/favicon.ico"
         }),
         new MiniCSSExtractPlugin(),
+        new CopyWebpackPlugin({
+            patterns: [{
+                from: "Assets/AppVersion.txt",
+                to: "Assets/AppVersion.txt",
+                context: path.join(__dirname, "app")
+            }],
+            options: {}
+        })
     ]
 };

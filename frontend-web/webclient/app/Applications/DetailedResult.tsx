@@ -1,7 +1,6 @@
 import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {EmbeddedFileTable} from "Files/FileTable";
-import {History} from "history";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -10,7 +9,7 @@ import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {connect} from "react-redux";
-import {match} from "react-router";
+import {useRouteMatch} from "react-router";
 import {Link} from "react-router-dom";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -47,10 +46,7 @@ interface DetailedResultOperations {
     setRefresh: (refresh?: () => void) => void;
 }
 
-interface DetailedResultProps extends DetailedResultOperations {
-    match: match<{ jobId: string }>;
-    history: History;
-}
+type DetailedResultProps = DetailedResultOperations;
 
 const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const [status, setStatus] = useState<string>("");
@@ -63,7 +59,9 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const {termRef, terminal} = useXTerm();
     const promises = usePromiseKeeper();
 
-    const jobId = props.match.params.jobId;
+    const match = useRouteMatch<{jobId: string}>();
+
+    const jobId = match.params.jobId;
     const outputFolder = jobWithStatus?.outputFolder ?? "";
 
     useSidebarPage(SidebarPages.Runs);

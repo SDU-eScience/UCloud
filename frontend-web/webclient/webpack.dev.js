@@ -6,7 +6,7 @@ var commonConfig = require("./webpack.config.js");
 var path = require("path");
 var {DEV_SITE} = require("./site.config.json")
 
-module.exports = merge(commonConfig, {
+module.exports = env => merge(commonConfig, {
     devtool: "eval-source-map",
 
     mode: "development",
@@ -17,13 +17,13 @@ module.exports = merge(commonConfig, {
     },
 
     output: {
-        path: path.join(process.cwd(), "/dist"),
+        path: path.join(__dirname, "/dist"),
         publicPath: "/",
         filename: "[name].js",
     },
 
     plugins: [
-        // Enables Hot Module Replacement, otherwise known as HMR.
+        // Enables Hot Module Replacement.
         // Note: HMR should never be used in production.
         new webpack.HotModuleReplacementPlugin(),
         // new MiniCSSExtractPlugin({
@@ -31,6 +31,9 @@ module.exports = merge(commonConfig, {
         //     chunkFilename: "[id].css"
         // }),
         // Copies individual files or entire directories to the build directory
+        new webpack.DefinePlugin({
+            DEVELOPMENT_ENV: JSON.stringify(true)
+        }),
         new CopyWebpackPlugin({
             patterns: [{
                 from: "mock-api",
@@ -45,7 +48,7 @@ module.exports = merge(commonConfig, {
         disableHostCheck: true,
         historyApiFallback: true,
         stats: "minimal",
-        contentBase: path.join(process.cwd(), "/dist"),
+        contentBase: path.join(__dirname, "/dist"),
         index: "app/index.html",
         headers: {
             "Access-Control-Allow-Origin": "*",
@@ -57,7 +60,7 @@ module.exports = merge(commonConfig, {
         host: "0.0.0.0",
         proxy: [{
             context: ["/auth", "/api"],
-            target: process.env["local_dev"] !== undefined ? `http://localhost:8080` : `https://${DEV_SITE}`,
+            target: env.local_dev !== undefined ? `http://localhost:8080` : `https://${DEV_SITE}`,
             secure: false,
             changeOrigin: true,
             ws: true,

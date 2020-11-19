@@ -65,7 +65,7 @@ function getDateFormatter(duration: Duration): (timestamp: number) => string {
     }
 }
 
-export function creditFormatter(credits: number, precision: number = 2): string {
+export function creditFormatter(credits: number, precision = 2): string {
     if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
 
     // Edge-case handling
@@ -234,12 +234,12 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
             header={
                 <Box>
                     <UsageHeader>
-                        <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]}/>
+                        <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Usage"}]} />
                         <ClickableDropdown
                             trigger={
                                 <Flex alignItems={"center"}>
                                     <Heading.h4 mr={8}>{durationOption.text}</Heading.h4>
-                                    <Icon name={"chevronDown"} size={16}/>
+                                    <Icon name="chevronDown" size={16} />
                                 </Flex>
                             }
                             onChange={opt => setDurationOption(durationOptions[parseInt(opt, 10)])}
@@ -356,9 +356,9 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 top: 10, right: 30, left: 0, bottom: 0,
                                             }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3"/>
-                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)}/>
-                                            <YAxis width={150} tickFormatter={creditFormatter}/>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)} />
+                                            <YAxis width={150} tickFormatter={creditFormatter} />
                                             <Tooltip
                                                 labelFormatter={getDateFormatter(durationOption)}
                                                 formatter={n => creditFormatter(n as number, 2)}
@@ -401,51 +401,48 @@ const VisualizationForArea: React.FunctionComponent<{
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHeaderCell width={30}/>
-                                    <TableHeaderCell/>
+                                    <TableHeaderCell width={30} />
+                                    <TableHeaderCell />
                                     <TableHeaderCell textAlign="right">
                                         Credits Used In Period
                                     </TableHeaderCell>
                                 </TableRow>
                             </TableHeader>
                             <tbody>
-                            {chart.projects.map((p, idx) => {
-                                const isExpanded = expanded.has(p.projectTitle);
-                                const result = [
-                                    <TableRow key={p.projectTitle}>
-                                        <TableCell>
-                                            <Box width={20} height={20}
-                                                 backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]}/>
-                                        </TableCell>
-                                        <TableCell>
-                                            {p.projectTitle}
-                                            <Button ml="6px" width="6px" height="16px"
-                                                    onClick={() => onExpandOrDeflate(p.projectTitle)}>{isExpanded ? "-" : "+"}</Button>
-                                        </TableCell>
-                                        <TableCell textAlign="right">
-                                            {creditFormatter(p.totalUsage)}
-                                        </TableCell>
-                                    </TableRow>
-                                ];
-                                if (isExpanded) {
-                                    for (const category of p.categories) {
-                                        result.push(<TableRow key={category.product}>
+                                {chart.projects.map((p, idx) => {
+                                    const isExpanded = expanded.has(p.projectTitle);
+                                    const result = [
+                                        <TableRow key={p.projectTitle}>
                                             <TableCell>
-                                                <Box ml="20px" pl="6px" width={20} height={20}
-                                                     backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]}/>
+                                                <Box width={20} height={20}
+                                                    backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]} />
                                             </TableCell>
-                                            <TableCell><Text pl="20px">{category.product}</Text></TableCell>
+                                            <TableCell>
+                                                {p.projectTitle}
+                                                <Button ml="6px" width="6px" height="16px"
+                                                    onClick={() => onExpandOrDeflate(p.projectTitle)}>{isExpanded ? "-" : "+"}</Button>
+                                            </TableCell>
                                             <TableCell textAlign="right">
-                                                {creditFormatter(category.usage)}
+                                                {creditFormatter(p.totalUsage)}
                                             </TableCell>
-                                            <TableCell textAlign="right">
-                                                {creditFormatter(category.allocated - category.usage)}
-                                            </TableCell>
-                                        </TableRow>);
+                                        </TableRow>
+                                    ];
+                                    if (isExpanded) {
+                                        for (const category of p.categories) {
+                                            result.push(<TableRow key={category.product}>
+                                                <TableCell>
+                                                    <Box ml="20px" pl="6px" width={20} height={20}
+                                                        backgroundColor={idx > 3 ? theme.chartColors[4] : theme.chartColors[idx % theme.chartColors.length]} />
+                                                </TableCell>
+                                                <TableCell><Text pl="20px">{category.product}</Text></TableCell>
+                                                <TableCell textAlign="right">
+                                                    {creditFormatter(category.usage)}
+                                                </TableCell>
+                                            </TableRow>);
+                                        }
                                     }
-                                }
-                                return result;
-                            })}
+                                    return result;
+                                })}
                             </tbody>
                         </Table>
                     </Box>
@@ -460,11 +457,6 @@ const VisualizationForArea: React.FunctionComponent<{
         } else {
             setExpanded(new Set([...expanded, p]));
         }
-    }
-
-    function onChartExclusion(name: string): void {
-        chartExclusions.toggleFromCharts(name);
-        forceUpdate(it => !it);
     }
 };
 
@@ -497,7 +489,7 @@ const PercentageDisplay: React.FunctionComponent<{
     numerator: number,
     denominator: number,
     // Note this must be sorted ascending by breakpoint
-    colorRanges: { breakpoint: number, color: ThemeColor }[]
+    colorRanges: {breakpoint: number, color: ThemeColor}[]
 }> = props => {
     if (props.denominator === 0) {
         return null;
@@ -519,10 +511,9 @@ const SummaryCard: React.FunctionComponent<{
     creditsUsed: number,
     balance: number,
     allocatedToChildren: number
-}> = props => {
-    return <SummaryWrapper>
+}> = props => (
+    <SummaryWrapper>
         <Heading.h4>{props.title}</Heading.h4>
-
         <SummaryStat>
             {creditFormatter(props.creditsUsed)}
             <figcaption>Credits used in period</figcaption>
@@ -544,8 +535,8 @@ const SummaryCard: React.FunctionComponent<{
             />
             <figcaption>Allocated to subprojects</figcaption>
         </SummaryStat> : null}
-    </SummaryWrapper>;
-};
+    </SummaryWrapper>
+);
 
 interface ProjectUsageOperations {
     setRefresh: (refresh?: () => void) => void;
@@ -621,29 +612,3 @@ function periodStartFunction(time: Date, duration: Duration): number {
             return time.getTime();
     }
 }
-
-
-class ChartExclusions {
-    private exclusions: string[] = [];
-    private static excludeFromChartsString = "excludeFromCharts";
-
-    constructor() {
-        this.exclusions = JSON.parse(window.localStorage.getItem(ChartExclusions.excludeFromChartsString) ?? "[]");
-    }
-
-    public toggleFromCharts(name: string): void {
-        if (this.exclusions.includes(name)) {
-            this.exclusions = this.exclusions.filter(it => name !== it);
-            window.localStorage.setItem(ChartExclusions.excludeFromChartsString, JSON.stringify(this.exclusions));
-        } else {
-            this.exclusions.push(name);
-            window.localStorage.setItem(ChartExclusions.excludeFromChartsString, JSON.stringify(this.exclusions));
-        }
-    }
-
-    public queryExcludeFromCharts(name: string): boolean {
-        return this.exclusions.includes(name);
-    }
-}
-
-const chartExclusions = new ChartExclusions();

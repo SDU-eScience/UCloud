@@ -147,7 +147,7 @@ class ActionController<Ctx : FSUserContext>(
                 }
             }
 
-            ok(quota.copy(quotaUsed = usage))
+            ok(quota.copy(inProjectUsage = usage))
         }
 
         implement(FileDescriptions.transferQuota) {

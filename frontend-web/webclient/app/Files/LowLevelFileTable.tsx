@@ -10,7 +10,6 @@ import {
     defaultFileOperations, FileOperation, FileOperationCallback, FileOperationRepositoryMode
 } from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
-import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
@@ -36,7 +35,7 @@ import * as FUtils from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon, ConfirmCancelButtons, shareDialog} from "UtilityComponents";
-import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {
     createRepository, isRepository, renameRepository, getProjectNames, isAdminOrPI, updatePermissionsPrompt
@@ -706,7 +705,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                     )}
                                     {!(props.previewEnabled && FUtils.isFilePreviewSupported(f)) ? null :
                                         f.size != null
-                                            && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
+                                            && UF.inRange({status: f.size, max: CONF.PREVIEW_MAX_SIZE, min: 1}) ? (
                                                 <Tooltip
                                                     wrapperOffsetLeft="0"
                                                     wrapperOffsetTop="4px"
@@ -770,7 +769,6 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                                 <QuickLaunchApps
                                                     file={f}
                                                     applications={applications.get(f.path)}
-                                                    history={history}
                                                 />
                                             </ClickableDropdown>
                                         )
@@ -943,7 +941,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         {fileName}
                     </BaseLink>
                 ) : props.previewEnabled && FUtils.isFilePreviewSupported(props.file) && !beingRenamed &&
-                    UF.inRange({status: props.file.size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) ?
+                    UF.inRange({status: props.file.size ?? 0, min: 1, max: CONF.PREVIEW_MAX_SIZE}) ?
                         <Link to={FUtils.filePreviewQuery(props.file.path)}>{fileName}</Link> : fileName
                 }
 
@@ -1008,11 +1006,11 @@ const MembersFileRowStat: React.FunctionComponent<{
     } else {
         return (
             <Text
-                title={"members"}
+                title="members"
                 fontSize={0}
-                mr={"12px"}
-                color={"gray"}
-                cursor={"pointer"}
+                mr="12px"
+                color="gray"
+                cursor="pointer"
                 onClick={e => {
                     e.stopPropagation();
                     if (FUtils.isPartOfProject(file.path)) {
@@ -1196,10 +1194,11 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
 interface QuickLaunchApps extends SpaceProps {
     file: File;
     applications: QuickLaunchApp[] | undefined;
-    history: History<any>;
 }
 
 const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.Element | null => {
+
+    const history = useHistory();
     if (applications === undefined) return null;
     if (applications.length < 1) return null;
 
@@ -1208,7 +1207,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
             <Flex
                 cursor="pointer"
                 alignItems="center"
-                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), props.history)}
+                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), history)}
                 width="auto"
                 {...props}
             >

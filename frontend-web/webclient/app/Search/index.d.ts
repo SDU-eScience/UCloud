@@ -2,18 +2,8 @@ import {DetailedApplicationSearchReduxState, FullAppInfo} from "Applications";
 import {HeaderSearchType} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
 import {AdvancedSearchRequest as AppSearchRequest} from "Applications";
-import {History} from "history";
-import {match} from "react-router-dom";
 
-export interface SearchProps extends SimpleSearchOperations, SimpleSearchStateProps {
-    match: match<{priority: string}>;
-    /* If extends interface with these, Jest complains */
-    history: History;
-    location: {
-        // TODO There is more here
-        search: string
-    };
-}
+export type SearchProps = SimpleSearchOperations & SimpleSearchStateProps;
 
 export interface SimpleSearchStateProps {
     files: Page<File>;

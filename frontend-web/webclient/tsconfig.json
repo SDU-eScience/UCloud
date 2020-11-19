@@ -6,6 +6,7 @@
         "strictNullChecks": true,
         "noImplicitThis": true,
         "noImplicitAny": false,
+        "allowSyntheticDefaultImports": true,
         "allowUnreachableCode": false,
         "noFallthroughCasesInSwitch": true,
         "allowUnusedLabels": true,

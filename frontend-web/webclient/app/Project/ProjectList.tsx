@@ -181,7 +181,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             headerSize={58}
             main={(
                 <>
-                    {ingoingInvites.data.itemsInTotal > 0 ? (
+                    {ingoingInvites.data.items.length !== 0 ? (
                         <>
                             <Heading.h3 mb={16}>Invitations</Heading.h3>
                             <Pagination.List

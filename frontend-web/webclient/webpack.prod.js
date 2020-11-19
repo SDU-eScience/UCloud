@@ -6,15 +6,13 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CompressionPlugin = require('compression-webpack-plugin');
 var path = require("path");
 
-const ENV = process.env.NODE_ENV = process.env.ENV = "production";
-
 module.exports = merge(commonConfig, {
     // devtool: "source-map",
 
     mode: "production",
 
     output: {
-        path: path.join(process.cwd(), "/dist"),
+        path: path.join(__dirname, "/dist"),
         filename: "[name].[hash].js",
         publicPath: "/assets/"
     },
@@ -69,34 +67,32 @@ module.exports = merge(commonConfig, {
 
     plugins: [
         new webpack.NoEmitOnErrorsPlugin(),
-        // Allows creation of global constants which can be configured at compile time. 
+        // Allows creation of global constants which can be configured at compile time.
         new webpack.DefinePlugin({
-            "process.env": {
-                NODE_ENV: JSON.stringify("production")
-            }
+            DEVELOPMENT_ENV: JSON.stringify(false)
         }),
         // Minify and optimize the index.html
-    new HtmlWebpackPlugin({
-        template: 'app/index.html',
-        minify: {
-          removeComments: true,
-          collapseWhitespace: true,
-          removeRedundantAttributes: true,
-          useShortDoctype: true,
-          removeEmptyAttributes: true,
-          removeStyleLinkTypeAttributes: true,
-          keepClosingSlash: true,
-          minifyJS: true,
-          minifyCSS: true,
-          minifyURLs: true,
-        },
-        inject: true,
-      }),
-      new CompressionPlugin({
-        algorithm: 'gzip',
-        test: /\.js$|\.css$|\.html$/,
-        threshold: 10240,
-        minRatio: 0.8,
-      }),
+        new HtmlWebpackPlugin({
+            template: 'app/index.html',
+            minify: {
+                removeComments: true,
+                collapseWhitespace: true,
+                removeRedundantAttributes: true,
+                useShortDoctype: true,
+                removeEmptyAttributes: true,
+                removeStyleLinkTypeAttributes: true,
+                keepClosingSlash: true,
+                minifyJS: true,
+                minifyCSS: true,
+                minifyURLs: true,
+            },
+            inject: true,
+        }),
+        new CompressionPlugin({
+            algorithm: 'gzip',
+            test: /\.js$|\.css$|\.html$/,
+            threshold: 10240,
+            minRatio: 0.8,
+        }),
     ]
 });

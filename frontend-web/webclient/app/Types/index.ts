@@ -4,6 +4,10 @@ import {Action} from "redux";
 import {IconName} from "ui-components/Icon";
 import {ThemeColor} from "ui-components/theme";
 
+declare global {
+    const DEVELOPMENT_ENV: boolean;
+}
+
 export interface SidebarOption {
     name: string;
     icon: string;
@@ -27,7 +31,7 @@ declare global {
     }
 }
 
-export function singletonToPage<T>(item?: T | null, itemsPerPage: number = 50): Page<T> {
+export function singletonToPage<T>(item?: T | null, itemsPerPage = 50): Page<T> {
     if (item === undefined || item === null) return emptyPage;
     return {
         itemsInTotal: 1,
@@ -38,7 +42,7 @@ export function singletonToPage<T>(item?: T | null, itemsPerPage: number = 50): 
     };
 }
 
-export function arrayToPage<T>(items: T[], itemsPerPage: number = 50, page: number = 0): Page<T> {
+export function arrayToPage<T>(items: T[], itemsPerPage = 50, page = 0): Page<T> {
     if (items.length > itemsPerPage) throw Error("Not yet implemented");
     if (page !== 0) throw Error("Not yet implemented");
 

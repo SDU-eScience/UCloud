@@ -12,7 +12,7 @@ import {SimpleSearchStateProps} from "Search";
 import {SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
 import {APICallStateWithParams} from "Authentication/DataHook";
 import {
@@ -23,7 +23,7 @@ import {
     UserInProject
 } from "Project";
 import {GroupWithSummary} from "Project/GroupList";
-import {ListProductsResponse, Product} from "Accounting";
+import {Product} from "Accounting";
 
 export enum KeyCode {
     ENTER = 13,
@@ -31,7 +31,7 @@ export enum KeyCode {
 }
 
 export const emptyPage: Readonly<Page<any>> =
-    {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
+    {items: [], itemsInTotal: 0, itemsPerPage: 25, pageNumber: 0, pagesInTotal: 0};
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",

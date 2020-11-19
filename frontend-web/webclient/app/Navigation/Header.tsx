@@ -41,16 +41,17 @@ import {
     useFrameHidden,
     stopPropagationAndPreventDefault
 } from "UtilityFunctions";
-import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
+import CONF from "../../site.config.json";
 import {ContextSwitcher} from "Project/ContextSwitcher";
 import {NewsPost} from "Dashboard/Dashboard";
 import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
+import {VersionManager} from "VersionManager/VersionManager";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
 }
 
-const DevelopmentBadge = (): JSX.Element | null => [DEV_SITE, STAGING_SITE].includes(window.location.host) ||
+const DevelopmentBadge = (): JSX.Element | null => [CONF.DEV_SITE, CONF.STAGING_SITE].includes(window.location.host) ||
     inDevEnvironment() ? <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
 export function NonAuthenticatedHeader(): JSX.Element {
@@ -124,6 +125,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             <ui.Hide xs sm md lg>
                 <DevelopmentBadge />
             </ui.Hide>
+            <VersionManager />
             <BackgroundTask />
             <ui.Flex width="48px" justifyContent="center">
                 <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />
@@ -136,10 +138,10 @@ function Header(props: HeaderProps): JSX.Element | null {
                 left="-180%"
                 trigger={<ui.Flex>{Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</ui.Flex>}
             >
-                {!STATUS_PAGE ? null : (
+                {!CONF.STATUS_PAGE ? null : (
                     <>
                         <ui.Box>
-                            <ui.ExternalLink color="black" href={STATUS_PAGE}>
+                            <ui.ExternalLink color="black" href={CONF.STATUS_PAGE}>
                                 <ui.Flex color="black">
                                     <ui.Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
                                     <TextSpan>Site status</TextSpan>
@@ -191,7 +193,7 @@ function Header(props: HeaderProps): JSX.Element | null {
         try {
             if (!Client.isLoggedIn) return;
             const result = await promises.makeCancelable(Client.get<Page<NewsPost>>("/news/listDowntimes")).promise;
-            if (result.response.itemsInTotal > 0) setUpcomingDowntime(result.response.items[0].id);
+            if (result.response.items.length > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");
         }
@@ -237,15 +239,15 @@ const Logo = (): JSX.Element => (
     >
         <ui.Flex alignItems="center" ml="15px">
             <ui.Icon name="logoEsc" size="38px" />
-            <ui.Text color="headerText" fontSize={4} ml="8px">{PRODUCT_NAME}</ui.Text>
-            {!VERSION_TEXT ? null : (
+            <ui.Text color="headerText" fontSize={4} ml="8px">{CONF.PRODUCT_NAME}</ui.Text>
+            {!CONF.VERSION_TEXT ? null : (
                 <LogoText
                     ml="4px"
                     mt={-7}
                     color="red"
                     fontSize={17}
                 >
-                    {VERSION_TEXT}
+                    {CONF.VERSION_TEXT}
                 </LogoText>
             )}
         </ui.Flex>

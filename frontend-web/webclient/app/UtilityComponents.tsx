@@ -160,7 +160,6 @@ export function sensitivityDialog(
 }
 
 export function shareDialog(paths: string[], client: HttpClient): void {
-    // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
     dialogStore.addDialog(<SharePrompt client={client} paths={paths} />, () => undefined);
 }
 

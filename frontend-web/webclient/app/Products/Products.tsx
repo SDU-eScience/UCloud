@@ -3,7 +3,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {List} from "Pagination";
-import {Card, Box, Flex, Icon, List as UIList, Text, ContainerForText} from "ui-components";
+import {Card, Box, Flex, Icon, Text, ContainerForText} from "ui-components";
 import * as React from "react";
 import {capitalized} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
@@ -16,7 +16,7 @@ import styled from "styled-components";
 import * as ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {Spacer} from "ui-components/Spacer";
-import {PRODUCT_NAME} from "../../site.config.json";
+import CONF from "../../site.config.json";
 
 function Products(): JSX.Element {
     const main = (
@@ -166,7 +166,7 @@ function MachineView({area}: {area: string}): JSX.Element {
                         </TableRow>
                         <TableRow>
                             <th>Description</th>
-                            <TableCell><Text pl="16px">{activeMachine.description}</Text></TableCell>
+                            <TableCell><Text>{activeMachine.description}</Text></TableCell>
                         </TableRow>
                         </tbody>
                     </DetailedView>
@@ -178,7 +178,7 @@ function MachineView({area}: {area: string}): JSX.Element {
 
 function Description(): JSX.Element {
     return (<>
-        Below is the available SKUs on the {PRODUCT_NAME} platform.
+        Below is the available SKUs on the {CONF.PRODUCT_NAME} platform.
         They are divided into different product areas, i.e. storage SKUs and compute SKUs.
         The prices for compute will be visible when starting a job.
     </>);

@@ -15,7 +15,7 @@ import {useProjectManagementStatus} from "Project";
 import * as Heading from "ui-components/Heading";
 import {Box, Button, DataList, Flex, Grid, Icon, Input, Label, Text, TextArea} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {wayfIdps} from "./wayf-idps.json";
+import WAYF from "./wayf-idps.json";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
 import {ConfirmCancelButtons} from "UtilityComponents";
@@ -67,7 +67,7 @@ export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean
     });
 }
 
-const wayfIdpsPairs = wayfIdps.map(it => ({value: it, content: it}));
+const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
 export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: false});

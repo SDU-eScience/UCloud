@@ -7,7 +7,7 @@ import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import {inDevEnvironment} from "UtilityFunctions";
-import {DEV_SITE, DEV_WEBDAV_URL, PRODUCT_NAME, PRODUCTION_WEBDAV_URL} from "../../site.config.json";
+const CONF = require("../../site.config.json");
 
 const win1 = require("Assets/Images/webdav/win_dav_1.png");
 const win2 = require("Assets/Images/webdav/win_dav_2.png");
@@ -19,12 +19,12 @@ const macos2 = require("Assets/Images/webdav/macos_dav_2.png");
 const nautilus1 = require("Assets/Images/webdav/nautilus_dav_1.png");
 
 export const Instructions: React.FunctionComponent<{token: string}> = props => {
-    const server = inDevEnvironment() || window.location.host === DEV_SITE ?
-        DEV_WEBDAV_URL : PRODUCTION_WEBDAV_URL;
+    const server = inDevEnvironment() || window.location.host === CONF.DEV_SITE ?
+        CONF.DEV_WEBDAV_URL : CONF.PRODUCTION_WEBDAV_URL;
 
     return (
         <ContentContainer>
-            <Heading.h2 mt={16}>{PRODUCT_NAME} - Mounting Your Files Locally (Beta)</Heading.h2>
+            <Heading.h2 mt={16}>{CONF.PRODUCT_NAME} - Mounting Your Files Locally (Beta)</Heading.h2>
             <Heading.h3>To continue select your platform below</Heading.h3>
 
             <CollapsibleBox
@@ -53,7 +53,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                             <p>
                                 And select the option <i>"Connect using different credentials"</i>
                             </p>
-                            <Screenshot src={win2} alt={`Screenshot of connecting to ${PRODUCT_NAME}`} />
+                            <Screenshot src={win2} alt={`Screenshot of connecting to ${CONF.PRODUCT_NAME}`} />
                         </Step>
 
                         <Step>
@@ -84,7 +84,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                                 <pre>{server}</pre>
                             </code>
 
-                            <Screenshot src={macos1} alt={`Connecting to ${PRODUCT_NAME} via macOS`} />
+                            <Screenshot src={macos1} alt={`Connecting to ${CONF.PRODUCT_NAME} via macOS`} />
                         </Step>
 
                         <Step>
@@ -150,7 +150,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                         <Step>
                             <Heading.h5>Step 1</Heading.h5>
                             <p>
-                                The <i>davfs2</i> package is required to mount {PRODUCT_NAME}. On Debian based systems this
+                                The <i>davfs2</i> package is required to mount {CONF.PRODUCT_NAME}. On Debian based systems this
                                 can be accomplished with the following command:
                             </p>
 
@@ -168,7 +168,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                             </code>
 
                             <p>
-                                To mount {PRODUCT_NAME} enter in the following command:
+                                To mount {CONF.PRODUCT_NAME} enter in the following command:
                             </p>
 
                             <code>
@@ -193,7 +193,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                 body={(
                     <Box>
                         <p>
-                            Using any WebDAV client you can mount {PRODUCT_NAME}. Use the following server:
+                            Using any WebDAV client you can mount {CONF.PRODUCT_NAME}. Use the following server:
                         </p>
 
                         <code>
@@ -211,7 +211,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
 
             <Box m={10} />
 
-            <a href={"/app"}><Button fullWidth>Return to {PRODUCT_NAME}</Button></a>
+            <a href={"/app"}><Button fullWidth>Return to {CONF.PRODUCT_NAME}</Button></a>
         </ContentContainer>
     );
 };
@@ -265,7 +265,7 @@ const CredentialsInstructions: React.FunctionComponent<{token: string}> = props 
     return (
         <Box>
             <b>Username: </b>
-            <code>{PRODUCT_NAME.toLocaleLowerCase()}</code><br />
+            <code>{CONF.PRODUCT_NAME.toLocaleLowerCase()}</code><br />
 
             <b>Password: </b>
             <code>{props.token}</code>

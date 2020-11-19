@@ -154,12 +154,18 @@ export const statFileOrNull = async (path: string): Promise<File | null> => {
     }
 };
 
+/**
+ * Performs a backend call to check if a file exists.
+ * @param path to look up.
+ * @param client to contact the backend. 
+ * @returns False if request responds with 404 or 403, otherwise true. This means that if the call
+ * fails, the file is considered as existing, for safety.
+ */
 export const checkIfFileExists = async (path: string, client: HttpClient): Promise<boolean> => {
     try {
         await client.get(statFileQuery(path));
         return true;
     } catch (e) {
-        // FIXME: in the event of other than 404 or 403
         return !(e.request.status === 404 || e.request.status === 403);
     }
 };
@@ -185,6 +191,11 @@ export function resolvePath(path: string): string {
     return "/" + result.join("/");
 }
 
+/**
+ * Splits a path into components based on the divider '/', and filters away empty strings.
+ * @param path to be split.
+ * @returns every filtered component as a string array.
+ */
 export function pathComponents(path: string): string[] {
     return resolvePath(path).split("/").filter(it => it !== "");
 }
