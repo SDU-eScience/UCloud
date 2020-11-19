@@ -895,13 +895,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
-                                                    <TableCell>
-                                                        {
-                                                            state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                                state.editingApplication!.status === GrantApplicationStatus.APPROVED ? "Approved" :
-                                                                    state.editingApplication!.status === GrantApplicationStatus.REJECTED ? "Rejected" :
-                                                                        "Closed"
-                                                        }
+                                                        <TableCell>
+                                                            {
+                                                                state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
+                                                                    state.editingApplication!.status === GrantApplicationStatus.APPROVED ? ( state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy):
+                                                                        state.editingApplication!.status === GrantApplicationStatus.REJECTED ? ( state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
+                                                                            (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
+                                                            }
                                                         <ButtonGroup>
                                                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                                                 <>
