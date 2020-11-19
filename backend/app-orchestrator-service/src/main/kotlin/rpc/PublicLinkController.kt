@@ -1,5 +1,6 @@
 package app.orchestrator.rpc
 
+import dk.sdu.cloud.app.orchestrator.api.ListLinkResponse
 import dk.sdu.cloud.app.orchestrator.api.PublicLinks
 import dk.sdu.cloud.app.orchestrator.services.JobQueryService
 import dk.sdu.cloud.app.orchestrator.services.PublicLinkService
@@ -26,7 +27,8 @@ class PublicLinkController(
 
         implement(PublicLinks.list) {
             //ok(jobQueryService.listPublicUrls(db, ctx.securityPrincipal.username, request.normalize()))
-            TODO()
+            // TODO()
+            ok(ListLinkResponse(0, 0, 0, emptyList()))
         }
 
         Unit

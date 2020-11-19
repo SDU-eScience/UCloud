@@ -144,15 +144,5 @@ sealed class ApplicationParameter(val type: String) {
         val tagged: List<String>
     ) : ApplicationParameter(TYPE_LICENSE_SERVER) {
         override val defaultValue: Any? = null
-
-        /*
-        override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
-            return if (entry.license != null) {
-                "${entry.address}:${entry.port}/${entry.license}"
-            } else {
-                "${entry.address}:${entry.port}"
-            }
-        }
-         */
     }
 }

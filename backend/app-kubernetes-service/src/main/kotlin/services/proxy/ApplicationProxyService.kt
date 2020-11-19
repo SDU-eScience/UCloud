@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
+import dk.sdu.cloud.app.kubernetes.services.ResourceCache
 import dk.sdu.cloud.app.kubernetes.services.VerifiedJobCache
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.BroadcastingStream
@@ -20,6 +21,7 @@ class ApplicationProxyService(
     private val jobCache: VerifiedJobCache,
     private val tunnelManager: TunnelManager,
     private val broadcastingStream: BroadcastingStream,
+    private val resources: ResourceCache,
     private val prefix: String = "app-",
     private val domain: String = "cloud.sdu.dk"
 ) {
@@ -93,12 +95,10 @@ class ApplicationProxyService(
     }
 
     private suspend fun createOrUseExistingTunnel(incomingId: String): Tunnel {
-        TODO()
-        /*
         val job = jobCache.findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        val remotePort = job.application.invocation.web?.port ?: 80
-        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, job.url)
-         */
+        val application = resources.findResources(job).application
+        val remotePort = application.invocation.web?.port ?: 80
+        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, null /* TODO */)
     }
 
     companion object : Loggable {

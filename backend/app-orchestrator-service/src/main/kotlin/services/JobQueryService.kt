@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
@@ -99,7 +100,7 @@ class JobQueryService(
                 .groupBy { it.jobId }
 
             jobs = jobs.map { job ->
-                val newParams = job.parameters!!.copy(
+                val newParams = job.parameters.copy(
                     parameters = params[job.id]?.asSequence()?.map { it.name to it.value }?.toMap()
                         ?: emptyMap(),
                     resources = resources[job.id]?.map { it.resource } ?: emptyList()

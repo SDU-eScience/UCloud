@@ -16,9 +16,8 @@ import dk.sdu.cloud.service.k8.Pod
  */
 object MiscellaneousPlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        TODO()
-        /*
-        val containerConfig = job.application.invocation.container ?: ContainerDescription()
+        val application = resources.findResources(job).application
+        val containerConfig = application.invocation.container ?: ContainerDescription()
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
 
         tasks.forEach { task ->
@@ -56,6 +55,5 @@ object MiscellaneousPlugin : JobManagementPlugin {
                 )
             }
         }
-         */
     }
 }

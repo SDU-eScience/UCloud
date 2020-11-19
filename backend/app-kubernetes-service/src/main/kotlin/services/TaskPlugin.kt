@@ -16,13 +16,12 @@ import dk.sdu.cloud.service.k8.Pod
  */
 class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        TODO()
-        /*
-        val app = job.application.invocation
+        val jobResources = resources.findResources(job)
+        val app = jobResources.application.invocation
         val tool = app.tool.tool!!.description
 
         val vSpec = builder.spec ?: error("no volcano job spec")
-        vSpec.minAvailable = job.nodes
+        vSpec.minAvailable = job.parameters.replicas
         vSpec.queue = DEFAULT_QUEUE
         vSpec.policies = emptyList()
         vSpec.plugins = mapOf(
@@ -35,7 +34,7 @@ class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagement
         (vSpec.tasks?.toMutableList() ?: ArrayList()).let { tasks ->
             tasks.add(VolcanoJob.TaskSpec().apply {
                 name = "job"
-                replicas = job.nodes
+                replicas = job.parameters.replicas
                 policies = emptyList()
                 template = Pod.SpecTemplate().apply {
                     metadata = ObjectMeta(name = "job-${job.id}")
@@ -55,7 +54,7 @@ class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagement
                     container.imagePullPolicy = "IfNotPresent"
                     container.resources = run {
                         val resources = HashMap<String, String>()
-                        val reservation = job.reservation
+                        val reservation = jobResources.product
 
                         if (reservation.cpu != null) {
                             resources += "cpu" to "${reservation.cpu!! * 1000}m"
@@ -83,8 +82,6 @@ class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagement
 
             vSpec.tasks = tasks
         }
-
-         */
     }
 }
 

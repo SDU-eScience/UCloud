@@ -30,7 +30,16 @@ data class JobsControlChargeCreditsResponse(
     val duplicateCharges: List<FindByStringId>,
 )
 
-typealias JobsControlRetrieveRequest = FindByStringId
+data class JobsControlRetrieveRequest(
+    val id: String,
+    override val includeParameters: Boolean? = null,
+    override val includeWeb: Boolean? = null,
+    override val includeVnc: Boolean? = null,
+    override val includeShell: Boolean? = null,
+    override val includeUpdates: Boolean? = null,
+    override val includeApplication: Boolean? = null,
+    override val includeProduct: Boolean? = null,
+) : JobDataIncludeFlags
 typealias JobsControlRetrieveResponse = Job
 
 data class JobsControlChargeCreditsRequestItem(

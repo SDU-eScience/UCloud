@@ -1,10 +1,8 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
-import dk.sdu.cloud.app.orchestrator.api.AppParameterValue
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobParameters
 import dk.sdu.cloud.app.orchestrator.api.files
+import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream

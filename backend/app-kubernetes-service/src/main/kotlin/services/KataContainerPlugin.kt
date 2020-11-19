@@ -39,19 +39,18 @@ object KataContainerPlugin : JobManagementPlugin {
         }
     }
 
-    private fun removeKataOverhead(job: Job, request: Map<String, Any?>): HashMap<String, Any?> {
-        TODO()
-        /*
+    private suspend fun JobManagement.removeKataOverhead(job: Job, request: Map<String, Any?>): HashMap<String, Any?> {
+        val product = resources.findResources(job).product
+
         val clone = HashMap(request)
-        val cpu = job.reservation.cpu
+        val cpu = product.cpu
         if (cpu != null) {
             clone["cpu"] = "${max(1000, (cpu * 1000) - 1000)}m"
         }
-        val mem = job.reservation.memoryInGigs
+        val mem = product.memoryInGigs
         if (mem != null) {
             clone["memory"] = "${max(1, mem - 6)}Gi"
         }
         return clone
-         */
     }
 }

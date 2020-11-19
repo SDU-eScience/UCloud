@@ -1,8 +1,8 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
+import dk.sdu.cloud.app.orchestrator.api.JobsControlRetrieveRequest
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
@@ -13,7 +13,7 @@ class VerifiedJobCache(private val serviceClient: AuthenticatedClient) {
         maxAge = 1000 * 60 * 60,
         lookup = { id ->
             JobsControl.retrieve.call(
-                FindByStringId(id),
+                JobsControlRetrieveRequest(id),
                 serviceClient
             ).orNull()
         }

@@ -13,9 +13,8 @@ import dk.sdu.cloud.service.k8.Volume
  */
 object SharedMemoryPlugin : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        TODO()
-        /*
-        val sizeInGigs = job.reservation.memoryInGigs ?: 1
+        val product = resources.findResources(job).product
+        val sizeInGigs = product.memoryInGigs ?: 1
 
         val tasks = builder.spec?.tasks ?: error("no volcano tasks")
         tasks.forEach { t ->
@@ -45,6 +44,5 @@ object SharedMemoryPlugin : JobManagementPlugin {
                 spec.volumes = volumes
             }
         }
-         */
     }
 }

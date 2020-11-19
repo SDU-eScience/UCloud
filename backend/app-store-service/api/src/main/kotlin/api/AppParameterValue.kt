@@ -1,4 +1,4 @@
-package dk.sdu.cloud.app.orchestrator.api
+package dk.sdu.cloud.app.store.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo

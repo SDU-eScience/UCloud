@@ -55,8 +55,8 @@ class Server(
         )
 
         val logService = K8LogService(k8Dependencies)
-
         val maintenance = MaintenanceService(db, k8Dependencies)
+        val resourceCache = ResourceCache(serviceClient)
 
         val jobManagement = JobManagement(
             k8Dependencies,
@@ -64,6 +64,7 @@ class Server(
             logService,
             jobCache,
             maintenance,
+            resourceCache,
             // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
             // instance) In that case we can disable it via configuration. Note that this config will only be used if
             // we are in development mode.

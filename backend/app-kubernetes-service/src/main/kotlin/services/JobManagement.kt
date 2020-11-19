@@ -9,6 +9,10 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.DistributedLock
 import dk.sdu.cloud.service.DistributedLockFactory
@@ -16,6 +20,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
+import io.ktor.util.cio.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.onReceiveOrNull
 import kotlinx.coroutines.selects.select
@@ -62,6 +67,7 @@ class JobManagement(
     private val logService: K8LogService,
     private val jobCache: VerifiedJobCache,
     private val maintenance: MaintenanceService,
+    val resources: ResourceCache,
     private val disableMasterElection: Boolean = false,
     private val fullScanFrequency: Long = 1000L * 60 * 15,
 ) {
@@ -464,8 +470,6 @@ class JobManagement(
     }
 
     private suspend fun markJobAsComplete(jobId: String, volcanoJob: VolcanoJob?) {
-        TODO()
-        /*
         val job = volcanoJob ?: run {
             val name = k8.nameAllocator.jobIdToJobName(jobId)
             val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
@@ -483,8 +487,8 @@ class JobManagement(
         val dir = logService.downloadLogsToDirectory(jobId)
         try {
             dir?.listFiles()?.forEach { file ->
-                ComputationCallbackDescriptions.submitFile.call(
-                    SubmitComputationResult(
+                JobsControl.submitFile.call(
+                    JobsControlSubmitFileRequest(
                         jobId,
                         file.name,
                         BinaryStream.outgoingFromChannel(file.readChannel(), file.length())
@@ -492,21 +496,12 @@ class JobManagement(
                     k8.serviceClient
                 )
             }
-
-            ComputationCallbackDescriptions.completed.call(
-                // Accounting is done by the AccountingPlugin, don't charge anything additional here.
-                JobCompletedRequest(jobId, SimpleDuration.fromMillis(0), true),
-                k8.serviceClient
-            ).orThrow()
         } finally {
             dir?.deleteRecursively()
         }
-         */
     }
 
     fun verifyJobs(jobs: List<Job>) {
-        TODO()
-        /*
         k8.scope.launch {
             val jobsByNamespace = jobs.map { it.id }.groupBy { k8.nameAllocator.jobIdToNamespace(it) }
             for ((ns, jobs) in jobsByNamespace) {
@@ -518,15 +513,20 @@ class JobManagement(
                 for (job in jobs) {
                     if (job !in knownJobs) {
                         log.info("We appear to have lost the following job: ${job}")
-                        ComputationCallbackDescriptions.completed.call(
-                            JobCompletedRequest(job, SimpleDuration.fromMillis(0), true),
+                        JobsControl.update.call(
+                            bulkRequestOf(
+                                JobsControlUpdateRequestItem(
+                                    job,
+                                    state = JobState.FAILURE,
+                                    status = "UCloud/Compute lost track of this job"
+                                )
+                            ),
                             k8.serviceClient
                         ).orThrow()
                     }
                 }
             }
         }
-         */
     }
 
     companion object : Loggable {

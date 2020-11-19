@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.rpc
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.orchestrator.api.Jobs
+import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobQueryService
 import dk.sdu.cloud.calls.RPCException
@@ -45,7 +46,11 @@ class JobController(
 
         implement(Jobs.follow) {
             verifySlaFromPrincipal()
-            TODO()
+            // TODO()
+            ok(JobsFollowResponse(
+                emptyList(),
+                emptyList()
+            ))
         }
 
         implement(Jobs.extend) {

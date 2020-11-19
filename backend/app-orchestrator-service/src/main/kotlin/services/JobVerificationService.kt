@@ -270,9 +270,7 @@ class JobVerificationService(
 
                 is ApplicationParameter.Enumeration -> {
                     if (providedValue !is AppParameterValue.Text) badValue(param)
-                    val enumValue = param.options.find { it.name == providedValue.value } ?: badValue(param)
-
-                    userParameters[param.name] = AppParameterValue.Text(enumValue.value)
+                    param.options.find { it.name == providedValue.value } ?: badValue(param)
                 }
 
                 is ApplicationParameter.Peer -> {

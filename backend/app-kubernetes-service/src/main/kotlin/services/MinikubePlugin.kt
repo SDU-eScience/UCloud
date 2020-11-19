@@ -13,12 +13,11 @@ object MinikubePlugin : JobManagementPlugin {
     const val SERVICE_SUFFIX = "-mk"
 
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        TODO()
-        /*
         val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
         val name = k8.nameAllocator.jobIdToJobName(job.id)
+        val application = resources.findResources(job).application
 
-        val target = job.application.invocation.web?.port ?: job.application.invocation.vnc?.port ?: 80
+        val target = application.invocation.web?.port ?: application.invocation.vnc?.port ?: 80
 
         @Suppress("BlockingMethodInNonBlockingContext")
         k8.client.createResource(
@@ -46,7 +45,6 @@ object MinikubePlugin : JobManagementPlugin {
                 )
             )
         )
-         */
     }
 
     override suspend fun JobManagement.onCleanup(jobId: String) {

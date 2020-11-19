@@ -1,9 +1,11 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
+import dk.sdu.cloud.app.orchestrator.api.JobsControlUpdateRequestItem
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.k8.KubernetesClient
@@ -21,19 +23,16 @@ data class K8Dependencies(
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 
     suspend fun addStatus(jobId: String, message: String): Boolean {
-        TODO()
-        /*
         val last = lastMessage.get(jobId)
         if (last != message) {
-            ComputationCallbackDescriptions.addStatus.call(
-                AddStatusJob(jobId, message),
+            JobsControl.update.call(
+                bulkRequestOf(JobsControlUpdateRequestItem(jobId, status = message)),
                 serviceClient
             )
             lastMessage.insert(jobId, message)
             return true
         }
         return false
-         */
     }
 
     suspend fun changeState(
@@ -41,19 +40,16 @@ data class K8Dependencies(
         state: JobState,
         newStatus: String? = null
     ): Boolean {
-        TODO()
-        /*
         val last = lastMessage.get(jobId)
         val messageAsString = "${state}-${newStatus}"
         if (last != messageAsString) {
-            ComputationCallbackDescriptions.requestStateChange.call(
-                StateChangeRequest(jobId, state, newStatus),
+            JobsControl.update.call(
+                bulkRequestOf(JobsControlUpdateRequestItem(jobId, state = state, status = newStatus)),
                 serviceClient
-            ).orThrow()
+            )
             lastMessage.insert(jobId, messageAsString)
             return true
         }
         return false
-         */
     }
 }

@@ -24,8 +24,6 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 
-data class JobStateChange(val systemId: String, val newState: JobState)
-
 /**
  * The job orchestrator is responsible for the orchestration of computation providers.
  *
