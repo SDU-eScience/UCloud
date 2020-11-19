@@ -17,11 +17,29 @@ enum class WalletOwnerType {
     PROJECT
 }
 
-enum class TransactionComment {
+enum class TransactionType {
     GIFTED,
     TRANSFERRED_TO_PERSONAL,
     TRANSFERRED_TO_PROJECT,
     PAYMENT
+}
+
+fun transactionComment(amount: Long, receiverId: String, transactionType: TransactionType) : String {
+    val dkk = amount / 1000000
+    return when (transactionType) {
+        TransactionType.GIFTED -> {
+            "Gifted $dkk DKK to $receiverId"
+        }
+        TransactionType.PAYMENT -> {
+            "Payed $dkk DKK for $receiverId "
+        }
+        TransactionType.TRANSFERRED_TO_PERSONAL -> {
+            "Transferred $dkk DKK to personal project: $receiverId"
+        }
+        TransactionType.TRANSFERRED_TO_PROJECT -> {
+            "Transferred $dkk DKK to project: $receiverId"
+        }
+    }
 }
 
 data class RetrieveBalanceRequest(
@@ -115,12 +133,12 @@ data class ReserveCreditsRequest(
 
     /**
      * A comment stating what the transaction is used in. Can be :
-     *  GIFTED, (transfered as is a gift claim)
+     *  GIFTED, (transferred as is a gift claim)
      *  TRANSFERRED_TO_PERSONAL, (credits are moved from project to a personal project)
      *  TRANSFERRED_TO_PROJECT, (usually only used in reservations in applications)
      *  PAYMENT (Credits are used as payment for services)
      */
-    val transactionComment: TransactionComment
+    val transactionType: TransactionType
 ) {
     init {
         if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
@@ -141,8 +159,7 @@ typealias ReserveCreditsBulkResponse = Unit
 data class ChargeReservationRequest(
     val name: String,
     val amount: Long,
-    val productUnits: Long,
-    val transactionComment: TransactionComment
+    val productUnits: Long
 ) {
     init {
         if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)

@@ -2,7 +2,7 @@ package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.accounting.api.AccountingServiceDescription
 import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
-import dk.sdu.cloud.accounting.api.TransactionComment
+import dk.sdu.cloud.accounting.api.TransactionType
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.utils.insertAll
 import dk.sdu.cloud.accounting.utils.project
@@ -10,7 +10,6 @@ import dk.sdu.cloud.accounting.utils.projectId
 import dk.sdu.cloud.accounting.utils.walletProjectStandard
 import dk.sdu.cloud.accounting.utils.walletUserGpu
 import dk.sdu.cloud.accounting.utils.walletUserStandard
-import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
@@ -23,7 +22,6 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.UserGroupSummary
 import dk.sdu.cloud.project.api.UserStatusInProject
 import dk.sdu.cloud.project.api.UserStatusResponse
-import dk.sdu.cloud.project.api.ViewAncestorsResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -284,12 +282,12 @@ class WalletServiceTest {
                     user.username,
                     walletUserStandard.paysFor.id,
                     400,
-                    transactionComment = TransactionComment.TRANSFERRED_TO_PROJECT
+                    transactionType = TransactionType.TRANSFERRED_TO_PROJECT
                 )
             )
             val reserved = walletService.getReservedCredits(db, walletProjectStandard)
             assertEquals(25000, reserved)
-            walletService.chargeFromReservation(db, "jobId", 25000, 400, TransactionComment.TRANSFERRED_TO_PROJECT)
+            walletService.chargeFromReservation(db, "jobId", 25000, 400)
 
             val reservedAfterCharge = walletService.getReservedCredits(db, walletProjectStandard)
             assertEquals(0, reservedAfterCharge)

@@ -1,7 +1,7 @@
 package dk.sdu.cloud.grant.services
 
 import com.github.jasync.sql.db.RowData
-import dk.sdu.cloud.accounting.api.TransactionComment
+import dk.sdu.cloud.accounting.api.TransactionType
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -75,7 +75,7 @@ class GiftService(
                 actor.safeUsername(),
                 WalletOwnerType.USER,
                 serviceClient,
-                transactionComment = TransactionComment.GIFTED
+                transactionType = TransactionType.GIFTED
             )
         }
     }

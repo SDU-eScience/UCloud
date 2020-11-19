@@ -38,8 +38,7 @@ class PaymentService(
             ChargeReservationRequest(
                 job.id,
                 price,
-                units,
-                TransactionComment.PAYMENT
+                units
             ),
             serviceClient
         )
@@ -76,7 +75,7 @@ class PaymentService(
                 job.owner,
                 job.reservation.id,
                 units,
-                transactionComment = TransactionComment.PAYMENT
+                transactionType = TransactionType.PAYMENT
             ),
             serviceClient
         ).statusCode

@@ -453,7 +453,7 @@ class ApplicationService(
                     WalletOwnerType.USER,
                     serviceClient,
                     actor.safeUsername(),
-                    TransactionComment.TRANSFERRED_TO_PERSONAL
+                    TransactionType.TRANSFERRED_TO_PERSONAL
                 )
             }
 
@@ -465,7 +465,7 @@ class ApplicationService(
                     WalletOwnerType.PROJECT,
                     serviceClient,
                     actor.safeUsername(),
-                    TransactionComment.TRANSFERRED_TO_PROJECT
+                    TransactionType.TRANSFERRED_TO_PROJECT
                 )
             }
 
@@ -486,7 +486,7 @@ class ApplicationService(
                     WalletOwnerType.PROJECT,
                     serviceClient,
                     actor.safeUsername(),
-                    TransactionComment.TRANSFERRED_TO_PROJECT
+                    TransactionType.TRANSFERRED_TO_PROJECT
                 )
             }
         }
@@ -731,7 +731,7 @@ suspend fun grantResourcesToProject(
     targetWalletType: WalletOwnerType,
     serviceClient: AuthenticatedClient,
     initiatedBy: String = "_ucloud",
-    transactionComment: TransactionComment
+    transactionType: TransactionType
 ) {
     // Start by verifying this project has enough resources
     // TODO This isn't really enough since we still have potential race conditions but this is
@@ -752,7 +752,7 @@ suspend fun grantResourcesToProject(
                     productUnits = 0,
                     jobInitiatedBy = "_ucloud",
                     discardAfterLimitCheck = true,
-                    transactionComment = transactionComment
+                    transactionType = transactionType
                 )
             }
         ),
