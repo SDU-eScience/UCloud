@@ -438,9 +438,6 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 <TableCell textAlign="right">
                                                     {creditFormatter(category.usage)}
                                                 </TableCell>
-                                                <TableCell textAlign="right">
-                                                    {creditFormatter(category.allocated - category.usage)}
-                                                </TableCell>
                                             </TableRow>);
                                         }
                                     }
