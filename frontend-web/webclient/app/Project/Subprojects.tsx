@@ -121,7 +121,7 @@ const SelectableWallet: React.FunctionComponent<{
                                     {" "}/{" "}
                                     {sizeToString(props.remainingQuota!)}
                                     {" "}({(100 * (props.remainingQuota ?
-                                            ((props.usage ?? 0) / props.remainingQuota!) : 1
+                                            ((props.usage ?? 0) / props.remainingQuota) : 1
                                     )).toFixed(2)}%)
                                 </td>
                             </tr>
@@ -278,7 +278,7 @@ const Subprojects: React.FunctionComponent = () => {
                                             ), 0)
                                         }
                                         quotaInTotal= {quota.data.quotaInTotal}
-                                        usage= {quota.data.quotaUsed}
+                                        usage={quota.data.quotaUsed}
                                         remainingQuota={quota.data.quotaInBytes}
                                         onClick={() => setSelectedWallet(w)} />
                                     : <SelectableWallet
