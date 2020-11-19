@@ -160,7 +160,12 @@ class LimitChecker<Ctx : FSUserContext>(
                     )
 
                 val newQuotaForParent = retrieveQuota(actor, fromProject, session)
-                if (newQuotaForParent.quotaInBytes != NO_QUOTA && newQuotaForParent.quotaInBytes < 0) {
+                val inProjectUsage = runnerFactory.withContext(SERVICE_USER) { fsCtx ->
+                    fs.estimateRecursiveStorageUsedMakeItFast(fsCtx, fromProject)
+                }
+                if (newQuotaForParent.remainingQuota != NO_QUOTA &&
+                    (newQuotaForParent.remainingQuota - inProjectUsage) < 0
+                ) {
                     throw RPCException(
                         "This project does not have enough resources for this transfer",
                         HttpStatusCode.PaymentRequired
