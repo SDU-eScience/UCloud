@@ -1,7 +1,6 @@
 import {Store} from "redux";
 import HttpClient, {JWT, MissingAuthError} from "../../app/Authentication/lib";
 import {emptyPage} from "../../app/DefaultObjects";
-import {parseJWT} from "../../app/UtilityFunctions";
 
 class MockHttpClient {
 
@@ -83,7 +82,8 @@ class MockHttpClient {
     }
 
     public get fakeFolders(): string[] {
-        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.currentProjectFolder] : []);
+        return [this.sharesFolder, this.favoritesFolder]
+            .concat(this.hasActiveProject ? [this.currentProjectFolder] : []);
     }
 
     public get hasActiveProject(): boolean {
@@ -115,33 +115,33 @@ class MockHttpClient {
     private projectDecodedToken: any | undefined = undefined;
 
     constructor() {
-        this.decodedToken = parseJWT("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
+        this.decodedToken = parseJWT(
+            "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
             "lzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJ0ZXN0IiwiZXhwIjozNjE1NDkxMDkzLCJpYXQiOjE1MTU0ODkyO" +
             "TMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsImF1ZCI6WyJhcGkiLCJpcm9kcyJdfQ.gfLvmBWET-WpwtWLdrN9SL0tD" +
             "-0vrHrriWWDxnQljB8");
     }
 
-    public call = ({
-        method,
-        path,
-        body,
-        context = this.apiContext,
-        maxRetries = 5,
-        withCredentials = false
-    }): Promise<any> =>
+    public call = (req): Promise<any> =>
         new Promise(resolve => {
-            switch (path) {
+            switch (req.path) {
                 case "/accounting/storage/bytesUsed/usage":
-                    resolve({request: {} as XMLHttpRequest, response: {usage: 14690218167, quota: null, dataType: "bytes", title: "Storage Used"}});
+                    resolve({
+                        request: {} as XMLHttpRequest,
+                        response: {usage: 14690218167, quota: null, dataType: "bytes", title: "Storage Used"}
+                    });
                     return;
                 case "/accounting/compute/timeUsed/usage":
-                    resolve({request: {} as XMLHttpRequest, response: {usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"}});
+                    resolve({
+                        request: {} as XMLHttpRequest,
+                        response: {usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"}
+                    });
                     return;
             }
             resolve({request: {} as XMLHttpRequest, response: emptyPage});
         })
 
-    public get = (path: string, context = this.apiContext) =>
+    public get = (path: string, context = this.apiContext): Promise<void> =>
         this.call({method: "GET", path, body: undefined, context});
 
     public post = (path: string, body?: object, context = this.apiContext) =>
@@ -213,46 +213,38 @@ class MockHttpClient {
         return this.context + absolutePath;
     }
 
-    public openLandingPage() {
+    public openLandingPage(): void {
         if (window.location.href !== this.context + "/app/")
             window.location.href = this.context + "/app/";
-    }
-
-    private refresh() {
-        return new Promise<string>(() => "Hello");
-    }
-
-    private isTokenExpired = () => false;
-
-    private missingAuth(): 0 | MissingAuthError {
-        return 0;
-    }
-
-    private retrieveToken(disallowProjects: boolean): string {
-        return HttpClient.storedAccessToken;
     }
 
     private useProjectToken(disallowProjects: boolean): boolean {
         return this.projectId !== undefined && !disallowProjects;
     }
-
-    private decodeToken(accessToken: string): any {
-        const bail = (): never => {
-            HttpClient.clearTokens();
-            this.openBrowserLoginPage();
-            return void (0) as never;
-        };
-        try {
-            const token = {payload: parseJWT(accessToken)};
-            if (token.payload == null) return bail();
-            return token;
-        } catch (e) {
-            return bail();
-        }
-    }
 }
 
 export const Client = new MockHttpClient();
+
+function parseJWT(encodedJWT: string): JWT | null {
+    const [, right] = encodedJWT.split(".");
+    if (right == null) return null;
+
+    const decoded = atob(right);
+    const parsed = JSON.parse(decoded);
+    const isValid = "sub" in parsed &&
+        "uid" in parsed &&
+        "aud" in parsed &&
+        "role" in parsed &&
+        "iss" in parsed &&
+        "exp" in parsed &&
+        "extendedByChain" in parsed &&
+        "iat" in parsed &&
+        "principalType" in parsed;
+    if (!isValid) return null;
+
+    return parsed;
+}
+
 
 /* Why is this necessary? */
 test("Silencer", () => {/*  */});

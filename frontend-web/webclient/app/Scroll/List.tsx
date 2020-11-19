@@ -27,8 +27,8 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
     private eventListener: (e: UIEvent) => void;
     private container = React.createRef<HTMLElement>();
     private recordedHeights: number[] = [];
-    private topOffset: number = -1;
-    private averageComponentSize: number = -1;
+    private topOffset = -1;
+    private averageComponentSize = -1;
 
     private get scrollOrDefault(): ScrollResult<Item, OffsetType> {
         return this.props.scroll || {endOfScroll: false, nextOffset: null, items: []};
@@ -193,7 +193,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
             if (props.scroll === undefined || props.scroll.items.length === 0) {
                 if (!props.customEmptyPage) {
                     return (
-                        <div>
+                        <div key="body">
                             <Heading.h2>No results.</Heading.h2>
                         </div>
                     );
@@ -220,6 +220,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
 
         return (
             <ListBody
+                key="listBody"
                 containerRef={containerRef}
                 items={items}
                 firstVisibleElement={firstVisibleElement}
@@ -236,7 +237,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
         const {loading} = this.props;
 
         return (
-            <Flex justifyContent="center">
+            <Flex key="LoadingButton" justifyContent="center">
                 <Button
                     onClick={() => this.requestMore(true)}
                     disabled={loading}

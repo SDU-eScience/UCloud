@@ -17,7 +17,7 @@ describe("Runs component", () => {
             <Provider store={storeCopy}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <Runs history={createMemoryHistory()} />
+                        <Runs />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>).toJSON()).toMatchSnapshot();

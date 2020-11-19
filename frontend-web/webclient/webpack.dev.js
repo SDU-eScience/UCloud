@@ -31,6 +31,9 @@ module.exports = env => merge(commonConfig, {
         //     chunkFilename: "[id].css"
         // }),
         // Copies individual files or entire directories to the build directory
+        new webpack.DefinePlugin({
+            DEVELOPMENT_ENV: JSON.stringify(true)
+        }),
         new CopyWebpackPlugin({
             patterns: [{
                 from: "mock-api",

@@ -452,7 +452,7 @@ export default class HttpClient {
             const req = new XMLHttpRequest();
             req.open("POST", refreshPath);
             req.setRequestHeader("X-CSRFToken", csrfToken);
-            if (process.env.NODE_ENV === "development") {
+            if (DEVELOPMENT_ENV) {
                 req.withCredentials = true;
             }
 

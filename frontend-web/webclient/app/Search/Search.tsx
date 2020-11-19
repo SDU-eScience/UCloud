@@ -14,6 +14,7 @@ import {setActivePage, useTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
+import {useHistory, useLocation, useRouteMatch} from "react-router";
 import {Dispatch} from "redux";
 import {Box, SelectableText, SelectableTextWrapper} from "ui-components";
 import {GridCardGroup} from "ui-components/Grid";
@@ -22,17 +23,23 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {searchPage} from "Utilities/SearchUtilities";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
+import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {prettierString} from "UtilityFunctions";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
 import * as SSActions from "./Redux/SearchActions";
 
 function Search(props: SearchProps): JSX.Element {
+
+    const match = useRouteMatch<{priority: string}>();
+    const history = useHistory();
+    const location = useLocation();
+
+
     React.useEffect(() => {
         props.toggleAdvancedSearch();
-        const q = query(props);
+        const q = query({location, history});
         props.setSearch(q);
-        props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
+        props.setPrioritizedSearch(match.params.priority as HeaderSearchType);
         props.setRefresh(fetchAll);
         return () => {
             props.toggleAdvancedSearch();
@@ -41,13 +48,14 @@ function Search(props: SearchProps): JSX.Element {
         };
     }, []);
 
+
     React.useEffect(() => {
-        props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
-    }, [props.match.params.priority]);
+        props.setPrioritizedSearch(match.params.priority as HeaderSearchType);
+    }, [match.params.priority]);
 
     useTitle("Search");
 
-    const setPath = (text: string): void => props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
+    const setPath = (text: string): void => history.push(searchPage(text.toLocaleLowerCase(), props.search));
 
     function fetchAll(itemsPerPage?: number): void {
         props.searchFiles(fileSearchBody(
@@ -62,7 +70,7 @@ function Search(props: SearchProps): JSX.Element {
             itemsPerPage || props.applications.itemsPerPage,
             props.applications.pageNumber
         ));
-        props.history.push(searchPage(props.match.params.priority, props.search));
+        history.push(searchPage(match.params.priority, props.search));
     }
 
     const refreshFiles = (): void => props.searchFiles(fileSearchBody(
@@ -89,7 +97,7 @@ function Search(props: SearchProps): JSX.Element {
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
 
     let main: React.ReactNode = null;
-    const {priority} = props.match.params;
+    const {priority} = match.params;
     const entriesPerPage = (
         <Box my="8px">
             <Spacer
@@ -261,10 +269,10 @@ export function applicationSearchBody(
     };
 }
 
-function query(props: SearchProps): string {
+function query(props: RouterLocationProps): string {
     return queryFromProps(props);
 }
 
-function queryFromProps(p: SearchProps): string {
+function queryFromProps(p: RouterLocationProps): string {
     return getQueryParamOrElse(p, "query", "");
 }

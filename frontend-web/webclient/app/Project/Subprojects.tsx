@@ -36,6 +36,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {getRenamingStatusForSubProject, toggleRenaming} from "./ProjectSettings";
 import {TableCell} from "ui-components/Table";
 
+
 const WalletContainer = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, auto));
@@ -144,7 +145,7 @@ const SelectableWallet: React.FunctionComponent<{
 };
 
 const Subprojects: React.FunctionComponent = () => {
-    const [isLoading, runCommand] = useAsyncCommand();
+    const [, runCommand] = useAsyncCommand();
 
     useTitle("Resources");
     useSidebarPage(SidebarPages.Projects);
@@ -221,7 +222,7 @@ const Subprojects: React.FunctionComponent = () => {
                     title: subprojectName,
                     parent: projectId
                 }))
-            );
+            ).promise;
 
             snackbarStore.addSuccess(`Subproject created`, true);
             createSubprojectRef.current!.value = "";

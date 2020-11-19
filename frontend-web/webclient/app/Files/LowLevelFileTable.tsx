@@ -10,7 +10,6 @@ import {
     defaultFileOperations, FileOperation, FileOperationCallback, FileOperationRepositoryMode
 } from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
-import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
@@ -770,7 +769,6 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                                 <QuickLaunchApps
                                                     file={f}
                                                     applications={applications.get(f.path)}
-                                                    history={history}
                                                 />
                                             </ClickableDropdown>
                                         )
@@ -1008,11 +1006,11 @@ const MembersFileRowStat: React.FunctionComponent<{
     } else {
         return (
             <Text
-                title={"members"}
+                title="members"
                 fontSize={0}
-                mr={"12px"}
-                color={"gray"}
-                cursor={"pointer"}
+                mr="12px"
+                color="gray"
+                cursor="pointer"
                 onClick={e => {
                     e.stopPropagation();
                     if (FUtils.isPartOfProject(file.path)) {
@@ -1196,10 +1194,11 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
 interface QuickLaunchApps extends SpaceProps {
     file: File;
     applications: QuickLaunchApp[] | undefined;
-    history: History<any>;
 }
 
 const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.Element | null => {
+
+    const history = useHistory();
     if (applications === undefined) return null;
     if (applications.length < 1) return null;
 
@@ -1208,7 +1207,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
             <Flex
                 cursor="pointer"
                 alignItems="center"
-                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), props.history)}
+                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), history)}
                 width="auto"
                 {...props}
             >

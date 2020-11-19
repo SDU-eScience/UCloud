@@ -64,7 +64,7 @@ function useFileContent(): {
                 setError("File size too large to preview.");
                 setDownloadButton(true);
             } else {
-                let token: string = "";
+                let token = "";
                 await runWork(async () => {
                     token = await Client.createOneTimeTokenWithPermission("files.download:read");
                 });

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Instructions} from "WebDav/Instructions";
+import {Instructions} from "../../app/WebDav/Instructions";
 import {create} from "react-test-renderer";
 
 test("Mount instructions", () => {

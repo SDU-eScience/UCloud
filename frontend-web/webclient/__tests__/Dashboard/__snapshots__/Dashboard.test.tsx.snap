@@ -1021,7 +1021,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             <a
               className="c9"
               color="text"
-              href="/project/grants/ingoing"
+              href="/project/grants/outgoing"
               onClick={[Function]}
             >
               <h3
@@ -1040,37 +1040,31 @@ exports[`Dashboard Dashboard mount 1`] = `
             className="c19"
             fontSize="large"
           />
-          <div
-            className="c14"
-            height="calc(100% - 60px)"
-            width="100%"
+          <h3
+            className="c10"
+            cursor="inherit"
+            fontSize={4}
           >
-            <h4
-              className="c15"
-              cursor="inherit"
-              fontSize={3}
+            No recent outgoing grant applications
+          </h3>
+          <div
+            className="c16"
+            cursor="inherit"
+          >
+            Apply for resources to use storage and compute on UCloud.
+            <a
+              className="c9"
+              color="text"
+              href="/project/grants-landing"
+              onClick={[Function]}
             >
-              No recent outgoing grant applications
-            </h4>
-            <div
-              className="c16"
-              cursor="inherit"
-            >
-              Apply for resources to use storage and compute on UCloud.
-              <a
-                className="c9"
-                color="text"
-                href="/project/grants-landing"
-                onClick={[Function]}
+              <button
+                className="c18"
+                color="blue"
               >
-                <button
-                  className="c18"
-                  color="blue"
-                >
-                  Apply for resources
-                </button>
-              </a>
-            </div>
+                Apply for resources
+              </button>
+            </a>
           </div>
           <div
             className="c19"
