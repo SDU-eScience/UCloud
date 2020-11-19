@@ -4,7 +4,7 @@ import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
-import {Box, Button, ButtonGroup, Card, Flex, Icon, Input, Label, Text, TextArea, theme} from "ui-components";
+import {Box, Button, ButtonGroup, Card, ExternalLink, Flex, Icon, Input, Label, Text, TextArea, theme, Tooltip} from "ui-components";
 import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
     ProductArea,
@@ -973,7 +973,20 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 ))}
                             </ResourceContainer>
 
-                            <Heading.h4 mt={32}>Compute</Heading.h4>
+                            <Heading.h4 mt={32}><Flex>Compute <Tooltip
+                                trigger={<ExternalLink href="/skus"><Box style={{
+                                    cursor: "pointer",
+                                    border: "2px var(--black) solid",
+                                    borderRadius: "9999px",
+                                    width: "35px",
+                                    height: "35px",
+                                    marginLeft: "9px",
+                                    paddingLeft: "10px",
+                                    marginTop: "-2px"
+                                }}> ?</Box></ExternalLink>}
+                            >
+                                <Box width="100px">Click to view details for resources</Box>
+                            </Tooltip></Flex></Heading.h4>
                             <ResourceContainer>
                                 {state.wallets.map((it, idx) => (
                                     it.area !== ProductArea.COMPUTE ? null :
@@ -1106,7 +1119,7 @@ const CommentBox: React.FunctionComponent<{
             <UserAvatar avatar={avatar} width={"48px"} />
         </div>
 
-        <div className={"body"}>
+        <div className="body">
             <p><strong>{comment.postedBy}</strong> says:</p>
             <p>{comment.comment}</p>
             <time>{dateToString(comment.postedAt)}</time>
