@@ -29,7 +29,7 @@ const GlobalStyle = createGlobalStyle`
 
 Client.initializeStore(store);
 
-function App({children}: React.PropsWithChildren<{}>): JSX.Element {
+function App({children}: {children?: React.ReactNode}): JSX.Element {
     const [isLightTheme, setTheme] = React.useState(() => {
         const isLight = isLightThemeStored();
         toggleCssColors(isLight);

@@ -27,7 +27,7 @@ import {ApplicationCardContainer, SlimApplicationCard, Tag} from "./Card";
 import * as Pages from "./Pages";
 import * as Actions from "./Redux/ViewActions";
 import * as ViewObject from "./Redux/ViewObject";
-import {match} from "react-router";
+import {useRouteMatch} from "react-router";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 
 interface MainContentProps {
@@ -43,11 +43,7 @@ interface OperationProps {
 
 type StateProps = ViewObject.Type;
 
-interface OwnProps {
-    match: match<{appName: string; appVersion: string}>;
-}
-
-type ViewProps = OperationProps & StateProps & OwnProps;
+type ViewProps = OperationProps & StateProps;
 
 function View(props: ViewProps): JSX.Element {
 
@@ -55,9 +51,11 @@ function View(props: ViewProps): JSX.Element {
         fetchApp();
     }, []);
 
+    const match = useRouteMatch<{appName: string; appVersion: string}>();
+
     useSidebarPage(SidebarPages.AppStore);
 
-    const {appName, appVersion} = props.match.params;
+    const {appName, appVersion} = match.params;
 
     React.useEffect(() => {
         if (!props.application.loading && props.application.content) {
@@ -68,7 +66,7 @@ function View(props: ViewProps): JSX.Element {
     });
 
     function fetchApp(): void {
-        const {params} = props.match;
+        const {params} = match;
         props.fetchApp(params.appName, params.appVersion);
     }
 
@@ -229,7 +227,7 @@ function Tags({tags}: {tags: string[]}): JSX.Element | null {
             <Flex flexDirection="row" >
                 {
                     tags.map(tag => (
-                        <Link key={tag} to={Pages.browseByTag(tag)}><Tag label={tag}/> </Link>
+                        <Link key={tag} to={Pages.browseByTag(tag)}><Tag label={tag} /> </Link>
                     ))
                 }
             </Flex>

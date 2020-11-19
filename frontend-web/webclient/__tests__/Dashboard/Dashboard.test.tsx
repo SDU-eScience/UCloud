@@ -1,8 +1,8 @@
+import {act, create} from "react-test-renderer";
 import {createMemoryHistory} from "history";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
-import {create, act} from "react-test-renderer";
 import {Store} from "redux";
 import {ThemeProvider} from "styled-components";
 import Dashboard from "../../app/Dashboard/Dashboard";
@@ -12,7 +12,7 @@ import {store} from "../../app/Utilities/ReduxUtilities";
 
 jest.mock("Project", () => ({
     getProjectNames: () => [],
-    userProjectStatus: () => {},
+    userProjectStatus: () => ({}),
     useProjectManagementStatus: () => ({projectId: "foo"})
 }));
 
@@ -25,6 +25,7 @@ jest.mock("Authentication/HttpClientInstance", () => ({
                 case "/accounting/compute/timeUsed/usage":
                     return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: {usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"}});
             }
+            /* console.error(path); */
             return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage});
         },
         call: call => {
@@ -32,6 +33,9 @@ jest.mock("Authentication/HttpClientInstance", () => ({
                 case "/accounting/wallets/balance?includeChildren=false":
                     return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: {wallets: []}});
             }
+            if (call.path.startsWith("/accounting/visualization/usage")) return Promise.resolve({
+                request: {status: 200} as XMLHttpRequest, response: {charts: []}
+            });
             return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage});
         },
         homeFolder: "/home/test@test/",
@@ -52,7 +56,9 @@ const WrappedDashboard: React.FunctionComponent<{store: Store<ReduxObject>}> = p
 
 describe("Dashboard", () => {
     test("Dashboard mount", async () => {
-        const dash = await create(<WrappedDashboard store={store} />);
-        expect(dash.toJSON()).toMatchSnapshot();
+        await act(async () => {
+            const dash = await create(<WrappedDashboard store={store} />);
+            expect(dash.toJSON()).toMatchSnapshot();
+        })
     });
 });

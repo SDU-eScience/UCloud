@@ -3,7 +3,6 @@ import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage, FileInfoReduxObject} from "DefaultObjects";
 import {SensitivityLevel, SensitivityLevelMap} from "DefaultObjects";
 import {File} from "Files";
-import {History} from "history";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -37,6 +36,7 @@ import {useCallback} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {groupSummaryRequest} from "Project";
 import {GroupWithSummary} from "Project/GroupList";
+import {useHistory} from "react-router";
 
 interface FileInfoOperations {
     updatePageTitle: () => void;
@@ -47,12 +47,13 @@ interface FileInfoOperations {
 
 interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
     location: {pathname: string; search: string};
-    history: History;
 }
 
 function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
     const [previewShown, setPreviewShown] = React.useState(false);
     const [file, setFile] = React.useState<File | undefined>(undefined);
+
+    const history = useHistory();
 
     const [groups] = useCloudAPI<Page<GroupWithSummary>>(
         Client.hasActiveProject ? groupSummaryRequest({itemsPerPage: -1, page: 0}) : {noop: true}, emptyPage
@@ -79,7 +80,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                         <BreadCrumbs
                             embedded={false}
                             currentPath={file.path}
-                            navigate={p => props.history.push(fileTablePage(expandHomeOrProjectFolder(p, Client)))}
+                            navigate={p => history.push(fileTablePage(expandHomeOrProjectFolder(p, Client)))}
                             client={Client}
                         />
                     </Flex>

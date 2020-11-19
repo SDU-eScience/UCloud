@@ -69,9 +69,7 @@ module.exports = merge(commonConfig, {
         new webpack.NoEmitOnErrorsPlugin(),
         // Allows creation of global constants which can be configured at compile time.
         new webpack.DefinePlugin({
-            "process.env": {
-                NODE_ENV: JSON.stringify("production")
-            }
+            DEVELOPMENT_ENV: JSON.stringify(false)
         }),
         // Minify and optimize the index.html
         new HtmlWebpackPlugin({

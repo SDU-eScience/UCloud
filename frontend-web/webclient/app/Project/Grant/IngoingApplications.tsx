@@ -14,9 +14,8 @@ import {emptyPage} from "DefaultObjects";
 import {useProjectManagementStatus} from "Project";
 import * as Pagination from "Pagination";
 import {ListRow, ListRowStat} from "ui-components/List";
-import {Flex, Icon, Label, List, Text, Tooltip, VerticalButtonGroup} from "ui-components";
+import {Flex, Icon, Label, List, Text, Tooltip, Truncate, VerticalButtonGroup} from "ui-components";
 import {creditFormatter} from "Project/ProjectUsage";
-import {EllipsedText} from "ui-components/Text";
 import {useAvatars} from "AvataaarLib/hook";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {defaultAvatar} from "UserSettings/Avataaar";
@@ -29,6 +28,7 @@ import {ThemeColor} from "ui-components/theme";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {FilterTrigger} from "./OutgoingApplications";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {prettierString} from "UtilityFunctions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
@@ -37,7 +37,6 @@ export const IngoingApplications: React.FunctionComponent = () => {
         {noop: true},
         emptyPage
     );
-
 
     useRefreshFunction(() => {
         fetchIngoingApplications(
@@ -128,26 +127,29 @@ export const GrantApplicationList: React.FunctionComponent<{
                             />
                         )
                     }
+                    truncateWidth="230px"
                     left={
-                        <Flex>
-                            <Text mr={16}><strong>{app.grantRecipientTitle}</strong></Text>
+                        <Flex width={1}>
+                            <Text title={app.grantRecipientTitle} mr={16}>
+                                <strong>{app.grantRecipientTitle}</strong>
+                            </Text>
                             {slim ? null : (
-                                <EllipsedText maxWidth={420}>
+                                <Truncate>
                                     {/*
                                         Is small the correct tag to use here?
                                         Does it have the correct semantic meaning or should we just use
                                         <Text> with smaller font?
                                     */}
                                     <small>{app.document}</small>
-                                </EllipsedText>
+                                </Truncate>
                             )}
                         </Flex>
                     }
                     right={(
                         <Tooltip
                             trigger={
-                                <Flex width={170} alignItems={"center"}>
-                                    <Flex flexGrow={1} justifyContent={"flex-end"}>
+                                <Flex width="auto" alignItems="center">
+                                    <Flex flexGrow={1} justifyContent="flex-end">
                                         {creditFormatter(
                                             app.requestedResources.reduce(
                                                 (prev, curr) => prev + (curr.creditsRequested ?? 0), 0
@@ -163,7 +165,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                     leftSub={
                         <>
                             {slim ? null : (
-                                <ListRowStat icon={"calendar"}>{dateToString(app.createdAt)}</ListRowStat>
+                                <ListRowStat icon="calendar">{dateToString(app.createdAt)}</ListRowStat>
                             )}
 
                             <ListRowStat icon={"edit"}>

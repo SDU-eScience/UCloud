@@ -142,12 +142,12 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
     };
     let recipient: GrantRecipient;
     let editingApplication: GrantApplication | undefined;
-    let approver: boolean = false;
+    let approver = false;
     let comments: Comment[] = [];
     const avatars = useAvatars();
-    let loading: boolean = false;
+    let loading = false;
 
-    let availableProducts: { area: ProductArea, category: ProductCategoryId }[];
+    let availableProducts: {area: ProductArea, category: ProductCategoryId}[];
     let reloadProducts: () => void;
     {
         const [products, fetchProducts] = useCloudAPI<RetrieveFromProviderResponse>(
@@ -155,10 +155,10 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
             []
         );
 
-        const allCategories: { category: ProductCategoryId, area: "compute" | "storage" }[] =
+        const allCategories: {category: ProductCategoryId, area: "compute" | "storage"}[] =
             products.data.map(it => ({category: it.category, area: it.type}));
 
-        const uniqueCategories: { category: ProductCategoryId, area: "compute" | "storage" }[] = Array.from(
+        const uniqueCategories: {category: ProductCategoryId, area: "compute" | "storage"}[] = Array.from(
             new Set(allCategories.map(it => JSON.stringify(it))).values()
         ).map(it => JSON.parse(it));
 
@@ -197,7 +197,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
 
         case RequestTarget.NEW_PROJECT:
         case RequestTarget.PERSONAL_PROJECT: {
-            const {projectId} = useParams<{ projectId: string }>();
+            const {projectId} = useParams<{projectId: string}>();
             targetProject = projectId;
             const [w, fetchWallets] = useCloudAPI<RetrieveBalanceResponse>(
                 {noop: true},
@@ -215,8 +215,8 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
             break;
         }
 
-        case RequestTarget.VIEW_APPLICATION:
-            const {appId} = useParams<{ appId: string }>();
+        case RequestTarget.VIEW_APPLICATION: {
+            const {appId} = useParams<{appId: string}>();
 
             const [grantApplication, fetchGrantApplication] = useCloudAPI<ViewGrantApplicationResponse>(
                 {noop: true},
@@ -273,6 +273,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
 
             loading = loading || grantApplication.loading;
             break;
+        }
     }
 
     const reload = useCallback(() => {
@@ -390,115 +391,115 @@ const StorageRequestCard: React.FunctionComponent<{
         <DashboardCard color="blue" isLoading={false}>
             <table>
                 <tbody>
-                <tr>
-                    <th>Product</th>
-                    <td>
-                        {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
-                        <Icon
-                            name={"ftFileSystem"}
-                            size={40}
-                        />
-                    </td>
-                </tr>
-
-
-                <tr>
-                    <th>
-                        How much&nbsp;
-                        {state.recipient.type !== "new_project" ?
-                            "additional " : ""
-                        }
-                        data will be stored?
-                        <br/>
-                        <HelpText>
-                            You will not be able to store more data than the amount specified here.
-                        </HelpText>
-                    </th>
-                    <td>
-                        <Flex alignItems={"center"}>
-                            <Input
-                                placeholder={"0"}
-                                disabled={grantFinalized || isLocked}
-                                data-target={
-                                    "quota-" +
-                                    productCategoryId(wb.wallet.paysFor)
-                                }
-                                onInput={onQuotaChange}
-                                autoComplete="off"
-                                type="number"
-                                min={0}
-                            />
-                            <div className={"unit"}>GB</div>
-                        </Flex>
-                    </td>
-                </tr>
-                <tr>
-                    <th>
-                        For how long should the&nbsp;
-                        {state.recipient.type !== "new_project" ?
-                            "additional " : ""
-                        }
-                        data be stored?
-                        <br/>
-                        <HelpText>
-                            You will be granted enough credits to store your files for at least this long.
-                            We will always attempt to notify you before deleting your data.
-                        </HelpText>
-                    </th>
-                    <td>
-                        <Flex alignItems={"center"}>
-                            <Input
-                                placeholder={"0"}
-                                disabled={grantFinalized || isLocked}
-                                data-target={
-                                    "duration-" +
-                                    productCategoryId(wb.wallet.paysFor)
-                                }
-                                onInput={onQuotaChange}
-                                autoComplete="off"
-                                type="number"
-                                min={0}
-                            />
-                            <div className={"unit"}>Months</div>
-                        </Flex>
-                    </td>
-                </tr>
-                <tr/>
-                {state.editingApplication !== undefined ? null : (
                     <tr>
-                        <th>Current balance</th>
+                        <th>Product</th>
                         <td>
-                            <Balance
-                                amount={wb.balance}
-                                productCategory={wb.wallet.paysFor}
+                            {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
+                            <Icon
+                                name={"ftFileSystem"}
+                                size={40}
                             />
                         </td>
                     </tr>
-                )}
-                <tr>
-                    <th>
-                        Balance requested
-                        <br/>
-                        <HelpText>
-                            Note: You only pay for what you use.
-                            If you only use 50% of your quota you will
-                            be able to store your data for twice as long.
+
+
+                    <tr>
+                        <th>
+                            How much&nbsp;
+                            {state.recipient.type !== "new_project" ?
+                                "additional " : ""
+                            }
+                            data will be stored?
+                        <br />
+                            <HelpText>
+                                You will not be able to store more data than the amount specified here.
+                            </HelpText>
+                        </th>
+                        <td>
+                            <Flex alignItems="center">
+                                <Input
+                                    placeholder="0"
+                                    disabled={grantFinalized || isLocked}
+                                    data-target={
+                                        "quota-" +
+                                        productCategoryId(wb.wallet.paysFor)
+                                    }
+                                    onInput={onQuotaChange}
+                                    autoComplete="off"
+                                    type="number"
+                                    min={0}
+                                />
+                                <div className="unit">GB</div>
+                            </Flex>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>
+                            For how long should the&nbsp;
+                            {state.recipient.type !== "new_project" ?
+                                "additional " : ""
+                            }
+                            data be stored?
+                            <br />
+                            <HelpText>
+                                You will be granted enough credits to store your files for at least this long.
+                                We will always attempt to notify you before deleting your data.
                         </HelpText>
-                    </th>
-                    <td>
-                        <Flex alignItems={"center"}>
-                            <Input
-                                placeholder={"0"}
-                                disabled={true}
-                                data-target={productCategoryId(wb.wallet.paysFor)}
-                                autoComplete="off"
-                                type="number"
-                                min={0}
-                            />
-                            <div className={"unit"}>DKK</div>
-                        </Flex>
-                    </td>
-                </tr>
+                        </th>
+                        <td>
+                            <Flex alignItems={"center"}>
+                                <Input
+                                    placeholder={"0"}
+                                    disabled={grantFinalized || isLocked}
+                                    data-target={
+                                        "duration-" +
+                                        productCategoryId(wb.wallet.paysFor)
+                                    }
+                                    onInput={onQuotaChange}
+                                    autoComplete="off"
+                                    type="number"
+                                    min={0}
+                                />
+                                <div className={"unit"}>Months</div>
+                            </Flex>
+                        </td>
+                    </tr>
+                    <tr />
+                    {state.editingApplication !== undefined || state.recipient.type === "new_project" ? null : (
+                        <tr>
+                            <th>Current balance</th>
+                            <td>
+                                <Balance
+                                    amount={wb.balance}
+                                    productCategory={wb.wallet.paysFor}
+                                />
+                            </td>
+                        </tr>
+                    )}
+                    <tr>
+                        <th>
+                            Balance requested
+                        <br />
+                            <HelpText>
+                                Note: You only pay for what you use.
+                                If you only use 50% of your quota you will
+                                be able to store your data for twice as long.
+                        </HelpText>
+                        </th>
+                        <td>
+                            <Flex alignItems={"center"}>
+                                <Input
+                                    placeholder={"0"}
+                                    disabled={true}
+                                    data-target={productCategoryId(wb.wallet.paysFor)}
+                                    autoComplete="off"
+                                    type="number"
+                                    min={0}
+                                />
+                                <div className={"unit"}>DKK</div>
+                            </Flex>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </DashboardCard>
@@ -515,56 +516,56 @@ const ComputeRequestCard: React.FunctionComponent<{
         <DashboardCard color="blue" isLoading={false}>
             <table>
                 <tbody>
-                <tr>
-                    <th>Product</th>
-                    <td>
-                        {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
-                        <Icon
-                            name={"cpu"}
-                            size={40}
-                        />
-                    </td>
-                </tr>
-                {state.editingApplication !== undefined ? null : (
                     <tr>
-                        <th>Current balance</th>
+                        <th>Product</th>
                         <td>
-                            <Balance
-                                amount={wb.balance}
-                                productCategory={wb.wallet.paysFor}
+                            {wb.wallet.paysFor.provider} / {wb.wallet.paysFor.id}
+                            <Icon
+                                name={"cpu"}
+                                size={40}
                             />
                         </td>
                     </tr>
-                )}
-                <tr>
-                    <th>Balance requested</th>
-                    <td>
-                        <Flex alignItems={"center"}>
-                            <Input
-                                placeholder={"0"}
-                                disabled={grantFinalized || isLocked}
-                                data-target={productCategoryId(wb.wallet.paysFor)}
-                                autoComplete="off"
-                                type="number"
-                                min={0}
-                            />
-                            <div className={"unit"}>DKK</div>
-                        </Flex>
-                    </td>
-                </tr>
-                <tr>
-                    <th/>
-                    <td>
-                        <HelpText>
-                            1.000 DKK ={" "}
-                            <BalanceExplainer
-                                amount={1_000_000_000}
-                                productCategory={wb.wallet.paysFor}
-                            />
+                    {state.editingApplication !== undefined ? null : (
+                        <tr>
+                            <th>Current balance</th>
+                            <td>
+                                <Balance
+                                    amount={wb.balance}
+                                    productCategory={wb.wallet.paysFor}
+                                />
+                            </td>
+                        </tr>
+                    )}
+                    <tr>
+                        <th>Balance requested</th>
+                        <td>
+                            <Flex alignItems={"center"}>
+                                <Input
+                                    placeholder={"0"}
+                                    disabled={grantFinalized || isLocked}
+                                    data-target={productCategoryId(wb.wallet.paysFor)}
+                                    autoComplete="off"
+                                    type="number"
+                                    min={0}
+                                />
+                                <div className={"unit"}>DKK</div>
+                            </Flex>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th />
+                        <td>
+                            <HelpText>
+                                1.000 DKK ={" "}
+                                <BalanceExplainer
+                                    amount={1_000_000_000}
+                                    productCategory={wb.wallet.paysFor}
+                                />
 
-                        </HelpText>
-                    </td>
-                </tr>
+                            </HelpText>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </DashboardCard>
@@ -577,484 +578,484 @@ const ComputeRequestCard: React.FunctionComponent<{
 // the target property ensures a remount of the component.
 export const GrantApplicationEditor: (target: RequestTarget) =>
     React.FunctionComponent = target => function MemoizedEditor() {
-    const state = useRequestInformation(target);
-    const grantFinalized = isGrantFinalized(state.editingApplication?.status);
-    const [loading, runWork] = useAsyncCommand();
-    const projectTitleRef = useRef<HTMLInputElement>(null);
-    const history = useHistory();
-    const dispatch = useDispatch();
-    const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
-    const storagePrice = useStoragePrice(); // Note: This will change later
+        const state = useRequestInformation(target);
+        const grantFinalized = isGrantFinalized(state.editingApplication?.status);
+        const [loading, runWork] = useAsyncCommand();
+        const projectTitleRef = useRef<HTMLInputElement>(null);
+        const history = useHistory();
+        const dispatch = useDispatch();
+        const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
+        const storagePrice = useStoragePrice(); // Note: This will change later
 
-    switch (target) {
-        case RequestTarget.EXISTING_PROJECT:
-            useTitle("Viewing Project");
-            break;
-        case RequestTarget.NEW_PROJECT:
-            useTitle("Create Project");
-            break;
-        case RequestTarget.PERSONAL_PROJECT:
-            useTitle("My Workspace");
-            break;
-        case RequestTarget.VIEW_APPLICATION:
-            useTitle("Viewing Application");
-            break;
-    }
-
-    dispatch(setRefreshFunction(state.reload));
-    dispatch(loadingAction(state.loading));
-    useEffect(() => {
-        return () => {
-            dispatch(setRefreshFunction(undefined));
-        };
-    }, []);
-
-    const discardChanges = useCallback(async () => {
-        state.reload();
-        setIsLocked(true);
-    }, [state.reload]);
-
-    const submitRequest = useCallback(async () => {
-        if (state.targetProject === undefined) {
-            snackbarStore.addFailure("Unknown target. Root level projects cannot apply for more resources.", false);
-            return;
+        switch (target) {
+            case RequestTarget.EXISTING_PROJECT:
+                useTitle("Viewing Project");
+                break;
+            case RequestTarget.NEW_PROJECT:
+                useTitle("Create Project");
+                break;
+            case RequestTarget.PERSONAL_PROJECT:
+                useTitle("My Workspace");
+                break;
+            case RequestTarget.VIEW_APPLICATION:
+                useTitle("Viewing Application");
+                break;
         }
 
-        let grantRecipient: GrantRecipient = state.recipient;
-        if (target === RequestTarget.NEW_PROJECT) {
-            grantRecipient = {type: "new_project", projectTitle: projectTitleRef.current!.value};
-        }
+        dispatch(setRefreshFunction(state.reload));
+        dispatch(loadingAction(state.loading));
+        useEffect(() => {
+            return () => {
+                dispatch(setRefreshFunction(undefined));
+            };
+        }, []);
 
-        const requestedResources = state.wallets.map(wb => {
-            let creditsRequested = parseIntegerFromInput(
-                document.querySelector<HTMLInputElement>(
-                    `input[data-target="${productCategoryId(wb.wallet.paysFor)}"]`
-                )
-            );
-            if (creditsRequested) creditsRequested = creditsRequested * 1000000;
-
-            let quotaRequested = parseIntegerFromInput(
-                document.querySelector<HTMLInputElement>(
-                    `input[data-target="quota-${productCategoryId(wb.wallet.paysFor)}"]`
-                )
-            );
-
-            if (wb.area === ProductArea.STORAGE) {
-                if ((creditsRequested !== undefined) || (quotaRequested !== undefined)) {
-                    if ((creditsRequested === undefined) || (quotaRequested === undefined)) {
-                        snackbarStore.addFailure("Please fill out both \"Resources\" and \"Quota\" for requested storage product", false);
-                        return;
-                    }
-                }
-            }
-
-            if (quotaRequested) quotaRequested = quotaRequested * (1000 * 1000 * 1000);
-
-            if (creditsRequested === undefined && quotaRequested === undefined) {
-                return null;
-            }
-
-            return {
-                creditsRequested,
-                quotaRequested,
-                productCategory: wb.wallet.paysFor.id,
-                productProvider: wb.wallet.paysFor.provider
-            } as ResourceRequest;
-        }).filter(it => it !== null) as ResourceRequest[];
-
-        const newDocument = state.documentRef.current!.value;
-        if (state.editingApplication === undefined) {
-            const response = await runWork<{ id: number }>(submitGrantApplication({
-                document: newDocument,
-                resourcesOwnedBy: state.targetProject!,
-                requestedResources,
-                grantRecipient
-            }));
-
-            if (response) {
-                history.push(`/project/grants/view/${response.id}`);
-            }
-        } else {
-            await runWork(editGrantApplication({
-                id: state.editingApplication.id!,
-                newDocument,
-                newResources: requestedResources
-            }));
+        const discardChanges = useCallback(async () => {
             state.reload();
             setIsLocked(true);
-        }
-    }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef,
+        }, [state.reload]);
+
+        const submitRequest = useCallback(async () => {
+            if (state.targetProject === undefined) {
+                snackbarStore.addFailure("Unknown target. Root level projects cannot apply for more resources.", false);
+                return;
+            }
+
+            let grantRecipient: GrantRecipient = state.recipient;
+            if (target === RequestTarget.NEW_PROJECT) {
+                grantRecipient = {type: "new_project", projectTitle: projectTitleRef.current!.value};
+            }
+
+            const requestedResources = state.wallets.map(wb => {
+                let creditsRequested = parseIntegerFromInput(
+                    document.querySelector<HTMLInputElement>(
+                        `input[data-target="${productCategoryId(wb.wallet.paysFor)}"]`
+                    )
+                );
+                if (creditsRequested) creditsRequested = creditsRequested * 1000000;
+
+                let quotaRequested = parseIntegerFromInput(
+                    document.querySelector<HTMLInputElement>(
+                        `input[data-target="quota-${productCategoryId(wb.wallet.paysFor)}"]`
+                    )
+                );
+
+                if (wb.area === ProductArea.STORAGE) {
+                    if ((creditsRequested !== undefined) || (quotaRequested !== undefined)) {
+                        if ((creditsRequested === undefined) || (quotaRequested === undefined)) {
+                            snackbarStore.addFailure("Please fill out both \"Resources\" and \"Quota\" for requested storage product", false);
+                            return;
+                        }
+                    }
+                }
+
+                if (quotaRequested) quotaRequested = quotaRequested * (1000 * 1000 * 1000);
+
+                if (creditsRequested === undefined && quotaRequested === undefined) {
+                    return null;
+                }
+
+                return {
+                    creditsRequested,
+                    quotaRequested,
+                    productCategory: wb.wallet.paysFor.id,
+                    productProvider: wb.wallet.paysFor.provider
+                } as ResourceRequest;
+            }).filter(it => it !== null) as ResourceRequest[];
+
+            const newDocument = state.documentRef.current!.value;
+            if (state.editingApplication === undefined) {
+                const response = await runWork<{id: number}>(submitGrantApplication({
+                    document: newDocument,
+                    resourcesOwnedBy: state.targetProject!,
+                    requestedResources,
+                    grantRecipient
+                }));
+
+                if (response) {
+                    history.push(`/project/grants/view/${response.id}`);
+                }
+            } else {
+                await runWork(editGrantApplication({
+                    id: state.editingApplication.id!,
+                    newDocument,
+                    newResources: requestedResources
+                }));
+                state.reload();
+                setIsLocked(true);
+            }
+        }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef,
         state.editingApplication?.id, state.reload]);
 
-    const approveRequest = useCallback(async () => {
-        if (state.editingApplication !== undefined) {
-            addStandardDialog({
-                title: "Approve application?",
-                message: "Are you sure you wish to approve this application?",
-                onConfirm: async () => {
-                    await runWork(approveGrantApplication({requestId: state.editingApplication!.id}));
-                    state.reload();
-                }
-            });
-        }
-    }, [state.editingApplication?.id]);
-
-    const rejectRequest = useCallback(async () => {
-        if (state.editingApplication !== undefined) {
-            addStandardDialog({
-                title: "Reject application?",
-                message: "Are you sure you wish to reject this application?",
-                onConfirm: async () => {
-                    await runWork(rejectGrantApplication({requestId: state.editingApplication!.id}));
-                    state.reload();
-                }
-            });
-        }
-    }, [state.editingApplication?.id]);
-
-    const closeRequest = useCallback(async () => {
-        if (state.editingApplication !== undefined) {
-            addStandardDialog({
-                title: "Withdraw application?",
-                message: "Are you sure you wish to withdraw this application?",
-                onConfirm: async () => {
-                    await runWork(closeGrantApplication({requestId: state.editingApplication!.id}));
-                    state.reload();
-                }
-            });
-        }
-    }, [state.editingApplication?.id]);
-
-    useEffect(() => {
-        if (state.editingApplication !== undefined) {
-            for (const resource of state.editingApplication.requestedResources) {
-                const credits = resource.creditsRequested;
-                const quota = resource.quotaRequested;
-
-                // TODO(Dan): The following code is a terrible idea.
-                // This code is in here only because we did not notice the error until it was already in production
-                // and was causing a lot of crashes. A proper solution is tracked in #1928.
-                //
-                // The code tends to crash because React has not yet rendered the inputs and we attempt to write to
-                // the inputs before they are actually ready. We solve it in the code below by simply retrying
-                // (via setTimeout) until React has rendered our input elements. This is obviously a bad idea and the
-                // code should be refactored to avoid this. The error only manifests itself if the loading of network
-                // resources occur in a specific order, an order which happens to occur often in production but for
-                // some reason not in dev.
-                let attempts = 0;
-                const work = (): void => {
-                    let success = true;
-                    const creditsInput = document.querySelector<HTMLInputElement>(
-                        `input[data-target="${productCategoryId({
-                            provider: resource.productProvider,
-                            id: resource.productCategory
-                        })}"]`
-                    );
-
-                    const quotaCredits = document.querySelector<HTMLInputElement>(
-                        `input[data-target="quota-${productCategoryId({
-                            provider: resource.productProvider,
-                            id: resource.productCategory
-                        })}"]`
-                    );
-
-                    const durationInput = document.querySelector<HTMLInputElement>(
-                        `input[data-target="duration-${productCategoryId({
-                            provider: resource.productProvider,
-                            id: resource.productCategory
-                        })}"]`
-                    )!;
-
-                    if (credits) {
-                        if (creditsInput) {
-                            creditsInput.value = (credits / 1000000).toFixed(0);
-                        } else {
-                            success = false;
-                        }
+        const approveRequest = useCallback(async () => {
+            if (state.editingApplication !== undefined) {
+                addStandardDialog({
+                    title: "Approve application?",
+                    message: "Are you sure you wish to approve this application?",
+                    onConfirm: async () => {
+                        await runWork(approveGrantApplication({requestId: state.editingApplication!.id}));
+                        state.reload();
                     }
+                });
+            }
+        }, [state.editingApplication?.id]);
 
-                    if (quota) {
-                        if (quotaCredits) {
-                            quotaCredits.value = (quota / (1000 * 1000 * 1000)).toFixed(0);
-                        } else {
-                            success = false;
-                        }
+        const rejectRequest = useCallback(async () => {
+            if (state.editingApplication !== undefined) {
+                addStandardDialog({
+                    title: "Reject application?",
+                    message: "Are you sure you wish to reject this application?",
+                    onConfirm: async () => {
+                        await runWork(rejectGrantApplication({requestId: state.editingApplication!.id}));
+                        state.reload();
                     }
+                });
+            }
+        }, [state.editingApplication?.id]);
 
-                    if (quota != null && credits != null && storagePrice != null) {
-                        const pricePerMonth = ((quota / (1000 * 1000 * 1000)) * 30 * storagePrice);
-                        if (durationInput) {
-                            if (pricePerMonth !== 0) {
-                                durationInput.value = Math.floor(credits / pricePerMonth).toString();
+        const closeRequest = useCallback(async () => {
+            if (state.editingApplication !== undefined) {
+                addStandardDialog({
+                    title: "Withdraw application?",
+                    message: "Are you sure you wish to withdraw this application?",
+                    onConfirm: async () => {
+                        await runWork(closeGrantApplication({requestId: state.editingApplication!.id}));
+                        state.reload();
+                    }
+                });
+            }
+        }, [state.editingApplication?.id]);
+
+        useEffect(() => {
+            if (state.editingApplication !== undefined) {
+                for (const resource of state.editingApplication.requestedResources) {
+                    const credits = resource.creditsRequested;
+                    const quota = resource.quotaRequested;
+
+                    // TODO(Dan): The following code is a terrible idea.
+                    // This code is in here only because we did not notice the error until it was already in production
+                    // and was causing a lot of crashes. A proper solution is tracked in #1928.
+                    //
+                    // The code tends to crash because React has not yet rendered the inputs and we attempt to write to
+                    // the inputs before they are actually ready. We solve it in the code below by simply retrying
+                    // (via setTimeout) until React has rendered our input elements. This is obviously a bad idea and the
+                    // code should be refactored to avoid this. The error only manifests itself if the loading of network
+                    // resources occur in a specific order, an order which happens to occur often in production but for
+                    // some reason not in dev.
+                    let attempts = 0;
+                    const work = (): void => {
+                        let success = true;
+                        const creditsInput = document.querySelector<HTMLInputElement>(
+                            `input[data-target="${productCategoryId({
+                                provider: resource.productProvider,
+                                id: resource.productCategory
+                            })}"]`
+                        );
+
+                        const quotaCredits = document.querySelector<HTMLInputElement>(
+                            `input[data-target="quota-${productCategoryId({
+                                provider: resource.productProvider,
+                                id: resource.productCategory
+                            })}"]`
+                        );
+
+                        const durationInput = document.querySelector<HTMLInputElement>(
+                            `input[data-target="duration-${productCategoryId({
+                                provider: resource.productProvider,
+                                id: resource.productCategory
+                            })}"]`
+                        )!;
+
+                        if (credits) {
+                            if (creditsInput) {
+                                creditsInput.value = (credits / 1000000).toFixed(0);
+                            } else {
+                                success = false;
                             }
-                        } else {
-                            success = false;
                         }
-                    }
 
-                    if (!success) {
-                        if (attempts > 10) {
-                            snackbarStore.addFailure("Unable to render application", true);
-                        } else {
-                            attempts++;
-                            setTimeout(work, 500);
+                        if (quota) {
+                            if (quotaCredits) {
+                                quotaCredits.value = (quota / (1000 * 1000 * 1000)).toFixed(0);
+                            } else {
+                                success = false;
+                            }
                         }
-                    }
-                };
 
-                setTimeout(work, 0);
-            }
-        }
-    }, [state.editingApplication, storagePrice]);
+                        if (quota != null && credits != null && storagePrice != null) {
+                            const pricePerMonth = ((quota / (1000 * 1000 * 1000)) * 30 * storagePrice);
+                            if (durationInput) {
+                                if (pricePerMonth !== 0) {
+                                    durationInput.value = Math.floor(credits / pricePerMonth).toString();
+                                }
+                            } else {
+                                success = false;
+                            }
+                        }
 
-    return (
-        <MainContainer
-            header={target === RequestTarget.EXISTING_PROJECT ?
-                <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]}/> : null
+                        if (!success) {
+                            if (attempts > 10) {
+                                snackbarStore.addFailure("Unable to render application", true);
+                            } else {
+                                attempts++;
+                                setTimeout(work, 500);
+                            }
+                        }
+                    };
+
+                    setTimeout(work, 0);
+                }
             }
-            sidebar={null}
-            main={
-                <Flex justifyContent="center">
-                    <Box maxWidth={1400} width="100%">
-                        {target !== RequestTarget.NEW_PROJECT ? null : (
-                            <>
-                                <Label mb={16} mt={16}>
-                                    Principal Investigator (PI)
+        }, [state.editingApplication, storagePrice]);
+
+        return (
+            <MainContainer
+                header={target === RequestTarget.EXISTING_PROJECT ?
+                    <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
+                }
+                sidebar={null}
+                main={
+                    <Flex justifyContent="center">
+                        <Box maxWidth={1400} width="100%">
+                            {target !== RequestTarget.NEW_PROJECT ? null : (
+                                <>
+                                    <Label mb={16} mt={16}>
+                                        Principal Investigator (PI)
                                     <Input
-                                        value={
-                                            `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` +
-                                            `(${Client.username})`
-                                        }
-                                        disabled
-                                    />
-                                </Label>
-                                <Label mb={16} mt={16}>
-                                    Project title
-                                    <Input ref={projectTitleRef}/>
-                                </Label>
-                            </>
-                        )}
+                                            value={
+                                                `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` +
+                                                `(${Client.username})`
+                                            }
+                                            disabled
+                                        />
+                                    </Label>
+                                    <Label mb={16} mt={16}>
+                                        Project title
+                                    <Input ref={projectTitleRef} />
+                                    </Label>
+                                </>
+                            )}
 
-                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                            <>
-                                <DashboardCard color="blue" isLoading={false}>
-                                    <Heading.h4 mb={16}>Metadata</Heading.h4>
+                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                <>
+                                    <DashboardCard color="blue" isLoading={false}>
+                                        <Heading.h4 mb={16}>Metadata</Heading.h4>
 
-                                    <Text mb={16}>
-                                        <i>Application must be resubmitted to change the metadata.</i>
-                                    </Text>
-                                    <Table>
-                                        <tbody>
-                                        <TableRow>
-                                            <TableCell>Application Approver</TableCell>
-                                            <TableCell>{state.editingApplication!.resourcesOwnedByTitle}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell>Project Title</TableCell>
-                                            <TableCell>{state.editingApplication!.grantRecipientTitle}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell>Principal Investigator (PI)</TableCell>
-                                            <TableCell>{state.editingApplication!.grantRecipientPi}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell verticalAlign="top">
-                                                Project Type
+                                        <Text mb={16}>
+                                            <i>Application must be resubmitted to change the metadata.</i>
+                                        </Text>
+                                        <Table>
+                                            <tbody>
+                                                <TableRow>
+                                                    <TableCell>Application Approver</TableCell>
+                                                    <TableCell>{state.editingApplication!.resourcesOwnedByTitle}</TableCell>
+                                                </TableRow>
+                                                <TableRow>
+                                                    <TableCell>Project Title</TableCell>
+                                                    <TableCell>{state.editingApplication!.grantRecipientTitle}</TableCell>
+                                                </TableRow>
+                                                <TableRow>
+                                                    <TableCell>Principal Investigator (PI)</TableCell>
+                                                    <TableCell>{state.editingApplication!.grantRecipientPi}</TableCell>
+                                                </TableRow>
+                                                <TableRow>
+                                                    <TableCell verticalAlign="top">
+                                                        Project Type
                                             </TableCell>
-                                            <TableCell>
-                                                <table>
-                                                    <tbody>
-                                                    <tr>
-                                                        <td>Personal</td>
-                                                        <td width="100%">
-                                                            {state.recipient.type === "personal" ?
-                                                                <Icon name={"check"} color={"green"}/> :
-                                                                <Icon name={"close"} color={"red"}/>}
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td width="100%">New Project</td>
-                                                        <td>
-                                                            {state.recipient.type === "new_project" ?
-                                                                <Icon name={"check"} color={"green"}/> :
-                                                                <Icon name={"close"} color={"red"}/>}
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td width="100%">Existing Project</td>
-                                                        <td>
-                                                            {state.recipient.type === "existing_project" ?
-                                                                <Icon name={"check"} color={"green"}/> :
-                                                                <Icon name={"close"} color={"red"}/>}
-                                                        </td>
-                                                    </tr>
-                                                    </tbody>
-                                                </table>
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
-                                            <TableCell>
-                                                {
-                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                        state.editingApplication!.status === GrantApplicationStatus.APPROVED ? ( state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy):
-                                                            state.editingApplication!.status === GrantApplicationStatus.REJECTED ? ( state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
-                                                                (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
-                                                }
-                                                <ButtonGroup>
-                                                    {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                                        <>
-                                                            {state.approver && !grantFinalized ?
-                                                                <>
-                                                                    <Button
-                                                                        color="green"
-                                                                        onClick={approveRequest}
-                                                                        disabled={!isLocked}
-                                                                    >
-                                                                        Approve
-                                                                    </Button>
-                                                                    <Button
-                                                                        color="red"
-                                                                        onClick={rejectRequest}
-                                                                        disabled={!isLocked}
-                                                                    >
-                                                                        Reject
-                                                                    </Button>
-                                                                </> : null
+                                                    <TableCell>
+                                                        <table>
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td>Personal</td>
+                                                                    <td width="100%">
+                                                                        {state.recipient.type === "personal" ?
+                                                                            <Icon name={"check"} color={"green"} /> :
+                                                                            <Icon name={"close"} color={"red"} />}
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td width="100%">New Project</td>
+                                                                    <td>
+                                                                        {state.recipient.type === "new_project" ?
+                                                                            <Icon name={"check"} color={"green"} /> :
+                                                                            <Icon name={"close"} color={"red"} />}
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td width="100%">Existing Project</td>
+                                                                    <td>
+                                                                        {state.recipient.type === "existing_project" ?
+                                                                            <Icon name={"check"} color={"green"} /> :
+                                                                            <Icon name={"close"} color={"red"} />}
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </TableCell>
+                                                </TableRow>
+                                                <TableRow>
+                                                    <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
+                                                        <TableCell>
+                                                            {
+                                                                state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
+                                                                    state.editingApplication!.status === GrantApplicationStatus.APPROVED ? ( state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy):
+                                                                        state.editingApplication!.status === GrantApplicationStatus.REJECTED ? ( state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
+                                                                            (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
                                                             }
-                                                            {!state.approver && !grantFinalized ?
+                                                        <ButtonGroup>
+                                                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                                                 <>
-                                                                    <Button
-                                                                        color="red"
-                                                                        onClick={closeRequest}
-                                                                        disabled={!isLocked}
-                                                                    >
-                                                                        Withdraw
+                                                                    {state.approver && !grantFinalized ?
+                                                                        <>
+                                                                            <Button
+                                                                                color="green"
+                                                                                onClick={approveRequest}
+                                                                                disabled={!isLocked}
+                                                                            >
+                                                                                Approve
                                                                     </Button>
-                                                                </> : null
-                                                            }
+                                                                            <Button
+                                                                                color="red"
+                                                                                onClick={rejectRequest}
+                                                                                disabled={!isLocked}
+                                                                            >
+                                                                                Reject
+                                                                    </Button>
+                                                                        </> : null
+                                                                    }
+                                                                    {!state.approver && !grantFinalized ?
+                                                                        <>
+                                                                            <Button
+                                                                                color="red"
+                                                                                onClick={closeRequest}
+                                                                                disabled={!isLocked}
+                                                                            >
+                                                                                Withdraw
+                                                                    </Button>
+                                                                        </> : null
+                                                                    }
 
-                                                        </>
-                                                    )}
-                                                </ButtonGroup>
-                                                {target !== RequestTarget.VIEW_APPLICATION || isLocked ||
-                                                grantFinalized ? null :
-                                                    <Text>
-                                                        You must finish making changes before you can
-                                                        change the status of this application
+                                                                </>
+                                                            )}
+                                                        </ButtonGroup>
+                                                        {target !== RequestTarget.VIEW_APPLICATION || isLocked ||
+                                                            grantFinalized ? null :
+                                                            <Text>
+                                                                You must finish making changes before you can
+                                                                change the status of this application
                                                     </Text>
-                                                }
+                                                        }
 
-                                            </TableCell>
-                                        </TableRow>
-                                        </tbody>
-                                    </Table>
-                                </DashboardCard>
-                            </>
-                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            </tbody>
+                                        </Table>
+                                    </DashboardCard>
+                                </>
+                            )}
 
-                        <Heading.h3 mt={32}>
-                            {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
-                        </Heading.h3>
+                            <Heading.h3 mt={32}>
+                                {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
+                            </Heading.h3>
 
-                        <Heading.h4 mt={32}>Storage</Heading.h4>
-                        <ResourceContainer>
-                            {state.wallets.map((it, idx) => (
-                                it.area !== ProductArea.STORAGE ? null :
-                                    <StorageRequestCard
-                                        wb={it}
-                                        state={state}
-                                        grantFinalized={grantFinalized}
-                                        isLocked={isLocked}
-                                        storagePrice={storagePrice}
-                                        key={idx}
+                            <Heading.h4 mt={32}>Storage</Heading.h4>
+                            <ResourceContainer>
+                                {state.wallets.map((it, idx) => (
+                                    it.area !== ProductArea.STORAGE ? null :
+                                        <StorageRequestCard
+                                            wb={it}
+                                            state={state}
+                                            grantFinalized={grantFinalized}
+                                            isLocked={isLocked}
+                                            storagePrice={storagePrice}
+                                            key={idx}
+                                        />
+                                ))}
+                            </ResourceContainer>
+
+                            <Heading.h4 mt={32}>Compute</Heading.h4>
+                            <ResourceContainer>
+                                {state.wallets.map((it, idx) => (
+                                    it.area !== ProductArea.COMPUTE ? null :
+                                        <ComputeRequestCard
+                                            key={idx}
+                                            wb={it}
+                                            state={state}
+                                            grantFinalized={grantFinalized}
+                                            isLocked={isLocked}
+                                        />
+                                ))}
+                            </ResourceContainer>
+
+                            <CommentApplicationWrapper>
+                                <RequestFormContainer>
+                                    <Heading.h4>Application</Heading.h4>
+                                    <TextArea
+                                        disabled={grantFinalized || isLocked || state.approver}
+                                        rows={25}
+                                        ref={state.documentRef}
                                     />
-                            ))}
-                        </ResourceContainer>
+                                </RequestFormContainer>
 
-                        <Heading.h4 mt={32}>Compute</Heading.h4>
-                        <ResourceContainer>
-                            {state.wallets.map((it, idx) => (
-                                it.area !== ProductArea.COMPUTE ? null :
-                                    <ComputeRequestCard
-                                        key={idx}
-                                        wb={it}
-                                        state={state}
-                                        grantFinalized={grantFinalized}
-                                        isLocked={isLocked}
-                                    />
-                            ))}
-                        </ResourceContainer>
+                                {state.editingApplication === undefined ? null : (
+                                    <Box width="100%">
+                                        <Heading.h4>Comments</Heading.h4>
+                                        {state.comments.length > 0 ? null : (
+                                            <Box mt={16} mb={16}>
+                                                No comments have been posted yet.
+                                            </Box>
+                                        )}
 
-                        <CommentApplicationWrapper>
-                            <RequestFormContainer>
-                                <Heading.h4>Application</Heading.h4>
-                                <TextArea
-                                    disabled={grantFinalized || isLocked || state.approver}
-                                    rows={25}
-                                    ref={state.documentRef}
-                                />
-                            </RequestFormContainer>
+                                        {state.comments.map(it => (
+                                            <CommentBox
+                                                key={it.id}
+                                                comment={it}
+                                                avatar={state.avatars.cache[it.postedBy] ?? defaultAvatar}
+                                                reload={state.reload}
+                                            />
+                                        ))}
 
-                            {state.editingApplication === undefined ? null : (
-                                <Box width="100%">
-                                    <Heading.h4>Comments</Heading.h4>
-                                    {state.comments.length > 0 ? null : (
-                                        <Box mt={16} mb={16}>
-                                            No comments have been posted yet.
-                                        </Box>
-                                    )}
-
-                                    {state.comments.map(it => (
-                                        <CommentBox
-                                            key={it.id}
-                                            comment={it}
-                                            avatar={state.avatars.cache[it.postedBy] ?? defaultAvatar}
+                                        <PostCommentWidget
+                                            applicationId={state.editingApplication.id!}
+                                            avatar={state.avatars.cache[Client.username!] ?? defaultAvatar}
                                             reload={state.reload}
                                         />
-                                    ))}
-
-                                    <PostCommentWidget
-                                        applicationId={state.editingApplication.id!}
-                                        avatar={state.avatars.cache[Client.username!] ?? defaultAvatar}
-                                        reload={state.reload}
-                                    />
-                                </Box>
-                            )}
-                        </CommentApplicationWrapper>
-                        <Box p={32} pb={16}>
-                            {target !== RequestTarget.VIEW_APPLICATION ? (
-                                <Button disabled={grantFinalized} fullWidth onClick={submitRequest}>
-                                    Submit Application
-                                </Button>
-                            ) : null
-                            }
-                            {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
-                                isLocked ? (
-                                    <Button fullWidth onClick={() => setIsLocked(false)} disabled={loading}>
-                                        Edit this request
+                                    </Box>
+                                )}
+                            </CommentApplicationWrapper>
+                            <Box p={32} pb={16}>
+                                {target !== RequestTarget.VIEW_APPLICATION ? (
+                                    <Button disabled={grantFinalized} fullWidth onClick={submitRequest}>
+                                        Submit Application
                                     </Button>
-                                ) : (
-                                    <ButtonGroup>
-                                        <Button
-                                            color={"green"}
-                                            fullWidth
-                                            disabled={loading}
-                                            onClick={submitRequest}
-                                        >
-                                            Save Changes
+                                ) : null
+                                }
+                                {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
+                                    isLocked ? (
+                                        <Button fullWidth onClick={() => setIsLocked(false)} disabled={loading}>
+                                            Edit this request
                                         </Button>
-                                        <Button color={"red"} onClick={discardChanges}>Discard changes</Button>
-                                    </ButtonGroup>
-                                )
-                            )}
+                                    ) : (
+                                            <ButtonGroup>
+                                                <Button
+                                                    color={"green"}
+                                                    fullWidth
+                                                    disabled={loading}
+                                                    onClick={submitRequest}
+                                                >
+                                                    Save Changes
+                                        </Button>
+                                                <Button color={"red"} onClick={discardChanges}>Discard changes</Button>
+                                            </ButtonGroup>
+                                        )
+                                )}
+                            </Box>
                         </Box>
-                    </Box>
-                </Flex>
-            }
-        />
-    );
-};
+                    </Flex>
+                }
+            />
+        );
+    };
 
 const CommentApplicationWrapper = styled.div`
     display: grid;
@@ -1102,7 +1103,7 @@ const CommentBox: React.FunctionComponent<{
 
     return <CommentBoxWrapper>
         <div className="avatar">
-            <UserAvatar avatar={avatar} width={"48px"}/>
+            <UserAvatar avatar={avatar} width={"48px"} />
         </div>
 
         <div className={"body"}>
@@ -1113,7 +1114,7 @@ const CommentBox: React.FunctionComponent<{
 
         {comment.postedBy === Client.username ? (
             <div>
-                <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete}/>
+                <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete} />
             </div>
         ) : null}
     </CommentBoxWrapper>;
@@ -1161,8 +1162,8 @@ const PostCommentWidget: React.FunctionComponent<{
     }, [runWork, applicationId, commentBoxRef.current]);
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">
-            <UserAvatar avatar={avatar} width={"48px"}/>
-            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"}/>
+            <UserAvatar avatar={avatar} width={"48px"} />
+            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"} />
         </div>
         <div className="buttons">
             <Button disabled={loading}>Send</Button>

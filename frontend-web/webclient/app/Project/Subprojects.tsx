@@ -34,6 +34,8 @@ import {ListRow} from "ui-components/List";
 import {flex} from "styled-system";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {getRenamingStatusForSubProject, toggleRenaming} from "./ProjectSettings";
+import {TableCell} from "ui-components/Table";
+
 
 const WalletContainer = styled.div`
     display: grid;
@@ -88,7 +90,9 @@ const SelectableWallet: React.FunctionComponent<{
     allocated?: number,
     selected?: boolean,
     onClick?: () => void,
-    quotaInTotal?: number
+    quotaInTotal?: number,
+    usage?: number,
+    remainingQuota?: number
 }> = props => {
     return (
         <SelectableWalletWrapper className={props.selected === true ? "selected" : ""} onClick={props.onClick}>
@@ -113,8 +117,14 @@ const SelectableWallet: React.FunctionComponent<{
                         )}
                         {props.quotaInTotal === undefined ? null : (
                             <tr>
-                                <th>Quota</th>
-                                <td>{props.quotaInTotal === -1 ? "No quota" : sizeToString(props.quotaInTotal)}</td>
+                                <th>Used/Quota</th>
+                                <td>{sizeToString(props.usage ?? 0)}
+                                    {" "}/{" "}
+                                    {sizeToString(props.remainingQuota!)}
+                                    {" "}({(100 * (props.remainingQuota ?
+                                            ((props.usage ?? 0) / props.remainingQuota) : 1
+                                    )).toFixed(2)}%)
+                                </td>
                             </tr>
                         )}
                         <tr>
@@ -135,7 +145,7 @@ const SelectableWallet: React.FunctionComponent<{
 };
 
 const Subprojects: React.FunctionComponent = () => {
-    const [isLoading, runCommand] = useAsyncCommand();
+    const [, runCommand] = useAsyncCommand();
 
     useTitle("Resources");
     useSidebarPage(SidebarPages.Projects);
@@ -159,7 +169,11 @@ const Subprojects: React.FunctionComponent = () => {
 
     const reloadWallets = useCallback(() => {
         setWalletParams(retrieveBalance({includeChildren: true}));
-        fetchQuota(retrieveQuota({path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder}));
+        fetchQuota(retrieveQuota(
+            {
+                path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder,
+                includeUsage: true
+            }));
     }, [setWalletParams, projectId]);
 
     const [creatingSubproject, setCreatingSubproject] = useState(false);
@@ -208,7 +222,7 @@ const Subprojects: React.FunctionComponent = () => {
                     title: subprojectName,
                     parent: projectId
                 }))
-            );
+            ).promise;
 
             snackbarStore.addSuccess(`Subproject created`, true);
             createSubprojectRef.current!.value = "";
@@ -253,7 +267,8 @@ const Subprojects: React.FunctionComponent = () => {
                                     <Heading.h4>No resources attached to project. Contact project PI</Heading.h4>
                                 } </>
                                 : <>{mainWallets.map((w, i) =>
-                                    <SelectableWallet
+                                    isQuotaSupported(w.wallet.paysFor) ?
+                                        <SelectableWallet
                                         key={i}
                                         wallet={w}
                                         selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
@@ -263,10 +278,22 @@ const Subprojects: React.FunctionComponent = () => {
                                                     prev + it.balance : prev
                                             ), 0)
                                         }
-                                        quotaInTotal={isQuotaSupported(w.wallet.paysFor) ?
-                                            quota.data.quotaInTotal : undefined
-                                        }
+                                        quotaInTotal= {quota.data.quotaInTotal}
+                                        usage={quota.data.quotaUsed}
+                                        remainingQuota={quota.data.quotaInBytes}
                                         onClick={() => setSelectedWallet(w)} />
+                                    : <SelectableWallet
+                                            key={i}
+                                            wallet={w}
+                                            selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
+                                            allocated={
+                                                wallets.data.wallets.reduce((prev, it) => (
+                                                    it.wallet.id !== projectId && productCategoryEquals(w.wallet.paysFor, it.wallet.paysFor) ?
+                                                        prev + it.balance : prev
+                                                ), 0)
+                                            }
+                                            onClick={() => setSelectedWallet(w)}
+                                        />
                                 )
                                 }</>
                             }

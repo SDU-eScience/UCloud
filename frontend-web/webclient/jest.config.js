@@ -21,6 +21,7 @@ module.exports = {
         "<rootDir>/app/"
     ],
     globals: {
+        "DEVELOPMENT_ENV": true,
         "ts-jest": {
             "ts-config": "tsconfig.json",
             diagnostics: {

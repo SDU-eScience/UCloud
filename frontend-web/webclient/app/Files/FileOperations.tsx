@@ -314,4 +314,4 @@ export const defaultFileOperations: FileOperation[] = [
         color: "red",
         repositoryMode: FileOperationRepositoryMode.REQUIRED
     }
-];
+] as FileOperation[];

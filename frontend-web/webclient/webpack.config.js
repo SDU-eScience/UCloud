@@ -1,6 +1,7 @@
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 const path = require("path");
 const baseHref = "/app";
 
@@ -81,5 +82,13 @@ module.exports = {
             favicon: "app/Assets/Images/favicon.ico"
         }),
         new MiniCSSExtractPlugin(),
+        new CopyWebpackPlugin({
+            patterns: [{
+                from: "Assets/AppVersion.txt",
+                to: "Assets/AppVersion.txt",
+                context: path.join(__dirname, "app")
+            }],
+            options: {}
+        })
     ]
 };
