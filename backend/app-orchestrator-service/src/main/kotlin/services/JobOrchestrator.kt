@@ -104,7 +104,7 @@ class JobOrchestrator(
                     }
                     // Check for duplicates
                     .onEach { job ->
-                        if (!job.job.parameters!!.allowDuplicateJob) {
+                        if (!job.job.parameters.allowDuplicateJob) {
                             if (!checkForDuplicateJob(principal, project, job)) {
                                 throw JobException.Duplicate()
                             }
@@ -134,7 +134,7 @@ class JobOrchestrator(
                 }
 
                 // Notify compute providers
-                verifiedJobs.groupBy { it.job.parameters!!.product.provider }.forEach { (provider, jobs) ->
+                verifiedJobs.groupBy { it.job.parameters.product.provider }.forEach { (provider, jobs) ->
                     val (api, client) = providers.prepareCommunication(provider)
 
                     api.create.call(bulkRequestOf(jobs.map { it.job }), client).orThrow()
@@ -153,7 +153,15 @@ class JobOrchestrator(
                 jobsToInvalidateInCaseOfFailure.groupBy { it.provider }.forEach { (provider, jobs) ->
                     val (api, client) = providers.prepareCommunication(provider)
                     api.delete.call(
-                        bulkRequestOf(jobs.map { FindByStringId(it.jobId) }),
+                        bulkRequestOf(
+                            jobQueryService
+                                .retrievePrivileged(
+                                    db,
+                                    jobs.map { it.jobId },
+                                    JobDataIncludeFlags(includeParameters = true)
+                                )
+                                .map { it.value.job }
+                        ),
                         client
                     )
                 }
@@ -179,7 +187,7 @@ class JobOrchestrator(
             principal,
             project,
             PaginationRequestV2(10).normalize(),
-            JobDataIncludeFlags()
+            JobDataIncludeFlags(includeParameters = true)
         ).items
     }
 
@@ -282,14 +290,14 @@ class JobOrchestrator(
         session: DBContext,
         jobIds: Set<String>,
         comm: ProviderCommunication,
-        flags: JobDataIncludeFlags = JobDataIncludeFlags(),
+        flags: JobDataIncludeFlags = JobDataIncludeFlags(includeParameters = true),
     ): Map<String, VerifiedJobWithAccessToken> {
         val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
         if (loadedJobs.keys.size != jobIds.size) {
             throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
         }
 
-        val ownsAllJobs = loadedJobs.values.all { (it.job).parameters!!.product.provider == comm.provider }
+        val ownsAllJobs = loadedJobs.values.all { (it.job).parameters.product.provider == comm.provider }
         if (!ownsAllJobs) {
             throw RPCException("Provider is not authorized to perform these updates", HttpStatusCode.Forbidden)
         }
@@ -300,7 +308,7 @@ class JobOrchestrator(
         session: AsyncDBConnection,
         jobIds: Set<String>,
         user: Actor,
-        flags: JobDataIncludeFlags = JobDataIncludeFlags()
+        flags: JobDataIncludeFlags = JobDataIncludeFlags(includeParameters = true)
     ): Map<String, VerifiedJobWithAccessToken> {
         val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
         if (loadedJobs.keys.size != jobIds.size) {
@@ -347,7 +355,7 @@ class JobOrchestrator(
                     bulkRequestOf(request.items.mapNotNull { extensionRequest ->
                         val (job) = jobs.getValue(extensionRequest.jobId)
                         if (job.parameters!!.product.provider != comm.provider) null
-                        else extensionRequest
+                        else ComputeExtendRequestItem(job, extensionRequest.requestedTime)
                     }),
                     comm.client
                 ).orThrow()
@@ -364,7 +372,7 @@ class JobOrchestrator(
             for ((provider, providerJobs) in jobsByProvider) {
                 val comm = providers.prepareCommunication(provider)
                 comm.api.delete.call(
-                    bulkRequestOf(providerJobs.map { FindByStringId(it.job.id) }),
+                    bulkRequestOf(providerJobs.map { it.job }),
                     comm.client
                 ).orThrow()
             }

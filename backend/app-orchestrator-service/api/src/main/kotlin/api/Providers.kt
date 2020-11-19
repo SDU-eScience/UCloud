@@ -9,22 +9,39 @@ data class ComputeProvider(
     val port: Int? = null,
 )
 
-data class ComputeProviderManifestBody(
-    val features: ManifestFeatureSupport,
+data class ProviderManifest(
+    val features: ManifestFeatureSupport = ManifestFeatureSupport(),
 )
 
 data class ManifestFeatureSupport(
-    val web: Boolean = false,
-    val vnc: Boolean = false,
-    val batch: Boolean = false,
-    val docker: Boolean = false,
-    val virtualMachine: Boolean = false,
-    val logs: Boolean = false,
-)
+    val compute: Compute = Compute(),
+) {
+    data class Compute(
+        val docker: Docker = Docker(),
+        val virtualMachine: VirtualMachine = VirtualMachine(),
+    ) {
+        data class Docker(
+            var enabled: Boolean = false,
+            var web: Boolean = false,
+            var vnc: Boolean = false,
+            var batch: Boolean = false,
+            var logs: Boolean = false,
+            var terminal: Boolean = false,
+            var peers: Boolean = false,
+        )
+
+        data class VirtualMachine(
+            var enabled: Boolean = false,
+            var logs: Boolean = false,
+            var vnc: Boolean = false,
+            var terminal: Boolean = false,
+        )
+    }
+}
 
 data class ComputeProviderManifest(
     val metadata: ComputeProvider,
-    val manifest: ComputeProviderManifestBody
+    val manifest: ProviderManifest,
 )
 
 object Providers : CallDescriptionContainer("jobs.providers") {

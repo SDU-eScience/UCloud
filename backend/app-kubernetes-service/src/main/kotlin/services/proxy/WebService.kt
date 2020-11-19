@@ -1,30 +1,11 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
-import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
-import dk.sdu.cloud.app.kubernetes.services.MinikubePlugin
 import dk.sdu.cloud.app.kubernetes.services.VerifiedJobCache
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.k8.KubernetesResources
-import dk.sdu.cloud.service.k8.Service
-import dk.sdu.cloud.service.k8.getResource
-import dk.sdu.cloud.service.k8.listResources
 import io.ktor.application.ApplicationCall
-import io.ktor.application.call
-import io.ktor.features.origin
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.request.host
-import io.ktor.response.header
-import io.ktor.response.respond
-import io.ktor.response.respondRedirect
-import io.ktor.response.respondText
 import io.ktor.routing.Route
-import io.ktor.routing.get
-import io.ktor.routing.route
-import io.ktor.util.date.GMTDate
 
 private const val SDU_CLOUD_REFRESH_TOKEN = "refreshToken"
 

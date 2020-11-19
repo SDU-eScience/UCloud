@@ -2,38 +2,28 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.service.SimpleCache
 
 class VerifiedJobCache(private val serviceClient: AuthenticatedClient) {
-    private val jobIdToJob = HashMap<String, Job>()
-
-    suspend fun findJob(id: String): Job? {
-        TODO()
-        /*
-        return jobIdToJob[id] ?: run {
-            val jobByUrl = ComputationCallbackDescriptions.lookupUrl.call(
+    private val cache = SimpleCache<String, Job>(
+        maxAge = 1000 * 60 * 60,
+        lookup = { id ->
+            JobsControl.retrieve.call(
                 FindByStringId(id),
                 serviceClient
             ).orNull()
-            if (jobByUrl != null) {
-                cacheJob(jobByUrl)
-                jobByUrl
-            } else {
-                val jobById = ComputationCallbackDescriptions.lookup.call(
-                    FindByStringId(id),
-                    serviceClient
-                ).orNull()
-
-                if (jobById != null) cacheJob(jobById)
-                jobById
-            }
         }
-         */
+    )
+
+    suspend fun findJob(jobId: String): Job? {
+        return cache.get(jobId)
     }
 
-    fun cacheJob(job: Job) {
-        jobIdToJob[job.id] = job
+    suspend fun cacheJob(job: Job) {
+        cache.insert(job.id, job)
     }
 }

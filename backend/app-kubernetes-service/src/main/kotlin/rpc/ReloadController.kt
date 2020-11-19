@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
-import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller

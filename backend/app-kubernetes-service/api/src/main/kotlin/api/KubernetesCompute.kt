@@ -11,7 +11,7 @@ import io.ktor.http.HttpMethod
 data class ReloadRequest(val fileLocation: String)
 typealias ReloadResponse = Unit
 
-object AppKubernetesDescriptions : Compute("kubernetes") {
+object KubernetesCompute : Compute("kubernetes") {
     val reload = call<ReloadRequest, ReloadResponse, CommonErrorMessage>("reload") {
         auth {
             access = AccessRight.READ
@@ -31,4 +31,5 @@ object AppKubernetesDescriptions : Compute("kubernetes") {
     }
 }
 
+// TODO Merge this into Compute
 object AppKubernetesShell : Shells("kubernetes")

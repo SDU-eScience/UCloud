@@ -17,15 +17,13 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
     const val JOB_START = "ucloud.dk/jobStart"
 
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        TODO()
-        /*
-        val maxTimeMillis = job.maxTime.toMillis()
+        // TODO
+        val maxTimeMillis = job.parameters!!.timeAllocation?.toMillis() ?: error("time allocation required")
         val jobMetadata = builder.metadata ?: error("no metadata")
         (jobMetadata.annotations?.toMutableMap() ?: HashMap()).let { annotations ->
             annotations[MAX_TIME_ANNOTATION] = "$maxTimeMillis"
             jobMetadata.annotations = annotations
         }
-         */
     }
 
     override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {

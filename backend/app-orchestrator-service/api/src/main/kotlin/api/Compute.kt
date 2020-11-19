@@ -6,6 +6,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.UCloudApiExperimental
@@ -21,21 +22,26 @@ typealias ComputeCreateRequestItem = Job
 
 typealias ComputeDeleteRequest = BulkRequest<ComputeDeleteRequestItem>
 typealias ComputeDeleteResponse = Unit
-typealias ComputeDeleteRequestItem = FindByStringId
+typealias ComputeDeleteRequestItem = Job
 
-typealias ComputeExtendRequest = JobsExtendRequest
+typealias ComputeExtendRequest = BulkRequest<ComputeExtendRequestItem>
 typealias ComputeExtendResponse = Unit
+
+data class ComputeExtendRequestItem(
+    val job: Job,
+    val requestedTime: SimpleDuration,
+)
 
 typealias ComputeSuspendRequest = BulkRequest<ComputeSuspendRequestItem>
 typealias ComputeSuspendResponse = Unit
-typealias ComputeSuspendRequestItem = FindByStringId
+typealias ComputeSuspendRequestItem = Job
 
 typealias ComputeVerifyRequest = BulkRequest<ComputeVerifyRequestItem>
 typealias ComputeVerifyResponse = Unit
 typealias ComputeVerifyRequestItem = Job
 
 typealias ComputeRetrieveManifestRequest = Unit
-typealias ComputeRetrieveManifestResponse = ComputeProviderManifestBody
+typealias ComputeRetrieveManifestResponse = ProviderManifest
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -55,6 +61,24 @@ data class ComputeFollowResponse(
     val rank: Int,
     val stdout: String?,
     val stderr: String?,
+)
+
+data class ComputeRetrieveApiRequest(
+    val job: Job,
+
+    @UCloudApiDoc(
+        "If both the provider and UCloud is running in development mode, then normal protocols and security " +
+            "can be skipped.\n\nIf the provider and UCloud agree on this then the provider should return a result" +
+            "which goes directly to the backend. In all other circumstances the provider should reject the request " +
+            "if `development` is `true` with a status code of 400."
+    )
+    val development: Boolean = false,
+)
+
+data class ComputeRetrieveApiResponse(
+    val domain: String,
+    val https: Boolean,
+    val port: Int,
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -102,6 +126,25 @@ token according to the TODO documentation.
 The provider and UCloud works in tandem by sending pushing information to each other when new information
 becomes available. Compute providers can push information to UCloud by using the
 ${docNamespaceRef("jobs.control")} API.
+
+### What information does `Job` include?
+
+The UCloud API will communicate with the provider and include a reference of the `Job` which the request is about. The
+`Job` model has several optional fields which are not always included. You can see which flags are set by UCloud when
+retrieving the `Job`. If you need additional data you may use ${docCallRef(JobsControl::retrieve)} to fetch additional
+information about the job. The flags selected below should give the provider enough information that the rest can
+easily be cached locally. For example, providers can with great benefit choose to cache product and application
+information.
+
+| Flag | Included | Comment |
+|------|----------|---------|
+| `includeParameters` | `true` | Specifies how the user invoked the application. |
+| `includeApplication` | `false` | Application information specifies the tool and application running. Can safely be cached indefinitely by name and version. |
+| `includeProduct` | `false` | Product information specifies dimensions of the machine. Can safely be cached for 24 hours by name. |
+| `includeUpdates` | `false` | You, the provider, will have supplied all updates but they are stored by UCloud. |
+| `includeWeb` | `false` | You, the provider, will supply this information. Asking would cause UCloud to ask you back. |
+| `includeVnc` | `false` | You, the provider, will supply this information. Asking would cause UCloud to ask you back. |
+| `includeShell` | `false` |  You, the provider, will supply this information. Asking would cause UCloud to ask you back. |
             
 ### Accounting
             
@@ -143,8 +186,20 @@ ${req("4", false, JobsControl::update, "Proceed to `SUCCESS` with message 'Insuf
 |----|--------|---|----------|------|---------|
 ${req("1", true, ::create, "Start application with ID `FOO123`", "OK")}
 ${req("2", false, JobsControl::update, "Proceed to `RUNNING`")}
-${req("3", false, JobsControl::chargeCredits, "Charge for 15 minutes of use", "${HttpStatusCode.PaymentRequired}")}           
-${req("3", false, JobsControl::chargeCredits, "Charge for 15 minutes of use", "${HttpStatusCode.PaymentRequired}")}           
+${
+            req("3",
+                false,
+                JobsControl::chargeCredits,
+                "Charge for 15 minutes of use",
+                "${HttpStatusCode.PaymentRequired}")
+        }           
+${
+            req("3",
+                false,
+                JobsControl::chargeCredits,
+                "Charge for 15 minutes of use",
+                "${HttpStatusCode.PaymentRequired}")
+        }           
 ${comment("4", "`FOO123` disappears/crashes at provider - Provider did not notice and notify UCloud automatically")}
 ${req("5", true, ::verify, "Verify that `FOO123` is running", "OK")}
 ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
@@ -229,5 +284,73 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
 
         websocket(baseContext)
+    }
+
+    val retrieveApi = call<ComputeRetrieveApiRequest, ComputeRetrieveApiResponse, CommonErrorMessage>("retrieveApi") {
+        httpRetrieve(baseContext, "api", roles = Roles.PRIVILEGED)
+
+        documentation {
+            summary = "Retrieves extra API details for a job"
+            //language=markdown
+            description = """
+This endpoint is used to retrieve information about optional APIs which can be exposed for a job.
+These are as follows:
+
+- `vnc`: Provides remote desktop like experience using the VNC protocol.
+- `web`: Provides access to a web interface provided by the application.
+                  
+### Security and Routing
+
+All the protocols listed above use HTTP and WebSockets. Traffic is first routed to UCloud and then proxied to your
+backend endpoint. UCloud before proxying the request will alter the HTTP headers slightly and adds authentication and
+routing headers header. 
+
+The`UCloud-Authorization` header includes a signed JWT prepended by `Bearer `. This JWT is identical to the one which
+is normally included in UCloud <=> Provider communication. Note that this header is not using the standard location
+since this is reserved for use by the backing compute job. The compute provider should remove this header before
+proxying the request to the compute job.
+
+`UCloud-JobId` contains a reference to the already running job at the provider. The provider can request additional
+details, if needed, by using the ${docCallRef(JobsControl::retrieve)} endpoint. Note that if additional details
+are frequently needed then the provider should cache the result to avoid adding unneeded latency to the request.
+
+__Example request:__
+
+```
+GET /rstudio/0E471A7ED100AFCB82EF81C71F4D11F4.cache.js HTTP/1.1
+Host: app-6f0f6a50-23cd-461a-b9d0-544f27e152eb.cloud.sdu.dk
+User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:83.0) Gecko/20100101 Firefox/83.0
+Accept: */*
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Referer: https://app-6f0f6a50-23cd-461a-b9d0-544f27e152eb.cloud.sdu.dk/
+DNT: 1
+Connection: keep-alive
+Pragma: no-cache
+Cache-Control: no-cache
+UCloud-JobId: 6f0f6a50-23cd-461a-b9d0-544f27e152eb
+UCloud-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJUaGlzIGlzIG5vdCBhIHJlYWwgSldULCBzb3JyeSIsImlhdCI6MH0.UbQabyAxJudyOeiMvHGkVqCa4ZPrAKh0bi3ZLm7lIvE
+```
+
+Note: The `Host`, `Referer` and `Origin` headers will always reference the hostname of UCloud. Many applications
+depend on these values for security (as is often recommended by best practices also). Experience have shown that the
+only reliable way for applications to function is for these to match the values at the end-users client. This does,
+however, mean that these values won't match the domain you are running on. You must take this into account when
+configuring your routing.
+                  
+### VNC (`vnc`)
+
+VNC is supported by applications which declare explicit support for it. This means that inside of the application
+there must be a service running VNC over websockets. Providers can query the correct port by looking at the application
+description.
+
+### Web (`web`)
+
+Web is supported by applications which declare explicit support for it. This means that inside of the application
+there must be a service running an HTTP server. Providers can query the correct port by looking at the application
+description.
+
+"""
+        }
     }
 }

@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.files
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
@@ -13,17 +14,15 @@ import dk.sdu.cloud.service.k8.Volume
  * A plugin which mounts user-input into the containers
  */
 class FileMountPlugin(
-    private val cephConfiguration: CephConfiguration = CephConfiguration()
+    private val cephConfiguration: CephConfiguration = CephConfiguration(),
 ) : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        /*
         data class FileMount(val path: String, val readOnly: Boolean) {
             val fileName = path.normalize().fileName()
         }
+
         val fileMounts = run {
-            val allMounts =
-                job.mounts.map { FileMount(it.sourcePath, it.readOnly) } +
-                    job.files.map { FileMount(it.sourcePath, it.readOnly) }
+            val allMounts = job.files.map { FileMount(it.path, it.readOnly) }
 
             allMounts.associateBy { it.path }.values
         }
@@ -54,7 +53,7 @@ class FileMountPlugin(
                         )
                     }
 
-                    val outputFolder = job.outputFolder
+                    val outputFolder = job.output?.outputFolder
                     if (outputFolder != null) {
                         volumeMounts.add(
                             Pod.Container.VolumeMount(
@@ -90,7 +89,6 @@ class FileMountPlugin(
                 pSpec.volumes = volumes
             }
         }
-         */
     }
 
     companion object {

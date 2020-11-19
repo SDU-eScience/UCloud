@@ -4,7 +4,7 @@ import com.sun.jna.Platform
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
-import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.api.ReloadRequest
 import dk.sdu.cloud.app.license.AppLicenseService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
@@ -579,7 +579,7 @@ object UCloudLauncher : Loggable {
         isK8sRunning = true
 
         runBlocking {
-            AppKubernetesDescriptions.reload.call(
+            KubernetesCompute.reload.call(
                 ReloadRequest(cephfsHome),
                 serviceClient
             ).orThrow()

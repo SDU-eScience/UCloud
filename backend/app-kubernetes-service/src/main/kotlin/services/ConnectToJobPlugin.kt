@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.peers
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.k8.*
@@ -13,7 +14,6 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
 
     @OptIn(ExperimentalStdlibApi::class)
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        /*
         val namespace = k8.nameAllocator.jobIdToNamespace(job.id)
 
         val selectorForThisJob = LabelSelector().apply {
@@ -36,7 +36,7 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
                             )
                         ).status?.podIP ?: continue
 
-                        aliases.add(Pod.HostAlias(listOf(peer.name), ip))
+                        aliases.add(Pod.HostAlias(listOf(peer.hostname), ip))
                     } catch (ex: KubernetesException) {
                         if (ex.statusCode == HttpStatusCode.NotFound) {
                             log.debug(ex.stackTraceToString())
@@ -164,7 +164,6 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
                 }
             }
         }
-         */
     }
 
     override suspend fun JobManagement.onCleanup(jobId: String) {

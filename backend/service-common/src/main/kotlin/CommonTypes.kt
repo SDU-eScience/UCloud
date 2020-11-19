@@ -37,6 +37,7 @@ data class FindByName(val name: String) {
 }
 
 data class FindByStringId(val id: String) {
+    @Deprecated("replaced by BulkRequest")
     @get:JsonIgnore
     val bulk: List<String>
         get() = id.split(",")

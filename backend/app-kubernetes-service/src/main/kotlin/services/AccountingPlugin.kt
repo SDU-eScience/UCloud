@@ -2,7 +2,11 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
+import dk.sdu.cloud.app.orchestrator.api.JobsControl
+import dk.sdu.cloud.app.orchestrator.api.JobsControlChargeCreditsRequest
+import dk.sdu.cloud.app.orchestrator.api.JobsControlChargeCreditsRequestItem
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
@@ -31,7 +35,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {
         val now = Time.now()
-        loop@for (jobFromServer in jobBatch) {
+        loop@ for (jobFromServer in jobBatch) {
             val name = jobFromServer.metadata?.name ?: continue
             val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt
             if (lastTs == null) {
@@ -55,14 +59,16 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         val name = k8.nameAllocator.jobIdToJobName(jobId)
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
-        TODO()
-        /*
-        ComputationCallbackDescriptions.chargeCredits.call(
-            ChargeCreditsRequest(jobId, lastTs.toString(), SimpleDuration.fromMillis(timespent)),
+        JobsControl.chargeCredits.call(
+            bulkRequestOf(
+                JobsControlChargeCreditsRequestItem(
+                    jobId,
+                    lastTs.toString(),
+                    SimpleDuration.fromMillis(timespent)
+                )
+            ),
             k8.serviceClient
         ).orThrow()
-
-         */
 
         try {
             k8.client.patchResource(
@@ -92,10 +98,12 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         }
     }
 
-    private val VolcanoJob.lastAccountingTs: Long? get() {
-        return metadata?.annotations?.get(LAST_PERFORMED_AT_ANNOTATION)?.toString()?.toLongOrNull()
-    }
-    private val VolcanoJob.jobStartedAt: Long? get() {
-        return metadata?.annotations?.get(ExpiryPlugin.JOB_START)?.toString()?.toLongOrNull()
-    }
+    private val VolcanoJob.lastAccountingTs: Long?
+        get() {
+            return metadata?.annotations?.get(LAST_PERFORMED_AT_ANNOTATION)?.toString()?.toLongOrNull()
+        }
+    private val VolcanoJob.jobStartedAt: Long?
+        get() {
+            return metadata?.annotations?.get(ExpiryPlugin.JOB_START)?.toString()?.toLongOrNull()
+        }
 }

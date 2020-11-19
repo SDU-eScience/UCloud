@@ -4,7 +4,7 @@ import app.orchestrator.rpc.PublicLinkController
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
 import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
-import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifestBody
+import dk.sdu.cloud.app.orchestrator.api.ProviderManifest
 import dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.services.JobDao
@@ -56,16 +56,21 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         // TODO Providers
         val providers = Providers(serviceClient, ComputeProviderManifest(
             ComputeProvider(UCLOUD_PROVIDER, "localhost", false, 8080),
-            ComputeProviderManifestBody(
-                ManifestFeatureSupport(
-                    web = true,
-                    vnc = true,
-                    batch = true,
-                    docker = true,
-                    virtualMachine = false,
-                    logs = true
-                )
-            )
+            ProviderManifest().apply {
+                with(features) {
+                    with(compute) {
+                        with(docker) {
+                            enabled = true
+                            web = true
+                            vnc = true
+                            batch = true
+                            logs = true
+                            peers = true
+                            terminal = true
+                        }
+                    }
+                }
+            }
         ))
 
         val jobVerificationService = JobVerificationService(

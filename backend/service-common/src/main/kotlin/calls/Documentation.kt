@@ -12,7 +12,7 @@ import kotlin.reflect.KProperty1
  *
  * To document a call please use [UCloudCallDoc] via [CallDescription.documentation].
  */
-@Target(AnnotationTarget.FIELD, AnnotationTarget.CLASS)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
 annotation class UCloudApiDoc(@Language("markdown") val documentation: String)
 
 interface UCloudCallDoc<R : Any, S : Any, E : Any> {
@@ -96,7 +96,7 @@ fun CallDescriptionContainer.docCallRef(call: KProperty<CallDescription<*, *, *>
     }
 
     val isQualified = qualified ?: (this.namespace != namespace)
-    return if (isQualified) "[`${namespace}.${call.name}`](#operation/${call.name})"
+    return if (isQualified) "[`${namespace}.${call.name}`](#operation/${namespace}.${call.name})"
         else "[`${call.name}`](#operation/${namespace}.${call.name})"
 }
 

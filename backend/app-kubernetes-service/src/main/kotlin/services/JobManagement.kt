@@ -7,10 +7,8 @@ import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.DistributedLock
 import dk.sdu.cloud.service.DistributedLockFactory
@@ -18,7 +16,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
-import io.ktor.util.cio.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.onReceiveOrNull
 import kotlinx.coroutines.selects.select
@@ -66,7 +63,7 @@ class JobManagement(
     private val jobCache: VerifiedJobCache,
     private val maintenance: MaintenanceService,
     private val disableMasterElection: Boolean = false,
-    private val fullScanFrequency: Long = 1000L * 60 * 15
+    private val fullScanFrequency: Long = 1000L * 60 * 15,
 ) {
     private val plugins = ArrayList<JobManagementPlugin>()
 
@@ -112,6 +109,10 @@ class JobManagement(
 
     fun register(plugin: JobManagementPlugin) {
         plugins.add(plugin)
+    }
+
+    suspend fun create(jobs: BulkRequest<ComputeCreateRequestItem>) {
+        jobs.items.forEach { create(it) }
     }
 
     suspend fun create(verifiedJob: Job) {
@@ -166,8 +167,20 @@ class JobManagement(
         }
     }
 
+    suspend fun extend(request: BulkRequest<ComputeExtendRequestItem>) {
+        request.items.forEach { extension ->
+            extend(extension.job, extension.requestedTime)
+        }
+    }
+
     suspend fun extend(job: Job, newMaxTime: SimpleDuration) {
         ExpiryPlugin.extendJob(k8, job.id, newMaxTime)
+    }
+
+    suspend fun cancel(request: BulkRequest<Job>) {
+        request.items.forEach { job ->
+            cancel(job)
+        }
     }
 
     suspend fun cancel(verifiedJob: Job) {
@@ -361,7 +374,8 @@ class JobManagement(
 
                                         VolcanoJobPhase.Terminated, VolcanoJobPhase.Terminating,
                                         VolcanoJobPhase.Completed, VolcanoJobPhase.Completing,
-                                        VolcanoJobPhase.Aborted, VolcanoJobPhase.Aborting -> {
+                                        VolcanoJobPhase.Aborted, VolcanoJobPhase.Aborting,
+                                        -> {
                                             append("Job is terminating")
                                             newState = JobState.SUCCESS
                                         }

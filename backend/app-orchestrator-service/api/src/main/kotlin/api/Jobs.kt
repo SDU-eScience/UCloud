@@ -3,6 +3,8 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.CallDescriptionContainer
@@ -75,7 +77,7 @@ data class Job(
 
     @UCloudApiDoc("The parameters used to launch this job.\n\n" +
         "This property is always available but must be explicitly requested.")
-    val parameters: JobParameters?,
+    val parameters: JobParameters,
 
     @UCloudApiDoc("Information regarding the output of this job.")
     val output: JobOutput? = null,
@@ -143,12 +145,14 @@ data class JobParameters(
 
     @UCloudApiDoc(
         "Parameters which are consumed by the job\n\n" +
-            "The available parameters are defined by the `application`"
+            "The available parameters are defined by the `application`. " +
+            "This attribute is not included by default unless `includeParameters` is specified."
     )
-    val parameters: Map<String, AppParameterValue> = emptyMap(),
+    val parameters: Map<String, AppParameterValue>? = null,
 
     @UCloudApiDoc(
         "Additional resources which are made available into the job\n\n" +
+            "This attribute is not included by default unless `includeParameters` is specified. " +
             "Note: Not all resources can be attached to a job. UCloud supports the following parameter types as " +
             "resources:\n\n" +
             " - `file`\n" +
@@ -157,7 +161,7 @@ data class JobParameters(
             " - `block_storage`\n" +
             " - `ingress`\n"
     )
-    val resources: List<AppParameterValue> = emptyList(),
+    val resources: List<AppParameterValue>? = null,
 
     @UCloudApiDoc(
         "Time allocation for the job\n\n" +
@@ -167,6 +171,14 @@ data class JobParameters(
             "extended this duration via the `extend` operation."
     )
     val timeAllocation: SimpleDuration? = null,
+
+    @UCloudApiDoc("The resolved product referenced by `product`.\n\n" +
+        "This attribute is not included by default unless `includeProduct` is specified.")
+    val resolvedProduct: Product.Compute? = null,
+
+    @UCloudApiDoc("The resolved application referenced by `application`.\n\n" +
+        "This attribute is not included by default unless `includeApplication` is specified.")
+    val resolvedApplication: Application? = null,
 ) {
     init {
         if (name != null && !name.matches(nameRegex)) {
@@ -197,11 +209,26 @@ data class JobVncLink(val link: String, val password: String? = null)
 data class JobShellLink(val link: String)
 
 interface JobDataIncludeFlags {
+    @UCloudApiDoc("Includes `parameters.parameters` and `parameters.resources`")
     val includeParameters: Boolean?
+
+    @UCloudApiDoc("Includes `web`")
     val includeWeb: Boolean?
+
+    @UCloudApiDoc("Includes `vnc`")
     val includeVnc: Boolean?
+
+    @UCloudApiDoc("Includes `shell`")
     val includeShell: Boolean?
+
+    @UCloudApiDoc("Includes `updates`")
     val includeUpdates: Boolean?
+
+    @UCloudApiDoc("Includes `parameters.resolvedApplication`")
+    val includeApplication: Boolean?
+
+    @UCloudApiDoc("Includes `parameters.resolvedProduct`")
+    val includeProduct: Boolean?
 }
 
 fun JobDataIncludeFlags(
@@ -210,7 +237,17 @@ fun JobDataIncludeFlags(
     includeVnc: Boolean? = null,
     includeShell: Boolean? = null,
     includeUpdates: Boolean? = null,
-) = JobDataIncludeFlagsImpl(includeParameters, includeWeb, includeVnc, includeShell, includeUpdates)
+    includeApplication: Boolean? = null,
+    includeProduct: Boolean? = null,
+) = JobDataIncludeFlagsImpl(
+    includeParameters,
+    includeWeb,
+    includeVnc,
+    includeShell,
+    includeUpdates,
+    includeApplication,
+    includeProduct
+)
 
 data class JobDataIncludeFlagsImpl(
     override val includeParameters: Boolean? = null,
@@ -218,6 +255,8 @@ data class JobDataIncludeFlagsImpl(
     override val includeVnc: Boolean? = null,
     override val includeShell: Boolean? = null,
     override val includeUpdates: Boolean? = null,
+    override val includeApplication: Boolean? = null,
+    override val includeProduct: Boolean? = null,
 ) : JobDataIncludeFlags
 
 typealias JobsCreateRequest = BulkRequest<JobParameters>
@@ -231,6 +270,8 @@ data class JobsRetrieveRequest(
     override val includeVnc: Boolean? = null,
     override val includeShell: Boolean? = null,
     override val includeUpdates: Boolean? = null,
+    override val includeApplication: Boolean? = null,
+    override val includeProduct: Boolean? = null,
 ) : JobDataIncludeFlags
 typealias JobsRetrieveResponse = Job
 
@@ -244,6 +285,8 @@ data class JobsBrowseRequest(
     override val includeVnc: Boolean? = null,
     override val includeShell: Boolean? = null,
     override val includeUpdates: Boolean? = null,
+    override val includeApplication: Boolean? = null,
+    override val includeProduct: Boolean? = null,
 ) : WithPaginationRequestV2, JobDataIncludeFlags
 typealias JobsBrowseResponse = PageV2<Job>
 
@@ -273,32 +316,32 @@ typealias JobsSuspendRequestItem = FindByStringId
 
 val Job.files: List<AppParameterValue.File>
     get() {
-        return (parameters?.resources?.filterIsInstance<AppParameterValue.File>() ?: emptyList()) +
-            (parameters?.parameters?.values?.filterIsInstance<AppParameterValue.File>() ?: emptyList())
+        return (parameters.resources?.filterIsInstance<AppParameterValue.File>() ?: emptyList()) +
+            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.File>() ?: emptyList())
     }
 
 val Job.peers: List<AppParameterValue.Peer>
     get() {
-        return (parameters?.resources?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList()) +
-            (parameters?.parameters?.values?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList())
+        return (parameters.resources?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList()) +
+            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList())
     }
 
 val Job.ingressPoints: List<AppParameterValue.Ingress>
     get() {
-        return (parameters?.resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
-            (parameters?.parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
+        return (parameters.resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
+            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
     }
 
 val Job.networks: List<AppParameterValue.Network>
     get() {
-        return (parameters?.resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
-            (parameters?.parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
+        return (parameters.resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
+            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
     }
 
 val Job.blockStorage: List<AppParameterValue.BlockStorage>
     get() {
-        return (parameters?.resources?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList()) +
-            (parameters?.parameters?.values?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList())
+        return (parameters.resources?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList()) +
+            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList())
     }
 
 val Job.currentState: JobState

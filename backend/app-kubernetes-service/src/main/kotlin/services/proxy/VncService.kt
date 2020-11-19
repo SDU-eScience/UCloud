@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
-import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
@@ -14,7 +14,7 @@ class VncService(
     private val jobIdToJob = HashMap<String, Job>()
 
     fun install(routing: Route): Unit = with(routing) {
-        webSocket("${AppKubernetesDescriptions.baseContext}/vnc/{id}", protocol = "binary") {
+        webSocket("${KubernetesCompute.baseContext}/vnc/{id}", protocol = "binary") {
             val requestId = call.parameters["id"]
             log.info("Incoming VNC connection for application $requestId")
             val id = requestId ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)

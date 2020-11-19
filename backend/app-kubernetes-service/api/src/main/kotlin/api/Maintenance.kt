@@ -22,6 +22,7 @@ typealias DrainClusterResponse = Unit
 typealias IsPausedRequest = Unit
 data class IsPausedResponse(val paused: Boolean)
 
+@UCloudApiInternal(InternalLevel.BETA)
 object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenance") {
     const val baseContext = "/api/app/compute/kubernetes/maintenance"
 

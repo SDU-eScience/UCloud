@@ -43,34 +43,40 @@ class JobVerificationService(
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
 
+        if (unverifiedJob.request.parameters == null || unverifiedJob.request.resources == null) {
+            throw JobException.VerificationError("Bad client request. Missing parameters or resources.")
+        }
+
         // Check provider support
         val (provider, manifest) = providers.fetchManifest(unverifiedJob.request.product.provider)
         run {
-            when (application.invocation.applicationType) {
-                ApplicationType.BATCH -> {
-                    if (!manifest.features.batch) {
-                        throw RPCException(
-                            "Batch applications are not supported at ${provider.id}",
-                            HttpStatusCode.BadRequest
-                        )
+            if (tool.description.backend == ToolBackend.DOCKER) {
+                when (application.invocation.applicationType) {
+                    ApplicationType.BATCH -> {
+                        if (!manifest.features.compute.docker.batch) {
+                            throw RPCException(
+                                "Batch applications are not supported at ${provider.id}",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
                     }
-                }
 
-                ApplicationType.VNC -> {
-                    if (!manifest.features.vnc) {
-                        throw RPCException(
-                            "Interactive applications are not supported at ${provider.id}",
-                            HttpStatusCode.BadRequest
-                        )
+                    ApplicationType.VNC -> {
+                        if (!manifest.features.compute.docker.vnc) {
+                            throw RPCException(
+                                "Interactive applications are not supported at ${provider.id}",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
                     }
-                }
 
-                ApplicationType.WEB -> {
-                    if (!manifest.features.web) {
-                        throw RPCException(
-                            "Web applications are not supported at ${provider.id}",
-                            HttpStatusCode.BadRequest
-                        )
+                    ApplicationType.WEB -> {
+                        if (!manifest.features.compute.docker.web) {
+                            throw RPCException(
+                                "Web applications are not supported at ${provider.id}",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
                     }
                 }
             }
@@ -82,7 +88,7 @@ class JobVerificationService(
                 }
 
                 ToolBackend.DOCKER -> {
-                    if (!manifest.features.docker) {
+                    if (!manifest.features.compute.docker.enabled) {
                         throw RPCException(
                             "Docker applications are not supported at ${provider.id}",
                             HttpStatusCode.BadRequest
@@ -121,7 +127,8 @@ class JobVerificationService(
         )
 
         // Check URL
-        unverifiedJob.request.resources.filterIsInstance<AppParameterValue.Ingress>().forEach { ingress ->
+        val resources = unverifiedJob.request.resources!!
+        resources.filterIsInstance<AppParameterValue.Ingress>().forEach { ingress ->
             val url = ingress.domain
             if (jobs.isUrlOccupied(db, url)) {
                 throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
@@ -139,7 +146,7 @@ class JobVerificationService(
                 .map { verifiedParameters[it.name] as AppParameterValue.Peer }
 
             val allPeers =
-                unverifiedJob.request.resources.filterIsInstance<AppParameterValue.Peer>() + parameterPeers
+                resources.filterIsInstance<AppParameterValue.Peer>() + parameterPeers
 
             val duplicatePeers = allPeers
                 .map { it.hostname }
@@ -303,7 +310,7 @@ class JobVerificationService(
         job: UnverifiedJob,
         userClient: AuthenticatedClient,
     ) {
-        val transfers = job.request.resources
+        val transfers = job.request.resources!!
             .filterIsInstance<AppParameterValue.File>()
             .mapIndexed { i, transfer ->
                 FilePathAndType(transfer, FileType.DIRECTORY, "mount-$i")
@@ -406,10 +413,11 @@ class JobVerificationService(
         }
 
         val job = jobWithToken.job
-        val parameters = job.parameters ?: return HasPermissionForExistingMount(false, "/")
+        val parameters = job.parameters.parameters ?: return HasPermissionForExistingMount(false, "/")
+        val resources = job.parameters.resources ?: return HasPermissionForExistingMount(false, "/")
         val allFiles =
-            parameters.parameters.values.filterIsInstance<AppParameterValue.File>() +
-                parameters.resources.filterIsInstance<AppParameterValue.File>() +
+            parameters.values.filterIsInstance<AppParameterValue.File>() +
+                resources.filterIsInstance<AppParameterValue.File>() +
                 outputFolder
         val readOnlyFiles = allFiles.filter { it.readOnly }.map { it.path }
         val readWriteFiles = allFiles.filter { !it.readOnly }.map { it.path }

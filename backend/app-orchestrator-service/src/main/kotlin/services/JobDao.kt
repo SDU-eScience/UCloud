@@ -82,14 +82,14 @@ class JobDao {
                 }
             }
 
-            for (resource in parameters.resources) {
+            for (resource in parameters.resources!!) {
                 session.insert(JobResourcesTable) {
                     set(JobResourcesTable.jobId, job.id)
                     set(JobResourcesTable.resource, defaultMapper.writeValueAsString(resource))
                 }
             }
 
-            for ((param, value) in parameters.parameters) {
+            for ((param, value) in parameters.parameters!!) {
                 session.insert(JobInputParametersTable) {
                     set(JobInputParametersTable.jobId, job.id)
                     set(JobInputParametersTable.name, param)
