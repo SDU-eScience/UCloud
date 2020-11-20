@@ -15,7 +15,7 @@ const addAliases = (arr: any, al: any[]): void =>
 const bp = [512, 640, 768, 1024, 1280];
 const aliases = ["xs", "sm", "md", "lg", "xl"];
 export const breakpoints = bp.map(n => n + "px");
-export const responsiveBP = bp.map((n, i) => ({[aliases[i]]: n - 1})).reduce((obj, item) => ({...obj, ...item}), {});
+export const responsiveBP = bp.map((n, i) => ({[aliases[i]!]: n - 1})).reduce((obj, item) => ({...obj, ...item}), {});
 // export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 }
 
 export const mediaQueryGT = bp.map(createMinMediaQuery);
@@ -277,6 +277,7 @@ export const invertedColors = {
 };
 
 export type ThemeColor = keyof typeof colors;
+export type CSSVarThemeColor = `--${ThemeColor}`;
 
 export {colors};
 
