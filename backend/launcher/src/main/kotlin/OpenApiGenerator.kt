@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.app.orchestrator.api.Compute
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.*
@@ -44,6 +45,16 @@ import kotlin.system.exitProcess
 
 private val componentsRef = "#/components/schemas/"
 
+data class CallExtension(
+    @JsonIgnore val call: CallDescription<*, *, *>,
+    @JsonIgnore var requestType: ComputedType? = null,
+    @JsonIgnore var responseType: ComputedType? = null,
+) {
+    companion object {
+        const val EXTENSION = "x-ucloud-call"
+    }
+}
+
 @OptIn(ExperimentalStdlibApi::class)
 fun main() {
     val reg = ServiceRegistry(arrayOf("--dev"), PlaceholderServiceDescription)
@@ -61,7 +72,7 @@ fun main() {
         override suspend fun <R : Any, S : Any, E : Any> produceResponse(
             ctx: HttpCall,
             call: CallDescription<R, S, E>,
-            callResult: OutgoingCallResponse<S, E>
+            callResult: OutgoingCallResponse<S, E>,
         ) {
             error("Will not respond")
         }
@@ -108,6 +119,12 @@ fun main() {
         subtitle = "Public API"
     )
 
+    writeSpecification(
+        knownCalls,
+        File("/tmp/swagger/combined"),
+        subtitle = "Full API"
+    )
+
     run {
         // Provider calls
         val calls = buildList {
@@ -128,7 +145,7 @@ private fun badge(
     label: String,
     message: String,
     color: String,
-    altText: String = "$label: $message"
+    altText: String = "$label: $message",
 ): String {
     return "![$altText](https://img.shields.io/static/v1?label=$label&message=$message&color=$color&style=flat-square)"
 }
@@ -163,8 +180,9 @@ private fun writeSpecification(
     knownCalls: MutableList<CallDescription<*, *, *>>,
     output: File,
     subtitle: String? = null,
-    documentation: String? = null
+    documentation: String? = null,
 ) {
+    val typeRegistry = LinkedHashMap<String, ComputedType>()
     val doc = OpenAPI().apply {
         servers = listOf(Server().url("https://cloud.sdu.dk"))
         info = Info().apply {
@@ -188,7 +206,6 @@ private fun writeSpecification(
 
         // NOTE(Dan): Currently made to be rendered by https://github.com/Redocly/redoc
 
-        val typeRegistry = LinkedHashMap<String, ComputedType>()
         tags = arrayListOf()
         paths = Paths()
         components = Components()
@@ -231,6 +248,9 @@ private fun writeSpecification(
                         HttpMethod.Patch -> pathItem.patch = op
                     }
 
+                    val callExtension = CallExtension(call)
+                    op.addExtension(CallExtension.EXTENSION, callExtension)
+
                     val maturity = call.apiMaturityOrNull ?: UCloudApiMaturity.Internal(InternalLevel.BETA)
 
                     op.description = """
@@ -246,6 +266,10 @@ private fun writeSpecification(
                     }
 
                     op.operationId = call.fullName
+                    if (op.operationId.contains(".")) {
+                        // Hack: Delete anything after '.' to allow versioning in call ids
+                        op.operationId = op.operationId.substringBefore('.')
+                    }
                     op.tags = listOf(call.namespace)
                     op.responses = ApiResponses().apply {
                         set("200", apiResponse(call.successType.type, typeRegistry).apply {
@@ -296,9 +320,18 @@ private fun writeSpecification(
                         default = apiResponse(call.errorType.type, typeRegistry)
                     }
 
+                    if (call.successType.type != Unit::class) {
+                        callExtension.responseType = traverseType(call.successType.type, typeRegistry)
+                    }
+
+                    if (http.path.segments.any { it is HttpPathSegment.Property<*, *> }) {
+                        callExtension.requestType = traverseType(call.requestType.type, typeRegistry)
+                    }
+
                     val body = http.body
                     if (body != null && body.ref.type != Unit::class.java) {
                         val requestType = traverseType(call.requestType.type, typeRegistry)
+                        callExtension.requestType = requestType
                         op.requestBody = RequestBody()
                         op.requestBody.content = Content().apply {
                             set(ContentType.Application.Json.toString(), MediaType().apply {
@@ -322,6 +355,7 @@ private fun writeSpecification(
                     if (params != null) {
                         val requestType = traverseType(call.requestType.type, typeRegistry) as? ComputedType.Struct
                             ?: error("Query params bound to a non-class ${call.fullName}")
+                        callExtension.requestType = requestType
 
                         op.parameters = params.parameters.map { p ->
                             when (p) {
@@ -338,12 +372,31 @@ private fun writeSpecification(
                 }
             }
 
+        for ((k, v) in typeRegistry) {
+            val struct = v as? ComputedType.Struct
+            if (struct != null) {
+                val disc = struct.discriminator
+                if (disc != null) {
+                    for ((prop, typeName) in disc.valueToQualifiedName) {
+                        val child = typeRegistry[typeName] as? ComputedType.Struct
+                        if (child != null) {
+                            child.properties[disc.property] = ComputedType.Enum(listOf(prop))
+                            child.parent = v.asRef()
+                        }
+                    }
+
+                    struct.properties[disc.property] = ComputedType.Enum(disc.valueToQualifiedName.keys.toList())
+                }
+            }
+        }
+
         components.schemas = typeRegistry.map { (k, v) ->
             (k) to v.toOpenApiSchema()
         }.toMap()
     }
 
     output.mkdirs()
+    generateTypeScriptCode(output, doc, typeRegistry)
     File(output, "swagger.yaml").writeText(Yaml.pretty(doc))
     File(output, "swagger.json").writeText(Json.pretty(doc))
 }
@@ -446,7 +499,7 @@ sealed class ComputedType {
     }
 
     data class Dictionary(val itemType: ComputedType) : ComputedType() {
-        override fun toString() = "dict<$itemType>"
+        override fun toString() = "dict_${itemType}_"
 
         override fun toOpenApiSchema(): Schema<*> {
             return baseSchema().apply {
@@ -465,7 +518,7 @@ sealed class ComputedType {
     }
 
     class Generic(val id: String) : ComputedType() {
-        override fun toString() = "($id)"
+        override fun toString() = "_${id}_"
         override fun toOpenApiSchema(): Schema<*> {
             return baseSchema().apply {
                 type = "object"
@@ -478,6 +531,9 @@ sealed class ComputedType {
         var type: Type,
         var properties: MutableMap<String, ComputedType>,
         var discriminator: Discriminator? = null,
+        var genericInfo: GenericInfo? = null,
+        var tsDef: TSDefinition? = null,
+        var parent: ComputedType.StructRef? = null,
     ) : ComputedType() {
         override fun asRef() = StructRef(qualifiedName)
 
@@ -502,6 +558,11 @@ sealed class ComputedType {
                 }.toMap()
             }
         }
+
+        data class GenericInfo(
+            var baseType: String,
+            var typeParameters: List<ComputedType>,
+        )
     }
 
     class StructRef(val qualifiedName: String) : ComputedType() {
@@ -516,7 +577,7 @@ sealed class ComputedType {
     }
 
     class Enum(val options: List<String>) : ComputedType() {
-        override fun toString() = "enum(${options.joinToString(", ")})"
+        override fun toString() = "enum_${options.joinToString("_")})"
         override fun toOpenApiSchema(): Schema<*> {
             return baseSchema().apply {
                 type = "string"
@@ -525,13 +586,13 @@ sealed class ComputedType {
         }
     }
 
-    class CustomSchema(private val schema: Schema<*>) : ComputedType() {
+    class CustomSchema(private val schema: Schema<*>, val tsDefinition: ComputedType? = null) : ComputedType() {
         override fun toOpenApiSchema(): Schema<*> = schema
     }
 
     data class Discriminator(
         val property: String,
-        val valueToQualifiedName: Map<String, String>
+        val valueToQualifiedName: Map<String, String>,
     )
 }
 
@@ -558,38 +619,57 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                         TODO("Not yet implemented: $type is not a class")
                     }
 
-                    val rawComputedType = traverseType(type.rawType, visitedTypes)
-                    if (rawComputedType !is ComputedType.Struct) error("Expected raw type to be a struct")
-                    visitedTypes.remove(rawComputedType.qualifiedName) // We don't want to leave in the generic type
+                    val initialType = traverseType(type.rawType, visitedTypes)
+                    if (initialType !is ComputedType.Struct) error("Expected raw type to be a struct")
+                    val rawComputedType = initialType.copy(properties = HashMap(initialType.properties))
 
                     val actualTypeArgs = type.actualTypeArguments.map { traverseType(it, visitedTypes) }
                     val typeParams = rawType.typeParameters
 
                     if (rawType == BulkRequest::class.java) {
-                        return ComputedType.CustomSchema(ComposedSchema().apply {
-                            oneOf = listOf(
-                                actualTypeArgs[0].asRef().toOpenApiSchema().apply {
-                                    this.name = "Single (${actualTypeArgs[0]})"
-                                },
-                                Schema<Any?>().apply {
-                                    this.type = "object"
-                                    this.name = "Bulk (${actualTypeArgs[0]})"
+                        return ComputedType.CustomSchema(
+                            ComposedSchema().apply {
+                                oneOf = listOf(
+                                    actualTypeArgs[0].asRef().toOpenApiSchema().apply {
+                                        this.name = "Single (${actualTypeArgs[0]})"
+                                    },
+                                    Schema<Any?>().apply {
+                                        this.type = "object"
+                                        this.name = "Bulk (${actualTypeArgs[0]})"
 
-                                    properties = mapOf(
-                                        "type" to Schema<Any?>().apply {
-                                            this.type = "string"
-                                            enum = listOf("bulk")
-                                        },
-                                        "items" to ArraySchema().apply {
-                                            items = actualTypeArgs[0].asRef().toOpenApiSchema()
-                                        }
-                                    )
-                                }
-                            )
-                        })
+                                        properties = mapOf(
+                                            "type" to Schema<Any?>().apply {
+                                                this.type = "string"
+                                                enum = listOf("bulk")
+                                            },
+                                            "items" to ArraySchema().apply {
+                                                items = actualTypeArgs[0].asRef().toOpenApiSchema()
+                                            }
+                                        )
+                                    }
+                                )
+                            },
+                            tsDefinition = rawComputedType.apply {
+                                qualifiedName = "${rawComputedType}_" +
+                                    "${actualTypeArgs.joinToString(",") { it.toString().replace(".", "_") }}_ "
+
+                                genericInfo = ComputedType.Struct.GenericInfo(
+                                    initialType.qualifiedName,
+                                    actualTypeArgs
+                                )
+
+                                visitedTypes[qualifiedName] = this
+                            }
+                        )
                     }
 
-                    rawComputedType.qualifiedName = "$rawComputedType(${actualTypeArgs.joinToString(",")})"
+                    rawComputedType.genericInfo = ComputedType.Struct.GenericInfo(
+                        rawComputedType.qualifiedName,
+                        actualTypeArgs
+                    )
+
+                    rawComputedType.qualifiedName = "${rawComputedType}_" +
+                        "${actualTypeArgs.joinToString(",") { it.toString().replace(".", "_") }}_ "
                     visitedTypes[rawComputedType.qualifiedName] = rawComputedType
 
                     val nullableType = rawComputedType.copy()
@@ -670,7 +750,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
 
         is Class<*> -> {
             if (type.isEnum) {
-                return ComputedType.Enum(type.enumConstants.map { it.toString() })
+                return ComputedType.Enum(type.enumConstants.map { (it as Enum<*>).name })
             }
 
             if (type == Unit::class.java || type == Any::class.java) {
@@ -688,6 +768,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
             if (type.isKotlinClass()) {
                 val kotlinType = type.kotlin
 
+                struct.tsDef = kotlinType.findAnnotation<TSDefinition>()
                 val apiDoc = kotlinType.findAnnotation<UCloudApiDoc>()
                 if (apiDoc != null) {
                     struct.documentation = apiDoc.documentation
@@ -699,7 +780,8 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                     val classProp = kotlinType.memberProperties.find { it.name == prop.name }
                     val javaFieldAnnotations = (classProp?.javaField?.annotations?.toList() ?: emptyList())
                     val getterAnnotations = classProp?.getter?.annotations ?: emptyList()
-                    val annotations: Set<Annotation> = (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
+                    val annotations: Set<Annotation> =
+                        (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
                     if (annotations.any { it is JsonIgnore }) return@forEach
 
                     val propType = traverseType(prop.type.javaType, visitedTypes).asRef()
@@ -729,7 +811,8 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
 
                     val javaFieldAnnotations = prop.javaField?.annotations?.toList() ?: emptyList()
                     val getterAnnotations = prop.getter?.annotations ?: emptyList()
-                    val annotations: Set<Annotation> = (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
+                    val annotations: Set<Annotation> =
+                        (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
                     if (annotations.any { it is JsonIgnore }) return@forEach
 
                     val propType = traverseType(prop.returnType.javaType, visitedTypes).asRef()

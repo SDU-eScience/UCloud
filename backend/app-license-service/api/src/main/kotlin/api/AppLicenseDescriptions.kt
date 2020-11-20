@@ -3,11 +3,7 @@ package dk.sdu.cloud.app.license.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 
 data class LicenseServerRequest(val serverId: String)
@@ -102,6 +98,7 @@ data class AclChange(
     val revoke: Boolean = false
 )
 
+@TSTopLevel
 object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     val baseContext = "/api/app/license"
 
@@ -241,7 +238,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val delete = call<DeleteServerRequest, Unit, CommonErrorMessage>("update") {
+    val delete = call<DeleteServerRequest, Unit, CommonErrorMessage>("delete") {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE

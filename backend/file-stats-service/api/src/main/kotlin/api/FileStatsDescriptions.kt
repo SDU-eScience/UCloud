@@ -2,11 +2,7 @@ package dk.sdu.cloud.file.stats.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.api.StorageFile
 import io.ktor.http.HttpMethod
 
@@ -23,6 +19,7 @@ data class DirectorySizesResponse(
 
 typealias SearchResult = StorageFile
 
+@TSTopLevel
 object FileStatsDescriptions : CallDescriptionContainer("files.stats") {
     private val baseContext = "/api/files/stats"
 

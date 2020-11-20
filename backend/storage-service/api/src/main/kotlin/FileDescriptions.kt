@@ -13,16 +13,9 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.audit
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -203,11 +196,26 @@ data class DownloadByURI(val path: String, val token: String?) {
     JsonSubTypes.Type(value = LongRunningResponse.Timeout::class, name = "timeout"),
     JsonSubTypes.Type(value = LongRunningResponse.Result::class, name = "result")
 )
+@TSDefinition("""
+export interface LongRunningResponse<T> {
+    type: string;
+}
+""")
 sealed class LongRunningResponse<T> {
+    @TSDefinition("""
+export interface Timeout<T> extends LongRunningResponse<T> {
+    type: "timeout"
+}
+""")
     data class Timeout<T>(
         val why: String = "The operation has timed out and will continue in the background"
     ) : LongRunningResponse<T>()
 
+    @TSDefinition("""
+export interface Result<T> extends LongRunningResponse<T> {
+    type: "result"
+}
+""")
     data class Result<T>(
         val item: T
     ) : LongRunningResponse<T>()
@@ -300,6 +308,7 @@ val Int.GiB: Long get() = 1024L * 1024 * 1024 * this
 val Int.TiB: Long get() = 1024L * 1024 * 1024 * 1024 * this
 val Int.PiB: Long get() = 1024L * 1024 * 1024 * 1024 * 1024 * this
 
+@TSTopLevel
 object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"
     val wsBaseContext = "$baseContext/ws"

@@ -195,6 +195,7 @@ typealias UpdateDataManagementPlanResponse = Unit
 typealias FetchDataManagementPlanRequest = Unit
 data class FetchDataManagementPlanResponse(val dmp: String?)
 
+@TSTopLevel
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
 

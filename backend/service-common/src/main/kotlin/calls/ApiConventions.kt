@@ -66,7 +66,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
 inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
     baseContext: String,
     subResource: String? = null,
-    roles: Set<Role> = Roles.END_USER
+    roles: Set<Role> = Roles.END_USER,
 ) {
     auth {
         access = AccessRight.READ
@@ -95,7 +95,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
 
 inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
     baseContext: String,
-    roles: Set<Role> = Roles.END_USER
+    roles: Set<Role> = Roles.END_USER,
 ) {
     auth {
         access = AccessRight.READ
@@ -117,7 +117,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpUpdate(
     baseContext: String,
     operation: String,
-    roles: Set<Role> = Roles.END_USER
+    roles: Set<Role> = Roles.END_USER,
 ) {
     auth {
         access = AccessRight.READ_WRITE
@@ -139,7 +139,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpUpdate(
 
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpDelete(
     baseContext: String,
-    roles: Set<Role> = Roles.END_USER
+    roles: Set<Role> = Roles.END_USER,
 ) {
     auth {
         access = AccessRight.READ_WRITE
@@ -160,7 +160,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpDelete(
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
     baseContext: String,
     informationToVerify: String? = null,
-    roles: Set<Role> = Roles.PRIVILEGED
+    roles: Set<Role> = Roles.PRIVILEGED,
 ) {
     auth {
         access = AccessRight.READ_WRITE
@@ -188,14 +188,19 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
 @JsonSubTypes(
     JsonSubTypes.Type(value = BulkRequest.Bulk::class, name = "bulk"),
 )
+@TSDefinition("""
+export type BulkRequest<T> = T | { type: "bulk", items: T[] }
+""")
 sealed class BulkRequest<T> {
     abstract val items: List<T>
 
+    @TSDefinition("")
     data class Single<T>(@JsonUnwrapped val item: T) : BulkRequest<T>() {
         @JsonIgnore
         override val items = listOf(item)
     }
 
+    @TSDefinition("")
     data class Bulk<T>(override val items: List<T>) : BulkRequest<T>()
 }
 

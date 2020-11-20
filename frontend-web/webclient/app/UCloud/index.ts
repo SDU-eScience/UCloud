@@ -1,0 +1,1 @@
+/tmp/swagger/combined/Applications/index.ts

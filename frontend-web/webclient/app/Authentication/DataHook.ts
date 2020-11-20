@@ -33,10 +33,10 @@ function dataFetchReducer<T>(state: APICallState<T>, action): APICallState<T> {
 }
 
 declare global {
-    export interface APICallParameters<Parameters = any, Payload = any> {
+    export interface APICallParameters<Parameters = any, Response = any> {
         method?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH" | "OPTIONS" | "HEAD";
         path?: string;
-        payload?: Payload;
+        payload?: any;
         context?: string;
         maxRetries?: number;
         parameters?: Parameters;
@@ -96,7 +96,7 @@ export async function callAPIWithErrorHandler<T>(
 }
 
 export function useCloudAPI<T, Parameters = any>(
-    callParametersInitial: APICallParameters<Parameters>,
+    callParametersInitial: APICallParameters<Parameters, T>,
     dataInitial: T
 ): [APICallState<T>, (params: APICallParameters<Parameters>) => void, APICallParameters<Parameters>] {
     const [params, setParams] = useState(callParametersInitial);
@@ -201,7 +201,14 @@ export function useGlobalCloudAPI<T, Parameters = any>(
     return [state.call, doFetch, state.parameters];
 }
 
+/**
+ * @deprecated
+ */
 export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
+    return useCloudCommand();
+}
+
+export function useCloudCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
     const [isLoading, setIsLoading] = useState(false);
     let didCancel = false;
     const sendCommand = useCallback(<T>(call: APICallParameters): Promise<T | null> => {
@@ -254,7 +261,7 @@ export function useAsyncWork(): AsyncWorker {
             await fn();
         } catch (e) {
             if (didCancel) return;
-            if (!!e.request) {
+            if (e.request) {
                 let why = "Internal Server Error";
                 if (!!e.response && e.response.why) {
                     why = e.response.why;

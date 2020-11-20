@@ -120,7 +120,8 @@ class Server(
             domain = configuration.domain,
             jobCache = jobCache,
             tunnelManager = tunnelManager,
-            broadcastingStream = broadcastingStream
+            broadcastingStream = broadcastingStream,
+            resources = resourceCache
         )
 
         vncService = VncService(tunnelManager)

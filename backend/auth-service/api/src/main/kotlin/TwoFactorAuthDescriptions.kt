@@ -24,7 +24,7 @@ data class AnswerChallengeRequest(val challengeId: String, val verificationCode:
 }
 data class TwoFactorStatusResponse(val connected: Boolean)
 
-object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.2fa") {
+object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.twofactor") {
     const val baseContext = "/auth/2fa"
 
     val createCredentials = call<Unit, Create2FACredentialsResponse, CommonErrorMessage>("createCredentials") {
