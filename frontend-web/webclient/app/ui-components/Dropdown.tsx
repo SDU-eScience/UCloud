@@ -14,6 +14,7 @@ import {
     HeightProps,
 } from "styled-system";
 import {Button} from "ui-components";
+import {CSSVarThemeColor} from "./theme";
 import {Cursor} from "./Types";
 
 interface FullWidthProps {fullWidth?: boolean}
@@ -52,7 +53,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     ${boxShadow}
     ${props => props.hover ? "display: none;" : ""}
     position: absolute;
-    background-color: var(--${p => p.backgroundColor}, #f00);
+    background-color: var(${p => p.backgroundColor}, #f00);
     color: var(--${p => p.color}, #f00);
     width: ${props => props.width};
     ${props => props.minWidth ? `min-width: ${props.minWidth};` : "min-width: 138px;"}
@@ -83,7 +84,7 @@ DropdownContent.defaultProps = {
     squareTop: false,
     hover: true,
     width: "138px",
-    backgroundColor: "white",
+    backgroundColor: "--white",
     color: "black",
     colorOnHover: true,
     disabled: false,
@@ -103,7 +104,7 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     minWidth?: string;
     maxHeight?: number | string;
     cursor?: Cursor;
-    backgroundColor?: string;
+    backgroundColor?: CSSVarThemeColor;
     colorOnHover?: boolean;
     squareTop?: boolean;
     visible?: boolean;

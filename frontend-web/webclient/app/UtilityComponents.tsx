@@ -462,7 +462,7 @@ export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps): 
             <Absolute bottom="-6px" right="-2px">
                 <Dropdown>
                     <Icon size="15px" name="link" color2="white" />
-                    <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
+                    <DropdownContent width={"160px"} color="text" colorOnHover={false} backgroundColor="--lightGray">
                         <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
                     </DropdownContent>
                 </Dropdown>

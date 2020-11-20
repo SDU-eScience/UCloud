@@ -276,7 +276,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                                 visible
                                                 colorOnHover={false}
                                                 color="white"
-                                                backgroundColor="black"
+                                                backgroundColor="--black"
                                             >
                                                 <TextSpan fontSize={1}>
                                                     Streams are collected
