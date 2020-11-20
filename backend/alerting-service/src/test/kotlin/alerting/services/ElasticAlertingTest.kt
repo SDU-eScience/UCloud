@@ -58,7 +58,7 @@ class ElasticAlertingTest {
             clusterClient
         }
         ClientMock.mockCallSuccess(
-            SlackDescriptions.sendMessage,
+            SlackDescriptions.sendAlert,
             Unit
         )
         val ea = ElasticAlerting(rest, client, true)
@@ -103,7 +103,7 @@ class ElasticAlertingTest {
             clusterClient
         }
         ClientMock.mockCallSuccess(
-            SlackDescriptions.sendMessage,
+            SlackDescriptions.sendAlert,
             Unit
         )
         val ea = ElasticAlerting(rest, client, true)
@@ -155,7 +155,7 @@ class ElasticAlertingTest {
         }
 
         ClientMock.mockCallSuccess(
-            SlackDescriptions.sendMessage,
+            SlackDescriptions.sendAlert,
             Unit
         )
         val ea = ElasticAlerting(rest, client, true)
@@ -229,7 +229,7 @@ class ElasticAlertingTest {
         }
 
         ClientMock.mockCallSuccess(
-            SlackDescriptions.sendMessage,
+            SlackDescriptions.sendAlert,
             Unit
         )
         runBlocking {
@@ -264,7 +264,7 @@ class ElasticAlertingTest {
         }
 
         ClientMock.mockCallSuccess(
-            SlackDescriptions.sendMessage,
+            SlackDescriptions.sendAlert,
             Unit
         )
         runBlocking {
@@ -299,7 +299,7 @@ class ElasticAlertingTest {
         }
 
         ClientMock.mockCallSuccess(
-            SlackDescriptions.sendMessage,
+            SlackDescriptions.sendAlert,
             Unit
         )
         runBlocking {
