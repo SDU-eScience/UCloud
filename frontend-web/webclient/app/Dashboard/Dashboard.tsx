@@ -391,8 +391,8 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props => {
-    return <Flex
+export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props => (
+    <Flex
         alignItems="center"
         justifyContent="center"
         height="calc(100% - 60px)"
@@ -403,8 +403,8 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
     >
         <Heading.h4>{props.title}</Heading.h4>
         {props.children}
-    </Flex>;
-};
+    </Flex>
+);
 
 function DashboardProjectUsage(): JSX.Element | null {
     const {projectId} =
@@ -545,7 +545,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
 
         {outgoingApps.error !== undefined ? null : (
             <Error error={outgoingApps.error} />
-        )} 
+        )}
         {ingoingApps.data.items.length ? <Heading.h5 color="gray" my="4px">Ingoing</Heading.h5> : null}
         {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim />)}
 

@@ -180,7 +180,7 @@ export const extensionType = (ext: string): ExtensionType => {
     }
 };
 
-export const isExtPreviewSupported = (ext: string): boolean => {
+export function isExtPreviewSupported(ext: string): boolean {
     switch (ext.toLowerCase()) {
         case "app":
         case "md":
@@ -249,7 +249,7 @@ export const isExtPreviewSupported = (ext: string): boolean => {
         default:
             return false;
     }
-};
+}
 
 export interface FtIconProps {
     type: FileType;
@@ -257,10 +257,10 @@ export interface FtIconProps {
     name?: string;
 }
 
-export const iconFromFilePath = (
+export function iconFromFilePath(
     filePath: string,
     type: FileType
-): FtIconProps => {
+): FtIconProps {
     const icon: FtIconProps = {type: "FILE", name: getFilenameFromPath(filePath, [])};
 
     switch (type) {
@@ -294,7 +294,7 @@ export const iconFromFilePath = (
             return icon;
         }
     }
-};
+}
 
 /**
  * Calculates if status number is in a given range.
@@ -355,6 +355,10 @@ export function defaultErrorHandler(
     return 500;
 }
 
+/**
+ * Returns a prettier version of the enum value
+ * @param sortBy the enum value to be formatted
+ */
 export function sortByToPrettierString(sortBy: SortBy): string {
     switch (sortBy) {
         case SortBy.ACL:
@@ -423,7 +427,7 @@ interface CopyToClipboard {
 
 /**
  * Copies a string to the users clipboard.
- * @param param0 contains the value to be copied and the message to show the user on success. 
+ * @param param contains the value to be copied and the message to show the user on success. 
  */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
     const input = document.createElement("input");

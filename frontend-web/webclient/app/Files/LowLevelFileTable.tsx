@@ -10,7 +10,6 @@ import {
     defaultFileOperations, FileOperation, FileOperationCallback, FileOperationRepositoryMode
 } from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
-import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
@@ -1007,11 +1006,11 @@ const MembersFileRowStat: React.FunctionComponent<{
     } else {
         return (
             <Text
-                title={"members"}
+                title="members"
                 fontSize={0}
-                mr={"12px"}
-                color={"gray"}
-                cursor={"pointer"}
+                mr="12px"
+                color="gray"
+                cursor="pointer"
                 onClick={e => {
                     e.stopPropagation();
                     if (FUtils.isPartOfProject(file.path)) {

@@ -76,7 +76,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Eleme
                 onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
                 pageRenderer={pageRenderer}
             />
-        </Box >
+        </Box>
     );
 
     if (!props.applications.content) {

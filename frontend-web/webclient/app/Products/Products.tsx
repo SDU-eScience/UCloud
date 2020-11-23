@@ -166,7 +166,7 @@ function MachineView({area}: {area: string}): JSX.Element {
                         </TableRow>
                         <TableRow>
                             <th>Description</th>
-                            <TableCell><Text pl="16px">{activeMachine.description}</Text></TableCell>
+                            <TableCell><Text>{activeMachine.description}</Text></TableCell>
                         </TableRow>
                         </tbody>
                     </DetailedView>

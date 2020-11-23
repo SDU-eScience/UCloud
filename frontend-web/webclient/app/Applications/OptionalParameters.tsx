@@ -27,7 +27,7 @@ const OptionalParamsBox = styled(Box)`
 
 export class OptionalParameters extends React.Component<OptionalParametersProps, OptionalParametersState> {
     private fuse: Fuse<Types.ApplicationParameter>;
-    private currentTimeout: number = -1;
+    private currentTimeout = -1;
     private searchField = React.createRef<HTMLInputElement>();
 
     constructor(props: OptionalParametersProps) {

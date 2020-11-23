@@ -4,7 +4,7 @@ import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
-import {Box, Button, ButtonGroup, Card, Flex, Icon, Input, Label, Text, TextArea, theme} from "ui-components";
+import {Box, Button, ButtonGroup, Card, ExternalLink, Flex, Icon, Input, Label, Text, TextArea, theme, Tooltip} from "ui-components";
 import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
     ProductArea,
@@ -898,9 +898,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell>
                                                         {
                                                             state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                                state.editingApplication!.status === GrantApplicationStatus.APPROVED ? "Approved" :
-                                                                    state.editingApplication!.status === GrantApplicationStatus.REJECTED ? "Rejected" :
-                                                                        "Closed"
+                                                                state.editingApplication!.status === GrantApplicationStatus.APPROVED ? (state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy) :
+                                                                    state.editingApplication!.status === GrantApplicationStatus.REJECTED ? (state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
+                                                                        (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
                                                         }
                                                         <ButtonGroup>
                                                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
@@ -958,7 +958,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
                             </Heading.h3>
 
-                            <Heading.h4 mt={32}>Storage</Heading.h4>
+                            <Heading.h4 mt={32}><Flex>Storage <ProductLink /></Flex></Heading.h4>
                             <ResourceContainer>
                                 {state.wallets.map((it, idx) => (
                                     it.area !== ProductArea.STORAGE ? null :
@@ -973,7 +973,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 ))}
                             </ResourceContainer>
 
-                            <Heading.h4 mt={32}>Compute</Heading.h4>
+                            <Heading.h4 mt={32}><Flex>Compute <ProductLink /></Flex></Heading.h4>
                             <ResourceContainer>
                                 {state.wallets.map((it, idx) => (
                                     it.area !== ProductArea.COMPUTE ? null :
@@ -1106,7 +1106,7 @@ const CommentBox: React.FunctionComponent<{
             <UserAvatar avatar={avatar} width={"48px"} />
         </div>
 
-        <div className={"body"}>
+        <div className="body">
             <p><strong>{comment.postedBy}</strong> says:</p>
             <p>{comment.comment}</p>
             <time>{dateToString(comment.postedAt)}</time>
@@ -1170,3 +1170,20 @@ const PostCommentWidget: React.FunctionComponent<{
         </div>
     </PostCommentWrapper>;
 };
+
+function ProductLink(): JSX.Element {
+    return <Tooltip
+        trigger={<ExternalLink href="/skus"><Box style={{
+            cursor: "pointer",
+            border: "2px var(--black) solid",
+            borderRadius: "9999px",
+            width: "35px",
+            height: "35px",
+            marginLeft: "9px",
+            paddingLeft: "10px",
+            marginTop: "-2px"
+        }}> ?</Box></ExternalLink>}
+    >
+        <Box width="100px">Click to view details for resources</Box>
+    </Tooltip>
+}

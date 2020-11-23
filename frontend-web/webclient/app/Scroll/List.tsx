@@ -108,6 +108,7 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
             let spacingRequired: number | undefined;
             let postSpacingRequired: number | undefined;
 
+            /* FIXME: Change to for-of loop */
             for (let i = 0; i < heights.length; i++) {
                 sum += heights[i];
                 if (sum >= currentTop && firstVisibleElement === undefined) {

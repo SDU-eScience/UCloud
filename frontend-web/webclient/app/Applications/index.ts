@@ -188,7 +188,7 @@ export interface RunOperations extends SetStatusLoading {
 }
 
 export interface RunAppProps extends RunOperations {
-    // Remove on change to functional component
+    // FIXME: Remove on change to functional component
     match: match<{appName: string; appVersion: string}>;
     onInit: () => void;
     project?: string;
