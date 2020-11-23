@@ -10,6 +10,7 @@ const ToggleBadge = styled.button<ToggleBadge>`
   font-family: inherit;
   cursor: pointer;
   background-color: ${props =>
+    /* FIXME: Why is this using theme? */
     props.selected ? props.theme.colors[props.bg] : props.unSelectedBg};
   color: ${(props: any) => props.theme.colors[props.color]};
   ${space};
