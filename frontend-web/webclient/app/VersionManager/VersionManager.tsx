@@ -53,7 +53,7 @@ const NotifyBox = styled.div`
 
 
 function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => void): void {
-    fetch("/Assets/AppVersion.txt").then(it => {
+    fetch("/assets/Assets/AppVersion.txt").then(it => {
         if (it.ok) {
             it.text().then(version => {
                 if (currentVersion !== version) setNewVersion(version);
@@ -64,7 +64,7 @@ function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => v
 }
 
 async function initialFetch(setInitial: (v: string) => void): Promise<void> {
-    fetch("/Assets/AppVersion.txt").then(it => {
+    fetch("/assets/Assets/AppVersion.txt").then(it => {
         if (it.ok) {
             it.text().then(version => setInitial(version));
         } else {
