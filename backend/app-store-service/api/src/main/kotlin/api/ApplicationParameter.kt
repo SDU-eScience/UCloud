@@ -117,7 +117,7 @@ sealed class ApplicationParameter(val type: String) {
 
         override var name: String = name
             set(value) {
-                if (!name.matches(hostNameRegex)) {
+                if (!value.matches(hostNameRegex)) {
                     throw ApplicationVerificationException.BadValue(
                         value,
                         "Peer parameter '$value' must be a valid hostname!"
@@ -130,8 +130,7 @@ sealed class ApplicationParameter(val type: String) {
         companion object {
             private val hostNameRegex =
                 Regex(
-                    "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
-                            "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
+                    "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
                 )
         }
     }

@@ -75,7 +75,7 @@ export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
     if (parameters.path === undefined) throw Error("Missing path");
     return (await Client.call({
         method,
-        path: parameters.path,
+        path: parameters.path.replace("/api/", ""),
         body: parameters.payload,
         context: parameters.context,
         maxRetries: parameters.maxRetries,

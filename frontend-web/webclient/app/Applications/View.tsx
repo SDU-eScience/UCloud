@@ -29,6 +29,7 @@ import * as Actions from "./Redux/ViewActions";
 import * as ViewObject from "./Redux/ViewObject";
 import {useRouteMatch} from "react-router";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
+import * as UCloud from "UCloud";
 
 interface MainContentProps {
     onFavorite?: () => void;
@@ -51,7 +52,7 @@ function View(props: ViewProps): JSX.Element {
         fetchApp();
     }, []);
 
-    const match = useRouteMatch<{appName: string; appVersion: string}>();
+    const match = useRouteMatch<{ appName: string; appVersion: string }>();
 
     useSidebarPage(SidebarPages.AppStore);
 
@@ -82,8 +83,8 @@ function View(props: ViewProps): JSX.Element {
             loadable={props.application}
             main={(
                 <ContainerForText left>
-                    <Box m={16} />
-                    <AppHeader application={application!} />
+                    <Box m={16}/>
+                    <AppHeader application={application!}/>
                     <Content
                         application={application!}
                         previousVersions={props.previous.content}
@@ -124,13 +125,13 @@ const AppHeaderDetails = styled.div`
     }
 `;
 
-export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boolean}> = props => {
+export const AppHeader: React.FunctionComponent<{ application: FullAppInfo | UCloud.compute.ApplicationWithFavoriteAndTags } & { slim?: boolean }> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "32px" : "128px";
     return (
         <AppHeaderBase>
-            <Box mr={16} >
-                <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size} />
+            <Box mr={16}>
+                <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size}/>
             </Box>
             <AppHeaderDetails>
                 {isSlim ? (
@@ -138,13 +139,13 @@ export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boole
                         {props.application.metadata.title} <small>({props.application.metadata.version})</small>
                     </Heading.h3>
                 ) : (
-                        <>
-                            <Heading.h2>{props.application.metadata.title}</Heading.h2>
-                            <Heading.h3>v{props.application.metadata.version}</Heading.h3>
-                            <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
-                            <Tags tags={props.application.tags} />
-                        </>
-                    )}
+                    <>
+                        <Heading.h2>{props.application.metadata.title}</Heading.h2>
+                        <Heading.h3>v{props.application.metadata.version}</Heading.h3>
+                        <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
+                        <Tags tags={props.application.tags}/>
+                    </>
+                )}
             </AppHeaderDetails>
         </AppHeaderBase>
     );
@@ -177,7 +178,7 @@ const AppSection = styled(Box)`
     margin-bottom: 16px;
 `;
 
-function Content(props: MainContentProps & {previousVersions?: Page<FullAppInfo>}): JSX.Element {
+function Content(props: MainContentProps & { previousVersions?: Page<FullAppInfo> }): JSX.Element {
     return (
         <>
             <AppSection>
@@ -192,17 +193,17 @@ function Content(props: MainContentProps & {previousVersions?: Page<FullAppInfo>
             </AppSection>
 
             <AppSection>
-                <PreviousVersions previousVersions={props.previousVersions} />
+                <PreviousVersions previousVersions={props.previousVersions}/>
             </AppSection>
 
             <AppSection>
-                <Information application={props.application} />
+                <Information application={props.application}/>
             </AppSection>
         </>
     );
 }
 
-const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullAppInfo>}> = props => (
+const PreviousVersions: React.FunctionComponent<{ previousVersions?: Page<FullAppInfo> }> = props => (
     <>
         {!props.previousVersions ? null :
             (!props.previousVersions.items.length ? null : (
@@ -210,7 +211,7 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullApp
                     <Heading.h4>Other Versions</Heading.h4>
                     <ApplicationCardContainer>
                         {props.previousVersions.items.map((it, idx) => (
-                            <SlimApplicationCard app={it} key={idx} tags={it.tags} />
+                            <SlimApplicationCard app={it} key={idx} tags={it.tags}/>
                         ))}
                     </ApplicationCardContainer>
                 </div>
@@ -219,15 +220,15 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullApp
     </>
 );
 
-function Tags({tags}: {tags: string[]}): JSX.Element | null {
+function Tags({tags}: { tags: string[] }): JSX.Element | null {
     if (!tags) return null;
 
     return (
         <div>
-            <Flex flexDirection="row" >
+            <Flex flexDirection="row">
                 {
                     tags.map(tag => (
-                        <Link key={tag} to={Pages.browseByTag(tag)}><Tag label={tag} /> </Link>
+                        <Link key={tag} to={Pages.browseByTag(tag)}><Tag label={tag}/> </Link>
                     ))
                 }
             </Flex>
@@ -257,7 +258,7 @@ const InfoAttributes = styled.div`
     flex-direction: row;
 `;
 
-function Information({application}: {application: WithAppMetadata & WithAppInvocation}): JSX.Element {
+function Information({application}: { application: WithAppMetadata & WithAppInvocation }): JSX.Element {
     const time = application.invocation.tool.tool.description.defaultTimeAllocation;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
     const backend = application.invocation.tool.tool.description.backend;

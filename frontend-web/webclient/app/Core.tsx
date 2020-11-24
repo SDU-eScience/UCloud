@@ -99,6 +99,7 @@ const Core = (): JSX.Element => (
                     component={requireAuth(ApplicationView)}
                 />
 
+                <Route exact path="/applications/jobs/create/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
                 <Route exact path="/applications/jobs/:id" component={requireAuth(Jobs.View)} />
                 <Route exact path="/applications/results" component={requireAuth(Runs)} />
                 <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)} />

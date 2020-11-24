@@ -1,4 +1,5 @@
 import {buildQueryString} from "Utilities/URIUtilities";
+import { Create } from "./Create";
 import {View} from "./View" ;
 
 // ~~~ Start of generated code ~~~
@@ -306,7 +307,7 @@ export function extendDuration(
 
 // ~~~ End of generate code ~~~
 
-export {View};
+export {View, Create};
 
 export function isJobStateTerminal(state: JobState): boolean {
     return state === JobState.SUCCESS || state === JobState.FAILURE;
