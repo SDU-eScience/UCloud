@@ -25,7 +25,7 @@ class Server {
             install(CachingHeaders) {
                 options { outgoingContent ->
                     when (outgoingContent.contentType?.withoutParameters()) {
-                        ContentType.Text.CSS, ContentType.Application.JavaScript -> {
+                        ContentType.Text.CSS, ContentType.Application.JavaScript, ContentType.Application.OctetStream -> {
                             CachingOptions(CacheControl.MaxAge(maxAgeSeconds = 60 * 60 * 24 * 7))
                         }
 
