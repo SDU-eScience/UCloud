@@ -2,14 +2,11 @@ package dk.sdu.cloud.web
 
 import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.features.CachingHeaders
+import io.ktor.features.*
 import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.CachingOptions
-import io.ktor.http.content.file
-import io.ktor.http.content.files
-import io.ktor.http.content.static
+import io.ktor.http.content.*
 import io.ktor.response.respond
 import io.ktor.response.respondFile
 import io.ktor.response.respondRedirect
@@ -21,12 +18,42 @@ import java.io.File
 
 class Server {
     fun start() {
+        val version = File("/var/www/Assets/AppVersion.txt").takeIf { it.exists() }?.readText() ?: ""
+
         embeddedServer(Netty, port = 8080) {
+            install(Compression)
+            install(ConditionalHeaders) {
+                version { content ->
+                    if (content is LocalFileContent) {
+                        when (content.contentType) {
+                            ContentType.Text.CSS,
+                            ContentType.Application.JavaScript,
+                            ContentType.Application.OctetStream,
+                            ContentType("Application", "x-font-ttf"),
+                            ContentType.Image.XIcon,
+                            ContentType.Image.SVG -> {
+                                listOf(EntityTagVersion("W/${content.file.path}_${version}"))
+                            }
+
+                            else -> emptyList()
+                        }
+
+                    } else {
+                        emptyList()
+                    }
+                }
+            }
             install(CachingHeaders) {
                 options { outgoingContent ->
                     when (outgoingContent.contentType?.withoutParameters()) {
-                        ContentType.Text.CSS, ContentType.Application.JavaScript, ContentType.Application.OctetStream -> {
-                            CachingOptions(CacheControl.MaxAge(maxAgeSeconds = 60 * 60 * 24 * 7))
+                        ContentType.Text.CSS,
+                        ContentType.Application.JavaScript,
+                        ContentType.Application.OctetStream,
+                        ContentType("Application", "x-font-ttf"),
+                        ContentType.Image.XIcon,
+                        ContentType.Image.SVG
+                        -> {
+                            CachingOptions(CacheControl.MaxAge(maxAgeSeconds = 60 * 60 * 24 * 365))
                         }
 
                         else -> null
