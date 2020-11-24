@@ -504,7 +504,7 @@ export const ShareRow: React.FunctionComponent<{
                     <Text mr="5px">View</Text>
                     <Toggle
                         scale={1.3}
-                        disabledColor="green"
+                        disabledColor="--green"
                         onChange={() => doUpdate(hasWriteRights ? AccessRights.READ_RIGHTS : AccessRights.WRITE_RIGHTS)}
                         checked={hasWriteRights}
                     />

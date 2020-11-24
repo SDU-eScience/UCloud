@@ -1,7 +1,7 @@
 import * as Types from "Applications";
 import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
 import * as React from "react";
-import {Box, Select} from "ui-components";
+import {Select} from "ui-components";
 import {LicenseServerId} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 
@@ -11,7 +11,7 @@ interface LicenseServerParameterProps extends ParameterProps {
     initialSubmit: boolean;
 }
 
-export const LicenseServerParameter = (props: LicenseServerParameterProps) => {
+export function LicenseServerParameter(props: LicenseServerParameterProps): JSX.Element {
 
     const [availableLicenseServers, setAvailableLicenseServers] = React.useState<LicenseServerId[]>([]);
 
@@ -40,7 +40,7 @@ export const LicenseServerParameter = (props: LicenseServerParameterProps) => {
                 <option value="none" disabled>
                     No license server selected
                 </option>
-                { availableLicenseServers.map( server => (
+                {availableLicenseServers.map(server => (
                     <option key={server.id} value={server.id}>
                         {server.name}
                     </option>
@@ -48,4 +48,4 @@ export const LicenseServerParameter = (props: LicenseServerParameterProps) => {
             </Select>
         </BaseParameter>
     )
-};
+}

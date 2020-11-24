@@ -525,7 +525,7 @@ const BlackLoginText = styled(Text)`
 function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {
     return (<>
         <Absolute right="1em" top=".5em">
-            {props.selection ? <div>
+            {!props.selection ? <div>
                 {!CONF.SUPPORT_EMAIL ? null : (
                     <ClickableDropdown
                         width="224px"

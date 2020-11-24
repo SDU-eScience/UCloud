@@ -405,7 +405,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
 
                             <Toggle
                                 scale={1.5}
-                                activeColor="green"
+                                activeColor="--green"
                                 checked={isActive}
                                 onChange={() => {
                                     if (isActive) return;
