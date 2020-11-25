@@ -208,23 +208,40 @@ export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) 
     return useCloudCommand();
 }
 
-export function useCloudCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
-    const [isLoading, setIsLoading] = useState(false);
+type InvokeCommand = <T = any>(
+    call: APICallParameters,
+    opts?: {defaultErrorHandler: boolean}
+) => Promise<T | null>;
+
+export function useCloudCommand(): [boolean, InvokeCommand] { const [isLoading, setIsLoading] = useState(false);
     let didCancel = false;
-    const sendCommand = useCallback(<T>(call: APICallParameters): Promise<T | null> => {
+    const sendCommand: InvokeCommand = useCallback(<T>(call, opts = {defaultErrorHandler: true}): Promise<T | null> => {
         // eslint-disable-next-line no-async-promise-executor
         return new Promise<T | null>(async (resolve, reject) => {
             if (didCancel) return;
 
             setIsLoading(true);
-            try {
-                const result = await callAPIWithErrorHandler<T>(call);
-                if (!didCancel) {
-                    resolve(result);
+            if (opts.defaultErrorHandler) {
+                try {
+                    const result = await callAPIWithErrorHandler<T>(call);
+                    if (!didCancel) {
+                        resolve(result);
+                    }
+                } catch (e) {
+                    if (!didCancel) {
+                        reject(e);
+                    }
                 }
-            } catch (e) {
-                if (!didCancel) {
-                    reject(e);
+            } else {
+                try {
+                    const result = await callAPI<T>(call);
+                    if (!didCancel) {
+                        resolve(result);
+                    }
+                } catch (e) {
+                    if (!didCancel) {
+                        reject(e);
+                    }
                 }
             }
 

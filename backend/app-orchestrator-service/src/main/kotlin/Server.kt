@@ -5,7 +5,6 @@ import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
 import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
 import dk.sdu.cloud.app.orchestrator.api.ProviderManifest
-import dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.services.JobDao
 import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
@@ -51,27 +50,33 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val jobQueryService = JobQueryService(
             db,
             ProjectCache(serviceClient),
+            appStoreCache,
+            machineCache,
         )
 
         // TODO Providers
-        val providers = Providers(serviceClient, ComputeProviderManifest(
-            ComputeProvider(UCLOUD_PROVIDER, "localhost", false, 8080),
-            ProviderManifest().apply {
-                with(features) {
-                    with(compute) {
-                        with(docker) {
-                            enabled = true
-                            web = true
-                            vnc = true
-                            batch = true
-                            logs = true
-                            peers = true
-                            terminal = true
+        val providers = Providers(
+            micro.developmentModeEnabled,
+            serviceClient,
+            ComputeProviderManifest(
+                ComputeProvider(UCLOUD_PROVIDER, "localhost", false, 8080),
+                ProviderManifest().apply {
+                    with(features) {
+                        with(compute) {
+                            with(docker) {
+                                enabled = true
+                                web = true
+                                vnc = true
+                                batch = true
+                                logs = true
+                                peers = true
+                                terminal = true
+                            }
                         }
                     }
                 }
-            }
-        ))
+            )
+        )
 
         val jobVerificationService = JobVerificationService(
             appStoreCache,

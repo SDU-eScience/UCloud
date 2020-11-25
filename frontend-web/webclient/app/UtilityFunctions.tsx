@@ -329,6 +329,22 @@ export const downloadAllowed = (files: File[]): boolean => files.every(f => f.se
  */
 export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
+export function extractErrorCode(e: unknown): number {
+    if (typeof e === "object") {
+        if (e != null && "request" in e) {
+            const req = e["request"];
+            if ("status" in req) {
+                const status = req.status;
+                if (typeof status === "number") {
+                    return status;
+                }
+            }
+        }
+    }
+
+    return 500;
+}
+
 export function defaultErrorHandler(
     error: {request: XMLHttpRequest; response: any}
 ): number {

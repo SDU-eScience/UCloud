@@ -143,7 +143,7 @@ class JobVerificationService(
         run {
             val parameterPeers = application.invocation.parameters
                 .filterIsInstance<ApplicationParameter.Peer>()
-                .map { verifiedParameters[it.name] as AppParameterValue.Peer }
+                .mapNotNull { verifiedParameters[it.name] as AppParameterValue.Peer? }
 
             val allPeers =
                 resources.filterIsInstance<AppParameterValue.Peer>() + parameterPeers
@@ -241,11 +241,15 @@ class JobVerificationService(
                 throw RPCException("Missing value for '${param.name}'", HttpStatusCode.BadRequest)
             }
 
-            if (param.defaultValue == null && providedValue == null) {
+            if (param.optional && providedValue == null) {
+                continue // Nothing to validate
+            }
+
+            if (param.defaultValue != null && providedValue == null) {
                 providedValue = TODO("Extract default value")
             }
 
-            check(providedValue != null)
+            check(providedValue != null) { "Missing value for ${param}" }
 
             when (param) {
                 is ApplicationParameter.InputDirectory, is ApplicationParameter.InputFile -> {
@@ -270,7 +274,7 @@ class JobVerificationService(
 
                 is ApplicationParameter.Enumeration -> {
                     if (providedValue !is AppParameterValue.Text) badValue(param)
-                    param.options.find { it.name == providedValue.value } ?: badValue(param)
+                    param.options.find { it.value == providedValue.value } ?: badValue(param)
                 }
 
                 is ApplicationParameter.Peer -> {

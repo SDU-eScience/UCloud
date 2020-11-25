@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.Compute
-import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
 import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -18,16 +17,18 @@ data class ProviderCommunication(
 )
 
 class Providers(
+    private val developmentModeEnabled: Boolean,
     private val serviceClient: AuthenticatedClient,
     private val hardcodedProvider: ComputeProviderManifest,
 ) {
-    private val ucloudCompute = Compute("kubernetes")
+    private val ucloudCompute = Compute(UCLOUD_PROVIDER)
 
     suspend fun prepareCommunication(actor: Actor): ProviderCommunication {
         return prepareCommunication(actor.safeUsername().removePrefix(PROVIDER_USERNAME_PREFIX))
     }
 
     suspend fun prepareCommunication(provider: String): ProviderCommunication {
+        if (developmentModeEnabled) return ProviderCommunication(ucloudCompute, serviceClient, UCLOUD_PROVIDER)
         if (provider != UCLOUD_PROVIDER) {
             throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
         }
@@ -36,6 +37,7 @@ class Providers(
     }
 
     suspend fun verifyProvider(provider: String, principal: SecurityPrincipal) {
+        if (developmentModeEnabled) return
         if (provider != UCLOUD_PROVIDER) {
             throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
         }

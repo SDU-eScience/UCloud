@@ -16,6 +16,8 @@ import io.ktor.http.*
 class JobQueryService(
     private val db: AsyncDBSessionFactory,
     private val projectCache: ProjectCache,
+    private val appStoreCache: AppStoreCache,
+    private val machineTypeCache: MachineTypeCache,
 ) {
     suspend fun browse(
         securityPrincipal: Actor,
@@ -139,6 +141,35 @@ class JobQueryService(
 
         if (flags.includeWeb == true) {
             TODO()
+        }
+
+        if (flags.includeApplication == true) {
+            val uniqueApplications = jobs.map { it.parameters.application }.toSet().mapNotNull {
+                appStoreCache.apps.get(it)
+            }.associateBy { NameAndVersion(it.metadata.name, it.metadata.version) }
+
+            jobs = jobs.map { job ->
+                job.copy(
+                    parameters = job.parameters
+                        .copy(resolvedApplication = uniqueApplications[job.parameters.application])
+                )
+            }
+        }
+
+        if (flags.includeProduct == true) {
+            val uniqueMachines = jobs
+                .map { it.parameters.product }
+                .toSet()
+                .map {
+                    it to machineTypeCache.find(it.provider, it.id, it.category)
+                }
+                .toMap()
+
+            jobs = jobs.map { job ->
+                job.copy(
+                    parameters = job.parameters.copy(resolvedProduct = uniqueMachines[job.parameters.product])
+                )
+            }
         }
 
         return jobs.map { VerifiedJobWithAccessToken(it, tokens.getValue(it.id).second) }

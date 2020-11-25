@@ -19,7 +19,7 @@ export const ReservationParameter: React.FunctionComponent<{
     errors: ReservationErrors;
 }> = ({application, errors}) => {
     return <Box>
-        <Label mb={"4px"} mt={"4px"}>
+        <Label mb={"4px"}>
             Job name
             <Input id={reservationName} placeholder={"Example: Run with parameters XYZ"}/>
             {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}

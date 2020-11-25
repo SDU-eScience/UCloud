@@ -12,6 +12,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.toActor
 import kotlin.test.Test
 
 class PaginationTest : IntegrationTest() {
@@ -57,7 +58,7 @@ class PaginationTest : IntegrationTest() {
         request: NormalizedPaginationRequestV2,
     ): PageV2<Int?> {
         val page = db.paginateV2(
-            TestUsers.admin,
+            TestUsers.admin.toActor(),
             request,
             create = { session ->
                 session.sendPreparedStatement(

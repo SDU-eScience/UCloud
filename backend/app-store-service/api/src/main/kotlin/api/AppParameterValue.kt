@@ -35,25 +35,35 @@ sealed class AppParameterValue {
         "A reference to a UCloud file\n\n" +
             "The path to the file most always be absolute an refers to either a UCloud directory or file."
     )
-    data class File(val path: String, var readOnly: Boolean = false) : AppParameterValue()
+    data class File(val path: String, var readOnly: Boolean = false) : AppParameterValue() {
+        val type = "file"
+    }
 
     @UCloudApiDoc("A boolean value")
-    data class Bool(val value: Boolean) : AppParameterValue()
+    data class Bool(val value: Boolean) : AppParameterValue() {
+        val type = "boolean"
+    }
 
     @UCloudApiDoc("A textual value")
-    data class Text(val value: String) : AppParameterValue()
+    data class Text(val value: String) : AppParameterValue() {
+        val type = "text"
+    }
 
     @UCloudApiDoc(
         "An integral value\n\n" +
             "Internally this uses a big integer type and there are no defined limits."
     )
-    data class Integer(val value: BigInteger) : AppParameterValue()
+    data class Integer(val value: BigInteger) : AppParameterValue() {
+        val type = "integer"
+    }
 
     @UCloudApiDoc(
         "A floating point value\n\n" +
             "Internally this uses a big decimal type and there are no defined limits."
     )
-    data class FloatingPoint(val value: BigDecimal) : AppParameterValue()
+    data class FloatingPoint(val value: BigDecimal) : AppParameterValue() {
+        val type = "floating_point"
+    }
 
     @UCloudApiDoc(
         "A reference to a separate UCloud job\n\n" +
@@ -66,6 +76,8 @@ sealed class AppParameterValue {
                 throw RPCException("Invalid hostname: $hostname", HttpStatusCode.BadRequest)
             }
         }
+
+        val type = "peer"
     }
 
     @UCloudApiDoc("A reference to a license")
@@ -80,15 +92,21 @@ sealed class AppParameterValue {
 
         @UCloudApiDoc("Ignored in user requests - Filled in by UCloud")
         val license: String? = null,
-    ) : AppParameterValue()
+    ) : AppParameterValue() {
+        val type = "license_server"
+    }
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage")
-    data class BlockStorage(val id: String)
+    data class BlockStorage(val id: String) {
+        val type = "block_storage"
+    }
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage")
-    data class Network(val id: String)
+    data class Network(val id: String) {
+        val type = "network"
+    }
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("HTTP Ingress")
@@ -98,6 +116,8 @@ sealed class AppParameterValue {
                 throw RPCException("Invalid domain: $domain", HttpStatusCode.BadRequest)
             }
         }
+
+        val type = "ingress"
     }
 }
 

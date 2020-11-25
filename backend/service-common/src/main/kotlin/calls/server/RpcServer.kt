@@ -410,6 +410,7 @@ class RpcServer {
             } else {
                 OutgoingCallResponse.Error<S, E>(null, statusCode)
             }
+            log.debug("   Responding [${ctx.jobIdOrNull?.take(4)}]: ${call.fullName} ($callResult)")
 
             if (!isEarlyClose) {
                 // Attempt to send a response (if possible). Silently discard any exception as it is likely a failure

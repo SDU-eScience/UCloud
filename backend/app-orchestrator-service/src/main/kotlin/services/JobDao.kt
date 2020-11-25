@@ -12,7 +12,7 @@ object JobsTable : SQLTable("jobs") {
     val id = text("id")
     val launchedBy = text("launched_by")
     val project = text("project")
-    val refreshToken = text("refreshToken")
+    val refreshToken = text("refresh_token")
     val applicationName = text("application_name")
     val applicationVersion = text("application_version")
     val pricePerUnit = long("price_per_unit")
@@ -72,14 +72,11 @@ class JobDao {
                 set(JobsTable.replicas, parameters.replicas)
                 set(JobsTable.name, parameters.name)
                 set(JobsTable.outputFolder, job.output?.outputFolder)
+                set(JobsTable.currentState, (job.updates.lastOrNull()?.state ?: JobState.IN_QUEUE).name)
             }
 
             for (update in job.updates) {
-                session.insert(JobUpdatesTable) {
-                    set(JobUpdatesTable.jobId, job.id)
-                    set(JobUpdatesTable.state, update.state?.name)
-                    set(JobUpdatesTable.status, update.status)
-                }
+                insertUpdate(session, job.id, update.timestamp, update.state, update.status)
             }
 
             for (resource in parameters.resources!!) {
@@ -117,13 +114,13 @@ class JobDao {
                         setParameter("jobId", jobId)
                         setParameter("state", state?.name)
                         setParameter("status", status)
-                        setParameter("ts", timestamp)
+                        setParameter("timestamp", timestamp)
                     },
 
                     """
                         insert into job_updates values (
                             :jobId, 
-                            to_timestamp(:timestamp / 1000) at time zone 'UTC', 
+                            to_timestamp(:timestamp / 1000),
                             :state::text, 
                             :status::text
                         )

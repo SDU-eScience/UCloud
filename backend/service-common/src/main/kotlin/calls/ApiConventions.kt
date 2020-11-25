@@ -8,6 +8,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import io.ktor.http.*
+import kotlin.properties.Delegates
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
@@ -191,27 +192,47 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
 @TSDefinition("""
 export type BulkRequest<T> = T | { type: "bulk", items: T[] }
 """)
-sealed class BulkRequest<T> {
+sealed class BulkRequest<T : Any> {
     abstract val items: List<T>
 
     @TSDefinition("")
-    data class Single<T>(@JsonUnwrapped val item: T) : BulkRequest<T>() {
-        @JsonIgnore
-        override val items = listOf(item)
+    class Single<T : Any> : BulkRequest<T>() {
+        @get:JsonUnwrapped
+        @set:JsonUnwrapped
+        var item: T by Delegates.notNull()
+
+        @get:JsonIgnore
+        override val items get() = listOf(item)
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as BulkRequest<*>
+
+            if (items != other.items) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            return javaClass.hashCode()
+        }
+
+        override fun toString(): String = item.toString()
     }
 
     @TSDefinition("")
-    data class Bulk<T>(override val items: List<T>) : BulkRequest<T>()
+    data class Bulk<T : Any>(override val items: List<T>) : BulkRequest<T>()
 }
 
-fun <T> bulkRequestOf(vararg items: T): BulkRequest<T> {
+fun <T : Any> bulkRequestOf(vararg items: T): BulkRequest<T> {
     if (items.isEmpty()) error("No items provided")
-    return if (items.size == 1) BulkRequest.Single(items.single())
+    return if (items.size == 1) BulkRequest.Single<T>().apply { item = items.single() }
     else BulkRequest.Bulk(listOf(*items))
 }
 
-fun <T> bulkRequestOf(items: Collection<T>): BulkRequest<T> {
+fun <T : Any> bulkRequestOf(items: Collection<T>): BulkRequest<T> {
     if (items.isEmpty()) error("No items provided")
-    return if (items.size == 1) BulkRequest.Single(items.single())
+    return if (items.size == 1) BulkRequest.Single<T>().apply { item = items.single() }
     else BulkRequest.Bulk(items.toList())
 }

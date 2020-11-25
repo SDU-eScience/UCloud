@@ -76,96 +76,96 @@ class JobOrchestrator(
     ): JobsCreateResponse {
         data class JobWithProvider(val jobId: String, val provider: String)
 
-        return db.withSession { session ->
-            val tokensToInvalidateInCaseOfFailure = ArrayList<String>()
-            val jobsToInvalidateInCaseOfFailure = ArrayList<JobWithProvider>()
+        val tokensToInvalidateInCaseOfFailure = ArrayList<String>()
+        val jobsToInvalidateInCaseOfFailure = ArrayList<JobWithProvider>()
 
-            val parameters = ArrayList<ByteArray>()
+        val parameters = ArrayList<ByteArray>()
 
-            try {
-                val (_, tmpUserClient) = extendToken(accessToken, allowRefreshes = false)
-                val verifiedJobs = req.items
-                    // Immediately export parameters (before verification code changes it)
-                    .onEach { request ->
-                        parameters.add(
-                            defaultMapper.writeValueAsBytes(
-                                parameterExportService.exportParameters(request)
-                            )
+        try {
+            val (_, tmpUserClient) = extendToken(accessToken, allowRefreshes = false)
+            val verifiedJobs = req.items
+                // Immediately export parameters (before verification code changes it)
+                .onEach { request ->
+                    parameters.add(
+                        defaultMapper.writeValueAsBytes(
+                            parameterExportService.exportParameters(request)
                         )
-                    }
-                    // Verify tokens
-                    .map { jobRequest ->
-                        jobVerificationService.verifyOrThrow(
-                            UnverifiedJob(jobRequest, principal.username, project),
-                            tmpUserClient
-                        )
-                    }
-                    // Check for duplicates
-                    .onEach { job ->
-                        if (!job.job.parameters.allowDuplicateJob) {
-                            if (!checkForDuplicateJob(principal, project, job)) {
-                                throw JobException.Duplicate()
-                            }
+                    )
+                }
+                // Verify tokens
+                .map { jobRequest ->
+                    jobVerificationService.verifyOrThrow(
+                        UnverifiedJob(jobRequest, principal.username, project),
+                        tmpUserClient
+                    )
+                }
+                // Check for duplicates
+                .onEach { job ->
+                    if (!job.job.parameters.allowDuplicateJob) {
+                        if (checkForDuplicateJob(principal, project, job)) {
+                            throw JobException.Duplicate()
                         }
                     }
-                    // Extend tokens needed for jobs
-                    .map { job ->
-                        val (extendedToken) = extendToken(accessToken, allowRefreshes = true)
-                        tokensToInvalidateInCaseOfFailure.add(extendedToken!!)
-                        job.copy(refreshToken = extendedToken)
-                    }
-
-                // Reserve resources (and check that resources are available)
-                for (job in verifiedJobs) {
-                    paymentService.reserve(job.job)
+                }
+                // Extend tokens needed for jobs
+                .map { job ->
+                    val (extendedToken) = extendToken(accessToken, allowRefreshes = true)
+                    tokensToInvalidateInCaseOfFailure.add(extendedToken!!)
+                    job.copy(refreshToken = extendedToken)
                 }
 
-                // Prepare job folders (needs to happen before database insertion)
-                for ((index, job) in verifiedJobs.withIndex()) {
-                    val jobFolder = jobFileService.initializeResultFolder(job)
-                    jobFileService.exportParameterFile(jobFolder.path, job, parameters[index])
-                }
+            // Reserve resources (and check that resources are available)
+            for (job in verifiedJobs) {
+                paymentService.reserve(job.job)
+            }
 
-                // Insert into databases
+            // Prepare job folders (needs to happen before database insertion)
+            for ((index, job) in verifiedJobs.withIndex()) {
+                val jobFolder = jobFileService.initializeResultFolder(job)
+                jobFileService.exportParameterFile(jobFolder.path, job, parameters[index])
+            }
+
+            // Insert into databases
+            db.withSession { session ->
                 for (job in verifiedJobs) {
                     jobDao.create(session, job)
                 }
-
-                // Notify compute providers
-                verifiedJobs.groupBy { it.job.parameters.product.provider }.forEach { (provider, jobs) ->
-                    val (api, client) = providers.prepareCommunication(provider)
-
-                    api.create.call(bulkRequestOf(jobs.map { it.job }), client).orThrow()
-                    jobsToInvalidateInCaseOfFailure.addAll(jobs.map { JobWithProvider(it.job.id, provider) })
-                }
-
-                JobsCreateResponse(verifiedJobs.map { it.job.id })
-            } catch (ex: Throwable) {
-                for (tok in tokensToInvalidateInCaseOfFailure) {
-                    AuthDescriptions.logout.call(
-                        Unit,
-                        serviceClient.withoutAuthentication().bearerAuth(tok)
-                    )
-                }
-
-                jobsToInvalidateInCaseOfFailure.groupBy { it.provider }.forEach { (provider, jobs) ->
-                    val (api, client) = providers.prepareCommunication(provider)
-                    api.delete.call(
-                        bulkRequestOf(
-                            jobQueryService
-                                .retrievePrivileged(
-                                    db,
-                                    jobs.map { it.jobId },
-                                    JobDataIncludeFlags(includeParameters = true)
-                                )
-                                .map { it.value.job }
-                        ),
-                        client
-                    )
-                }
-
-                throw ex
             }
+
+            // Notify compute providers
+            verifiedJobs.groupBy { it.job.parameters.product.provider }.forEach { (provider, jobs) ->
+                val (api, client) = providers.prepareCommunication(provider)
+
+                api.create.call(bulkRequestOf(jobs.map { it.job }), client).orThrow()
+                jobsToInvalidateInCaseOfFailure.addAll(jobs.map { JobWithProvider(it.job.id, provider) })
+            }
+
+            return JobsCreateResponse(verifiedJobs.map { it.job.id })
+        } catch (ex: Throwable) {
+            for (tok in tokensToInvalidateInCaseOfFailure) {
+                AuthDescriptions.logout.call(
+                    Unit,
+                    serviceClient.withoutAuthentication().bearerAuth(tok)
+                )
+            }
+
+            jobsToInvalidateInCaseOfFailure.groupBy { it.provider }.forEach { (provider, jobs) ->
+                val (api, client) = providers.prepareCommunication(provider)
+                api.delete.call(
+                    bulkRequestOf(
+                        jobQueryService
+                            .retrievePrivileged(
+                                db,
+                                jobs.map { it.jobId },
+                                JobDataIncludeFlags(includeParameters = true)
+                            )
+                            .map { it.value.job }
+                    ),
+                    client
+                )
+            }
+
+            throw ex
         }
     }
 
@@ -306,7 +306,7 @@ class JobOrchestrator(
         session: AsyncDBConnection,
         jobIds: Set<String>,
         user: Actor,
-        flags: JobDataIncludeFlags = JobDataIncludeFlags(includeParameters = true)
+        flags: JobDataIncludeFlags = JobDataIncludeFlags(includeParameters = true),
     ): Map<String, VerifiedJobWithAccessToken> {
         val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
         if (loadedJobs.keys.size != jobIds.size) {
@@ -338,7 +338,7 @@ class JobOrchestrator(
         providerActor: Actor,
     ): Job {
         val comm = providers.prepareCommunication(providerActor)
-        return loadAndVerifyProviderJobs(db, setOf(request.id), comm).getValue(request.id).job
+        return loadAndVerifyProviderJobs(db, setOf(request.id), comm, request).getValue(request.id).job
     }
 
     suspend fun extendDuration(request: BulkRequest<JobsExtendRequestItem>, userActor: Actor.User) {

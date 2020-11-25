@@ -85,7 +85,8 @@ class IngoingHttpInterceptor(
             val receiveOrNull = ctx.call.receiveOrNull<String>()?.takeIf { it.isNotEmpty() } ?: return null
             return defaultMapper.readValue<R>(receiveOrNull, typeReference)
         } catch (ex: MismatchedInputException) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            log.debug(ex.stackTraceToString())
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Request does not use the correct schema")
         }
     }
 

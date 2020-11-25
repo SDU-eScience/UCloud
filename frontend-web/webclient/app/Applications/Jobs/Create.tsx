@@ -2,7 +2,7 @@ import * as React from "react";
 import * as UCloud from "UCloud";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {useRouteMatch} from "react-router";
-import {useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {MainContainer} from "MainContainer/MainContainer";
 import {AppHeader} from "Applications/View";
 import {
@@ -15,14 +15,19 @@ import {
 } from "ui-components";
 import Link from "ui-components/Link";
 import {OptionalWidgetSearch, validateWidgets, Widget} from "Applications/Jobs/Widgets";
-import {compute} from "UCloud";
-import AppParameterValue = compute.AppParameterValue;
 import * as Heading from "ui-components/Heading";
 import {FolderResource} from "Applications/Jobs/Resources/Folders";
 import {IngressResource} from "Applications/Jobs/Resources/Ingress";
 import {PeerResource} from "Applications/Jobs/Resources/Peers";
 import {useResource} from "Applications/Jobs/Resources";
 import {ReservationErrors, ReservationParameter, validateReservation} from "Applications/Jobs/Widgets/Reservation";
+import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
+import {addStandardDialog, WalletWarning} from "UtilityComponents";
+
+interface InsufficientFunds {
+    why?: string;
+    errorCode?: string;
+}
 
 export const Create: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{ appName: string, appVersion: string }>().params;
@@ -32,7 +37,7 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const values = useRef<Record<string, AppParameterValue>>({})
+    const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const urlRef = useRef<HTMLInputElement>(null);
@@ -49,8 +54,75 @@ export const Create: React.FunctionComponent = () => {
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
     }, [appName, appVersion]);
 
-    // TODO
     const application = applicationResp.data;
+
+    const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
+        if (!application) return;
+
+        const {errors, values} = validateWidgets(application.invocation.parameters!);
+        setErrors(errors)
+
+        const reservationValidation = validateReservation();
+        setReservationErrors(reservationValidation.errors);
+
+        const foldersValidation = validateWidgets(folders.ids.map(name => ({
+            type: "input_directory",
+            name,
+            optional: true,
+            title: "",
+            description: ""
+        })));
+        folders.setErrors(foldersValidation.errors);
+
+        const peersValidation = validateWidgets(peers.ids.map(name => ({
+            type: "peer",
+            name,
+            optional: true,
+            title: "",
+            description: ""
+        })));
+        peers.setErrors(peersValidation.errors);
+
+        if (Object.keys(errors).length === 0 &&
+            reservationValidation.options !== undefined &&
+            Object.keys(foldersValidation.errors).length === 0 &&
+            Object.keys(peersValidation.errors).length === 0
+        ) {
+            const request: UCloud.compute.JobParameters = {
+                ...reservationValidation.options,
+                application: application?.metadata,
+                parameters: values,
+                resources: Object.values(foldersValidation.values)
+                    .concat(Object.values(peersValidation.values)),
+                allowDuplicateJob
+            };
+
+            try {
+                await invokeCommand(UCloud.compute.jobs.create(request), {defaultErrorHandler: false});
+            } catch (e) {
+                const code = extractErrorCode(e);
+                if (code === 409) {
+                    addStandardDialog({
+                        title: "Job with same parameters already running",
+                        message: "You might be trying to run a duplicate job. Would you like to proceed?",
+                        cancelText: "No",
+                        confirmText: "Yes",
+                        onConfirm: () => {
+                            submitJob(true);
+                        },
+                    });
+                } else if (code == 402) {
+                    const why = e?.response?.why;
+                    const errorCode = e?.response?.errorCode;
+                    setInsufficientFunds({ why, errorCode });
+                } else {
+                    displayErrorMessageOrDefault(e, "An error occured while submitting the job");
+                }
+            }
+        }
+    }, [application, folders, ingress, peers]);
+
+    // TODO
     if (application === null) return <MainContainer main={"Loading"}/>;
 
     const mandatoryParameters = application.invocation!.parameters.filter(it =>
@@ -95,17 +167,7 @@ export const Create: React.FunctionComponent = () => {
                 <Button
                     type={"button"}
                     color={"blue"}
-                    onClick={() => {
-                        const {errors, values} = validateWidgets(application.invocation.parameters!);
-                        setErrors(errors)
-                        const reservationValidation = validateReservation();
-                        setReservationErrors(reservationValidation.errors);
-                        if (Object.keys(errors).length === 0 && reservationValidation.options !== undefined) {
-                            console.log("Valid!", values);
-                        } else {
-                            console.log("Not valid!", values);
-                        }
-                    }}
+                    onClick={() => submitJob(false)}
                 >
                     Submit
                 </Button>
@@ -113,7 +175,8 @@ export const Create: React.FunctionComponent = () => {
         }
         main={
             <ContainerForText>
-                <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"}>
+                <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
+                    {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
                     <ReservationParameter application={application} errors={reservationErrors}/>
 
                     {/* Parameters */}
@@ -164,13 +227,11 @@ export const Create: React.FunctionComponent = () => {
                     <FolderResource
                         {...folders}
                         application={application}
-                        errors={errors}
                     />
 
                     <PeerResource
                         {...peers}
                         application={application}
-                        errors={errors}
                     />
                 </Grid>
             </ContainerForText>

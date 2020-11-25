@@ -137,7 +137,7 @@ class JobManagement(
             name = k8.nameAllocator.jobIdToJobName(verifiedJob.id),
             namespace = namespace
         )
-        builder.spec = VolcanoJob.Spec()
+        builder.spec = VolcanoJob.Spec(schedulerName = "volcano")
         plugins.forEach { with(it) { with(k8) { onCreate(verifiedJob, builder) } } }
 
         @Suppress("BlockingMethodInNonBlockingContext")

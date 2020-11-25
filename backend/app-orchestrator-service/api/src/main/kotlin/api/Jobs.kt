@@ -1,13 +1,11 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.app.store.api.AppParameterValue
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.UCloudApiDoc
@@ -118,6 +116,7 @@ data class JobUpdate(
 
 data class JobParameters(
     @UCloudApiDoc("A reference to the application which this job should execute")
+    @JsonDeserialize(`as` = NameAndVersionImpl::class)
     val application: NameAndVersion,
 
     @UCloudApiDoc("A reference to the product that this job will be executed on")
