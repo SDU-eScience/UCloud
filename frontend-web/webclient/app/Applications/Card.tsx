@@ -97,8 +97,6 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                         "linkReference",
                         "imageReference",
                         "table",
-                        "tableHead",
-                        "tableBody",
                         "tableRow",
                         "tableCell",
                         "list",
@@ -107,8 +105,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                         "heading",
                         "inlineCode",
                         "code",
-                        "html",
-                        "virtualHtml"]}
+                        "html"]}
                     unwrapDisallowed
                 />
             </EllipsedText>

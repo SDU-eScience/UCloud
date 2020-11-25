@@ -158,7 +158,7 @@ class OptionalParameter extends React.Component<OptionalParameterProps, {open: b
                     <strong>{parameter.title}</strong>
                     {!open ? (
                         <EllipsedText>
-                            <Markdown source={parameter.description} allowedTypes={["text", "root", "paragraph"]} />
+                            <Markdown source={parameter.description} allowedTypes={["text",  "paragraph"]} />
                         </EllipsedText>
                     ) : <Box flexGrow={1} />}
 
