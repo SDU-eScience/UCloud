@@ -23,6 +23,9 @@ export const IngressResource: React.FunctionComponent<{
         current.value = url;
     }, [props.inputRef, url]);
 
+    return <Warning>TODO Ingress</Warning>;
+
+    /*
     return props.application.invocation.applicationType !== "WEB" ? null : (
         <>
             <div>
@@ -70,4 +73,5 @@ export const IngressResource: React.FunctionComponent<{
             </div>
         </>
     );
+     */
 };

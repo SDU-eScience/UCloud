@@ -29,7 +29,6 @@ export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, 
     color?: string;
     noBorder?: boolean;
     error?: boolean;
-    showError?: boolean;
     autocomplete?: "on" | "off";
 }
 
@@ -41,15 +40,17 @@ const right = ({rightLabel}: {rightLabel?: boolean}): string =>
 const Input = styled.input<InputProps>`
     display: block;
     font-family: inherit;
-    background-color: ${props => props.error ? props.theme.colors.lightRed : "transparent"};
     ${fontSize}
     color: var(--black, #f00);
+    background-color: transparent;
 
     margin: 0;
 
-    ${p => p.showError ? `&:invalid {
+    ${borders} 
+    &:invalid {
         border-color: var(--red, #f00);
-    }` : null};
+    }
+    ${p => p.error ? "border-color: var(--red, #f00);" : null}
 
     ::placeholder {
         color: var(--gray, #f00);
@@ -64,7 +65,7 @@ const Input = styled.input<InputProps>`
         background-color: var(--lightGray, #f00);
     }
 
-    ${borders} ${space} ${borderRadius}
+    ${space} ${borderRadius}
     ${left} ${width} ${right}
 `;
 

@@ -13,7 +13,6 @@ export const TextParameter = (props: TextParameterProps): JSX.Element => {
     return (
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             <Input
-                showError={props.initialSubmit || props.parameter.optional}
                 key={props.parameter.name}
                 ref={props.parameterRef as React.RefObject<HTMLInputElement>}
                 placeholder={placeholder}

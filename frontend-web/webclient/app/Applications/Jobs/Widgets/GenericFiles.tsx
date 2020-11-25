@@ -1,9 +1,7 @@
 import * as React from "react";
 import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Input, Select} from "ui-components";
-import {compute} from "UCloud";
-import Flex from "ui-components/Flex";
+import {Input} from "ui-components";
 import FileSelector from "Files/FileSelector";
 import {useEffect, useRef, useState} from "react";
 import styled from "styled-components";
@@ -45,6 +43,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         };
     }, [valueInput?.id, visualInput?.id, projects.length]); // TODO getProjectNames returns a new copy every time
 
+    const error = props.errors[props.parameter.name] != null;
     return <FileSelector
         visible={isOpen}
 
@@ -59,8 +58,13 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
 
         trigger={
             <>
-                <input type={"hidden"} ref={valueRef} id={widgetId(props.parameter)} />
-                <FileSelectorInput ref={visualRef} onClick={() => setOpen(true)}/>
+                <input type={"hidden"} ref={valueRef} id={widgetId(props.parameter)}/>
+                <FileSelectorInput
+                    ref={visualRef}
+                    placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
+                    onClick={() => setOpen(true)}
+                    error={error}
+                />
             </>
         }
     />;
@@ -72,9 +76,12 @@ const FileSelectorInput = styled(Input)`
 
 export const FilesValidator: WidgetValidator = (param) => {
     if (param.type === "input_directory" || param.type === "input_file") {
-        // TODO Check data
         const elem = findElement(param);
-        return {valid: false, message: "NYI"};
+        if (elem === null) return {valid: true};
+
+        const value = elem.value;
+        if (value === "") return {valid: true};
+        return {valid: true, value: {type: "file", path: value, readOnly: false}};
     }
 
     return {valid: true};

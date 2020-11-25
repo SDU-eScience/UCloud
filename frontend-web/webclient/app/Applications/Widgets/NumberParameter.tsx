@@ -14,7 +14,6 @@ function GenericNumberParameter(props: NumberParameterProps): JSX.Element {
     const baseField = (
         <Flex>
             <Input
-                showError={props.initialSubmit || props.parameter.optional}
                 required={!props.parameter.optional}
                 name={props.parameter.name}
                 type="number"
@@ -36,7 +35,6 @@ function GenericNumberParameter(props: NumberParameterProps): JSX.Element {
     if (parameter.min !== null && parameter.max !== null) {
         slider = (
             <Input
-                showError={props.initialSubmit || props.parameter.optional}
                 key={`${parameter.name}-slider`}
                 mt="2px"
                 noBorder

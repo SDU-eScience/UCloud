@@ -9,11 +9,56 @@ import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "ui-componen
 import {MandatoryField} from "Applications/Widgets/BaseParameter";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
 import styled from "styled-components";
-import {EllipsedText} from "ui-components/Text";
+import {EllipsedText, TextP} from "ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Fuse from "fuse.js";
 import {GenericTextParameter, GenericTextSetter, GenericTextValidator} from "Applications/Jobs/Widgets/GenericText";
 import {EnumParameter, EnumSetter, EnumValidator} from "Applications/Jobs/Widgets/Enum";
+import {PeerParameter, PeerSetter, PeerValidator} from "Applications/Jobs/Widgets/Peer";
+import {LicenseParameter, LicenseSetter, LicenseValidator} from "Applications/Jobs/Widgets/License";
+import {LicenseServerAccessRight} from "Applications/api";
+
+// Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
+export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
+export type WidgetSetter = (param: ApplicationParameter, value: AppParameterValue) => void;
+
+const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
+    switch (props.parameter.type) {
+        case "boolean":
+            return <BoolParameter {...props} parameter={props.parameter}/>;
+        case "input_directory":
+        case "input_file":
+            return <FilesParameter {...props} parameter={props.parameter}/>;
+        case "text":
+        case "floating_point":
+        case "integer":
+            return <GenericTextParameter {...props} parameter={props.parameter}/>;
+        case "enumeration":
+            return <EnumParameter {...props} parameter={props.parameter}/>;
+        case "peer":
+            return <PeerParameter {...props} parameter={props.parameter}/>;
+        case "license_server":
+            return <LicenseParameter {...props} parameter={props.parameter}/>;
+    }
+};
+
+const validators: WidgetValidator[] = [
+    BoolValidator,
+    GenericTextValidator,
+    FilesValidator,
+    EnumValidator,
+    PeerValidator,
+    LicenseValidator
+];
+
+const setters: WidgetSetter[] = [
+    BoolSetter,
+    GenericTextSetter,
+    FilesSetter,
+    EnumSetter,
+    PeerSetter,
+    LicenseSetter
+];
 
 export interface WidgetProps {
     parameter: ApplicationParameter;
@@ -79,7 +124,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                         {!parameter.optional || !props.onRemove ? null : (
                             <>
                                 <Box ml="auto"/>
-                                <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove}>
+                                <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}>
                                     Remove
                                     <Icon ml="6px" size={16} name="close"/>
                                 </Text>
@@ -88,7 +133,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     </Flex>
                 </Label>
                 <WidgetBody {...props} />
-                {error ? error : null}
+                {error ? <TextP color={"red"}>{error}</TextP> : null}
                 <Markdown source={parameter.description}/>
             </Box>
         </>;
@@ -169,7 +214,7 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
     }, [pool]);
 
 
-    return <>
+    return <Box>
         <Flex mb={16} alignItems={"center"}>
             <Box flexGrow={1}>
                 <Heading.h4>Optional Parameters</Heading.h4>
@@ -185,25 +230,9 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
         <OptionalWidgetSearchWrapper>
             {results.map(it => mapper(it))}
         </OptionalWidgetSearchWrapper>
-    </>;
+    </Box>;
 };
 
-const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
-    switch (props.parameter.type) {
-        case "boolean":
-            return <BoolParameter {...props} parameter={props.parameter}/>;
-        case "input_directory":
-        case "input_file":
-            return <FilesParameter {...props} parameter={props.parameter}/>;
-        case "text":
-        case "floating_point":
-        case "integer":
-            return <GenericTextParameter {...props} parameter={props.parameter}/>;
-        case "enumeration":
-            return <EnumParameter {...props} parameter={props.parameter}/>;
-    }
-    return null;
-};
 
 interface ValidatedWidgets {
     errors: Record<string, string>;
@@ -224,8 +253,8 @@ export function validateWidgets(params: ApplicationParameter[]): ValidatedWidget
             }
         }
 
-        if (!result.errors[param.name] && !result.values[param.name]) {
-            throw `No value assigned to ${param.name}`;
+        if (!result.errors[param.name] && !result.values[param.name] && !param.optional && param.defaultValue == null) {
+            result.errors[param.name] = "A value is missing for this mandatory field";
         }
     }
     return result;
@@ -244,23 +273,6 @@ export interface WidgetValidationAnswer {
     message?: string;
     value?: AppParameterValue;
 }
-
-export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
-export type WidgetSetter = (param: ApplicationParameter, value: AppParameterValue) => void;
-
-const validators: WidgetValidator[] = [
-    BoolValidator,
-    GenericTextValidator,
-    FilesValidator,
-    EnumValidator
-];
-
-const setters: WidgetSetter[] = [
-    BoolSetter,
-    GenericTextSetter,
-    FilesSetter,
-    EnumSetter
-];
 
 export function widgetId(param: ApplicationParameter): string {
     return `app-param-${param.name}`;

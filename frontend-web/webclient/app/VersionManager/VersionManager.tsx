@@ -2,6 +2,7 @@ import * as React from "react";
 import styled, {keyframes} from "styled-components";
 import {Box} from "ui-components";
 import {addStandardDialog} from "UtilityComponents";
+import {inDevEnvironment} from "UtilityFunctions";
 
 const TIMEOUT_DURATION = 180_000;
 
@@ -53,7 +54,8 @@ const NotifyBox = styled.div`
 
 
 function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => void): void {
-    fetch("/assets/Assets/AppVersion.txt").then(it => {
+    const site = inDevEnvironment() ? "/Assets/AppVersion.txt" : "/assets/Assets/AppVersion.txt";
+    fetch(site).then(it => {
         if (it.ok) {
             it.text().then(version => {
                 if (currentVersion !== version) setNewVersion(version);
@@ -64,14 +66,15 @@ function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => v
 }
 
 async function initialFetch(setInitial: (v: string) => void): Promise<void> {
-    fetch("/assets/Assets/AppVersion.txt").then(it => {
+    const site = inDevEnvironment() ? "/Assets/AppVersion.txt" : "/assets/Assets/AppVersion.txt";
+    fetch(site).then(it => {
         if (it.ok) {
             it.text().then(version => setInitial(version));
         } else {
             console.warn("Failed to fetch version from backend. Retrying.");
-            setTimeout(initialFetch(setInitial), TIMEOUT_DURATION);
+            setTimeout(() => initialFetch(setInitial), TIMEOUT_DURATION);
         }
-    }).catch(() => setTimeout(initialFetch(setInitial), TIMEOUT_DURATION));
+    }).catch(() => setTimeout(() => initialFetch(setInitial), TIMEOUT_DURATION));
 }
 
 function notifyModal(): void {

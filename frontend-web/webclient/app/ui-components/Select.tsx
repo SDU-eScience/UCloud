@@ -19,7 +19,7 @@ interface SelectProps extends SpaceProps, WidthProps {
     fontSize?: number | string;
     leftLabel?: boolean;
     rightLabel?: boolean;
-    showError?: boolean;
+    error?: boolean;
 }
 
 const SelectBase = styled.select<SelectProps>`
@@ -33,15 +33,16 @@ const SelectBase = styled.select<SelectProps>`
     color: black;
   }
 
-  ${p => p.showError ? `&:invalid {
+  &:invalid {
     border-color: var(--red, #f00);
-  }` : null}
+  }
 
   background-color: transparent;
   border-radius: ${theme.radius};
   border-width: ${p => p.theme.borderWidth};
   border-style: solid;
   border-color: var(--borderGray, #f00);
+  ${p => p.error ? "border-color: var(--red, #f00);" : null}
 
   &:focus {
     outline: none;

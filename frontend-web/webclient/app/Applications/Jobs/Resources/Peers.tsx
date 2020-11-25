@@ -30,7 +30,6 @@ export const PeerResource: React.FunctionComponent<{
                 {ids.length !== 0 ? (
                     <>
                         You will be able contact the <b>job</b> using its <b>hostname</b>.
-                        File systems used by the <b>job</b> are automatically added to this job.
                     </>
                 ) : (
                     <>

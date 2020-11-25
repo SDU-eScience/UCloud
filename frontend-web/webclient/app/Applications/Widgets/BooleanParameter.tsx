@@ -17,7 +17,6 @@ export const BooleanParameter = (props: BooleanParameter): JSX.Element => {
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             <Flex>
                 <Select
-                    showError={props.initialSubmit || props.parameter.optional}
                     id="select"
                     selectRef={props.parameterRef}
                     key={props.parameter.name}

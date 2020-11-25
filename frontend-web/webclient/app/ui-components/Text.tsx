@@ -38,10 +38,12 @@ export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, Co
   italic?: boolean;
   bold?: boolean;
   cursor?: Cursor;
+  selectable?: boolean;
 }
 
 const Text = styled.div<TextProps>`
   cursor: ${props => props.cursor};
+  ${p => p.selectable === false ? "user-select: none;" : null}
   ${width}
   ${textStyle}
   ${fontSize}

@@ -1,9 +1,8 @@
 import * as React from "react";
 import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Checkbox, Select} from "ui-components";
+import {Select} from "ui-components";
 import {compute} from "UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
 
@@ -12,8 +11,10 @@ interface EnumProps extends WidgetProps {
 }
 
 export const EnumParameter: React.FunctionComponent<EnumProps> = props => {
+    const error = props.errors[props.parameter.name] != null;
     return <Flex>
-        <Select id={widgetId(props.parameter)}>
+        <Select id={widgetId(props.parameter)} error={error}>
+            <option value={""} />
             {props.parameter.options.map(it => (
                 <option key={it.value} value={it.value}>{it.name}</option>
             ))}
@@ -23,7 +24,19 @@ export const EnumParameter: React.FunctionComponent<EnumProps> = props => {
 
 export const EnumValidator: WidgetValidator = (param) => {
     if (param.type === "enumeration") {
-        return {valid: false, message: "NYI"};
+        const elem = findElement(param);
+        if (elem === null) {
+            return {valid: true};
+        } else {
+            if (elem.value === "") return {valid: true};
+
+            for (const opt of param.options) {
+                if (opt.value === elem.value) {
+                    return {valid: true, value: {type: "text", value: elem.value}};
+                }
+            }
+            return {valid: false, message: `Invalid value: ${elem.value}`};
+        }
     }
 
     return {valid: true};
@@ -34,9 +47,10 @@ export const EnumSetter: WidgetSetter = (param, value) => {
     if (value.type !== "text") return;
 
     const selector = findElement(param);
-    selector.value = value.value ? "true" : "false";
+    if (selector === null) throw "Missing element for: " + param.name;
+    selector.value = value.value;
 };
 
-function findElement(param: ApplicationParameterNS.Enumeration): HTMLSelectElement {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement;
+function findElement(param: ApplicationParameterNS.Enumeration): HTMLSelectElement | null {
+    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
 }

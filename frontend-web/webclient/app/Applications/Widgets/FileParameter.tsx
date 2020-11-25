@@ -25,7 +25,6 @@ export const InputFileParameter = (props: InputFileParameterProps): JSX.Element 
     return (
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             <FileInputSelector
-                showError={props.initialSubmit || props.parameter.optional}
                 key={props.parameter.name}
                 path={props.parameterRef.current?.value ?? ""}
                 onFileSelect={file => {
@@ -47,7 +46,6 @@ export const InputDirectoryParameter = (props: InputFolderParameterProps): JSX.E
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             <FileInputSelector
                 defaultValue={props.defaultValue}
-                showError={props.initialSubmit || props.parameter.optional}
                 key={props.parameter.name}
                 path={props.parameterRef.current?.value ?? ""}
                 onFileSelect={file => {

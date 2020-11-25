@@ -1,9 +1,8 @@
 import * as React from "react";
 import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Checkbox, Select} from "ui-components";
+import {Select} from "ui-components";
 import {compute} from "UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
 
@@ -12,8 +11,10 @@ interface BoolProps extends WidgetProps {
 }
 
 export const BoolParameter: React.FunctionComponent<BoolProps> = props => {
+    const error = props.errors[props.parameter.name] != null;
     return <Flex>
-        <Select id={widgetId(props.parameter)}>
+        <Select id={widgetId(props.parameter)} error={error}>
+            <option value={""}/>
             <option value="true">{props.parameter.trueValue}</option>
             <option value="false">{props.parameter.falseValue}</option>
         </Select>
@@ -22,12 +23,13 @@ export const BoolParameter: React.FunctionComponent<BoolProps> = props => {
 
 export const BoolValidator: WidgetValidator = (param) => {
     if (param.type === "boolean") {
-        // TODO Check data
         const elem = findElement(param);
-        if (elem.value === "false") {
+        if (elem === null || elem.value === "") {
+            return {valid: true}; // Checked later if mandatory
+        } else if (elem.value === "false") {
             return {valid: true, value: {type: "boolean", value: false}};
-        } else {
-            return {valid: false, message: "NYI"};
+        } else if (elem.value === "true") {
+            return {valid: true, value: {type: "boolean", value: true}};
         }
     }
 
@@ -39,10 +41,11 @@ export const BoolSetter: WidgetSetter = (param, value) => {
     if (value.type !== "boolean") return;
 
     const selector = findElement(param);
+    if (!selector) throw "Missing element for: " + param.name;
     selector.value = value.value ? "true" : "false";
 };
 
-function findElement(param: ApplicationParameterNS.Bool): HTMLSelectElement {
-    return document.getElementById(widgetId(param)) as HTMLSelectElement;
+function findElement(param: ApplicationParameterNS.Bool): HTMLSelectElement | null {
+    return document.getElementById(widgetId(param)) as HTMLSelectElement | null;
 }
 
