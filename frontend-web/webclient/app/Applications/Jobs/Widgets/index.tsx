@@ -62,7 +62,6 @@ const setters: WidgetSetter[] = [
 
 export interface WidgetProps {
     parameter: ApplicationParameter;
-    generation: number;
     errors: Record<string, string>;
 }
 

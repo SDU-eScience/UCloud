@@ -60,7 +60,6 @@ export const PeerResource: React.FunctionComponent<{
                                 title: "",
                                 description: ""
                             }}
-                            generation={0}
                             errors={errors}
                             onRemove={() => {
                                 onRemove(entry);

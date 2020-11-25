@@ -39,7 +39,7 @@ export const GenericTextValidator: WidgetValidator = (param) => {
         return {valid: true, value: {type: "text", value: elem.value}};
     } else if (param.type === "integer") {
         if (elem.value === "") return {valid: true};
-        if (/^\d+$/.test(elem.value)) {
+        if (/^[+-]?\d+$/.test(elem.value)) {
             return {valid: true, value: {type: "integer", value: parseInt(elem.value, 10)}};
         } else {
             return {valid: false, message: "Invalid integer supplied. Example: 42"};

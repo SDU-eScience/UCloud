@@ -67,7 +67,6 @@ export const FolderResource: React.FunctionComponent<{
                             title: "",
                             description: ""
                         }}
-                        generation={0}
                         errors={errors}
                         onRemove={() => {
                             onRemove(entry);
