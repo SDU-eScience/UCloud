@@ -39,6 +39,7 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
+    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number}>({cost: 0, balance: 0});
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -174,13 +175,23 @@ export const Create: React.FunctionComponent = () => {
                     Submit
                 </Button>
 
-                <Box mt={32} color={this.state.balance >= estimatedCost ? "black" : "red"} textAlign="center">
-                    {!this.state.reservationMachine ? null : (
+                <Box mt={32} color={estimatedCost.balance >= estimatedCost.cost ? "black" : "red"} textAlign="center">
+                    {estimatedCost.balance === 0 ? null : (
                         <>
                             <Icon name={"grant"}/>{" "}
                             Estimated cost: <br/>
 
-                            {creditFormatter(estimatedCost, 0)}
+                            {creditFormatter(estimatedCost.cost, 0)}
+                        </>
+                    )}
+                </Box>
+                <Box mt={32} color="black" textAlign="center">
+                    {estimatedCost.balance === 0 ? null : (
+                        <>
+                            <Icon name="grant"/>{" "}
+                            Current balance: <br/>
+
+                            {creditFormatter(estimatedCost.balance, 0)}
                         </>
                     )}
                 </Box>
@@ -190,7 +201,11 @@ export const Create: React.FunctionComponent = () => {
             <ContainerForText>
                 <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
                     {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
-                    <ReservationParameter application={application} errors={reservationErrors}/>
+                    <ReservationParameter
+                        application={application}
+                        errors={reservationErrors}
+                        onEstimatedCostChange={(cost, balance) => setEstimatedCost({cost, balance})}
+                    />
 
                     {/* Parameters */}
                     <Box>

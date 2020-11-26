@@ -38,29 +38,46 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const recalculateCost = useCallback(() => {
         const {options} = validateReservation();
-        if (options) {
+        if (options != null && options.timeAllocation != null) {
             const pricePerUnit = selectedMachine?.pricePerUnit ?? 0;
-            const estimatedCost = options.timeAllocation.hours * 60 * pricePerUnit +
-                (options.timeAllocation.minutes * pricePerUnit)
+            const estimatedCost =
+                (options.timeAllocation.hours * 60 * pricePerUnit +
+                (options.timeAllocation.minutes * pricePerUnit)) * options.replicas;
+            if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance);
         }
+    }, [selectedMachine, balance, onEstimatedCostChange]);
+
+    useEffect(() => {
+        recalculateCost();
     }, [selectedMachine]);
 
     return <Box>
         <Label mb={"4px"}>
             Job name
-            <Input id={reservationName} placeholder={"Example: Run with parameters XYZ"}/>
+            <Input
+                id={reservationName}
+                placeholder={"Example: Run with parameters XYZ"}
+            />
             {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}
         </Label>
 
         <Flex mb={"1em"}>
             <Label>
                 Hours <MandatoryField/>
-                <Input id={reservationHours} onBlur={recalculateCost}/>
+                <Input
+                    id={reservationHours}
+                    onBlur={recalculateCost}
+                    defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1}
+                />
             </Label>
             <Box ml="4px"/>
             <Label>
                 Minutes <MandatoryField/>
-                <Input id={reservationMinutes} onBlur={recalculateCost}/>
+                <Input
+                    id={reservationMinutes}
+                    onBlur={recalculateCost}
+                    defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.minutes ?? 0}
+                />
             </Label>
         </Flex>
         {errors["timeAllocation"] ? <TextP color={"red"}>{errors["timeAllocation"]}</TextP> : null}
@@ -79,7 +96,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
         <div>
             <Label>Machine type <MandatoryField/></Label>
-            <Machines onMachineChange={onMachineChange}/>
+            <Machines onMachineChange={setSelectedMachine}/>
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
         </div>
     </Box>
@@ -135,6 +152,8 @@ export function validateReservation(): ValidationAnswer {
         }
 
         values["replicas"] = parseInt(replicas.value, 10);
+    } else {
+        values["replicas"] = 1;
     }
 
     const machineReservation = validateMachineReservation();
