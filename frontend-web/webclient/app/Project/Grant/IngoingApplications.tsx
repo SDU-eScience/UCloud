@@ -28,7 +28,6 @@ import {ThemeColor} from "ui-components/theme";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {FilterTrigger} from "./OutgoingApplications";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {prettierString} from "UtilityFunctions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
@@ -131,7 +130,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                     left={
                         <Flex width={1}>
                             <Text title={app.grantRecipientTitle} mr={16}>
-                                <strong>{app.grantRecipientTitle}</strong>
+                                {app.grantRecipientTitle}
                             </Text>
                             {slim ? null : (
                                 <Truncate>
@@ -185,3 +184,5 @@ export const GrantApplicationList: React.FunctionComponent<{
         </List>
     );
 };
+
+export default IngoingApplications;
