@@ -145,6 +145,7 @@ export interface HookStore {
     computeProducts?: APICallStateWithParams<Page<Product>>;
     storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
+    cloudApiCache?: Record<string, { expiresAt: number, cached: any }>;
 }
 
 interface LegacyReduxObject {

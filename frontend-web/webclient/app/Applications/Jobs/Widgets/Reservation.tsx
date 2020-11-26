@@ -8,6 +8,9 @@ import {
     setMachineReservationFromRef,
     validateMachineReservation
 } from "Applications/Jobs/Widgets/Machines";
+import {useCallback, useEffect, useState} from "react";
+import {useCloudAPI} from "Authentication/DataHook";
+import {useProjectId} from "Project";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -17,7 +20,31 @@ const reservationReplicas = "reservation-replicas";
 export const ReservationParameter: React.FunctionComponent<{
     application: UCloud.compute.Application;
     errors: ReservationErrors;
-}> = ({application, errors}) => {
+    onEstimatedCostChange?: (cost: number, balance: number) => void;
+}> = ({application, errors, onEstimatedCostChange}) => {
+    // Estimated cost
+    const [selectedMachine, setSelectedMachine] = useState<UCloud.accounting.ProductNS.Compute | null>(null);
+    const [wallet, fetchWallet] = useCloudAPI<UCloud.accounting.RetrieveBalanceResponse>({noop: true}, {wallets: []});
+    const balance = wallet.data.wallets.find(it =>
+        it.area === "COMPUTE" &&
+        it.wallet.paysFor.id === selectedMachine?.category.id &&
+        it.wallet.paysFor.provider === selectedMachine.category.provider
+    )?.balance ?? 0;
+
+    const projectId = useProjectId();
+    useEffect(() => {
+        fetchWallet(UCloud.accounting.wallets.retrieveBalance({}));
+    }, [projectId]);
+
+    const recalculateCost = useCallback(() => {
+        const {options} = validateReservation();
+        if (options) {
+            const pricePerUnit = selectedMachine?.pricePerUnit ?? 0;
+            const estimatedCost = options.timeAllocation.hours * 60 * pricePerUnit +
+                (options.timeAllocation.minutes * pricePerUnit)
+        }
+    }, [selectedMachine]);
+
     return <Box>
         <Label mb={"4px"}>
             Job name
@@ -28,12 +55,12 @@ export const ReservationParameter: React.FunctionComponent<{
         <Flex mb={"1em"}>
             <Label>
                 Hours <MandatoryField/>
-                <Input id={reservationHours}/>
+                <Input id={reservationHours} onBlur={recalculateCost}/>
             </Label>
             <Box ml="4px"/>
             <Label>
                 Minutes <MandatoryField/>
-                <Input id={reservationMinutes}/>
+                <Input id={reservationMinutes} onBlur={recalculateCost}/>
             </Label>
         </Flex>
         {errors["timeAllocation"] ? <TextP color={"red"}>{errors["timeAllocation"]}</TextP> : null}
@@ -43,7 +70,7 @@ export const ReservationParameter: React.FunctionComponent<{
                 <Flex mb={"1em"}>
                     <Label>
                         Number of replicas
-                        <Input id={reservationReplicas}/>
+                        <Input id={reservationReplicas} onBlur={recalculateCost}/>
                     </Label>
                 </Flex>
                 {errors["replicas"] ? <TextP color={"red"}>{errors["replicas"]}</TextP> : null}
@@ -52,7 +79,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
         <div>
             <Label>Machine type <MandatoryField/></Label>
-            <Machines />
+            <Machines onMachineChange={onMachineChange}/>
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
         </div>
     </Box>

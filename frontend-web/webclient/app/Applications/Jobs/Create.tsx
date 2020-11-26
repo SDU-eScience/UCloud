@@ -9,7 +9,7 @@ import {
     Box,
     Button,
     ContainerForText,
-    Flex, Grid,
+    Flex, Grid, Icon,
     OutlineButton,
     VerticalButtonGroup
 } from "ui-components";
@@ -23,6 +23,8 @@ import {useResource} from "Applications/Jobs/Resources";
 import {ReservationErrors, ReservationParameter, validateReservation} from "Applications/Jobs/Widgets/Reservation";
 import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "UtilityComponents";
+import {creditFormatter} from "Project/ProjectUsage";
+import {useProjectId} from "Project";
 
 interface InsufficientFunds {
     why?: string;
@@ -47,8 +49,8 @@ export const Create: React.FunctionComponent = () => {
     const peers = useResource("resourcePeer");
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
-
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
+
 
     useEffect(() => {
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
@@ -171,6 +173,17 @@ export const Create: React.FunctionComponent = () => {
                 >
                     Submit
                 </Button>
+
+                <Box mt={32} color={this.state.balance >= estimatedCost ? "black" : "red"} textAlign="center">
+                    {!this.state.reservationMachine ? null : (
+                        <>
+                            <Icon name={"grant"}/>{" "}
+                            Estimated cost: <br/>
+
+                            {creditFormatter(estimatedCost, 0)}
+                        </>
+                    )}
+                </Box>
             </VerticalButtonGroup>
         }
         main={

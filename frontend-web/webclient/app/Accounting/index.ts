@@ -1,6 +1,8 @@
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 
+export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 1000 * 60 * 30};
+
 export type AccountType = "USER" | "PROJECT";
 
 export interface ProductCategoryId {
@@ -124,7 +126,7 @@ export interface Product {
     pricePerUnit: number;
     category: ProductCategoryId;
     description: string;
-    availability: {type: "available" | "unavailable"; reason?: string};
+    availability: { type: "available" | "unavailable"; reason?: string };
     priority: number;
     cpu?: number;
     memoryInGigs?: number;
@@ -161,8 +163,12 @@ export function listByProductArea(request: ListProductsByAreaRequest): APICallPa
     };
 }
 
-export interface RetrieveFromProviderRequest {provider: string;}
+export interface RetrieveFromProviderRequest {
+    provider: string;
+}
+
 export type RetrieveFromProviderResponse = Product[];
+
 export function retrieveFromProvider(
     request: RetrieveFromProviderRequest
 ): APICallParameters<RetrieveFromProviderRequest> {
@@ -252,12 +258,12 @@ export function transformUsageChartForTable(
     type: ProductArea,
     wallets: WalletBalance[],
     expanded: Set<string>
-): {provider: string; projects: AccountingProject[]} {
+): { provider: string; projects: AccountingProject[] } {
     const projectMap: Record<string, AccountingProject> = {};
     const relevantWallets = wallets.filter(it =>
         it.area === type &&
         ((rootProject && it.wallet.type === "PROJECT") ||
-            (!rootProject  && it.wallet.type === "USER"))
+            (!rootProject && it.wallet.type === "USER"))
     );
 
     chart.lines.filter(it => it.area === type).forEach(line => {

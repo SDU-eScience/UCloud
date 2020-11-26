@@ -1,6 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {useCallback, useEffect, useReducer, useState} from "react";
-import {defaultErrorHandler} from "UtilityFunctions";
+import {useCallback, useEffect, useReducer, useRef, useState} from "react";
+import {defaultErrorHandler, timestampUnixMs} from "UtilityFunctions";
 import {useGlobal, ValueOrSetter} from "Utilities/ReduxHooks";
 import {HookStore} from "DefaultObjects";
 import {usePromiseKeeper} from "PromiseKeeper";
@@ -44,6 +44,7 @@ declare global {
         noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
         withCredentials?: boolean;
         projectOverride?: string;
+        disableCache?: boolean;
     }
 }
 
@@ -94,62 +95,6 @@ export async function callAPIWithErrorHandler<T>(
         return null;
     }
 }
-
-export function useCloudAPI<T, Parameters = any>(
-    callParametersInitial: APICallParameters<Parameters, T>,
-    dataInitial: T
-): [APICallState<T>, (params: APICallParameters<Parameters>) => void, APICallParameters<Parameters>] {
-    const [params, setParams] = useState(callParametersInitial);
-
-    const [state, dispatch] = useReducer(dataFetchReducer, {
-        loading: false,
-        error: undefined,
-        data: dataInitial
-    });
-
-    useEffect(() => {
-        let didCancel = false;
-        if (params.noop !== true) {
-            async function fetchData(): Promise<void> {
-                if (params.path !== undefined) {
-                    dispatch({type: "FETCH_INIT"});
-
-                    try {
-                        const result: T = await callAPI(params);
-
-                        if (!didCancel) {
-                            dispatch({type: "FETCH_SUCCESS", payload: result});
-                        }
-                    } catch (e) {
-                        if (!didCancel) {
-                            const statusCode = e.request.status;
-                            let why = "Internal Server Error";
-                            if (!!e.response && e.response.why) {
-                                why = e.response.why;
-                            }
-
-                            dispatch({type: "FETCH_FAILURE", data: dataInitial, error: {why, statusCode}});
-                        }
-                    }
-                }
-            }
-
-            fetchData();
-        }
-
-        return () => {
-            didCancel = true;
-        };
-    }, [params]);
-
-    function doFetch(params: APICallParameters): void {
-        setParams(params);
-    }
-
-    const returnedState = {...state} as APICallState<T>;
-    return [returnedState, doFetch, params];
-}
-
 
 export function useGlobalCloudAPI<T, Parameters = any>(
     property: string,
@@ -298,4 +243,168 @@ export function useAsyncWork(): AsyncWorker {
     };
 
     return [isLoading, error, startWork];
+}
+
+export interface CloudCacheHook {
+    cleanup: () => void;
+    removePrefix(pathPrefix: string);
+}
+
+export function useCloudCache(): CloudCacheHook {
+    const [cache, setCache, mergeCache] = useGlobal("cloudApiCache", {});
+
+    const cleanup = useCallback(() => {
+        setCache((oldCache) => {
+            if (oldCache === undefined) return {};
+            const now = timestampUnixMs();
+
+            const newCache = {...oldCache};
+            for (const key of Object.keys(oldCache)) {
+                if (now > oldCache[key].expiresAt) {
+                    delete newCache[key];
+                }
+            }
+
+            return newCache;
+        });
+    }, []);
+
+    const removePrefix = useCallback((prefix: string) => {
+        setCache((oldCache) => {
+            if (oldCache === undefined) return {};
+            const now = timestampUnixMs();
+
+            const newCache = {...oldCache};
+            for (const key of Object.keys(oldCache)) {
+                if (now > oldCache[key].expiresAt) {
+                    delete newCache[key];
+                } else {
+                    const parsedKey = JSON.parse(key) as APICallParameters;
+                    if (parsedKey.path?.indexOf(prefix) === 0) {
+                        delete newCache[key];
+                    }
+                }
+            }
+
+            return newCache;
+        });
+    }, []);
+
+    return {cleanup, removePrefix};
+}
+
+export function useCloudAPI<T, Parameters = any>(
+    callParametersInitial: APICallParameters<Parameters, T>,
+    dataInitial: T,
+    cachingPolicy?: {cacheTtlMs: number, cacheKey: string}
+): [APICallState<T>, (params: APICallParameters<Parameters>, disableCache?: boolean) => void, APICallParameters<Parameters>] {
+    const shouldLog = (cachingPolicy?.cacheKey === "avatar");
+    const parameters = useRef(callParametersInitial);
+    const initialCall = useRef(true);
+    const lastKey = useRef("");
+    if (shouldLog) console.log("In here");
+    const [cache,, mergeCache] = useGlobal("cloudApiCache", {}, (oldCache, newCache) => {
+        let cacheKey = cachingPolicy?.cacheKey;
+        if (cacheKey === undefined) return true; // Don't give us the update
+        cacheKey += "/";
+
+        if (oldCache === newCache) return true;
+
+        for (const key of Object.keys(newCache)) {
+            if (key.indexOf(cacheKey) === 0) {
+                if (newCache[key] !== oldCache[key] && key != lastKey.current) {
+                    if (shouldLog) console.log("Change");
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    });
+
+    const [state, dispatch] = useReducer(dataFetchReducer, {
+        loading: false,
+        error: undefined,
+        data: dataInitial
+    });
+
+    const refetch = useCallback((params: APICallParameters<Parameters, T>) => {
+        if (shouldLog) console.log("  Fetching");
+        let didCancel = false;
+
+        let key: string | null = null;
+        if (cachingPolicy !== undefined) {
+            const keyObj = {...params};
+            delete keyObj.reloadId;
+            key = cachingPolicy.cacheKey + "/" + JSON.stringify(keyObj);
+            lastKey.current = key;
+        }
+
+        const now = timestampUnixMs();
+        const cachedEntry = key ? cache[key] : null;
+
+        // NOTE: We only cache successful attempts
+        if (cachedEntry && now < cachedEntry.expiresAt && !params.disableCache) {
+            if (shouldLog) console.log("Using cached entry: ", cachedEntry, cache);
+            dispatch({type: "FETCH_SUCCESS", payload: cachedEntry});
+            return;
+        }
+
+        if (params.noop !== true) {
+            async function fetchData(): Promise<void> {
+                if (params.path !== undefined) {
+                    if (shouldLog) console.log("    Init");
+                    dispatch({type: "FETCH_INIT"});
+
+                    try {
+                        const result: T = await callAPI(params);
+
+                        if (!didCancel) {
+                            if (shouldLog) console.log("    Success");
+                            dispatch({type: "FETCH_SUCCESS", payload: result});
+
+                            if (cachingPolicy !== undefined && cachingPolicy.cacheTtlMs > 0 && params.method === "GET") {
+                                const newEntry = {};
+                                newEntry[key!] = {expiresAt: now + cachingPolicy.cacheTtlMs, cached: result};
+                                mergeCache(newEntry);
+                            }
+                        }
+                    } catch (e) {
+                        if (!didCancel) {
+                            const statusCode = e.request.status;
+                            let why = "Internal Server Error";
+                            if (!!e.response && e.response.why) {
+                                why = e.response.why;
+                            }
+
+                            dispatch({type: "FETCH_FAILURE", data: dataInitial, error: {why, statusCode}});
+                        }
+                    }
+                }
+            }
+
+            fetchData();
+        }
+
+        return () => {
+            didCancel = true;
+        };
+    }, []);
+
+    const doFetch = useCallback((params: APICallParameters, disableCache = false): void => {
+        if (shouldLog) console.log("doFetch")
+        parameters.current = params;
+        if (disableCache) {
+            refetch({...params, disableCache: true});
+        } else {
+            refetch(params);
+        }
+    }, [refetch]);
+
+    if (initialCall.current) {
+        initialCall.current = false;
+        refetch(parameters.current);
+    }
+
+    return [state as APICallState<T>, doFetch, parameters.current];
 }

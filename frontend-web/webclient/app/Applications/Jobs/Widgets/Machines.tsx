@@ -9,14 +9,16 @@ import {theme} from "ui-components";
 import {useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
-import {UCLOUD_PROVIDER} from "Accounting";
+import {productCacheKey, UCLOUD_PROVIDER} from "Accounting";
 import {compute} from "UCloud";
 import ComputeProductReference = compute.ComputeProductReference;
 import styled from "styled-components";
 
 export const reservationMachine = "reservation-machine";
 
-export const Machines: React.FunctionComponent = () => {
+export const Machines: React.FunctionComponent<{
+    onMachineChange?: (product: UCloud.accounting.ProductNS.Compute) => void;
+}> = props => {
     const [machines] = useCloudAPI<UCloud.Page<UCloud.accounting.ProductNS.Compute>>(
         UCloud.accounting.products.listProductionsByType({
             itemsPerPage: 100,
@@ -24,7 +26,8 @@ export const Machines: React.FunctionComponent = () => {
             provider: UCLOUD_PROVIDER,
             area: "COMPUTE"
         }),
-        emptyPage
+        emptyPage,
+        productCacheKey
     );
 
     const [selected, setSelectedOnlyByListener] = useState<UCloud.accounting.ProductNS.Compute | null>(null);
@@ -48,6 +51,7 @@ export const Machines: React.FunctionComponent = () => {
 
                     if (newMachine) {
                         setSelectedOnlyByListener(newMachine);
+                        if (props.onMachineChange) props.onMachineChange(newMachine);
                     }
                 }
             };
@@ -58,7 +62,7 @@ export const Machines: React.FunctionComponent = () => {
         return () => {
             if (valueInput && listener) valueInput.removeEventListener("change", listener);
         };
-    }, [machines.data.items.length]);
+    }, [machines.data.items.length, props.onMachineChange]);
 
     return (
         <ClickableDropdown
