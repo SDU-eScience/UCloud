@@ -33,10 +33,10 @@ function dataFetchReducer<T>(state: APICallState<T>, action): APICallState<T> {
 }
 
 declare global {
-    export interface APICallParameters<Parameters = any, Payload = any> {
+    export interface APICallParameters<Parameters = any, Response = any> {
         method?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH" | "OPTIONS" | "HEAD";
         path?: string;
-        payload?: Payload;
+        payload?: any;
         context?: string;
         maxRetries?: number;
         parameters?: Parameters;
@@ -44,6 +44,7 @@ declare global {
         noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
         withCredentials?: boolean;
         projectOverride?: string;
+        disableCache?: boolean;
     }
 }
 

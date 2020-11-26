@@ -10,7 +10,7 @@ export type ListUserSessionParameters = PaginationRequest;
 
 export function listUserSessions(
     parameters: ListUserSessionParameters
-): APICallParameters<ListUserSessionParameters, void> {
+): APICallParameters<ListUserSessionParameters> {
     return {
         reloadId: Math.random(),
         method: "GET",
