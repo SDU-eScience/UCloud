@@ -256,12 +256,6 @@ class ElasticDao(
                         )
                         .should(
                             QueryBuilders.regexpQuery(
-                                "name",
-                                term
-                            ).boost(2.0f)
-                        )
-                        .should(
-                            QueryBuilders.regexpQuery(
                                 "tags",
                                 term
                             )
