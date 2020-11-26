@@ -391,7 +391,8 @@ class LimitChecker<Ctx : FSUserContext>(
                 SERVICE_USER,
                 productConfiguration.id,
                 gigabytes,
-                discardAfterLimitCheck = true
+                discardAfterLimitCheck = true,
+                transactionType = TransactionType.PAYMENT
             ),
             serviceClient
         ).orThrow()

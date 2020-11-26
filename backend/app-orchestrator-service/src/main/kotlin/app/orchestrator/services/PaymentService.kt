@@ -74,7 +74,8 @@ class PaymentService(
                 ),
                 job.owner,
                 job.reservation.id,
-                units
+                units,
+                transactionType = TransactionType.PAYMENT
             ),
             serviceClient
         ).statusCode
