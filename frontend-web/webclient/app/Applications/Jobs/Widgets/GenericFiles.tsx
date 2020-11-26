@@ -3,12 +3,14 @@ import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "ui-components";
 import FileSelector from "Files/FileSelector";
-import {useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import styled from "styled-components";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
 import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
+import {compute} from "UCloud";
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 type GenericFileParam =
     UCloud.compute.ApplicationParameterNS.InputFile |
@@ -20,28 +22,30 @@ interface FilesProps extends WidgetProps {
 
 export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const isDirectoryInput = props.parameter.type === "input_directory";
-    const valueRef = useRef<HTMLInputElement>(null);
-    const visualRef = useRef<HTMLInputElement>(null);
     const [isOpen, setOpen] = useState(false);
 
-    const valueInput = valueRef.current;
-    const visualInput = visualRef.current;
+    const valueInput = () => {
+        return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
+    }
+    const visualInput = () => {
+        return document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null
+    };
 
     const projects = getProjectNames(useProjectStatus());
 
-    useEffect(() => {
-        let listener: EventListener | null = null;
-        if (valueInput && visualInput) {
-            listener = () => {
-                visualInput.value = replaceHomeOrProjectFolder(valueInput.value, Client, projects);
-            };
-            valueInput.addEventListener("change", listener);
-        }
-
-        return () => {
-            if (valueInput && listener) valueInput.removeEventListener("change", listener);
+    useLayoutEffect(() => {
+        const value = valueInput();
+        const visual = visualInput();
+        const listener = () => {
+            if (value && visual) {
+                visual.value = replaceHomeOrProjectFolder(value!.value, Client, projects);
+            }
         };
-    }, [valueInput?.id, visualInput?.id, projects.length]); // TODO getProjectNames returns a new copy every time
+        value!.addEventListener("change", listener);
+        return () => {
+            value!.removeEventListener("change", listener);
+        }
+    }, []);
 
     const error = props.errors[props.parameter.name] != null;
     return <FileSelector
@@ -51,16 +55,16 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         onlyAllowFolders={isDirectoryInput}
 
         onFileSelect={file => {
-            valueInput!.value = file?.path ?? "";
-            valueInput!.dispatchEvent(new Event("change"));
+            valueInput()!.value = file?.path ?? "";
+            valueInput()!.dispatchEvent(new Event("change"));
             setOpen(false);
         }}
 
         trigger={
             <>
-                <input type={"hidden"} ref={valueRef} id={widgetId(props.parameter)}/>
+                <input type={"hidden"} id={widgetId(props.parameter)}/>
                 <FileSelectorInput
-                    ref={visualRef}
+                    id={widgetId(props.parameter) + "visual"}
                     placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
                     onClick={() => setOpen(true)}
                     error={error}
@@ -88,11 +92,12 @@ export const FilesValidator: WidgetValidator = (param) => {
 };
 
 export const FilesSetter: WidgetSetter = (param, value) => {
-    if (param.type !== "input_directory") return;
-    if (value.type !== "file") return;
+    if (param.type !== "input_directory" && param.type !== "input_file") return;
+    const file = value as AppParameterValueNS.File;
 
     const selector = findElement(param);
-    selector.value = value.path;
+    selector.value = file.path;
+    selector.dispatchEvent(new Event("change"));
 };
 
 function findElement(param: GenericFileParam): HTMLSelectElement {

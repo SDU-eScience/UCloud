@@ -5,6 +5,7 @@ import {Select} from "ui-components";
 import {compute} from "UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 interface BoolProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Bool;
@@ -38,11 +39,10 @@ export const BoolValidator: WidgetValidator = (param) => {
 
 export const BoolSetter: WidgetSetter = (param, value) => {
     if (param.type !== "boolean") return;
-    if (value.type !== "boolean") return;
 
     const selector = findElement(param);
     if (!selector) throw "Missing element for: " + param.name;
-    selector.value = value.value ? "true" : "false";
+    selector.value = (value as AppParameterValueNS.Bool).value ? "true" : "false";
 };
 
 function findElement(param: ApplicationParameterNS.Bool): HTMLSelectElement | null {

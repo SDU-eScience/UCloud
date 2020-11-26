@@ -4,14 +4,16 @@ import {Box, Button, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import BaseLink from "ui-components/BaseLink";
 import {Widget} from "Applications/Jobs/Widgets";
+import {compute} from "UCloud";
+import ApplicationParameter = compute.ApplicationParameter;
 
 export const PeerResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
-    ids: string[];
+    params: ApplicationParameter[];
     errors: Record<string, string>;
     onAdd: () => void;
     onRemove: (id: string) => void;
-}> = ({application, ids, errors, onAdd, onRemove}) => {
+}> = ({application, params, errors, onAdd, onRemove}) => {
     return !application.invocation.shouldAllowAdditionalPeers ? null : (
         <Box>
             <Flex alignItems={"center"}>
@@ -27,7 +29,7 @@ export const PeerResource: React.FunctionComponent<{
                 </Button>
             </Flex>
             <Box mb={8} mt={8}>
-                {ids.length !== 0 ? (
+                {params.length !== 0 ? (
                     <>
                         You will be able contact the <b>job</b> using its <b>hostname</b>.
                     </>
@@ -50,19 +52,13 @@ export const PeerResource: React.FunctionComponent<{
             </Box>
 
             {
-                ids.map(entry => (
-                    <Box key={entry} mb={"7px"}>
+                params.map(entry => (
+                    <Box key={entry.name} mb={"7px"}>
                         <Widget
-                            parameter={{
-                                type: "peer",
-                                name: entry,
-                                optional: true,
-                                title: "",
-                                description: ""
-                            }}
+                            parameter={entry}
                             errors={errors}
                             onRemove={() => {
-                                onRemove(entry);
+                                onRemove(entry.name);
                             }}
                         />
                     </Box>

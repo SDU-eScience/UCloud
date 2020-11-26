@@ -2,7 +2,7 @@ import * as React from "react";
 import * as UCloud from "UCloud";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {useRouteMatch} from "react-router";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {MainContainer} from "MainContainer/MainContainer";
 import {AppHeader} from "Applications/View";
 import {
@@ -14,17 +14,26 @@ import {
     VerticalButtonGroup
 } from "ui-components";
 import Link from "ui-components/Link";
-import {OptionalWidgetSearch, validateWidgets, Widget} from "Applications/Jobs/Widgets";
+import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "Applications/Jobs/Widgets";
 import * as Heading from "ui-components/Heading";
 import {FolderResource} from "Applications/Jobs/Resources/Folders";
 import {IngressResource} from "Applications/Jobs/Resources/Ingress";
 import {PeerResource} from "Applications/Jobs/Resources/Peers";
-import {useResource} from "Applications/Jobs/Resources";
-import {ReservationErrors, ReservationParameter, validateReservation} from "Applications/Jobs/Widgets/Reservation";
+import {createSpaceForLoadedResources, injectResources, useResource} from "Applications/Jobs/Resources";
+import {
+    ReservationErrors,
+    ReservationParameter,
+    setReservation,
+    validateReservation
+} from "Applications/Jobs/Widgets/Reservation";
 import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "UtilityComponents";
 import {creditFormatter} from "Project/ProjectUsage";
-import {useProjectId} from "Project";
+import {ImportParameters} from "Applications/Jobs/Widgets/ImportParameters";
+import {compute} from "UCloud";
+import JobParameters = compute.JobParameters;
+import LoadingIcon from "LoadingIcon/LoadingIcon";
+import {FavoriteToggle} from "Applications/Jobs/FavoriteToggle";
 
 interface InsufficientFunds {
     why?: string;
@@ -33,31 +42,89 @@ interface InsufficientFunds {
 
 export const Create: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{ appName: string, appVersion: string }>().params;
-    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number}>({cost: 0, balance: 0});
+    const [estimatedCost, setEstimatedCost] = useState<{ cost: number, balance: number }>({cost: 0, balance: 0});
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const urlRef = useRef<HTMLInputElement>(null);
 
-    const folders = useResource("resourceFolder");
-    const ingress = useResource("resourceIngress");
-    const peers = useResource("resourcePeer");
+    const folders = useResource("resourceFolder",
+        (name) => ({type: "input_directory", description: "", title: "", optional: true, name}));
+    const peers = useResource("resourcePeer",
+        (name) => ({type: "peer", description: "", title: "", optional: true, name}));
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
+    const [importDialogOpen, setImportDialogOpen] = useState(false);
+    const jobBeingLoaded = useRef<Partial<JobParameters> | null>(null);
 
     useEffect(() => {
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
     }, [appName, appVersion]);
 
     const application = applicationResp.data;
+
+    const onLoadParameters = useCallback((importedJob: Partial<JobParameters>) => {
+        if (application == null) return;
+        jobBeingLoaded.current = null;
+
+        const parameters = application.invocation.parameters;
+        const values = importedJob.parameters ?? {};
+        const resources = importedJob.resources ?? [];
+
+        {
+            // Find optional parameters and make sure the widgets are initialized
+            const optionalParameters: string[] = [];
+            let needsToRenderParams = false;
+            for (const param of parameters) {
+                if (param.optional && values[param.name]) {
+                    optionalParameters.push(param.name);
+                    if (activeOptParams.indexOf(param.name) === -1) {
+                        needsToRenderParams = true;
+                    }
+                }
+            }
+
+            if (needsToRenderParams) {
+                // Not all widgets have been initialized. Trigger an initialization and start over after render.
+                jobBeingLoaded.current = importedJob;
+                setActiveOptParams(optionalParameters);
+                return;
+            }
+        }
+
+        // Find resources and render if needed
+        if (createSpaceForLoadedResources(folders, resources, "file", jobBeingLoaded, importedJob)) return;
+        if (createSpaceForLoadedResources(peers, resources, "peer", jobBeingLoaded, importedJob)) return;
+
+        // Load reservation
+        setReservation(importedJob);
+
+        // Load parameters
+        for (const param of parameters) {
+            const value = values[param.name]
+            if (value) {
+                setWidgetValues([{param, value}]);
+            }
+        }
+
+        // Load resources
+        injectResources(folders, resources, "file");
+        injectResources(peers, resources, "peer");
+    }, [application, activeOptParams, folders, peers]);
+
+    useLayoutEffect(() => {
+        if (jobBeingLoaded.current !== null) {
+            onLoadParameters(jobBeingLoaded.current);
+        }
+    });
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
@@ -68,22 +135,10 @@ export const Create: React.FunctionComponent = () => {
         const reservationValidation = validateReservation();
         setReservationErrors(reservationValidation.errors);
 
-        const foldersValidation = validateWidgets(folders.ids.map(name => ({
-            type: "input_directory",
-            name,
-            optional: true,
-            title: "",
-            description: ""
-        })));
+        const foldersValidation = validateWidgets(folders.params);
         folders.setErrors(foldersValidation.errors);
 
-        const peersValidation = validateWidgets(peers.ids.map(name => ({
-            type: "peer",
-            name,
-            optional: true,
-            title: "",
-            description: ""
-        })));
+        const peersValidation = validateWidgets(peers.params);
         peers.setErrors(peersValidation.errors);
 
         if (Object.keys(errors).length === 0 &&
@@ -117,16 +172,15 @@ export const Create: React.FunctionComponent = () => {
                 } else if (code == 402) {
                     const why = e?.response?.why;
                     const errorCode = e?.response?.errorCode;
-                    setInsufficientFunds({ why, errorCode });
+                    setInsufficientFunds({why, errorCode});
                 } else {
-                    displayErrorMessageOrDefault(e, "An error occured while submitting the job");
+                    displayErrorMessageOrDefault(e, "An error occurred while submitting the job");
                 }
             }
         }
-    }, [application, folders, ingress, peers]);
+    }, [application, folders, peers]);
 
-    // TODO
-    if (application === null) return <MainContainer main={"Loading"}/>;
+    if (application === null) return <MainContainer main={<LoadingIcon size={36}/>}/>;
 
     const mandatoryParameters = application.invocation!.parameters.filter(it =>
         !it.optional
@@ -159,13 +213,12 @@ export const Create: React.FunctionComponent = () => {
                     fullWidth
                     color={"darkGreen"}
                     as={"label"}
+                    onClick={() => setImportDialogOpen(true)}
                 >
                     Import parameters
                 </OutlineButton>
 
-                <Button fullWidth>
-                    Add to favorites
-                </Button>
+                <FavoriteToggle application={application}/>
 
                 <Button
                     type={"button"}
@@ -200,7 +253,10 @@ export const Create: React.FunctionComponent = () => {
         main={
             <ContainerForText>
                 <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
-                    {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
+                    {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode}/> : null}
+                    <ImportParameters application={application} onImport={onLoadParameters}
+                                      importDialogOpen={importDialogOpen}
+                                      onImportDialogClose={() => setImportDialogOpen(false)}/>
                     <ReservationParameter
                         application={application}
                         errors={reservationErrors}

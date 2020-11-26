@@ -5,6 +5,7 @@ import {Select} from "ui-components";
 import {compute} from "UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 interface EnumProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Enumeration;
@@ -44,11 +45,10 @@ export const EnumValidator: WidgetValidator = (param) => {
 
 export const EnumSetter: WidgetSetter = (param, value) => {
     if (param.type !== "enumeration") return;
-    if (value.type !== "text") return;
 
     const selector = findElement(param);
     if (selector === null) throw "Missing element for: " + param.name;
-    selector.value = value.value;
+    selector.value = (value as AppParameterValueNS.Text).value;
 };
 
 function findElement(param: ApplicationParameterNS.Enumeration): HTMLSelectElement | null {

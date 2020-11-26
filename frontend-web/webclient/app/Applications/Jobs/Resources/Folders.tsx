@@ -7,14 +7,16 @@ import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import BaseLink from "ui-components/BaseLink";
 import {Widget} from "Applications/Jobs/Widgets";
+import {compute} from "UCloud";
+import ApplicationParameter = compute.ApplicationParameter;
 
 export const FolderResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
-    ids: string[];
+    params: ApplicationParameter[];
     errors: Record<string, string>;
     onAdd: () => void;
     onRemove: (id: string) => void;
-}> = ({application, ids, errors, onAdd, onRemove}) => {
+}> = ({application, params, errors, onAdd, onRemove}) => {
     return !application.invocation.shouldAllowAdditionalMounts ? null : (
         <Box>
             <Flex alignItems="center">
@@ -26,7 +28,7 @@ export const FolderResource: React.FunctionComponent<{
             </Flex>
 
             <Box mb={8} mt={8}>
-                {ids.length !== 0 ? (
+                {params.length !== 0 ? (
                     <>
                         Your files will be available at <code>/work/</code>.
                     </>
@@ -57,19 +59,13 @@ export const FolderResource: React.FunctionComponent<{
                 )}
             </Box>
 
-            {ids.map(entry => (
-                <Box key={entry} mb={"7px"}>
+            {params.map(entry => (
+                <Box key={entry.name} mb={"7px"}>
                     <Widget
-                        parameter={{
-                            type: "input_directory",
-                            name: entry,
-                            optional: true,
-                            title: "",
-                            description: ""
-                        }}
+                        parameter={entry}
                         errors={errors}
                         onRemove={() => {
-                            onRemove(entry);
+                            onRemove(entry.name);
                         }}
                     />
                 </Box>

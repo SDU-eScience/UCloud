@@ -7,6 +7,7 @@ import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
 import {useCloudAPI} from "Authentication/DataHook";
 import LicenseServerId = compute.license.LicenseServerId;
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -45,11 +46,10 @@ export const LicenseValidator: WidgetValidator = (param) => {
 
 export const LicenseSetter: WidgetSetter = (param, value) => {
     if (param.type !== "license_server") return;
-    if (value.type !== "license_server") return;
 
     const selector = findElement(param);
     if (selector === null) throw "Missing element for: " + param.name;
-    selector.value = value.id;
+    selector.value = (value as AppParameterValueNS.License).id;
 };
 
 function findElement(param: ApplicationParameterNS.LicenseServer): HTMLSelectElement | null {

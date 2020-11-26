@@ -169,7 +169,7 @@ export function validateReservation(): ValidationAnswer {
     };
 }
 
-export function setReservation(values: ReservationValues): void {
+export function setReservation(values: Partial<ReservationValues>): void {
     const name = document.getElementById(reservationName) as HTMLInputElement | null;
     const hours = document.getElementById(reservationHours) as HTMLInputElement | null;
     const minutes = document.getElementById(reservationMinutes) as HTMLInputElement | null;
@@ -180,7 +180,7 @@ export function setReservation(values: ReservationValues): void {
     name.value = values.name ?? "";
     hours.value = values.timeAllocation?.hours?.toString(10) ?? "";
     minutes.value = values.timeAllocation?.minutes?.toString(10) ?? "";
-    if (replicas != null) replicas.value = values.replicas.toString(10)
+    if (replicas != null && values.replicas !== undefined) replicas.value = values.replicas.toString(10)
 
-    setMachineReservationFromRef(values.product);
+    if (values.product !== undefined) setMachineReservationFromRef(values.product);
 }

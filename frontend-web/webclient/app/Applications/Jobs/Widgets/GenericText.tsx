@@ -57,9 +57,7 @@ export const GenericTextValidator: WidgetValidator = (param) => {
 };
 
 export const GenericTextSetter: WidgetSetter = (param, value) => {
-    if (param.type !== "text" && value.type !== "text") return;
-    if (param.type !== "integer" && value.type !== "integer") return;
-    if (param.type !== "floating_point" && value.type !== "floating_point") return;
+    if (param.type !== "text" && param.type != "integer" && param.type != "floating_point") return;
 
     const selector = findElement(param as GenericTextType);
     if (selector == null) throw "Missing element for " + param.name;

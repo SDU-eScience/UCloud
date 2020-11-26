@@ -26,6 +26,7 @@ import Button from "ui-components/Button";
 import styled from "styled-components";
 import Input from "ui-components/Input";
 import Label from "ui-components/Label";
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -78,14 +79,14 @@ export const PeerValidator: WidgetValidator = (param) => {
 
 export const PeerSetter: WidgetSetter = (param, value) => {
     if (param.type !== "peer") return;
-    if (value.type !== "peer") return;
 
     const name = findElementName(param);
     const job = findElementJob(param);
     if (name === null || job === null) throw "Missing element for: " + param;
 
-    name.value = value.hostname;
-    job.value = value.jobId;
+    const peerValue = value as AppParameterValueNS.Peer;
+    name.value = peerValue.hostname;
+    job.value = peerValue.jobId;
 };
 
 function findElementName(param: ApplicationParameterNS.Peer): HTMLInputElement | null {
