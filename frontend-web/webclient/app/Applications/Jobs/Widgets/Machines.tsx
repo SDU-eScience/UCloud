@@ -9,7 +9,7 @@ import {theme} from "ui-components";
 import {useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
-import {productCacheKey, UCLOUD_PROVIDER} from "Accounting";
+import {UCLOUD_PROVIDER} from "Accounting";
 import {compute} from "UCloud";
 import ComputeProductReference = compute.ComputeProductReference;
 import styled from "styled-components";
@@ -27,7 +27,6 @@ export const Machines: React.FunctionComponent<{
             area: "COMPUTE"
         }),
         emptyPage,
-        productCacheKey
     );
 
     const [selected, setSelectedOnlyByListener] = useState<UCloud.accounting.ProductNS.Compute | null>(null);

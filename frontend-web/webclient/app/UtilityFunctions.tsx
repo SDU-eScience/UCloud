@@ -642,3 +642,5 @@ export function parseJWT(encodedJWT: string): JWT | null {
 
     return parsed;
 }
+
+export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];

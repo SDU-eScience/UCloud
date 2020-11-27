@@ -1,46 +1,5 @@
-import {getStartOfDay, getStartOfWeek} from "Activity/Page";
-import {Client} from "Authentication/HttpClientInstance";
-import {formatRelative} from "date-fns/esm";
-import {enGB} from "date-fns/locale";
-import {SortOrder} from "Files";
-import {MainContainer} from "MainContainer/MainContainer";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
-import {EntriesPerPageSelector} from "Pagination";
-import {List} from "Pagination/List";
-import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Box, Button, Checkbox, Label, List as ItemList, Flex, Text, Icon, Divider} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {DatePicker} from "ui-components/DatePicker";
-import * as Heading from "ui-components/Heading";
-import InputGroup from "ui-components/InputGroup";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Spacer} from "ui-components/Spacer";
-import {TextSpan} from "ui-components/Text";
-import {cancelJob, cancelJobDialog, inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
-import {prettierString, stopPropagation} from "UtilityFunctions";
-import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
-import {
-    AnalysesOperations,
-    AnalysesProps,
-    AnalysesStateProps,
-    JobState,
-    JobWithStatus,
-    RunsSortBy,
-    isJobStateFinal
-} from ".";
-import {JobStateIcon} from "./JobStateIcon";
-import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
-import {AppToolLogo} from "./AppToolLogo";
-import styled from "styled-components";
-import {ListRow, ListRowStat} from "ui-components/List";
-import {creditFormatter} from "Project/ProjectUsage";
-import {useHistory} from "react-router";
-import {stateToTitle} from "Applications/api";
 
+/*
 interface FetchJobsOptions {
     itemsPerPage?: number;
     pageNumber?: number;
@@ -57,7 +16,11 @@ const StickyBox = styled(Box)`
     z-index: 50;
 `;
 
-function Runs(props: AnalysesProps): React.ReactElement {
+ */
+
+const Runs: React.FunctionComponent = () => {
+    return null;
+    /*
 
     React.useEffect(() => {
         props.onInit();
@@ -373,8 +336,11 @@ function AnalysisOperations({cancelableAnalyses, onFinished}: AnalysisOperations
             Cancel selected ({cancelableAnalyses.length}) jobs
         </Button >
     );
+
+     */
 }
 
+/*
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),
     fetchJobs: async (itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter) =>
@@ -389,4 +355,7 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
 });
 
 const mapStateToProps = ({analyses}: ReduxObject): AnalysesStateProps => analyses;
-export default connect(mapStateToProps, mapDispatchToProps)(Runs);
+
+
+ */
+export default Runs;

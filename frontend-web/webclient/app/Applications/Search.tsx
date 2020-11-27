@@ -1,30 +1,8 @@
-import {DetailedApplicationOperations, DetailedApplicationSearchReduxState} from "Applications";
-import {KeyCode} from "DefaultObjects";
-import {SearchStamps} from "Files/DetailedFileSearch";
 import * as React from "react";
-import {connect} from "react-redux";
-import {useHistory} from "react-router";
-import {Dispatch} from "redux";
-import {setSearch} from "Search/Redux/SearchActions";
-import {Box, Button, Checkbox, Flex, Hide, Input, Label} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {searchPage} from "Utilities/SearchUtilities";
-import {stopPropagation} from "UtilityFunctions";
-import {
-    clearTags,
-    fetchApplications,
-    setAppQuery,
-    setShowAllVersions,
-    tagAction
-} from "./Redux/DetailedApplicationSearchActions";
 
-interface DetailedApplicationSearchProps extends
-    DetailedApplicationOperations, DetailedApplicationSearchReduxState {
-    defaultAppQuery?: string;
-    search: string;
-}
-
-function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProps>): JSX.Element {
+export function Search(): JSX.Element | null {
+    return null;
+    /*
     React.useEffect(() => {
         if (!!props.defaultAppQuery) props.setAppQuery(props.defaultAppQuery);
     }, []);
@@ -83,8 +61,11 @@ function DetailedApplicationSearch(props: Readonly<DetailedApplicationSearchProp
             </Box>
         </Flex>
     );
+
+     */
 }
 
+/*
 const mapStateToProps = ({
     detailedApplicationSearch,
     simpleSearch
@@ -107,4 +88,5 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations =
     setSearch: search => dispatch(setSearch(search))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(DetailedApplicationSearch);
+ */
+

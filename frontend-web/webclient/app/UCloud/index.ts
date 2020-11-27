@@ -559,7 +559,7 @@ export namespace compute {
 export interface Job {
     /**
      * Unique identifier for this job.
-     * 
+     *
      * UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier.
      */
     id: string,
@@ -569,14 +569,14 @@ export interface Job {
     owner: JobOwner,
     /**
      * A list of status updates from the compute backend.
-     * 
+     *
      * The status updates tell a story of what happened with the job. This list is ordered by the timestamp in ascending order. The current state of the job will always be the last element. `updates` is guaranteed to always contain at least one element.
      */
     updates: JobUpdate[],
     billing: JobBilling,
     /**
      * The parameters used to launch this job.
-     * 
+     *
      * This property is always available but must be explicitly requested.
      */
     parameters: JobParameters,
@@ -595,7 +595,7 @@ export interface JobOwner {
     launchedBy: string,
     /**
      * The project ID of the project which owns this job
-     * 
+     *
      * This value can be null and this signifies that the job belongs to the personal workspace of the user.
      */
     project?: string,
@@ -626,56 +626,56 @@ export interface JobParameters {
     product: ComputeProductReference,
     /**
      * A name for this job assigned by the user.
-     * 
+     *
      * The name can help a user identify why and with which parameters a job was started. This value is suitable for display in user interfaces.
      */
     name?: string,
     /**
      * The number of replicas to start this job in
-     * 
+     *
      * The `resources` supplied will be mounted in every replica. Some `resources` might only be supported in an 'exclusive use' mode. This will cause the job to fail if `replicas != 1`.
      */
     replicas: number /* int32 */,
     /**
      * Allows the job to be started even when a job is running in an identical configuration
-     * 
+     *
      * By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. This field must be set to `true` to allow you to create two jobs with identical configuration.
      */
     allowDuplicateJob: boolean,
     /**
      * Parameters which are consumed by the job
-     * 
+     *
      * The available parameters are defined by the `application`. This attribute is not included by default unless `includeParameters` is specified.
      */
     parameters?: Record<string, AppParameterValue>,
     /**
      * Additional resources which are made available into the job
-     * 
+     *
      * This attribute is not included by default unless `includeParameters` is specified. Note: Not all resources can be attached to a job. UCloud supports the following parameter types as resources:
-     * 
+     *
      *  - `file`
      *  - `peer`
      *  - `network`
      *  - `block_storage`
      *  - `ingress`
-     * 
+     *
      */
     resources?: AppParameterValue[],
     /**
      * Time allocation for the job
-     * 
+     *
      * This value can be `null` which signifies that the job should not (automatically) expire. Note that some providers do not support `null`. When this value is not `null` it means that the job will be terminated, regardless of result, after the duration has expired. Some providers support extended this duration via the `extend` operation.
      */
     timeAllocation?: SimpleDuration,
     /**
      * The resolved product referenced by `product`.
-     * 
+     *
      * This attribute is not included by default unless `includeProduct` is specified.
      */
     resolvedProduct?: accounting.ProductNS.Compute,
     /**
      * The resolved application referenced by `application`.
-     * 
+     *
      * This attribute is not included by default unless `includeApplication` is specified.
      */
     resolvedApplication?: Application,
@@ -709,7 +709,7 @@ export interface ApplicationMetadata {
     title: string,
     description: string,
     website?: string,
-    isPublic: boolean,
+    public: boolean,
 }
 export interface ApplicationInvocationDescription {
     tool: ToolReference,
@@ -864,13 +864,13 @@ export interface JobsControlChargeCreditsRequestItem {
     id: string,
     /**
      * The ID of the charge
-     * 
+     *
      * This charge ID must be unique for the job, UCloud will reject charges which are not unique.
      */
     chargeId: string,
     /**
      * Amount of compute time to charge the user
-     * 
+     *
      * The wall duration should be for a single job replica and should only be for the time used since the lastupdate. UCloud will automatically multiply the amount with the number of job replicas.
      */
     wallDuration: SimpleDuration,
@@ -1028,7 +1028,7 @@ export interface FavoriteRequest {
 export namespace AppParameterValueNS {
 /**
  * A reference to a UCloud file
- * 
+ *
  * The path to the file most always be absolute an refers to either a UCloud directory or file.
  */
 export interface File {
@@ -1052,7 +1052,7 @@ export interface Text {
 }
 /**
  * An integral value
- * 
+ *
  * Internally this uses a big integer type and there are no defined limits.
  */
 export interface Integer {
@@ -1061,7 +1061,7 @@ export interface Integer {
 }
 /**
  * A floating point value
- * 
+ *
  * Internally this uses a big decimal type and there are no defined limits.
  */
 export interface FloatingPoint {
@@ -1070,7 +1070,7 @@ export interface FloatingPoint {
 }
 /**
  * A reference to a separate UCloud job
- * 
+ *
  * The compute provider should use this information to make sure that the two jobs can communicate with each other.
  */
 export interface Peer {
@@ -1212,11 +1212,11 @@ export namespace kubernetes {
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * Starts one or more compute jobs. The jobs have already been verified by UCloud and it is assumed to be
  * ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
  * 5XX status code. Note that the batch must be handled as a single transaction.
- * 
+ *
  * The provider should respond to this request as soon as the jobs have been scheduled. The provider should
  * then switch to [`jobs.control.update`](#operation/jobs.control.update) in order to provide updates about the progress.
  */
@@ -1236,7 +1236,7 @@ export function create(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * Deletes one or more compute jobs. The provider should not only stop the compute job but also delete
  * _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
  * should also be deleted. None of the resources attached to the job, however, should be deleted.
@@ -1257,8 +1257,8 @@ export function remove(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function extend(
     request: BulkRequest<ComputeExtendRequestItem>
@@ -1276,8 +1276,8 @@ export function extend(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function suspend(
     request: BulkRequest<Job>
@@ -1295,12 +1295,12 @@ export function suspend(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * This call is periodically executed by UCloud against all active providers. It is the job of the
  * provider to ensure that the jobs listed in the request are in its local database. If some of the
  * jobs are not in the provider's database then this should be treated as a job which is no longer valid.
  * The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
- * 
+ *
  * The backend should _not_ attempt to start the job.
  */
 export function verify(
@@ -1319,8 +1319,8 @@ export function verify(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function retrieveManifest(): APICallParameters<{}, ProviderManifest> {
     return {
@@ -1618,7 +1618,7 @@ export namespace control {
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Pushes one or more state changes to UCloud. UCloud will always treat all updates as a single
  * transaction. UCloud may reject the status updates if it deems them to be invalid. For example, an
  * update may be rejected if it performs an invalid state transition, such as from a terminal state to
@@ -1640,8 +1640,8 @@ export function update(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function chargeCredits(
     request: BulkRequest<JobsControlChargeCreditsRequestItem>
@@ -1659,7 +1659,7 @@ export function chargeCredits(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Allows the compute backend to query the UCloud database for a job owned by the compute provider.
  */
 export function retrieve(
@@ -1677,10 +1677,10 @@ export function retrieve(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Submits an output file to UCloud which is not available to be put directly into the storage resources
  * mounted by the compute provider.
- * 
+ *
  * Note: We do not recommend using this endpoint for transferring large quantities of data/files.
  */
 export function submitFile(
@@ -1918,8 +1918,8 @@ export namespace jobs {
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function create(
     request: BulkRequest<JobParameters>
@@ -1937,12 +1937,12 @@ export function create(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * This call will request the cancellation of the associated  This will make sure that the jobs
  * are eventually stopped and resources are released. If the job is running a virtual machine, then the
  * virtual machine will be stopped and destroyed. Persistent storage attached to the job will not be
  * deleted only temporary data from the job will be deleted.
- * 
+ *
  * This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
  * be followed using the [`retrieve`](#operation/retrieve), [`browse`](#operation/browse), [`follow`](#operation/follow) calls.
  */
@@ -1962,8 +1962,8 @@ export function remove(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function retrieve(
     request: JobsRetrieveRequest
@@ -1980,8 +1980,8 @@ export function retrieve(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function browse(
     request: JobsBrowseRequest
@@ -1998,17 +1998,17 @@ export function browse(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * This will extend the duration of one or more jobs in a bulk request. Extension of a job will add to
  * the current deadline of a job. Note that not all providers support this features. Providers which
  * do not support it will have it listed in their manifest. If a provider is asked to extend a deadline
  * when not supported it will send back a 400 bad request.
- * 
+ *
  * This call makes no guarantee that all jobs are extended in a single transaction. If the provider
  * supports it, then all requests made against a single provider should be made in a single transaction.
  * Clients can determine if their extension request against a specific target was successful by checking
  * if the time remaining of the job has been updated.
- * 
+ *
  * This call will return 2XX if all jobs have successfully been extended. The job will fail with a
  * status code from the provider one the first extension which fails. UCloud will not attempt to extend
  * more jobs after the first failure.

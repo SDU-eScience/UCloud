@@ -1,6 +1,4 @@
 import {ActivityFilter, ActivityForFrontend} from "Activity";
-import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
-import * as ApplicationRedux from "Applications/Redux";
 import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
 import {DetailedFileSearchReduxState, SortOrder} from "Files";
@@ -76,11 +74,6 @@ export interface FileInfoReduxObject {
     loading: boolean;
 }
 
-export interface AnalysisReduxObject extends ComponentWithPage<Analysis> {
-    sortBy: RunsSortBy;
-    sortOrder: SortOrder;
-}
-
 export interface NotificationsReduxObject {
     redirectTo: string;
     items: Notification[];
@@ -124,7 +117,6 @@ interface LegacyReducers {
     uploader?: Reducer<UploaderReduxObject>;
     status?: Reducer<StatusReduxObject>;
     notifications?: Reducer<NotificationsReduxObject>;
-    analyses?: Reducer<AnalysisReduxObject>;
     header?: Reducer<HeaderSearchReduxObject>;
     sidebar?: Reducer<SidebarReduxObject>;
     activity?: Reducer<ActivityReduxObject>;
@@ -154,13 +146,11 @@ interface LegacyReduxObject {
     uploader: UploaderReduxObject;
     status: StatusReduxObject;
     notifications: NotificationsReduxObject;
-    analyses: AnalysisReduxObject;
     header: HeaderSearchReduxObject;
     sidebar: SidebarReduxObject;
     activity: ActivityReduxObject;
     simpleSearch: SimpleSearchStateProps;
     detailedFileSearch: DetailedFileSearchReduxState;
-    detailedApplicationSearch: DetailedApplicationSearchReduxState;
     fileInfo: FileInfoReduxObject;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
@@ -170,7 +160,6 @@ interface LegacyReduxObject {
 declare global {
     export type ReduxObject =
         LegacyReduxObject &
-        ApplicationRedux.Objects &
         TaskReduxState;
 }
 
@@ -196,9 +185,7 @@ export const initStatus = (): StatusReduxObject => ({
 });
 
 export const initDashboard = (): DashboardStateProps => ({
-    recentAnalyses: [],
     notifications: [],
-    analysesLoading: false
 });
 
 export function initObject(): ReduxObject {
@@ -208,17 +195,14 @@ export function initObject(): ReduxObject {
         status: initStatus(),
         header: initHeader(),
         notifications: initNotifications(),
-        analyses: initAnalyses(),
         sidebar: initSidebar(),
         uploader: initUploads(),
         activity: initActivity(),
         simpleSearch: initSimpleSearch(),
-        detailedApplicationSearch: initApplicationsAdvancedSearch(),
         detailedFileSearch: initFilesDetailedSearch(),
         fileInfo: initFileInfo(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
-        ...ApplicationRedux.init(),
         responsive: undefined,
     };
 }
@@ -229,20 +213,9 @@ export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: un
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
     files: emptyPage,
     filesLoading: false,
-    applications: emptyPage,
-    applicationsLoading: false,
     errors: [],
     search: "",
-    applicationSearch: initApplicationsAdvancedSearch(),
     fileSearch: initFilesDetailedSearch()
-});
-
-export const initAnalyses = (): AnalysisReduxObject => ({
-    page: emptyPage,
-    loading: false,
-    error: undefined,
-    sortBy: RunsSortBy.createdAt,
-    sortOrder: SortOrder.DESCENDING
 });
 
 export const initSidebar = (): SidebarReduxObject => ({
@@ -280,11 +253,3 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     loading: false
 });
 
-export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchReduxState => ({
-    error: undefined,
-    loading: false,
-    hidden: true,
-    appQuery: "",
-    tags: new Set(),
-    showAllVersions: false
-});

@@ -1,12 +1,3 @@
-import {
-    deleteLicenseServer,
-    LicenseServerAccessRight,
-    updateLicenseServerPermission,
-    UserEntityType,
-    addLicenseServerTag,
-    deleteLicenseServerTag,
-    DetailedAccessEntity
-} from "Applications/api";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
@@ -32,7 +23,8 @@ const LeftAlignedTableHeader = styled(TableHeader)`
     text-align: left;
 `;
 
-function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
+function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element | null {
+    /*
     const [tagList, setTagList] = React.useState<TagEntry[]>([]);
     const [, invokeCommand] = useAsyncCommand();
 
@@ -172,9 +164,12 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
             </div>
         </Box>
     );
+     */
+    return null;
 }
 
-function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
+function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element | null {
+    /*
     const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
     const [selectedEntityType, setSelectedEntityType] = React.useState<UserEntityType>(UserEntityType.USER);
@@ -446,6 +441,8 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
             </div>
         </Box>
     );
+     */
+    return null;
 }
 
 interface LicenseServer {
@@ -464,6 +461,7 @@ function openTagsDialog(licenseServer: LicenseServer): void {
     dialogStore.addDialog(<LicenseServerTagsPrompt licenseServer={licenseServer} />, () => undefined)
 }
 
+/*
 const entityTypes = [
     {text: prettifyEntityType(UserEntityType.USER), value: UserEntityType.USER},
     {text: prettifyEntityType(UserEntityType.PROJECT_GROUP), value: UserEntityType.PROJECT_GROUP},
@@ -504,6 +502,8 @@ function prettifyEntityType(entityType: UserEntityType): string {
     }
 }
 
+ */
+
 async function loadLicenseServers(): Promise<LicenseServer[]> {
     const {response} = await Client.get<LicenseServer[]>(`/app/license/listAll`);
     return response.map(item => ({
@@ -516,8 +516,11 @@ async function loadLicenseServers(): Promise<LicenseServer[]> {
 }
 
 interface AclEntry {
+    /*
     entity: DetailedAccessEntity;
     permission: LicenseServerAccessRight;
+
+     */
 }
 
 interface TagEntry {
@@ -525,6 +528,8 @@ interface TagEntry {
 }
 
 export default function LicenseServers(): JSX.Element | null {
+    return null;
+    /*
     const [submitted, setSubmitted] = React.useState(false);
     const [name, setName] = React.useState("");
     const [address, setAddress] = React.useState("");
@@ -748,4 +753,5 @@ export default function LicenseServers(): JSX.Element | null {
             )}
         />
     );
+     */
 }

@@ -13,7 +13,7 @@ module.exports = env => merge(commonConfig, {
 
 
     entry: {
-        app: "./app/App.tsx"
+        app: "./app/Applications.tsx"
     },
 
     output: {

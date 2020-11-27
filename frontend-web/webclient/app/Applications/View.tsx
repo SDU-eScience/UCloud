@@ -1,14 +1,8 @@
-import {FullAppInfo, WithAppInvocation, WithAppMetadata} from "Applications";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import {LoadableContent, loadingEvent} from "LoadableContent";
-import {LoadableMainContainer} from "MainContainer/MainContainer";
-import {updatePageTitle, UpdatePageTitleAction} from "Navigation/Redux/StatusActions";
+import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
 import styled from "styled-components";
 import {
-    ActionButton,
     Box,
     Flex,
     ExternalLink,
@@ -25,69 +19,47 @@ import {dateToString} from "Utilities/DateUtilities";
 import {capitalized} from "UtilityFunctions";
 import {ApplicationCardContainer, SlimApplicationCard, Tag} from "./Card";
 import * as Pages from "./Pages";
-import * as Actions from "./Redux/ViewActions";
-import * as ViewObject from "./Redux/ViewObject";
 import {useRouteMatch} from "react-router";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import * as UCloud from "UCloud";
+import {FavoriteToggle} from "Applications/FavoriteToggle";
+import {useEffect} from "react";
+import {useCloudAPI} from "Authentication/DataHook";
+import HexSpin from "LoadingIcon/LoadingIcon";
+import {compute} from "UCloud";
+import Application = compute.Application;
 
-interface MainContentProps {
-    onFavorite?: () => void;
-    application: FullAppInfo;
-    favorite?: LoadableContent<void>;
-}
-
-interface OperationProps {
-    fetchApp: (name: string, version: string) => void;
-    onFavorite: (name: string, version: string) => void;
-}
-
-type StateProps = ViewObject.Type;
-
-type ViewProps = OperationProps & StateProps;
-
-function View(props: ViewProps): JSX.Element {
-
-    React.useEffect(() => {
-        fetchApp();
-    }, []);
-
-    const match = useRouteMatch<{ appName: string; appVersion: string }>();
-
+const View: React.FunctionComponent = () => {
+    const {appName, appVersion} = useRouteMatch<{ appName: string, appVersion: string }>().params;
     useSidebarPage(SidebarPages.AppStore);
+    const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
+        {noop: true},
+        null
+    );
+    const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
+        {noop: true},
+        null
+    );
 
-    const {appName, appVersion} = match.params;
+    useEffect(() => {
+        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
+        fetchPrevious(UCloud.compute.apps.findByName({appName}));
+    }, [appName, appVersion]);
 
-    React.useEffect(() => {
-        if (!props.application.loading && props.application.content) {
-            const {name, version} = props.application.content.metadata;
-            if (appName !== name || appVersion !== version)
-                fetchApp();
-        }
-    });
+    const application = applicationResp.data;
+    const previous = previousResp.data;
 
-    function fetchApp(): void {
-        const {params} = match;
-        props.fetchApp(params.appName, params.appVersion);
-    }
+    if (application === null || previous === null) return <MainContainer main={<HexSpin size={36} />}/>;
 
-    const {previous} = props;
-    const application = props.application.content;
-    if (previous.content) {
-        previous.content.items = previous.content.items.filter(
-            ({metadata}) => metadata.version !== appVersion
-        );
-    }
     return (
-        <LoadableMainContainer
-            loadable={props.application}
+        <MainContainer
+            header={<AppHeader application={application!}/>}
+            headerSize={160}
             main={(
                 <ContainerForText left>
-                    <Box m={16}/>
-                    <AppHeader application={application!}/>
                     <Content
                         application={application!}
-                        previousVersions={props.previous.content}
+                        previous={previous}
                     />
                 </ContainerForText>
             )}
@@ -95,8 +67,6 @@ function View(props: ViewProps): JSX.Element {
             sidebar={(
                 <Sidebar
                     application={application!}
-                    onFavorite={() => props.onFavorite(appName, appVersion)}
-                    favorite={props.favorite}
                 />
             )}
         />
@@ -125,7 +95,7 @@ const AppHeaderDetails = styled.div`
     }
 `;
 
-export const AppHeader: React.FunctionComponent<{ application: FullAppInfo | UCloud.compute.ApplicationWithFavoriteAndTags } & { slim?: boolean }> = props => {
+export const AppHeader: React.FunctionComponent<{ application: UCloud.compute.ApplicationWithFavoriteAndTags } & { slim?: boolean }> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "32px" : "128px";
     return (
@@ -151,16 +121,9 @@ export const AppHeader: React.FunctionComponent<{ application: FullAppInfo | UCl
     );
 };
 
-const Sidebar: React.FunctionComponent<MainContentProps> = props => (
+const Sidebar: React.FunctionComponent<{application: UCloud.compute.ApplicationWithFavoriteAndTags}> = props => (
     <VerticalButtonGroup>
-        <ActionButton
-            fullWidth
-            onClick={() => props.onFavorite?.()}
-            loadable={props.favorite as LoadableContent}
-            color="blue"
-        >
-            {props.application.favorite ? "Remove from favorites" : "Add to favorites"}
-        </ActionButton>
+        <FavoriteToggle application={props.application} />
 
         {!props.application.metadata.website ? null : (
             <ExternalLink href={props.application.metadata.website}>
@@ -178,7 +141,10 @@ const AppSection = styled(Box)`
     margin-bottom: 16px;
 `;
 
-function Content(props: MainContentProps & { previousVersions?: Page<FullAppInfo> }): JSX.Element {
+const Content: React.FunctionComponent<{
+    application: UCloud.compute.ApplicationWithFavoriteAndTags,
+    previous: UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>
+}> = props => {
     return (
         <>
             <AppSection>
@@ -193,7 +159,18 @@ function Content(props: MainContentProps & { previousVersions?: Page<FullAppInfo
             </AppSection>
 
             <AppSection>
-                <PreviousVersions previousVersions={props.previousVersions}/>
+                {!props.previous ? null :
+                    (!props.previous.items.length ? null : (
+                        <div>
+                            <Heading.h4>Other Versions</Heading.h4>
+                            <ApplicationCardContainer>
+                                {props.previous.items.map((it, idx) => (
+                                    <SlimApplicationCard app={it} key={idx} tags={it.tags}/>
+                                ))}
+                            </ApplicationCardContainer>
+                        </div>
+                    ))
+                }
             </AppSection>
 
             <AppSection>
@@ -202,23 +179,6 @@ function Content(props: MainContentProps & { previousVersions?: Page<FullAppInfo
         </>
     );
 }
-
-const PreviousVersions: React.FunctionComponent<{ previousVersions?: Page<FullAppInfo> }> = props => (
-    <>
-        {!props.previousVersions ? null :
-            (!props.previousVersions.items.length ? null : (
-                <div>
-                    <Heading.h4>Other Versions</Heading.h4>
-                    <ApplicationCardContainer>
-                        {props.previousVersions.items.map((it, idx) => (
-                            <SlimApplicationCard app={it} key={idx} tags={it.tags}/>
-                        ))}
-                    </ApplicationCardContainer>
-                </div>
-            ))
-        }
-    </>
-);
 
 function Tags({tags}: { tags: string[] }): JSX.Element | null {
     if (!tags) return null;
@@ -258,11 +218,13 @@ const InfoAttributes = styled.div`
     flex-direction: row;
 `;
 
-function Information({application}: { application: WithAppMetadata & WithAppInvocation }): JSX.Element {
-    const time = application.invocation.tool.tool.description.defaultTimeAllocation;
+const Information: React.FunctionComponent<{ application: Application }> = ({application}) => {
+    const tool = application?.invocation?.tool?.tool;
+    if (!tool) return null;
+    const time = tool?.description?.defaultTimeAllocation;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
-    const backend = application.invocation.tool.tool.description.backend;
-    const license = application.invocation.tool.tool.description.license;
+    const backend = tool.description.backend;
+    const license = tool.description.license;
     return (
         <>
             <Heading.h4>Information</Heading.h4>
@@ -270,7 +232,7 @@ function Information({application}: { application: WithAppMetadata & WithAppInvo
             <InfoAttributes>
                 <InfoAttribute
                     name="Release Date"
-                    value={dateToString(application.invocation.tool.tool.createdAt)}
+                    value={dateToString(tool.createdAt)}
                 />
 
                 <InfoAttribute
@@ -280,7 +242,7 @@ function Information({application}: { application: WithAppMetadata & WithAppInvo
 
                 <InfoAttribute
                     name="Default Nodes"
-                    value={`${application.invocation.tool.tool.description.defaultNumberOfNodes}`}
+                    value={`${tool.description.defaultNumberOfNodes}`}
                 />
 
                 <InfoAttribute
@@ -297,29 +259,4 @@ function Information({application}: { application: WithAppMetadata & WithAppInvo
     );
 }
 
-const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAction>): OperationProps => ({
-    fetchApp: async (name: string, version: string) => {
-        dispatch(updatePageTitle(`${name} v${version}`));
-
-        const loadApplications = async (): Promise<void> => {
-            dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
-            dispatch(await Actions.fetchApplication(name, version));
-        };
-
-        const loadPrevious = async (): Promise<void> => {
-            dispatch({type: Actions.Tag.RECEIVE_PREVIOUS, payload: loadingEvent(true)});
-            dispatch(await Actions.fetchPreviousVersions(name));
-        };
-
-        await Promise.all([loadApplications(), loadPrevious()]);
-    },
-
-    onFavorite: async (name: string, version: string) => {
-        dispatch({type: Actions.Tag.RECEIVE_FAVORITE, payload: loadingEvent(true)});
-        dispatch(await Actions.favoriteApplication(name, version));
-    }
-});
-
-const mapStateToProps = (state: ReduxObject): StateProps => state.applicationView;
-
-export default connect(mapStateToProps, mapDispatchToProps)(View);
+export default View;

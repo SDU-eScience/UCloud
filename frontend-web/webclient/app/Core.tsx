@@ -4,15 +4,8 @@ import LicenseServers from "Admin/LicenseServers";
 import AdminOverview from "Admin/Overview";
 import UserCreation from "Admin/UserCreation";
 import {dispatchUserAction, onLogin} from "App";
-import ApplicationsBrowse from "Applications/Browse";
-import DetailedResult from "Applications/DetailedResult";
-import * as ApplicationsInstalled from "Applications/Installed";
+import {Applications} from "Applications/Browse";
 import Runs from "Applications/Runs";
-import ApplicationsOverview from "Applications/Overview";
-import Run from "Applications/Run";
-import AppStudioApps from "Applications/Studio/App";
-import AppStudioPage from "Applications/Studio/Page";
-import AppStudioTools from "Applications/Studio/Tool";
 import ApplicationView from "Applications/View";
 import {Client} from "Authentication/HttpClientInstance";
 import Dashboard from "Dashboard/Dashboard";
@@ -57,6 +50,8 @@ import {AppK8Admin} from "Admin/AppK8Admin";
 import {Shell} from "Applications/Jobs/Shell";
 import * as Jobs from "Applications/Jobs";
 import CONF from "../site.config.json";
+import {ApplicationsOverview} from "Applications/Overview";
+import * as AppStudio from "Applications/Studio";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -86,29 +81,24 @@ const Core = (): JSX.Element => (
 
                 <Route exact path="/novnc" component={requireAuth(NoVNCClient)} />
 
-                <Route exact path="/applications" component={requireAuth(ApplicationsBrowse)} />
+                <Route exact path="/applications" component={requireAuth(Applications)} />
                 <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
-                <Route
-                    exact
-                    path="/applications/installed"
-                    component={requireAuth(ApplicationsInstalled.default)}
-                />
                 <Route
                     exact
                     path="/applications/details/:appName/:appVersion"
                     component={requireAuth(ApplicationView)}
                 />
 
-                <Route exact path="/applications/jobs/create/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
                 <Route exact path="/applications/jobs/:id" component={requireAuth(Jobs.View)} />
+                <Route exact path="/applications/jobs/create/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
+                <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
                 <Route exact path="/applications/results" component={requireAuth(Runs)} />
-                <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)} />
+                <Route exact path="/applications/results/:id" component={requireAuth(Jobs.View)} />
                 <Route exact path={"/applications/shell/:jobId/:rank"} component={Shell} />
-                <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)} />
 
-                <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
-                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)} />
-                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
+                <Route exact path={"/applications/studio"} component={requireAuth(AppStudio.Studio)} />
+                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudio.Tool)} />
+                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudio.App)} />
 
                 {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
 

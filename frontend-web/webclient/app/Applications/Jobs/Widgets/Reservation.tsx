@@ -1,7 +1,6 @@
 import * as React from "react";
 import * as UCloud from "UCloud";
 import {Box, Flex, Input, Label} from "ui-components";
-import {MandatoryField} from "Applications/Widgets/BaseParameter";
 import {TextP} from "ui-components/Text";
 import {
     Machines,
@@ -11,6 +10,7 @@ import {
 import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {useProjectId} from "Project";
+import {MandatoryField} from "Applications/Jobs/Widgets/index";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";

@@ -24,7 +24,8 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {FollowStdStreamResponse} from "Applications";
+import {compute} from "UCloud";
+import Job = compute.Job;
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -157,7 +158,7 @@ const Container = styled.div`
     }
 `;
 
-function useJobUpdates(jobId: string, callback: (entry: FollowStdStreamResponse) => void): void {
+function useJobUpdates(jobId: string, callback: (entry: any) => void): void {
     useEffect(() => {
         const conn = WSFactory.open(
             "/hpc/jobs", {
@@ -166,7 +167,7 @@ function useJobUpdates(jobId: string, callback: (entry: FollowStdStreamResponse)
                         call: "hpc.jobs.followWS",
                         payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
                         handler: message => {
-                            const streamEntry = message.payload as FollowStdStreamResponse;
+                            const streamEntry = message.payload as any;
                             callback(streamEntry);
                         }
                     });
@@ -181,7 +182,7 @@ function useJobUpdates(jobId: string, callback: (entry: FollowStdStreamResponse)
 }
 
 interface JobUpdateListener {
-    handler: (e: FollowStdStreamResponse) => void;
+    handler: (e: any) => void;
 }
 
 export const View: React.FunctionComponent = () => {
@@ -193,7 +194,7 @@ export const View: React.FunctionComponent = () => {
     const action = getQueryParamOrElse(history.location.search, "action", "view");
     const delayInitialAnim = action === "start";
 
-    const [jobFetcher, fetchJob] = useCloudAPI<Jobs.Job | undefined>({noop: true}, undefined);
+    const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
@@ -201,7 +202,7 @@ export const View: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Runs);
     useTitle(`Job ${shortUUID(id)}`);
     useEffect(() => {
-        fetchJob(Jobs.findById({id}));
+        fetchJob(compute.jobs.retrieve({id}));
     }, [id]);
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
@@ -271,7 +272,7 @@ export const View: React.FunctionComponent = () => {
             }
         }];
     }, [id]);
-    const jobUpdateListener = useCallback((e: FollowStdStreamResponse) => {
+    const jobUpdateListener = useCallback((e: any) => {
         if (!e) return;
         jobUpdateCallbackHandlers.current.forEach(({handler}) => {
             handler(e);
@@ -289,14 +290,14 @@ export const View: React.FunctionComponent = () => {
                 <div className={`logo-wrapper ${logoAnimationAllowed && state ? "active" : ""}`}>
                     <div className="logo-scale">
                         <div className={"logo"}>
-                            <AppToolLogo name={job?.metadata?.name ?? appNameHint} type={"APPLICATION"} size={"200px"}/>
+                            <AppToolLogo name={job?.parameters?.application?.name ?? appNameHint} type={"APPLICATION"} size={"200px"}/>
                         </div>
                     </div>
                 </div>
 
                 {!job ? null : (
                     <CSSTransition
-                        in={state === JobState.IN_QUEUE && dataAnimationAllowed}
+                        in={state === "IN_QUEUE" && dataAnimationAllowed}
                         timeout={{
                             enter: 1000,
                             exit: 0,
@@ -322,7 +323,7 @@ export const View: React.FunctionComponent = () => {
 
                 {!job ? null : (
                     <CSSTransition
-                        in={state === JobState.RUNNING && dataAnimationAllowed}
+                        in={state === "RUNNING" && dataAnimationAllowed}
                         timeout={{enter: 1000, exit: 0}}
                         classNames={"data"}
                         unmountOnExit
@@ -351,7 +352,7 @@ export const View: React.FunctionComponent = () => {
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                                 <div className={"fake-logo"}/>
                                 <div className={"header-text"}>
-                                    <CompletedText job={job} state={state ?? JobState.FAILURE}/>
+                                    <CompletedText job={job} state={state ?? "FAILURE"}/>
                                 </div>
                             </Flex>
 
@@ -373,18 +374,18 @@ const Content = styled.div`
     flex-direction: column;
 `;
 
-const InQueueText: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
+const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     return <>
         <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
-            {job.name ?
+            {job.parameters.name ?
                 (<>
-                    We are about to launch <i>{job.metadata.title} v{job.metadata.version}</i>
-                    {" "}for <i>{job.name}</i> (ID: {shortUUID(job.jobId)})
+                    We are about to launch <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
+                    {" "}for <i>{job.parameters.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
-                    We are about to launch <i>{job.metadata.title} v{job.metadata.version}</i>
-                    {" "}(ID: {shortUUID(job.jobId)})
+                    We are about to launch <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
+                    {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
         </Heading.h3>
@@ -438,7 +439,7 @@ const InfoCardsContainer = styled.div`
     justify-content: center;
 `;
 
-const InfoCards: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
+const InfoCards: React.FunctionComponent<{ job: Job }> = ({job}) => {
     return <InfoCardsContainer>
         <InfoCard stat={"10"} statTitle={"Parallel jobs"} icon={"cpu"}>
             <b>u1-standard-64</b><br/>
@@ -493,12 +494,12 @@ const InfoCard: React.FunctionComponent<{
     </DashboardCard>;
 };
 
-const RunningText: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
+const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     return <>
         <Heading.h2>
-            <i>{job.metadata.title} v{job.metadata.version}</i> is now running
+            <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i> is now running
         </Heading.h2>
-        <Heading.h3>You can follow the progress below{!job.name ? null : (<> of <i>{job.name}</i></>)}</Heading.h3>
+        <Heading.h3>You can follow the progress below{!job.parameters.name ? null : (<> of <i>{job.parameters.name}</i></>)}</Heading.h3>
     </>;
 };
 
@@ -521,14 +522,14 @@ const AltButtonGroup = styled.div<{ minButtonWidth: string }>`
 `;
 
 const RunningContent: React.FunctionComponent<{
-    job: Jobs.Job,
+    job: Job,
     updateListeners: React.RefObject<JobUpdateListener[]>
 }> = ({job, updateListeners}) => {
     return <>
         <RunningInfoWrapper>
             <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"hourglass"}>
-                {!job.name ? null : <><b>Name:</b> {job.name}<br/></>}
-                <b>ID:</b> {shortUUID(job.jobId)}<br/>
+                {!job.parameters.name ? null : <><b>Name:</b> {job.parameters.name}<br/></>}
+                <b>ID:</b> {shortUUID(job.id)}<br/>
                 <b>Reservation:</b> u1-standard-64 (x10)<br/>
                 <b>Input:</b> Code/ucloud, Config/myconfig.json, Data/Dog pictures<br/>
                 <b>Project:</b> My workspace<br/>
@@ -630,7 +631,7 @@ const RunningJobRankWrapper = styled.div`
 `;
 
 const RunningJobRank: React.FunctionComponent<{
-    job: Jobs.Job,
+    job: Job,
     rank: number,
     updateListeners: React.RefObject<JobUpdateListener[]>,
 }> = ({job, rank, updateListeners}) => {
@@ -666,7 +667,7 @@ const RunningJobRank: React.FunctionComponent<{
         });
 
         // NOTE(Dan): Clean up is performed by the parent object
-    }, [job.jobId, rank]);
+    }, [job.id, rank]);
 
     return <>
         <DashboardCard color={"purple"} isLoading={false}>
@@ -679,12 +680,12 @@ const RunningJobRank: React.FunctionComponent<{
                 <div className={"term"} ref={termRef}/>
 
                 <div className="buttons">
-                    <Link to={`/applications/shell/${job.jobId}/${rank}?hide-frame`} onClick={e => {
+                    <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                         e.preventDefault();
 
                         window.open(
                             ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                            `shell-${job.jobId}-${rank}`,
+                            `shell-${job.id}-${rank}`,
                             "width=800,height=600,status=no"
                         );
                     }}>
@@ -710,14 +711,14 @@ const CompletedTextWrapper = styled.div`
     }
 `;
 
-const CompletedText: React.FunctionComponent<{ job: Jobs.Job, state: Jobs.JobState }> = ({job, state}) => {
-    const success = state === JobState.SUCCESS;
+const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+    const success = state === "SUCCESS";
     return <CompletedTextWrapper>
         <Heading.h2>{PRODUCT_NAME} has processed your job</Heading.h2>
         <Heading.h3>
-            <i>{job.metadata.title} v{job.metadata.version}</i>
+            <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
             {" "}{success ? "succeeded" : "failed"}{" "}
-            {job.name ? <>for <i>{job.name}</i></> : null} (ID: {shortUUID(job.jobId)})
+            {job.parameters.name ? <>for <i>{job.parameters.name}</i></> : null} (ID: {shortUUID(job.id)})
         </Heading.h3>
         <AltButtonGroup minButtonWidth={"200px"}>
             <Button>Restart application</Button>
@@ -737,7 +738,7 @@ const OutputFilesWrapper = styled.div`
     }
 `;
 
-const OutputFiles: React.FunctionComponent<{ job: Jobs.Job }> = ({job}) => {
+const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
     const history = useHistory();
     return <OutputFilesWrapper>
         <Heading.h3>Files</Heading.h3>

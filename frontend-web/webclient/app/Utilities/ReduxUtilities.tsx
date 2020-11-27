@@ -1,8 +1,4 @@
 import activity from "Activity/Redux/ActivityReducer";
-import * as AppRedux from "Applications/Redux";
-import analyses from "Applications/Redux/AnalysesReducer";
-import applications from "Applications/Redux/BrowseReducer";
-import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
 import * as TaskRedux from "BackgroundTasks/redux";
 import dashboard from "Dashboard/Redux/DashboardReducer";
 import {initObject} from "DefaultObjects";
@@ -45,8 +41,6 @@ export const responsive = createResponsiveStateReducer(
 export const store = configureStore(initObject(), {
     activity,
     dashboard,
-    analyses,
-    applications,
     header,
     status,
     sidebar,
@@ -54,10 +48,8 @@ export const store = configureStore(initObject(), {
     notifications,
     simpleSearch,
     detailedFileSearch,
-    detailedApplicationSearch,
     fileInfo,
     hookStore,
-    ...AppRedux.reducers,
     avatar,
     loading,
     tasks: TaskRedux.reducer,

@@ -6,8 +6,6 @@ import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
 import {RefObject, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
-import {JobState, JobWithStatus, WithAppMetadata} from "Applications";
-import {listByName, listJobs, ListJobsProps} from "Applications/api";
 import {emptyPage} from "DefaultObjects";
 import Text from "ui-components/Text";
 import {Link} from "react-router-dom";
@@ -108,7 +106,9 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
 
     const [isSelectorOpen, setSelectorOpen] = useState<boolean>(false);
+    return null;
 
+    /*
     const [suggestedApplicationApi] = useCloudAPI<Page<WithAppMetadata>>(
         props.suggestedApplication ?
             listByName({name: props.suggestedApplication, itemsPerPage: 50, page: 0}) :
@@ -132,12 +132,11 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         // Load available peers once we have loaded the suggested application (if one exists)
         const name = suggestedApplication ? suggestedApplication.metadata.name : undefined;
         const version = suggestedApplication ? suggestedApplication.metadata.version : undefined;
-        fetchAvailablePeers(listJobs({
+        fetchAvailablePeers(UCloud.compute.jobs.browse({
             itemsPerPage: 50,
-            page: 0,
             application: name,
             version,
-            filter: JobState.RUNNING
+            filter: "RUNNING"
         }));
     }
 
@@ -195,7 +194,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                                     type={"button"}
                                     mr={8}
                                     onClick={() => {
-                                        fetchAvailablePeers(listJobs({
+                                        fetchAvailablePeers(UCloud.compute.jobs.browse({
                                             ...(peerParams.parameters!),
                                             application: undefined,
                                             version: undefined
@@ -207,7 +206,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                             )}
                             <Refresh
                                 spin={availablePeers.loading}
-                                onClick={() => fetchAvailablePeers(listJobs(peerParams.parameters!))}
+                                onClick={() => fetchAvailablePeers(UCloud.compute.jobs.browse(peerParams.parameters!))}
                             />
                         </div>
                     </Flex>
@@ -225,7 +224,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                         onPageChanged={newPage => {
                             const params = peerParams.parameters;
                             if (!params) return;
-                            fetchAvailablePeers(listJobs({...params, page: newPage}));
+                            fetchAvailablePeers(UCloud.compute.jobs.browse({...params, page: newPage}));
                         }}
                         loading={availablePeers.loading}
                         pageRenderer={page => {
@@ -255,6 +254,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             </ReactModal>
         </>
     );
+     */
 };
 
 export const PointerInput = styled(Input)`

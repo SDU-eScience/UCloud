@@ -1,8 +1,8 @@
-import {JobState} from "Applications";
 import * as React from "react";
 import {SpaceProps} from "styled-system";
 import Icon, {IconName} from "ui-components/Icon";
 import {colors, ThemeColor} from "ui-components/theme";
+import {JobState} from "Applications/Jobs/index";
 
 export const JobStateIcon: React.FunctionComponent<{
     state: JobState;
@@ -26,10 +26,10 @@ export const JobStateIcon: React.FunctionComponent<{
     }
 
     switch (props.state) {
-        case JobState.IN_QUEUE:
+        case "IN_QUEUE":
             iconName = "calendar";
             break;
-        case JobState.RUNNING:
+        case "RUNNING":
             iconName = "chrono";
             break;
         /*
@@ -38,11 +38,11 @@ export const JobStateIcon: React.FunctionComponent<{
             defaultColor = "green";
             break;
          */
-        case JobState.SUCCESS:
+        case "SUCCESS":
             iconName = "check";
             defaultColor = "green";
             break;
-        case JobState.FAILURE:
+        case "FAILURE":
             iconName = "close";
             defaultColor = "red";
             break;

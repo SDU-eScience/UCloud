@@ -1,18 +1,12 @@
 import * as React from "react";
+import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import * as UCloud from "UCloud";
+import {compute} from "UCloud";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {useRouteMatch} from "react-router";
-import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {MainContainer} from "MainContainer/MainContainer";
 import {AppHeader} from "Applications/View";
-import {
-    Box,
-    Button,
-    ContainerForText,
-    Flex, Grid, Icon,
-    OutlineButton,
-    VerticalButtonGroup
-} from "ui-components";
+import {Box, Button, ContainerForText, Flex, Grid, Icon, OutlineButton, VerticalButtonGroup} from "ui-components";
 import Link from "ui-components/Link";
 import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "Applications/Jobs/Widgets";
 import * as Heading from "ui-components/Heading";
@@ -30,10 +24,11 @@ import {displayErrorMessageOrDefault, extractErrorCode} from "UtilityFunctions";
 import {addStandardDialog, WalletWarning} from "UtilityComponents";
 import {creditFormatter} from "Project/ProjectUsage";
 import {ImportParameters} from "Applications/Jobs/Widgets/ImportParameters";
-import {compute} from "UCloud";
-import JobParameters = compute.JobParameters;
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import {FavoriteToggle} from "Applications/Jobs/FavoriteToggle";
+import {FavoriteToggle} from "Applications/FavoriteToggle";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
+import JobParameters = compute.JobParameters;
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 interface InsufficientFunds {
     why?: string;
@@ -179,6 +174,9 @@ export const Create: React.FunctionComponent = () => {
             }
         }
     }, [application, folders, peers]);
+
+    useSidebarPage(SidebarPages.Runs);
+    useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
 
     if (application === null) return <MainContainer main={<LoadingIcon size={36}/>}/>;
 

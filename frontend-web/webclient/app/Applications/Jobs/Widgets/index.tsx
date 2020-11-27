@@ -6,17 +6,15 @@ import {compute} from "UCloud";
 import AppParameterValue = compute.AppParameterValue;
 import ApplicationParameter = compute.ApplicationParameter;
 import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "ui-components";
-import {MandatoryField} from "Applications/Widgets/BaseParameter";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
 import styled from "styled-components";
-import {EllipsedText, TextP} from "ui-components/Text";
+import {EllipsedText, TextP, TextSpan} from "ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Fuse from "fuse.js";
 import {GenericTextParameter, GenericTextSetter, GenericTextValidator} from "Applications/Jobs/Widgets/GenericText";
 import {EnumParameter, EnumSetter, EnumValidator} from "Applications/Jobs/Widgets/Enum";
 import {PeerParameter, PeerSetter, PeerValidator} from "Applications/Jobs/Widgets/Peer";
 import {LicenseParameter, LicenseSetter, LicenseValidator} from "Applications/Jobs/Widgets/License";
-import {LicenseServerAccessRight} from "Applications/api";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -276,3 +274,5 @@ export interface WidgetValidationAnswer {
 export function widgetId(param: ApplicationParameter): string {
     return `app-param-${param.name}`;
 }
+
+export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="red">*</TextSpan>;

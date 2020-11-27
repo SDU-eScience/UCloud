@@ -1,65 +1,51 @@
-import {ToolReference, WithAppInvocation, WithAppMetadata} from "Applications";
-import {clearLogo, listApplicationsByTool, listToolsByName, uploadLogo} from "Applications/api";
-import * as Actions from "Applications/Redux/BrowseActions";
+import {clearLogo, uploadLogo} from "Applications/api";
 import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useCloudCommand, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
-import {loadingAction, LoadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
-import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
+import {
+    useRefreshFunction
+} from "Navigation/Redux/HeaderActions";
+import {useLoading} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import * as React from "react";
-import {useEffect, useState} from "react";
-import {connect} from "react-redux";
+import {useCallback, useEffect, useState} from "react";
 import {RouteComponentProps} from "react-router";
-import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Flex, VerticalButtonGroup} from "ui-components";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import {HiddenInputField} from "ui-components/Input";
-import {SidebarPages} from "ui-components/Sidebar";
 import Truncate from "ui-components/Truncate";
 import {AppToolLogo} from "../AppToolLogo";
+import * as UCloud from "UCloud";
 
-interface ToolOperations {
-    onInit: () => void;
-    setRefresh: (refresh?: () => void) => void;
-    setLoading: (loading: boolean) => void;
-}
-
-const Tool: React.FunctionComponent<RouteComponentProps<{name: string}> & ToolOperations> = props => {
+export const Tool: React.FunctionComponent<RouteComponentProps<{name: string}>> = props => {
     const name = props.match.params.name;
     if (Client.userRole !== "ADMIN") return null;
 
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
-    const [tool, setToolParameter, toolParameter] = useCloudAPI<Page<ToolReference>>({noop: true}, emptyPage);
-    const [apps, setAppParameters, appParameters] = useCloudAPI<Page<WithAppMetadata & WithAppInvocation>>(
+    const [tool, fetchTools] = useCloudAPI<UCloud.Page<UCloud.compute.Tool>>({noop: true}, emptyPage);
+    const [apps, fetchApps] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
         {noop: true}, emptyPage
     );
 
     const toolTitle = tool.data.items.length > 0 ? tool.data.items[0].description.title : name;
 
-    useEffect(() => props.onInit(), []);
-
-    useEffect(() => {
-        setToolParameter(listToolsByName({name, page: 0, itemsPerPage: 50}));
-        setAppParameters(listApplicationsByTool({tool: name, page: 0, itemsPerPage: 50}));
-        props.setRefresh(() => {
-            setToolParameter(listToolsByName({name, page: 0, itemsPerPage: 50}));
-            setAppParameters(listApplicationsByTool({tool: name, page: 0, itemsPerPage: 50}));
-        });
-
-        return () => props.setRefresh();
+    const refresh = useCallback(() => {
+        fetchTools(UCloud.compute.tools.findByName({appName: name, itemsPerPage: 50}));
+        fetchApps(UCloud.compute.apps.findLatestByTool({tool: name, page: 0, itemsPerPage: 50}));
     }, [name]);
 
+    useRefreshFunction(refresh);
+    useLoading(commandLoading || tool.loading || apps.loading);
+
     useEffect(() => {
-        props.setLoading(commandLoading || tool.loading || apps.loading);
-    }, [commandLoading, tool.loading, apps.loading]);
+        refresh();
+    }, [name]);
 
     return (
         <MainContainer
@@ -116,7 +102,9 @@ const Tool: React.FunctionComponent<RouteComponentProps<{name: string}> & ToolOp
                         loading={apps.loading}
                         page={apps.data}
                         onPageChanged={newPage =>
-                            setAppParameters(listApplicationsByTool({...appParameters.parameters, page: newPage}))
+                            fetchApps(
+                                UCloud.compute.apps.findLatestByTool({tool: name, page: newPage, itemsPerPage: 50})
+                            )
                         }
 
                         pageRenderer={page => (
@@ -147,19 +135,3 @@ const Tool: React.FunctionComponent<RouteComponentProps<{name: string}> & ToolOp
         />
     );
 };
-
-const mapDispatchToProps = (
-    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | LoadingAction>
-): ToolOperations => ({
-    onInit: () => {
-        dispatch(updatePageTitle("Application Studio/Tools"));
-        dispatch(setPrioritizedSearch("applications"));
-        dispatch(setActivePage(SidebarPages.AppStore));
-    },
-
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-
-    setLoading: loading => dispatch(loadingAction(loading))
-});
-
-export default connect(null, mapDispatchToProps)(Tool);

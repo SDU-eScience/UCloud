@@ -1,4 +1,3 @@
-import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
 import {emptyPage} from "DefaultObjects";
@@ -23,8 +22,8 @@ import {fileTablePage, getFilenameFromPath, getParentPath, isDirectory, sizeToSt
 import {FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
-import {fetchRecentAnalyses, setAllLoading} from "./Redux/DashboardActions";
-import {JobStateIcon} from "Applications/JobStateIcon";
+import {setAllLoading} from "./Redux/DashboardActions";
+import {JobStateIcon} from "Applications/Jobs/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
 import {IconName} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
@@ -58,6 +57,7 @@ import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 import {creditFormatter, durationOptions} from "Project/ProjectUsage";
 import {computeUsageInPeriod} from "Project/ProjectDashboard";
 import {useProjectManagementStatus} from "Project";
+import Warning from "ui-components/Warning";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -166,7 +166,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             page: 0,
             filter: GrantApplicationFilter.ACTIVE
         }));
-        props.fetchRecentAnalyses();
     }
 
     const favoriteOrUnfavorite = async (file: File): Promise<void> => {
@@ -175,10 +174,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     };
 
     const {
-        recentAnalyses,
         notifications,
-        analysesLoading,
-        recentJobsError
     } = props;
 
     const onNotificationAction = (notification: Notification): void =>
@@ -194,11 +190,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 favorite={favoriteOrUnfavorite}
             />
 
-            <DashboardAnalyses
-                error={recentJobsError}
-                analyses={recentAnalyses}
-                isLoading={analysesLoading}
-            />
+            <DashboardAnalyses/>
 
             <DashboardNotifications
                 onNotificationAction={onNotificationAction}
@@ -276,11 +268,7 @@ const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): 
     );
 };
 
-const DashboardAnalyses = ({analyses, isLoading, error, }: {
-    analyses: JobWithStatus[];
-    isLoading: boolean;
-    error?: string
-}): JSX.Element => (
+const DashboardAnalyses: React.FunctionComponent = () => <Warning>TODO</Warning>/*(
         <DashboardCard
             title={<Link to={"/applications/results"}><Heading.h3>Recent Runs</Heading.h3></Link>}
             color="purple"
@@ -323,6 +311,7 @@ const DashboardAnalyses = ({analyses, isLoading, error, }: {
             </List>
         </DashboardCard>
     );
+    */;
 
 interface DashboardNotificationProps {
     onNotificationAction: (notification: Notification) => void;
@@ -618,7 +607,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
     setAllLoading: loading => dispatch(setAllLoading(loading)),
-    fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))

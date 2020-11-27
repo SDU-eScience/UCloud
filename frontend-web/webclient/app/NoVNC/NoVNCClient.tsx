@@ -7,7 +7,6 @@ import {useHistory, useLocation} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Button, Heading, Icon, OutlineButton} from "ui-components";
-import {cancelJobDialog, cancelJobQuery} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault, requestFullScreen} from "UtilityFunctions";
 
 function NoVNCClient(): JSX.Element | null {
@@ -64,6 +63,7 @@ function NoVNCClient(): JSX.Element | null {
     }
 
     function cancelJob(): void {
+        /*
         if (!jobId) return;
         cancelJobDialog({
             jobId,
@@ -78,6 +78,7 @@ function NoVNCClient(): JSX.Element | null {
                 }
             }
         });
+         */
     }
 
     const mountNode = <div className="noVNC" />;

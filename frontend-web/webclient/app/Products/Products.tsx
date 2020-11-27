@@ -9,7 +9,6 @@ import {capitalized} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {creditFormatter} from "Project/ProjectUsage";
-import {MachineTypesWrapper} from "Applications/MachineTypes";
 import {Client} from "Authentication/HttpClientInstance";
 import {NonAuthenticatedHeader} from "Navigation/Header";
 import styled from "styled-components";
@@ -188,6 +187,22 @@ const TruncatedTableCell = styled(TableCell)`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+`;
+
+const MachineTypesWrapper = styled.div`
+    ${TableHeaderCell} {
+        text-align: left;
+    }
+    
+    ${TableRow} {
+        padding: 8px;
+    }
+    
+    tbody > ${TableRow}:hover {
+        cursor: pointer;
+        background-color: var(--lightGray, #f00);
+        color: var(--black, #f00);
+    }
 `;
 
 export default Products;

@@ -3,7 +3,6 @@ import {useXTerm} from "Applications/Jobs/xterm";
 import {WSFactory} from "Authentication/HttpClientInstance";
 import {useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
-import {queryShellParameters, QueryShellParametersResponse} from "Applications";
 import {useParams} from "react-router";
 import {Box, Button} from "ui-components";
 import {isLightThemeStored, shortUUID, useNoFrame} from "UtilityFunctions";
@@ -45,6 +44,8 @@ const ShellWrapper = styled.div`
 `;
 
 export const Shell: React.FunctionComponent = () => {
+    return null;
+    /*
     const {termRef, terminal, fitAddon} = useXTerm();
     const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
     const [path, fetchPath] = useCloudAPI<QueryShellParametersResponse>(
@@ -139,4 +140,5 @@ export const Shell: React.FunctionComponent = () => {
 
         <div className={"term"} ref={termRef}/>
     </ShellWrapper>;
+     */
 };

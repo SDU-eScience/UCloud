@@ -1,54 +1,45 @@
-import {ToolReference} from "Applications";
-import {listTools, uploadDocument} from "Applications/api";
-import * as Actions from "Applications/Redux/BrowseActions";
+import {uploadDocument} from "Applications/api";
 import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
 import {useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
-import {loadingAction, LoadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
-import {HeaderActions, setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setActivePage, StatusActions, updatePageTitle} from "Navigation/Redux/StatusActions";
+import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import * as React from "react";
-import {useEffect} from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
+import {useCallback} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import Box from "ui-components/Box";
 import Button from "ui-components/Button";
 import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import {HiddenInputField} from "ui-components/Input";
-import {SidebarPages} from "ui-components/Sidebar";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import Truncate from "ui-components/Truncate";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {AppToolLogo} from "../AppToolLogo";
+import {usePrioritizedSearch} from "Utilities/SearchUtilities";
+import * as UCloud from "UCloud";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 
-interface StudioOperations {
-    onInit: () => void;
-    setRefresh: (refresh?: () => void) => void;
-    setLoading: (loading: boolean) => void;
-}
+export const Studio: React.FunctionComponent = () => {
+    useTitle("Application Studio");
+    useSidebarPage(SidebarPages.Admin);
+    usePrioritizedSearch("applications");
 
-const Studio: React.FunctionComponent<StudioOperations> = props => {
+    const [tools, setToolParameters, toolParameters] = useCloudAPI(
+        UCloud.compute.tools.listAll({page: 0, itemsPerPage: 50}),
+        emptyPage
+    );
 
-    const [tools, setToolParameters, toolParameters] =
-        useCloudAPI<Page<ToolReference>>(listTools({page: 0, itemsPerPage: 50}), emptyPage);
+    useLoading(tools.loading);
 
-    useEffect(() => {
-        props.onInit();
-        props.setRefresh(() => {
-            setToolParameters(listTools({...toolParameters.parameters}));
-        });
+    const refresh = useCallback(() => {
+        setToolParameters(toolParameters);
+    }, [toolParameters]);
 
-        return () => props.setRefresh();
-    }, []);
-
-    useEffect(() => {
-        props.setLoading(tools.loading);
-    }, [tools.loading]);
+    setRefreshFunction(refresh);
 
     if (Client.userRole !== "ADMIN") return null;
 
@@ -60,7 +51,7 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                 <VerticalButtonGroup>
                     <Button fullWidth as="label">
                         Upload Application
-                    <HiddenInputField
+                        <HiddenInputField
                             type="file"
                             onChange={async e => {
                                 const target = e.target;
@@ -71,16 +62,16 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                                         snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                                     } else {
                                         await uploadDocument({document: file, type: "APPLICATION"});
-                                        setToolParameters(listTools({...toolParameters.parameters}));
+                                        refresh();
                                     }
                                     dialogStore.success();
                                 }
-                            }} />
+                            }}/>
                     </Button>
 
                     <Button fullWidth as="label">
                         Upload Tool
-                    <HiddenInputField
+                        <HiddenInputField
                             type="file"
                             onChange={async e => {
                                 const target = e.target;
@@ -91,12 +82,12 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                                         snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                                     } else {
                                         await uploadDocument({document: file, type: "TOOL"});
-                                        setToolParameters(listTools({...toolParameters.parameters}));
+                                        refresh();
                                     }
                                     dialogStore.success();
                                 }
                             }}
-                    />
+                        />
                     </Button>
                 </VerticalButtonGroup>
             )}
@@ -106,15 +97,15 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                     loading={tools.loading}
                     page={tools.data}
                     onPageChanged={page => {
-                        setToolParameters(listTools({...toolParameters.parameters, page}));
+                        setToolParameters(UCloud.compute.tools.listAll({page}));
                     }}
                     pageRenderer={page => (
                         <Flex flexWrap={"wrap"} justifyContent={"center"}>
                             {page.items.map(tool =>
                                 <SmallAppToolCard key={tool.description.info.name}
-                                    to={`/applications/studio/t/${tool.description.info.name}`}>
+                                                  to={`/applications/studio/t/${tool.description.info.name}`}>
                                     <Flex>
-                                        <AppToolLogo type={"TOOL"} name={tool.description.info.name} />
+                                        <AppToolLogo type={"TOOL"} name={tool.description.info.name}/>
                                         <Box ml={8}>
                                             <Truncate width={300} cursor={"pointer"}>
                                                 <b>{tool.description.title}</b>
@@ -131,19 +122,3 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
         />
     );
 };
-
-const mapDispatchToProps = (
-    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | LoadingAction>
-): StudioOperations => ({
-    onInit: () => {
-        dispatch(updatePageTitle("Application Studio"));
-        dispatch(setPrioritizedSearch("applications"));
-        dispatch(setActivePage(SidebarPages.AppStore));
-    },
-
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-
-    setLoading: loading => dispatch(loadingAction(loading))
-});
-
-export default connect(null, mapDispatchToProps)(Studio);
