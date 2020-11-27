@@ -95,3 +95,5 @@ const colors = [
     "appCard",
     "wayfGreen",
 ];
+
+export default Playground;

@@ -609,3 +609,5 @@ const CenteredGrid = styled.div`
     grid-template-rows: 110px;
     grid-gap: 16px;
 `;
+
+export default LoginPage;

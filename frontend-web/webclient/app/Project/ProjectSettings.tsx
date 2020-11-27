@@ -51,7 +51,6 @@ import {
     ToggleSubProjectsRenamingRequest
 } from "Project/Grant";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {listShares} from "Shares";
 
 const ActionContainer = styled.div`
     & > * {
@@ -662,3 +661,5 @@ export const LeaveProject: React.FC<LeaveProjectProps> = props => {
         </ActionBox>
     );
 };
+
+export default ProjectSettings;
