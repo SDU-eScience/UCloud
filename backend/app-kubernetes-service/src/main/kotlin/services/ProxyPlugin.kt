@@ -13,8 +13,8 @@ import dk.sdu.cloud.service.BroadcastingStream
 class ProxyPlugin(
     private val broadcastingStream: BroadcastingStream,
 ) : JobManagementPlugin {
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        broadcastingStream.broadcast(ProxyEvent(job.id, true), ProxyEvents.events)
+    override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {
+        broadcastingStream.broadcast(ProxyEvent(jobId, true), ProxyEvents.events)
     }
 
     override suspend fun JobManagement.onCleanup(jobId: String) {
