@@ -757,3 +757,5 @@ const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
         />
     </OutputFilesWrapper>;
 };
+
+export default View;

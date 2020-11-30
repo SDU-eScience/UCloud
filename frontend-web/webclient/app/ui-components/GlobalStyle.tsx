@@ -12,17 +12,20 @@ export function injectFonts(): void {
         @font-face {
             font-family: 'IBM Plex Sans';
             src: url('${fontLight}');
+            font-display: swap;
         }
 
         @font-face {
             font-family: 'IBM Plex Sans';
             src: url('${fontRegular}');
             font-weight: 400;
+            font-display: swap;
         }
         
         @font-face {
             font-family: "Jetbrains Mono";
             src: url("${monoFont}");
+            font-display: swap;
         }
     `;
     document.head.appendChild(styleTag);

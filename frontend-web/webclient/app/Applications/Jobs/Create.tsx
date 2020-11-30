@@ -320,3 +320,5 @@ export const Create: React.FunctionComponent = () => {
         }
     />;
 }
+
+export default Create;

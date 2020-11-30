@@ -1187,3 +1187,5 @@ function ProductLink(): JSX.Element {
         <Box width="100px">Click to view details for resources</Box>
     </Tooltip>
 }
+
+export default GrantApplicationEditor;

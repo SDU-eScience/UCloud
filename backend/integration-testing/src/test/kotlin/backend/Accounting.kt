@@ -84,7 +84,8 @@ suspend fun reserveCredits(
             "_UCloud",
             product.id,
             amount / product.pricePerUnit,
-            chargeImmediately = chargeImmediately
+            chargeImmediately = chargeImmediately,
+            transactionType = TransactionType.PAYMENT
         ),
         serviceClient
     ).orThrow()

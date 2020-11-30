@@ -1,5 +1,5 @@
-import { Create } from "./Create";
-import {View} from "./View" ;
+import {Create} from "./Create";
+import {View} from "./View";
 import * as UCloud from "UCloud";
 import {PropType} from "UtilityFunctions";
 

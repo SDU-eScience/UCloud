@@ -519,3 +519,5 @@ const WordBreakBox = styled(Box)`
     word-break: break-word;
     width: 100%;
 `;
+
+export default App;

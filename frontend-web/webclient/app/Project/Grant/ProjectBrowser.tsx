@@ -7,7 +7,6 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {
     browseProjects,
     BrowseProjectsResponse,
-    readTemplates,
     retrieveDescription,
     RetrieveDescriptionResponse
 } from "Project/Grant/index";
@@ -17,14 +16,11 @@ import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {Box, Card, Icon, Text} from "ui-components";
 import {useHistory, useParams} from "react-router";
 import {DashboardCard} from "Dashboard/Dashboard";
-import {ImagePlaceholder, Lorem} from "UtilityComponents";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {useCallback, useEffect, useState} from "react";
+import {useState} from "react";
 import {Client} from "Authentication/HttpClientInstance";
 import {AppLogo, hashF} from "Applications/Card";
-import {retrieveFromProvider, UCLOUD_PROVIDER} from "Accounting";
 
 export const ProjectBrowser: React.FunctionComponent = () => {
     const {action} = useParams<{action: string}>();
@@ -145,3 +141,5 @@ const AffiliationGrid = styled(GridCardGroup)`
         }
     }
 `;
+
+export default ProjectBrowser;

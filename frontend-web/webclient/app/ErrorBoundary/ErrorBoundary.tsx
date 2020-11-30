@@ -10,8 +10,8 @@ interface ErrorBoundaryState {
     error?: Error;
     errorInfo?: React.ErrorInfo;
 }
-export class ErrorBoundary extends React.Component<{}, ErrorBoundaryState> {
-    public static getDerivedStateFromError() {
+export class ErrorBoundary extends React.Component<unknown, ErrorBoundaryState> {
+    public static getDerivedStateFromError(): {hasError: true, errorSent: false} {
         return {hasError: true, errorSent: false};
     }
 
@@ -22,19 +22,19 @@ export class ErrorBoundary extends React.Component<{}, ErrorBoundaryState> {
     private ref = React.createRef<HTMLTextAreaElement>();
 
 
-    constructor(props: Readonly<{}>) {
+    constructor(props: Readonly<unknown>) {
         super(props);
         this.state = {
             hasError: false
         };
     }
 
-    public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    public componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
         console.warn(error);
         this.setState(() => ({error, errorInfo}));
     }
 
-    public render() {
+    public render(): React.ReactNode {
         if (this.state.hasError) {
             return (
                 <MainContainer

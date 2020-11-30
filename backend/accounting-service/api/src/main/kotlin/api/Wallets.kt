@@ -17,6 +17,31 @@ enum class WalletOwnerType {
     PROJECT
 }
 
+enum class TransactionType {
+    GIFTED,
+    TRANSFERRED_TO_PERSONAL,
+    TRANSFERRED_TO_PROJECT,
+    PAYMENT
+}
+
+fun transactionComment(amount: Long, receiverId: String, transactionType: TransactionType) : String {
+    val dkk = amount / 1000000
+    return when (transactionType) {
+        TransactionType.GIFTED -> {
+            "Gifted $dkk DKK to $receiverId"
+        }
+        TransactionType.PAYMENT -> {
+            "Payed $dkk DKK for $receiverId "
+        }
+        TransactionType.TRANSFERRED_TO_PERSONAL -> {
+            "Transferred $dkk DKK to personal project: $receiverId"
+        }
+        TransactionType.TRANSFERRED_TO_PROJECT -> {
+            "Transferred $dkk DKK to project: $receiverId"
+        }
+    }
+}
+
 data class RetrieveBalanceRequest(
     val id: String?,
     val type: WalletOwnerType?,
@@ -104,7 +129,16 @@ data class ReserveCreditsRequest(
     /**
      * `true` if we should skip the limit check otherwise `false` (default) if limit checking should be active
      */
-    val skipLimitCheck: Boolean = false
+    val skipLimitCheck: Boolean = false,
+
+    /**
+     * A comment stating what the transaction is used in. Can be :
+     *  GIFTED, (transferred as is a gift claim)
+     *  TRANSFERRED_TO_PERSONAL, (credits are moved from project to a personal project)
+     *  TRANSFERRED_TO_PROJECT, (usually only used in reservations in applications)
+     *  PAYMENT (Credits are used as payment for services)
+     */
+    val transactionType: TransactionType
 ) {
     init {
         if (amount < 0) throw RPCException("Amount must be non-negative", HttpStatusCode.BadRequest)
