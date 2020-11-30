@@ -9,6 +9,15 @@ import {emptyPageV2} from "DefaultObjects";
 import {useProjectId} from "Project";
 import * as Pagination from "Pagination";
 import {MainContainer} from "MainContainer/MainContainer";
+import {useHistory} from "react-router";
+import {AppToolLogo} from "Applications/AppToolLogo";
+import {ListRow, ListRowStat} from "ui-components/List";
+import Text from "ui-components/Text";
+import {shortUUID} from "UtilityFunctions";
+import {formatRelative} from "date-fns/esm";
+import {enGB} from "date-fns/locale";
+import {isRunExpired} from "Utilities/ApplicationUtilities";
+import {Flex} from "ui-components";
 
 const itemsPerPage = 50;
 
@@ -17,7 +26,7 @@ export const Browse: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Runs);
 
     const [infScrollId, setInfScrollId] = useState(0);
-    const [jobs, fetchJobs]  = useCloudAPI<UCloud.PageV2<UCloud.compute.Job>>(
+    const [jobs, fetchJobs] = useCloudAPI<UCloud.PageV2<UCloud.compute.Job>>(
         {noop: true},
         emptyPageV2
     );
@@ -26,6 +35,8 @@ export const Browse: React.FunctionComponent = () => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage}));
         setInfScrollId(id => id + 1);
     }, []);
+
+    const history = useHistory();
 
     useRefreshFunction(refresh);
 
@@ -40,9 +51,53 @@ export const Browse: React.FunctionComponent = () => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next}));
     }, [jobs.data]);
 
-    const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => {
-        return page.items.map(it => (<div key={it.id}>{it.id}</div>));
-    }, []);
+    const [checked, setChecked] = useState(new Set<string>());
+
+    const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => (
+        page.items.map(job => {
+            const isExpired = isRunExpired(job);
+            const hideExpiration = isExpired || job.parameters.timeAllocation === null; //TODO || isJobStateFinal(job.parameters);
+            return (
+                <ListRow
+                    key={job.id}
+                    navigate={() => history.push(`/applications/results/${job.id}`)}
+                    icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name} />}
+                    isSelected={checked[job.parameters.name!]}
+                    select={() => {
+                        if (checked.has(job.parameters.name!)) {
+                            checked.delete(job.parameters.name!)
+                        } else {
+                            checked.add(job.parameters.name!);
+                        }
+                        setChecked(new Set(...checked));
+                    }}
+                    left={<Text cursor="pointer">{job.parameters.name ?? shortUUID(job.id)}</Text>}
+                    leftSub={<>
+                        <ListRowStat color="gray" icon="id">
+                            {job.parameters.application.name} v{job.parameters.application.version}
+                        </ListRowStat>
+                        <ListRowStat color="gray" color2="gray" icon="chrono">
+                            {/* TODO: Created at timestamp */}
+                            Started {formatRelative(0, new Date(), {locale: enGB})}
+                        </ListRowStat>
+                    </>}
+                    right={<>
+                        {hideExpiration ? null : (
+                            <Text mr="25px">
+                                {/* TODO: Expiration */}
+                                Expires {formatRelative(0, new Date(), {locale: enGB})}
+                            </Text>
+                        )}
+                        <Flex width="110px">
+                            {/* TODO */}
+                            {/* <JobStateIcon state={job.state} isExpired={isExpired} mr="8px" /> */}
+                            {/*<Flex mt="-3px">{isExpired ? "Expired" : stateToTitle(it.state)}</Flex>*/}
+                        </Flex>
+                    </>}
+                />
+            )
+        })
+    ), []);
 
     return <MainContainer
         main={
@@ -53,6 +108,10 @@ export const Browse: React.FunctionComponent = () => {
                 pageRenderer={pageRenderer}
                 infiniteScrollGeneration={infScrollId}
             />
+        }
+
+        sidebar={
+            <div>Filtering options TODO</div>
         }
     />;
 };

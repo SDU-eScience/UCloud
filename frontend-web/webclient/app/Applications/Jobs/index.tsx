@@ -30,9 +30,6 @@ export const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
     }
 };
 
-export const isStateComplete = (state: JobState, currentState: JobState): boolean =>
-    stateToOrder(state) < stateToOrder(currentState);
-
 export const stateToTitle = (state: JobState): string => {
     switch (state) {
         case "FAILURE":
