@@ -150,7 +150,7 @@ class JobDao {
                             id = :jobId
                     """
                 )
-                .rowsAffected != 1L
+                .rowsAffected == 1L
 
             if (!found) throw JobException.NotFound(jobId)
         }

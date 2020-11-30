@@ -644,3 +644,13 @@ export function parseJWT(encodedJWT: string): JWT | null {
 }
 
 export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];
+export function joinToString(elements: string[], separator = ","): string {
+    let result = "";
+    let first = true;
+    for (const tag of elements) {
+        if (!first) result += separator;
+        else first = false;
+        result += tag;
+    }
+    return result;
+}

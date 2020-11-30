@@ -3,7 +3,7 @@ import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import * as UCloud from "UCloud";
 import {compute} from "UCloud";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {useRouteMatch} from "react-router";
+import {useHistory, useRouteMatch} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {AppHeader} from "Applications/View";
 import {Box, Button, ContainerForText, Flex, Grid, Icon, OutlineButton, VerticalButtonGroup} from "ui-components";
@@ -29,6 +29,7 @@ import {FavoriteToggle} from "Applications/FavoriteToggle";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import JobParameters = compute.JobParameters;
 import {useTitle} from "Navigation/Redux/StatusActions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 interface InsufficientFunds {
     why?: string;
@@ -65,6 +66,7 @@ export const Create: React.FunctionComponent = () => {
     }, [appName, appVersion]);
 
     const application = applicationResp.data;
+    const history = useHistory();
 
     const onLoadParameters = useCallback((importedJob: Partial<JobParameters>) => {
         if (application == null) return;
@@ -151,7 +153,18 @@ export const Create: React.FunctionComponent = () => {
             };
 
             try {
-                await invokeCommand(UCloud.compute.jobs.create(request), {defaultErrorHandler: false});
+                const response = await invokeCommand<UCloud.compute.JobsCreateResponse>(
+                    UCloud.compute.jobs.create(request),
+                    {defaultErrorHandler: false}
+                );
+
+                const ids = response?.ids;
+                if (!ids || ids.length === 0) {
+                    snackbarStore.addFailure("UCloud failed to submit the job", false);
+                    return;
+                }
+
+                history.push(`/applications/jobs/${ids[0]}?app=${application.metadata.name}`);
             } catch (e) {
                 const code = extractErrorCode(e);
                 if (code === 409) {

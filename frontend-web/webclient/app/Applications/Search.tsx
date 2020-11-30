@@ -2,7 +2,7 @@ import * as React from "react";
 import {Box, Button, Checkbox, Flex, Input, Label} from "ui-components";
 import {emptyPage, KeyCode} from "DefaultObjects";
 import {SearchStamps} from "Files/DetailedFileSearch";
-import {stopPropagation} from "UtilityFunctions";
+import {joinToString, stopPropagation} from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
 import {useHistory} from "react-router";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
@@ -213,13 +213,3 @@ export const SearchResults: React.FunctionComponent<{ entriesPerPage: number }> 
     />;
 };
 
-function joinToString(elements: string[]): string {
-    let result = "";
-    let first = true;
-    for (const tag of elements) {
-        if (!first) result += ",";
-        else first = false;
-        result += tag;
-    }
-    return result;
-}

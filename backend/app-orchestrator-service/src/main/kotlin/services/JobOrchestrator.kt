@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.*
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
@@ -11,8 +9,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.calls.server.requiredAuthScope
-import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
@@ -23,6 +20,9 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /**
  * The job orchestrator is responsible for the orchestration of computation providers.
@@ -313,7 +313,9 @@ class JobOrchestrator(
             throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
         }
 
-        val ownsAllJobs = loadedJobs.values.all { (it.job).owner.launchedBy == user.safeUsername() }
+        val ownsAllJobs = loadedJobs.values.all {
+            it.job.owner.launchedBy == user.safeUsername() || user == Actor.System
+        }
         if (!ownsAllJobs) {
             throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
         }
@@ -402,6 +404,36 @@ class JobOrchestrator(
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
          */
         TODO()
+    }
+
+    suspend fun follow(
+        callHandler: CallHandler<JobsFollowRequest, JobsFollowResponse, *>,
+        actor: Actor,
+    ) {
+        with(callHandler) {
+            withContext<WSCall> {
+                val (initialJob) = db.withSession { session ->
+                    jobQueryService.retrieve(actor, ctx.project, request.id, JobDataIncludeFlags(includeUpdates = true))
+                }
+
+                sendWSMessage(JobsFollowResponse(initialJob.updates, emptyList()))
+                var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+
+                while (currentCoroutineContext().isActive) {
+                    val (job) = db.withSession { session ->
+                        jobQueryService.retrieve(actor, ctx.project, request.id, JobDataIncludeFlags(includeUpdates = true))
+                    }
+
+                    // TODO not ideal for chatty providers
+                    val updates = job.updates.filter { it.timestamp > lastUpdate }
+                    if (updates.isNotEmpty()) {
+                        sendWSMessage(JobsFollowResponse(updates, emptyList()))
+                        lastUpdate = job.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+                    }
+                    delay(1000)
+                }
+            }
+        }
     }
 
     companion object : Loggable {

@@ -46,7 +46,12 @@ class JobController(
 
         implement(Jobs.follow) {
             verifySlaFromPrincipal()
-            // TODO()
+
+            jobOrchestrator.follow(
+                this,
+                ctx.securityPrincipal.toActor()
+            )
+
             ok(JobsFollowResponse(
                 emptyList(),
                 emptyList()

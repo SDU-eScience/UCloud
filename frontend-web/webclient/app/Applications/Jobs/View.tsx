@@ -3,13 +3,13 @@ import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {PRODUCT_NAME} from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as Jobs from "./index";
 import {isJobStateTerminal, JobState} from "./index";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useTitle} from "Navigation/Redux/StatusActions";
-import {shortUUID} from "UtilityFunctions";
+import {joinToString, shortUUID} from "UtilityFunctions";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
 import {Box, Button, Flex, Icon, Link} from "ui-components";
@@ -22,10 +22,13 @@ import {CSSTransition} from "react-transition-group";
 import {appendToXterm, useXTerm} from "Applications/Jobs/xterm";
 import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
-import {fileTablePage, mockFile} from "Utilities/FileUtilities";
+import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {compute} from "UCloud";
 import Job = compute.Job;
+import JobParameters = compute.JobParameters;
+import {dateToString} from "Utilities/DateUtilities";
+import {addStandardDialog} from "UtilityComponents";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -158,16 +161,22 @@ const Container = styled.div`
     }
 `;
 
-function useJobUpdates(jobId: string, callback: (entry: any) => void): void {
+// TODO WS calls don't currently have their types generated
+interface JobsFollowResponse {
+    updates: compute.JobUpdate[];
+    log: { rank: number; stdout?: string; stderr?: string }[];
+}
+
+function useJobUpdates(jobId: string, callback: (entry: JobsFollowResponse) => void): void {
     useEffect(() => {
         const conn = WSFactory.open(
-            "/hpc/jobs", {
+            "/jobs", {
                 init: conn => {
                     conn.subscribe({
-                        call: "hpc.jobs.followWS",
-                        payload: {jobId, stdoutLineStart: 0, stderrLineStart: 0},
+                        call: "jobs.follow",
+                        payload: {id: jobId},
                         handler: message => {
-                            const streamEntry = message.payload as any;
+                            const streamEntry = message.payload as JobsFollowResponse;
                             callback(streamEntry);
                         }
                     });
@@ -182,7 +191,7 @@ function useJobUpdates(jobId: string, callback: (entry: any) => void): void {
 }
 
 interface JobUpdateListener {
-    handler: (e: any) => void;
+    handler: (e: JobsFollowResponse) => void;
 }
 
 export const View: React.FunctionComponent = () => {
@@ -202,7 +211,13 @@ export const View: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Runs);
     useTitle(`Job ${shortUUID(id)}`);
     useEffect(() => {
-        fetchJob(compute.jobs.retrieve({id}));
+        fetchJob(compute.jobs.retrieve({
+            id,
+            includeParameters: true,
+            includeProduct: true,
+            includeApplication: true,
+            includeUpdates: true
+        }));
     }, [id]);
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
@@ -256,23 +271,25 @@ export const View: React.FunctionComponent = () => {
         let lastState = state;
         jobUpdateCallbackHandlers.current = [{
             handler: (e) => {
-                if (!useFakeState) {
-                    if (e.state != null) {
-                        if (e.state !== lastState) {
-                            setState(e.state);
+                for (const update of e.updates) {
+                    if (!useFakeState) {
+                        if (update.state != null) {
+                            if (update.state !== lastState) {
+                                setState(update.state);
+                            }
+                            lastState = update.state;
                         }
-                        lastState = e.state;
-                    }
-                } else {
-                    if (e.state != null) {
-                        console.log("Wanted to switch state, but didn't. " +
-                            "Remove localStorage useFakeState if you wish to use real state.");
+                    } else {
+                        if (update.state != null) {
+                            console.log("Wanted to switch state, but didn't. " +
+                                "Remove localStorage useFakeState if you wish to use real state.");
+                        }
                     }
                 }
             }
         }];
     }, [id]);
-    const jobUpdateListener = useCallback((e: any) => {
+    const jobUpdateListener = useCallback((e: JobsFollowResponse) => {
         if (!e) return;
         jobUpdateCallbackHandlers.current.forEach(({handler}) => {
             handler(e);
@@ -290,7 +307,8 @@ export const View: React.FunctionComponent = () => {
                 <div className={`logo-wrapper ${logoAnimationAllowed && state ? "active" : ""}`}>
                     <div className="logo-scale">
                         <div className={"logo"}>
-                            <AppToolLogo name={job?.parameters?.application?.name ?? appNameHint} type={"APPLICATION"} size={"200px"}/>
+                            <AppToolLogo name={job?.parameters?.application?.name ?? appNameHint} type={"APPLICATION"}
+                                         size={"200px"}/>
                         </div>
                     </div>
                 </div>
@@ -314,7 +332,7 @@ export const View: React.FunctionComponent = () => {
                             </Flex>
 
                             <Content>
-                                <Busy/>
+                                <Busy job={job} state={state ?? "IN_QUEUE"}/>
                                 <InfoCards job={job!}/>
                             </Content>
                         </div>
@@ -380,11 +398,13 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
         <Heading.h3>
             {job.parameters.name ?
                 (<>
-                    We are about to launch <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
+                    We are about to
+                    launch <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
                     {" "}for <i>{job.parameters.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
-                    We are about to launch <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
+                    We are about to
+                    launch <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
                     {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
@@ -402,7 +422,7 @@ const BusyWrapper = styled(Box)`
     }
 `;
 
-const Busy: React.FunctionComponent = () => {
+const Busy: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const clusterUtilization = 90;
     const numberOfJobs = 50;
     const numberOfJobsInQueue = 10;
@@ -425,7 +445,7 @@ const Busy: React.FunctionComponent = () => {
                 and {numberOfJobsInQueue} in the queue.
             </Box>
 
-            <Button color={"red"} type={"button"}>Cancel reservation</Button>
+            <CancelButton job={job} state={state}/>
         </Flex>
     </BusyWrapper>;
 };
@@ -497,9 +517,11 @@ const InfoCard: React.FunctionComponent<{
 const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     return <>
         <Heading.h2>
-            <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i> is now running
+            <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i> is
+            now running
         </Heading.h2>
-        <Heading.h3>You can follow the progress below{!job.parameters.name ? null : (<> of <i>{job.parameters.name}</i></>)}</Heading.h3>
+        <Heading.h3>You can follow the progress
+            below{!job.parameters.name ? null : (<> of <i>{job.parameters.name}</i></>)}</Heading.h3>
     </>;
 };
 
@@ -521,21 +543,32 @@ const AltButtonGroup = styled.div<{ minButtonWidth: string }>`
     margin-bottom: 8px;
 `;
 
+function jobInputString(parameters: JobParameters): string {
+    const allFiles = [...Object.values(parameters.parameters ?? {}), ...(parameters.resources ?? [])]
+        .map(it => it.type === "file" ? replaceHomeOrProjectFolder(it.path, Client, []) : "")
+        .filter(it => it != "");
+
+    if (allFiles.length === 0) return "No files";
+    return joinToString(allFiles, ", ");
+}
+
 const RunningContent: React.FunctionComponent<{
     job: Job,
     updateListeners: React.RefObject<JobUpdateListener[]>
 }> = ({job, updateListeners}) => {
+    const startedAt = job.updates.find(it => it.state !== "IN_QUEUE")?.timestamp;
     return <>
         <RunningInfoWrapper>
             <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"hourglass"}>
                 {!job.parameters.name ? null : <><b>Name:</b> {job.parameters.name}<br/></>}
                 <b>ID:</b> {shortUUID(job.id)}<br/>
-                <b>Reservation:</b> u1-standard-64 (x10)<br/>
-                <b>Input:</b> Code/ucloud, Config/myconfig.json, Data/Dog pictures<br/>
-                <b>Project:</b> My workspace<br/>
+                <b>Reservation:</b> {job.parameters.product.provider} / {job.parameters.product.id} (x{job.parameters.replicas})<br/>
+                <b>Input:</b> {jobInputString(job.parameters)}<br/>
+                <b>Launched by:</b> {job.owner.launchedBy}<br/>
+                <b>Project:</b> {job.owner.project ?? "My workspace"}<br/>
             </DashboardCard>
             <DashboardCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
-                <b>Job start: </b> 12:34 1/1/2020 <br/>
+                <b>Job start: </b> {startedAt ? dateToString(startedAt) : "Not started yet"} <br/>
                 <b>Job expiry: </b> 12:34 2/1/2020 <br/> <br/>
 
                 Extend allocation (hours):
@@ -546,6 +579,8 @@ const RunningContent: React.FunctionComponent<{
                     <Button>+24</Button>
                     <Button>+48</Button>
                 </AltButtonGroup>
+
+                <CancelButton job={job} state={"RUNNING"}/>
             </DashboardCard>
         </RunningInfoWrapper>
 
@@ -656,12 +691,14 @@ const RunningJobRank: React.FunctionComponent<{
     useEffect(() => {
         updateListeners.current?.push({
             handler: e => {
-                if (e.rank === rank && e.stderr !== null) {
-                    appendToXterm(terminal, e.stderr);
-                }
+                for (const logEvent of e.log) {
+                    if (logEvent.rank === rank && logEvent.stderr != null) {
+                        appendToXterm(terminal, logEvent.stderr);
+                    }
 
-                if (e.rank === rank && e.stdout !== null) {
-                    appendToXterm(terminal, e.stdout);
+                    if (logEvent.rank === rank && logEvent.stdout != null) {
+                        appendToXterm(terminal, logEvent.stdout);
+                    }
                 }
             }
         });
@@ -756,4 +793,25 @@ const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
             ])}
         />
     </OutputFilesWrapper>;
+};
+
+const CancelButton: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+    const [loading, invokeCommand] = useCloudCommand();
+    const onCancel = useCallback(() => {
+        if (!loading) {
+            addStandardDialog({
+                title: "Deletion of job",
+                message: "Are you sure you wish to stop and delete this job?",
+                onConfirm: async () => {
+                    await invokeCommand(compute.jobs.remove({id: job.id}));
+                },
+                confirmText: "Delete job",
+                cancelText: "Do not delete"
+            });
+        }
+    }, [loading]);
+
+    return <Button type={"button"} color={"red"} disabled={loading} onClick={onCancel}>
+        {state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
+    </Button>;
 };

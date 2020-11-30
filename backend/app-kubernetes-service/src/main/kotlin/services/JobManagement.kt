@@ -191,6 +191,7 @@ class JobManagement(
 
     suspend fun cancel(verifiedJob: Job) {
         markJobAsComplete(verifiedJob.id, null)
+        cleanup(verifiedJob.id)
     }
 
     suspend fun initializeListeners() {
@@ -238,7 +239,8 @@ class JobManagement(
                     mapOf("labelSelector" to VOLCANO_JOB_NAME_LABEL)
                 )
 
-                var nextFullScan = 0L
+                // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
+                var nextFullScan = System.currentTimeMillis() + 15_000
 
                 listenerLoop@ while (currentCoroutineContext().isActive) {
                     if (volcanoWatch.isClosedForReceive) {
