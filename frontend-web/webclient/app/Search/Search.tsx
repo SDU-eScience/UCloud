@@ -20,6 +20,7 @@ import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {prettierString} from "UtilityFunctions";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
 import * as SSActions from "./Redux/SearchActions";
+import * as Applications from "Applications";
 
 function Search(props: SearchProps): JSX.Element {
 
@@ -85,7 +86,7 @@ function Search(props: SearchProps): JSX.Element {
 
     let main: React.ReactNode = null;
     const {priority} = match.params;
-    const entriesPerPage = (
+    const entriesPerPage = priority === "files" ? (
         <Box my="8px">
             <Spacer
                 left={null}
@@ -100,7 +101,7 @@ function Search(props: SearchProps): JSX.Element {
                 )}
             />
         </Box>
-    );
+    ) : null;
     if (priority === "files") {
         main = (
             <>
@@ -120,46 +121,10 @@ function Search(props: SearchProps): JSX.Element {
             </>
         );
     } else if (priority === "applications") {
-        main = null /*(
-            <>
-                <Hide xxl xl lg>
-                    <DetailedApplicationSearch />
-                    {entriesPerPage}
-                </Hide>
-                <Pagination.List
-                    loading={applicationsLoading}
-                    pageRenderer={({items}) => (
-                        <GridCardGroup>
-                            {items.map(app => (
-                                <ApplicationCard
-                                    onFavorite={async () => props.setApplicationsPage(
-                                        await favoriteApplicationFromPage({
-                                            name: app.metadata.name,
-                                            version: app.metadata.version,
-                                            page: props.applications,
-                                            client: Client
-                                        })
-                                    )}
-                                    key={`${app.metadata.name}${app.metadata.version}`}
-                                    app={app}
-                                    isFavorite={app.favorite}
-                                    tags={app.tags}
-                                />))}
-                        </GridCardGroup>
-                    )}
-                    page={applications}
-                    onPageChanged={pageNumber => props.searchApplications(
-                        applicationSearchBody(
-                            props.applicationSearch,
-                            props.search,
-                            props.applications.itemsPerPage,
-                            pageNumber
-                        ))
-                    }
-                />
-            </>
-        );
-        */
+        main = <>
+            <Applications.SearchWidget partOfResults/>
+            <Applications.SearchResults entriesPerPage={25}/>
+        </>
     }
 
     return (

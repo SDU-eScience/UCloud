@@ -39,6 +39,7 @@ import {ContextSwitcher} from "Project/ContextSwitcher";
 import {NewsPost} from "Dashboard/Dashboard";
 import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
 import {VersionManager} from "VersionManager/VersionManager";
+import * as Applications from "Applications"
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -361,9 +362,8 @@ const _Search = (props: SearchProps): JSX.Element => {
                         ))}
                         <ui.Box mr="auto" />
                     </ui.SelectableTextWrapper>
-                    {prioritizedSearch === "files" ? (
-                        <DetailedFileSearch cantHide />
-                    ): null}
+                    {prioritizedSearch !== "files" ? null : <DetailedFileSearch cantHide />}
+                    {prioritizedSearch !== "applications" ? null : <Applications.SearchWidget />}
                 </ClickableDropdown>
             </SearchInput>
         </ui.Relative>

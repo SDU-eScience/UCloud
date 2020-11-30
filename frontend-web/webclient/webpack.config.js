@@ -6,7 +6,7 @@ const path = require("path");
 const baseHref = "/app";
 
 module.exports = {
-    entry: "./app/Applications.tsx",
+    entry: "./app/App.tsx",
 
     resolve: {
         //root: path.join(__dirname, ''),
