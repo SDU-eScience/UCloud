@@ -5,7 +5,6 @@ import AdminOverview from "Admin/Overview";
 import UserCreation from "Admin/UserCreation";
 import {dispatchUserAction, onLogin} from "App";
 import {Applications} from "Applications/Browse";
-import Runs from "Applications/Runs";
 import ApplicationView from "Applications/View";
 import {Client} from "Authentication/HttpClientInstance";
 import Dashboard from "Dashboard/Dashboard";
@@ -92,7 +91,7 @@ const Core = (): JSX.Element => (
                 <Route exact path="/applications/jobs/:id" component={requireAuth(Jobs.View)} />
                 <Route exact path="/applications/jobs/create/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
                 <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
-                <Route exact path="/applications/results" component={requireAuth(Runs)} />
+                <Route exact path="/applications/results" component={requireAuth(Jobs.Browse)} />
                 <Route exact path="/applications/results/:id" component={requireAuth(Jobs.View)} />
                 <Route exact path={"/applications/shell/:jobId/:rank"} component={Shell} />
 
