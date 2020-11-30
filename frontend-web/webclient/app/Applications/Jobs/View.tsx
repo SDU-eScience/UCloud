@@ -815,3 +815,5 @@ const CancelButton: React.FunctionComponent<{ job: Job, state: JobState }> = ({j
         {state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     </Button>;
 };
+
+export default View;

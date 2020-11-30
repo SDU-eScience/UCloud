@@ -63,9 +63,7 @@ module.exports = {
 
     optimization: {
         splitChunks: {
-            name: "vendor",
-            filename: "vendor[hash:6].js",
-            chunks: 'all',
+            chunks: "all"
         },
         // minimizer: [
         //     new UglifyJsPlugin()

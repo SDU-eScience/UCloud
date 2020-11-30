@@ -102,3 +102,5 @@ export const Applications: React.FunctionComponent = () => {
         />
     );
 };
+
+export default Applications;

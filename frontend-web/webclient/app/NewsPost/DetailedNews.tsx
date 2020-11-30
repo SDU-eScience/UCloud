@@ -265,3 +265,5 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
         }
     }
 }
+
+export default DetailedNews;

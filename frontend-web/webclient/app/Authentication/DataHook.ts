@@ -355,6 +355,7 @@ export function useCloudAPI<T, Parameters = any>(
         }
 
         if (params.noop !== true) {
+            // eslint-disable-next-line no-inner-declarations
             async function fetchData(): Promise<void> {
                 if (params.path !== undefined) {
                     if (shouldLog) console.log("    Init");
@@ -366,7 +367,6 @@ export function useCloudAPI<T, Parameters = any>(
                         if (!didCancel) {
                             if (shouldLog) console.log("    Success");
                             dispatch({type: "FETCH_SUCCESS", payload: result});
-
                             if (cachingPolicy !== undefined && cachingPolicy.cacheTtlMs > 0 && params.method === "GET") {
                                 const newEntry = {};
                                 newEntry[key!] = {expiresAt: now + cachingPolicy.cacheTtlMs, cached: result};
@@ -393,7 +393,7 @@ export function useCloudAPI<T, Parameters = any>(
         return () => {
             didCancel = true;
         };
-    }, []);
+    }, [cache]);
 
     const doFetch = useCallback((params: APICallParameters, disableCache = false): void => {
         if (shouldLog) console.log("doFetch")

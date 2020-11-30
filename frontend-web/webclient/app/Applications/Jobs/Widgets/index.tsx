@@ -140,7 +140,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                 <strong>{parameter.title}</strong>
                 {!open ? (
                     <EllipsedText>
-                        <Markdown source={parameter.description} allowedTypes={["text", "root", "paragraph"]}/>
+                        <Markdown source={parameter.description} allowedTypes={["text", "paragraph"]}/>
                     </EllipsedText>
                 ) : <Box flexGrow={1}/>}
 

@@ -355,3 +355,5 @@ function getColorFromName(name: string): [string, string, string] {
     const num = (hash >>> 22) % (theme.appColors.length - 1);
     return theme.appColors[num] as [string, string, string];
 }
+
+export default ApplicationsOverview;
