@@ -17,7 +17,7 @@ import {
 import CONF from "../../site.config.json";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
-import {useAsyncCommand, useAsyncWork} from "Authentication/DataHook";
+import {useCloudCommand, useAsyncWork} from "Authentication/DataHook";
 import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useEffect, useState} from "react";
 import {statFile} from "Files/LowLevelFileTable";
@@ -30,15 +30,17 @@ interface FilePreviewStateProps {
 }
 
 function useFileContent(): {
-    path: string; fileContent: string | null; hasDownloadButton: boolean; error: string | null, fileType: ExtensionType
+    path: string; fileContent: string | null; hasDownloadButton: boolean;
+    error: string | null, fileType: ExtensionType; size: number;
 } {
-    const [, runCommand] = useAsyncCommand();
+    const [, runCommand] = useCloudCommand();
     const [, , runWork] = useAsyncWork();
     const location = useLocation();
     const path = getQueryParamOrElse(location.search, "path", "");
     const [error, setError] = useState<string | null>(null);
     const [hasDownloadButton, setDownloadButton] = useState<boolean>(false);
     const fileType = extensionTypeFromPath(path);
+    const [size, setSize] = useState(0);
     const [fileContent, setFileContent] = useState<string | null>("");
 
     useEffect(() => {
@@ -64,6 +66,7 @@ function useFileContent(): {
                 setError("File size too large to preview.");
                 setDownloadButton(true);
             } else {
+                setSize(stat.size);
                 let token = "";
                 await runWork(async () => {
                     token = await Client.createOneTimeTokenWithPermission("files.download:read");
@@ -97,11 +100,11 @@ function useFileContent(): {
         setFileContent(null);
         fetchData();
     }, [path]);
-    return {path, fileContent, hasDownloadButton, error, fileType};
+    return {path, fileContent, hasDownloadButton, error, fileType, size};
 }
 
 const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
-    const {hasDownloadButton, fileContent, fileType, error, path} = useFileContent();
+    const {hasDownloadButton, fileContent, fileType, error, path, size} = useFileContent();
     const history = useHistory();
     useTitle("File Preview");
     useSidebarPage(SidebarPages.Files);
@@ -122,6 +125,8 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
                 return <></>;
             case "text":
             case "code":
+                /* Even 100_000 tanks performance. Anything above stalls or kills the sandbox process. */
+                if (size > 100_000) return <pre className="fullscreen">{fileContent}</pre>
                 return <SyntaxHighlighter className="fullscreen">{fileContent}</SyntaxHighlighter>;
             case "image":
                 return <Img src={fileContent} className="fullscreen" />;
