@@ -155,7 +155,7 @@ export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) 
 
 type InvokeCommand = <T = any>(
     call: APICallParameters,
-    opts?: {defaultErrorHandler: boolean}
+    opts?: { defaultErrorHandler: boolean }
 ) => Promise<T | null>;
 
 export function useCloudCommand(): [boolean, InvokeCommand] {
@@ -248,6 +248,7 @@ export function useAsyncWork(): AsyncWorker {
 
 export interface CloudCacheHook {
     cleanup: () => void;
+
     removePrefix(pathPrefix: string);
 }
 
@@ -294,17 +295,19 @@ export function useCloudCache(): CloudCacheHook {
     return {cleanup, removePrefix};
 }
 
+export type APIFetch<Parameters> = (params: APICallParameters<Parameters>, disableCache?: boolean) => void;
+
 export function useCloudAPI<T, Parameters = any>(
     callParametersInitial: APICallParameters<Parameters, T>,
     dataInitial: T,
-    cachingPolicy?: {cacheTtlMs: number, cacheKey: string}
-): [APICallState<T>, (params: APICallParameters<Parameters>, disableCache?: boolean) => void, APICallParameters<Parameters>] {
+    cachingPolicy?: { cacheTtlMs: number, cacheKey: string }
+): [APICallState<T>, APIFetch<Parameters>, APICallParameters<Parameters>] {
     const shouldLog = (cachingPolicy?.cacheKey === "avatar");
     const parameters = useRef(callParametersInitial);
     const initialCall = useRef(true);
     const lastKey = useRef("");
     if (shouldLog) console.log("In here");
-    const [cache,, mergeCache] = useGlobal("cloudApiCache", {}, (oldCache, newCache) => {
+    const [cache, , mergeCache] = useGlobal("cloudApiCache", {}, (oldCache, newCache) => {
         let cacheKey = cachingPolicy?.cacheKey;
         if (cacheKey === undefined) return true; // Don't give us the update
         cacheKey += "/";

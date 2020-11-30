@@ -29,13 +29,16 @@ const ProjectList = React.lazy(() => import("Project/ProjectList"));
 const ProjectMembers = React.lazy(() => import("Project/Members"));
 const ProjectSettings = React.lazy(() => import("Project/ProjectSettings"));
 const ProjectUsage = React.lazy(() => import("Project/ProjectUsage"));
-const Runs = React.lazy(() => import("Applications/Runs"));
 const Search = React.lazy(() => import("Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("ServiceLicenseAgreement"));
 const Subprojects = React.lazy(() => import("Project/Subprojects"));
 const UserCreation = React.lazy(() => import("Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("Login/Wayf"));
+
+// TODO(JONAS): Important components as toplevel to use with React-lazy.
+import * as AppStudio from "Applications/Studio";
+import * as Jobs from "Applications/Jobs";
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -51,14 +54,12 @@ import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "UtilityFunctions";
 import {AppK8Admin} from "Admin/AppK8Admin";
 import {Shell} from "Applications/Jobs/Shell";
-import * as Jobs from "Applications/Jobs";
 import {History} from "history";
 import {ErrorBoundary} from "ErrorBoundary/ErrorBoundary";
 import {dispatchUserAction, onLogin} from "App";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Client} from "Authentication/HttpClientInstance";
 import CONF from "../site.config.json";
-import * as AppStudio from "Applications/Studio";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -100,7 +101,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/applications/jobs/:id" component={requireAuth(Jobs.View)} />
                     <Route exact path="/applications/jobs/create/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
                     <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
-                    <Route exact path="/applications/results" component={requireAuth(Runs)} />
+                    <Route exact path="/applications/results" component={requireAuth(Jobs.Browse)} />
                     <Route exact path="/applications/results/:id" component={requireAuth(Jobs.View)} />
                     <Route exact path={"/applications/shell/:jobId/:rank"} component={Shell} />
 

@@ -1,3 +1,63 @@
+import * as React from "react";
+import * as UCloud from "UCloud";
+import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
+import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
+import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {useCallback, useEffect, useState} from "react";
+import {useCloudAPI} from "Authentication/DataHook";
+import {emptyPageV2} from "DefaultObjects";
+import {useProjectId} from "Project";
+import * as Pagination from "Pagination";
+import {MainContainer} from "MainContainer/MainContainer";
+
+const itemsPerPage = 50;
+
+export const Browse: React.FunctionComponent = () => {
+    useTitle("Runs")
+    useSidebarPage(SidebarPages.Runs);
+
+    const [infScrollId, setInfScrollId] = useState(0);
+    const [jobs, fetchJobs]  = useCloudAPI<UCloud.PageV2<UCloud.compute.Job>>(
+        {noop: true},
+        emptyPageV2
+    );
+
+    const refresh = useCallback(() => {
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage}));
+        setInfScrollId(id => id + 1);
+    }, []);
+
+    useRefreshFunction(refresh);
+
+    useLoading(jobs.loading);
+    const projectId = useProjectId();
+
+    useEffect(() => {
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage}));
+    }, [projectId]);
+
+    const loadMore = useCallback(() => {
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next}));
+    }, [jobs.data]);
+
+    const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => {
+        return page.items.map(it => (<div key={it.id}>{it.id}</div>));
+    }, []);
+
+    return <MainContainer
+        main={
+            <Pagination.ListV2
+                page={jobs.data}
+                loading={jobs.loading}
+                onLoadMore={loadMore}
+                pageRenderer={pageRenderer}
+                infiniteScrollGeneration={infScrollId}
+            />
+        }
+    />;
+};
+
+// Old component pasted below
 
 /*
 interface FetchJobsOptions {
@@ -16,12 +76,8 @@ const StickyBox = styled(Box)`
     z-index: 50;
 `;
 
- */
 
 const Runs: React.FunctionComponent = () => {
-    return null;
-    /*
-
     React.useEffect(() => {
         props.onInit();
         fetchJobs();
@@ -336,11 +392,8 @@ function AnalysisOperations({cancelableAnalyses, onFinished}: AnalysisOperations
             Cancel selected ({cancelableAnalyses.length}) jobs
         </Button >
     );
-
-     */
 }
 
-/*
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     setLoading: loading => dispatch(setLoading(loading)),
     fetchJobs: async (itemsPerPage, pageNumber, sortOrder, sortBy, minTimestamp, maxTimestamp, filter) =>
@@ -358,4 +411,3 @@ const mapStateToProps = ({analyses}: ReduxObject): AnalysesStateProps => analyse
 
 
  */
-export default Runs;
