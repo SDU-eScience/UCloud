@@ -179,18 +179,26 @@ const dayInMillis = 24 * 60 * 60 * 1000;
 const appStates = [{text: "Don't filter", value: "Don't filter"}];
 
 
-function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: any) => void}) {
+interface FetchJobsOptions {
+    itemsPerPage?: number;
+    pageNumber?: number;
+    minTimestamp?: number;
+    maxTimestamp?: number;
+    filter?: string;
+}
+
+function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: FetchJobsOptions) => void}) {
     const [filter, setFilter] = useState({text: "Don't filter", value: "Don't filter"});
     const [firstDate, setFirstDate] = useState<Date | undefined>();
     const [secondDate, setSecondDate] = useState<Date | undefined>();
 
     function updateFilterAndFetchJobs(value: string) {
         setFilter({text: prettierString(value), value});
-        onUpdateFilter({filter, start: firstDate, end: secondDate});
+        onUpdateFilter({filter: filter.value, minTimestamp: firstDate?.getTime(), maxTimestamp: secondDate?.getTime()});
     }
 
     function fetchJobsInRange(start?: Date, end?: Date) {
-        onUpdateFilter({filter, start, end})
+        onUpdateFilter({filter: filter.value, minTimestamp: start?.getTime(), maxTimestamp: end?.getTime()});
     }
 
     function fetchJobs() {
@@ -205,7 +213,7 @@ function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: any) => void}
         <Box pt={48}>
             <Heading.h3>
                 Quick Filters
-        </Heading.h3>
+            </Heading.h3>
             <Box cursor="pointer" onClick={() => fetchJobsInRange(
                 new Date(startOfToday),
                 undefined
@@ -279,16 +287,6 @@ function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: any) => void}
 // Old component pasted below
 
 /*
-interface FetchJobsOptions {
-    itemsPerPage?: number;
-    pageNumber?: number;
-    sortBy?: RunsSortBy;
-    sortOrder?: SortOrder;
-    minTimestamp?: number;
-    maxTimestamp?: number;
-    filter?: string;
-}
-
 const StickyBox = styled(Box)`
     position: sticky;
     top: 95px;
