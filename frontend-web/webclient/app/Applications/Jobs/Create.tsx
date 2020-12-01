@@ -275,16 +275,18 @@ export const Create: React.FunctionComponent = () => {
                     />
 
                     {/* Parameters */}
-                    <Box>
-                        <Heading.h4>Mandatory Parameters</Heading.h4>
-                        <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
-                            {mandatoryParameters.map(param => (
-                                <Widget key={param.name} parameter={param} errors={errors}
-                                        active={true}
-                                />
-                            ))}
-                        </Grid>
-                    </Box>
+                    {mandatoryParameters.length === 0 ? null : (
+                        <Box>
+                            <Heading.h4>Mandatory Parameters</Heading.h4>
+                            <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
+                                {mandatoryParameters.map(param => (
+                                    <Widget key={param.name} parameter={param} errors={errors}
+                                            active={true}
+                                    />
+                                ))}
+                            </Grid>
+                        </Box>
+                    )}
                     {activeParameters.length === 0 ? null : (
                         <Box>
                             <Heading.h4>Additional Parameters</Heading.h4>
