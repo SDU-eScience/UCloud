@@ -22,7 +22,7 @@ object MissedPayments : SQLTable("missed_payments") {
 
 class PaymentService(
     private val db: DBContext,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
 ) {
     sealed class ChargeResult {
         data class Charged(val amountCharged: Long, val pricePerUnit: Long) : ChargeResult()
@@ -33,7 +33,7 @@ class PaymentService(
     suspend fun charge(
         job: Job,
         timeUsedInMillis: Long,
-        chargeId: String = ""
+        chargeId: String = "",
     ): ChargeResult {
         val parameters = job.parameters ?: error("no parameters")
         val pricePerUnit = job.billing.pricePerUnit
@@ -54,7 +54,8 @@ class PaymentService(
                 parameters.product.id,
                 units,
                 chargeImmediately = true,
-                skipIfExists = true
+                skipIfExists = true,
+                transactionType = TransactionType.PAYMENT,
             ),
             serviceClient
         )
@@ -96,12 +97,13 @@ class PaymentService(
                 Wallet(
                     job.owner.project ?: job.owner.launchedBy,
                     if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
-                    ProductCategoryId(parameters.product.category, parameters.product.provider)
+                    ProductCategoryId(parameters.product.category, parameters.product.provider),
                 ),
                 job.owner.launchedBy,
                 parameters.product.id,
                 units,
-                discardAfterLimitCheck = true
+                discardAfterLimitCheck = true,
+                transactionType = TransactionType.PAYMENT,
             ),
             serviceClient
         ).statusCode
