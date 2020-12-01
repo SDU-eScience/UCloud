@@ -53,11 +53,12 @@ typealias ComputeRetrieveManifestResponse = ProviderManifest
     JsonSubTypes.Type(value = ComputeFollowRequest.CancelStream::class, name = "cancel"),
 )
 sealed class ComputeFollowRequest {
-    class Init(val job: Job) : ComputeFollowRequest()
-    class CancelStream : ComputeFollowRequest()
+    data class Init(val job: Job) : ComputeFollowRequest()
+    data class CancelStream(val streamId: String) : ComputeFollowRequest()
 }
 
 data class ComputeFollowResponse(
+    val streamId: String,
     val rank: Int,
     val stdout: String?,
     val stderr: String?,

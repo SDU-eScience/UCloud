@@ -36,12 +36,6 @@ class K8LogService(
             val namespace = k8.nameAllocator.jobIdToNamespace(requestId)
             val pullSent = ArrayList<String>()
 
-            val events = k8.client.watchResource<WatchEvent<Event>>(
-                this,
-                KubernetesResources.events.withNamespace(namespace),
-                mapOf("fieldSelector" to "involvedObject.fieldPath=spec.containers{${USER_JOB_CONTAINER}}")
-            )
-
             val logListeners = HashMap<String, ByteReadChannel>()
             val readBuffer = ByteArray(1024 * 32)
             var nextCheck = 0L
@@ -83,13 +77,13 @@ class K8LogService(
                         }
                     }
 
-                    if (knownPods.isEmpty()) {
+                    nextCheck = if (knownPods.isEmpty()) {
                         // Check often while there are no pods
-                        nextCheck = Time.now() + 1_000
+                        Time.now() + 1_000
                     } else {
                         // Check less often while we have some pods
                         // TODO Ideally this would not trigger before all pods are ready
-                        nextCheck = Time.now() + 60_000
+                        Time.now() + 60_000
                     }
                     continue@loop
                 }
@@ -107,57 +101,6 @@ class K8LogService(
                             logIterator.remove()
                         }
                         continue@loop
-                    }
-                }
-
-                val ev = events.poll()
-                if (ev != null) {
-                    val message = ev.theObject.message ?: continue@loop
-                    val involvedObject = ev.theObject.involvedObject ?: continue@loop
-                    if (involvedObject.kind != "Pod") continue@loop
-                    val name = involvedObject.name
-                    if (name == null || name.startsWith(jobName)) continue@loop
-                    val rank = name.substringAfterLast("-")
-                    val prefix = "[UCloud/K8s (Job rank: $rank)] "
-
-                    if (ev.theObject.reason == "Pulling") {
-                        if (!pullSent.contains(rank)) {
-                            send(LogMessage(rank.toIntOrNull() ?: 0, prefix + message + "\n"))
-                            pullSent.add(rank)
-                            launch {
-                                val estimatedSize = try {
-                                    k8.dockerImageSizeQuery.estimateSize(
-                                        message.removePrefix("Pulling image").trim().removeSurrounding("\"")
-                                    )
-                                } catch (ex: Throwable) {
-                                    log.debug(ex.stackTraceToString())
-                                    null
-                                }
-
-                                runCatching {
-                                    if (estimatedSize != null) {
-                                        send(
-                                            LogMessage(
-                                                rank.toIntOrNull() ?: 0,
-                                                prefix + "Image size: ${bytesToString(estimatedSize)}\n"
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (ev.theObject.reason == "Failed") {
-                        when {
-                            message.contains("not registered") -> {
-                                // Ignore
-                            }
-
-                            else -> {
-                                send(LogMessage(rank.toIntOrNull() ?: 0, prefix + message + "\n"))
-                            }
-                        }
                     }
                 }
             }

@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.*
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.BulkRequest
@@ -20,9 +21,7 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.*
 
 /**
  * The job orchestrator is responsible for the orchestration of computation providers.
@@ -412,25 +411,68 @@ class JobOrchestrator(
     ) {
         with(callHandler) {
             withContext<WSCall> {
-                val (initialJob) = db.withSession { session ->
-                    jobQueryService.retrieve(actor, ctx.project, request.id, JobDataIncludeFlags(includeUpdates = true))
-                }
+                val (initialJob) = jobQueryService.retrieve(
+                    actor,
+                    ctx.project,
+                    request.id,
+                    JobDataIncludeFlags(includeUpdates = true)
+                )
 
                 sendWSMessage(JobsFollowResponse(initialJob.updates, emptyList()))
                 var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+                val (api, _, wsClient) = providers.prepareCommunication(initialJob.parameters.product.provider)
+                var streamId: String? = null
 
-                while (currentCoroutineContext().isActive) {
-                    val (job) = db.withSession { session ->
-                        jobQueryService.retrieve(actor, ctx.project, request.id, JobDataIncludeFlags(includeUpdates = true))
+                coroutineScope {
+                    val logJob = launch {
+                        log.info("Logs are go!")
+                        api.follow.subscribe(ComputeFollowRequest.Init(initialJob), wsClient, { message ->
+                            if (streamId == null) {
+                                streamId = message.streamId
+                            }
+
+                            // Providers are allowed to use negative ranks for control messages
+                            if (message.rank >= 0) {
+                                sendWSMessage(JobsFollowResponse(
+                                    emptyList(),
+                                    listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                ))
+                            }
+                        }).orThrow()
                     }
 
-                    // TODO not ideal for chatty providers
-                    val updates = job.updates.filter { it.timestamp > lastUpdate }
-                    if (updates.isNotEmpty()) {
-                        sendWSMessage(JobsFollowResponse(updates, emptyList()))
-                        lastUpdate = job.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+                    val updateJob = launch {
+                        log.info("Updates are go!")
+                        while (currentCoroutineContext().isActive) {
+                            val (job) = jobQueryService.retrieve(
+                                actor,
+                                ctx.project,
+                                request.id,
+                                JobDataIncludeFlags(includeUpdates = true)
+                            )
+
+                            // TODO not ideal for chatty providers
+                            val updates = job.updates.filter { it.timestamp > lastUpdate }
+                            if (updates.isNotEmpty()) {
+                                sendWSMessage(JobsFollowResponse(updates, emptyList()))
+                                lastUpdate = job.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+                            }
+                            delay(1000)
+                        }
                     }
-                    delay(1000)
+
+                    try {
+                        logJob.join()
+                        updateJob.join()
+                    } finally {
+                        val capturedId = streamId
+                        if (capturedId != null) {
+                            api.follow.call(
+                                ComputeFollowRequest.CancelStream(capturedId),
+                                wsClient
+                            )
+                        }
+                    }
                 }
             }
         }

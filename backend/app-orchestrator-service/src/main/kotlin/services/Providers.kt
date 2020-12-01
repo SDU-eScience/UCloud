@@ -13,12 +13,14 @@ import io.ktor.http.*
 data class ProviderCommunication(
     val api: Compute,
     val client: AuthenticatedClient,
+    val wsClient: AuthenticatedClient,
     val provider: String,
 )
 
 class Providers(
     private val developmentModeEnabled: Boolean,
     private val serviceClient: AuthenticatedClient,
+    private val wsServiceClient: AuthenticatedClient,
     private val hardcodedProvider: ComputeProviderManifest,
 ) {
     private val ucloudCompute = Compute(UCLOUD_PROVIDER)
@@ -28,12 +30,15 @@ class Providers(
     }
 
     suspend fun prepareCommunication(provider: String): ProviderCommunication {
-        if (developmentModeEnabled) return ProviderCommunication(ucloudCompute, serviceClient, UCLOUD_PROVIDER)
+        if (developmentModeEnabled) return ProviderCommunication(ucloudCompute,
+            serviceClient,
+            wsServiceClient,
+            UCLOUD_PROVIDER)
         if (provider != UCLOUD_PROVIDER) {
             throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
         }
 
-        return ProviderCommunication(ucloudCompute, serviceClient, provider)
+        return ProviderCommunication(ucloudCompute, serviceClient, wsServiceClient, provider)
     }
 
     suspend fun verifyProvider(provider: String, principal: SecurityPrincipal) {

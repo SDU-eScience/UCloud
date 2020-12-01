@@ -58,6 +58,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val providers = Providers(
             micro.developmentModeEnabled,
             serviceClient,
+            serviceClientWS,
             ComputeProviderManifest(
                 ComputeProvider(UCLOUD_PROVIDER, "localhost", false, 8080),
                 ProviderManifest().apply {
