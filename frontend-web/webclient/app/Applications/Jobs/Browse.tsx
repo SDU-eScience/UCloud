@@ -23,7 +23,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
-import {startOfDay} from "date-fns";
+import {JobState} from "./index";
 
 function mockApp(): UCloud.compute.Job {
     return {
@@ -175,8 +175,11 @@ export const Browse: React.FunctionComponent = () => {
     />;
 };
 
+type Filter = {text: string; value: string};
 const dayInMillis = 24 * 60 * 60 * 1000;
-const appStates = [{text: "Don't filter", value: "Don't filter"}];
+const appStates: Filter[] =
+    (["IN_QUEUE", "RUNNING", "CANCELING", "SUCCESS", "FAILURE"] as JobState[])
+        .map(it => ({text: prettierString(it), value: it})).concat([{text: "Don't filter", value: "Don't filter" as JobState}]);
 
 
 interface FetchJobsOptions {
@@ -194,7 +197,7 @@ function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: FetchJobsOpti
 
     function updateFilterAndFetchJobs(value: string) {
         setFilter({text: prettierString(value), value});
-        onUpdateFilter({filter: filter.value, minTimestamp: firstDate?.getTime(), maxTimestamp: secondDate?.getTime()});
+        onUpdateFilter({filter: value, minTimestamp: firstDate?.getTime(), maxTimestamp: secondDate?.getTime()});
     }
 
     function fetchJobsInRange(start?: Date, end?: Date) {
