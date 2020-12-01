@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.app.orchestrator.api.JobDataIncludeFlags
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobsControlUpdateRequestItem
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -23,6 +24,7 @@ class JobMonitoringService(
     private val verificationService: JobVerificationService,
     private val jobOrchestrator: JobOrchestrator,
     private val providers: Providers,
+    private val queryService: JobQueryService,
 ) {
     suspend fun initialize() {
         scope.launch {
@@ -71,13 +73,19 @@ class JobMonitoringService(
                                             last_scan <= to_timestamp(cast(:before as bigint))
                                         limit 100
                                     )
-                                returning *;
+                                returning id;
                             """
                         )
                         .rows
-                        .mapNotNull { VerifiedJobWithAccessToken(it.toJob(), it.getField(JobsTable.refreshToken)) }
+                        .map { it.getString(0)!! }
+                        .toSet()
+                        .let {
+                            queryService
+                                .retrievePrivileged(session, it, JobDataIncludeFlags(includeParameters = true))
+                                .values
+                        }
 
-                    val jobsByProvider = jobs.map { it.job }.groupBy { it.parameters!!.product.provider }
+                    val jobsByProvider = jobs.map { it.job }.groupBy { it.parameters.product.provider }
                     scope.launch {
                         jobsByProvider.forEach { (provider, jobs) ->
                             val comm = providers.prepareCommunication(provider)
@@ -99,6 +107,7 @@ class JobMonitoringService(
                         )
 
                         if (!hasPermissions) {
+                            log.debug("Permission check failed for ${jobWithToken.job.id}")
                             jobOrchestrator.cancel(
                                 bulkRequestOf(FindByStringId(jobWithToken.job.id)),
                                 Actor.System

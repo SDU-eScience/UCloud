@@ -190,8 +190,19 @@ class JobManagement(
     }
 
     suspend fun cancel(verifiedJob: Job) {
-        markJobAsComplete(verifiedJob.id, null)
+        val exists = markJobAsComplete(verifiedJob.id, null)
         cleanup(verifiedJob.id)
+        if (!exists) {
+            JobsControl.update.call(
+                bulkRequestOf(JobsControlUpdateRequestItem(
+                    verifiedJob.id,
+                    JobState.FAILURE,
+                    "An internal error occurred in UCloud/Compute. " +
+                            "Job cancellation was requested but the job was not known to us."
+                )),
+                k8.serviceClient
+            )
+        }
     }
 
     suspend fun initializeListeners() {
@@ -471,11 +482,19 @@ class JobManagement(
         }
     }
 
-    private suspend fun markJobAsComplete(jobId: String, volcanoJob: VolcanoJob?) {
+    private suspend fun markJobAsComplete(jobId: String, volcanoJob: VolcanoJob?): Boolean {
         val job = volcanoJob ?: run {
             val name = k8.nameAllocator.jobIdToJobName(jobId)
             val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
-            k8.client.getResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+            try {
+                k8.client.getResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+            } catch (ex: KubernetesException) {
+                if (ex.statusCode == HttpStatusCode.NotFound) {
+                    log.info("Job no longer exists: $jobId")
+                    return false
+                }
+                throw ex
+            }
         }
 
         plugins.forEach { plugin ->
@@ -501,6 +520,8 @@ class JobManagement(
         } finally {
             dir?.deleteRecursively()
         }
+
+        return true
     }
 
     fun verifyJobs(jobs: List<Job>) {

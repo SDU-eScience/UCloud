@@ -29,6 +29,7 @@ import Job = compute.Job;
 import JobParameters = compute.JobParameters;
 import {dateToString} from "Utilities/DateUtilities";
 import {addStandardDialog} from "UtilityComponents";
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -461,19 +462,27 @@ const InfoCardsContainer = styled.div`
 
 const InfoCards: React.FunctionComponent<{ job: Job }> = ({job}) => {
     return <InfoCardsContainer>
-        <InfoCard stat={"10"} statTitle={"Parallel jobs"} icon={"cpu"}>
-            <b>u1-standard-64</b><br/>
+        <InfoCard
+            stat={job.parameters.replicas.toString()}
+            statTitle={job.parameters.replicas === 1 ? "Replica" : "Replicas"}
+            icon={"cpu"}
+        >
+            <b>{job.parameters.product.provider} / {job.parameters.product.id}</b><br/>
             64x vCPU &mdash; 123GB RAM &mdash; 2x GPU
         </InfoCard>
         <InfoCard stat={"24 hours"} statTitle={"Allocated"} icon={"hourglass"}>
             <b>Estimated price:</b> 240 DKK <br/>
             <b>Price per hour:</b> 10 DKK
         </InfoCard>
-        <InfoCard stat={"10"} statTitle={"Input files"} icon={"ftFolder"}>
-            Code/ucloud, Config/myconfig.json, Data/Dog Pictures <i>(and more)</i>
+        <InfoCard
+            stat={jobFiles(job.parameters).length.toString()}
+            statTitle={jobFiles(job.parameters).length === 1 ? "Input file" : "Input files"}
+            icon={"ftFolder"}
+        >
+            {jobInputString(job.parameters)}
         </InfoCard>
-        <InfoCard stat={"My Workspace"} statTitle={"Project"} icon={"projects"}>
-            <b>Launched by:</b> DanSebastianThrane#1234
+        <InfoCard stat={job.owner.project ?? "My Workspace"} statTitle={"Project"} icon={"projects"}>
+            <b>Launched by:</b> {job.owner.launchedBy}
         </InfoCard>
     </InfoCardsContainer>;
 };
@@ -543,10 +552,13 @@ const AltButtonGroup = styled.div<{ minButtonWidth: string }>`
     margin-bottom: 8px;
 `;
 
+function jobFiles(parameters: JobParameters): AppParameterValueNS.File[] {
+    return [...Object.values(parameters.parameters ?? {}), ...(parameters.resources ?? [])]
+        .filter(it => it.type === "file") as AppParameterValueNS.File[];
+}
+
 function jobInputString(parameters: JobParameters): string {
-    const allFiles = [...Object.values(parameters.parameters ?? {}), ...(parameters.resources ?? [])]
-        .map(it => it.type === "file" ? replaceHomeOrProjectFolder(it.path, Client, []) : "")
-        .filter(it => it != "");
+    const allFiles = jobFiles(parameters).map(it => replaceHomeOrProjectFolder(it.path, Client, []));
 
     if (allFiles.length === 0) return "No files";
     return joinToString(allFiles, ", ");
@@ -585,7 +597,7 @@ const RunningContent: React.FunctionComponent<{
         </RunningInfoWrapper>
 
         <RunningJobsWrapper>
-            {Array(10).fill(0).map((_, i) => {
+            {Array(job.parameters.replicas).fill(0).map((_, i) => {
                 return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
             })}
         </RunningJobsWrapper>
@@ -815,5 +827,3 @@ const CancelButton: React.FunctionComponent<{ job: Job, state: JobState }> = ({j
         {state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     </Button>;
 };
-
-export default View;

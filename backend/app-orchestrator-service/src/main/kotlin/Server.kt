@@ -108,6 +108,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             jobVerificationService,
             jobOrchestrator,
             providers,
+            jobQueryService,
         )
 
         val streamFollowService =
