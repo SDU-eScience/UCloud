@@ -34,11 +34,11 @@ export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => 
 export interface ApplicationsOperations {
     onInit: () => void;
     fetchDefault: (itemsPerPage: number, page: number) => void;
-    fetchByTag: (tag: string, itemsPerPage: number, page: number) => void;
+    fetchByTag: (tag: string, excludeTools: string[], itemsPerPage: number, page: number) => void;
     receiveApplications: (page: Page<FullAppInfo>) => void;
     fetchFavorites: (itemsPerPage: number, page: number) => void;
     setRefresh: (refresh?: () => void) => void;
-    receiveAppsByKey: (itemsPerPage: number, page: number, tag: string) => void;
+    receiveAppsByKey: (itemsPerPage: number, page: number, tag: string, excludeTools: string[]) => void;
 }
 
 export interface ApplicationsProps extends ReduxType, ApplicationsOperations, RouterLocationProps {
@@ -48,7 +48,7 @@ export interface ApplicationsProps extends ReduxType, ApplicationsOperations, Ro
 function Applications(props: ApplicationsProps): JSX.Element {
     const defaultTools = [
         "BEDTools",
-        "Cell Ranger",
+        "CellRanger",
         "HOMER",
         "Kallisto",
         "MACS2",
@@ -58,12 +58,12 @@ function Applications(props: ApplicationsProps): JSX.Element {
     ];
 
     const featuredTags = [
-        "Engineering",
-        "Data Analytics",
-        "Social Science",
-        "Applied Science",
-        "Natural Science",
-        "Development",
+        //"Engineering",
+       // "Data Analytics",
+       // "Social Science",
+       // "Applied Science",
+       // "Natural Science",
+       // "Development",
         "Bioinformatics"
     ];
 
@@ -116,21 +116,21 @@ function Applications(props: ApplicationsProps): JSX.Element {
                 />
             )}
 
-            {defaultTools.map(tag => <ToolGroup key={tag} tag={tag} />)}
+            {/*defaultTools.map(tag => <ToolGroup key={tag} tag={tag} />)*/}
         </>
     );
     return (<MainContainer main={main} />);
 
     function fetchFeatured(itemsPerPage: number, page: number): void {
-        props.receiveAppsByKey(itemsPerPage, page, "Featured");
+        //props.receiveAppsByKey(itemsPerPage, page, "Featured", []);
     }
 
     function fetch(): void {
         const featuredPage = props.applications.get("Featured") ?? emptyPage;
         fetchFeatured(50, featuredPage.pageNumber);
-        [...featuredTags, ...defaultTools].forEach(tag => {
+        [...featuredTags/*, ...defaultTools*/].forEach(tag => {
             const page = props.applications.get(tag) ?? emptyPage;
-            props.receiveAppsByKey(50, page.pageNumber, tag);
+            props.receiveAppsByKey(50, page.pageNumber, tag, defaultTools);
         });
     }
 }
@@ -185,8 +185,8 @@ function TagGrid({tag, setFavorite, favorites, columns, rows, omit}: TagGridProp
         it.applicationsBrowse.applications.get(tag) ?? emptyPage
     );
 
-    const filteredItems = page.items.filter(it => !it.tags.some(_tag => omit.includes(_tag)))
-        .filter(it => !favorites.some(fav => fav.name === it.metadata.name && it.metadata.version === fav.version));
+    //const filteredItems = page.items.filter(it => !it.tags.some(_tag => omit.includes(_tag)))
+    //    .filter(it => !favorites.some(fav => fav.name === it.metadata.name && it.metadata.version === fav.version));
 
     return (
         <>
@@ -209,7 +209,7 @@ function TagGrid({tag, setFavorite, favorites, columns, rows, omit}: TagGridProp
                     gridGap="15px"
                     style={{gridAutoFlow: "column"}}
                 >
-                    {filteredItems.map(app => (
+                    {page.items.map(app => (
                             <ApplicationCard
                                 key={`${app.metadata.name}-${app.metadata.version}`}
                                 onFavorite={(name, version) => setFavorite(name, version, page)}
@@ -317,9 +317,9 @@ const mapDispatchToProps = (
         dispatch(setActivePage(SidebarPages.AppStore));
     },
 
-    fetchByTag: async (tag, itemsPerPage, page) => {
+    fetchByTag: async (tag, excludeTools, itemsPerPage, page) => {
         dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
-        dispatch(await Actions.fetchByTag(tag, itemsPerPage, page));
+        dispatch(await Actions.fetchByTag(tag, excludeTools, itemsPerPage, page));
     },
 
     fetchDefault: async (itemsPerPage, page) => {
@@ -334,8 +334,9 @@ const mapDispatchToProps = (
     receiveApplications: page => dispatch(Actions.receivePage(page)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 
-    receiveAppsByKey: async (itemsPerPage, page, tag) =>
-        dispatch(await Actions.receiveAppsByKey(itemsPerPage, page, tag))
+    receiveAppsByKey: async (itemsPerPage, page, tag, excludeTools) =>
+        dispatch(await Actions.
+        receiveAppsByKey(itemsPerPage, page, tag, excludeTools))
 });
 
 function getColorFromName(name: string): [string, string, string] {
