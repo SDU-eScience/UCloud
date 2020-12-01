@@ -24,6 +24,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {JobState} from "./index";
+import {JobStateIcon} from "./JobStateIcon";
 
 function mockApp(): UCloud.compute.Job {
     return {
@@ -70,9 +71,15 @@ function mockApp(): UCloud.compute.Job {
     }
 }
 
+
+function isJobStateFinal(state?: JobState): boolean {
+    if (state === undefined) return false;
+    return ["SUCCESS", "FAILURE"].includes(state);
+}
+
 const itemsPerPage = 50;
 
-const items = [mockApp(), mockApp(), mockApp()];
+// const items = [mockApp(), mockApp(), mockApp()];
 
 export const Browse: React.FunctionComponent = () => {
     useTitle("Runs")
@@ -84,14 +91,6 @@ export const Browse: React.FunctionComponent = () => {
         emptyPageV2
     );
 
-    /*     const jobs: APICallState<UCloud.PageV2<UCloud.compute.Job>> = {
-            loading: false,
-            data: {
-                items,
-                itemsPerPage
-            }
-        };
-     */
     const refresh = useCallback(() => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage}));
         setInfScrollId(id => id + 1);
@@ -117,7 +116,9 @@ export const Browse: React.FunctionComponent = () => {
     const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => (
         page.items.map(job => {
             const isExpired = isRunExpired(job);
-            const hideExpiration = isExpired || job.parameters.timeAllocation === null; //TODO || isJobStateFinal(job.parameters);
+            const latestUpdate = job.updates[job.updates.length - 1];
+            const state = latestUpdate?.state;
+            const hideExpiration = isExpired || job.parameters.timeAllocation === null || isJobStateFinal(state);
             return (
                 <ListRow
                     key={job.id}
@@ -139,20 +140,19 @@ export const Browse: React.FunctionComponent = () => {
                         </ListRowStat>
                         <ListRowStat color="gray" color2="gray" icon="chrono">
                             {/* TODO: Created at timestamp */}
-                            Started {formatRelative(0, new Date(), {locale: enGB})}
+                            {/* Started {formatRelative(0, new Date(), {locale: enGB})} */}
                         </ListRowStat>
                     </>}
                     right={<>
-                        {hideExpiration ? null : (
+                        {hideExpiration || job.parameters.timeAllocation == null ? null : (
                             <Text mr="25px">
                                 {/* TODO: Expiration */}
-                                Expires {formatRelative(0, new Date(), {locale: enGB})}
+                                {/* Expires {formatRelative(0, new Date(), {locale: enGB})} */}
                             </Text>
                         )}
                         <Flex width="110px">
-                            {/* TODO */}
-                            {/* <JobStateIcon state={job.state} isExpired={isExpired} mr="8px" /> */}
-                            {/*<Flex mt="-3px">{isExpired ? "Expired" : stateToTitle(it.state)}</Flex>*/}
+                            <JobStateIcon state={state} isExpired={isExpired} mr="8px" />
+                            <Flex mt="-3px">{isExpired ? "Expired" : prettierString(state ?? "")}</Flex>
                         </Flex>
                     </>}
                 />
@@ -171,8 +171,12 @@ export const Browse: React.FunctionComponent = () => {
             />
         }
 
-        sidebar={<FilterOptions onUpdateFilter={f => console.log(f)} />}
+        sidebar={<FilterOptions onUpdateFilter={onUpdateFilter} />}
     />;
+
+    function onUpdateFilter(f: FetchJobsOptions) {
+        console.log(f);
+    }
 };
 
 type Filter = {text: string; value: string};
