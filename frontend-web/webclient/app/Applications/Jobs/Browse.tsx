@@ -22,6 +22,8 @@ import {Box, Button, Flex, InputGroup, Label} from "ui-components";
 import {Client} from "Authentication/HttpClientInstance";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
+import {getStartOfDay, getStartOfWeek} from "Activity/Page";
+import {startOfDay} from "date-fns";
 
 function mockApp(): UCloud.compute.Job {
     return {
@@ -173,13 +175,15 @@ export const Browse: React.FunctionComponent = () => {
     />;
 };
 
+const dayInMillis = 24 * 60 * 60 * 1000;
 const appStates = [{text: "Don't filter", value: "Don't filter"}];
+
 
 function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: any) => void}) {
     const [filter, setFilter] = useState({text: "Don't filter", value: "Don't filter"});
     const [firstDate, setFirstDate] = useState<Date | undefined>();
     const [secondDate, setSecondDate] = useState<Date | undefined>();
-    
+
     function updateFilterAndFetchJobs(value: string) {
         setFilter({text: prettierString(value), value});
         onUpdateFilter({filter, start: firstDate, end: secondDate});
@@ -190,29 +194,36 @@ function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: any) => void}
     }
 
     function fetchJobs() {
-
+        // TODO
     }
+
+    const startOfToday = getStartOfDay(new Date());
+    const startOfYesterday = getStartOfDay(new Date(startOfToday.getTime() - dayInMillis));
+    const startOfWeek = getStartOfWeek(new Date()).getTime();
 
     return (
         <Box pt={48}>
             <Heading.h3>
                 Quick Filters
         </Heading.h3>
-            <Box cursor="pointer" onClick={() => console.log("TODO")}>
+            <Box cursor="pointer" onClick={() => fetchJobsInRange(
+                new Date(startOfToday),
+                undefined
+            )}>
                 <TextSpan>Today</TextSpan>
             </Box>
             <Box
                 cursor="pointer"
-                onClick={() => console.log("foo")/* fetchJobsInRange(
-            new Date(startOfYesterday),
-            new Date(startOfYesterday.getTime() + dayInMillis)
-        ) */}
+                onClick={() => fetchJobsInRange(
+                    new Date(startOfYesterday),
+                    new Date(startOfYesterday.getTime() + dayInMillis)
+                )}
             >
                 <TextSpan>Yesterday</TextSpan>
             </Box>
             <Box
                 cursor="pointer"
-                onClick={() => console.log("foodo")/* fetchJobsInRange(new Date(startOfWeek), null) */}
+                onClick={() => fetchJobsInRange(new Date(startOfWeek), undefined)}
             >
                 <TextSpan>This week</TextSpan>
             </Box>
@@ -233,9 +244,9 @@ function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: any) => void}
                         isClearable
                         selectsStart
                         showTimeInput
-                        startDate={new Date() /* firstDate */}
-                        endDate={new Date()/* secondDate */}
-                        selected={new Date()/*  */}
+                        startDate={firstDate}
+                        endDate={secondDate}
+                        selected={firstDate}
                         onChange={(date: Date) => (setFirstDate(date), fetchJobsInRange(date, secondDate))}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"
