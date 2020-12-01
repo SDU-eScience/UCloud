@@ -5,11 +5,12 @@ import {colors, ThemeColor} from "ui-components/theme";
 import {JobState} from "Applications/Jobs/index";
 
 export const JobStateIcon: React.FunctionComponent<{
-    state: JobState;
+    state?: JobState;
     isExpired: boolean;
     size?: number | string;
     color?: ThemeColor;
 } & SpaceProps> = ({isExpired, ...props}) => {
+    if (!props.state) return null;
     let iconName: IconName;
     // let defaultColor: ThemeColor = "iconColor";
     let defaultColor;
