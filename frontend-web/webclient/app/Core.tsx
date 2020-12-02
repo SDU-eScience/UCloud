@@ -26,7 +26,6 @@ const LoginPage = React.lazy(() => import("Login/Login"));
 const LoginSelection = React.lazy(() => import("Login/LoginSelection"));
 const NewsList = React.lazy(() => import("NewsPost/NewsList"));
 const NewsManagement = React.lazy(() => import("Admin/NewsManagement"));
-const NoVNCClient = React.lazy(() => import("NoVNC/NoVNCClient"));
 const OutgoingApplications = React.lazy(() => import("Project/Grant/OutgoingApplications"));
 const Playground = React.lazy(() => import("Playground/Playground"));
 const Products = React.lazy(() => import("Products/Products"));
@@ -91,8 +90,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/files" component={requireAuth(Files)} />
 
                     <Route exact path="/activity" component={requireAuth(Activity)} />
-
-                    <Route exact path="/novnc" component={requireAuth(NoVNCClient)} />
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />

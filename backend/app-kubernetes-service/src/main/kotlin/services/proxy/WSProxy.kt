@@ -42,12 +42,16 @@ suspend fun WebSocketServerSession.runWSProxy(
             // Must add an origin for the remote server to trust us
             header(HttpHeaders.Origin, "http://${tunnel.ipAddress}:${tunnel.localPort}")
 
-            header(
-                HttpHeaders.Cookie,
-                cookies.entries.joinToString(";") { "${it.key}=${it.value}" }
-            )
+            if (cookies.entries.isNotEmpty()) {
+                header(
+                    HttpHeaders.Cookie,
+                    cookies.entries.joinToString(";") { "${it.key}=${it.value}" }
+                )
+            }
         }) {
         val serverConn = this
+
+        // NOTE(Dan): Client refers to the application and server refers to UCloud
         val clientToServer = launch {
             try {
                 while (true) {

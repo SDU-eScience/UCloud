@@ -1,16 +1,19 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
+import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.websocket.webSocket
 
@@ -46,16 +49,22 @@ class VncService(
         webSocket("${KubernetesCompute.baseContext}/vnc/{id}", protocol = "binary") {
             val sessionId = call.parameters["id"] ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             val jobAndRank = sessionCache.get(sessionId)
-                ?: throw RPCException(
-                    "Unable to connect to remote desktop. Try to reload the page.",
-                    HttpStatusCode.NotFound
-                )
+                ?: run {
+                    call.respondText(
+                        defaultMapper.writeValueAsString(
+                            CommonErrorMessage("Unable to connect to remote desktop. Try to reload the page.")
+                        ),
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest
+                    )
+                    return@webSocket
+                }
 
             log.info("Incoming VNC connection for application $jobAndRank")
             val tunnel = createTunnel(jobAndRank.jobId, jobAndRank.rank)
 
             tunnel.use {
-                runWSProxy(tunnel)
+                runWSProxy(tunnel, uri = "/websockify")
             }
         }
         return@with

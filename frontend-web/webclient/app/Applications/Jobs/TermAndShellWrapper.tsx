@@ -1,11 +1,11 @@
 import styled from "styled-components";
 
-export const TermAndShellWrapper = styled.div`
+export const TermAndShellWrapper = styled.div<{addPadding: boolean}>`
   display: flex;
   height: 100vh;
   width: 100vw;
   flex-direction: column;
-  padding: 16px;
+  ${p => p.addPadding ? "padding: 16px;" : null}
 
   &.light {
     background: #ffffff;

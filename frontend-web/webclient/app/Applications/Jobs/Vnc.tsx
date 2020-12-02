@@ -10,6 +10,7 @@ import {useCallback, useEffect, useLayoutEffect, useState} from "react";
 import {compute} from "UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
 import RFB from "@novnc/novnc/core/rfb";
+import * as VncLog from '@novnc/novnc/core/util/logging.js';
 import {Box, Button} from "ui-components";
 import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
 
@@ -51,16 +52,18 @@ export const Vnc: React.FunctionComponent = () => {
 
     const connect = useCallback(() => {
         if (connectionDetails === null) return;
+        VncLog.initLogging("warn");
 
         try {
             const rfb = new RFB(
                 document.getElementsByClassName("contents")[0],
                 connectionDetails.url, {
-                    credentials: {password: connectionDetails.url},
+                    credentials: {password: connectionDetails.password},
                     wsProtocols: ["binary"]
                 }
             );
 
+            rfb.scaleViewport = true;
             rfb.addEventListener("disconnect", () => setConnected(false));
             setConnected(true);
         } catch (e) {
@@ -76,7 +79,7 @@ export const Vnc: React.FunctionComponent = () => {
         connect();
     }, [connectionDetails]);
 
-    return <TermAndShellWrapper>
+    return <TermAndShellWrapper addPadding={false}>
         {isConnected || sessionResp.data == null ? null : (
             <Box className={`warn`}>
                 <Box flexGrow={1}>Your connection has been closed!</Box>

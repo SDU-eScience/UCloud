@@ -99,7 +99,8 @@ class TunnelManager(private val k8: K8Dependencies) {
                     "labelSelector" to "$VOLCANO_JOB_NAME_LABEL=$jobName"
                 )
             )
-            .firstOrNull() ?: throw RPCException("Could not find active job", HttpStatusCode.NotFound)
+            .find { it.metadata?.name?.substringAfterLast("-")?.toIntOrNull() == rank }
+            ?: throw RPCException("Could not find pod", HttpStatusCode.NotFound)
 
         val podName = pod.metadata?.name ?: throw RPCException("Pod has no name", HttpStatusCode.InternalServerError)
 
@@ -143,7 +144,9 @@ class TunnelManager(private val k8: K8Dependencies) {
                 _close = {
                     k8sTunnel.destroyForcibly()
                     job.cancel()
-                }
+                },
+                originalIpAddress = pod.status?.podIP ?: "127.0.0.1",
+                originalPort = remotePort
             )
         } else {
             val ipAddress =
