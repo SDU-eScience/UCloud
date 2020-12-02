@@ -418,14 +418,23 @@ class JobOrchestrator(
                     JobDataIncludeFlags(includeUpdates = true)
                 )
 
-                sendWSMessage(JobsFollowResponse(initialJob.updates, emptyList()))
+                val stateUpdate = initialJob.updates.filter { it.state != null }.lastOrNull()
+                if (stateUpdate != null) {
+                    sendWSMessage(
+                        JobsFollowResponse(
+                            listOf(JobUpdate(stateUpdate.timestamp, stateUpdate.state)),
+                            emptyList()
+                        )
+                    )
+                }
+                // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
+                // retrieve them by themselves.
                 var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
                 val (api, _, wsClient) = providers.prepareCommunication(initialJob.parameters.product.provider)
                 var streamId: String? = null
 
                 coroutineScope {
                     val logJob = launch {
-                        log.info("Logs are go!")
                         api.follow.subscribe(ComputeFollowRequest.Init(initialJob), wsClient, { message ->
                             if (streamId == null) {
                                 streamId = message.streamId
@@ -442,7 +451,6 @@ class JobOrchestrator(
                     }
 
                     val updateJob = launch {
-                        log.info("Updates are go!")
                         while (currentCoroutineContext().isActive) {
                             val (job) = jobQueryService.retrieve(
                                 actor,

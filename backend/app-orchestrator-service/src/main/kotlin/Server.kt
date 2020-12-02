@@ -112,15 +112,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             jobQueryService,
         )
 
-        val streamFollowService =
-            StreamFollowService(
-                jobFileService,
-                serviceClient,
-                serviceClientWS,
-                jobQueryService,
-                micro.backgroundScope
-            )
-
         AppProcessor(
             streams,
             jobOrchestrator,

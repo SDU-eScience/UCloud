@@ -1,11 +1,11 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {PRODUCT_NAME} from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as Jobs from "./index";
-import {isJobStateTerminal, JobState} from "./index";
+import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useTitle} from "Navigation/Redux/StatusActions";
@@ -27,13 +27,10 @@ import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {compute} from "UCloud";
 import Job = compute.Job;
 import JobParameters = compute.JobParameters;
-import jobs = compute.jobs;
-import {dateToString} from "Utilities/DateUtilities";
+import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
-import {dialogStore} from "Dialog/DialogStore";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import JobUpdate = compute.JobUpdate;
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -295,10 +292,13 @@ export const View: React.FunctionComponent = () => {
     }, [id]);
     const jobUpdateListener = useCallback((e: JobsFollowResponse) => {
         if (!e) return;
+        if (e.updates) {
+            for (const update of e.updates) job?.updates?.push(update);
+        }
         jobUpdateCallbackHandlers.current.forEach(({handler}) => {
             handler(e);
         });
-    }, [id]);
+    }, [job, id]);
     useJobUpdates(id, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
@@ -336,6 +336,7 @@ export const View: React.FunctionComponent = () => {
                             </Flex>
 
                             <Content>
+                                <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
                                 <Busy job={job} state={state ?? "IN_QUEUE"} />
                                 <InfoCards job={job!} />
                             </Content>
@@ -597,6 +598,9 @@ const RunningContent: React.FunctionComponent<{
 
                 <CancelButton job={job} state={"RUNNING"} />
             </DashboardCard>
+            <DashboardCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
+                <ProviderUpdates job={job} updateListeners={updateListeners} />
+            </DashboardCard>
         </RunningInfoWrapper>
 
         <RunningJobsWrapper>
@@ -687,7 +691,6 @@ const RunningJobRank: React.FunctionComponent<{
 }> = ({job, rank, updateListeners}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
     const [expanded, setExpanded] = useState(false);
-    const [, invokeCommand] = useCloudCommand();
     const toggleExpand = useCallback(() => {
         setExpanded(!expanded);
         const targetView = termRef.current?.parentElement;
@@ -847,6 +850,69 @@ const CancelButton: React.FunctionComponent<{job: Job, state: JobState}> = ({job
     return <Button type={"button"} color={"red"} disabled={loading} onClick={onCancel}>
         {state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     </Button>;
+};
+
+const ProviderUpdates: React.FunctionComponent<{
+    job: Job;
+    updateListeners: React.RefObject<JobUpdateListener[]>;
+}> = ({job, updateListeners}) => {
+    const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
+
+    const appendUpdate = useCallback((update: JobUpdate) => {
+        if (update.status) {
+            appendToXterm(
+                terminal,
+                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}
+`
+            );
+        } else if (update.state) {
+            let message = "Your job is now: " + stateToTitle(update.state);
+            switch (update.state) {
+                case "CANCELING":
+                    message = "Your job is now canceling";
+                    break;
+                case "FAILURE":
+                    message = "Your job has failed";
+                    break;
+                case "IN_QUEUE":
+                    message = "Your job is now in the queue";
+                    break;
+                case "SUCCESS":
+                    message = "Your job has been processed successfully";
+                    break;
+                case "RUNNING":
+                    message = "Your job is now running";
+                    break;
+            }
+            appendToXterm(
+                terminal,
+                `[${dateToTimeOfDayString(update.timestamp)}] ${message}\n`
+            );
+        }
+    }, [terminal]);
+
+    useLayoutEffect(() => {
+        for (const update of job.updates) {
+            appendUpdate(update)
+        }
+    }, []);
+
+    useLayoutEffect(() => {
+        let mounted = true;
+        const listener: JobUpdateListener = {
+            handler: e => {
+                if (!mounted) return;
+                for (const update of e.updates) {
+                    appendUpdate(update);
+                }
+            }
+        }
+        updateListeners.current?.push(listener);
+        return () => {
+            mounted = false;
+        };
+    }, [updateListeners]);
+    return <Box height={"200px"} ref={termRef} />
 };
 
 export default View;
