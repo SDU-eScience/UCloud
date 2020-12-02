@@ -1,15 +1,11 @@
-import {AnalysesStateProps, RunsSortBy} from "../app/Applications";
 import {DashboardStateProps} from "../app/Dashboard";
 import * as Defaults from "../app/DefaultObjects";
-import {SortOrder} from "../app/Files";
 import {SidebarPages} from "../app/ui-components/Sidebar";
 
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
         expect(Defaults.initDashboard()).toEqual({
-            recentAnalyses: [],
-            notifications: [],
-            analysesLoading: false,
+            notifications: []
         } as DashboardStateProps);
     });
 
@@ -34,16 +30,6 @@ describe("Initialize Redux Objects", () => {
             redirectTo: "",
             error: undefined
         } as Defaults.NotificationsReduxObject)
-    );
-
-    test("Analyses", () =>
-        expect(Defaults.initAnalyses()).toEqual({
-            page: Defaults.emptyPage,
-            loading: false,
-            error: undefined,
-            sortBy: RunsSortBy.createdAt,
-            sortOrder: SortOrder.DESCENDING
-        } as AnalysesStateProps)
     );
 
     test("Sidebar", () =>

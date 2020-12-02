@@ -1,1194 +1,846 @@
-import {Application, ParameterTypes} from "../../app/Applications";
+import * as UCloud from "../../app/UCloud";
 
-export const applicationsPage: Page<Application> = {
-    itemsInTotal: 8,
-    itemsPerPage: 25,
+export const applicationsPage: UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> = {
+    itemsInTotal: 45,
+    itemsPerPage: 100,
     pageNumber: 0,
     items: [
         {
-            favorite: false,
-            owner: "j@h.com",
-            createdAt: 1531306829400,
-            modifiedAt: 1531306829400,
-            imageUrl: "",
-            description: {
-                tags: [],
-                resources: {multiNodeSupport: false},
-                info: {name: "palms", version: "1.0.0"},
-                tool: {name: "palms", version: "1.0.0"},
-                authors: ["Don Dan <danny_don@sdu.dk>"],
-                title: "PALMS",
-                description: "The central role of places in which physical activity (PA) is done is now widely recognized, so it is important to measure both activity and its location. At present, other than using the very expensive method of doubly-labeled water, if a researcher wants to measure PA in free living humans the most accurate technologies are either combined heart rate and motion (HR+M) sensors or accelerometers. But these devices do not collect data on where the activity occurs. If a researcher wants to know where a person performs physical activity, this information must be collected by means of self report after the PA has occurred. More recently, strategies utilizing ecological momentary assessment (EMA) have been used to sample behavioral experiences, including physical activity, in free living humans while they occur. However, this approach depends upon time- or event-critical sampling of self-reported information and thus continues to depend on self-report from the user to enter the information. Objective measurement of walking and cycling using portable global positioning system (GPS) devices has been successful but GPS data have yet to be combined with highly accurate PA measurement in a way that can be used across settings and populations.\n",
-                invocation: [
-                    {
-                        type: "word",
-                        word: "parms"
-                    }, {
-                        type: "var",
-                        variableNames: ["input"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "-i ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "word",
-                        word: "-o output.json"
-                    }, {
-                        type: "var",
-                        variableNames: ["interval"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--interval ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["insert_missing"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--insert_missing ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["insert_until"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--insert_until ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["insert_max_seconds"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--insert_max_seconds ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["los_max_duration"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--los_max_duration ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["remove_lone"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--remove_lone ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["filter_invalid"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--filter_invalid ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["max_speed"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--max_speed ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["max_ele_change"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--max_ele_change ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["min_change_3_fixes"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--min_change_3_fixes ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["detect_indoors"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--detect_indoors ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["min_distance"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--min_distance ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["min_trip_length"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--min_trip_length ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["min_trip_duration"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--min_trip_duration ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["min_pause_duration"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--min_pause_duration ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["max_pause_duration"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--max_pause_duration ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["max_percent_single_location"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--max_percent_single_location ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["max_percent_allowed_indoors"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--max_percent_allowed_indoors ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["remove_indoor_fixes"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--remove_indoor_fixes ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["include_trip_pauses"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--include_trip_pauses ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["trap_indoor_fixes"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--trap_indoor_fixes ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["trap_outdoor_fixes"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--trap_outdoor_fixes ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["trap_trip_fixes"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--trap_trip_fixes ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["allow_non_trips"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--allow_non_trips ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["location_radius"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--location_radius ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["min_duration_at_location"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--min_duration_at_location ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["vehicle_cutoff"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--vehicle_cutoff ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["bicycle_cutoff"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--bicycle_cutoff ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["walk_cutoff"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--walk_cutoff ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["percentile_to_sample"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--percentile_to_sample ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }, {
-                        type: "var",
-                        variableNames: ["min_segment_length"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "--min_segment_length ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }
+            metadata: {
+                name: "ansaws",
+                version: "2020",
+                authors: [
+                    "ansaws Inc."
                 ],
-                parameters: [
-                    {
-                        name: "input",
-                        optional: false,
-                        defaultValue: null,
-                        title: "Input File",
-                        description: "",
-                        type: ParameterTypes.InputFile
-                    },
-                    {
-                        name: "interval",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Interval",
-                        description: "duration of interval between results in seconds",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: "seconds",
-                        type: ParameterTypes.Integer
-                    },
-                    {
-                        name: "insert_missing",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Insert missing",
-                        description: "if true, gaps in GPS fixes are replaced by the last valid fix",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    },
-                    {
-                        name: "insert_until",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Insert until",
-                        description: "if true, inserts until a max time is reached",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    },
-                    {
-                        name: "insert_max_seconds",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Insert max seconds",
-                        description: "max number of seconds to replace missing fixes with last valid fix",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    },
-                    {
-                        name: "los_max_duration",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Loss of Signal (Max duration)",
-                        description: "max amount of time allowed to pass before Loss of Signal is declared",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: "seconds",
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "remove_lone",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Remove lone",
-                        description: "if true, removes lone fixes",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "filter_invalid",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Filter invalid",
-                        description: "if true, removes invalid fixes",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "max_speed", optional: true, defaultValue: null, title: "Max speed", description: "Consider fix invalid if speed is greater than this value (in km/hr)", min: null, max: null, step: null, unitName: "km/hr", type: ParameterTypes.Integer
-                    }, {
-                        name: "max_ele_change",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Maximum elevation change",
-                        description: "Consider fix invalid if elevation change is greater than this value (in meters)",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: "meters",
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "min_change_3_fixes",
-                        optional: true,
-                        defaultValue: null,
-                        title: "min_change_3_fixes",
-                        description: "Consider fix invalid if change in distance between fix 1 and 3 is less than this value (in meters). This helps remove GPS jitter.",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "detect_indoors",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Detect indoors",
-                        description: "If true, mark position as indoors, outdoors or in-vehicle",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "max_sat_ratio",
-                        optional: true,
-                        defaultValue: null,
-                        title: "max_sat_ratio",
-                        description: "",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: null,
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "max_SNR_value",
-                        optional: true,
-                        defaultValue: null,
-                        title: "max_SNR_value",
-                        description: "",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: null,
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "min_distance",
-                        optional: true,
-                        defaultValue: null,
-                        title: "Minimum distance", description: "minimum distance (in meters) that must be travelled over one minute to indicate the start of a trip. Default chosen to be 34 meters which is equal to a typical walking speed of 2KM/hr.", min: null, max: null, step: null, unitName: "km/hr", type: ParameterTypes.Integer
-                    }, {
-                        name: "min_trip_length",
-                        optional: true, defaultValue: null, title: "Minimum trip length", description: "trips less than this distance (in meters) are not considered trips.", min: null, max: null, step: null, unitName: "meters", type: ParameterTypes.Integer
-                    }, {
-                        name: "min_trip_duration",
-                        optional: true, defaultValue: null, title: "Minimum trip duration", description: "trips less than this duration (in seconds) are not considered trips.", min: null, max: null, step: null, unitName: "seconds", type: ParameterTypes.Integer
-                    }, {
-                        name: "min_pause_duration",
-                        optional: true, defaultValue: null, title: "Minimum pause duration", description: "trips less than this duration (in seconds) are not considered trips.", min: null, max: null, step: null, unitName: "seconds", type: ParameterTypes.Integer
-                    }, {
-                        name: "max_pause_duration",
-                        optional: true, defaultValue: null, title: "Maximum pause duration", description: " when the duration of a pause exceeds this value, the point is marked as an end point.", min: null, max: null, step: null, unitName: null, type: ParameterTypes.Integer
-                    }, {
-                        name: "max_percent_single_location",
-                        optional: true,
-                        defaultValue: null,
-                        title: "max_percent_single_location",
-                        description: "maximum percentage of a trip's fixes that can occur at a single location.",
-                        min: 0,
-                        max: 100,
-                        step: null,
-                        unitName: "%",
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "max_percent_allowed_indoors",
-                        optional: true, defaultValue: null, title: "max_percent_allowed_indoors", description: "maximum percentage of a trip that is allowed indoors.", min: 0, max: 100, step: null, unitName: "%", type: ParameterTypes.Integer
-                    }, {
-                        name: "remove_indoor_fixes",
-                        optional: true,
-                        defaultValue: null,
-                        title: "remove_indoor_fixes",
-                        description: "if true, points at the start and end of a trip that are marked indoors are removed from the trip.",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "include_trip_pauses",
-                        optional: true,
-                        defaultValue: null,
-                        title: "include_trip_pauses",
-                        description: "if true, include trip pause points as locations.",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "trap_indoor_fixes",
-                        optional: true,
-                        defaultValue: null,
-                        title: "trap_indoor_fixes",
-                        description: "if true, stationary indoor fixes within a given radius of the location will be set to the center of the location.",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "trap_outdoor_fixes",
-                        optional: true, defaultValue: null, title: "trap_outdoor_fixes", description: "if true, stationary outdoor fixes will be set to the location center.", trueValue: "true", falseValue: "false", type: ParameterTypes.Boolean
-                    }, {
-                        name: "trap_trip_fixes",
-                        optional: true, defaultValue: null, title: "trap_trip_fixes", description: "if true, also include fixes that are part of trips.", trueValue: "true", falseValue: "false", type: ParameterTypes.Boolean
-                    }, {
-                        name: "allow_non_trips",
-                        optional: true,
-                        defaultValue: null,
-                        title: "allow_non_trips",
-                        description: "if true, locations may be included that are not part of a trip.",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "location_radius",
-                        optional: true,
-                        defaultValue: null,
-                        title: "location_radius",
-                        description: "defines radius (in meters) of location in which fixes are trapped.",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: "meters",
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "min_duration_at_location", optional: true, defaultValue: null, title: "min_duration_at_location", description: "minimum amount of time (in seconds) that must be spent at a location for it to be considered a location.", min: null, max: null, step: null, unitName: "seconds", type: ParameterTypes.Integer
-                    }, {
-                        name: "vehicle_cutoff",
-                        optional: true,
-                        defaultValue: null,
-                        title: "vehicle_cutoff",
-                        description: "speeds greater than this value (in KM/hr) will be marked as vehicle.",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: "km/hr",
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "bicycle_cutoff",
-                        optional: true,
-                        defaultValue: null,
-                        title: "bicycle_cutoff",
-                        description: "speeds greater than this value (in KM/hr) will be marked as bicycle.",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: "km/hr",
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "walk_cutoff",
-                        optional: true,
-                        defaultValue: null,
-                        title: "walk_cutoff",
-                        description: "speeds greater than this value (in KM/hr) will be marked as pedestrian.",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: "km/hr",
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "percentile_to_sample",
-                        optional: true,
-                        defaultValue: null,
-                        title: "percentile_to_sample",
-                        description: "speed comparisons are made at this percentile.",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: null,
-                        type: ParameterTypes.Integer
-                    }, {
-                        name: "min_segment_length",
-                        optional: true,
-                        defaultValue: null,
-                        title: "min_segment_length",
-                        description: "minimum length (in meters) of segments used to classify mode of transportation.",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: "meters",
-                        type: ParameterTypes.Integer
-                    }],
-                outputFileGlobs: ["stdout.txt", "stderr.txt"]
+                title: "ansaws",
+                description: "ANSYS is a general nonlinear multiphysics software offering structural and  thermodynamic analysis, continuum flow analysis, analysis of electrostatic and  electromagnetic fields and acoustic analysis.\n",
+                public: true
             },
-            tool: {
-                owner: "j@h.com",
-                createdAt: 1531304428595,
-                modifiedAt: 1531304428595,
-                description: {
-                    license: "FauxPL",
-                    info: {
-                        name: "palms",
-                        version: "1.0.0"
-                    },
-                    container: "parms.simg",
-                    defaultNumberOfNodes: 1,
-                    defaultAllocationTime: {
-                        hours: 0,
-                        minutes: 10,
-                        seconds: 0
-                    },
-                    requiredModules: [],
-                    authors: ["Don Dan <donny_dan@sdu.dk>"],
-                    title: "PALMS",
-                    description: "Tools for running PALMS",
-                    backend: "SINGULARITY"
-                }
-            }
-        }, {
-            imageUrl: "",
             favorite: false,
-            owner: "j@h.com", createdAt: 1531308013745, modifiedAt: 1531308013745, description: {
-                tags: [],
-                resources: {multiNodeSupport: false},
-                info: {name: "bwa-mem", version: "1.0.0"}, tool: {name: "bwa-sambamba", version: "3.3.0"},
-                authors: ["Don Dan <donny_dan@sdu.dk>"],
-                title: "BWA-MEM",
-                description: "BWA-MEM",
-                invocation: [{
-                    type: "word",
-                    word: "bwa-mem"
-                }, {
-                    type: "var",
-                    variableNames: ["index_base_main"],
-                    prefixGlobal: "",
-                    suffixGlobal: "",
-                    prefixVariable: "",
-                    suffixVariable: "",
-                    variableSeparator: " "
-                }, {
-                    type: "var",
-                    variableNames: ["R1"],
-                    prefixGlobal: "",
-                    suffixGlobal: "",
-                    prefixVariable: "",
-                    suffixVariable: "",
-                    variableSeparator: " "
-                }, {
-                    type: "var",
-                    variableNames: ["R2"],
-                    prefixGlobal: "",
-                    suffixGlobal: "",
-                    prefixVariable: "",
-                    suffixVariable: "",
-                    variableSeparator: " "
-                }],
-                parameters: [{
-                    name: "index_base_main", optional: false,
-                    defaultValue: null,
-                    title: "Index Resources",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "base_dict",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".fasta.dict",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "base_amb",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".fasta.amb",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "base_ann",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".fasta.ann",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "base_bwt",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".fasta.bwt",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "base_fai",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".fasta.fai",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "base_pac",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".fasta.pac",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "base_sa",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".fasta.sa",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "R1",
-                    optional: false,
-                    defaultValue: null,
-                    title: "R1",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "R2",
-                    optional: false,
-                    defaultValue: null,
-                    title: "R2",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }],
-                outputFileGlobs: ["sample.bam * ", "stdout.txt", "stderr.txt"]
-            }, tool: {
-                owner: "j@h.com",
-                createdAt: 1531304635371,
-                modifiedAt: 1531304635371,
-                description: {
-                    license: "FauxPL", info: {name: "bwa-sambamba", version: "3.3.0"},
-                    container: "bwa-sambamba",
-                    defaultNumberOfNodes: 1,
-                    defaultAllocationTime: {
-                        hours: 1,
-                        minutes: 0,
-                        seconds: 0
-                    }, requiredModules: [],
-                    authors: ["Don Dan <donny_dan@sdu.dk>"],
-                    title: "bwa-sambamba",
-                    description: "Tools for running bwa-sambamba",
-                    backend: "UDOCKER"
-                }
-            }
-        }, {
-            imageUrl: "",
-            favorite: false,
-            owner: "j@h.com", createdAt: 1531305600165, modifiedAt: 1531305600165, description: {
-                tags: [],
-                resources: {multiNodeSupport: false},
-                info: {name: "figlet-count", version: "1.0.0"},
-                tool: {name: "figlet", version: "1.0.0"},
-                authors: ["Don Dan <donny_dan@sdu.dk>"],
-                title: "Figlet Counter",
-                description: "Count with Figlet!\n",
-                invocation: [
-                    {type: "word", word: "figlet-count"},
-                    {
-                        type: "var",
-                        variableNames: ["n"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }],
-                parameters: [
-                    {
-                        name: "n",
-                        optional: false,
-                        defaultValue: {value: 100, type: "int"},
-                        title: "Count",
-                        description: "How much should we count to?",
-                        min: null,
-                        max: null,
-                        step: null,
-                        unitName: null,
-                        type: ParameterTypes.Integer
-                    }], outputFileGlobs: ["stdout.txt", "stderr.txt"]
-            },
-            tool: {
-                owner: "j@h.com",
-                createdAt: 1531303905548,
-                modifiedAt: 1531303905548,
-                description: {
-                    license: "FauxPL",
-                    info: {name: "figlet", version: "1.0.0"},
-                    container: "figlet.simg",
-                    defaultNumberOfNodes: 1,
-                    defaultAllocationTime: {hours: 0, minutes: 1, seconds: 0},
-                    requiredModules: [],
-                    authors: ["Don Dan <donny_dan@sdu.dk>"],
-                    title: "Figlet",
-                    description: "Tool for rendering text.", backend: "SINGULARITY"
-                }
-            }
-        }, {
-            favorite: false,
-            imageUrl: "",
-            owner: "j@h.com", createdAt: 1531307297437, modifiedAt: 1531307297437, description: {
-                tags: [],
-                resources: {multiNodeSupport: false},
-                info: {name: "tqdist_triplet", version: "1.0.0"},
-                tool: {name: "tqdist", version: "1.0.0"},
-                authors: ["Andy Sandy", "Morten Kork", "Jens Jensen", "Anders Staaaalig", "Mail Mail", "Christian Christiansen"],
-                title: "tqDist: Triplet Distance",
-                description: "Distance measures between trees are useful for comparing trees in a systematic manner and several different distance measures have been proposed. The triplet and quartet distances, for rooted and unrooted trees, are defined as the number of subsets of three or four leaves, respectively, where the topologies of the induced sub-trees differ. These distances can trivially be computed by explicitly enumerating all sets of three or four leaves and testing if the topologies are different, but this leads to time complexities at least of the order n^3 or n^4 just for enumerating the sets. The different topologies can be counted implicitly, however, and using this tqDist computes the triplet distance between rooted trees in O(n log n) time and the quartet distance between unrooted trees in O(dn log n) time, where d degree of the tree with the smallest degree.\n",
-                invocation: [
-                    {type: "word", word: "triplet_dist"},
-                    {
-                        type: "var",
-                        prefixGlobal: "",
-                        prefixVariable: "",
-                        suffixGlobal: "",
-                        suffixVariable: "",
-                        variableNames: [],
-                        variableSeparator: ""
-                    },
-                    {
-                        type: "var",
-                        variableNames: ["tree_one", "tree_two"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }], parameters: [{
-                        name: "verbose",
-                        optional: false,
-                        defaultValue: null,
-                        title: "Verbose",
-                        description: "If the -v option is used, the following numbers will be reported  (in this order):\n- The number of leaves in the trees (should be the same for both). - The number of triplets in the two trees (n choose 3). - The triplet distance between the two trees. - The normalized triplet distance between the two trees. - The number of resolved triplets that agree in the two trees. - The normalized number of resolved triplets that agree in the two trees. - The number triplets that are unresolved in both trees. - The normalized number triplets that are unresolved in both trees.\n",
-                        trueValue: "true",
-                        falseValue: "false",
-                        type: ParameterTypes.Boolean
-                    }, {
-                        name: "tree_one",
-                        optional: false,
-                        defaultValue: null,
-                        title: "Tree One",
-                        description: "",
-                        type: ParameterTypes.InputFile
-                    }, {
-                        name: "tree_two",
-                        optional: false,
-                        defaultValue: null,
-                        title: "Tree Two",
-                        description: "",
-                        type: ParameterTypes.InputFile
-                    }], outputFileGlobs: ["stdout.txt", "stderr.txt"]
-            }, tool: {
-                owner: "j@h.com",
-                createdAt: 1531304469178,
-                modifiedAt: 1531304469178,
-                description: {
-                    license: "FauxPL",
-                    info: {name: "tqdist", version: "1.0.0"},
-                    container: "tqdist.simg",
-                    defaultNumberOfNodes: 1,
-                    defaultAllocationTime: {hours: 0, minutes: 10, seconds: 0},
-                    requiredModules: [],
-                    authors: ["Don Dan <donny_dan@sdu.dk>"],
-                    title: "tqDist",
-                    description: "Tools for running tqDist",
-                    backend: "SINGULARITY"
-                }
-            }
-        }, {
-            favorite: false,
-            imageUrl: "",
-            owner: "j@h.com",
-            createdAt: 1531305389134,
-            modifiedAt: 1531305389134,
-            description: {
-                tags: [],
-                resources: {multiNodeSupport: false},
-                info: {name: "figlet", version: "1.0.0"},
-                tool: {name: "figlet", version: "1.0.0"},
-                authors: ["Don Dan <donny_dan@sdu.dk>"],
-                title: "Figlet", description: "Render some text!\n",
-                invocation: [
-                    {type: "word", word: "figlet"},
-                    {
-                        type: "var",
-                        variableNames: ["text"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }
+            tags: [
+                "Featured",
+                "Engineering"
+            ]
+        },
+        {
+            metadata: {
+                name: "ays-el",
+                version: "2020.R2-1",
+                authors: [
+                    "Ays Inc."
                 ],
-                parameters: [
-                    {
-                        name: "text",
-                        optional: false,
-                        defaultValue: null,
-                        title: "Some text to render with figlet",
-                        description: "",
-                        type: ParameterTypes.Text
-                    }],
-                outputFileGlobs: ["stdout.txt", "stderr.txt"]
+                title: "AYS E-Desktop",
+                description: "Ansys Electronics Desktop is a comprehensive platform that enables electrical engineers to design and simulate various electrical,  electronic and electromagnetic components, devices and systems. \n",
+                public: false
             },
-            tool: {
-                owner: "j@h.com",
-                createdAt: 1531303905548,
-                modifiedAt: 1531303905548,
-                description: {
-                    license: "FauxPL",
-                    info: {name: "figlet", version: "1.0.0"},
-                    container: "figlet.simg",
-                    defaultNumberOfNodes: 1,
-                    defaultAllocationTime: {hours: 0, minutes: 1, seconds: 0},
-                    requiredModules: [],
-                    authors: ["Don Dan <donny_dan@sdu.dk>"],
-                    title: "Figlet",
-                    description: "Tool for rendering text.",
-                    backend: "SINGULARITY"
-                }
-            }
-        }, {
             favorite: false,
-            imageUrl: "",
-            owner: "j@h.com", createdAt: 1531307717715, modifiedAt: 1531307717715, description: {
-                tags: [],
-                resources: {multiNodeSupport: false},
-                info: {name: "rapidnj", version: "2.3.2"},
-                tool: {name: "rapidnj", version: "2.3.2"},
-                authors: ["Martin Signer", "Ashey Mai", "Thomas Pedersen"],
-                title: "RapidNJ", description: "RapidNJ is an algorithmic engineered implementation of canonical neighbour-joining. It uses an efficient search heuristic to speed-up the core computations of the neighbour-joining method that enables RapidNJ to outperform other state-of-the-art neighbour-joining implementations\n",
-                invocation: [
-                    {type: "word", word: "rapidnj"},
-                    {
-                        type: "var",
-                        variableNames: ["file"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    },
-                    {
-                        type: "var",
-                        variableNames: ["format"],
-                        prefixGlobal: "",
-                        suffixGlobal: "",
-                        prefixVariable: "-i ",
-                        suffixVariable: "",
-                        variableSeparator: " "
-                    }],
-                parameters: [
-                    {
-                        name: "file",
-                        optional: false,
-                        defaultValue: null,
-                        title: "Input File",
-                        description: "",
-                        type: ParameterTypes.InputFile
-                    }, {
-                        name: "format", optional: true, defaultValue: null, title: "Input Format", description: "The program can usually guess the input format, otherwise this option can be used to choose between different formats. To infer a tree from an alignment in Stockholm format use 'sth'.", type: ParameterTypes.Text
-                    }],
-                outputFileGlobs: ["stdout.txt", "stderr.txt"]
-            }, tool: {
-                owner: "j@h.com",
-                createdAt: 1531304528792,
-                modifiedAt: 1531304528792,
-                description: {
-                    license: "FauxPL",
-                    info: {name: "rapidnj", version: "2.3.2"},
-                    container: "rapidnj.simg",
-                    defaultNumberOfNodes: 1,
-                    defaultAllocationTime: {hours: 0, minutes: 10, seconds: 0},
-                    requiredModules: [],
-                    authors: ["Don Dan <donny_dan@sdu.dk>"],
-                    title: "RapidNJ",
-                    description: "Tools for running rapidnj",
-                    backend: "SINGULARITY"
-                }
-            }
-        }, {
-            favorite: false,
-            imageUrl: "",
-            owner: "j@h.com",
-            createdAt: 1531304975016,
-            modifiedAt: 1531304975016,
-            description: {
-                tags: [],
-                resources: {multiNodeSupport: false},
-                info: {name: "searchgui_msgf", version: "3.3.0"},
-                tool: {name: "searchgui", version: "3.3.0"},
-                authors: ["Vaudelville", "Asnes A", "Bervy FileSystem", "Sickman Abra", "Martins Long"],
-                title: "SearchCLI: MS-GF+",
-                description: "SearchGUI is a user-friendly open-source graphical user interface for configuring and running proteomics identification search engines and de novo sequencing algorithms, currently supporting  [X! Tandem](http://www.thegpm.org/tandem), [MS-GF+](http://www.ncbi.nlm.nih.gov/pubmed/?term=25358478),  [MS Amanda](http://ms.imp.ac.at/?goto#msamanda), [MyriMatch](http://www.ncbi.nlm.nih.gov/pubmed/?term=17269722),  [Comet](http://comet-ms.sourceforge.net/), [Tide](http://cruxtoolkit.sourceforge.net),  [Andromeda](http://www.coxdocs.org/doku.php?id=maxquant:andromeda:start), [OMSSA](http://www.ncbi.nlm.nih.gov/pubmed/15473683),  [Novor](http://rapidnovor.com) and  [DirecTag](http://fenchurch.mc.vanderbilt.edu/bumbershoot/directag/).\n",
-                invocation: [{
-                    type: "word", word: "java"
-                }, {
-                    type: "word", word: "-Xmx4G"
-                }, {
-                    type: "word", word: "-cp"
-                }, {
-                    type: "word", word: "/opt/sgui/SearchGUI-3.2.20.jar"
-                }, {
-                    type: "word", word: "eu.isas.searchgui.cmd.SearchCLI"
-                }, {
-                    type: "word", word: "-spectrum_files"
-                }, {
-                    type: "word", word: "./"
-                }, {
-                    type: "word", word: "-output_folder"
-                }, {
-                    type: "word", word: "./"
-                }, {
-                    type: "word", word: "-xtandem"
-                }, {
-                    type: "word", word: "0"
-                }, {
-                    type: "word", word: "-msgf"
-                }, {
-                    type: "word", word: "1"
-                }, {
-                    type: "word", word: "-comet"
-                }, {
-                    type: "word", word: "0"
-                }, {
-                    type: "word", word: "-myrimatch"
-                }, {
-                    type: "word", word: "0"
-                }, {
-                    type: "word", word: "-omssa"
-                }, {
-                    type: "word", word: "0"
-                }, {
-                    type: "word", word: "-tide"
-                }, {
-                    type: "word", word: "0"
-                }, {
-                    type: "word", word: "-andromeda"
-                }, {
-                    type: "word", word: "0"
-                }, {
-                    type: "var", variableNames: ["threads"], prefixGlobal: "", suffixGlobal: "", prefixVariable: "-threads ", suffixVariable: "", variableSeparator: " "
-                }, {
-                    type: "var", variableNames: ["id_params"], prefixGlobal: "", suffixGlobal: "", prefixVariable: "-id_params ", suffixVariable: "", variableSeparator: " "
-                }],
-                parameters: [{
-                    name: "id_params",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".par file",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "fasta",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".fasta file",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "mgf",
-                    optional: false,
-                    defaultValue: null,
-                    title: ".mgf file",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "threads",
-                    optional: false,
-                    defaultValue: null,
-                    title: "Number of threads",
-                    description: "",
-                    min: null,
-                    max: null,
-                    step: null,
-                    unitName: null,
-                    type: ParameterTypes.Integer
-                }],
-                outputFileGlobs: ["*.html", "*.zip", "stdout.txt", "stderr.txt"]
-            }, tool: {
-                owner: "j@h.com",
-                createdAt: 1531304587935,
-                modifiedAt: 1531304587935,
-                description: {
-                    license: "FauxPL",
-                    info: {name: "searchgui", version: "3.3.0"},
-                    container: "sgui",
-                    defaultNumberOfNodes: 1,
-                    defaultAllocationTime: {hours: 3, minutes: 0, seconds: 0},
-                    requiredModules: [],
-                    authors: ["Don Dan <donny_dan@sdu.dk>"],
-                    title: "SearchGUI",
-                    description: "Tools for running SearchGUI",
-                    backend: "UDOCKER"
-                }
-            }
-        }, {
-            favorite: false,
-            imageUrl: "",
-            owner: "j@h.com", createdAt: 1531307353519, modifiedAt: 1531307353519, description: {
-                tags: [],
-                resources: {multiNodeSupport: false},
-                info: {name: "tqdist_quartet", version: "1.0.0"},
-                tool: {name: "tqdist", version: "1.0.0"},
-                authors: ["Andreas Sandtaeller", "Morten Kork", "Jens Jens", "Gret Brovallery", "Gert Mail", "Per Pedersen"],
-                title: "tqDist: Quartet Distance",
-                description: "Distance measures between trees are useful for comparing trees in a systematic manner and several different distance measures have been proposed. The triplet and quartet distances, for rooted and unrooted trees, are defined as the number of subsets of three or four leaves, respectively, where the topologies of the induced sub-trees differ. These distances can trivially be computed by explicitly enumerating all sets of three or four leaves and testing if the topologies are different, but this leads to time complexities at least of the order n^3 or n^4 just for enumerating the sets. The different topologies can be counted implicitly, however, and using this tqDist computes the triplet distance between rooted trees in O(n log n) time and the quartet distance between unrooted trees in O(dn log n) time, where d degree of the tree with the smallest degree.\n",
-                invocation: [{
-                    type: "word", word: "quartet_dist"
-                }, {
-                    type: "var",
-                    variableNames: ["tree_one", "tree_two"],
-                    prefixGlobal: "",
-                    suffixGlobal: "",
-                    prefixVariable: "",
-                    suffixVariable: "",
-                    variableSeparator: " "
-                }],
-                parameters: [{
-                    name: "verbose", optional: false, defaultValue: null, title: "Verbose", description: "If the -v option is used, the following numbers will be reported  (in this order):\n- The number of leaves in the trees (should be the same for both). - The number of triplets in the two trees (n choose 3). - The triplet distance between the two trees. - The normalized triplet distance between the two trees. - The number of resolved triplets that agree in the two trees. - The normalized number of resolved triplets that agree in the two trees. - The number triplets that are unresolved in both trees. - The normalized number triplets that are unresolved in both trees.\n",
-                    trueValue: "true",
-                    falseValue: "false",
-                    type: ParameterTypes.Boolean
-                }, {
-                    name: "tree_one",
-                    optional: false,
-                    defaultValue: null, title: "Tree One", description: "",
-                    type: ParameterTypes.InputFile
-                }, {
-                    name: "tree_two",
-                    optional: false,
-                    defaultValue: null,
-                    title: "Tree Two",
-                    description: "",
-                    type: ParameterTypes.InputFile
-                }],
-                outputFileGlobs: ["stdout.txt", "stderr.txt"]
-            }, tool: {
-                owner: "j@h.com",
-                createdAt: 1531304469178,
-                modifiedAt: 1531304469178,
-                description: {
-                    license: "FauxPL",
-                    info: {name: "tqdist", version: "1.0.0"},
-                    container: "tqdist.simg",
-                    defaultNumberOfNodes: 1,
-                    defaultAllocationTime: {
-                        hours: 0,
-                        minutes: 10,
-                        seconds: 0
-                    },
-                    requiredModules: [],
-                    authors: ["Don Dan <donny_dan@sdu.dk>"],
-                    title: "tqDist",
-                    description: "Tools for running tqDist",
-                    backend: "SINGULARITY"
-                }
-            }
-        }],
-    pagesInTotal: 0
-};
-
-export const detailedApplication = {
-    owner: "j@h.com",
-    createdAt: 1531305600165,
-    modifiedAt: 1531305600165,
-    description: {
-        info: {
-            name: "figlet-count",
-            version: "1.0.0"
+            tags: [
+                "Featured",
+                "Engineering"
+            ]
         },
-        tool: {
-            name: "figlet",
-            version: "1.0.0"
+        {
+            metadata: {
+                name: "centos-xfce",
+                version: "7",
+                authors: [
+                    "Foo Bar <foo@bar.dk>"
+                ],
+                title: "CentOS Xfce",
+                description: "CentOS Xfce virtual desktop environment.\n",
+                website: "https://docs.cloud.sdu.dk/Apps/centos.html",
+                public: true
+            },
+            favorite: false,
+            tags: [
+                "Featured"
+            ]
         },
-        authors: ["Don Dan <donny_dan@sdu.dk>"],
-        title: "Figlet Counter",
-        description: "Count with Figlet!\n",
-        invocation: [
-            {type: "word", word: "figlet-count"},
-            {type: "var", variableNames: ["n"], prefixGlobal: "", suffixGlobal: "", prefixVariable: "", suffixVariable: "", variableSeparator: " "}
-        ],
-        parameters: [
-            {
-                name: "n",
-                optional: false,
-                defaultValue: 100,
-                title: "Count",
-                description: "How much should we count to?",
-                min: null,
-                max: null,
-                step: null,
-                unitName: null,
-                type: "integer"
-            }
-        ],
-        outputFileGlobs: ["stdout.txt", "stderr.txt"]
-    },
-    tool: {
-        owner: "j@h.com",
-        createdAt: 1531303905548,
-        modifiedAt: 1531303905548,
-        description: {
-            info: {
-                name: "figlet",
-                version: "1.0.0"
+        {
+            metadata: {
+                name: "coder",
+                version: "1.48.2",
+                authors: [
+                    "coder.com"
+                ],
+                title: "Coder",
+                description: "Run Visual Studio Code on UCloud and access it through your browser.  For more information, check [here](https://coder.com).\n",
+                website: "https://docs.cloud.sdu.dk/Apps/coder.html",
+                public: false
             },
-            container: "figlet.simg",
-            defaultNumberOfNodes: 1,
-            defaultMaxTime: {
-                hours: 0,
-                minutes: 1,
-                seconds: 0
+            favorite: false,
+            tags: [
+                "Featured",
+                "Development"
+            ]
+        },
+        {
+            metadata: {
+                name: "codr-cpp",
+                version: "1.48.2",
+                authors: [
+                    "codr.com"
+                ],
+                title: "Codr C++",
+                description: "Run Visual Studio code on UCloud and access it through your browser.\n",
+                website: "https://docs.cloud.sdu.dk/Apps/coder.html",
+                public: false
             },
-            requiredModules: [],
-            authors: ["Don Dan <donny_dan@sdu.dk>"],
-            title: "Figlet",
-            description: "Tool for rendering text.",
-            backend: "SINGULARITY"
+            favorite: false,
+            tags: [
+                "Development",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                name: "codr-cuda",
+                version: "1.48.2-1",
+                authors: [
+                    "codr.com"
+                ],
+                title: "Codr CUDA",
+                description: "Run Visual Studio code on UCloud and access it through your browser.\n",
+                website: "https://docs.cloud.sdu.dk/Apps/coder.html",
+                public: false
+            },
+            favorite: false,
+            tags: [
+                "Development",
+                "Featured"
+            ]
+        },
+        {
+            metadata: {
+                name: "codr-cuda",
+                version: "1.45.1",
+                authors: [
+                    "codr.com"
+                ],
+                title: "Coder Cuda",
+                description: "Run Visual Studio code on UCloud and access it through your browser.\n",
+                website: "https://docs.cloud.sdu.dk/Apps/coder.html",
+                public: false
+            },
+            favorite: false,
+            tags: [
+                "Development",
+                "Featured"
+            ]
+        },
+        {
+            metadata: {
+                name: "codr-python",
+                version: "1.48.2",
+                authors: [
+                    "codr.com"
+                ],
+                title: "Codr Python",
+                description: "Run Visual Studio code on UCloud and access it through your browser.\n",
+                website: "https://docs.cloud.sdu.dk/Apps/coder.html",
+                public: false
+            },
+            favorite: false,
+            tags: [
+                "Development",
+                "Featured"
+            ]
+        },
+        {
+            metadata: {
+                name: "cmsl",
+                version: "5.4-5",
+                authors: [
+                    "CMSL Inc."
+                ],
+                title: "CMSL",
+                description: "CMSL Multiphysics is a cross-platform finite element analysis, solver and multiphysics  simulation software. It allows conventional physics-based user interfaces and  coupled systems of partial differential equations.  COMSOL provides an IDE and unified workflow for electrical, mechanical, fluid, acoustics and  chemical applications.\n",
+                public: true
+            },
+            favorite: false,
+            tags: [
+                "Featured",
+                "Engineering",
+                "Applied Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "cosmomc-te",
+                "version": "May2020-3",
+                "authors": [
+                    "Antony Lewis",
+                    "Sarah Bridle"
+                ],
+                "title": "CosmoMC",
+                "description": "[CosmoMC](https://cosmologist.info/cosmomc/) is a Fortran 2008 Markov-Chain Monte-Carlo engine for exploring cosmological parameter space,  together with Fortran and Python code for analysing Monte-Carlo samples and importance sampling.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/cosmo-mc.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Natural Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "dash",
+                "version": "1.8.0",
+                "authors": [
+                    "Plotly"
+                ],
+                "title": "Dash",
+                "description": "Dash is a productive Python framework for building web applications.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/dash.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "fenics",
+                "version": "2019.1.0.r3-2",
+                "authors": [
+                    "Jack S. Hale <jack.hale@uni.lu>",
+                    "Federica Lo Verso <federica@imada.sdu.dk>"
+                ],
+                "title": "FEniCS",
+                "description": "The FEniCS Project is a collection of free and open-source software components with the common goal to enable automated solution of differential equations. The components provide scientific computing tools for working with computational meshes, finite-element variational formulations of ordinary and partial differential equations, and numerical linear algebra with the high-level Python and C++ interfaces.\n",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Applied Science",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "figlet",
+                "version": "1.0.0",
+                "authors": [
+                    "Dan Sebastian Thrane <dthrane@imada.sdu.dk>"
+                ],
+                "title": "Figlet",
+                "description": "Render some text with Figlet Docker!\n",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "freecad",
+                "version": "0.18.4-1",
+                "authors": [
+                    "Federica Lo Verso <federica@imada.sdu.dk>"
+                ],
+                "title": "FreeCAD",
+                "description": "FreeCAD is a general-purpose parametric 3D computer-aided design (CAD) modeler and a building information modeling (BIM) software with finite element method (FEM) support. FreeCAD is intended for mechanical engineering product design but also expands to architecture or electrical engineering. Users can extend the functionality of the software using the Python programming language. Meshing tools include Gmsh and Netgen.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/freecad.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Applied Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "ggir",
+                "version": "2.1.0-1",
+                "authors": [
+                    "Vincent van Hees"
+                ],
+                "title": "GGIR",
+                "description": "A tool to process and analyse data collected with wearable raw acceleration sensors. \n",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Applied Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "gromacs-te",
+                "version": "2020.2",
+                "authors": [
+                    "University of Groningen",
+                    "Royal Institute of Technology",
+                    "Upsala University"
+                ],
+                "title": "GROMACS",
+                "description": "GROMACS is a molecular dynamics package mainly designed for simulations of proteins, lipids, and nucleic acids.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/gromacs.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Natural Science",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "jupyter-all-spark",
+                "version": "2.2.5",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "JupyterLab",
+                "description": "JupyterLab ecosystem for Data Science. Installed kernels:  Python, R, and Scala with support for Apache Spark,  Clojure, Go, Groovy, Java, Javascript, Julia, Kotlin, Octave, Ruby, Rust, SQL.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/jupyter-lab.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Data Analytics",
+                "Development"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "jupyter-latex",
+                "version": "1.2.6",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "JupyterLab LaTeX",
+                "description": "JupyterLab with TeX Live 2019 and LaTeX support.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/jupyter-lab.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Development",
+                "Featured",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "knime",
+                "version": "4.0.2-6",
+                "authors": [
+                    "KNIME Team"
+                ],
+                "title": "KNIME",
+                "description": "KNIME Analytics Platform is an open source software for creating data science. KNIME integrates various components for machine learning and data mining  through its modular data pipelining concept. A graphical user interface  allows assembly of nodes blending different data sources,  including preprocessing (ETL), for modeling, data analysis and visualization without,  or with only minimal, programming.\n",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "kodningslab",
+                "version": "0.1.0-dev",
+                "authors": [
+                    "Mads Due Kristensen"
+                ],
+                "title": "Kodningslab",
+                "description": "Kodningslab app\n",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Social Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "kodningslab",
+                "version": "2.1.2",
+                "authors": [
+                    "Lotte Kramer Schmidt <lkramer@health.sdu.dk>",
+                    "Birgit Jensen <bijensen@health.sdu.dk>"
+                ],
+                "title": "Kodningslab.dk",
+                "description": "Kodningslab.dk is an online platform where supervision and feedback is given to motivational conversations,  also known as conversations performed according to the method \"Motivational Interviewing\" (MI).\n",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Social Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "lammps",
+                "version": "3Mar2020",
+                "authors": [
+                    "Sandia National Laboratories",
+                    "Temple University"
+                ],
+                "title": "LAMMPS Molecular Dynamics Simulator",
+                "description": "Large-scale Atomic/Molecular Massively Parallel Simulator (LAMMPS)  is a molecular dynamics program from Sandia National Laboratories. \n",
+                "website": "https://docs.cloud.sdu.dk/Apps/lammps.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Applied Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "matlab",
+                "version": "2020b",
+                "authors": [
+                    "MathWorks"
+                ],
+                "title": "MATLAB",
+                "description": "MATLAB is a programming platform designed for engineers and scientists.  It combines a desktop environment tuned for iterative analysis and design processes  with a programming language that expresses matrix and array mathematics directly.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/matlab.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Data Analytics",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "minio",
+                "version": "2020-10-28",
+                "authors": [
+                    "MinIO, Inc."
+                ],
+                "title": "MinIO",
+                "description": "MinIO is a high performance object storage server. \n      \n",
+                "website": "https://docs.cloud.sdu.dk/Apps/minio.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "netlogo",
+                "version": "6.1.1a",
+                "authors": [
+                    "Federica Lo Verso <federica@imada.sdu.dk>"
+                ],
+                "title": "NetLogo",
+                "description": "NetLogo is a multi-agent programmable modeling environment used by students, teachers, and researchers worldwide. It also powers HubNet participatory simulations.  \n",
+                "website": "https://docs.cloud.sdu.dk/Apps/netlogo.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Social Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "nextflow",
+                "version": "20.01.0",
+                "authors": [
+                    "Paolo di Tommaso",
+                    "Maria Chatzou",
+                    "Evan W. Foldem",
+                    "Pablo Prietro Barja",
+                    "Emilio Palumbo",
+                    "Cedric Notredame"
+                ],
+                "title": "Nextflow",
+                "description": "Nextflow is a bioinformatics workflow manager that enables the development of portable and reproducible workflows.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/nextflow.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Bioinformatics",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "openfoam",
+                "version": "7",
+                "authors": [
+                    "Federica Lo Verso <federica@imada.sdu.dk>"
+                ],
+                "title": "openFOAM",
+                "description": "OpenFOAM (Open-source Field Operation And Manipulation)  is a C++ toolbox for the development of customized numerical  solvers, and pre-/post-processing utilities for the solution  of continuum mechanics problems, including computational  fluid dynamics (CFD). The main post-processing tool provided  with OpenFOAM is a reader module to run with ParaView, a  visualization application.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/openfoam.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Applied Science",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "otree",
+                "version": "3.2.2",
+                "authors": [
+                    "Daniel Li Chen",
+                    "Martin Walter Schonger",
+                    "Chris Wickens"
+                ],
+                "title": "oTree",
+                "description": "oTree is a framework based on Python for building controlled behavioral experiments in economics, psycology and related fields,  multiplayer strategy games, like  public goods game, and auctions and survey and quizzes\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/otree.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Social Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "overleaf",
+                "version": "2.4.2",
+                "authors": [
+                    "John Hammersley",
+                    "John Lees-Miller"
+                ],
+                "title": "Overleaf",
+                "description": "Overleaf is a collaborative cloud-based LaTeX editor used for writing, editing and publishing scientific documents\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/overleaf.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Development",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "pytorch-te",
+                "version": "1.7.0",
+                "authors": [
+                    "Adam Paszke",
+                    "Sam Gross",
+                    "Soumith Chintala",
+                    "Gregory Chanan",
+                    "NVIDIA Deeplearning & AI"
+                ],
+                "title": "PyTorch",
+                "description": "PyTorch is a GPU accelerated tensor computational framework with a Python front end.  Functionality can be easily extended with common Python libraries such as NumPy, SciPy, and Cython.  Automatic differentiation is done with a tape-based system at both a functional and neural network layer level.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/pytorch.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Development",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "quantumespresso",
+                "version": "6.5",
+                "authors": [
+                    "Federica Lo Verso <federica@imada.sdu.dk>"
+                ],
+                "title": "quantumESPRESSO",
+                "description": "QuantumESPRESSO is an integrated suite of Open-Source  computer codes for electronic-structure calculations and  materials modeling at the nanoscale. It is based on  density-functional theory, plane waves, and pseudopotentials.  XCrySDen, a crystalline and molecular structure visualisation  program, is also included.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/quantumespresso.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Applied Science",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "ros",
+                "version": "2.0-dashing",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "Robot Operating System",
+                "description": "The Robot Operating System (ROS) is a set of software libraries and tools for building robot applications.  Installed distribution:    [ROS Melodic](http://wiki.ros.org/melodic).  Additional software libraries:  [Gazebo](http://gazebosim.org/),  [MoveIt](https://moveit.ros.org/) (Melodic), [Open Motion Planning Library](https://ompl.kavrakilab.org/) (OMPL), [MARA](https://github.com/AcutronicRobotics/MARA), [OpenAI Gym](https://gym.openai.com), [ROS2Learn](https://github.com/AcutronicRobotics/ros2learn).\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/ros2.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Engineering",
+                "Applied Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "rstudio",
+                "version": "3.6.3",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "RStudio",
+                "description": "Run [RStudio server](https://rstudio.org) on UCloud.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/rstudio.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Development",
+                "Featured",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "rstudio-am",
+                "version": "3.6.2-5",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "RStudio Activity Monitor",
+                "description": "[RStudio](https://rstudio.org) on UCloud with R-packages for GPS and accelerometer data analysis:  [PALMSplus](https://thets.github.io/palmsplusr/index.html), [GGIR](https://cran.r-project.org/web/packages/GGIR/vignettes/GGIR.html), [modeid](https://github.com/dprocter/modeid), [TLBC](http://ieng9.ucsd.edu/~kellis/TLBC.html).\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/rstudio.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "rstudio-genomics",
+                "version": "3.6.2-5",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "RStudio Genomics",
+                "description": "[RStudio](https://rstudio.org) with R-packages for Genomics data analysis:  [AnnotationHub](https://doi.org/doi:10.18129/B9.bioc.AnnotationHub), [annotationTools](https://doi.org/doi:10.18129/B9.bioc.annotationTools), [biomaRt](https://doi.org/doi:10.18129/B9.bioc.biomaRt), [Biostrings](https://doi.org/doi:10.18129/B9.bioc.Biostrings), [BSgenome.Hsapiens.UCSC.hg38](https://doi.org/doi:10.18129/B9.bioc.BSgenome.Hsapiens.UCSC.hg38), [DESeq](https://doi.org/doi:10.18129/B9.bioc.DESeq), [GenomicFeatures](https://doi.org/doi:10.18129/B9.bioc.GenomicFeatures), [GenomicRanges](https://doi.org/doi:10.18129/B9.bioc.GenomicRanges), [GenomicScores](https://doi.org/doi:10.18129/B9.bioc.GenomicScores), [GenomicTools](https://cran.r-project.org/web/packages/GenomicTools/index.html), [IRanges](https://doi.org/doi:10.18129/B9.bioc.IRanges), [limma](https://doi.org/doi:10.18129/B9.bioc.limma), [maftools](https://doi.org/doi:10.18129/B9.bioc.maftools), [seqinr](https://doi.org/10.1093/nar/12.1Part1.121), [VariantAnnotation](https://doi.org/doi:10.18129/B9.bioc.VariantAnnotation).\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/rstudio.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Bioinformatics",
+                "Data Analytics",
+                "Development"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "siesta",
+                "version": "4.1-b3-1",
+                "authors": [
+                    "Federica Lo Verso <federica@imada.sdu.dk>"
+                ],
+                "title": "SIESTA",
+                "description": "SIESTA is a density-functional theory code  which allows to perform efficient electronic structure calculations  and ab initio molecular dynamics simulations of molecules  and solids with the use of a basis set of strictly-localized atomic orbitals.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/siesta.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Applied Science"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "snakemake",
+                "version": "5.10.0",
+                "authors": [
+                    "Johannes Koester"
+                ],
+                "title": "Snakemake",
+                "description": "The Snakemake workflow management system is a tool to create reproducible and  scalable data analyses. Workflows are described via a human readable,  Python based language. They can be seamlessly scaled to server, cluster,  grid and cloud environments, without the need to modify the workflow definition.  Finally, Snakemake workflows can entail a description of required software,  which will be automatically deployed to any execution environment.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/snakemake.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Data Analytics",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "spark-cluster",
+                "version": "2.4.5-11",
+                "authors": [
+                    "Dan Sebastian Thrane <dthrane@imada.sdu.dk>",
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "Spark Cluster",
+                "description": "Apache Spark Standalone Cluster.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/spark-cluster.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "streamlit",
+                "version": "0.64.0",
+                "authors": [
+                    "A. Treuille",
+                    "T. Teixeira",
+                    "A. Kelly"
+                ],
+                "title": "Streamlit",
+                "description": "Streamlit is an open-source Python library that makes it easy to build beautiful custom web-apps for machine learning and data science.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/streamlit.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Data Analytics",
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "tensorflow-te",
+                "version": "2.2.0",
+                "authors": [
+                    "Google Brain",
+                    "NVIDIA Deeplearning & AI"
+                ],
+                "title": "TensorFlow",
+                "description": "TensorFlow is an open-source software library for numerical computation using data flow graphs.  Nodes in the graph represent mathematical operations, while the graph edges represent the multidimensional data arrays (tensors) that flow between them.  This flexible architecture lets you deploy computation to one or more CPUs or GPUs in a desktop, server, or mobile device without rewriting code.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/tensorflow.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Data Analytics",
+                "Development"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "terminal-centos",
+                "version": "0.4.2",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "Terminal CentOS",
+                "description": "Web terminal window based on [ttyd](https://github.com/tsl0922/ttyd) command-line tool.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/terminal.html",
+                "public": true
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Development"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "terminal-ubuntu",
+                "version": "0.8.8",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "Terminal Ubuntu",
+                "description": "Web terminal server based on [ttyd](https://github.com/tsl0922/ttyd) command-line tool.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/terminal.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Development"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "tracer",
+                "version": "May2020",
+                "authors": [
+                    "Greta Franzini",
+                    "Emily Franzini",
+                    "Kirill Bulert",
+                    "Marco Büchler",
+                    "Maria Moritz"
+                ],
+                "title": "TRACER",
+                "description": "TRACER is a suite of 700 algorithms, whose features can be combined to create the optimal formula for detecting those words,  sentences and ideas that have been reused across texts.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/tracer.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured",
+                "Data Analytics"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "ubuntu-xfce",
+                "version": "18.04",
+                "authors": [
+                    "Emiliano Molinaro <molinaro@imada.sdu.dk>"
+                ],
+                "title": "Ubuntu Xfce",
+                "description": "Ubuntu Xfce virtual desktop environment.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/ubuntu.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Featured"
+            ]
+        },
+        {
+            "metadata": {
+                "name": "voila",
+                "version": "0.1.23",
+                "authors": [
+                    "Emiliano Molinaro"
+                ],
+                "title": "Voilà",
+                "description": "Voilà turns Jupyter notebooks into interactive standalone web applications and dashboards.\n",
+                "website": "https://docs.cloud.sdu.dk/Apps/voila.html",
+                "public": false
+            },
+            "favorite": false,
+            "tags": [
+                "Data Analytics",
+                "Featured"
+            ]
         }
-    }
+    ],
+    pagesInTotal: 1
 };
 
 test("Error silencer", () =>

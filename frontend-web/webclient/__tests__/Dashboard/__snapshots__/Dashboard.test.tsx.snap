@@ -12,14 +12,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   align-items: center;
 }
 
-.c12 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-}
-
-.c14 {
+.c13 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -39,6 +32,140 @@ exports[`Dashboard Dashboard mount 1`] = `
   -ms-flex-direction: column;
   flex-direction: column;
   min-height: 250px;
+}
+
+.c12 {
+  width: 32px;
+  height: 32px;
+  margin: 20px auto;
+  -webkit-animation-name: jkjquP;
+  animation-name: jkjquP;
+}
+
+.c12 > svg path:nth-child(1) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.04s;
+  animation-delay: -0.04s;
+}
+
+.c12 > svg path:nth-child(2) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.08s;
+  animation-delay: -0.08s;
+}
+
+.c12 > svg path:nth-child(3) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.12s;
+  animation-delay: -0.12s;
+}
+
+.c12 > svg path:nth-child(4) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.16s;
+  animation-delay: -0.16s;
+}
+
+.c12 > svg path:nth-child(5) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.2s;
+  animation-delay: -0.2s;
+}
+
+.c12 > svg path:nth-child(6) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.24s;
+  animation-delay: -0.24s;
+}
+
+.c12 > svg path:nth-child(7) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.28s;
+  animation-delay: -0.28s;
+}
+
+.c12 > svg path:nth-child(8) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.32s;
+  animation-delay: -0.32s;
+}
+
+.c12 > svg path:nth-child(9) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.36s;
+  animation-delay: -0.36s;
+}
+
+.c12 > svg path:nth-child(10) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.4s;
+  animation-delay: -0.4s;
+}
+
+.c12 > svg path:nth-child(11) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.44s;
+  animation-delay: -0.44s;
+}
+
+.c12 > svg path:nth-child(12) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.48s;
+  animation-delay: -0.48s;
+}
+
+.c12 > svg path:nth-child(13) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.52s;
+  animation-delay: -0.52s;
+}
+
+.c12 > svg path:nth-child(14) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.56s;
+  animation-delay: -0.56s;
+}
+
+.c12 > svg path:nth-child(15) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.6s;
+  animation-delay: -0.6s;
+}
+
+.c12 > svg path:nth-child(16) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.64s;
+  animation-delay: -0.64s;
+}
+
+.c12 > svg path:nth-child(17) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.68s;
+  animation-delay: -0.68s;
+}
+
+.c12 > svg path:nth-child(18) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.72s;
+  animation-delay: -0.72s;
 }
 
 .c0 {
@@ -77,15 +204,19 @@ exports[`Dashboard Dashboard mount 1`] = `
   flex-grow: 1;
 }
 
-.c13 {
-  margin-left: auto;
+.c19 {
+  border-radius: 6px;
+  padding: 1em 1em 1em 1em;
+  height: auto;
+  color: #000;
+  background-color: lightYellow;
 }
 
-.c21 {
+.c23 {
   color: #8393A7;
 }
 
-.c18 {
+.c17 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -119,15 +250,15 @@ exports[`Dashboard Dashboard mount 1`] = `
   margin-top: 8px;
 }
 
-.c18:disabled {
+.c17:disabled {
   opacity: 0.25;
 }
 
-.c18:focus {
+.c17:focus {
   outline: none;
 }
 
-.c18:hover {
+.c17:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
@@ -144,7 +275,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: #53657d;
 }
 
-.c17 {
+.c16 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -152,7 +283,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   cursor: inherit;
 }
 
-.c22 {
+.c24 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -165,6 +296,13 @@ exports[`Dashboard Dashboard mount 1`] = `
   height: auto;
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
   border: 0px solid #c9d3df;
+  border-radius: 6px;
+}
+
+.c20 {
+  padding: 1em 1em 1em 1em;
+  height: auto;
+  border: 1px solid #ffed33;
   border-radius: 6px;
 }
 
@@ -183,18 +321,24 @@ exports[`Dashboard Dashboard mount 1`] = `
   font-weight: 400;
 }
 
-.c15 {
+.c14 {
   cursor: inherit;
   font-size: 20px;
   margin: 0;
   font-weight: 400;
 }
 
-.c16 {
+.c15 {
   cursor: inherit;
 }
 
-.c23 {
+.c21 {
+  cursor: inherit;
+  font-size: 14px;
+  color: #000;
+}
+
+.c26 {
   cursor: inherit;
   font-size: 14px;
   color: #53657d;
@@ -211,7 +355,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: var(--textHighlight);
 }
 
-.c20 {
+.c25 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -219,23 +363,27 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: #1e252e;
 }
 
-.c20:hover {
+.c25:hover {
   color: var(--textHighlight);
 }
 
-.c19 {
+.c18 {
   font-size: large;
 }
 
-.c19 > * {
+.c18 > * {
   border-bottom: 1px solid lightGrey;
 }
 
-.c19 > *:last-child {
+.c18 > *:last-child {
   border-bottom: 0px;
 }
 
-.c24 {
+.c22 {
+  white-space: pre;
+}
+
+.c27 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
@@ -245,22 +393,22 @@ exports[`Dashboard Dashboard mount 1`] = `
   background-color: #fff;
 }
 
-.c27 {
+.c30 {
   border: 0px;
   border-spacing: 0;
 }
 
-.c28 {
+.c31 {
   border: 0px;
   border-spacing: 0;
   text-align: right;
 }
 
-.c25 {
+.c28 {
   cursor: auto;
 }
 
-.c25 > .c26 {
+.c28 > .c29 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
@@ -302,7 +450,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -391,24 +539,75 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className=""
-          >
-            No posts found
-          </div>
-          <div
             className="c12"
+            data-tag="loading-spinner"
+            height={32}
+            width={32}
           >
-            <div
-              className="c13"
-            />
-            <a
-              className="c9"
-              color="text"
-              href="/news/list/"
-              onClick={[Function]}
+            <svg
+              height={32}
+              id="svg"
+              version="1.1"
+              viewBox="0 0 220 220"
+              width={32}
+              xmlns="http://www.w3.org/2000/svg"
+              xmlnsXlink="http://www.w3.org/1999/xlink"
             >
-              View more
-            </a>
+              <path
+                d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"
+              />
+              <path
+                d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+              />
+              <path
+                d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"
+              />
+              <path
+                d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+              />
+              <path
+                d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"
+              />
+              <path
+                d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"
+              />
+              <path
+                d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"
+              />
+              <path
+                d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+              />
+              <path
+                d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"
+              />
+              <path
+                d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"
+              />
+              <path
+                d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"
+              />
+              <path
+                d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+              <path
+                d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+              <path
+                d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+              />
+              <path
+                d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+            </svg>
           </div>
         </div>
       </div>
@@ -416,7 +615,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -469,24 +668,24 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c14"
+            className="c13"
             height="calc(100% - 60px)"
             width="100%"
           >
             <h4
-              className="c15"
+              className="c14"
               cursor="inherit"
               fontSize={3}
             >
               No favorite files
             </h4>
             <div
-              className="c16"
+              className="c15"
               cursor="inherit"
             >
               Click the 
               <svg
-                className="c17"
+                className="c16"
                 clipRule="evenodd"
                 cursor="inherit"
                 fill="currentcolor"
@@ -508,7 +707,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 onClick={[Function]}
               >
                 <button
-                  className="c18"
+                  className="c17"
                   color="blue"
                 >
                   Explore files
@@ -517,115 +716,36 @@ exports[`Dashboard Dashboard mount 1`] = `
             </div>
           </div>
           <div
-            className="c19"
+            className="c18"
             fontSize="large"
           />
         </div>
       </div>
       <div
-        className="c4 c5"
+        className="c19 c20"
+        color="black"
         height="auto"
-        overflow="hidden"
-        width={1}
       >
         <div
-          className=""
-          style={
-            Object {
-              "borderTop": "5px solid var(--purple, #f00)",
-            }
-          }
-        />
-        <div
-          className="c6 dashboard-card-inner"
-          height="100%"
+          className="c7"
         >
-          <div
-            className="c7"
-          >
-            <svg
-              className="c8"
-              clipRule="evenodd"
-              color="#53657d"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="20"
-              m={8}
-              ml={0}
-              viewBox="0 0 24 25"
-              width="20"
-            >
-              <path
-                d="M13.206 5.723l10.023 5.108c.492.25.77.67.77 1.17 0 .49-.278.92-.77 1.17L5.228 22.337l7.978-16.615z"
-                fill="currentcolor"
-              />
-              <path
-                d="M5.229 22.338l-2.884 1.469a1.72 1.72 0 01-1.562.006C.284 23.564 0 23.138 0 22.638V1.358C0 .858.284.43.783.183a1.714 1.714 0 011.562.006l10.861 5.533-7.977 16.616z"
-              />
-            </svg>
-            <a
-              className="c9"
-              color="text"
-              href="/applications/results"
-              onClick={[Function]}
-            >
-              <h3
-                className="c10"
-                cursor="inherit"
-                fontSize={4}
-              >
-                Recent Runs
-              </h3>
-            </a>
+          <div>
             <div
-              className="c11"
-            />
-          </div>
-          <div
-            className="c14"
-            height="calc(100% - 60px)"
-            width="100%"
-          >
-            <h4
-              className="c15"
+              className="c21 c22"
+              color="black"
               cursor="inherit"
-              fontSize={3}
+              fontSize={1}
             >
-              No recent application runs
-            </h4>
-            <div
-              className="c16"
-              cursor="inherit"
-            >
-              When you run an application on UCloud the results will appear here.
-              <a
-                className="c20"
-                color="text"
-                href="/applications/overview"
-                mt={8}
-                onClick={[Function]}
-              >
-                <button
-                  className="c18"
-                  color="blue"
-                >
-                  Explore applications
-                </button>
-              </a>
+              TODO
             </div>
           </div>
-          <div
-            className="c19"
-            fontSize="large"
-          />
         </div>
       </div>
       <div
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -676,11 +796,11 @@ exports[`Dashboard Dashboard mount 1`] = `
               className="c11"
             />
             <div
-              className="c21"
+              className="c23"
               color="#8393A7"
             >
               <svg
-                className="c22"
+                className="c24"
                 clipRule="evenodd"
                 color="iconColor"
                 color2="#8393A7"
@@ -706,31 +826,31 @@ exports[`Dashboard Dashboard mount 1`] = `
             </div>
           </div>
           <div
-            className="c14"
+            className="c13"
             height="calc(100% - 60px)"
             width="100%"
           >
             <h4
-              className="c15"
+              className="c14"
               cursor="inherit"
               fontSize={3}
             >
               No notifications
             </h4>
             <div
-              className="c16"
+              className="c15"
               cursor="inherit"
             >
               As you as use UCloud notifications will appear here.
               <a
-                className="c20"
+                className="c25"
                 color="text"
                 href="/applications/overview"
                 mt={8}
                 onClick={[Function]}
               >
                 <button
-                  className="c18"
+                  className="c17"
                   color="blue"
                 >
                   Explore UCloud
@@ -739,7 +859,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             </div>
           </div>
           <div
-            className="c19"
+            className="c18"
             fontSize="large"
           />
         </div>
@@ -748,7 +868,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -807,19 +927,19 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c14"
+            className="c13"
             height="calc(100% - 60px)"
             width="100%"
           >
             <h4
-              className="c15"
+              className="c14"
               cursor="inherit"
               fontSize={3}
             >
               No available resources
             </h4>
             <div
-              className="c16"
+              className="c15"
               cursor="inherit"
             >
               Apply for resources to use storage and compute on UCloud.
@@ -830,7 +950,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 onClick={[Function]}
               >
                 <button
-                  className="c18"
+                  className="c17"
                   color="blue"
                 >
                   Apply for resources
@@ -844,7 +964,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -906,7 +1026,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c23"
+            className="c26"
             color="darkGray"
             cursor="inherit"
             fontSize={1}
@@ -914,36 +1034,36 @@ exports[`Dashboard Dashboard mount 1`] = `
             Past 30 days
           </div>
           <table
-            className="c24"
+            className="c27"
             width="100%"
           >
             <tbody>
               <tr
-                className="c25"
+                className="c28"
                 cursor="auto"
               >
                 <td
-                  className="c26 c27"
+                  className="c29 c30"
                 >
                   Storage
                 </td>
                 <td
-                  className="c26 c28"
+                  className="c29 c31"
                 >
                   0 DKK
                 </td>
               </tr>
               <tr
-                className="c25"
+                className="c28"
                 cursor="auto"
               >
                 <td
-                  className="c26 c27"
+                  className="c29 c30"
                 >
                   Compute
                 </td>
                 <td
-                  className="c26 c28"
+                  className="c29 c31"
                 >
                   0 DKK
                 </td>
@@ -956,7 +1076,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -1037,7 +1157,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c19"
+            className="c18"
             fontSize="large"
           />
           <h3
@@ -1048,7 +1168,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             No recent outgoing grant applications
           </h3>
           <div
-            className="c16"
+            className="c15"
             cursor="inherit"
           >
             Apply for resources to use storage and compute on UCloud.
@@ -1059,7 +1179,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               onClick={[Function]}
             >
               <button
-                className="c18"
+                className="c17"
                 color="blue"
               >
                 Apply for resources
@@ -1067,7 +1187,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             </a>
           </div>
           <div
-            className="c19"
+            className="c18"
             fontSize="large"
           />
         </div>
