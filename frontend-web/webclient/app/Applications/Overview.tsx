@@ -21,7 +21,7 @@ import * as UCloud from "UCloud";
 import {compute} from "UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 
-export const ShowAllTagItem: React.FunctionComponent<{ tag?: string }> = props => (
+export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
@@ -29,7 +29,7 @@ function favoriteStatusKey(app: ApplicationSummaryWithFavorite): string {
     return `${app.metadata.name}/${app.metadata.version}`;
 }
 
-type FavoriteStatus = Record<string, { override: boolean, app: ApplicationSummaryWithFavorite }>;
+type FavoriteStatus = Record<string, {override: boolean, app: ApplicationSummaryWithFavorite}>;
 
 export const ApplicationsOverview: React.FunctionComponent = () => {
     const defaultTools = [
@@ -115,10 +115,10 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
                 />
             )}
 
-            {defaultTools.map(tag => <ToolGroup key={tag} tag={tag}/>)}
+            {defaultTools.map(tag => <ToolGroup key={tag} tag={tag} />)}
         </>
     );
-    return (<MainContainer main={main}/>);
+    return (<MainContainer main={main} />);
 };
 
 const ScrollBox = styled(Box)`
@@ -177,7 +177,8 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
-        emptyPage
+        emptyPage,
+        {cacheKey: "TagGrid" + tag, cacheTtlMs: TEN_MINUTES_IN_MILLIS}
     );
 
     useEffect(() => {
@@ -262,10 +263,13 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     );
 };
 
-const ToolGroup: React.FunctionComponent<{ tag: string; cacheBust?: string }> = ({tag, cacheBust}) => {
+const TEN_MINUTES_IN_MILLIS = 1_000 * 60 * 10;
+
+const ToolGroup: React.FunctionComponent<{tag: string; cacheBust?: string}> = ({tag, cacheBust}) => {
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
-        emptyPage
+        emptyPage,
+        {cacheKey: "ToolGroup" + tag, cacheTtlMs: TEN_MINUTES_IN_MILLIS}
     );
 
     useEffect(() => {
@@ -284,7 +288,7 @@ const ToolGroup: React.FunctionComponent<{ tag: string; cacheBust?: string }> = 
         <ToolGroupWrapper>
             <ToolImageWrapper>
                 <div>
-                    <ToolImage src={url}/>
+                    <ToolImage src={url} />
                 </div>
             </ToolImageWrapper>
             <CardToolContainer>
@@ -328,7 +332,7 @@ const ToolGroup: React.FunctionComponent<{ tag: string; cacheBust?: string }> = 
                 </ScrollBox>
                 <Flex flexDirection="row" alignItems="flex-start">
                     {[...tags].filter(it => it !== tag).map(tag => (
-                        <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag}/></ShowAllTagItem>
+                        <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
                     ))}
                 </Flex>
             </CardToolContainer>

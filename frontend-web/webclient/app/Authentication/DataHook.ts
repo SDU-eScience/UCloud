@@ -155,7 +155,7 @@ export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) 
 
 type InvokeCommand = <T = any>(
     call: APICallParameters,
-    opts?: { defaultErrorHandler: boolean }
+    opts?: {defaultErrorHandler: boolean}
 ) => Promise<T | null>;
 
 export function useCloudCommand(): [boolean, InvokeCommand] {
@@ -249,7 +249,7 @@ export function useAsyncWork(): AsyncWorker {
 export interface CloudCacheHook {
     cleanup: () => void;
 
-    removePrefix(pathPrefix: string);
+    removePrefix(pathPrefix: string): void;
 }
 
 export function useCloudCache(): CloudCacheHook {
@@ -300,7 +300,7 @@ export type APIFetch<Parameters> = (params: APICallParameters<Parameters>, disab
 export function useCloudAPI<T, Parameters = any>(
     callParametersInitial: APICallParameters<Parameters, T>,
     dataInitial: T,
-    cachingPolicy?: { cacheTtlMs: number, cacheKey: string }
+    cachingPolicy?: {cacheTtlMs: number, cacheKey: string}
 ): [APICallState<T>, APIFetch<Parameters>, APICallParameters<Parameters>] {
     const shouldLog = (cachingPolicy?.cacheKey === "avatar");
     const parameters = useRef(callParametersInitial);
@@ -369,7 +369,7 @@ export function useCloudAPI<T, Parameters = any>(
                             dispatch({type: "FETCH_SUCCESS", payload: result});
                             if (cachingPolicy !== undefined && cachingPolicy.cacheTtlMs > 0 && params.method === "GET") {
                                 const newEntry = {};
-                                newEntry[key!] = {expiresAt: now + cachingPolicy.cacheTtlMs, cached: result};
+                                newEntry[key!] = {expiresAt: now + cachingPolicy.cacheTtlMs, ...result};
                                 mergeCache(newEntry);
                             }
                         }
