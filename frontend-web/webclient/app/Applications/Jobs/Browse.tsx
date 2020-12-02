@@ -580,3 +580,5 @@ function AnalysisOperations({cancelableAnalyses, onFinished}: AnalysisOperations
         </Button>
     );
 }
+
+export default Browse;

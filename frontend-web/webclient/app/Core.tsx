@@ -1,12 +1,12 @@
 import * as React from "react";
 
-const LicenseServers = React.lazy(() => import("Admin/LicenseServers"));
+// Loadable with React Lazy
 const Applications = React.lazy(() => import("Applications/Browse"));
 const ApplicationsOverview = React.lazy(() => import("Applications/Overview"));
 const ApplicationView = React.lazy(() => import("Applications/View"));
-
 const Activity = React.lazy(() => import("Activity/Page"));
 const AdminOverview = React.lazy(() => import("Admin/Overview"));
+const App = React.lazy(() => import("Applications/Studio/Applications"));
 const AvataaarModification = React.lazy(() => import("UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
@@ -14,7 +14,11 @@ const Files = React.lazy(() => import("Files/Files"));
 const FileInfo = React.lazy(() => import("Files/FileInfo"));
 const FilePreview = React.lazy(() => import("Files/FilePreview"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
+const JobBrowse = React.lazy(() => import("Applications/Jobs/Browse"));
+const JobCreate = React.lazy(() => import("Applications/Jobs/Create"));
+const JobView = React.lazy(() => import("Applications/Jobs/View"));
 const LandingPage = React.lazy(() => import("Project/Grant/LandingPage"));
+const LicenseServers = React.lazy(() => import("Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("Login/Login"));
 const LoginSelection = React.lazy(() => import("Login/LoginSelection"));
 const NewsList = React.lazy(() => import("NewsPost/NewsList"));
@@ -31,14 +35,14 @@ const ProjectSettings = React.lazy(() => import("Project/ProjectSettings"));
 const ProjectUsage = React.lazy(() => import("Project/ProjectUsage"));
 const Search = React.lazy(() => import("Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("ServiceLicenseAgreement"));
+const Studio = React.lazy(() => import("Applications/Studio/Page"));
 const Subprojects = React.lazy(() => import("Project/Subprojects"));
+const Tool = React.lazy(() => import ("Applications/Studio/Tool"));
 const UserCreation = React.lazy(() => import("Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("Login/Wayf"));
-
-// TODO(JONAS): Important components as toplevel to use with React-lazy.
-import * as AppStudio from "Applications/Studio";
-import * as Jobs from "Applications/Jobs";
+import {Shell} from "Applications/Jobs/Shell";
+import {AppK8Admin} from "Admin/AppK8Admin";
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -52,8 +56,6 @@ import {Route, RouteComponentProps, Switch} from "react-router-dom";
 import * as Share from "Shares";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "UtilityFunctions";
-import {AppK8Admin} from "Admin/AppK8Admin";
-import {Shell} from "Applications/Jobs/Shell";
 import {History} from "history";
 import {ErrorBoundary} from "ErrorBoundary/ErrorBoundary";
 import {dispatchUserAction, onLogin} from "App";
@@ -98,16 +100,16 @@ const Core = (): JSX.Element => (
                         component={requireAuth(ApplicationView)}
                     />
 
-                    <Route exact path="/applications/jobs/:id" component={requireAuth(Jobs.View)} />
-                    <Route exact path="/applications/jobs/create/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
-                    <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Jobs.Create)} />
-                    <Route exact path="/applications/results" component={requireAuth(Jobs.Browse)} />
-                    <Route exact path="/applications/results/:id" component={requireAuth(Jobs.View)} />
-                    <Route exact path={"/applications/shell/:jobId/:rank"} component={Shell} />
+                    <Route exact path="/applications/jobs/:id" component={requireAuth(JobView)} />
+                    <Route exact path="/applications/jobs/create/:appName/:appVersion" component={requireAuth(JobCreate)} />
+                    <Route exact path="/applications/:appName/:appVersion" component={requireAuth(JobCreate)} />
+                    <Route exact path="/applications/results" component={requireAuth(JobBrowse)} />
+                    <Route exact path="/applications/results/:id" component={requireAuth(JobView)} />
+                    <Route exact path="/applications/shell/:jobId/:rank" component={Shell} />
 
-                    <Route exact path={"/applications/studio"} component={requireAuth(AppStudio.Studio)} />
-                    <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudio.Tool)} />
-                    <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudio.App)} />
+                    <Route exact path="/applications/studio" component={requireAuth(Studio)} />
+                    <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />
+                    <Route exact path="/applications/studio/a/:name" component={requireAuth(App)} />
 
                     {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
 

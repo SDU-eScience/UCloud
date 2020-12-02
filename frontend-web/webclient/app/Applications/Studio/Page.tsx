@@ -122,3 +122,5 @@ export const Studio: React.FunctionComponent = () => {
         />
     );
 };
+
+export default Studio;
