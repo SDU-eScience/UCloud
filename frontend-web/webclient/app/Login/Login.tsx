@@ -525,7 +525,7 @@ const BlackLoginText = styled(Text)`
 function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {
     return (<>
         <Absolute right="1em" top=".5em">
-            {props.selection ? <div>
+            {!props.selection ? <div>
                 {!CONF.SUPPORT_EMAIL ? null : (
                     <ClickableDropdown
                         width="224px"
@@ -609,3 +609,5 @@ const CenteredGrid = styled.div`
     grid-template-rows: 110px;
     grid-gap: 16px;
 `;
+
+export default LoginPage;

@@ -6,8 +6,20 @@ import * as PublicLinks from "Applications/PublicLinks/Management";
 import {dialogStore} from "Dialog/DialogStore";
 import {ThemeColor} from "ui-components/theme";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
+import {useCloudAPI} from "Authentication/DataHook";
+import {defaultAvatar} from "UserSettings/Avataaar";
 
 export const Playground: React.FunctionComponent = () => {
+    const [result, setParams, params] = useCloudAPI<typeof defaultAvatar>(
+        {path: "/avatar/find", method: "GET"},
+        defaultAvatar,
+        {cacheKey: "avatar", cacheTtlMs: 10_000}
+    );
+
+    console.log(result);
+    console.log("render");
+
+
     const main = (
         <>
             <EveryIcon />
@@ -30,6 +42,9 @@ export const Playground: React.FunctionComponent = () => {
                 dialogStore.addDialog(<PublicLinks.PublicLinkManagement onSelect={e => console.log(e)} />, () => 0);
             }}>
                 Trigger me
+            </Button>
+            <Button onClick={() => setParams({...params})}>
+                Refetch
             </Button>
 
         </>
@@ -80,3 +95,5 @@ const colors = [
     "appCard",
     "wayfGreen",
 ];
+
+export default Playground;

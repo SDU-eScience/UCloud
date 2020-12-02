@@ -94,3 +94,5 @@ export const OutgoingApplications: React.FunctionComponent = () => {
         return <GrantApplicationList applications={page.items}/>;
     }
 };
+
+export default OutgoingApplications;

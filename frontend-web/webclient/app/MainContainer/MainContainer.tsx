@@ -141,3 +141,5 @@ const SidebarContainer = styled(Absolute)`
     position: fixed;
     z-index: 45;
 `;
+
+export default MainContainer;

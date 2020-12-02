@@ -4,7 +4,7 @@ import * as React from "react";
 import {Flex} from "ui-components";
 import Input, {InputLabel} from "ui-components/Input";
 
-const GenericNumberParameter = (props: NumberParameterProps): JSX.Element => {
+function GenericNumberParameter(props: NumberParameterProps): JSX.Element {
     const {parameter, parameterRef} = props;
     const optSliderRef = React.useRef<HTMLInputElement>(null);
     const hasUnitName = !!props.parameter.unitName;
@@ -56,7 +56,7 @@ const GenericNumberParameter = (props: NumberParameterProps): JSX.Element => {
             {slider}
         </BaseParameter>
     );
-};
+}
 
 interface NumberParameterProps extends ParameterProps {
     parameter: Types.NumberParameter;

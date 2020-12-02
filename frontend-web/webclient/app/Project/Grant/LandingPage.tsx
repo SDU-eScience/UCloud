@@ -91,3 +91,5 @@ export const LandingPage: React.FunctionComponent = () => {
         }
     />;
 };
+
+export default LandingPage;

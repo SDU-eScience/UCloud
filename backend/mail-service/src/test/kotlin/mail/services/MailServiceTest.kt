@@ -174,7 +174,7 @@ class MailServiceTest {
             }
             run {
                 ClientMock.mockCallSuccess(
-                    SlackDescriptions.sendMessage,
+                    SlackDescriptions.sendAlert,
                     Unit
                 )
                 for (i in 0..40) {

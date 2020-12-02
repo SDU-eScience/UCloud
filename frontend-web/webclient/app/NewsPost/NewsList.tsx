@@ -114,3 +114,5 @@ const IsHidden = (props: {hidden: boolean}): JSX.Element | null => {
     if (props.hidden) return <Text ml="8px" mt="8px" color="gray">Hidden</Text>;
     return null;
 };
+
+export default NewsList;

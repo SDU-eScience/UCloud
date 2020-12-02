@@ -315,7 +315,7 @@ export async function uploadDocument(props: UploadDocumentProps): Promise<boolea
         request.onreadystatechange = () => {
             if (request.status !== 0) {
                 if (!inSuccessRange(request.status)) {
-                    let message: string = "Upload failed";
+                    let message = "Upload failed";
                     try {
                         message = JSON.parse(request.responseText).why;
                     } catch (e) {

@@ -461,7 +461,7 @@ const UploaderRow = (p: {
     const fileInfo = resolvePath(p.location) === resolvePath(getParentPath(p.upload.path)) ? null : (
         <Dropdown>
             <Icon cursor="pointer" ml="10px" name="info" color="white" color2="black" />
-            <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
+            <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="--black">
                 Will be uploaded
                 to: {replaceHomeOrProjectFolder(p.upload.path, Client, projectNames)}
             </DropdownContent>

@@ -270,20 +270,20 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                         Output
                                         &nbsp;
                                     <Dropdown>
-                                            <Icon name="info" color="white" color2="black" size="1em" />
-                                            <DropdownContent
-                                                width="400px"
-                                                visible
-                                                colorOnHover={false}
-                                                color="white"
-                                                backgroundColor="black"
-                                            >
-                                                <TextSpan fontSize={1}>
-                                                    Streams are collected
-                                                from <code>stdout</code> and <code>stderr</code> of your application.
-                                            </TextSpan>
-                                            </DropdownContent>
-                                        </Dropdown>
+                                        <Icon name="info" color="white" color2="black" size="1em" />
+                                        <DropdownContent
+                                            width="400px"
+                                            visible
+                                            colorOnHover={false}
+                                            color="white"
+                                            backgroundColor="--black"
+                                        >
+                                            <TextSpan fontSize={1}>
+                                                Streams are collected
+                                            from <code>stdout</code> and <code>stderr</code> of your application.
+                                        </TextSpan>
+                                        </DropdownContent>
+                                    </Dropdown>
                                     </Heading.h4>
                                 </Box>
                                 <Box width={1} backgroundColor="lightGray">

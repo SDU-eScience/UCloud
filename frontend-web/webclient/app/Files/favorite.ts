@@ -29,7 +29,7 @@ export interface FavoriteStatusResponse {
 
 export function favoriteStatus(
     request: FavoriteStatusRequest
-): APICallParameters<FavoriteStatusRequest, FavoriteStatusRequest> {
+): APICallParameters<FavoriteStatusRequest> {
     return {
         reloadId: Math.random(),
         method: "POST",

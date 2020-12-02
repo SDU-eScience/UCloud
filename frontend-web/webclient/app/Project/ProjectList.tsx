@@ -377,7 +377,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     <Text fontSize={2}>Archived</Text>
                                 </Tooltip>
                                 : null}
-                            {!e.needsVerification ? null : (
+                            {!e.needsVerification || e.archived ? null : (
                                 <Text fontSize={0} mr={8}>
                                     <Icon name={"warning"} /> Attention required
                                 </Text>
@@ -405,7 +405,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
 
                             <Toggle
                                 scale={1.5}
-                                activeColor="green"
+                                activeColor="--green"
                                 checked={isActive}
                                 onChange={() => {
                                     if (isActive) return;

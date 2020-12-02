@@ -464,7 +464,8 @@ class ApplicationService(
                     grantRecipient.username,
                     WalletOwnerType.USER,
                     serviceClient,
-                    actor.safeUsername()
+                    actor.safeUsername(),
+                    TransactionType.TRANSFERRED_TO_PERSONAL
                 )
             }
 
@@ -475,7 +476,8 @@ class ApplicationService(
                     grantRecipient.projectId,
                     WalletOwnerType.PROJECT,
                     serviceClient,
-                    actor.safeUsername()
+                    actor.safeUsername(),
+                    TransactionType.TRANSFERRED_TO_PROJECT
                 )
             }
 
@@ -498,7 +500,8 @@ class ApplicationService(
                     newProjectId,
                     WalletOwnerType.PROJECT,
                     serviceClient,
-                    actor.safeUsername()
+                    actor.safeUsername(),
+                    TransactionType.TRANSFERRED_TO_PROJECT
                 )
             }
         }
@@ -753,7 +756,8 @@ suspend fun checkBalance(resources: List<ResourceRequest>, projectId: String, se
                     productId = "",
                     productUnits = 0,
                     jobInitiatedBy = "_ucloud",
-                    discardAfterLimitCheck = true
+                    discardAfterLimitCheck = true,
+                    transactionType = transactionType
                 )
             }
         ),
