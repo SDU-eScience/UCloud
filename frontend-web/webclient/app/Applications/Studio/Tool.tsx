@@ -135,3 +135,5 @@ export const Tool: React.FunctionComponent<RouteComponentProps<{name: string}>> 
         />
     );
 };
+
+export default Tool;
