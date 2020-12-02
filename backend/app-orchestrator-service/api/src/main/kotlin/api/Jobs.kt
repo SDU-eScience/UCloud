@@ -322,7 +322,11 @@ val Job.currentState: JobState
     get() = updates.findLast { it.state != null }?.state ?: error("job contains no states")
 
 typealias JobsOpenInteractiveSessionRequest = BulkRequest<JobsOpenInteractiveSessionRequestItem>
-data class JobsOpenInteractiveSessionRequestItem(val id: String, val sessionType: InteractiveSessionType)
+data class JobsOpenInteractiveSessionRequestItem(
+    val id: String,
+    val rank: Int,
+    val sessionType: InteractiveSessionType,
+)
 data class JobsOpenInteractiveSessionResponse(val sessions: List<OpenSessionWithProvider>)
 
 data class OpenSessionWithProvider(
@@ -352,20 +356,25 @@ data class OpenSessionWithProvider(
 )
 sealed class OpenSession {
     abstract val jobId: String
+    abstract val rank: Int
 
     data class Shell(
         override val jobId: String,
+        override val rank: Int,
         val sessionIdentifier: String,
     ) : OpenSession()
 
     data class Web(
         override val jobId: String,
-        val redirectBrowseTo: String,
+        override val rank: Int,
+        val redirectClientTo: String,
     ) : OpenSession()
 
     data class Vnc(
         override val jobId: String,
+        override val rank: Int,
         val url: String,
+        val password: String? = null
     ) : OpenSession()
 }
 

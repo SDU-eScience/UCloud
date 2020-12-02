@@ -1,8 +1,11 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
+import dk.sdu.cloud.app.kubernetes.services.JobAndRank
 import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
+import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
+import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
@@ -22,11 +25,13 @@ import kotlin.collections.HashMap
 class AppKubernetesController(
     private val jobManagement: JobManagement,
     private val logService: K8LogService,
+    private val webService: WebService,
+    private val vncService: VncService,
 ) : Controller {
     private val streams = HashMap<String, ReceiveChannel<*>>()
     private val streamsMutex = Mutex()
 
-    @OptIn(ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(KubernetesCompute.create) {
             jobManagement.create(request)
@@ -53,11 +58,32 @@ class AppKubernetesController(
         }
 
         implement(KubernetesCompute.openInteractiveSession) {
-            val shellJobs = request.items.filter { it.sessionType == InteractiveSessionType.SHELL }.map { it.job }
+            val shellJobs = request.items.filter { it.sessionType == InteractiveSessionType.SHELL }.map {
+                JobAndRank(it.job, it.rank)
+            }
             val shellSessions = jobManagement.openShellSession(shellJobs)
+
+            val webJobs = request.items.filter { it.sessionType == InteractiveSessionType.WEB }.map {
+                JobAndRank(it.job, it.rank)
+            }
+            val webSessions = webJobs.map { webService.createSession(it) }
+
+            val vncJobs = request.items.filter { it.sessionType == InteractiveSessionType.VNC }.map {
+                JobAndRank(it.job, it.rank)
+            }
+            val vncSessions = vncJobs.map { vncService.createSession(it) }
+
             ok(ComputeOpenInteractiveSessionResponse(
-                shellSessions.mapIndexed { idx, sessionIdentifier ->
-                    OpenSession.Shell(shellJobs[idx].id, sessionIdentifier)
+                buildList {
+                    addAll(
+                        shellSessions.mapIndexed { idx, sessionIdentifier ->
+                            OpenSession.Shell(shellJobs[idx].job.id, shellJobs[idx].rank, sessionIdentifier)
+                        }
+                    )
+
+                    addAll(webSessions)
+
+                    addAll(vncSessions)
                 }
             ))
         }

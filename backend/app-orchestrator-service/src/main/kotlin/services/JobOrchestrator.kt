@@ -485,7 +485,7 @@ class JobOrchestrator(
         val errorMessage = "You do not have permissions to open an interactive session for this job"
 
         return db.withSession { session ->
-            val sessionTypesByJobId = request.items.groupBy { it.id }
+            val requestsByJobId = request.items.groupBy { it.id }
             val jobIds = request.items.map { it.id }.toSet()
             val jobs = jobQueryService.retrievePrivileged(session, jobIds, JobDataIncludeFlags()).values
             val jobsByProvider = jobs.groupBy { it.job.parameters.product.provider }
@@ -510,8 +510,8 @@ class JobOrchestrator(
                     api.openInteractiveSession
                         .call(
                             bulkRequestOf(jobs.flatMap { (job) ->
-                                sessionTypesByJobId.getValue(job.id).map { (_, type) ->
-                                    ComputeOpenInteractiveSessionRequestItem(job, type)
+                                requestsByJobId.getValue(job.id).map { req ->
+                                    ComputeOpenInteractiveSessionRequestItem(job, req.rank, req.sessionType)
                                 }
                             }),
                             client

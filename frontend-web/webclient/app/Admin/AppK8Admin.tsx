@@ -90,7 +90,7 @@ export function drainCluster(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const AppK8Admin: React.FunctionComponent = props => {
+const AppK8Admin: React.FunctionComponent = props => {
     const [paused, fetchPaused] = useCloudAPI<IsPausedResponse>(isPaused({}), {paused: false});
     const [, runWork] = useAsyncCommand();
     const killJobRef = useRef<HTMLInputElement>(null);
@@ -178,3 +178,5 @@ export const AppK8Admin: React.FunctionComponent = props => {
         }
     />;
 };
+
+export default AppK8Admin;

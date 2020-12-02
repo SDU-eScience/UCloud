@@ -22,7 +22,6 @@ import dk.sdu.cloud.calls.*
 sealed class ShellRequest {
     data class Initialize(
         val sessionIdentifier: String,
-        val rank: Int = 0,
         val cols: Int = 80,
         val rows: Int = 24
     ) : ShellRequest()

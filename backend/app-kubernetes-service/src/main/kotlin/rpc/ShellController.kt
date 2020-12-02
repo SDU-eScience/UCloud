@@ -2,7 +2,8 @@ package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesShell
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
-import dk.sdu.cloud.app.kubernetes.services.ShellSessionDao
+import dk.sdu.cloud.app.kubernetes.services.SessionDao
+import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
 import dk.sdu.cloud.app.orchestrator.api.ShellRequest
 import dk.sdu.cloud.app.orchestrator.api.ShellResponse
 import dk.sdu.cloud.calls.AttributeKey
@@ -11,7 +12,6 @@ import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
 import kotlinx.coroutines.channels.consumeEach
@@ -24,7 +24,7 @@ private typealias ShellSession = ExecContext
 class ShellController(
     private val k8: K8Dependencies,
     private val db: DBContext,
-    private val shellSessions: ShellSessionDao,
+    private val sessions: SessionDao,
 ) : Controller {
     private val shellSessionKey = AttributeKey<ShellSession>("shell-session")
 
@@ -34,12 +34,15 @@ class ShellController(
                 withContext<WSCall> {
                     when (val cRequest = request) {
                         is ShellRequest.Initialize -> {
-                            val jobId = shellSessions.findSessionOrNull(db, cRequest.sessionIdentifier)
-                                ?: throw RPCException("Unknown shell session. Reloading the page might " +
-                                        "resolve this issue.", HttpStatusCode.NotFound)
+                            val jobAndRank = sessions.findSessionOrNull(
+                                db,
+                                cRequest.sessionIdentifier,
+                                InteractiveSessionType.SHELL
+                            ) ?: throw RPCException("Unknown shell session. Reloading the page might " +
+                                    "resolve this issue.", HttpStatusCode.NotFound)
 
-                            val podName = k8.nameAllocator.jobIdAndRankToPodName(jobId, cRequest.rank)
-                            val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
+                            val podName = k8.nameAllocator.jobIdAndRankToPodName(jobAndRank.jobId, jobAndRank.rank)
+                            val namespace = k8.nameAllocator.jobIdToNamespace(jobAndRank.jobId)
 
                             k8.client.exec(
                                 KubernetesResources.pod.withNameAndNamespace(podName, namespace),

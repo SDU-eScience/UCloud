@@ -10,48 +10,14 @@ import styled from "styled-components";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {compute} from "UCloud";
 import jobs = compute.jobs;
-import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
-import Job = compute.Job;
+import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
 
-const ShellWrapper = styled.div`
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  flex-direction: column;
-  padding: 16px;
-
-  &.light {
-    background: #ffffff;
-  }
-
-  &.dark {
-    background: #282a36;
-  }
-
-  .term {
-    width: 100%;
-    height: 100%;
-  }
-
-  .warn {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    z-index: 1000000;
-    width: 100vw;
-    display: flex;
-    padding: 16px;
-    align-items: center;
-    background: black;
-    color: white;
-  }
-`;
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
     const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
     const [sessionResp, openSession] = useCloudAPI(
-        jobs.openInteractiveSession({id: jobId, sessionType: "SHELL"}),
+        jobs.openInteractiveSession({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}),
         {sessions: []},
     );
 
@@ -61,7 +27,7 @@ export const Shell: React.FunctionComponent = () => {
     useTitle(`Job ${shortUUID(jobId)} [Rank: ${parseInt(rank, 10) + 1}]`);
 
     useEffectSkipMount(() => {
-        openSession(jobs.openInteractiveSession({id: jobId, sessionType: "SHELL"}));
+        openSession(jobs.openInteractiveSession({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}));
     }, [jobId, rank]);
 
     const sessionWithProvider = sessionResp.data.sessions.length > 0 ? sessionResp.data.sessions[0] : null;
@@ -86,7 +52,6 @@ export const Shell: React.FunctionComponent = () => {
                         payload: {
                             type: "initialize",
                             sessionIdentifier,
-                            rank,
                             cols: terminal.cols,
                             rows: terminal.rows
                         },
@@ -138,7 +103,7 @@ export const Shell: React.FunctionComponent = () => {
         };
     }, [termRef.current, sessionIdentifier, reconnect]);
 
-    return <ShellWrapper className={isLightThemeStored() ? "light" : "dark"}>
+    return <TermAndShellWrapper className={isLightThemeStored() ? "light" : "dark"}>
         {!closed ? null : (
             // NOTE(Dan): Theme cannot change in practice, as a result we can safely use the stored value
             <Box className={`warn`}>
@@ -149,6 +114,8 @@ export const Shell: React.FunctionComponent = () => {
             </Box>
         )}
 
-        <div className={"term"} ref={termRef}/>
-    </ShellWrapper>;
+        <div className={"contents"} ref={termRef}/>
+    </TermAndShellWrapper>;
 };
+
+export default Shell;

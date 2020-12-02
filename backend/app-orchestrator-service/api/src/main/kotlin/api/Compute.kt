@@ -84,6 +84,7 @@ data class ComputeRetrieveApiResponse(
 typealias ComputeOpenInteractiveSessionRequest = BulkRequest<ComputeOpenInteractiveSessionRequestItem>
 data class ComputeOpenInteractiveSessionRequestItem(
     val job: Job,
+    val rank: Int,
     val sessionType: InteractiveSessionType,
 )
 data class ComputeOpenInteractiveSessionResponse(val sessions: List<OpenSession>)

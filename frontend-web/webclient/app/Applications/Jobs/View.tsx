@@ -27,9 +27,13 @@ import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {compute} from "UCloud";
 import Job = compute.Job;
 import JobParameters = compute.JobParameters;
+import jobs = compute.jobs;
 import {dateToString} from "Utilities/DateUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
+import {dialogStore} from "Dialog/DialogStore";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -683,6 +687,7 @@ const RunningJobRank: React.FunctionComponent<{
 }> = ({job, rank, updateListeners}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
     const [expanded, setExpanded] = useState(false);
+    const [, invokeCommand] = useCloudCommand();
     const toggleExpand = useCallback(() => {
         setExpanded(!expanded);
         const targetView = termRef.current?.parentElement;
@@ -741,7 +746,24 @@ const RunningJobRank: React.FunctionComponent<{
                             Open terminal
                         </Button>
                     </Link>
-                    <Button>Open interface</Button>
+                    {job.parameters.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+                        <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
+                            <Button>Open interface</Button>
+                        </Link>
+                    )}
+                    {job.parameters.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+                        <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
+                            e.preventDefault();
+
+                            window.open(
+                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                                `vnc-${job.id}-${rank}`,
+                                "width=800,height=450,status=no"
+                            );
+                        }}>
+                            <Button>Open interface</Button>
+                        </Link>
+                        )}
                     <Button className={"expand-btn"} onClick={toggleExpand}>
                         {expanded ? "Shrink" : "Expand"} output
                     </Button>

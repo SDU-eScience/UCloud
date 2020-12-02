@@ -6,7 +6,6 @@ import dk.sdu.cloud.app.kubernetes.rpc.ReloadController
 import dk.sdu.cloud.app.kubernetes.rpc.ShellController
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.kubernetes.services.proxy.ApplicationProxyService
-import dk.sdu.cloud.app.kubernetes.services.proxy.AuthenticationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.EnvoyConfigurationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
@@ -17,7 +16,6 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.RedisBroadcastingStream
-import dk.sdu.cloud.service.RedisDistributedStateFactory
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.k8.KubernetesClient
@@ -57,7 +55,7 @@ class Server(
         val logService = K8LogService(k8Dependencies)
         val maintenance = MaintenanceService(db, k8Dependencies)
         val resourceCache = ResourceCache(serviceClient)
-        val shellSessions = ShellSessionDao()
+        val sessions = SessionDao()
 
         val jobManagement = JobManagement(
             k8Dependencies,
@@ -67,7 +65,7 @@ class Server(
             maintenance,
             resourceCache,
             db,
-            shellSessions,
+            sessions,
             // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
             // instance) In that case we can disable it via configuration. Note that this config will only be used if
             // we are in development mode.
@@ -113,7 +111,6 @@ class Server(
             log.info("Wrote configuration at ${configFile.absolutePath}")
         }
 
-        val authenticationService = AuthenticationService(serviceClient, micro.tokenValidation)
         tunnelManager = TunnelManager(k8Dependencies)
         tunnelManager.install()
 
@@ -127,17 +124,14 @@ class Server(
             resources = resourceCache
         )
 
-        vncService = VncService(tunnelManager)
+        vncService = VncService(db, sessions, jobCache, resourceCache, tunnelManager)
         webService = WebService(
-            authenticationService = authenticationService,
-            performAuthentication = configuration.performAuthentication,
-            cookieName = configuration.cookieName,
             prefix = configuration.prefix,
             domain = configuration.domain,
-            broadcastingStream = broadcastingStream,
-            jobCache = jobCache,
             k8 = k8Dependencies,
-            devMode = micro.developmentModeEnabled
+            devMode = micro.developmentModeEnabled,
+            db = db,
+            sessions = sessions
         )
 
         with(micro.server) {
@@ -145,10 +139,12 @@ class Server(
                 AppKubernetesController(
                     jobManagement,
                     logService,
+                    webService,
+                    vncService,
                 ),
                 ReloadController(k8Dependencies),
                 MaintenanceController(maintenance),
-                ShellController(k8Dependencies, db, shellSessions)
+                ShellController(k8Dependencies, db, sessions)
             )
         }
 

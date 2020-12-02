@@ -149,7 +149,7 @@ export function useGlobalCloudAPI<T, Parameters = any>(
 /**
  * @deprecated
  */
-export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
+export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters<unknown, T>) => Promise<T | null>] {
     return useCloudCommand();
 }
 

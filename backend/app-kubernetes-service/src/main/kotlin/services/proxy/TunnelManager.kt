@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
+import dk.sdu.cloud.app.kubernetes.services.JobIdAndRank
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
 import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.calls.RPCException
@@ -22,7 +23,8 @@ import kotlin.random.Random
 private data class TunnelWithUsageTracking(val tunnel: Tunnel, var lastUsed: Long)
 
 class TunnelManager(private val k8: K8Dependencies) {
-    private val openTunnels = HashMap<String, TunnelWithUsageTracking>()
+    private data class Key(val jobIdAndRank: JobIdAndRank, val port: Int)
+    private val openTunnels = HashMap<Key, TunnelWithUsageTracking>()
     private val mutex = Mutex()
     private val cleanupExecutor = Executors.newSingleThreadScheduledExecutor()
     private val usedPorts = HashSet<Int>()
@@ -53,9 +55,10 @@ class TunnelManager(private val k8: K8Dependencies) {
         cleanupExecutor.shutdownNow()
     }
 
-    suspend fun createOrUseExistingTunnel(id: String, remotePort: Int, urlId: String?): Tunnel {
+    suspend fun createOrUseExistingTunnel(id: String, remotePort: Int, rank: Int): Tunnel {
         mutex.withLock {
-            val existing = openTunnels[id]
+            val key = Key(JobIdAndRank(id, rank), remotePort)
+            val existing = openTunnels[key]
             val alive = existing?.tunnel?.isAlive() ?: false
             if (existing != null && !alive) {
                 existing.tunnel.close()
@@ -78,14 +81,14 @@ class TunnelManager(private val k8: K8Dependencies) {
                     return@run -1
                 }
 
-                val newTunnel = createTunnel(id, localPort, remotePort, urlId)
-                openTunnels[id] = TunnelWithUsageTracking(newTunnel, Time.now())
+                val newTunnel = createTunnel(id, localPort, remotePort, rank)
+                openTunnels[key] = TunnelWithUsageTracking(newTunnel, Time.now())
                 newTunnel
             }
         }
     }
 
-    private suspend fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int, urlId: String?): Tunnel {
+    private suspend fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int, rank: Int): Tunnel {
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
         val jobName = k8.nameAllocator.jobIdToJobName(jobId)
 
@@ -133,7 +136,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                 jobId = jobId,
                 ipAddress = "127.0.0.1",
                 localPort = localPortSuggestion,
-                urlId = urlId,
+                urlId = null,
                 _isAlive = {
                     k8sTunnel.isAlive
                 },
@@ -150,7 +153,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                 jobId = jobId,
                 ipAddress = ipAddress,
                 localPort = remotePort,
-                urlId = urlId,
+                urlId = null,
                 _isAlive = {
                     runCatching {
                         k8.client.getResource<Pod>(KubernetesResources.pod.withNameAndNamespace(podName, namespace))

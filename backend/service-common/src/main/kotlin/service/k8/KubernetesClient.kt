@@ -189,7 +189,13 @@ sealed class KubernetesAuthenticationMethod {
                     add("--port")
                     add("42010")
                 }.toTypedArray()
-            ).start()
+            ).start().also { process ->
+                Runtime.getRuntime().addShutdownHook(object : Thread() {
+                    override fun run() {
+                        process.destroyForcibly()
+                    }
+                })
+            }
         }
 
         private var proxy: Process = startProxy()

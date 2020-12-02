@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Wed Dec 02 09:11:42 CET 2020 */
+/* Generated at: Wed Dec 02 12:11:24 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -799,6 +799,7 @@ export interface ComputeOpenInteractiveSessionResponse {
 export type OpenSession = OpenSessionNS.Shell | OpenSessionNS.Web | OpenSessionNS.Vnc
 export interface ComputeOpenInteractiveSessionRequestItem {
     job: Job,
+    rank: number /* int32 */,
     sessionType: "WEB" | "VNC" | "SHELL",
 }
 export interface ProviderManifest {
@@ -841,6 +842,7 @@ export interface OpenSessionWithProvider {
 }
 export interface JobsOpenInteractiveSessionRequestItem {
     id: string,
+    rank: number /* int32 */,
     sessionType: "WEB" | "VNC" | "SHELL",
 }
 export interface JobsControlUpdateRequestItem {
@@ -2082,17 +2084,21 @@ export function remove(
 export namespace OpenSessionNS {
 export interface Shell {
     jobId: string,
+    rank: number /* int32 */,
     sessionIdentifier: string,
     type: "shell",
 }
 export interface Web {
     jobId: string,
-    redirectBrowseTo: string,
+    rank: number /* int32 */,
+    redirectClientTo: string,
     type: "web",
 }
 export interface Vnc {
     jobId: string,
+    rank: number /* int32 */,
     url: string,
+    password?: string,
     type: "vnc",
 }
 }

@@ -98,7 +98,7 @@ class ApplicationProxyService(
         val job = jobCache.findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val application = resources.findResources(job).application
         val remotePort = application.invocation.web?.port ?: 80
-        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, null /* TODO */)
+        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, 0 /* TODO */)
     }
 
     companion object : Loggable {

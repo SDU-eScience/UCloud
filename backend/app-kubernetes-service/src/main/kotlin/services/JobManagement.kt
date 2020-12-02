@@ -71,7 +71,7 @@ class JobManagement(
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
     private val db: DBContext,
-    private val shellSessions: ShellSessionDao,
+    private val sessions: SessionDao,
     private val disableMasterElection: Boolean = false,
     private val fullScanFrequency: Long = 1000L * 60 * 15,
 ) {
@@ -557,11 +557,11 @@ class JobManagement(
     }
 
     suspend fun openShellSession(
-        jobs: List<Job>
+        jobs: List<JobAndRank>
     ): List<String> {
         return db.withSession { session ->
             jobs.map { job ->
-                shellSessions.createSession(session, job)
+                sessions.createSession(session, job, InteractiveSessionType.SHELL)
             }
         }
     }

@@ -17,6 +17,9 @@ const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplic
 const JobBrowse = React.lazy(() => import("Applications/Jobs/Browse"));
 const JobCreate = React.lazy(() => import("Applications/Jobs/Create"));
 const JobView = React.lazy(() => import("Applications/Jobs/View"));
+const JobShell = React.lazy(() => import("Applications/Jobs/Shell"));
+const JobWeb = React.lazy(() => import("Applications/Jobs/Web"));
+const JobVnc = React.lazy(() => import("Applications/Jobs/Vnc"));
 const LandingPage = React.lazy(() => import("Project/Grant/LandingPage"));
 const LicenseServers = React.lazy(() => import("Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("Login/Login"));
@@ -41,8 +44,7 @@ const Tool = React.lazy(() => import ("Applications/Studio/Tool"));
 const UserCreation = React.lazy(() => import("Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("Login/Wayf"));
-import {Shell} from "Applications/Jobs/Shell";
-import {AppK8Admin} from "Admin/AppK8Admin";
+const AppK8Admin = React.lazy(() => import("Admin/AppK8Admin"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -105,7 +107,9 @@ const Core = (): JSX.Element => (
                     <Route exact path="/applications/:appName/:appVersion" component={requireAuth(JobCreate)} />
                     <Route exact path="/applications/results" component={requireAuth(JobBrowse)} />
                     <Route exact path="/applications/results/:id" component={requireAuth(JobView)} />
-                    <Route exact path="/applications/shell/:jobId/:rank" component={Shell} />
+                    <Route exact path="/applications/shell/:jobId/:rank" component={JobShell} />
+                    <Route exact path="/applications/web/:jobId/:rank" component={JobWeb} />
+                    <Route exact path="/applications/vnc/:jobId/:rank" component={JobVnc} />
 
                     <Route exact path="/applications/studio" component={requireAuth(Studio)} />
                     <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />
