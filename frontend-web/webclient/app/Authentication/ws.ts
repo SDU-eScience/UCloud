@@ -7,6 +7,7 @@ export interface WebSocketOpenSettings {
     init?: (conn: WebSocketConnection) => void;
     reconnect?: boolean;
     onClose?: (conn: WebSocketConnection) => void;
+    includeAuthentication?: boolean;
 }
 
 export class WebSocketFactory {
@@ -95,7 +96,8 @@ export class WebSocketConnection {
             call,
             streamId,
             payload,
-            bearer: await this.client.receiveAccessTokenOrRefreshIt()
+            bearer: this.settings.includeAuthentication !== false ?
+                await this.client.receiveAccessTokenOrRefreshIt() : undefined
         });
     }
 

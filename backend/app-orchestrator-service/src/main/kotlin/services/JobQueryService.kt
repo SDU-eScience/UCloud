@@ -131,18 +131,6 @@ class JobQueryService(
             }
         }
 
-        if (flags.includeShell == true) {
-            TODO()
-        }
-
-        if (flags.includeVnc == true) {
-            TODO()
-        }
-
-        if (flags.includeWeb == true) {
-            TODO()
-        }
-
         if (flags.includeApplication == true) {
             val uniqueApplications = jobs.map { it.parameters.application }.toSet().mapNotNull {
                 appStoreCache.apps.get(it)

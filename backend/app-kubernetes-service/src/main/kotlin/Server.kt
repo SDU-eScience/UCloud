@@ -57,6 +57,7 @@ class Server(
         val logService = K8LogService(k8Dependencies)
         val maintenance = MaintenanceService(db, k8Dependencies)
         val resourceCache = ResourceCache(serviceClient)
+        val shellSessions = ShellSessionDao()
 
         val jobManagement = JobManagement(
             k8Dependencies,
@@ -65,6 +66,8 @@ class Server(
             jobCache,
             maintenance,
             resourceCache,
+            db,
+            shellSessions,
             // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
             // instance) In that case we can disable it via configuration. Note that this config will only be used if
             // we are in development mode.
@@ -142,13 +145,10 @@ class Server(
                 AppKubernetesController(
                     jobManagement,
                     logService,
-                    vncService,
-                    webService,
-                    broadcastingStream
                 ),
                 ReloadController(k8Dependencies),
                 MaintenanceController(maintenance),
-                ShellController(k8Dependencies)
+                ShellController(k8Dependencies, db, shellSessions)
             )
         }
 

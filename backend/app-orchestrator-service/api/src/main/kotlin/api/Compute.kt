@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkRequest
@@ -81,6 +80,13 @@ data class ComputeRetrieveApiResponse(
     val https: Boolean,
     val port: Int,
 )
+
+typealias ComputeOpenInteractiveSessionRequest = BulkRequest<ComputeOpenInteractiveSessionRequestItem>
+data class ComputeOpenInteractiveSessionRequestItem(
+    val job: Job,
+    val sessionType: InteractiveSessionType,
+)
+data class ComputeOpenInteractiveSessionResponse(val sessions: List<OpenSession>)
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 open class Compute(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
@@ -285,6 +291,11 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
 
         websocket(baseContext)
+    }
+
+    val openInteractiveSession = call<ComputeOpenInteractiveSessionRequest, ComputeOpenInteractiveSessionResponse,
+            CommonErrorMessage>("openInteractiveSession") {
+        httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
     }
 
     val retrieveApi = call<ComputeRetrieveApiRequest, ComputeRetrieveApiResponse, CommonErrorMessage>("retrieveApi") {

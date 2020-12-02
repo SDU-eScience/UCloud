@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.store.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+
 data class ApplicationMetadata(
     override val name: String,
     override val version: String,
@@ -9,8 +11,11 @@ data class ApplicationMetadata(
     val title: String,
     val description: String,
     val website: String?,
-    val isPublic: Boolean
-) : NameAndVersion
+    val public: Boolean
+) : NameAndVersion {
+    @Deprecated("Replaced with public") @JsonIgnore val isPublic = public
+}
+
 
 data class VncDescription(
     val password: String?,

@@ -294,7 +294,7 @@ class JobOrchestrator(
             throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
         }
 
-        val ownsAllJobs = loadedJobs.values.all { (it.job).parameters.product.provider == comm.provider }
+        val ownsAllJobs = loadedJobs.values.all { (it.job).parameters.product.provider == comm.provider.metadata.id }
         if (!ownsAllJobs) {
             throw RPCException("Provider is not authorized to perform these updates", HttpStatusCode.Forbidden)
         }
@@ -353,7 +353,7 @@ class JobOrchestrator(
                 comm.api.extend.call(
                     bulkRequestOf(request.items.mapNotNull { extensionRequest ->
                         val (job) = jobs.getValue(extensionRequest.jobId)
-                        if (job.parameters!!.product.provider != comm.provider) null
+                        if (job.parameters!!.product.provider != comm.provider.metadata.id) null
                         else ComputeExtendRequestItem(job, extensionRequest.requestedTime)
                     }),
                     comm.client
@@ -475,6 +475,74 @@ class JobOrchestrator(
                     }
                 }
             }
+        }
+    }
+
+    suspend fun openInteractiveSession(
+        request: BulkRequest<JobsOpenInteractiveSessionRequestItem>,
+        actor: Actor,
+    ): JobsOpenInteractiveSessionResponse {
+        val errorMessage = "You do not have permissions to open an interactive session for this job"
+
+        return db.withSession { session ->
+            val sessionTypesByJobId = request.items.groupBy { it.id }
+            val jobIds = request.items.map { it.id }.toSet()
+            val jobs = jobQueryService.retrievePrivileged(session, jobIds, JobDataIncludeFlags()).values
+            val jobsByProvider = jobs.groupBy { it.job.parameters.product.provider }
+
+            if (jobs.size != jobIds.size) {
+                log.debug("Not all jobs were found")
+                throw RPCException(errorMessage, HttpStatusCode.Forbidden)
+            }
+
+            for ((job) in jobs) {
+                if (actor != Actor.System && job.owner.launchedBy != actor.safeUsername()) {
+                    log.debug("User does not have permission to launch ${job.id}")
+                    throw RPCException(errorMessage, HttpStatusCode.Forbidden)
+                }
+            }
+
+            val sessions = ArrayList<OpenSessionWithProvider>()
+            for ((provider, jobs) in jobsByProvider) {
+                val comms = providers.prepareCommunication(provider)
+                val (api, client) = comms
+                sessions.addAll(
+                    api.openInteractiveSession
+                        .call(
+                            bulkRequestOf(jobs.flatMap { (job) ->
+                                sessionTypesByJobId.getValue(job.id).map { (_, type) ->
+                                    ComputeOpenInteractiveSessionRequestItem(job, type)
+                                }
+                            }),
+                            client
+                        )
+                        .orThrow()
+                        .sessions
+                        .map {
+                            OpenSessionWithProvider(
+                                with(comms.provider.metadata) {
+                                    buildString {
+                                        if (https) {
+                                            append("https://")
+                                        } else {
+                                            append("http://")
+                                        }
+
+                                        append(domain)
+
+                                        if (port != null) {
+                                            append(":$port")
+                                        }
+                                    }
+                                },
+                                comms.provider.metadata.id,
+                                it
+                            )
+                        }
+                )
+            }
+
+            JobsOpenInteractiveSessionResponse(sessions)
         }
     }
 

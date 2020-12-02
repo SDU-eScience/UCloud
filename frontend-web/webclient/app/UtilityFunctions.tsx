@@ -12,7 +12,7 @@ import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
 import {JWT} from "Authentication/lib";
 import {useGlobal} from "Utilities/ReduxHooks";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -653,4 +653,21 @@ export function joinToString(elements: string[], separator = ","): string {
         result += tag;
     }
     return result;
+}
+
+export function useDidMount(): boolean {
+    const [didMount, setDidMount] = useState(false);
+    useEffect(() => {
+        setDidMount(true);
+    });
+    return didMount;
+}
+
+export function useEffectSkipMount(fn: () => (void | (() => void | undefined)), deps: ReadonlyArray<any>): void {
+    const didMount = useDidMount();
+    useEffect(() => {
+        if (didMount) {
+            return fn();
+        }
+    }, deps);
 }

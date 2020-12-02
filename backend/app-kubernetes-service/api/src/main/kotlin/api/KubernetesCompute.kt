@@ -32,5 +32,4 @@ object KubernetesCompute : Compute(UCLOUD_PROVIDER) {
     }
 }
 
-// TODO Merge this into Compute
-object AppKubernetesShell : Shells("kubernetes")
+object AppKubernetesShell : Shells(UCLOUD_PROVIDER)

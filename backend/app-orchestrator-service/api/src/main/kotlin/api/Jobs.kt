@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
@@ -52,6 +54,12 @@ enum class JobState {
         }
 }
 
+enum class InteractiveSessionType {
+    WEB,
+    VNC,
+    SHELL
+}
+
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class Job(
     @UCloudApiDoc(
@@ -80,12 +88,6 @@ data class Job(
 
     @UCloudApiDoc("Information regarding the output of this job.")
     val output: JobOutput? = null,
-
-    val vnc: JobVncLink? = null,
-
-    val web: JobWebLink? = null,
-
-    val shell: JobShellLink? = null,
 )
 
 data class JobBilling(
@@ -204,22 +206,9 @@ data class JobOutput(
     val outputFolder: String,
 )
 
-data class JobWebLink(val link: String)
-data class JobVncLink(val link: String, val password: String? = null)
-data class JobShellLink(val link: String)
-
 interface JobDataIncludeFlags {
     @UCloudApiDoc("Includes `parameters.parameters` and `parameters.resources`")
     val includeParameters: Boolean?
-
-    @UCloudApiDoc("Includes `web`")
-    val includeWeb: Boolean?
-
-    @UCloudApiDoc("Includes `vnc`")
-    val includeVnc: Boolean?
-
-    @UCloudApiDoc("Includes `shell`")
-    val includeShell: Boolean?
 
     @UCloudApiDoc("Includes `updates`")
     val includeUpdates: Boolean?
@@ -233,17 +222,11 @@ interface JobDataIncludeFlags {
 
 fun JobDataIncludeFlags(
     includeParameters: Boolean? = null,
-    includeWeb: Boolean? = null,
-    includeVnc: Boolean? = null,
-    includeShell: Boolean? = null,
     includeUpdates: Boolean? = null,
     includeApplication: Boolean? = null,
     includeProduct: Boolean? = null,
 ) = JobDataIncludeFlagsImpl(
     includeParameters,
-    includeWeb,
-    includeVnc,
-    includeShell,
     includeUpdates,
     includeApplication,
     includeProduct
@@ -251,9 +234,6 @@ fun JobDataIncludeFlags(
 
 data class JobDataIncludeFlagsImpl(
     override val includeParameters: Boolean? = null,
-    override val includeWeb: Boolean? = null,
-    override val includeVnc: Boolean? = null,
-    override val includeShell: Boolean? = null,
     override val includeUpdates: Boolean? = null,
     override val includeApplication: Boolean? = null,
     override val includeProduct: Boolean? = null,
@@ -266,9 +246,6 @@ data class JobsCreateResponse(val ids: List<String>)
 data class JobsRetrieveRequest(
     val id: String,
     override val includeParameters: Boolean? = null,
-    override val includeWeb: Boolean? = null,
-    override val includeVnc: Boolean? = null,
-    override val includeShell: Boolean? = null,
     override val includeUpdates: Boolean? = null,
     override val includeApplication: Boolean? = null,
     override val includeProduct: Boolean? = null,
@@ -281,9 +258,6 @@ data class JobsBrowseRequest(
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
     override val includeParameters: Boolean? = null,
-    override val includeWeb: Boolean? = null,
-    override val includeVnc: Boolean? = null,
-    override val includeShell: Boolean? = null,
     override val includeUpdates: Boolean? = null,
     override val includeApplication: Boolean? = null,
     override val includeProduct: Boolean? = null,
@@ -346,6 +320,54 @@ val Job.blockStorage: List<AppParameterValue.BlockStorage>
 
 val Job.currentState: JobState
     get() = updates.findLast { it.state != null }?.state ?: error("job contains no states")
+
+typealias JobsOpenInteractiveSessionRequest = BulkRequest<JobsOpenInteractiveSessionRequestItem>
+data class JobsOpenInteractiveSessionRequestItem(val id: String, val sessionType: InteractiveSessionType)
+data class JobsOpenInteractiveSessionResponse(val sessions: List<OpenSessionWithProvider>)
+
+data class OpenSessionWithProvider(
+    val providerDomain: String,
+    val providerId: String,
+    val session: OpenSession
+)
+
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(
+        value = OpenSession.Shell::class,
+        name = "shell"
+    ),
+    JsonSubTypes.Type(
+        value = OpenSession.Web::class,
+        name = "web"
+    ),
+    JsonSubTypes.Type(
+        value = OpenSession.Vnc::class,
+        name = "vnc"
+    ),
+)
+sealed class OpenSession {
+    abstract val jobId: String
+
+    data class Shell(
+        override val jobId: String,
+        val sessionIdentifier: String,
+    ) : OpenSession()
+
+    data class Web(
+        override val jobId: String,
+        val redirectBrowseTo: String,
+    ) : OpenSession()
+
+    data class Vnc(
+        override val jobId: String,
+        val url: String,
+    ) : OpenSession()
+}
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object Jobs : CallDescriptionContainer("jobs") {
@@ -442,5 +464,10 @@ object Jobs : CallDescriptionContainer("jobs") {
                 without deleting any data.
             """.trimIndent()
         }
+    }
+
+    val openInteractiveSession = call<JobsOpenInteractiveSessionRequest, JobsOpenInteractiveSessionResponse,
+            CommonErrorMessage>("openInteractiveSession") {
+        httpUpdate(baseContext, "interactiveSession")
     }
 }

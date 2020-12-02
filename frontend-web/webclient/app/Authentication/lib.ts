@@ -198,6 +198,10 @@ export default class HttpClient {
     }
 
     public computeURL(context: string, path: string): string {
+        if (path.indexOf("http://") === 0 || path.indexOf("https://") === 0 ||
+            path.indexOf("ws://") === 0 || path.indexOf("wss://") === 0) {
+            return path;
+        }
         const absolutePath = context + path;
         return this.context + absolutePath;
     }

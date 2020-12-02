@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.calls.*
@@ -20,7 +21,7 @@ import dk.sdu.cloud.calls.*
 )
 sealed class ShellRequest {
     data class Initialize(
-        val jobId: String,
+        val sessionIdentifier: String,
         val rank: Int = 0,
         val cols: Int = 80,
         val rows: Int = 24
@@ -51,12 +52,21 @@ sealed class ShellResponse {
     class Acknowledged : ShellResponse()
 }
 
-abstract class Shells(namespace: String) : CallDescriptionContainer("app.compute.$namespace.shell") {
-    val baseContext = "/api/app/compute/$namespace/shell"
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+abstract class Shells(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace.shell") {
+    val baseContext = "/ucloud/$namespace/compute/jobs/shells"
+
+    init {
+        title = "Provider API: Compute/Shells"
+        description = """
+            Provides an API for providers to give shell access to their running compute jobs.
+        """.trimIndent()
+    }
 
     val open = call<ShellRequest, ShellResponse, CommonErrorMessage>("open") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.PUBLIC // NOTE(Dan): Access is granted via sessionIdentifier
         }
 
         websocket(baseContext)

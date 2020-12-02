@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesShell
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
+import dk.sdu.cloud.app.kubernetes.services.ShellSessionDao
 import dk.sdu.cloud.app.orchestrator.api.ShellRequest
 import dk.sdu.cloud.app.orchestrator.api.ShellResponse
 import dk.sdu.cloud.calls.AttributeKey
@@ -9,6 +10,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
 import kotlinx.coroutines.channels.consumeEach
@@ -18,36 +21,39 @@ import org.slf4j.Logger
 
 private typealias ShellSession = ExecContext
 
-class ShellController(private val k8: K8Dependencies) : Controller {
+class ShellController(
+    private val k8: K8Dependencies,
+    private val db: DBContext,
+    private val shellSessions: ShellSessionDao,
+) : Controller {
     private val shellSessionKey = AttributeKey<ShellSession>("shell-session")
 
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(AppKubernetesShell.open) {
             try {
                 withContext<WSCall> {
-                    val cRequest = request // capture the request. this allows for smart casting later
-                    when (cRequest) {
+                    when (val cRequest = request) {
                         is ShellRequest.Initialize -> {
-                            // NOTE(Dan): This follows the same model we used for VNC. This means that we do _not_ perform any
-                            // additional security apart from being in possession of the job ID. The job ID itself is generated
-                            // in a secure fashion, however, I think we should change this when reworking the API.
+                            val jobId = shellSessions.findSessionOrNull(db, cRequest.sessionIdentifier)
+                                ?: throw RPCException("Unknown shell session. Reloading the page might " +
+                                        "resolve this issue.", HttpStatusCode.NotFound)
 
-                            val podName = k8.nameAllocator.jobIdAndRankToPodName(cRequest.jobId, cRequest.rank)
-                            val namespace = k8.nameAllocator.jobIdToNamespace(cRequest.jobId)
+                            val podName = k8.nameAllocator.jobIdAndRankToPodName(jobId, cRequest.rank)
+                            val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
                             k8.client.exec(
                                 KubernetesResources.pod.withNameAndNamespace(podName, namespace),
                                 listOf(
                                     "sh", "-c",
                                     "TERM=xterm-256color; " +
-                                        "export TERM; " +
-                                        "([ -x /bin/fish ] && exec /bin/fish) || " +
-                                        "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
-                                        "([ -x /bin/zsh ] && exec /bin/zsh) || " +
-                                        "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
-                                        "([ -x /bin/bash ] && exec /bin/bash) || " +
-                                        "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
-                                        "exec /bin/sh"
+                                            "export TERM; " +
+                                            "([ -x /bin/fish ] && exec /bin/fish) || " +
+                                            "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
+                                            "([ -x /bin/zsh ] && exec /bin/zsh) || " +
+                                            "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
+                                            "([ -x /bin/bash ] && exec /bin/bash) || " +
+                                            "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
+                                            "exec /bin/sh"
                                 )
                             ) {
                                 val shellSession = this

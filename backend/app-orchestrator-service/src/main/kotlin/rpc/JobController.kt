@@ -63,6 +63,11 @@ class JobController(
             jobOrchestrator.extendDuration(request, ctx.securityPrincipal.toActor())
             ok(Unit)
         }
+
+        implement(Jobs.openInteractiveSession) {
+            verifySlaFromPrincipal()
+            ok(jobOrchestrator.openInteractiveSession(request, ctx.securityPrincipal.toActor()))
+        }
     }
 
     private fun CallHandler<*, *, *>.verifySlaFromPrincipal() {

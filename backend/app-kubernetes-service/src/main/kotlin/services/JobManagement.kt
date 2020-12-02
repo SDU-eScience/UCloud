@@ -18,6 +18,8 @@ import dk.sdu.cloud.service.DistributedLock
 import dk.sdu.cloud.service.DistributedLockFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
 import io.ktor.util.cio.*
@@ -68,6 +70,8 @@ class JobManagement(
     private val jobCache: VerifiedJobCache,
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
+    private val db: DBContext,
+    private val shellSessions: ShellSessionDao,
     private val disableMasterElection: Boolean = false,
     private val fullScanFrequency: Long = 1000L * 60 * 15,
 ) {
@@ -548,6 +552,16 @@ class JobManagement(
                         ).orThrow()
                     }
                 }
+            }
+        }
+    }
+
+    suspend fun openShellSession(
+        jobs: List<Job>
+    ): List<String> {
+        return db.withSession { session ->
+            jobs.map { job ->
+                shellSessions.createSession(session, job)
             }
         }
     }

@@ -1,19 +1,12 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
-import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
-import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
-import dk.sdu.cloud.app.orchestrator.api.ComputeFollowRequest
-import dk.sdu.cloud.app.orchestrator.api.ComputeFollowResponse
-import dk.sdu.cloud.app.orchestrator.api.ProviderManifest
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
-import dk.sdu.cloud.events.EventStreamContainer
-import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.*
@@ -26,16 +19,9 @@ import java.util.*
 import java.util.concurrent.CancellationException
 import kotlin.collections.HashMap
 
-private object CancelWSStream : EventStreamContainer() {
-    val events = stream<FindByStringId>("appk8-ws-cancel", { "id" })
-}
-
 class AppKubernetesController(
     private val jobManagement: JobManagement,
     private val logService: K8LogService,
-    private val vncService: VncService,
-    private val webService: WebService,
-    private val broadcastStream: BroadcastingStream
 ) : Controller {
     private val streams = HashMap<String, ReceiveChannel<*>>()
     private val streamsMutex = Mutex()
@@ -64,6 +50,16 @@ class AppKubernetesController(
         implement(KubernetesCompute.verify) {
             jobManagement.verifyJobs(request.items)
             ok(Unit)
+        }
+
+        implement(KubernetesCompute.openInteractiveSession) {
+            val shellJobs = request.items.filter { it.sessionType == InteractiveSessionType.SHELL }.map { it.job }
+            val shellSessions = jobManagement.openShellSession(shellJobs)
+            ok(ComputeOpenInteractiveSessionResponse(
+                shellSessions.mapIndexed { idx, sessionIdentifier ->
+                    OpenSession.Shell(shellJobs[idx].id, sessionIdentifier)
+                }
+            ))
         }
 
         implement(KubernetesCompute.retrieveManifest) {
