@@ -48,7 +48,7 @@ export interface ApplicationsProps extends ReduxType, ApplicationsOperations, Ro
 function Applications(props: ApplicationsProps): JSX.Element {
     const defaultTools = [
         "BEDTools",
-        "CellRanger",
+        "Cell Ranger",
         "HOMER",
         "Kallisto",
         "MACS2",
@@ -57,13 +57,24 @@ function Applications(props: ApplicationsProps): JSX.Element {
         "Seqtk"
     ];
 
+    const excludeTools = [
+        "bedtools",
+        "cellranger",
+        "homer",
+        "kallisto",
+        "macs2",
+        "salmon",
+        "samtools",
+        "seqtk"
+    ]
+
     const featuredTags = [
-        //"Engineering",
-       // "Data Analytics",
-       // "Social Science",
-       // "Applied Science",
-       // "Natural Science",
-       // "Development",
+        "Engineering",
+        "Data Analytics",
+        "Social Science",
+        "Applied Science",
+        "Natural Science",
+        "Development",
         "Bioinformatics"
     ];
 
@@ -103,7 +114,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
             />
 
             {featuredTags.map(tag =>
-                <TagGrid key={tag} favorites={favPairs} tag={tag} omit={defaultTools} rows={1} columns={7}
+                <TagGrid key={tag} favorites={favPairs} tag={tag} omit={excludeTools} rows={1} columns={7}
                     setFavorite={async (name, version, page) => {
                         props.receiveApplications(await favoriteApplicationFromPage({
                             name,
@@ -116,21 +127,25 @@ function Applications(props: ApplicationsProps): JSX.Element {
                 />
             )}
 
-            {/*defaultTools.map(tag => <ToolGroup key={tag} tag={tag} />)*/}
+            {defaultTools.map(tag => <ToolGroup key={tag} tag={tag} />)}
         </>
     );
     return (<MainContainer main={main} />);
 
     function fetchFeatured(itemsPerPage: number, page: number): void {
-        //props.receiveAppsByKey(itemsPerPage, page, "Featured", []);
+        props.receiveAppsByKey(itemsPerPage, page, "Featured", []);
     }
 
     function fetch(): void {
         const featuredPage = props.applications.get("Featured") ?? emptyPage;
         fetchFeatured(50, featuredPage.pageNumber);
-        [...featuredTags/*, ...defaultTools*/].forEach(tag => {
+        [...featuredTags].forEach(tag => {
             const page = props.applications.get(tag) ?? emptyPage;
-            props.receiveAppsByKey(50, page.pageNumber, tag, defaultTools);
+            props.receiveAppsByKey(50, page.pageNumber, tag, excludeTools);
+        });
+        [...defaultTools].forEach(tool => {
+            const page = props.applications.get(tool) ?? emptyPage;
+            props.receiveAppsByKey(50, page.pageNumber, tool, [])
         });
     }
 }
@@ -184,10 +199,6 @@ function TagGrid({tag, setFavorite, favorites, columns, rows, omit}: TagGridProp
     const page = useSelector<ReduxObject, Page<FullAppInfo>>(it =>
         it.applicationsBrowse.applications.get(tag) ?? emptyPage
     );
-
-    //const filteredItems = page.items.filter(it => !it.tags.some(_tag => omit.includes(_tag)))
-    //    .filter(it => !favorites.some(fav => fav.name === it.metadata.name && it.metadata.version === fav.version));
-
     return (
         <>
             <div>
