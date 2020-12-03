@@ -720,22 +720,19 @@ export const Browse: React.FunctionComponent = () => {
             const latestUpdate = job.updates[job.updates.length - 1];
             const state = latestUpdate?.state;
             const hideExpiration = isExpired || job.parameters.timeAllocation === null || isJobStateFinal(state);
-            const expiration = 
-
-            console.log(job);
             return (
                 <ListRow
                     key={job.id}
                     navigate={() => history.push(`/applications/results/${job.id}`)}
                     icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name} />}
-                    isSelected={checked[job.parameters.name!]}
+                    isSelected={checked.has(job.id)}
                     select={() => {
-                        if (checked.has(job.parameters.name!)) {
-                            checked.delete(job.parameters.name!)
+                        if (checked.has(job.id)) {
+                            checked.delete(job.id)
                         } else {
-                            checked.add(job.parameters.name!);
+                            checked.add(job.id);
                         }
-                        setChecked(new Set(...checked));
+                        setChecked(new Set(checked));
                     }}
                     left={<Text cursor="pointer">{job.parameters.name ?? shortUUID(job.id)}</Text>}
                     leftSub={<>
@@ -762,7 +759,7 @@ export const Browse: React.FunctionComponent = () => {
                 />
             )
         })
-    ), []);
+    ), [checked]);
 
     return <MainContainer
         main={
