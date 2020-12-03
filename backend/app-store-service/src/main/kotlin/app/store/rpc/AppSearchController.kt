@@ -14,7 +14,7 @@ class AppSearchController (
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.searchTags) {
-            val normalizedExcludeList = request.excludeTools?.first()?.split(",") ?: emptyList()
+            val normalizedExcludeList = request.excludeTools?.firstOrNull()?.split(",") ?: emptyList()
             ok(
                 searchService.searchByTags(
                     ctx.securityPrincipal,

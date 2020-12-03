@@ -91,13 +91,7 @@ class AppStoreAsyncDao(
     ): Pair<List<Application>, Int> {
         val items = ctx.withSession { session ->
             val excludeNormalized = excludeTools?.map {it.toLowerCase()} ?: emptyList()
-            println(applicationNames)
-            println(user)
-            println(project)
-            println(memberGroups)
-            println(Roles.PRIVILEGED.contains(user.role))
-            println(excludeNormalized)
-            val rows = session
+            session
                 .sendPreparedStatement(
                     {
                         setParameter("applications", applicationNames)
@@ -136,15 +130,11 @@ class AppStoreAsyncDao(
                 ORDER BY A.name
                 """
                 )
-
-            println(rows)
-            rows
                 .rows
                 .toList()
                 .map { it.toApplicationWithInvocation() }
 
         }
-        println("RETUNRS " + items.map { it.withoutInvocation().metadata.title })
         return Pair(
             items, items.size
         )

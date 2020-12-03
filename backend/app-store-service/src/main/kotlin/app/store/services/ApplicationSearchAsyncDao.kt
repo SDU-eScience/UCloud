@@ -32,7 +32,6 @@ class ApplicationSearchAsyncDao(
         }
         return ctx.withSession { session ->
             val applications = appStoreAsyncDao.findAppNamesFromTags(session, user, project, groups, tags, excludeTools)
-            println("FOUND APPLICATIONS FROM TAGS: $applications")
             if (applications.isEmpty()) {
                 appStoreAsyncDao.preparePageForUser(
                     session,
