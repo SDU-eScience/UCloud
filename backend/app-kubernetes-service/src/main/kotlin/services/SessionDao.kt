@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
-import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession

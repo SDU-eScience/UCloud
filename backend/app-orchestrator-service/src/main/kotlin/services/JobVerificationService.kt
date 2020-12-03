@@ -205,6 +205,7 @@ class JobVerificationService(
                 ),
                 JobBilling(creditsCharged = 0L, pricePerUnit = machine.pricePerUnit),
                 unverifiedJob.request.copy(parameters = verifiedParameters),
+                JobStatus(JobState.IN_QUEUE)
             ),
             "REPLACED_LATER"
         )

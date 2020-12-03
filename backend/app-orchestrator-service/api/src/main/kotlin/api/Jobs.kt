@@ -86,8 +86,35 @@ data class Job(
         "This property is always available but must be explicitly requested.")
     val parameters: JobParameters,
 
+    @UCloudApiDoc("A summary of the `Job`'s current status")
+    val status: JobStatus,
+
     @UCloudApiDoc("Information regarding the output of this job.")
     val output: JobOutput? = null,
+)
+
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class JobStatus(
+    @UCloudApiDoc(
+        "The current of state of the `Job`.\n\n" +
+                "This will match the latest state set in the `updates`"
+    )
+    val state: JobState,
+
+    @UCloudApiDoc(
+        "Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.\n\n" +
+                "For `Job`s which suspend this might occur multiple times. This will always point to the latest point" +
+                "in time it started running."
+    )
+    val startedAt: Long? = null,
+
+    @UCloudApiDoc(
+        "Timestamp matching when the `Job` is set to expire.\n\n" +
+                "This is generally equal to `startedAt + timeAllocation`. Note that this field might be `null` if " +
+                "the `Job` has no associated deadline. For `Job`s that suspend however, this is more likely to be" +
+                "equal to the initial `RUNNING` state + `timeAllocation`."
+    )
+    val expiresAt: Long? = null
 )
 
 data class JobBilling(

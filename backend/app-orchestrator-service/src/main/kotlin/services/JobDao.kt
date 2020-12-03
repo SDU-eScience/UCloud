@@ -27,6 +27,8 @@ object JobsTable : SQLTable("jobs") {
     val lastScan = timestamp("last_scan")
     val currentState = text("current_state")
     val lastUpdate = timestamp("last_update")
+    val startedAt = timestamp("started_at")
+    val initialStartedAt = timestamp("initial_started_at")
 }
 
 object JobUpdatesTable : SQLTable("job_updates") {

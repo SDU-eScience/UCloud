@@ -418,7 +418,12 @@ fun RowData.toJob(): Job {
             getField(JobsTable.replicas),
             true
         ),
-        output = getFieldNullable(JobsTable.outputFolder)?.let { JobOutput(it) }
+        output = getFieldNullable(JobsTable.outputFolder)?.let { JobOutput(it) },
+        status = JobStatus(
+            getField(JobsTable.currentState).let { JobState.valueOf(it) },
+            getFieldNullable(JobsTable.startedAt)?.toDateTime()?.millis,
+            null, // TODO
+        )
     )
 }
 
