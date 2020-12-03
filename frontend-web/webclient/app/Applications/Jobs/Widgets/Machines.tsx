@@ -66,12 +66,13 @@ export const Machines: React.FunctionComponent<{
     return (
         <ClickableDropdown
             fullWidth
+            colorOnHover={false}
             trigger={(
                 <MachineDropdown>
-                    <input type={"hidden"} id={reservationMachine}/>
-                    <MachineBox machine={selected}/>
+                    <input type={"hidden"} id={reservationMachine} />
+                    <MachineBox machine={selected} />
 
-                    <Icon name="chevronDown"/>
+                    <Icon name="chevronDown" />
                 </MachineDropdown>
             )}
         >
@@ -79,7 +80,7 @@ export const Machines: React.FunctionComponent<{
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHeaderCell>Name</TableHeaderCell>
+                            <TableHeaderCell pl="6px">Name</TableHeaderCell>
                             <TableHeaderCell>vCPU</TableHeaderCell>
                             <TableHeaderCell>RAM (GB)</TableHeaderCell>
                             <TableHeaderCell>GPU</TableHeaderCell>
@@ -87,16 +88,16 @@ export const Machines: React.FunctionComponent<{
                         </TableRow>
                     </TableHeader>
                     <tbody>
-                    {machines.data.items.map(machine => {
-                        if (machine === null) return null;
-                        return <TableRow key={machine.id} onClick={() => setMachineReservation(machine)}>
-                            <TableCell>{machine.id}</TableCell>
-                            <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>
-                            <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
-                            <TableCell>{machine.gpu ?? 0}</TableCell>
-                            <TableCell>{creditFormatter(machine.pricePerUnit * 60, 3)}/hour</TableCell>
-                        </TableRow>;
-                    })}
+                        {machines.data.items.map(machine => {
+                            if (machine === null) return null;
+                            return <TableRow key={machine.id} onClick={() => setMachineReservation(machine)}>
+                                <TableCell pl="6px">{machine.id}</TableCell>
+                                <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>
+                                <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
+                                <TableCell>{machine.gpu ?? 0}</TableCell>
+                                <TableCell>{creditFormatter(machine.pricePerUnit * 60, 3)}/hour</TableCell>
+                            </TableRow>;
+                        })}
                     </tbody>
                 </Table>
             </Wrapper>
@@ -105,15 +106,11 @@ export const Machines: React.FunctionComponent<{
 };
 
 const Wrapper = styled.div`
-    ${TableHeaderCell} {
-        text-align: left;
+    & > table {
+        margin-left: -9px;
     }
-    
-    ${TableRow} {
-        padding: 8px;
-    }
-    
-    tbody > ${TableRow}:hover {
+
+    & > table > tbody > ${TableRow}:hover {
         cursor: pointer;
         background-color: var(--lightGray, #f00);
         color: var(--black, #f00);
@@ -136,7 +133,7 @@ const MachineBoxWrapper = styled.div`
     }
 `;
 
-const MachineBox: React.FunctionComponent<{ machine: UCloud.accounting.ProductNS.Compute | null }> = ({machine}) => (
+const MachineBox: React.FunctionComponent<{machine: UCloud.accounting.ProductNS.Compute | null}> = ({machine}) => (
     <MachineBoxWrapper>
         {machine ? null : (
             <b>No machine selected</b>
@@ -144,7 +141,7 @@ const MachineBox: React.FunctionComponent<{ machine: UCloud.accounting.ProductNS
 
         {!machine ? null : (
             <>
-                <b>{machine.id}</b><br/>
+                <b>{machine.id}</b><br />
                 <ul>
                     <li>{machine.cpu ? <>vCPU: {machine.cpu}</> : <>vCPU: Unspecified</>}</li>
                     <li>{machine.memoryInGigs ? <>Memory: {machine.memoryInGigs}GB</> : <>Memory: Unspecified</>}</li>

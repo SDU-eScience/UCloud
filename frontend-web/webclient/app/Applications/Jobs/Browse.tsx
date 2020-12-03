@@ -692,8 +692,6 @@ export const Browse: React.FunctionComponent = () => {
         emptyPageV2
     );
 
-    jobs.data = data;
-
     const refresh = useCallback(() => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage}));
         setInfScrollId(id => id + 1);
