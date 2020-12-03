@@ -168,9 +168,9 @@ class UserAsyncDAO(
             val success = session
                 .sendPreparedStatement(
                     {
-                        setParameter("firstNames", firstNames)
-                        setParameter("lastName", lastName)
-                        setParameter("email", email)
+                        setParameter("firstNames", firstNames.takeIf { it?.isNotBlank() ?: true })
+                        setParameter("lastName", lastName.takeIf { it?.isNotBlank() ?: true })
+                        setParameter("email", email.takeIf { it?.isNotBlank() ?: true })
                         setParameter("username", username)
                     },
                     """

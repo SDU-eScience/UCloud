@@ -1,4 +1,4 @@
-import {useAsyncCommand} from "Authentication/DataHook";
+import {useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {useCallback, useRef, useState} from "react";
 import * as React from "react";
@@ -15,7 +15,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
     const currentPassword = useRef<HTMLInputElement>(null);
     const newPassword = useRef<HTMLInputElement>(null);
     const repeatedPassword = useRef<HTMLInputElement>(null);
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [commandLoading, invokeCommand] = useCloudCommand();
 
     props.setLoading(commandLoading);
     const onSubmit = useCallback(async (e: React.SyntheticEvent) => {
@@ -27,7 +27,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
         const newPass = newPassword.current;
         const repeated = repeatedPassword.current;
 
-        if (!current || !newPass || !repeated) {
+        if (!current?.value || !newPass?.value || !repeated?.value) {
             setError(ChangePasswordError.BAD_CURRENT);
             return;
         }
