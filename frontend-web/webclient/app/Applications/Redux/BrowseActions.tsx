@@ -33,7 +33,7 @@ export const fetchByTag = async (tag: string, excludeTools: string[], itemsPerPa
             "/hpc/apps/searchTags",
             {
                 query: tag,
-                excludeTools: excludeTools,
+                excludeTools,
                 itemsPerPage,
                 page
             }

@@ -98,7 +98,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
             <Pagination.List
                 loading={props.loading}
                 pageRenderer={() => (
-                    <TagGrid favorites={favPairs} omit={[]} tag={"Featured"} columns={7} rows={3}
+                    <TagGrid favorites={favPairs} tag={"Featured"} columns={7} rows={3}
                         setFavorite={async (name, version, page) => {
                             props.receiveApplications(await favoriteApplicationFromPage({
                                 name,
@@ -114,7 +114,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
             />
 
             {featuredTags.map(tag =>
-                <TagGrid key={tag} favorites={favPairs} tag={tag} omit={excludeTools} rows={1} columns={7}
+                <TagGrid key={tag} favorites={favPairs} tag={tag} rows={1} columns={7}
                     setFavorite={async (name, version, page) => {
                         props.receiveApplications(await favoriteApplicationFromPage({
                             name,
@@ -188,14 +188,13 @@ const ToolImage = styled.img`
 
 interface TagGridProps {
     tag: string;
-    omit: string[];
     setFavorite(appName: string, appVersion: string, page: Page<FullAppInfo>): void;
     columns: number;
     rows: number;
     favorites: {name: string, version: string}[]
 }
 
-function TagGrid({tag, setFavorite, favorites, columns, rows, omit}: TagGridProps): JSX.Element {
+function TagGrid({tag, setFavorite, favorites, columns, rows}: TagGridProps): JSX.Element {
     const page = useSelector<ReduxObject, Page<FullAppInfo>>(it =>
         it.applicationsBrowse.applications.get(tag) ?? emptyPage
     );
