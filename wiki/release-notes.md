@@ -9,6 +9,12 @@ For details look in the `k8.kts` folders of each microservice.
 
 ## 04-12-20
 
+```
+✅  Deployment(webclient, 0.38.32) (UP-TO-DATE)
+```
+
+## 04-12-20
+
 This UCloud release brings a number of bug-fixes:
 
 - [#2008](https://github.com/SDU-eScience/UCloud/issues/2008): The syntax highlighter can stall with large files

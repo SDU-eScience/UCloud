@@ -2,6 +2,7 @@ import * as React from "react";
 import styled, {keyframes} from "styled-components";
 import {Box} from "ui-components";
 import {addStandardDialog} from "UtilityComponents";
+import {inDevEnvironment} from "UtilityFunctions";
 
 const TIMEOUT_DURATION = 180_000;
 
@@ -50,10 +51,13 @@ const NotifyBox = styled.div`
     animation: ${animation} 0.7s infinite alternate;
 `;
 
-
+function appVersionResource(): string {
+    if (inDevEnvironment()) return "/Assets/AppVersion.txt";
+    else return "/assets/Assets/AppVersion.txt";
+}
 
 function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => void): void {
-    fetch("/Assets/AppVersion.txt").then(it => {
+    fetch(appVersionResource()).then(it => {
         if (it.ok) {
             it.text().then(version => {
                 if (currentVersion !== version) setNewVersion(version);
@@ -64,7 +68,7 @@ function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => v
 }
 
 async function initialFetch(setInitial: (v: string) => void): Promise<void> {
-    fetch("/Assets/AppVersion.txt").then(it => {
+    fetch(appVersionResource()).then(it => {
         if (it.ok) {
             it.text().then(version => setInitial(version));
         } else {
