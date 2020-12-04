@@ -7,6 +7,45 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 04-12-20
+
+```
+✅  Deployment(webclient, 0.38.34) (UP-TO-DATE)
+✅  Deployment(webclient, 0.38.33) (UP-TO-DATE)
+```
+
+## 04-12-20
+
+This UCloud release brings a number of bug-fixes:
+
+- [#2008](https://github.com/SDU-eScience/UCloud/issues/2008): The syntax highlighter can stall with large files
+- [#2006](https://github.com/SDU-eScience/UCloud/issues/2006): Archived projects still require "attention"
+- [#2005](https://github.com/SDU-eScience/UCloud/issues/2005): Help box and documentation is missing from the login page
+- [#2002](https://github.com/SDU-eScience/UCloud/issues/2002): Add link to SKUs page from grant application page
+- [#1991](https://github.com/SDU-eScience/UCloud/issues/1991): Current balance is incorrectly shown when creating a new project
+- [#1992](https://github.com/SDU-eScience/UCloud/issues/1992): Add fortran and ini files as supported preview formats
+- [#1984](https://github.com/SDU-eScience/UCloud/issues/1984): Application list view width is incorrect
+- [#1982](https://github.com/SDU-eScience/UCloud/issues/1982): Notification to user when a new version is available
+- [#1979](https://github.com/SDU-eScience/UCloud/issues/1979): Support box cuts off on the right hand side
+- [#1967](https://github.com/SDU-eScience/UCloud/issues/1967): Reduce decimal places in run cost estimates
+- [#1990](https://github.com/SDU-eScience/UCloud/issues/1990): Projects are not cleaned up if approving project is out of resources
+- [#1983](https://github.com/SDU-eScience/UCloud/issues/1983): Add username of person who reject/approves a grant application
+- [#1980](https://github.com/SDU-eScience/UCloud/pulls/1980): Added disk usage to resource card
+- [#1998](https://github.com/SDU-eScience/UCloud/issues/1998), [#1981](https://github.com/SDU-eScience/UCloud/issues/1981): Code cleanup
+
+
+```
+✅  Deployment(accounting, 1.4.15) (UP-TO-DATE)
+✅  Deployment(alerting, 1.2.5) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.3.10) (UP-TO-DATE)
+✅  Deployment(grant, 0.1.10) (UP-TO-DATE)
+✅  Deployment(mail, 0.2.6) (UP-TO-DATE)
+✅  Deployment(slack, 0.1.1) (UP-TO-DATE)
+✅  Deployment(storage, 4.2.20) (UP-TO-DATE)
+✅  Deployment(support, 1.4.5) (UP-TO-DATE)
+✅  Deployment(webclient, 0.38.32) (UP-TO-DATE)
+```
+
 ## 06-11-20
 
 ```

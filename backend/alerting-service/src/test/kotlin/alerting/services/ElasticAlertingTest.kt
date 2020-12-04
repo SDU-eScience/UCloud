@@ -2,11 +2,8 @@ package dk.sdu.cloud.alerting.services
 
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.slack.api.SlackDescriptions
-import io.mockk.coEvery
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
-import io.mockk.runs
 import kotlinx.coroutines.runBlocking
 import org.apache.http.Header
 import org.apache.http.HttpEntity

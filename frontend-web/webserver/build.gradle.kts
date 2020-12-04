@@ -1,6 +1,6 @@
 plugins {
     java
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.10"
     application
 }
 
@@ -11,19 +11,27 @@ application {
 group = "dk.sdu.cloud"
 version = "1.0-SNAPSHOT"
 
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven { setUrl("https://plugins.gradle.org/m2/") }
+    }
+}
+
 repositories {
-    maven("https://dl.bintray.com/kotlin/kotlin-eap")
     mavenCentral()
     jcenter()
 }
 
 dependencies {
-    implementation(kotlin("stdlib-jdk8"))
+    val ktorVersion = "1.4.0"
+    implementation(kotlin("stdlib"))
     testCompile("junit", "junit", "4.12")
-    compile("io.ktor:ktor-server-core:1.2.3")
-    compile("io.ktor:ktor-server-netty:1.2.3")
-    compile("io.ktor:ktor-server-host-common:1.2.3")
-    compile("io.ktor:ktor-websockets:1.2.3")
+    implementation("io.ktor:ktor-server-core:$ktorVersion")
+    implementation("io.ktor:ktor-server-netty:$ktorVersion")
+    implementation("io.ktor:ktor-server-host-common:$ktorVersion")
+    implementation("io.ktor:ktor-websockets:$ktorVersion")
 }
 
 configure<JavaPluginConvention> {

@@ -146,9 +146,7 @@ export function useGlobalCloudAPI<T, Parameters = any>(
     return [state.call, doFetch, state.parameters];
 }
 
-/**
- * @deprecated
- */
+/**  @deprecated - Refer to `useCloudCommand` instead */
 export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
     return useCloudCommand();
 }
@@ -158,7 +156,8 @@ type InvokeCommand = <T = any>(
     opts?: {defaultErrorHandler: boolean}
 ) => Promise<T | null>;
 
-export function useCloudCommand(): [boolean, InvokeCommand] { const [isLoading, setIsLoading] = useState(false);
+export function useCloudCommand(): [boolean, InvokeCommand] {
+    const [isLoading, setIsLoading] = useState(false);
     let didCancel = false;
     const sendCommand: InvokeCommand = useCallback(<T>(call, opts = {defaultErrorHandler: true}): Promise<T | null> => {
         // eslint-disable-next-line no-async-promise-executor
@@ -303,7 +302,7 @@ export function useCloudAPI<T, Parameters = any>(
     const initialCall = useRef(true);
     const lastKey = useRef("");
     if (shouldLog) console.log("In here");
-    const [cache,, mergeCache] = useGlobal("cloudApiCache", {}, (oldCache, newCache) => {
+    const [cache, , mergeCache] = useGlobal("cloudApiCache", {}, (oldCache, newCache) => {
         let cacheKey = cachingPolicy?.cacheKey;
         if (cacheKey === undefined) return true; // Don't give us the update
         cacheKey += "/";
@@ -351,6 +350,7 @@ export function useCloudAPI<T, Parameters = any>(
         }
 
         if (params.noop !== true) {
+            // eslint-disable-next-line no-inner-declarations
             async function fetchData(): Promise<void> {
                 if (params.path !== undefined) {
                     if (shouldLog) console.log("    Init");
@@ -362,7 +362,6 @@ export function useCloudAPI<T, Parameters = any>(
                         if (!didCancel) {
                             if (shouldLog) console.log("    Success");
                             dispatch({type: "FETCH_SUCCESS", payload: result});
-
                             if (cachingPolicy !== undefined && cachingPolicy.cacheTtlMs > 0 && params.method === "GET") {
                                 const newEntry = {};
                                 newEntry[key!] = {expiresAt: now + cachingPolicy.cacheTtlMs, cached: result};
@@ -389,7 +388,7 @@ export function useCloudAPI<T, Parameters = any>(
         return () => {
             didCancel = true;
         };
-    }, []);
+    }, [cache]);
 
     const doFetch = useCallback((params: APICallParameters, disableCache = false): void => {
         if (shouldLog) console.log("doFetch")

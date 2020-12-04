@@ -1,4 +1,4 @@
-import {useAsyncCommand} from "Authentication/DataHook";
+import {useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {useCallback, useEffect, useRef} from "react";
 import * as React from "react";
@@ -35,7 +35,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
     const userLastName = useRef<HTMLInputElement>(null);
     const userEmail = useRef<HTMLInputElement>(null);
 
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const [state, dispatch] = React.useReducer(reducer, initialState, () => initialState);
 
     const info = useCallback(async () => {
@@ -95,9 +95,9 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
             path: "/auth/users/updateUserInfo",
             context: "",
             payload: {
-                firstNames: firstNames?.value,
-                lastName: lastName?.value,
-                email: email?.value
+                firstNames: firstNames?.value ? firstNames.value : undefined,
+                lastName: lastName?.value ? lastName.value : undefined,
+                email: email?.value ? email.value : undefined
             }
         }) !== null;
 
@@ -121,7 +121,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                         checked={state.wantsEmails}
                         onChange={info}
                     />
-                    <Box as={"span"}>Receive emails</Box>
+                    <Box as="span">Receive emails</Box>
                 </Label>
             </Box>
         );
@@ -172,7 +172,6 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                         />
                         <Box as="span">Receive emails</Box>
                     </Label>
-
 
                     <Button
                         mt="1em"

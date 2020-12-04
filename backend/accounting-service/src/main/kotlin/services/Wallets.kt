@@ -7,7 +7,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
@@ -58,6 +57,7 @@ object TransactionTable : SQLTable("transactions") {
     val initiatedBy = text("initiated_by")
     val completedAt = timestamp("completed_at")
     val expiresAt = timestamp("expires_at")
+    val transactionComment = text("transaction_comment")
 }
 
 class BalanceService(
@@ -525,6 +525,7 @@ class BalanceService(
                         set(TransactionTable.completedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                         set(TransactionTable.originalAccountId, originalWallet.id)
                         set(TransactionTable.id, jobId)
+                        set(TransactionTable.transactionComment, transactionComment(amount, wallet.id, transactionType))
                     }
                 }
 
@@ -642,7 +643,8 @@ class BalanceService(
                     jobInitiatedBy = actor.safeUsername(),
                     productId = "",
                     productUnits = 1L,
-                    chargeImmediately = true
+                    chargeImmediately = true,
+                    transactionType = TransactionType.TRANSFERRED_TO_PERSONAL
                 )
             )
 

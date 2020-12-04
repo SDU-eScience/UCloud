@@ -464,7 +464,8 @@ class ApplicationService(
                     grantRecipient.username,
                     WalletOwnerType.USER,
                     serviceClient,
-                    actor.safeUsername()
+                    actor.safeUsername(),
+                    TransactionType.TRANSFERRED_TO_PERSONAL
                 )
             }
 
@@ -475,11 +476,15 @@ class ApplicationService(
                     grantRecipient.projectId,
                     WalletOwnerType.PROJECT,
                     serviceClient,
-                    actor.safeUsername()
+                    actor.safeUsername(),
+                    TransactionType.TRANSFERRED_TO_PROJECT
                 )
             }
 
             is GrantRecipient.NewProject -> {
+                //Check that grant receiver has enough resources before creating project
+                checkBalance(application.requestedResources, application.resourcesOwnedBy, serviceClient, TransactionType.TRANSFERRED_TO_PROJECT)
+
                 val (newProjectId) = Projects.create.call(
                     CreateProjectRequest(
                         grantRecipient.projectTitle,
@@ -495,7 +500,8 @@ class ApplicationService(
                     newProjectId,
                     WalletOwnerType.PROJECT,
                     serviceClient,
-                    actor.safeUsername()
+                    actor.safeUsername(),
+                    TransactionType.TRANSFERRED_TO_PROJECT
                 )
             }
         }
@@ -734,17 +740,7 @@ class ApplicationService(
     }
 }
 
-suspend fun grantResourcesToProject(
-    sourceProject: String,
-    resources: List<ResourceRequest>,
-    targetWallet: String,
-    targetWalletType: WalletOwnerType,
-    serviceClient: AuthenticatedClient,
-    initiatedBy: String = "_ucloud"
-) {
-    // Start by verifying this project has enough resources
-    // TODO This isn't really enough since we still have potential race conditions but this is
-    //  extremely hard to deal with this under this microservice architecture.
+suspend fun checkBalance(resources: List<ResourceRequest>, projectId: String, serviceClient: AuthenticatedClient, transactionType: TransactionType) {
     val limitCheckId = UUID.randomUUID().toString()
     val later = Time.now() + (1000 * 60 * 60)
     Wallets.reserveCreditsBulk.call(
@@ -756,17 +752,33 @@ suspend fun grantResourcesToProject(
                     limitCheckId + idx,
                     creditsRequested,
                     later,
-                    Wallet(sourceProject, WalletOwnerType.PROJECT, paysFor),
+                    Wallet(projectId, WalletOwnerType.PROJECT, paysFor),
                     productId = "",
                     productUnits = 0,
                     jobInitiatedBy = "_ucloud",
-                    discardAfterLimitCheck = true
+                    discardAfterLimitCheck = true,
+                    transactionType = transactionType
                 )
             }
         ),
         serviceClient
     ).orThrow()
+}
 
+
+suspend fun grantResourcesToProject(
+    sourceProject: String,
+    resources: List<ResourceRequest>,
+    targetWallet: String,
+    targetWalletType: WalletOwnerType,
+    serviceClient: AuthenticatedClient,
+    initiatedBy: String = "_ucloud",
+    transactionType: TransactionType
+) {
+    // Start by verifying this project has enough resources
+    // TODO This isn't really enough since we still have potential race conditions but this is
+    //  extremely hard to deal with this under this microservice architecture.
+    checkBalance(resources, sourceProject, serviceClient, transactionType)
     val usage = FileDescriptions.retrieveQuota.call(
         RetrieveQuotaRequest(projectHomeDirectory(sourceProject)),
         serviceClient
