@@ -55,7 +55,7 @@ class JobQueryService(
                                         (:isAdmin and :project::text is not null and j.project = :project::text)
                                     )
                                 order by
-                                    last_update
+                                    last_update desc
                         """
                     )
             },
@@ -422,7 +422,15 @@ fun RowData.toJob(): Job {
         status = JobStatus(
             getField(JobsTable.currentState).let { JobState.valueOf(it) },
             getFieldNullable(JobsTable.startedAt)?.toDateTime()?.millis,
-            null, // TODO
+            run {
+                val startedAt = getFieldNullable(JobsTable.startedAt)?.toDateTime()?.millis
+                val timeAllocation = getFieldNullable(JobsTable.timeAllocationMillis)
+                if (startedAt != null && timeAllocation != null) {
+                    startedAt + timeAllocation
+                } else {
+                    null
+                }
+            }
         )
     )
 }
