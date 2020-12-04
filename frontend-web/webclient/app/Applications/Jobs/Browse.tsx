@@ -14,63 +14,17 @@ import {useHistory} from "react-router";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {ListRow, ListRowStat} from "ui-components/List";
 import Text, {TextSpan} from "ui-components/Text";
-import {prettierString, shortUUID} from "UtilityFunctions";
+import {errorMessageOrDefault, prettierString, shortUUID} from "UtilityFunctions";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
-import {isRunExpired} from "Utilities/ApplicationUtilities";
+import {inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
 import {Box, Button, Flex, InputGroup, Label} from "ui-components";
-import {Client} from "Authentication/HttpClientInstance";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {JobState} from "./index";
 import {JobStateIcon} from "./JobStateIcon";
-
-function mockApp(): UCloud.compute.Job {
-    return {
-        id: "string112312" + (Math.random() * 10 | 0),
-        owner: {launchedBy: Client.username!},
-        updates: [{timestamp: new Date().getTime()}],
-        billing: {creditsCharged: 200, pricePerUnit: 100},
-        parameters: {
-            application: {name: "foo", version: "1.3.3.7"},
-            product: {id: "bar", category: "foo", provider: "foo"},
-            name: "string" + (Math.random() * 100 | 0),
-            replicas: 0,
-            allowDuplicateJob: false,
-            parameters: {},
-            resources: [],
-            timeAllocation: {
-                hours: 5,
-                minutes: 0,
-                seconds: 0
-            },
-            resolvedProduct: {
-                id: "string",
-                pricePerUnit: 120000 /* int64 */,
-                category: {id: "foo", provider: "bar"},
-                description: "string",
-                availability: {type: "available"},
-                priority: 0,
-                type: "compute"
-            },
-            resolvedApplication: {
-                metadata: {
-                    name: "string",
-                    version: "1.3.3.7",
-                    authors: ["fooey"],
-                    title: "string",
-                    description: "string",
-                    public: true
-                },
-                invocation: {
-
-                } as any
-            }
-        }
-    }
-}
-
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 function isJobStateFinal(state?: JobState): boolean {
     if (state === undefined) return false;
@@ -121,7 +75,12 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 resolvedProduct: undefined,
                 resolvedApplication: undefined
             },
-            "output": undefined
+            output: undefined,
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "a4f35d51-40bf-496f-bcd9-5813cb5f91db",
@@ -152,7 +111,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 replicas: 1,
                 allowDuplicateJob: true,
             },
-            output: undefined
+            output: undefined,
+            status: {
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "812cf11a-3a16-4a98-80ce-763613cf560b",
@@ -178,12 +141,17 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
                 replicas: 1,
                 allowDuplicateJob: true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "FAILURE"
+            }
         },
         {
             id: "a2cfcd0a-e24b-443c-bc47-a05fe748530f",
@@ -213,6 +181,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "SUCCESS"
+            }
         },
         {
             id: "245cd7ba-ec9e-499f-8da0-a6d41c118387",
@@ -242,6 +215,10 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                state: "IN_QUEUE"
+            }
         },
         {
             id: "51ef3ada-6578-4e3f-aff2-c5591dfe5f36",
@@ -271,6 +248,10 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                startedAt: new Date().getTime() - 10_000,
+                state: "IN_QUEUE"
+            }
         },
         {
             id: "16f0b2bc-db9b-468e-aadf-d6657cfa2494",
@@ -300,6 +281,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "CANCELING"
+            }
         },
         {
             id: "bd562fdb-249a-43b9-909d-96279bf96d7b",
@@ -329,6 +315,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "11d45177-c2c0-4254-9068-03f8ad2cdfeb",
@@ -358,6 +349,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "ad88b9f5-6bc9-40b4-b6be-bde7de38708e",
@@ -387,6 +383,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "12a2717f-dd4c-4d24-a948-fe00cadc51e6",
@@ -416,6 +417,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "c7dccff3-ebd6-4ce8-95c8-1a85ed8b56d2",
@@ -445,6 +451,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "2b691748-9ad1-4ed3-bbe3-2f651245a041",
@@ -474,6 +485,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "94606ccd-af7f-43ce-b3bf-95e8858f12a1",
@@ -503,6 +519,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 3,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "aab92994-bed7-43f9-9ef4-cb9a7f60715b",
@@ -532,6 +553,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 3,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "9ce5332c-c52e-4b0a-b935-c5bd9a73f1d3",
@@ -561,6 +587,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 replicas: 1,
                 allowDuplicateJob: true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "383f7238-9e70-4a8d-90a4-db99967300ab",
@@ -589,6 +620,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 replicas: 1,
                 allowDuplicateJob: true
+            },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
             }
         },
         {
@@ -619,6 +655,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "127d2123-9520-4c41-813c-2d808b2746da",
@@ -647,6 +688,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 "replicas": 1,
                 "allowDuplicateJob": true,
+            },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
             }
         },
         {
@@ -677,6 +723,11 @@ const data: UCloud.PageV2<UCloud.compute.Job> = {
                 replicas: 1,
                 allowDuplicateJob: true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         }
     ],
     "next": "20-cafbbfef-265d-4995-8bad-e44212541a76"
@@ -717,9 +768,7 @@ export const Browse: React.FunctionComponent = () => {
     const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => (
         page.items.map(job => {
             const isExpired = isRunExpired(job);
-            const latestUpdate = job.updates[job.updates.length - 1];
-            const state = latestUpdate?.state;
-            const hideExpiration = isExpired || job.parameters.timeAllocation === null || isJobStateFinal(state);
+            const hideExpiration = isExpired || job.parameters.timeAllocation === null || isJobStateFinal(job.status.state);
             return (
                 <ListRow
                     key={job.id}
@@ -739,21 +788,21 @@ export const Browse: React.FunctionComponent = () => {
                         <ListRowStat color="gray" icon="id">
                             {job.parameters.application.name} v{job.parameters.application.version}
                         </ListRowStat>
-                        <ListRowStat color="gray" color2="gray" icon="chrono">
-                            {/* TODO: Created at timestamp */}
-                            {/* Started {formatRelative(0, new Date(), {locale: enGB})} */}
-                        </ListRowStat>
+                        {job.status.startedAt == null ? null :
+                            <ListRowStat color="gray" color2="gray" icon="chrono">
+                                Started ${formatRelative(job.status.startedAt, new Date(), {locale: enGB})}
+                            </ListRowStat>
+                        }
                     </>}
                     right={<>
-                        {hideExpiration || job.parameters.timeAllocation == null ? null : (
+                        {hideExpiration || job.status.expiresAt == null ? null : (
                             <Text mr="25px">
-                                {/* TODO: Expiration */}
-                                {/* Expires {formatRelative(0, new Date(), {locale: enGB})} */}
+                                Expires {formatRelative(job.status.expiresAt, new Date(), {locale: enGB})}
                             </Text>
                         )}
                         <Flex width="110px">
-                            <JobStateIcon state={state} isExpired={isExpired} mr="8px" />
-                            <Flex mt="-3px">{isExpired ? "Expired" : prettierString(state ?? "")}</Flex>
+                            <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px" />
+                            <Flex mt="-3px">{isExpired ? "Expired" : prettierString(job.status.state)}</Flex>
                         </Flex>
                     </>}
                 />
@@ -763,14 +812,16 @@ export const Browse: React.FunctionComponent = () => {
 
     const cancelableJobs: string[] = [];
 
-    /*
     for (const entry of checked) {
         const job = jobs.data.items.find(it => it.id === entry);
-        if (job && checked.has(entry)  && inCancelableState(job.state)) {
+        if (job == null) continue;
+        if (
+            // NOTE                                           job can expire locally, holding outdated state
+            checked.has(entry) && inCancelableState(job.status.state) && !isRunExpired(job)
+        ) {
             cancelableJobs.push(entry);
         }
     }
-    */
 
     return <MainContainer
         main={
@@ -783,7 +834,11 @@ export const Browse: React.FunctionComponent = () => {
             />
         }
 
-        sidebar={<FilterOptions onUpdateFilter={onUpdateFilter} cancelableJobs={[]} />}
+        sidebar={
+            <FilterOptions onUpdateFilter={onUpdateFilter}>
+                <JobOperations cancelableJobs={cancelableJobs} onFinished={() => console.log("TODO")} />
+            </FilterOptions>
+        }
     />;
 
     function onUpdateFilter(f: FetchJobsOptions) {
@@ -806,9 +861,9 @@ interface FetchJobsOptions {
     filter?: string;
 }
 
-function FilterOptions({onUpdateFilter, cancelableJobs}: {
+function FilterOptions({onUpdateFilter, children}: {
     onUpdateFilter: (filter: FetchJobsOptions) => void;
-    cancelableJobs: string[];
+    children: React.ReactNode;
 }) {
     const [filter, setFilter] = useState({text: "Don't filter", value: "Don't filter"});
     const [firstDate, setFirstDate] = useState<Date | undefined>();
@@ -821,10 +876,6 @@ function FilterOptions({onUpdateFilter, cancelableJobs}: {
 
     function fetchJobsInRange(start?: Date, end?: Date) {
         onUpdateFilter({filter: filter.value, minTimestamp: start?.getTime(), maxTimestamp: end?.getTime()});
-    }
-
-    function fetchJobs() {
-        // TODO
     }
 
     const startOfToday = getStartOfDay(new Date());
@@ -901,7 +952,7 @@ function FilterOptions({onUpdateFilter, cancelableJobs}: {
                     />
                 </InputGroup>
             </Box>
-            <JobOperations cancelableJobs={cancelableJobs} onFinished={() => fetchJobs()} />
+            {children}
         </Box>
     );
 }
@@ -1176,24 +1227,22 @@ function JobOperations({cancelableJobs, onFinished}: AnalysisOperationsProps): J
         <Button
             fullWidth
             color="red"
-            onClick={() => {
+            onClick={() => undefined
                 /* cancelJobDialog({
-                jobCount: cancelableAnalyses.length,
-                jobId: cancelableAnalyses[0].id,
-                onConfirm: async () => {
-                    try {
-                        await Promise.all(cancelableAnalyses.map(a => cancelJob(Client, a.id)));
-                        snackbarStore.addSuccess("Jobs cancelled", false);
-                    } catch (e) {
-                        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred "), false);
-                    } finally {
-                        onFinished();
+                    jobCount: cancelableJobs.length,
+                    jobId: cancelableJobs[0],
+                    onConfirm: async () => {
+                        try {
+                            await Promise.all(cancelableJobs.map(job => cancelJob(Client, job)));
+                            snackbarStore.addSuccess("Jobs cancelled", false);
+                        } catch (e) {
+                            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred "), false);
+                        } finally {
+                            onFinished();
+                        }
                     }
-                }
                 }) */
-                console.log("FOOO-do.")
-                onFinished();
-            }}
+            }
         >
             Cancel selected ({cancelableJobs.length}) jobs
         </Button>
