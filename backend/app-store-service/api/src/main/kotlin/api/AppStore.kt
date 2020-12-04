@@ -104,7 +104,7 @@ data class SetPublicRequest(
 
 data class TagSearchRequest(
     val query: String,
-    val excludeTools: List<String>? = emptyList(),
+    val excludeTools: String? = null,
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
