@@ -224,12 +224,19 @@ class MockHttpClient {
 }
 
 export const Client = new MockHttpClient();
+function b64DecodeUnicode(str) {
+    // Going backwards: from bytestream, to percent-encoding, to original string.
+    return decodeURIComponent(atob(str).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+}
+
 
 function parseJWT(encodedJWT: string): JWT | null {
     const [, right] = encodedJWT.split(".");
     if (right == null) return null;
 
-    const decoded = atob(right);
+    const decoded = b64DecodeUnicode(right);
     const parsed = JSON.parse(decoded);
     const isValid = "sub" in parsed &&
         "uid" in parsed &&
