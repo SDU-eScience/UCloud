@@ -227,7 +227,7 @@ class AppTest {
                 val searchDao = mockk<ApplicationSearchAsyncDao>()
                 val favoriteDao = FavoriteAsyncDao(appPublicDao, aclDao)
                 val appLogoDao = ApplicationLogoAsyncDao(appDao)
-                coEvery { searchDao.searchByTags(any(), any(), any(), any(), any(), any()) } answers {
+                coEvery { searchDao.searchByTags(any(), any(), any(), any(), any(), any(), any()) } answers {
                     val items = listOf(
                         ApplicationSummaryWithFavorite(
                             normAppDesc.metadata,

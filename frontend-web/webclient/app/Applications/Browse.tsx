@@ -21,7 +21,7 @@ import {Type as ReduxType} from "./Redux/BrowseObject";
 export interface ApplicationsOperations {
     onInit: () => void;
     fetchDefault: (itemsPerPage: number, page: number) => void;
-    fetchByTag: (tag: string, itemsPerPage: number, page: number) => void;
+    fetchByTag: (tag: string, excludeTools: string[], itemsPerPage: number, page: number) => void;
     receiveApplications: (page: Page<FullAppInfo>) => void;
     setRefresh: (refresh?: () => void) => void;
 }
@@ -121,7 +121,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
         if (tag === null) {
             props.fetchDefault(itemsPerPage, pageNumber);
         } else {
-            props.fetchByTag(tag, itemsPerPage, pageNumber);
+            props.fetchByTag(tag, [], itemsPerPage, pageNumber);
         }
     }
 }
@@ -135,9 +135,9 @@ const mapDispatchToProps = (
         dispatch(setActivePage(SidebarPages.AppStore));
     },
 
-    fetchByTag: async (tag: string, itemsPerPage: number, page: number) => {
+    fetchByTag: async (tag: string, excludeTools: string[], itemsPerPage: number, page: number) => {
         dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
-        dispatch(await Actions.fetchByTag(tag, itemsPerPage, page));
+        dispatch(await Actions.fetchByTag(tag, excludeTools, itemsPerPage, page));
     },
 
     fetchDefault: async (itemsPerPage: number, page: number) => {
