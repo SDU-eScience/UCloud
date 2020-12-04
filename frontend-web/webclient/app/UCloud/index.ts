@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Wed Dec 02 12:11:24 CET 2020 */
+/* Generated at: Fri Dec 04 11:29:33 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -581,6 +581,10 @@ export interface Job {
      */
     parameters: JobParameters,
     /**
+     * A summary of the `Job`'s current status
+     */
+    status: JobStatus,
+    /**
      * Information regarding the output of this job.
      */
     output?: JobOutput,
@@ -785,6 +789,26 @@ export interface ContainerDescription {
     changeWorkingDirectory: boolean,
     runAsRoot: boolean,
     runAsRealUser: boolean,
+}
+export interface JobStatus {
+    /**
+     * The current of state of the `Job`.
+     * 
+     * This will match the latest state set in the `updates`
+     */
+    state: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE",
+    /**
+     * Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.
+     * 
+     * For `Job`s which suspend this might occur multiple times. This will always point to the latest pointin time it started running.
+     */
+    startedAt?: number /* int64 */,
+    /**
+     * Timestamp matching when the `Job` is set to expire.
+     * 
+     * This is generally equal to `startedAt + timeAllocation`. Note that this field might be `null` if the `Job` has no associated deadline. For `Job`s that suspend however, this is more likely to beequal to the initial `RUNNING` state + `timeAllocation`.
+     */
+    expiresAt?: number /* int64 */,
 }
 export interface JobOutput {
     outputFolder: string,
