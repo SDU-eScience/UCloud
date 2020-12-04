@@ -761,6 +761,17 @@ export const Browse: React.FunctionComponent = () => {
         })
     ), [checked]);
 
+    const cancelableJobs: string[] = [];
+
+    /*
+    for (const entry of checked) {
+        const job = jobs.data.items.find(it => it.id === entry);
+        if (job && checked.has(entry)  && inCancelableState(job.state)) {
+            cancelableJobs.push(entry);
+        }
+    }
+    */
+
     return <MainContainer
         main={
             <Pagination.ListV2
@@ -772,7 +783,7 @@ export const Browse: React.FunctionComponent = () => {
             />
         }
 
-        sidebar={<FilterOptions onUpdateFilter={onUpdateFilter} />}
+        sidebar={<FilterOptions onUpdateFilter={onUpdateFilter} cancelableJobs={[]} />}
     />;
 
     function onUpdateFilter(f: FetchJobsOptions) {
@@ -795,7 +806,10 @@ interface FetchJobsOptions {
     filter?: string;
 }
 
-function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: FetchJobsOptions) => void}) {
+function FilterOptions({onUpdateFilter, cancelableJobs}: {
+    onUpdateFilter: (filter: FetchJobsOptions) => void;
+    cancelableJobs: string[];
+}) {
     const [filter, setFilter] = useState({text: "Don't filter", value: "Don't filter"});
     const [firstDate, setFirstDate] = useState<Date | undefined>();
     const [secondDate, setSecondDate] = useState<Date | undefined>();
@@ -887,7 +901,7 @@ function FilterOptions({onUpdateFilter}: {onUpdateFilter: (filter: FetchJobsOpti
                     />
                 </InputGroup>
             </Box>
-            <AnalysisOperations cancelableAnalyses={[]/* cancelableAnalyses */} onFinished={() => fetchJobs()} />
+            <JobOperations cancelableJobs={cancelableJobs} onFinished={() => fetchJobs()} />
         </Box>
     );
 }
@@ -1152,17 +1166,18 @@ const Runs: React.FunctionComponent = () => {
 
 
 interface AnalysisOperationsProps {
-    cancelableAnalyses: UCloud.compute.Job[];
+    cancelableJobs: string[];
     onFinished: () => void;
 }
 
-function AnalysisOperations({cancelableAnalyses, onFinished}: AnalysisOperationsProps): JSX.Element | null {
-    if (cancelableAnalyses.length === 0) return null;
+function JobOperations({cancelableJobs, onFinished}: AnalysisOperationsProps): JSX.Element | null {
+    if (cancelableJobs.length === 0) return null;
     return (
         <Button
             fullWidth
             color="red"
-            onClick={() => /* cancelJobDialog({
+            onClick={() => {
+                /* cancelJobDialog({
                 jobCount: cancelableAnalyses.length,
                 jobId: cancelableAnalyses[0].id,
                 onConfirm: async () => {
@@ -1175,9 +1190,12 @@ function AnalysisOperations({cancelableAnalyses, onFinished}: AnalysisOperations
                         onFinished();
                     }
                 }
-            }) */ console.log("FOOO-do.")}
+                }) */
+                console.log("FOOO-do.")
+                onFinished();
+            }}
         >
-            Cancel selected ({cancelableAnalyses.length}) jobs
+            Cancel selected ({cancelableJobs.length}) jobs
         </Button>
     );
 }
