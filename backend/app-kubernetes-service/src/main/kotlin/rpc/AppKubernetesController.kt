@@ -126,7 +126,7 @@ class AppKubernetesController(
 
                         streamsMutex.withLock { streams.remove(streamId) }
                         ok(ComputeFollowResponse(streamId, -1, null, null))
-                    } catch (ex: CancellationException) {
+                    } catch (ex: Throwable) {
                         streamsMutex.withLock { streams.remove(streamId) }
                         okContentAlreadyDelivered()
                     }
@@ -138,7 +138,7 @@ class AppKubernetesController(
                             streams.remove(request.streamId)?.cancel()
                         }
                         ok(ComputeFollowResponse("", -1, null, null))
-                    } catch (ex: CancellationException) {
+                    } catch (ex: Throwable) {
                         okContentAlreadyDelivered()
                     }
                 }
