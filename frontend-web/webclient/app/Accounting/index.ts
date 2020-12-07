@@ -3,6 +3,10 @@ import {Client} from "Authentication/HttpClientInstance";
 
 export type AccountType = "USER" | "PROJECT";
 
+export interface ProductCategory {
+    id: ProductCategoryId;
+    area: ProductArea;
+}
 export interface ProductCategoryId {
     id: string;
     provider: string;
@@ -156,6 +160,27 @@ export function listByProductArea(request: ListProductsByAreaRequest): APICallPa
     return {
         method: "GET",
         path: buildQueryString("/products/listByArea", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface GrantsRetrieveProductsRequest {
+    projectId: string;
+    recipientType: string;
+    recipientId: string;
+}
+
+export interface GrantsRetrieveProductsResponse {
+    availableProducts: ProductCategory[];
+}
+
+export function grantsRetrieveProducts(
+    request: GrantsRetrieveProductsRequest
+): APICallParameters<GrantsRetrieveProductsRequest, GrantsRetrieveProductsResponse> {
+    return {
+        method: "GET",
+        path: buildQueryString("/api/grant/retrieveProducts", request),
         parameters: request,
         reloadId: Math.random()
     };
@@ -404,3 +429,4 @@ export const UCLOUD_PROVIDER = "ucloud";
 export function isQuotaSupported(category: ProductCategoryId): boolean {
     return category.provider === UCLOUD_PROVIDER && category.id === "u1-cephfs";
 }
+

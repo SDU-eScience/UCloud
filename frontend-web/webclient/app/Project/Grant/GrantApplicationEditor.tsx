@@ -7,14 +7,12 @@ import * as Heading from "ui-components/Heading";
 import {Box, Button, ButtonGroup, Card, ExternalLink, Flex, Icon, Input, Label, Text, TextArea, theme, Tooltip} from "ui-components";
 import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
-    ProductArea,
+    grantsRetrieveProducts, GrantsRetrieveProductsResponse,
+    ProductArea, ProductCategory,
     productCategoryEquals,
     ProductCategoryId,
     retrieveBalance,
     RetrieveBalanceResponse,
-    retrieveFromProvider,
-    RetrieveFromProviderResponse,
-    UCLOUD_PROVIDER,
     WalletBalance
 } from "Accounting";
 import styled from "styled-components";
@@ -147,31 +145,8 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
     const avatars = useAvatars();
     let loading = false;
 
-    let availableProducts: {area: ProductArea, category: ProductCategoryId}[];
+    let availableProducts: ProductCategory[];
     let reloadProducts: () => void;
-    {
-        const [products, fetchProducts] = useCloudAPI<RetrieveFromProviderResponse>(
-            {noop: true},
-            []
-        );
-
-        const allCategories: {category: ProductCategoryId, area: "compute" | "storage"}[] =
-            products.data.map(it => ({category: it.category, area: it.type}));
-
-        const uniqueCategories: {category: ProductCategoryId, area: "compute" | "storage"}[] = Array.from(
-            new Set(allCategories.map(it => JSON.stringify(it))).values()
-        ).map(it => JSON.parse(it));
-
-        availableProducts = uniqueCategories.map(it => {
-            return {
-                area: it.area === "compute" ? ProductArea.COMPUTE : ProductArea.STORAGE,
-                category: it.category,
-            };
-        });
-        reloadProducts = useCallback(() => {
-            fetchProducts(retrieveFromProvider({provider: UCLOUD_PROVIDER}));
-        }, []);
-    }
 
     const documentRef = useRef<HTMLTextAreaElement>(null);
     const [templates, fetchTemplates] = useCloudAPI<ReadTemplatesResponse>(
@@ -276,6 +251,27 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         }
     }
 
+    {
+        const [products, fetchProducts] = useCloudAPI<GrantsRetrieveProductsResponse>(
+            {noop: true},
+            {availableProducts: []}
+        );
+
+        availableProducts = products.data.availableProducts;
+        reloadProducts = useCallback(() => {
+            if (targetProject) {
+                fetchProducts(grantsRetrieveProducts({
+                    projectId: targetProject,
+                    recipientType: recipient.type,
+                    recipientId:
+                        recipient.type === "existing_project" ? recipient.projectId :
+                            recipient.type === "new_project" ? recipient.projectTitle :
+                                recipient.type === "personal" ? recipient.username : ""
+                }));
+            }
+        }, [targetProject, recipient.type]);
+    }
+
     const reload = useCallback(() => {
         if (targetProject) {
             if (targetProject !== "unknown") {
@@ -327,7 +323,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                 wallet: {
                     type: "USER",
                     id: "unknown",
-                    paysFor: product.category
+                    paysFor: product.id
                 }
             });
         }
