@@ -14,7 +14,7 @@ import {useHistory} from "react-router";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {ListRow, ListRowStat} from "ui-components/List";
 import Text, {TextSpan} from "ui-components/Text";
-import {errorMessageOrDefault, prettierString, shortUUID} from "UtilityFunctions";
+import {prettierString, shortUUID} from "UtilityFunctions";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
 import {inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
@@ -24,7 +24,6 @@ import {DatePicker} from "ui-components/DatePicker";
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {JobState} from "./index";
 import {JobStateIcon} from "./JobStateIcon";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 
 function isJobStateFinal(state?: JobState): boolean {
     if (state === undefined) return false;
@@ -32,8 +31,6 @@ function isJobStateFinal(state?: JobState): boolean {
 }
 
 const itemsPerPage = 50;
-
-// const items = [mockApp(), mockApp(), mockApp()];
 
 
 const data: UCloud.PageV2<UCloud.compute.Job> = {
@@ -772,7 +769,7 @@ export const Browse: React.FunctionComponent = () => {
             return (
                 <ListRow
                     key={job.id}
-                    navigate={() => history.push(`/applications/results/${job.id}`)}
+                    navigate={() => history.push(`/applications/jobs/${job.id}`)}
                     icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name} />}
                     isSelected={checked.has(job.id)}
                     select={() => {

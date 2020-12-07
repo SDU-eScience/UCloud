@@ -355,7 +355,7 @@ export const View: React.FunctionComponent = () => {
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                                 <div className={"fake-logo"} />
                                 <div className={"header-text"}>
-                                    <RunningText job={job!} />
+                                    <RunningText job={job} />
                                 </div>
                             </Flex>
 
