@@ -17,6 +17,7 @@ This UCloud release brings another small batch of bug-fixes:
 - [#2009](https://github.com/SDU-eScience/UCloud/issues/2009): Incorrect handling of unicode characters in username (Deployed 5/12/20)
 
 ```
+✅  Deployment(webclient, 0.38.36) (UP-TO-DATE)
 ✅  Deployment(webclient, 0.38.35) (UP-TO-DATE)
 ✅  Deployment(grant, 0.1.11): (UP-TO-DATE)
 ✅  Deployment(app-store, 0.14.7): (UP-TO-DATE)

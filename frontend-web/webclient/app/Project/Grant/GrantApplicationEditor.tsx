@@ -522,7 +522,7 @@ const ComputeRequestCard: React.FunctionComponent<{
                             />
                         </td>
                     </tr>
-                    {state.editingApplication !== undefined ? null : (
+                    {state.editingApplication !== undefined || state.recipient.type === "new_project" ? null : (
                         <tr>
                             <th>Current balance</th>
                             <td>
