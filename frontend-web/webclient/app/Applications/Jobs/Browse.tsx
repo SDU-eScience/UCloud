@@ -790,7 +790,7 @@ export const Browse: React.FunctionComponent = () => {
                         </ListRowStat>
                         {job.status.startedAt == null ? null :
                             <ListRowStat color="gray" color2="gray" icon="chrono">
-                                Started ${formatRelative(job.status.startedAt, new Date(), {locale: enGB})}
+                                Started {formatRelative(job.status.startedAt, new Date(), {locale: enGB})}
                             </ListRowStat>
                         }
                     </>}
