@@ -28,7 +28,6 @@ export {default as Stamp} from "./Stamp";
 export {default as Select} from "./Select";
 export {default as Text} from "./Text";
 export {default as Tooltip} from "./Tooltip";
-export {default as ToggleBadge} from "./ToggleBadge";
 export {default as Truncate} from "./Truncate";
 export {default as Checkbox} from "./Checkbox";
 export {default as ContainerForText} from "./ContainerForText";

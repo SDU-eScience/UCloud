@@ -672,7 +672,7 @@ export function useEffectSkipMount(fn: () => (void | (() => void | undefined)), 
     }, deps);
 }
 
-export function isAbsoluteUrl(url: string) {
+export function isAbsoluteUrl(url: string): boolean {
     return url.indexOf("http://") === 0 || url.indexOf("https://") === 0 ||
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
 }
