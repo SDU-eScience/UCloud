@@ -169,14 +169,16 @@ interface JobsFollowResponse {
     log: {rank: number; stdout?: string; stderr?: string}[];
 }
 
-function useJobUpdates(jobId: string, callback: (entry: JobsFollowResponse) => void): void {
+function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowResponse) => void): void {
     useEffect(() => {
+        if (!job) return;
+
         const conn = WSFactory.open(
             "/jobs", {
             init: conn => {
                 conn.subscribe({
                     call: "jobs.follow",
-                    payload: {id: jobId},
+                    payload: {id: job.id},
                     handler: message => {
                         const streamEntry = message.payload as JobsFollowResponse;
                         callback(streamEntry);
@@ -188,7 +190,7 @@ function useJobUpdates(jobId: string, callback: (entry: JobsFollowResponse) => v
         return () => {
             conn.close();
         };
-    }, [jobId, callback]);
+    }, [job, callback]);
 }
 
 interface JobUpdateListener {
@@ -298,8 +300,8 @@ export const View: React.FunctionComponent = () => {
         jobUpdateCallbackHandlers.current.forEach(({handler}) => {
             handler(e);
         });
-    }, [job, id]);
-    useJobUpdates(id, jobUpdateListener);
+    }, [job]);
+    useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
