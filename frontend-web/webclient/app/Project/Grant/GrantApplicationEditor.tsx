@@ -1169,7 +1169,7 @@ const PostCommentWidget: React.FunctionComponent<{
 
 function ProductLink(): JSX.Element {
     return <Tooltip
-        trigger={<ExternalLink href="/skus"><Box style={{
+        trigger={<ExternalLink href="/app/skus"><Box style={{
             cursor: "pointer",
             border: "2px var(--black) solid",
             borderRadius: "9999px",
