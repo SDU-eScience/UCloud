@@ -178,11 +178,11 @@ export const ConfirmCancelButtons = ({
     onCancel,
     height
 }: ConfirmCancelButtonsProps): JSX.Element => (
-        <ButtonGroup width="175px" height={height}>
-            <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
-            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
-        </ButtonGroup>
-    );
+    <ButtonGroup width="175px" height={height}>
+        <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+        <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
+    </ButtonGroup>
+);
 
 const SharePromptWrapper = styled(Box)`
     overflow-y: auto;
@@ -718,7 +718,7 @@ const loremText = `
 `.split(" ").map(it => it.trim());
 
 export const Lorem: React.FunctionComponent<{maxLength?: number}> = ({maxLength = 240}) => {
-    let builder: string = "";
+    let builder = "";
     let length = 0;
     let counter = 0;
 

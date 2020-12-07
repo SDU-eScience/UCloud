@@ -30,7 +30,7 @@ import {compute} from "UCloud";
 import Application = compute.Application;
 
 const View: React.FunctionComponent = () => {
-    const {appName, appVersion} = useRouteMatch<{ appName: string, appVersion: string }>().params;
+    const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
     useSidebarPage(SidebarPages.AppStore);
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
@@ -49,11 +49,11 @@ const View: React.FunctionComponent = () => {
     const application = applicationResp.data;
     const previous = previousResp.data;
 
-    if (application === null || previous === null) return <MainContainer main={<HexSpin size={36} />}/>;
+    if (application === null || previous === null) return <MainContainer main={<HexSpin size={36} />} />;
 
     return (
         <MainContainer
-            header={<AppHeader application={application!}/>}
+            header={<AppHeader application={application!} />}
             headerSize={160}
             main={(
                 <ContainerForText left>
@@ -95,13 +95,13 @@ const AppHeaderDetails = styled.div`
     }
 `;
 
-export const AppHeader: React.FunctionComponent<{ application: UCloud.compute.ApplicationWithFavoriteAndTags } & { slim?: boolean }> = props => {
+export const AppHeader: React.FunctionComponent<{application: UCloud.compute.ApplicationWithFavoriteAndTags} & {slim?: boolean}> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "32px" : "128px";
     return (
         <AppHeaderBase>
             <Box mr={16}>
-                <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size}/>
+                <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size} />
             </Box>
             <AppHeaderDetails>
                 {isSlim ? (
@@ -109,13 +109,13 @@ export const AppHeader: React.FunctionComponent<{ application: UCloud.compute.Ap
                         {props.application.metadata.title} <small>({props.application.metadata.version})</small>
                     </Heading.h3>
                 ) : (
-                    <>
-                        <Heading.h2>{props.application.metadata.title}</Heading.h2>
-                        <Heading.h3>v{props.application.metadata.version}</Heading.h3>
-                        <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
-                        <Tags tags={props.application.tags}/>
-                    </>
-                )}
+                        <>
+                            <Heading.h2>{props.application.metadata.title}</Heading.h2>
+                            <Heading.h3>v{props.application.metadata.version}</Heading.h3>
+                            <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
+                            <Tags tags={props.application.tags} />
+                        </>
+                    )}
             </AppHeaderDetails>
         </AppHeaderBase>
     );
@@ -165,7 +165,7 @@ const Content: React.FunctionComponent<{
                             <Heading.h4>Other Versions</Heading.h4>
                             <ApplicationCardContainer>
                                 {props.previous.items.map((it, idx) => (
-                                    <SlimApplicationCard app={it} key={idx} tags={it.tags}/>
+                                    <SlimApplicationCard app={it} key={idx} tags={it.tags} />
                                 ))}
                             </ApplicationCardContainer>
                         </div>
@@ -174,13 +174,13 @@ const Content: React.FunctionComponent<{
             </AppSection>
 
             <AppSection>
-                <Information application={props.application}/>
+                <Information application={props.application} />
             </AppSection>
         </>
     );
 }
 
-function Tags({tags}: { tags: string[] }): JSX.Element | null {
+function Tags({tags}: {tags: string[]}): JSX.Element | null {
     if (!tags) return null;
 
     return (
@@ -188,7 +188,7 @@ function Tags({tags}: { tags: string[] }): JSX.Element | null {
             <Flex flexDirection="row">
                 {
                     tags.map(tag => (
-                        <Link key={tag} to={Pages.browseByTag(tag)}><Tag label={tag}/> </Link>
+                        <Link key={tag} to={Pages.browseByTag(tag)}><Tag label={tag} /> </Link>
                     ))
                 }
             </Flex>
@@ -218,7 +218,7 @@ const InfoAttributes = styled.div`
     flex-direction: row;
 `;
 
-const Information: React.FunctionComponent<{ application: Application }> = ({application}) => {
+const Information: React.FunctionComponent<{application: Application}> = ({application}) => {
     const tool = application?.invocation?.tool?.tool;
     if (!tool) return null;
     const time = tool?.description?.defaultTimeAllocation;
