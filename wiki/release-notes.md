@@ -7,6 +7,22 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 07-12-20
+
+This UCloud release brings another small batch of bug-fixes:
+
+- [#1931](https://github.com/SDU-eScience/UCloud/issues/1931), [#1932](https://github.com/SDU-eScience/UCloud/issues/1932): Application tags were not always handled correctly
+- [#2036](https://github.com/SDU-eScience/UCloud/issues/2036): Grant application editor should only show available products
+- [#2035](https://github.com/SDU-eScience/UCloud/issues/2035): Link to SKUs page from grant application is invalid
+- [#2009](https://github.com/SDU-eScience/UCloud/issues/2009): Incorrect handling of unicode characters in username (Deployed 5/12/20)
+
+```
+✅  Deployment(webclient, 0.38.35) (UP-TO-DATE)
+✅  Deployment(grant, 0.1.11): (UP-TO-DATE)
+✅  Deployment(app-store, 0.14.7): (UP-TO-DATE)
+✅  Deployment(alerting, 1.2.6): (UP-TO-DATE)
+```
+
 ## 04-12-20
 
 ```
@@ -66,6 +82,7 @@ Todays UCloud update brings a range of various bug fixes and minor tweaks.
 
 ## Fixes
 
+```
   - #1952, #1953: Fixes an internal issue with mails. You should now be able to receive mails from UCloud again.
   - #1970: Application favoriting issue in the frontend
   - #1959: Renaming buttons has 'Create' instead of 'Update'/'Rename'
@@ -84,6 +101,7 @@ Todays UCloud update brings a range of various bug fixes and minor tweaks.
   - #1937: Usernames aren't trimmed for whitespace when searching/adding
   - #1930: Add link to documentation on app run page
   - #1933: App License ACLs does not handle project group entities correctly
+```
 
 ```
 ✅  Deployment(accounting, 1.4.12) (UP-TO-DATE)
