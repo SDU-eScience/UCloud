@@ -81,6 +81,7 @@ Todays UCloud update brings a range of various bug fixes and minor tweaks.
 
 ## Fixes
 
+```
   - #1952, #1953: Fixes an internal issue with mails. You should now be able to receive mails from UCloud again.
   - #1970: Application favoriting issue in the frontend
   - #1959: Renaming buttons has 'Create' instead of 'Update'/'Rename'
@@ -99,6 +100,7 @@ Todays UCloud update brings a range of various bug fixes and minor tweaks.
   - #1937: Usernames aren't trimmed for whitespace when searching/adding
   - #1930: Add link to documentation on app run page
   - #1933: App License ACLs does not handle project group entities correctly
+```
 
 ```
 ✅  Deployment(accounting, 1.4.12) (UP-TO-DATE)
