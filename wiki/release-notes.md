@@ -7,6 +7,21 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 07-12-20
+
+This UCloud release brings another small batch of bug-fixes:
+
+- [#1931](https://github.com/SDU-eScience/UCloud/issues/1931), [#1932](https://github.com/SDU-eScience/UCloud/issues/1932): Application tags were not always handled correctly
+- [#2036](https://github.com/SDU-eScience/UCloud/issues/2036): Grant application editor should only show available products
+- [#2035](https://github.com/SDU-eScience/UCloud/issues/2035): Link to SKUs page from grant application is invalid
+- [#2009](https://github.com/SDU-eScience/UCloud/issues/2009): Incorrect handling of unicode characters in username (Deployed 5/12/20)
+
+```
+✅  Deployment(webclient, 0.38.35) (UP-TO-DATE)
+✅  Deployment(grant, 0.1.11): (UP-TO-DATE)
+✅  Deployment(app-store, 0.14.7): (UP-TO-DATE)
+```
+
 ## 04-12-20
 
 ```
