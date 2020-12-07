@@ -20,6 +20,7 @@ This UCloud release brings another small batch of bug-fixes:
 ✅  Deployment(webclient, 0.38.35) (UP-TO-DATE)
 ✅  Deployment(grant, 0.1.11): (UP-TO-DATE)
 ✅  Deployment(app-store, 0.14.7): (UP-TO-DATE)
+✅  Deployment(alerting, 1.2.6): (UP-TO-DATE)
 ```
 
 ## 04-12-20
