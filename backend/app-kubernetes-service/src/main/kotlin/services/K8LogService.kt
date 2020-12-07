@@ -40,7 +40,7 @@ class K8LogService(
             val readBuffer = ByteArray(1024 * 32)
             var nextCheck = 0L
 
-            loop@ while (isActive) {
+            loop@ while (isActive && !isClosedForSend) {
                 // Guarantee that we don't spin too much. Unfortunately we don't have an API for selecting on the
                 // ByteReadChannel.
                 delay(50)

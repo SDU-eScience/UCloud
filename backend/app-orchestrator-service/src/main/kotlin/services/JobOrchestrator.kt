@@ -22,6 +22,8 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.select
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The job orchestrator is responsible for the orchestration of computation providers.
@@ -418,7 +420,7 @@ class JobOrchestrator(
                     JobDataIncludeFlags(includeUpdates = true)
                 )
 
-                val stateUpdate = initialJob.updates.filter { it.state != null }.lastOrNull()
+                val stateUpdate = initialJob.updates.lastOrNull { it.state != null }
                 if (stateUpdate != null) {
                     sendWSMessage(
                         JobsFollowResponse(
@@ -432,46 +434,73 @@ class JobOrchestrator(
                 var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
                 val (api, _, wsClient) = providers.prepareCommunication(initialJob.parameters.product.provider)
                 var streamId: String? = null
+                val states = JobState.values()
+                val currentState = AtomicInteger(JobState.IN_QUEUE.ordinal)
 
                 coroutineScope {
                     val logJob = launch {
-                        api.follow.subscribe(ComputeFollowRequest.Init(initialJob), wsClient, { message ->
-                            if (streamId == null) {
-                                streamId = message.streamId
-                            }
+                        try {
+                            while (isActive) {
+                                if (currentState.get() == JobState.RUNNING.ordinal) {
+                                    api.follow.subscribe(ComputeFollowRequest.Init(initialJob), wsClient, { message ->
+                                        if (streamId == null) {
+                                            streamId = message.streamId
+                                        }
 
-                            // Providers are allowed to use negative ranks for control messages
-                            if (message.rank >= 0) {
-                                sendWSMessage(JobsFollowResponse(
-                                    emptyList(),
-                                    listOf(JobsLog(message.rank, message.stdout, message.stderr))
-                                ))
+                                        // Providers are allowed to use negative ranks for control messages
+                                        if (message.rank >= 0) {
+                                            sendWSMessage(
+                                                JobsFollowResponse(
+                                                    emptyList(),
+                                                    listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                                )
+                                            )
+                                        }
+                                    }).orThrow()
+                                    break
+                                } else {
+                                    delay(500)
+                                }
                             }
-                        }).orThrow()
+                        } catch (ex: Throwable) {
+                            if (ex !is CancellationException) {
+                                log.warn(ex.stackTraceToString())
+                            }
+                        }
                     }
 
                     val updateJob = launch {
-                        while (currentCoroutineContext().isActive) {
-                            val (job) = jobQueryService.retrieve(
-                                actor,
-                                ctx.project,
-                                request.id,
-                                JobDataIncludeFlags(includeUpdates = true)
-                            )
+                        try {
+                            while (isActive && !states[currentState.get()].isFinal()) {
+                                val (job) = jobQueryService.retrieve(
+                                    actor,
+                                    ctx.project,
+                                    request.id,
+                                    JobDataIncludeFlags(includeUpdates = true)
+                                )
 
-                            // TODO not ideal for chatty providers
-                            val updates = job.updates.filter { it.timestamp > lastUpdate }
-                            if (updates.isNotEmpty()) {
-                                sendWSMessage(JobsFollowResponse(updates, emptyList()))
-                                lastUpdate = job.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+                                currentState.set(job.status.state.ordinal)
+
+                                // TODO not ideal for chatty providers
+                                val updates = job.updates.filter { it.timestamp > lastUpdate }
+                                if (updates.isNotEmpty()) {
+                                    sendWSMessage(JobsFollowResponse(updates, emptyList()))
+                                    lastUpdate = job.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+                                }
+                                delay(1000)
                             }
-                            delay(1000)
+                        } catch (ex: Throwable) {
+                            if (ex !is CancellationException) {
+                                log.warn(ex.stackTraceToString())
+                            }
                         }
                     }
 
                     try {
-                        logJob.join()
-                        updateJob.join()
+                        select<Unit> {
+                            logJob.onJoin {}
+                            updateJob.onJoin {}
+                        }
                     } finally {
                         val capturedId = streamId
                         if (capturedId != null) {
@@ -480,6 +509,9 @@ class JobOrchestrator(
                                 wsClient
                             )
                         }
+
+                        runCatching { logJob.cancel("No longer following or EOF") }
+                        runCatching { updateJob.cancel("No longer following or EOF") }
                     }
                 }
             }
