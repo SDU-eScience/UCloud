@@ -20,6 +20,7 @@ import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
+/* FIXME: Find corresponding backend interface */
 interface AclEntry {
     entity: UCloud.compute.license.DetailedAccessEntity;
     permission: LicenseServerAccessRight;
@@ -39,6 +40,7 @@ enum LicenseServerAccessRight {
 const LeftAlignedTableHeader = styled(TableHeader)`
     text-align: left;
 `;
+/* FIXMEEND: Find corresponding backend interface */
 
 function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element | null {
     const [tagList, setTagList] = React.useState<TagEntry[]>([]);
