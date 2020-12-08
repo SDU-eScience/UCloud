@@ -167,6 +167,7 @@ class ApplicationService(
         isApplying: Boolean,
     ) {
         ctx.withSession { session ->
+            log.debug("verifyCanApplyTo($resourcesOwnedBy, $actor, $recipient, $isApplying)")
             if (isApplying) {
                 if (recipient is GrantRecipient.PersonalProject) {
                     if (recipient.username != actor.username) {
@@ -178,6 +179,15 @@ class ApplicationService(
                 }
             }
 
+            if (!isApplying) {
+                val isAdminInTargetProject = Projects.viewMemberInProject.call(
+                    ViewMemberInProjectRequest(resourcesOwnedBy, actor.username),
+                    serviceClient
+                ).throwIfInternal().orNull()?.member?.role?.isAdmin() == true
+
+                if (isAdminInTargetProject) return@withSession
+            }
+
             val recipientProjectId = when (recipient) {
                 is GrantRecipient.PersonalProject -> null
                 is GrantRecipient.ExistingProject -> recipient.projectId
@@ -185,14 +195,13 @@ class ApplicationService(
             }
 
             if (recipientProjectId != null) {
-                val userStatus = Projects.viewMemberInProject.call(
+                val isAdminInRecipientProject = Projects.viewMemberInProject.call(
                     ViewMemberInProjectRequest(recipientProjectId, actor.username),
                     serviceClient
-                ).throwIfInternal().orRethrowAs {
-                    throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
-                }
+                ).throwIfInternal().orNull()?.member?.role?.isAdmin() == true
 
-                if (!userStatus.member.role.isAdmin()) {
+                if (!isAdminInRecipientProject) {
+                    log.debug("Deny: 1")
                     throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
                 }
             }
@@ -218,24 +227,11 @@ class ApplicationService(
                         }
 
                 if (!isAllowed || emailIsBlacklisted) {
-                    if (!isApplying) {
-                        val userStatus = Projects.viewMemberInProject.call(
-                            ViewMemberInProjectRequest(resourcesOwnedBy, actor.username),
-                            serviceClient
-                        ).throwIfInternal().orNull()
-
-                        if (userStatus?.member?.role?.isAdmin() != true) {
-                            throw RPCException(
-                                "You are not allowed to submit applications to this project",
-                                HttpStatusCode.Forbidden
-                            )
-                        }
-                    } else {
-                        throw RPCException(
-                            "You are not allowed to submit applications to this project",
-                            HttpStatusCode.Forbidden
-                        )
-                    }
+                    log.debug("Deny: 3")
+                    throw RPCException(
+                        "You are not allowed to submit applications to this project",
+                        HttpStatusCode.Forbidden
+                    )
                 }
             }
         }

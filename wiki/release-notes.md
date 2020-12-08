@@ -12,6 +12,8 @@ For details look in the `k8.kts` folders of each microservice.
 Bug fix for grant application editor.
 
 ```
+✅  Deployment(grant, 0.1.15): (UP-TO-DATE)
+✅  Deployment(grant, 0.1.14): (UP-TO-DATE)
 ✅  Deployment(grant, 0.1.13): (UP-TO-DATE)
 ```
 
