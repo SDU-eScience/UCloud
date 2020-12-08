@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 08-12-20
+
+Bug fix for grant application editor.
+
+```
+✅  Deployment(grant, 0.1.13): (UP-TO-DATE)
+```
+
 ## 07-12-20
 
 This UCloud release brings another small batch of bug-fixes:
