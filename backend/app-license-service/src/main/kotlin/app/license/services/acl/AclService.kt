@@ -27,6 +27,8 @@ class AclService(
     }
 
     suspend fun updatePermissions(serverId: String, changes: List<AclChange>, accessEntity: AccessEntity) {
+        println(accessEntity)
+        println(changes)
         if (dao.hasPermission(db, serverId, accessEntity, ServerAccessRight.READ_WRITE)) {
             changes.forEach { change ->
                 if (accessEntity.user == change.entity.user) {
