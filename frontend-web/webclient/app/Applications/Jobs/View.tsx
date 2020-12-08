@@ -880,7 +880,6 @@ const CompletedTextWrapper = styled.div`
 `;
 
 const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
-    const success = state === "SUCCESS";
     return <CompletedTextWrapper>
         <Heading.h2>{PRODUCT_NAME} has processed your job</Heading.h2>
         <Heading.h3>
@@ -888,7 +887,7 @@ const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({
                 {job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name}
                 {" "}v{job.parameters.application.version}
             </i>
-            {" "}{success ? "succeeded" : "failed"}{" "}
+            {" "}{state === "SUCCESS" ? "succeeded" : state === "EXPIRED" ? "expired" : "failed"}{" "}
             {job.parameters.name ? <>for <i>{job.parameters.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>

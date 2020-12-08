@@ -22,19 +22,13 @@ import {Box, Button, Flex, InputGroup, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
-import {JobState} from "./index";
+import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import {JobStateIcon} from "./JobStateIcon";
 import {addStandardDialog} from "UtilityComponents";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
-function isJobStateFinal(state?: JobState): boolean {
-    if (state === undefined) return false;
-    return ["SUCCESS", "FAILURE"].includes(state);
-}
-
 const itemsPerPage = 50;
-
 
 const data: UCloud.PageV2<UCloud.compute.Job> = {
     itemsPerPage: 50,
@@ -770,7 +764,6 @@ export const Browse: React.FunctionComponent = () => {
     const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => (
         page.items.map(job => {
             const isExpired = isRunExpired(job);
-            const hideExpiration = isExpired || job.parameters.timeAllocation === null || isJobStateFinal(job.status.state);
             return (
                 <ListRow
                     key={job.id}
@@ -797,14 +790,14 @@ export const Browse: React.FunctionComponent = () => {
                         }
                     </>}
                     right={<>
-                        {hideExpiration || job.status.expiresAt == null ? null : (
+                        {isJobStateTerminal(job.status.state) || job.status.expiresAt == null ? null : (
                             <Text mr="25px">
                                 Expires {formatRelative(job.status.expiresAt, new Date(), {locale: enGB})}
                             </Text>
                         )}
                         <Flex width="110px">
                             <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px" />
-                            <Flex mt="-3px">{isExpired ? "Expired" : prettierString(job.status.state)}</Flex>
+                            <Flex mt="-3px">{stateToTitle(job.status.state)}</Flex>
                         </Flex>
                     </>}
                 />
@@ -851,7 +844,7 @@ export const Browse: React.FunctionComponent = () => {
 type Filter = {text: string; value: string};
 const dayInMillis = 24 * 60 * 60 * 1000;
 const appStates: Filter[] =
-    (["IN_QUEUE", "RUNNING", "CANCELING", "SUCCESS", "FAILURE"] as JobState[])
+    (["IN_QUEUE", "RUNNING", "CANCELING", "SUCCESS", "FAILURE", "EXPIRED"] as JobState[])
         .map(it => ({text: prettierString(it), value: it})).concat([{text: "Don't filter", value: "Don't filter" as JobState}]);
 
 

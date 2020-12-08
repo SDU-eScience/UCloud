@@ -39,8 +39,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
             val name = jobFromServer.metadata?.name ?: continue
             val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt
             if (lastTs == null) {
-                log.warn("Found no last accounting timestamp for job with name '$name'")
-                log.warn("No accounting will be performed for this job")
+                log.info("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
                 continue@loop
             }
 

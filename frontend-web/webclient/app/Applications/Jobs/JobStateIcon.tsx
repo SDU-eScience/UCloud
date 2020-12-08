@@ -47,6 +47,10 @@ export const JobStateIcon: React.FunctionComponent<{
             iconName = "close";
             defaultColor = "red";
             break;
+        case "EXPIRED":
+            iconName = "chrono";
+            defaultColor = "orange";
+            break;
         default:
             iconName = "ellipsis";
             break;

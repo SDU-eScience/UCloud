@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Mon Dec 07 15:56:23 CET 2020 */
+/* Generated at: Tue Dec 08 13:20:04 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -603,7 +603,7 @@ export interface JobOwner {
 }
 export interface JobUpdate {
     timestamp: number /* int64 */,
-    state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE",
+    state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
     status?: string,
 }
 export interface JobBilling {
@@ -796,7 +796,7 @@ export interface JobStatus {
      * 
      * This will match the latest state set in the `updates`
      */
-    state: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE",
+    state: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
     /**
      * Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.
      * 
@@ -871,7 +871,7 @@ export interface JobsOpenInteractiveSessionRequestItem {
 }
 export interface JobsControlUpdateRequestItem {
     jobId: string,
-    state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE",
+    state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
     status?: string,
 }
 export interface JobsControlChargeCreditsResponse {

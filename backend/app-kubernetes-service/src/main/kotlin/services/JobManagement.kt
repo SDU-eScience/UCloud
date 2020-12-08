@@ -198,12 +198,14 @@ class JobManagement(
         cleanup(verifiedJob.id)
         if (!exists) {
             JobsControl.update.call(
-                bulkRequestOf(JobsControlUpdateRequestItem(
-                    verifiedJob.id,
-                    JobState.FAILURE,
-                    "An internal error occurred in UCloud/Compute. " +
+                bulkRequestOf(
+                    JobsControlUpdateRequestItem(
+                        verifiedJob.id,
+                        JobState.FAILURE,
+                        "An internal error occurred in UCloud/Compute. " +
                             "Job cancellation was requested but the job was not known to us."
-                )),
+                    )
+                ),
                 k8.serviceClient
             )
         }
@@ -248,12 +250,6 @@ class JobManagement(
                     KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
                 )
 
-                var podWatch = k8.client.watchResource<WatchEvent<Pod>>(
-                    this,
-                    KubernetesResources.pod.withNamespace(NAMESPACE_ANY),
-                    mapOf("labelSelector" to VOLCANO_JOB_NAME_LABEL)
-                )
-
                 // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
                 var nextFullScan = System.currentTimeMillis() + 15_000
 
@@ -263,16 +259,6 @@ class JobManagement(
                         volcanoWatch = k8.client.watchResource(
                             this,
                             KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
-                        )
-                        continue
-                    }
-
-                    if (podWatch.isClosedForReceive) {
-                        log.info("Stopped receiving new Pod watch events. Restarting watcher.")
-                        podWatch = k8.client.watchResource(
-                            this,
-                            KubernetesResources.pod.withNamespace(NAMESPACE_ANY),
-                            mapOf("labelSelector" to VOLCANO_JOB_NAME_LABEL)
                         )
                         continue
                     }
@@ -358,12 +344,20 @@ class JobManagement(
                             val volcanoWatchOnReceiveOrNull = volcanoWatch.onReceiveOrNull()
                             volcanoWatchOnReceiveOrNull r@{ ev ->
                                 if (ev == null) return@r
-                                log.info("Volcano job watch: ${ev.theObject.status}")
+                                log.debug("Volcano job watch: ${ev.theObject.status}")
                                 val jobName = ev.theObject.metadata?.name ?: return@r
                                 val jobId = k8.nameAllocator.jobNameToJobId(jobName)
 
                                 if (ev.type == "DELETED") {
-                                    k8.changeState(jobId, JobState.SUCCESS, "Job has terminated")
+                                    val expiry = ev.theObject.expiry
+                                    if (expiry != null && System.currentTimeMillis() >= expiry) {
+                                        // NOTE(Dan): Expiry plugin will simply delete the object. This is why we must
+                                        // check if the reason was expiration here.
+                                        markJobAsComplete(jobId, ev.theObject)
+                                        k8.changeState(jobId, JobState.EXPIRED, "Job has expired")
+                                    } else {
+                                        k8.changeState(jobId, JobState.SUCCESS, "Job has terminated")
+                                    }
                                     return@r
                                 }
 
@@ -435,41 +429,6 @@ class JobManagement(
                                     k8.addStatus(jobId, statusUpdate)
                                 }
                             }
-
-                            val podWatchOnReceiveOrNull = podWatch.onReceiveOrNull()
-                            podWatchOnReceiveOrNull r@{ ev ->
-                                if (ev == null) return@r
-                                val status = ev.theObject.status ?: return@r
-                                val jobName = ev.theObject.metadata?.labels?.get(VOLCANO_JOB_NAME_LABEL)?.toString()
-                                    ?: run {
-                                        log.info("Could not find the label? ${ev.theObject.metadata?.labels}")
-                                        return@r
-                                    }
-                                val jobId = k8.nameAllocator.jobNameToJobId(jobName)
-
-                                val allContainerStatuses = (status.containerStatuses ?: emptyList()) +
-                                    (status.initContainerStatuses ?: emptyList())
-
-                                val unableToPull = allContainerStatuses
-                                    .find { it.state?.waiting?.reason == "ImagePullBackOff" }
-
-                                val pulling = allContainerStatuses
-                                    .filter { it.state?.waiting?.reason == "ImagePullPulling" }
-
-                                if (unableToPull != null) {
-                                    k8.changeState(
-                                        jobId,
-                                        JobState.FAILURE,
-                                        "Unable to download software (Docker image): ${unableToPull.image}"
-                                    )
-                                } else if (pulling.isNotEmpty()) {
-                                    k8.addStatus(
-                                        jobId,
-                                        "Downloading software (Docker images): " +
-                                            pulling.mapNotNull { it.image }.joinToString(", ")
-                                    )
-                                }
-                            }
                         }
                     }
 
@@ -481,7 +440,6 @@ class JobManagement(
                 }
 
                 runCatching { volcanoWatch.cancel() }
-                runCatching { podWatch.cancel() }
             }
         }
     }

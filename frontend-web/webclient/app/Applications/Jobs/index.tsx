@@ -4,7 +4,7 @@ import {PropType} from "UtilityFunctions";
 export type JobState = NonNullable<PropType<UCloud.compute.JobUpdate, "state">>;
 
 export function isJobStateTerminal(state: JobState): boolean {
-    return state === "SUCCESS" || state === "FAILURE";
+    return state === "SUCCESS" || state === "FAILURE" || state === "EXPIRED";
 }
 
 export const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
@@ -20,6 +20,8 @@ export const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
         case "SUCCESS":
             return 3;
         case "FAILURE":
+            return 3;
+        case "EXPIRED":
             return 3;
         default:
             return 0;
@@ -38,6 +40,8 @@ export const stateToTitle = (state: JobState): string => {
             return "Success";
         case "CANCELING":
             return "Canceling";
+        case "EXPIRED":
+            return "Expired";
         /*
         case JobState.READY:
         return "Ready";

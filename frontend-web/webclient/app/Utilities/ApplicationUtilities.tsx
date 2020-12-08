@@ -13,11 +13,8 @@ export const toolImageQuery = (toolName: string, cacheBust?: string): string =>
 
 export const advancedSearchQuery = "/hpc/apps/advancedSearch";
 
-export const hpcFavoriteApp = (name: string, version: string): string =>
-    `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
-
 export function isRunExpired(run: UCloud.compute.Job): boolean {
-    return false;//run.status.expiresAt != null && run.status.expiresAt < new Date().getTime();
+    return run.status.state === "EXPIRED";
 }
 
 export const inCancelableState = (state: JobState): boolean => [

@@ -17,39 +17,37 @@ import dk.sdu.cloud.service.*
 import io.ktor.http.*
 
 enum class JobState {
-    /**
-     * Any job which has been submitted and not yet in a final state where the number of tasks running is less than
-     * the number of tasks requested
-     */
+    @UCloudApiDoc(
+        "Any job which has been submitted and not yet in a final state where the number of tasks running is less than" +
+            "the number of tasks requested"
+    )
     IN_QUEUE,
 
-    /**
-     * A job where all the tasks are running
-     */
+    @UCloudApiDoc("A job where all the tasks are running")
     RUNNING,
 
-    /**
-     * A job which has been cancelled, either by user request or system request
-     */
+    @UCloudApiDoc("A job which has been cancelled, either by user request or system request")
     CANCELING,
 
-    /**
-     * A job which has terminated. The job terminated with no _scheduler_ error.
-     *
-     * Note: A job will complete successfully even if the user application exits with an unsuccessful status code.
-     */
+    @UCloudApiDoc(
+        "A job which has terminated. The job terminated with no _scheduler_ error.\n\n" +
+            "Note: A job will complete successfully even if the user application exits with an unsuccessful " +
+            "status code."
+    )
     SUCCESS,
 
-    /**
-     * A job which has terminated with a failure.
-     *
-     * Note: A job will fail _only_ if it is the scheduler's fault
-     */
-    FAILURE;
+    @UCloudApiDoc(
+        "A job which has terminated with a failure.\n\n" +
+            "Note: A job will fail _only_ if it is the scheduler's fault"
+    )
+    FAILURE,
+
+    @UCloudApiDoc("A job which has expired and was terminated as a result")
+    EXPIRED;
 
     fun isFinal(): Boolean =
         when (this) {
-            SUCCESS, FAILURE -> true
+            SUCCESS, FAILURE, EXPIRED -> true
             else -> false
         }
 }
@@ -82,8 +80,10 @@ data class Job(
 
     val billing: JobBilling,
 
-    @UCloudApiDoc("The parameters used to launch this job.\n\n" +
-        "This property is always available but must be explicitly requested.")
+    @UCloudApiDoc(
+        "The parameters used to launch this job.\n\n" +
+            "This property is always available but must be explicitly requested."
+    )
     val parameters: JobParameters,
 
     @UCloudApiDoc("A summary of the `Job`'s current status")
@@ -97,22 +97,22 @@ data class Job(
 data class JobStatus(
     @UCloudApiDoc(
         "The current of state of the `Job`.\n\n" +
-                "This will match the latest state set in the `updates`"
+            "This will match the latest state set in the `updates`"
     )
     val state: JobState,
 
     @UCloudApiDoc(
         "Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.\n\n" +
-                "For `Job`s which suspend this might occur multiple times. This will always point to the latest point" +
-                "in time it started running."
+            "For `Job`s which suspend this might occur multiple times. This will always point to the latest point" +
+            "in time it started running."
     )
     val startedAt: Long? = null,
 
     @UCloudApiDoc(
         "Timestamp matching when the `Job` is set to expire.\n\n" +
-                "This is generally equal to `startedAt + timeAllocation`. Note that this field might be `null` if " +
-                "the `Job` has no associated deadline. For `Job`s that suspend however, this is more likely to be" +
-                "equal to the initial `RUNNING` state + `timeAllocation`."
+            "This is generally equal to `startedAt + timeAllocation`. Note that this field might be `null` if " +
+            "the `Job` has no associated deadline. For `Job`s that suspend however, this is more likely to be" +
+            "equal to the initial `RUNNING` state + `timeAllocation`."
     )
     val expiresAt: Long? = null
 )
@@ -201,12 +201,16 @@ data class JobParameters(
     )
     val timeAllocation: SimpleDuration? = null,
 
-    @UCloudApiDoc("The resolved product referenced by `product`.\n\n" +
-        "This attribute is not included by default unless `includeProduct` is specified.")
+    @UCloudApiDoc(
+        "The resolved product referenced by `product`.\n\n" +
+            "This attribute is not included by default unless `includeProduct` is specified."
+    )
     val resolvedProduct: Product.Compute? = null,
 
-    @UCloudApiDoc("The resolved application referenced by `application`.\n\n" +
-        "This attribute is not included by default unless `includeApplication` is specified.")
+    @UCloudApiDoc(
+        "The resolved application referenced by `application`.\n\n" +
+            "This attribute is not included by default unless `includeApplication` is specified."
+    )
     val resolvedApplication: Application? = null,
 ) {
     init {
@@ -350,11 +354,13 @@ val Job.currentState: JobState
     get() = updates.findLast { it.state != null }?.state ?: error("job contains no states")
 
 typealias JobsOpenInteractiveSessionRequest = BulkRequest<JobsOpenInteractiveSessionRequestItem>
+
 data class JobsOpenInteractiveSessionRequestItem(
     val id: String,
     val rank: Int,
     val sessionType: InteractiveSessionType,
 )
+
 data class JobsOpenInteractiveSessionResponse(val sessions: List<OpenSessionWithProvider>)
 
 data class OpenSessionWithProvider(
@@ -504,7 +510,7 @@ object Jobs : CallDescriptionContainer("jobs") {
     }
 
     val openInteractiveSession = call<JobsOpenInteractiveSessionRequest, JobsOpenInteractiveSessionResponse,
-            CommonErrorMessage>("openInteractiveSession") {
+        CommonErrorMessage>("openInteractiveSession") {
         httpUpdate(baseContext, "interactiveSession")
     }
 }
