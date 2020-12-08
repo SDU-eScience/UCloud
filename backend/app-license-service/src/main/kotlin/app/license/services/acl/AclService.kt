@@ -31,6 +31,7 @@ class AclService(
         println(changes)
         if (dao.hasPermission(db, serverId, accessEntity, ServerAccessRight.READ_WRITE)) {
             changes.forEach { change ->
+                //Needed so there always is one admin connected and that one cannot change permissions for one self.
                 if (accessEntity.user == change.entity.user) {
                     throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 }

@@ -232,7 +232,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     }, []);
 
     return (
-        <Box>
+        <Box overflow={"scroll"}>
             <div>
                 <ReactModal
                     ariaHideApp={false}
@@ -399,7 +399,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                     </form>
                 </Box>
                 {accessList.length > 0 ? (
-                    <Box maxHeight="80vh">
+                    <Box maxHeight="70vh" overflowY={"scroll"}>
                         <Table width="700px">
                             <LeftAlignedTableHeader>
                                 <TableRow>
