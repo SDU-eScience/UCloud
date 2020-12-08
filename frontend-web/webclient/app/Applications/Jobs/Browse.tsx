@@ -14,7 +14,7 @@ import {useHistory} from "react-router";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {ListRow, ListRowStat} from "ui-components/List";
 import Text, {TextSpan} from "ui-components/Text";
-import {prettierString, shortUUID} from "UtilityFunctions";
+import {errorMessageOrDefault, prettierString, shortUUID} from "UtilityFunctions";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
 import {inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
@@ -24,6 +24,9 @@ import {DatePicker} from "ui-components/DatePicker";
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {JobState} from "./index";
 import {JobStateIcon} from "./JobStateIcon";
+import {addStandardDialog} from "UtilityComponents";
+import {Client} from "Authentication/HttpClientInstance";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 function isJobStateFinal(state?: JobState): boolean {
     if (state === undefined) return false;
@@ -762,6 +765,8 @@ export const Browse: React.FunctionComponent = () => {
 
     const [checked, setChecked] = useState(new Set<string>());
 
+    const allChecked = checked.size > 0 && checked.size === jobs.data.items.length;
+
     const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => (
         page.items.map(job => {
             const isExpired = isRunExpired(job);
@@ -879,6 +884,8 @@ function FilterOptions({onUpdateFilter, children}: {
     const startOfYesterday = getStartOfDay(new Date(startOfToday.getTime() - dayInMillis));
     const startOfWeek = getStartOfWeek(new Date()).getTime();
 
+    if (Math.random()) return null;
+
     return (
         <Box pt={48}>
             <Heading.h3>
@@ -965,13 +972,6 @@ const StickyBox = styled(Box)`
 
 
 const Runs: React.FunctionComponent = () => {
-    React.useEffect(() => {
-        props.onInit();
-        fetchJobs();
-        props.setRefresh(() => fetchJobs());
-        return (): void => props.setRefresh();
-    }, []);
-
     function fetchJobs(options?: FetchJobsOptions): void {
         const opts = options ?? {};
         const {page, setLoading} = props;
@@ -1077,139 +1077,6 @@ const Runs: React.FunctionComponent = () => {
             />
         </>
     );
-
-    const defaultFilter = {text: "Don't filter", value: "Don't filter"};
-    const [filter, setFilter] = React.useState(defaultFilter);
-    const [firstDate, setFirstDate] = React.useState<Date | null>(null);
-    const [secondDate, setSecondDate] = React.useState<Date | null>(null);
-
-    const appStates = Object.keys(JobState)
-        .filter(it => it !== "CANCELLING").map(it => ({text: prettierString(it), value: it}));
-    appStates.push(defaultFilter);
-
-    function fetchJobsInRange(minDate: Date | null, maxDate: Date | null) {
-        return () => fetchJobs({
-            itemsPerPage,
-            pageNumber,
-            sortOrder,
-            sortBy,
-            minTimestamp: minDate?.getTime() ?? undefined,
-            maxTimestamp: maxDate?.getTime() ?? undefined,
-            filter: filter.value === "Don't filter" ? undefined : filter.value
-        });
-    }
-
-    const startOfToday = getStartOfDay(new Date());
-    const dayInMillis = 24 * 60 * 60 * 1000;
-    const startOfYesterday = getStartOfDay(new Date(startOfToday.getTime() - dayInMillis));
-    const startOfWeek = getStartOfWeek(new Date()).getTime();
-
-    function updateFilterAndFetchJobs(value: string): void {
-        setFilter({text: prettierString(value), value});
-        fetchJobs({
-            itemsPerPage,
-            pageNumber,
-            sortBy,
-            sortOrder,
-            filter: value === "Don't filter" ? undefined : value as JobState
-        });
-    }
-
-    const sidebar = (
-        <Box pt={48}>
-            <Heading.h3>
-                Quick Filters
-            </Heading.h3>
-            <Box cursor="pointer" onClick={fetchJobsInRange(getStartOfDay(new Date()), null)}>
-                <TextSpan>Today</TextSpan>
-            </Box>
-            <Box
-                cursor="pointer"
-                onClick={fetchJobsInRange(
-                    new Date(startOfYesterday),
-                    new Date(startOfYesterday.getTime() + dayInMillis)
-                )}
-            >
-                <TextSpan>Yesterday</TextSpan>
-            </Box>
-            <Box
-                cursor="pointer"
-                onClick={fetchJobsInRange(new Date(startOfWeek), null)}
-            >
-                <TextSpan>This week</TextSpan>
-            </Box>
-            <Box cursor="pointer" onClick={fetchJobsInRange(null, null)}><TextSpan>No filter</TextSpan></Box>
-            <Heading.h3 mt={16}>Active Filters</Heading.h3>
-            <Label>Filter by app state</Label>
-            <ClickableDropdown
-                chevron
-                trigger={filter.text}
-                onChange={updateFilterAndFetchJobs}
-                options={appStates.filter(it => it.value !== filter.value)}
-            />
-            <Box mb={16} mt={16}>
-                <Label>Job created after</Label>
-                <InputGroup>
-                    <DatePicker
-                        placeholderText="Don't filter"
-                        isClearable
-                        selectsStart
-                        showTimeInput
-                        startDate={firstDate}
-                        endDate={secondDate}
-                        selected={firstDate}
-                        onChange={(date: Date) => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
-                        timeFormat="HH:mm"
-                        dateFormat="dd/MM/yy HH:mm"
-                    />
-                </InputGroup>
-            </Box>
-            <Box mb={16}>
-                <Label>Job created before</Label>
-                <InputGroup>
-                    <DatePicker
-                        placeholderText="Don't filter"
-                        isClearable
-                        selectsEnd
-                        showTimeInput
-                        startDate={firstDate}
-                        endDate={secondDate}
-                        selected={secondDate}
-                        onChange={(date: Date) => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
-                        onSelect={d => fetchJobsInRange(firstDate, d)}
-                        timeFormat="HH:mm"
-                        dateFormat="dd/MM/yy HH:mm"
-                    />
-                </InputGroup>
-            </Box>
-            <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
-        </Box>
-    );
-
-    return (
-        <MainContainer
-            header={(
-                <Spacer
-                    left={null}
-                    right={(
-                        <Box width="170px">
-                            <EntriesPerPageSelector
-                                content="Jobs per page"
-                                entriesPerPage={page.itemsPerPage}
-                                onChange={items => fetchJobs({itemsPerPage: items})}
-                            />
-                        </Box>
-                    )}
-                />
-            )}
-            headerSize={48}
-            sidebarSize={340}
-            main={content}
-            sidebar={sidebar}
-        />
-    );
-}
-
 */
 
 
@@ -1220,26 +1087,34 @@ interface AnalysisOperationsProps {
 
 function JobOperations({cancelableJobs, onFinished}: AnalysisOperationsProps): JSX.Element | null {
     if (cancelableJobs.length === 0) return null;
+    const pluralS = cancelableJobs.length > 1 ? "s" : "";
     return (
         <Button
             fullWidth
             color="red"
-            onClick={() => undefined
-                /* cancelJobDialog({
-                    jobCount: cancelableJobs.length,
-                    jobId: cancelableJobs[0],
-                    onConfirm: async () => {
-                        try {
-                            await Promise.all(cancelableJobs.map(job => cancelJob(Client, job)));
-                            snackbarStore.addSuccess("Jobs cancelled", false);
-                        } catch (e) {
-                            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred "), false);
-                        } finally {
-                            onFinished();
-                        }
+            onClick={() => addStandardDialog({
+                title: `Cancel job${pluralS}`,
+                message: `Do you wish to cancel the selected job${pluralS}?`,
+                confirmText: `Cancel job${pluralS}`,
+                confirmButtonColor: "red",
+                onConfirm: async () => {
+                    try {
+                        await Client.call({
+                            method: "DELETE",
+                            path: "/jobs",
+                            body: {type: "bulk", items: cancelableJobs.map(id => ({id}))}
+                        });
+
+                        snackbarStore.addSuccess("Jobs cancelled", false);
+                        onFinished();
+                    } catch (e) {
+                        snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to cancel jobs"), false);
                     }
-                }) */
-            }
+                },
+                cancelButtonColor: "blue",
+                cancelText: "Back",
+                onCancel: () => undefined,
+            })}
         >
             Cancel selected ({cancelableJobs.length}) jobs
         </Button>
