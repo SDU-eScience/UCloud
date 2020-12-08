@@ -827,7 +827,7 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
 
     switch (props.errorCode) {
         case MISSING_COMPUTE_CREDITS:
-        case MISSING_STORAGE_CREDITS:
+        case MISSING_STORAGE_CREDITS: {
             const computeOrStorage = props.errorCode === MISSING_COMPUTE_CREDITS ? "compute" : "storage";
             return (
                 <Box mb="8px">
@@ -838,6 +838,7 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
                     />
                 </Box>
             );
+        }
         case EXCEEDED_STORAGE_QUOTA:
             return (
                 <>

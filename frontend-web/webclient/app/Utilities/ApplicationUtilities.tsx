@@ -17,7 +17,7 @@ export const hpcFavoriteApp = (name: string, version: string): string =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
 export function isRunExpired(run: UCloud.compute.Job): boolean {
-    return run.status.expiresAt != null && run.status.expiresAt < new Date().getTime();
+    return false;//run.status.expiresAt != null && run.status.expiresAt < new Date().getTime();
 }
 
 export const inCancelableState = (state: JobState): boolean => [
