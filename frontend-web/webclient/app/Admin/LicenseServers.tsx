@@ -1,4 +1,5 @@
-import {useAsyncCommand} from "Authentication/DataHook";
+import * as UCloud from "UCloud";
+import {useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -14,19 +15,34 @@ import {InputLabel} from "ui-components/Input";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
-import {defaultErrorHandler} from "UtilityFunctions";
+import {defaultErrorHandler, prettierString} from "UtilityFunctions";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+
+interface AclEntry {
+    entity: UCloud.compute.license.DetailedAccessEntity;
+    permission: LicenseServerAccessRight;
+}
+interface TagEntry {
+    name: string;
+}
+enum UserEntityType {
+    USER = "USER",
+    PROJECT_GROUP = "PROJECT_GROUP"
+}
+enum LicenseServerAccessRight {
+    READ = "READ",
+    READ_WRITE = "READ_WRITE"
+}
 
 const LeftAlignedTableHeader = styled(TableHeader)`
     text-align: left;
 `;
 
 function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element | null {
-    /*
     const [tagList, setTagList] = React.useState<TagEntry[]>([]);
-    const [, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useCloudCommand();
 
     const newTagField = React.useRef<HTMLInputElement>(null);
 
@@ -52,7 +68,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                     resolve(null);
                     return;
                 }
-                await invokeCommand(deleteLicenseServerTag(
+                await invokeCommand(UCloud.compute.license.tag.remove(
                     {
                         serverId: licenseServer.id,
                         tag: tag.name
@@ -94,7 +110,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                             if (tagValue === "") return;
 
                             if (licenseServer === null) return;
-                            await invokeCommand(addLicenseServerTag(
+                            await invokeCommand(UCloud.compute.license.tag.add(
                                 {
                                     serverId: licenseServer.id,
                                     tag: tagValue
@@ -164,17 +180,14 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
             </div>
         </Box>
     );
-     */
-    return null;
 }
 
 function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element | null {
-    /*
     const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
     const [selectedEntityType, setSelectedEntityType] = React.useState<UserEntityType>(UserEntityType.USER);
     const [accessEntryToDelete, setAccessEntryToDelete] = React.useState<AclEntry | null>(null);
-    const [, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useCloudCommand();
     const promises = usePromiseKeeper()
 
     const userEntityField = React.useRef<HTMLInputElement>(null);
@@ -183,11 +196,10 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
 
     async function loadAcl(serverId: string): Promise<void> {
         try {
-            const {response} = await (
-                await promises.makeCancelable(
-                    Client.get<AclEntry[]>(`/app/license/listAcl?serverId=${serverId}`)
-                ).promise
-            );
+            const response = await invokeCommand<AclEntry[]>(UCloud.compute.license.listAcl({serverId}));
+            if (response == null) {
+                throw Error("Couldn't find acls.");
+            }
             setAccessList(response);
         } catch (err) {
             if (!promises.canceledKeeper) {
@@ -199,14 +211,14 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     async function deleteAclEntry(): Promise<void> {
         if (licenseServer == null) return;
         if (accessEntryToDelete == null) return;
-        await invokeCommand(updateLicenseServerPermission({
+        await invokeCommand(UCloud.compute.license.updateAcl({
             serverId: licenseServer.id,
             changes: [
                 {
                     entity: {
                         user: accessEntryToDelete.entity.user,
-                        project: accessEntryToDelete.entity.project ? accessEntryToDelete.entity.project.id : null,
-                        group: accessEntryToDelete.entity.group ? accessEntryToDelete.entity.group.id : null
+                        project: accessEntryToDelete.entity.project?.id,
+                        group: accessEntryToDelete.entity.group?.id
                     },
                     rights: accessEntryToDelete.permission,
                     revoke: true
@@ -243,7 +255,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                 accessEntryToDelete?.entity.user
                             ) : (
                                     `${accessEntryToDelete?.entity.project?.title} / ${accessEntryToDelete?.entity.group?.title}`
-                            )}?
+                                )}?
                         </Text>
                     </Box>
                     <Box mt="6px" alignItems="center">
@@ -271,12 +283,12 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
 
                                 if (licenseServer === null) return;
 
-                                await invokeCommand(updateLicenseServerPermission(
+                                await invokeCommand(UCloud.compute.license.updateAcl(
                                     {
                                         serverId: licenseServer.id,
                                         changes: [
                                             {
-                                                entity: {user: userValue, project: null, group: null},
+                                                entity: {user: userValue},
                                                 rights: selectedAccess,
                                                 revoke: false
                                             }
@@ -304,12 +316,12 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
 
                                 if (licenseServer === null) return;
 
-                                await invokeCommand(updateLicenseServerPermission(
+                                await invokeCommand(UCloud.compute.license.updateAcl(
                                     {
                                         serverId: licenseServer.id,
                                         changes: [
                                             {
-                                                entity: {user: null, project: projectValue, group: groupValue},
+                                                entity: {user: undefined, project: projectValue, group: groupValue},
                                                 rights: selectedAccess,
                                                 revoke: false
                                             }
@@ -408,9 +420,9 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                     <TableRow key={index}>
                                         <TableCell>
                                             {accessEntry.entity.user ? (
-                                                prettifyEntityType(UserEntityType.USER)
+                                                prettierString(UserEntityType.USER)
                                             ) : (
-                                                    prettifyEntityType(UserEntityType.PROJECT_GROUP)
+                                                    prettierString(UserEntityType.PROJECT_GROUP)
                                                 )}
                                         </TableCell>
                                         <TableCell>
@@ -418,7 +430,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                                 accessEntry.entity.user
                                             ) : (
                                                     `${accessEntry.entity.project?.title} / ${accessEntry.entity.group?.title}`
-                                            )}
+                                                )}
                                         </TableCell>
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
                                         <TableCell textAlign="right">
@@ -441,8 +453,6 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
             </div>
         </Box>
     );
-     */
-    return null;
 }
 
 interface LicenseServer {
@@ -461,10 +471,9 @@ function openTagsDialog(licenseServer: LicenseServer): void {
     dialogStore.addDialog(<LicenseServerTagsPrompt licenseServer={licenseServer} />, () => undefined)
 }
 
-/*
 const entityTypes = [
-    {text: prettifyEntityType(UserEntityType.USER), value: UserEntityType.USER},
-    {text: prettifyEntityType(UserEntityType.PROJECT_GROUP), value: UserEntityType.PROJECT_GROUP},
+    {text: prettierString(UserEntityType.USER), value: UserEntityType.USER},
+    {text: prettierString(UserEntityType.PROJECT_GROUP), value: UserEntityType.PROJECT_GROUP},
 ];
 
 const permissionLevels = [
@@ -487,6 +496,9 @@ function prettifyAccessRight(accessRight: LicenseServerAccessRight): string {
     }
 }
 
+/**
+ * @deprecated use toPrettierString
+ */
 function prettifyEntityType(entityType: UserEntityType): string {
     switch (entityType) {
         case UserEntityType.USER: {
@@ -502,8 +514,6 @@ function prettifyEntityType(entityType: UserEntityType): string {
     }
 }
 
- */
-
 async function loadLicenseServers(): Promise<LicenseServer[]> {
     const {response} = await Client.get<LicenseServer[]>(`/app/license/listAll`);
     return response.map(item => ({
@@ -515,21 +525,7 @@ async function loadLicenseServers(): Promise<LicenseServer[]> {
     }));
 }
 
-interface AclEntry {
-    /*
-    entity: DetailedAccessEntity;
-    permission: LicenseServerAccessRight;
-
-     */
-}
-
-interface TagEntry {
-    name: string;
-}
-
 export default function LicenseServers(): JSX.Element | null {
-    return null;
-    /*
     const [submitted, setSubmitted] = React.useState(false);
     const [name, setName] = React.useState("");
     const [address, setAddress] = React.useState("");
@@ -539,8 +535,7 @@ export default function LicenseServers(): JSX.Element | null {
     const [addressError, setAddressError] = React.useState(false);
     const [portError, setPortError] = React.useState(false);
     const [licenseServers, setLicenseServers] = React.useState<LicenseServer[]>([]);
-    const promiseKeeper = usePromiseKeeper();
-    const [, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useCloudCommand();
 
     React.useEffect(() => {
         loadAndSetLicenseServers();
@@ -571,9 +566,7 @@ export default function LicenseServers(): JSX.Element | null {
         if (!hasNameError && !hasAddressError && !hasPortError) {
             try {
                 setSubmitted(true);
-                await promiseKeeper.makeCancelable(
-                    Client.post("/api/app/license/new", {name, address, port, license}, "")
-                ).promise;
+                await invokeCommand(UCloud.compute.license.new_({name, address, port, license}));
                 snackbarStore.addSuccess(`License server '${name}' successfully added`, true);
                 setName("");
                 setAddress("");
@@ -732,7 +725,7 @@ export default function LicenseServers(): JSX.Element | null {
                                                                 </Box>
                                                             ),
                                                             onConfirm: async () => {
-                                                                await invokeCommand(deleteLicenseServer({
+                                                                await invokeCommand(UCloud.compute.license.remove({
                                                                     id: licenseServer.id
                                                                 }));
                                                                 loadAndSetLicenseServers();
@@ -753,5 +746,4 @@ export default function LicenseServers(): JSX.Element | null {
             )}
         />
     );
-     */
 }
