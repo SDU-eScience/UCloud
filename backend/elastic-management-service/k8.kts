@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "elastic-management"
-    version = "1.1.2"
+    version = "1.1.3"
 
     val deployment = withDeployment {
         injectSecret("elasticsearch-logging-cluster-credentials")
@@ -17,7 +17,8 @@ bundle {
     withCronJob(deployment, "0 3 * * 0", listOf("--reindex"), name="elastic-weekly-reindex") {}
     withCronJob(deployment, "0 4 7 * *", listOf("--monthlyReduce"), name="elastic-montly-reduce") {}
     withCronJob(deployment, "0 4 2 */3 *", listOf("--reduceLastQuarter"), name="elastic-reduce-quarter") {}
-    withCronJob(deployment, "0 12 * * *", listOf("--grafanaAliases"), name="manage-grafana-alias") {}
+    withCronJob(deployment, "0 */3 * * *", listOf("--grafanaAliases"), name="manage-grafana-alias") {}
+
 
     resources.remove(deployment)
 }
