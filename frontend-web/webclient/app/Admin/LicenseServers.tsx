@@ -219,6 +219,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
             ]
         }));
         setAccessEntryToDelete(null);
+        await loadAndSetAccessList(licenseServer.id)
     }
 
     async function loadAndSetAccessList(serverId: string): Promise<void> {
