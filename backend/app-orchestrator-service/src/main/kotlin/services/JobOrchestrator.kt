@@ -4,6 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.BulkRequest
@@ -93,7 +94,7 @@ class JobOrchestrator(
                         )
                     )
                 }
-                // Verify tokens
+                // Verify parameters
                 .map { jobRequest ->
                     jobVerificationService.verifyOrThrow(
                         UnverifiedJob(jobRequest, principal.username, project),
@@ -114,6 +115,7 @@ class JobOrchestrator(
                     tokensToInvalidateInCaseOfFailure.add(extendedToken!!)
                     job.copy(refreshToken = extendedToken)
                 }
+                .toMutableList()
 
             // Reserve resources (and check that resources are available)
             for (job in verifiedJobs) {
@@ -121,9 +123,15 @@ class JobOrchestrator(
             }
 
             // Prepare job folders (needs to happen before database insertion)
-            for ((index, job) in verifiedJobs.withIndex()) {
-                val jobFolder = jobFileService.initializeResultFolder(job)
-                jobFileService.exportParameterFile(jobFolder.path, job, parameters[index])
+            for ((index, jobWithToken) in verifiedJobs.withIndex()) {
+                val jobFolder = jobFileService.initializeResultFolder(jobWithToken)
+                val newJobWithToken = jobWithToken.copy(
+                    job = jobWithToken.job.copy(
+                        output = JobOutput(jobFolder.path)
+                    )
+                )
+                verifiedJobs[index] = newJobWithToken
+                jobFileService.exportParameterFile(jobFolder.path, newJobWithToken, parameters[index])
             }
 
             // Insert into databases
@@ -348,18 +356,26 @@ class JobOrchestrator(
         val extensions = request.items.groupBy { it.jobId }
         db.withSession { session ->
             val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor)
-            val providers = jobs.values.map { it.job.parameters!!.product.provider }
+            val providers = jobs.values.map { it.job.parameters.product.provider }
                 .map { providers.prepareCommunication(it) }
 
             for (comm in providers) {
                 comm.api.extend.call(
                     bulkRequestOf(request.items.mapNotNull { extensionRequest ->
                         val (job) = jobs.getValue(extensionRequest.jobId)
-                        if (job.parameters!!.product.provider != comm.provider.metadata.id) null
+                        if (job.parameters.product.provider != comm.provider.metadata.id) null
                         else ComputeExtendRequestItem(job, extensionRequest.requestedTime)
                     }),
                     comm.client
                 ).orThrow()
+            }
+
+            request.items.groupBy { it.jobId }.forEach { (jobId, requests) ->
+                val existingJob = jobs.getValue(jobId)
+                val allocatedTime = existingJob.job.parameters.timeAllocation?.toMillis() ?: 0L
+                val requestedTime = requests.sumOf { it.requestedTime.toMillis() }
+
+                jobDao.updateMaxTime(session, jobId, SimpleDuration.fromMillis(allocatedTime + requestedTime))
             }
         }
     }
@@ -369,7 +385,7 @@ class JobOrchestrator(
 
         db.withSession { session ->
             val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor)
-            val jobsByProvider = jobs.values.groupBy { it.job.parameters!!.product.provider }
+            val jobsByProvider = jobs.values.groupBy { it.job.parameters.product.provider }
             for ((provider, providerJobs) in jobsByProvider) {
                 val comm = providers.prepareCommunication(provider)
                 comm.api.delete.call(
@@ -381,19 +397,23 @@ class JobOrchestrator(
     }
 
     suspend fun lookupOwnJob(jobId: String, securityPrincipal: SecurityPrincipal): Job {
-        TODO("""
+        TODO(
+            """
         val jobWithToken = findJobForId(jobId)
         computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
         return jobWithToken.job
-        """)
+        """
+        )
     }
 
     suspend fun lookupOwnJobByUrl(urlId: String, securityPrincipal: SecurityPrincipal): Job {
-        TODO("""
+        TODO(
+            """
         val jobWithToken = findJobForUrl(urlId)
         computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
         return jobWithToken.job
-        """)
+        """
+        )
     }
 
     private suspend fun findJobForUrl(
@@ -424,8 +444,9 @@ class JobOrchestrator(
                 if (stateUpdate != null) {
                     sendWSMessage(
                         JobsFollowResponse(
-                            listOf(JobUpdate(stateUpdate.timestamp, stateUpdate.state)),
-                            emptyList()
+                            emptyList(),
+                            emptyList(),
+                            initialJob.status
                         )
                     )
                 }
@@ -452,7 +473,8 @@ class JobOrchestrator(
                                             sendWSMessage(
                                                 JobsFollowResponse(
                                                     emptyList(),
-                                                    listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                                    listOf(JobsLog(message.rank, message.stdout, message.stderr)),
+                                                    null
                                                 )
                                             )
                                         }
@@ -471,6 +493,7 @@ class JobOrchestrator(
 
                     val updateJob = launch {
                         try {
+                            var lastStatus: JobStatus? = null
                             while (isActive && !states[currentState.get()].isFinal()) {
                                 val (job) = jobQueryService.retrieve(
                                     actor,
@@ -484,9 +507,21 @@ class JobOrchestrator(
                                 // TODO not ideal for chatty providers
                                 val updates = job.updates.filter { it.timestamp > lastUpdate }
                                 if (updates.isNotEmpty()) {
-                                    sendWSMessage(JobsFollowResponse(updates, emptyList()))
+                                    sendWSMessage(
+                                        JobsFollowResponse(
+                                            updates,
+                                            emptyList(),
+                                            null
+                                        )
+                                    )
                                     lastUpdate = job.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
                                 }
+
+                                if (lastStatus != job.status) {
+                                    sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), job.status))
+                                }
+
+                                lastStatus = job.status
                                 delay(1000)
                             }
                         } catch (ex: Throwable) {

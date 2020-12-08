@@ -6,6 +6,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.*
@@ -416,7 +417,8 @@ fun RowData.toJob(): Job {
             ),
             getFieldNullable(JobsTable.name),
             getField(JobsTable.replicas),
-            true
+            true,
+            timeAllocation = getFieldNullable(JobsTable.timeAllocationMillis)?.let { SimpleDuration.fromMillis(it) }
         ),
         output = getFieldNullable(JobsTable.outputFolder)?.let { JobOutput(it) },
         status = JobStatus(
@@ -431,7 +433,7 @@ fun RowData.toJob(): Job {
                     null
                 }
             }
-        )
+        ),
     )
 }
 

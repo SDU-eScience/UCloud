@@ -54,7 +54,8 @@ class JobController(
 
             ok(JobsFollowResponse(
                 emptyList(),
-                emptyList()
+                emptyList(),
+                null
             ))
         }
 

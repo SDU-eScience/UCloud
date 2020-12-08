@@ -299,6 +299,7 @@ typealias JobsFollowRequest = FindByStringId
 data class JobsFollowResponse(
     val updates: List<JobUpdate>,
     val log: List<JobsLog>,
+    val newStatus: JobStatus?
 )
 
 data class JobsLog(val rank: Int, val stdout: String?, val stderr: String?)

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {PRODUCT_NAME} from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -9,7 +9,7 @@ import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useTitle} from "Navigation/Redux/StatusActions";
-import {joinToString, shortUUID} from "UtilityFunctions";
+import {joinToString, shortUUID, timestampUnixMs, useEffectSkipMount} from "UtilityFunctions";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
 import {Box, Button, Flex, Icon, Link} from "ui-components";
@@ -31,142 +31,140 @@ import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import JobUpdate = compute.JobUpdate;
+import {creditFormatter} from "Project/ProjectUsage";
+import JobStatus = compute.JobStatus;
+import {margin, MarginProps} from "styled-system";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
 
 const Container = styled.div`
-    --logoScale: 1;
-    --logoBaseSize: 200px;
-    --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
-    
-    --logoPX: 50px;
-    --logoPY: 50px;
-    
-    /* NOTE(Dan): 14px are added by MainContainer and sidebar */
-    --logoIndentX: calc(var(--sidebarWidth) + var(--logoPX) + 14px);
-    --logoIndentY: calc(var(--headerHeight) + var(--logoPY) + 14px);
-    
-    /* center while accounting for the frame */
-    --logoCenterX: calc((100vw + var(--sidebarWidth) - var(--logoSize)) / 2);
-    --logoCenterY: calc((100vh + var(--headerHeight) - var(--logoSize)) / 2);
-    
-    margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */   
-    max-width: 2200px;
-    
-    ${device("xs")} {
-        margin-left: 0;
-        margin-right: 0;
-    }
-    
-    & {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .logo-wrapper {
-        position: absolute;
-        
-        left: var(--logoCenterX);
-        top: var(--logoCenterY);
-    }
-    
-    .logo-wrapper.active {
-        transition: all 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-        transform: translate3d(
-            calc(-1 * var(--logoCenterX) + var(--logoIndentX)),
-            calc(-1 * var(--logoCenterY) + var(--logoIndentY)),
-            0
-        );
-    }
-    
-    .logo-wrapper.active .logo-scale {
-        transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-        transform: 
-            scale3d(
-                var(--logoScale),
-                var(--logoScale),
-                var(--logoScale)
-            )
-            translate3d(
-                calc(var(--logoBaseSize) / (1 / var(--logoScale)) - var(--logoBaseSize)),
-                calc(var(--logoBaseSize) / (1 / var(--logoScale)) - var(--logoBaseSize)),
-                0
-            );
-    }
-    
+  --logoScale: 1;
+  --logoBaseSize: 200px;
+  --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
+
+  --logoPX: 50px;
+  --logoPY: 50px;
+
+  /* NOTE(Dan): 14px are added by MainContainer and sidebar */
+  --logoIndentX: calc(var(--sidebarWidth) + var(--logoPX) + 14px);
+  --logoIndentY: calc(var(--headerHeight) + var(--logoPY) + 14px);
+
+  /* center while accounting for the frame */
+  --logoCenterX: calc((100vw + var(--sidebarWidth) - var(--logoSize)) / 2);
+  --logoCenterY: calc((100vh + var(--headerHeight) - var(--logoSize)) / 2);
+
+  margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
+  max-width: 2200px;
+
+  ${device("xs")} {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  & {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logo-wrapper {
+    position: absolute;
+
+    left: var(--logoCenterX);
+    top: var(--logoCenterY);
+  }
+
+  .logo-wrapper.active {
+    transition: all 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+    transform: translate3d(calc(-1 * var(--logoCenterX) + var(--logoIndentX)),
+    calc(-1 * var(--logoCenterY) + var(--logoIndentY)),
+    0);
+  }
+
+  .logo-wrapper.active .logo-scale {
+    transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+    transform: scale3d(var(--logoScale),
+    var(--logoScale),
+    var(--logoScale)) translate3d(calc(var(--logoBaseSize) / (1 / var(--logoScale)) - var(--logoBaseSize)),
+    calc(var(--logoBaseSize) / (1 / var(--logoScale)) - var(--logoBaseSize)),
+    0);
+  }
+
+  .fake-logo {
+    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
+       this basically fixes our document flow */
+    display: block;
+    width: var(--logoSize);
+    height: var(--logoSize);
+    content: '';
+  }
+
+  .data.data-enter-done {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .data.data-enter-active {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+  }
+
+  .data.data-exit {
+    opacity: 1;
+  }
+
+  .data-exit-active {
+    display: none;
+  }
+
+  .data {
+    width: 100%; /* fix info card width */
+    opacity: 0;
+    transform: translate3d(0, 50vh, 0);
+  }
+
+  .header-text {
+    margin-left: 32px;
+    margin-top: calc(var(--logoScale) * 16px);
+    width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
+    max-width: 1572px; /* TODO(Dan): Hackity, hack, hack */
+  }
+
+  ${deviceBreakpoint({maxWidth: "1000px"})} {
     .fake-logo {
-        /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
-           this basically fixes our document flow */
-        display: block;
-        width: var(--logoSize);
-        height: var(--logoSize);
-        content: '';
+      width: 100%; /* force the header to wrap */
     }
-    
-    .data.data-enter-done {
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
+
+    & {
+      --logoIndentX: var(--logoCenterX);
     }
-    
-    .data.data-enter-active {
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-        transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
+
+    .header {
+      text-align: center;
     }
-    
-    .data.data-exit {
-        opacity: 1;
-    }
-    
-    .data-exit-active {
-        display: none;
-    }
- 
-    .data {
-        width: 100%; /* fix info card width */
-        opacity: 0;
-        transform: translate3d(0, 50vh, 0);
-    }
-    
+
     .header-text {
-        margin-left: 32px;
-        margin-top: calc(var(--logoScale) * 16px);
+      margin-left: 0;
+      margin-top: 0;
+      width: 100%;
     }
-    
-    ${deviceBreakpoint({maxWidth: "1000px"})} {
-        .fake-logo {
-            width: 100%; /* force the header to wrap */
-        }
-        
-        & {
-            --logoIndentX: var(--logoCenterX);
-        }
-        
-        .header {
-            text-align: center;
-        }
-        
-        .header-text {
-            margin-left: 0;
-            margin-top: 0;
-            width: 100%;
-        }
-    }
-    
-    &.IN_QUEUE .logo {
-        animation: 2s ${enterAnimation} infinite;
-    }
-    
-    &.RUNNING {
-        --logoScale: 0.5;
-    }
+  }
+
+  &.IN_QUEUE .logo {
+    animation: 2s ${enterAnimation} infinite;
+  }
+
+  &.RUNNING {
+    --logoScale: 0.5;
+  }
 `;
 
 // TODO WS calls don't currently have their types generated
 interface JobsFollowResponse {
     updates: compute.JobUpdate[];
-    log: {rank: number; stdout?: string; stderr?: string}[];
+    log: { rank: number; stdout?: string; stderr?: string }[];
+    newStatus?: JobStatus;
 }
 
 function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowResponse) => void): void {
@@ -175,17 +173,17 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
 
         const conn = WSFactory.open(
             "/jobs", {
-            init: conn => {
-                conn.subscribe({
-                    call: "jobs.follow",
-                    payload: {id: job.id},
-                    handler: message => {
-                        const streamEntry = message.payload as JobsFollowResponse;
-                        callback(streamEntry);
-                    }
-                });
-            }
-        });
+                init: conn => {
+                    conn.subscribe({
+                        call: "jobs.follow",
+                        payload: {id: job.id},
+                        handler: message => {
+                            const streamEntry = message.payload as JobsFollowResponse;
+                            callback(streamEntry);
+                        }
+                    });
+                }
+            });
 
         return () => {
             conn.close();
@@ -198,7 +196,7 @@ interface JobUpdateListener {
 }
 
 export const View: React.FunctionComponent = () => {
-    const {id} = useParams<{id: string}>();
+    const {id} = useParams<{ id: string }>();
     const history = useHistory();
 
     // Note: This might not match the real app name
@@ -225,16 +223,21 @@ export const View: React.FunctionComponent = () => {
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
     const [logoAnimationAllowed, setLogoAnimationAllowed] = useState<boolean>(false);
-    const [state, setState] = useState<Jobs.JobState | null>(null);
+    const [status, setStatus] = useState<JobStatus | null>(null);
 
     useEffect(() => {
         if (useFakeState) {
             const t = setInterval(() => {
-                setState(
-                    (window["fakeState"] as JobState | undefined) ??
+                const jobState = (window["fakeState"] as JobState | undefined) ??
                     (localStorage.getItem("fakeState") as JobState | null) ??
-                    state
-                );
+                    status?.state;
+
+                if (jobState) {
+                    setStatus({
+                        state: jobState,
+                        startedAt: timestampUnixMs()
+                    });
+                }
             }, 100);
 
             return () => {
@@ -245,7 +248,7 @@ export const View: React.FunctionComponent = () => {
                 // Do nothing
             };
         }
-    }, [state]);
+    }, [status]);
 
     useEffect(() => {
         let t1;
@@ -271,22 +274,16 @@ export const View: React.FunctionComponent = () => {
 
     const jobUpdateCallbackHandlers = useRef<JobUpdateListener[]>([]);
     useEffect(() => {
-        let lastState = state;
         jobUpdateCallbackHandlers.current = [{
             handler: (e) => {
-                for (const update of e.updates) {
-                    if (!useFakeState) {
-                        if (update.state != null) {
-                            if (update.state !== lastState) {
-                                setState(update.state);
-                            }
-                            lastState = update.state;
-                        }
-                    } else {
-                        if (update.state != null) {
-                            console.log("Wanted to switch state, but didn't. " +
-                                "Remove localStorage useFakeState if you wish to use real state.");
-                        }
+                if (!useFakeState) {
+                    if (e.newStatus != null) {
+                        setStatus(e.newStatus);
+                    }
+                } else {
+                    if (e.newStatus != null) {
+                        console.log("Wanted to switch status, but didn't. " +
+                            "Remove localStorage useFakeState if you wish to use real status.");
                     }
                 }
             }
@@ -304,24 +301,24 @@ export const View: React.FunctionComponent = () => {
     useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
-        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
+        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>}/>;
     }
 
     return <MainContainer
         main={
-            <Container className={state ?? "state-loading"}>
-                <div className={`logo-wrapper ${logoAnimationAllowed && state ? "active" : ""}`}>
+            <Container className={status?.state ?? "state-loading"}>
+                <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
                     <div className="logo-scale">
                         <div className={"logo"}>
                             <AppToolLogo name={job?.parameters?.application?.name ?? appNameHint} type={"APPLICATION"}
-                                size={"200px"} />
+                                         size={"200px"}/>
                         </div>
                     </div>
                 </div>
 
-                {!job ? null : (
+                {!job || !status ? null : (
                     <CSSTransition
-                        in={state === "IN_QUEUE" && dataAnimationAllowed}
+                        in={status?.state === "IN_QUEUE" && dataAnimationAllowed}
                         timeout={{
                             enter: 1000,
                             exit: 0,
@@ -331,59 +328,64 @@ export const View: React.FunctionComponent = () => {
                     >
                         <div className={"data"}>
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
+                                <div className={"fake-logo"}/>
                                 <div className={"header-text"}>
-                                    <InQueueText job={job!} />
+                                    <InQueueText job={job!}/>
                                 </div>
                             </Flex>
 
                             <Content>
-                                <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
-                                <Busy job={job} state={state ?? "IN_QUEUE"} />
-                                <InfoCards job={job!} />
+                                <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
+                                    <DashboardCard color={"purple"}>
+                                        <Box py={"16px"}>
+                                            <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
+                                        </Box>
+                                    </DashboardCard>
+                                </Box>
+                                <InfoCards job={job} status={status}/>
                             </Content>
                         </div>
                     </CSSTransition>
                 )}
 
-                {!job ? null : (
+                {!job || !status ? null : (
                     <CSSTransition
-                        in={state === "RUNNING" && dataAnimationAllowed}
+                        in={status?.state === "RUNNING" && dataAnimationAllowed}
                         timeout={{enter: 1000, exit: 0}}
                         classNames={"data"}
                         unmountOnExit
                     >
                         <div className={"data"}>
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
+                                <div className={"fake-logo"}/>
                                 <div className={"header-text"}>
-                                    <RunningText job={job} />
+                                    <RunningText job={job}/>
                                 </div>
                             </Flex>
 
-                            <RunningContent job={job} updateListeners={jobUpdateCallbackHandlers} />
+                            <RunningContent job={job} updateListeners={jobUpdateCallbackHandlers} status={status}/>
                         </div>
                     </CSSTransition>
                 )}
 
-                {!job ? null : (
+                {!job || !status ? null : (
                     <CSSTransition
-                        in={state != null && isJobStateTerminal(state) && dataAnimationAllowed}
+                        in={isJobStateTerminal(status.state) && dataAnimationAllowed}
                         timeout={{enter: 1000, exit: 0}}
                         classNames={"data"}
                         unmountOnExit
                     >
                         <div className={"data"}>
                             <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                                <div className={"fake-logo"} />
+                                <div className={"fake-logo"}/>
                                 <div className={"header-text"}>
-                                    <CompletedText job={job} state={state ?? "FAILURE"} />
+                                    <CompletedText job={job} state={status.state}/>
                                 </div>
                             </Flex>
 
                             <Content>
-                                <OutputFiles job={job} />
-                                <InfoCards job={job!} />
+                                <OutputFiles job={job}/>
+                                <InfoCards job={job} status={status}/>
                             </Content>
                         </div>
                     </CSSTransition>
@@ -394,12 +396,12 @@ export const View: React.FunctionComponent = () => {
 };
 
 const Content = styled.div`
-    display: flex;
-    align-items: center; 
-    flex-direction: column;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
 `;
 
-const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
+const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     return <>
         <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
@@ -416,20 +418,20 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
                 </>)
             }
         </Heading.h3>
+        <Busy job={job}/>
     </>;
 };
 
-
 const BusyWrapper = styled(Box)`
-    display: none;
-    
-    &.active {
-        animation: 1s ${busyAnim};
-        display: block;
-    }
+  display: none;
+
+  &.active {
+    animation: 1s ${busyAnim};
+    display: block;
+  }
 `;
 
-const Busy: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
+const Busy: React.FunctionComponent<{ job: Job }> = ({job}) => {
     const clusterUtilization = 90;
     const numberOfJobs = 50;
     const numberOfJobsInQueue = 10;
@@ -445,40 +447,85 @@ const Busy: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}
     }, []);
 
     return <BusyWrapper ref={ref}>
-        <Flex my={"16px"} flexDirection={"column"}>
-            <Box textAlign={"center"} mb={"16px"}>
-                Your reserved machine is currently quite popular. <br />
+        <Box mt={"16px"}>
+            <Box mb={"16px"}>
+                Your reserved machine is currently quite popular.
                 Cluster utilization is currently at {clusterUtilization}% with {numberOfJobs} jobs running
                 and {numberOfJobsInQueue} in the queue.
             </Box>
 
-            <CancelButton job={job} state={state} />
-        </Flex>
+            <CancelButton job={job} state={"IN_QUEUE"}/>
+        </Box>
     </BusyWrapper>;
 };
 
 const InfoCardsContainer = styled.div`
-    margin-top: 32px;
-    display: grid;
-    width: 100%;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 380px));
-    grid-gap: 16px;
-    justify-content: center;
+  margin-top: 32px;
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 380px));
+  grid-gap: 16px;
+  justify-content: center;
 `;
 
-const InfoCards: React.FunctionComponent<{job: Job}> = ({job}) => {
+const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({job, status}) => {
+    let time = job.parameters.timeAllocation;
+    if (status.expiresAt && status.startedAt) {
+        const msTime = status.expiresAt - status.startedAt;
+        time = {
+            hours: Math.floor(msTime / (1000 * 3600)),
+            minutes: Math.floor((msTime % (1000 * 3600)) / (1000 * 60)),
+            seconds: Math.floor((msTime % (1000 * 60)) / (1000))
+        };
+    }
+    let prettyTime = "No job deadline";
+    if (time) {
+        prettyTime = "";
+        if (time.hours > 0) {
+            prettyTime += time.hours;
+            if (time.hours > 1) prettyTime += " hours";
+            else prettyTime += " hour";
+        }
+        if (time.minutes > 0) {
+            if (prettyTime !== "") prettyTime += " ";
+            prettyTime += time.minutes;
+            if (time.minutes > 1) prettyTime += " minutes";
+            else prettyTime += " minute";
+        }
+
+        if (prettyTime === "") {
+            prettyTime = "< 1 minute";
+        }
+    }
+
+    const machine = job.parameters.resolvedProduct;
+    const pricePerUnit = machine?.pricePerUnit ?? 0;
+    const estimatedCost = time ?
+        (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.parameters.replicas :
+        0;
+
     return <InfoCardsContainer>
         <InfoCard
             stat={job.parameters.replicas.toString()}
             statTitle={job.parameters.replicas === 1 ? "Replica" : "Replicas"}
             icon={"cpu"}
         >
-            <b>{job.parameters.product.provider} / {job.parameters.product.id}</b><br />
-            64x vCPU &mdash; 123GB RAM &mdash; 2x GPU
+            <b>{job.parameters.product.provider} / {job.parameters.product.id}</b><br/>
+            {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
+
+            {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
+            {!machine?.memoryInGigs ? null : <>{machine?.memoryInGigs}GB RAM &mdash;</>}
+
+            {machine?.cpu && machine.gpu ? <>&mdash;</> : null}
+            {!machine?.gpu ? null : <>{" "}{machine?.gpu}x GPU</>}
         </InfoCard>
-        <InfoCard stat={"24 hours"} statTitle={"Allocated"} icon={"hourglass"}>
-            <b>Estimated price:</b> 240 DKK <br />
-            <b>Price per hour:</b> 10 DKK
+        <InfoCard
+            stat={prettyTime}
+            statTitle={"Allocated"}
+            icon={"hourglass"}
+        >
+            {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br/></>}
+            <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
         </InfoCard>
         <InfoCard
             stat={jobFiles(job.parameters).length.toString()}
@@ -494,22 +541,22 @@ const InfoCards: React.FunctionComponent<{job: Job}> = ({job}) => {
 };
 
 const InfoCardContainer = styled.div`
-    margin: 15px 10px;
-    text-align: center;
-    
-    .stat {
-        font-size: 250%;
-        line-height: 150%;
-    }
-    
-    .stat-title {
-        font-size: 150%;
-    }
-    
-    .content {
-        margin-top: 30px;
-        text-align: left;
-    }
+  margin: 15px 10px;
+  text-align: center;
+
+  .stat {
+    font-size: 250%;
+    line-height: 150%;
+  }
+
+  .stat-title {
+    font-size: 150%;
+  }
+
+  .content {
+    margin-top: 30px;
+    text-align: left;
+  }
 `;
 
 const InfoCard: React.FunctionComponent<{
@@ -519,7 +566,7 @@ const InfoCard: React.FunctionComponent<{
 }> = props => {
     return <DashboardCard color={"purple"} isLoading={false}>
         <InfoCardContainer>
-            <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"} />
+            <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"}/>
             <div className={"stat"}>{props.stat}</div>
             <div className={"stat-title"}>{props.statTitle}</div>
             <div className={"content"}>
@@ -529,34 +576,42 @@ const InfoCard: React.FunctionComponent<{
     </DashboardCard>;
 };
 
-const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
+const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     return <>
         <Heading.h2>
-            <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i> is
-            now running
+            <i>
+                {job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name}
+                {" "}v{job.parameters.application.version}
+            </i> is now running
         </Heading.h2>
-        <Heading.h3>You can follow the progress
-            below{!job.parameters.name ? null : (<> of <i>{job.parameters.name}</i></>)}</Heading.h3>
+        <Heading.h3>
+            You can follow the progress below
+            {!job.parameters.name ? null : (<> of <i>{job.parameters.name}</i></>)}
+        </Heading.h3>
     </>;
 };
 
 const RunningInfoWrapper = styled.div`
-    margin-top: 32px;
-    display: grid;
-    width: 100%;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    grid-gap: 16px;
-    justify-content: center;   
+  margin-top: 32px;
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-gap: 16px;
+  justify-content: center;
 `;
 
-const AltButtonGroup = styled.div<{minButtonWidth: string}>`
-    display: grid;
-    width: 100%;
-    grid-template-columns: repeat(auto-fit, minmax(${props => props.minButtonWidth}, max-content));
-    grid-gap: 8px;
-    margin-top: 8px;
-    margin-bottom: 8px;
+const AltButtonGroup = styled.div<{ minButtonWidth: string } & MarginProps>`
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fit, minmax(${props => props.minButtonWidth}, max-content));
+  grid-gap: 8px;
+  ${margin}
 `;
+
+AltButtonGroup.defaultProps = {
+    marginTop: "8px",
+    marginBottom: "8px"
+};
 
 function jobFiles(parameters: JobParameters): AppParameterValueNS.File[] {
     return [...Object.values(parameters.parameters ?? {}), ...(parameters.resources ?? [])]
@@ -571,119 +626,157 @@ function jobInputString(parameters: JobParameters): string {
 }
 
 const RunningContent: React.FunctionComponent<{
-    job: Job,
-    updateListeners: React.RefObject<JobUpdateListener[]>
-}> = ({job, updateListeners}) => {
-    const startedAt = job.updates.find(it => it.state !== "IN_QUEUE")?.timestamp;
+    job: Job;
+    updateListeners: React.RefObject<JobUpdateListener[]>;
+    status: JobStatus;
+}> = ({job, updateListeners, status}) => {
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const [expiresAt, setExpiresAt] = useState(status.expiresAt);
+    const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
+        const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
+        if (!commandLoading && expiresAt) {
+            setExpiresAt(expiresAt + (3600 * 1000 * duration));
+            try {
+                await invokeCommand(compute.jobs.extend({
+                    jobId: job.id,
+                    requestedTime: {hours: duration, minutes: 0, seconds: 0}
+                }));
+            } catch (e) {
+                setExpiresAt(expiresAt);
+            }
+        }
+    }, [job.id, commandLoading, expiresAt]);
+
+    useEffectSkipMount(() => {
+        setExpiresAt(status.expiresAt);
+    }, [status.expiresAt]);
+
     return <>
         <RunningInfoWrapper>
-            <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"hourglass"}>
-                {!job.parameters.name ? null : <><b>Name:</b> {job.parameters.name}<br /></>}
-                <b>ID:</b> {shortUUID(job.id)}<br />
-                <b>Reservation:</b> {job.parameters.product.provider} / {job.parameters.product.id} (x{job.parameters.replicas})<br />
-                <b>Input:</b> {jobInputString(job.parameters)}<br />
-                <b>Launched by:</b> {job.owner.launchedBy}<br />
-                <b>Project:</b> {job.owner.project ?? "My workspace"}<br />
+            <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                    {!job.parameters.name ? null : <Box><b>Name:</b> {job.parameters.name}</Box>}
+                    <Box><b>ID:</b> {shortUUID(job.id)}</Box>
+                    <Box><b>Reservation:</b> {job.parameters.product.provider} / {job.parameters.product.id} (x{job.parameters.replicas})</Box>
+                    <Box><b>Input:</b> {jobInputString(job.parameters)}</Box>
+                    <Box><b>Launched by:</b> {job.owner.launchedBy} in {job.owner.project ?? "My workspace"}</Box>
+                    <Box flexGrow={1}/>
+                    <Box mt={"16px"}>
+                        <CancelButton job={job} state={"RUNNING"} fullWidth/>
+                    </Box>
+                </Flex>
             </DashboardCard>
             <DashboardCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
-                <b>Job start: </b> {startedAt ? dateToString(startedAt) : "Not started yet"} <br />
-                <b>Job expiry: </b> 12:34 2/1/2020 <br /> <br />
+                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                    <Box>
+                        <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
+                    </Box>
+                    {!expiresAt ? null :
+                        <Box>
+                            <b>Job expiry: </b> {dateToString(expiresAt)}
+                        </Box>
+                    }
 
-                Extend allocation (hours):
-                <AltButtonGroup minButtonWidth={"50px"}>
-                    <Button>+1</Button>
-                    <Button>+6</Button>
-                    <Button>+12</Button>
-                    <Button>+24</Button>
-                    <Button>+48</Button>
-                </AltButtonGroup>
+                    <Box flexGrow={1}/>
 
-                <CancelButton job={job} state={"RUNNING"} />
+                    {!expiresAt ? null :
+                        <Box>
+                            Extend allocation (hours):
+                            <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
+                                <Button data-duration={"1"} onClick={extendJob}>+1</Button>
+                                <Button data-duration={"6"} onClick={extendJob}>+6</Button>
+                                <Button data-duration={"12"} onClick={extendJob}>+12</Button>
+                                <Button data-duration={"24"} onClick={extendJob}>+24</Button>
+                                <Button data-duration={"48"} onClick={extendJob}>+48</Button>
+                            </AltButtonGroup>
+                        </Box>
+                    }
+                </Flex>
             </DashboardCard>
             <DashboardCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
-                <ProviderUpdates job={job} updateListeners={updateListeners} />
+                <ProviderUpdates job={job} updateListeners={updateListeners}/>
             </DashboardCard>
         </RunningInfoWrapper>
 
         <RunningJobsWrapper>
             {Array(job.parameters.replicas).fill(0).map((_, i) => {
-                return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />;
+                return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
             })}
         </RunningJobsWrapper>
     </>;
 };
 
 const RunningJobsWrapper = styled.div`
-    display: grid;
-    grid-template-columns: repeat(1, 1fr);
-    margin-top: 32px;
-    
-    margin-bottom: 32px;
-    grid-gap: 32px;
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  margin-top: 32px;
+
+  margin-bottom: 32px;
+  grid-gap: 32px;
 `;
 
 const RunningJobRankWrapper = styled.div`
-    margin-top: 16px;
-    margin-bottom: 16px;
-    
-    display: grid;
-    grid-template-columns: 80px 1fr 200px;
-    grid-template-rows: 1fr auto;
-    grid-gap: 16px;
+  margin-top: 16px;
+  margin-bottom: 16px;
 
-    .rank {
-        text-align: center;
-        width: 100%;
-        flex-direction: column;
+  display: grid;
+  grid-template-columns: 80px 1fr 200px;
+  grid-template-rows: 1fr auto;
+  grid-gap: 16px;
+
+  .rank {
+    text-align: center;
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .term {
+    height: 100%;
+  }
+
+  .term .terminal {
+    /* NOTE(Dan): This fixes a feedback loop in the xtermjs fit function. Without this, the fit function is
+       unable to correctly determine the size of the terminal */
+    position: absolute;
+  }
+
+  .buttons {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .buttons ${Button} {
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  ${deviceBreakpoint({minWidth: "1001px"})} {
+    &.expanded {
+      height: 80vh;
     }
-    
+
+    &.expanded .term {
+      grid-row: 1;
+      grid-column: 2 / 4;
+    }
+
+    &.expanded .buttons {
+      grid-row: 2;
+      grid-column: 2 / 4;
+    }
+  }
+
+  ${deviceBreakpoint({maxWidth: "1000px"})} {
+    grid-template-columns: 1fr !important;
+
     .term {
-        height: 100%;
+      height: 400px;
     }
-    
-    .term .terminal {
-        /* NOTE(Dan): This fixes a feedback loop in the xtermjs fit function. Without this, the fit function is
-           unable to correctly determine the size of the terminal */
-        position: absolute;
+
+    .expand-btn {
+      display: none;
     }
-    
-    .buttons {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .buttons ${Button} {
-        margin-top: 8px;
-        width: 100%;
-    }
-    
-    ${deviceBreakpoint({minWidth: "1001px"})} {
-        &.expanded {
-            height: 80vh;
-        }
-        
-        &.expanded .term {
-            grid-row: 1;
-            grid-column: 2 / 4;
-        }
-        
-        &.expanded .buttons {
-            grid-row: 2;
-            grid-column: 2 / 4;
-        }
-    }
-    
-    ${deviceBreakpoint({maxWidth: "1000px"})} {
-        grid-template-columns: 1fr !important;
-        
-        .term {
-            height: 400px;
-        }
-        
-        .expand-btn {
-            display: none;
-        }
-    }
+  }
 `;
 
 const RunningJobRank: React.FunctionComponent<{
@@ -735,7 +828,7 @@ const RunningJobRank: React.FunctionComponent<{
                     <Heading.h3>Rank</Heading.h3>
                 </div>
 
-                <div className={"term"} ref={termRef} />
+                <div className={"term"} ref={termRef}/>
 
                 <div className="buttons">
                     <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
@@ -768,7 +861,7 @@ const RunningJobRank: React.FunctionComponent<{
                         }}>
                             <Button>Open interface</Button>
                         </Link>
-                        )}
+                    )}
                     <Button className={"expand-btn"} onClick={toggleExpand}>
                         {expanded ? "Shrink" : "Expand"} output
                     </Button>
@@ -779,42 +872,51 @@ const RunningJobRank: React.FunctionComponent<{
 };
 
 const CompletedTextWrapper = styled.div`
-    ${deviceBreakpoint({maxWidth: "1000px"})} {
-        ${AltButtonGroup} {
-            justify-content: center;
-        }
+  ${deviceBreakpoint({maxWidth: "1000px"})} {
+    ${AltButtonGroup} {
+      justify-content: center;
     }
+  }
 `;
 
-const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
+const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
     const success = state === "SUCCESS";
     return <CompletedTextWrapper>
         <Heading.h2>{PRODUCT_NAME} has processed your job</Heading.h2>
         <Heading.h3>
-            <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
+            <i>
+                {job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name}
+                {" "}v{job.parameters.application.version}
+            </i>
             {" "}{success ? "succeeded" : "failed"}{" "}
-            {job.parameters.name ? <>for <i>{job.parameters.name}</i></> : null} (ID: {shortUUID(job.id)})
+            {job.parameters.name ? <>for <i>{job.parameters.name}</i></> : null}
+            {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <AltButtonGroup minButtonWidth={"200px"}>
-            <Button>Restart application</Button>
-            <Button>Do something else 2</Button>
+            <Link to={`/applications/${job.parameters.application.name}/${job.parameters.application.version}`}>
+                <Button>Restart application</Button>
+            </Link>
         </AltButtonGroup>
     </CompletedTextWrapper>;
 };
 
 const OutputFilesWrapper = styled.div`
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    
-    h1, h2, h3, h4 {
-        margin-top: 15px;
-        margin-bottom: 15px;
-    }
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  h1, h2, h3, h4 {
+    margin-top: 15px;
+    margin-bottom: 15px;
+  }
 `;
 
-const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
+const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
     const history = useHistory();
+    const filePaths = jobFiles(job.parameters).map(it => mockFile({path: it.path, type: "DIRECTORY"}));
+    const outputFolder = job.output?.outputFolder;
+    if (outputFolder) filePaths.push(mockFile({path: outputFolder, type: "DIRECTORY"}));
+    if (filePaths.length === 0) return null;
     return <OutputFilesWrapper>
         <Heading.h3>Files</Heading.h3>
         <VirtualFileTable
@@ -823,17 +925,16 @@ const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
             previewEnabled
             permissionAlertEnabled={false}
             onFileNavigation={f => history.push(fileTablePage(f))}
-            page={arrayToPage([
-                mockFile({path: Client.homeFolder + "/Code", type: "DIRECTORY"}),
-                mockFile({path: Client.homeFolder + "/Config", type: "DIRECTORY"}),
-                mockFile({path: Client.homeFolder + "/Dog pictures", type: "DIRECTORY"}),
-                mockFile({path: Client.homeFolder + "/Output", type: "DIRECTORY"}),
-            ])}
+            page={arrayToPage(filePaths)}
         />
     </OutputFilesWrapper>;
 };
 
-const CancelButton: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
+const CancelButton: React.FunctionComponent<{
+    job: Job,
+    state: JobState,
+    fullWidth?: boolean
+}> = ({job, state, fullWidth}) => {
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(() => {
         if (!loading) {
@@ -849,7 +950,7 @@ const CancelButton: React.FunctionComponent<{job: Job, state: JobState}> = ({job
         }
     }, [loading]);
 
-    return <Button type={"button"} color={"red"} disabled={loading} onClick={onCancel}>
+    return <Button type={"button"} color={"red"} disabled={loading} onClick={onCancel} fullWidth={fullWidth}>
         {state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     </Button>;
 };
@@ -858,7 +959,7 @@ const ProviderUpdates: React.FunctionComponent<{
     job: Job;
     updateListeners: React.RefObject<JobUpdateListener[]>;
 }> = ({job, updateListeners}) => {
-    const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
+    const {termRef, terminal} = useXTerm({autofit: true});
 
     const appendUpdate = useCallback((update: JobUpdate) => {
         if (update.status) {
@@ -914,7 +1015,7 @@ const ProviderUpdates: React.FunctionComponent<{
             mounted = false;
         };
     }, [updateListeners]);
-    return <Box height={"200px"} ref={termRef} />
+    return <Box height={"200px"} ref={termRef}/>
 };
 
 export default View;
