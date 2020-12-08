@@ -14,8 +14,8 @@ const EntriesPerPageSelectorOptions = [
 const handleBoundaries = (page: number, maxPage: number): number =>
     Math.max(Math.min(page, maxPage - 1), 0);
 
-interface PaginationButtons {totalPages: number; currentPage: number; toPage: (p: number) => void}
-export function PaginationButtons({totalPages, currentPage, toPage}: PaginationButtons): JSX.Element | null {
+interface PaginationButtonsProps {totalPages: number; currentPage: number; toPage: (p: number) => void}
+export function PaginationButtons({totalPages, currentPage, toPage}: PaginationButtonsProps): JSX.Element | null {
     const ref = React.useRef<HTMLInputElement>(null);
     if (totalPages <= 1) return null;
     const inputField = (
@@ -122,7 +122,7 @@ const PaginationGroup = styled(Flex)`
     }
 `;
 
-interface EntriesPerPageSelector {
+interface EntriesPerPageSelectorProps {
     entriesPerPage: number;
     onChange: (size: number) => void;
     content?: string;
@@ -132,7 +132,7 @@ export const EntriesPerPageSelector = ({
     entriesPerPage,
     onChange,
     content
-}: EntriesPerPageSelector): JSX.Element => (
+}: EntriesPerPageSelectorProps): JSX.Element => (
         <ClickableDropdown
             left="85px"
             minWidth="80px"

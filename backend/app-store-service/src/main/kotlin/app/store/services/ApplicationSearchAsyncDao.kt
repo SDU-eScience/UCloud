@@ -22,17 +22,16 @@ class ApplicationSearchAsyncDao(
         project: String?,
         memberGroups: List<String>,
         tags: List<String>,
-        paging: NormalizedPaginationRequest
+        paging: NormalizedPaginationRequest,
+        excludeTools: List<String>? = emptyList()
     ): Page<ApplicationSummaryWithFavorite> {
         val groups = if (memberGroups.isEmpty()) {
             listOf("")
         } else {
             memberGroups
         }
-
         return ctx.withSession { session ->
-            val applications = appStoreAsyncDao.findAppNamesFromTags(session, user, project, groups, tags)
-
+            val applications = appStoreAsyncDao.findAppNamesFromTags(session, user, project, groups, tags, excludeTools)
             if (applications.isEmpty()) {
                 appStoreAsyncDao.preparePageForUser(
                     session,
@@ -50,7 +49,8 @@ class ApplicationSearchAsyncDao(
                     user,
                     project,
                     groups,
-                    applications
+                    applications,
+                    excludeTools
                 )
                 val items = apps.paginate(paging).items
                 appStoreAsyncDao.preparePageForUser(

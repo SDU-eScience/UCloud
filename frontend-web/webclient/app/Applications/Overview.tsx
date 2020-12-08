@@ -34,11 +34,11 @@ export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => 
 export interface ApplicationsOperations {
     onInit: () => void;
     fetchDefault: (itemsPerPage: number, page: number) => void;
-    fetchByTag: (tag: string, itemsPerPage: number, page: number) => void;
+    fetchByTag: (tag: string, excludeTools: string[], itemsPerPage: number, page: number) => void;
     receiveApplications: (page: Page<FullAppInfo>) => void;
     fetchFavorites: (itemsPerPage: number, page: number) => void;
     setRefresh: (refresh?: () => void) => void;
-    receiveAppsByKey: (itemsPerPage: number, page: number, tag: string) => void;
+    receiveAppsByKey: (itemsPerPage: number, page: number, tag: string, excludeTools: string[]) => void;
 }
 
 export interface ApplicationsProps extends ReduxType, ApplicationsOperations, RouterLocationProps {
@@ -56,6 +56,17 @@ function Applications(props: ApplicationsProps): JSX.Element {
         "SAMtools",
         "Seqtk"
     ];
+
+    const excludeTools = [
+        "bedtools",
+        "cellranger",
+        "homer",
+        "kallisto",
+        "macs2",
+        "salmon",
+        "samtools",
+        "seqtk"
+    ]
 
     const featuredTags = [
         "Engineering",
@@ -87,7 +98,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
             <Pagination.List
                 loading={props.loading}
                 pageRenderer={() => (
-                    <TagGrid favorites={favPairs} omit={[]} tag={"Featured"} columns={7} rows={3}
+                    <TagGrid favorites={favPairs} tag={"Featured"} columns={7} rows={3}
                         setFavorite={async (name, version, page) => {
                             props.receiveApplications(await favoriteApplicationFromPage({
                                 name,
@@ -103,7 +114,7 @@ function Applications(props: ApplicationsProps): JSX.Element {
             />
 
             {featuredTags.map(tag =>
-                <TagGrid key={tag} favorites={favPairs} tag={tag} omit={defaultTools} rows={1} columns={7}
+                <TagGrid key={tag} favorites={favPairs} tag={tag} rows={1} columns={7}
                     setFavorite={async (name, version, page) => {
                         props.receiveApplications(await favoriteApplicationFromPage({
                             name,
@@ -122,15 +133,19 @@ function Applications(props: ApplicationsProps): JSX.Element {
     return (<MainContainer main={main} />);
 
     function fetchFeatured(itemsPerPage: number, page: number): void {
-        props.receiveAppsByKey(itemsPerPage, page, "Featured");
+        props.receiveAppsByKey(itemsPerPage, page, "Featured", []);
     }
 
     function fetch(): void {
         const featuredPage = props.applications.get("Featured") ?? emptyPage;
         fetchFeatured(50, featuredPage.pageNumber);
-        [...featuredTags, ...defaultTools].forEach(tag => {
+        [...featuredTags].forEach(tag => {
             const page = props.applications.get(tag) ?? emptyPage;
-            props.receiveAppsByKey(50, page.pageNumber, tag);
+            props.receiveAppsByKey(50, page.pageNumber, tag, excludeTools);
+        });
+        [...defaultTools].forEach(tool => {
+            const page = props.applications.get(tool) ?? emptyPage;
+            props.receiveAppsByKey(50, page.pageNumber, tool, [])
         });
     }
 }
@@ -173,21 +188,16 @@ const ToolImage = styled.img`
 
 interface TagGridProps {
     tag: string;
-    omit: string[];
     setFavorite(appName: string, appVersion: string, page: Page<FullAppInfo>): void;
     columns: number;
     rows: number;
     favorites: {name: string, version: string}[]
 }
 
-function TagGrid({tag, setFavorite, favorites, columns, rows, omit}: TagGridProps): JSX.Element {
+function TagGrid({tag, setFavorite, favorites, columns, rows}: TagGridProps): JSX.Element {
     const page = useSelector<ReduxObject, Page<FullAppInfo>>(it =>
         it.applicationsBrowse.applications.get(tag) ?? emptyPage
     );
-
-    const filteredItems = page.items.filter(it => !it.tags.some(_tag => omit.includes(_tag)))
-        .filter(it => !favorites.some(fav => fav.name === it.metadata.name && it.metadata.version === fav.version));
-
     return (
         <>
             <div>
@@ -209,7 +219,7 @@ function TagGrid({tag, setFavorite, favorites, columns, rows, omit}: TagGridProp
                     gridGap="15px"
                     style={{gridAutoFlow: "column"}}
                 >
-                    {filteredItems.map(app => (
+                    {page.items.map(app => (
                             <ApplicationCard
                                 key={`${app.metadata.name}-${app.metadata.version}`}
                                 onFavorite={(name, version) => setFavorite(name, version, page)}
@@ -317,9 +327,9 @@ const mapDispatchToProps = (
         dispatch(setActivePage(SidebarPages.AppStore));
     },
 
-    fetchByTag: async (tag, itemsPerPage, page) => {
+    fetchByTag: async (tag, excludeTools, itemsPerPage, page) => {
         dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
-        dispatch(await Actions.fetchByTag(tag, itemsPerPage, page));
+        dispatch(await Actions.fetchByTag(tag, excludeTools, itemsPerPage, page));
     },
 
     fetchDefault: async (itemsPerPage, page) => {
@@ -334,8 +344,9 @@ const mapDispatchToProps = (
     receiveApplications: page => dispatch(Actions.receivePage(page)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 
-    receiveAppsByKey: async (itemsPerPage, page, tag) =>
-        dispatch(await Actions.receiveAppsByKey(itemsPerPage, page, tag))
+    receiveAppsByKey: async (itemsPerPage, page, tag, excludeTools) =>
+        dispatch(await Actions.
+        receiveAppsByKey(itemsPerPage, page, tag, excludeTools))
 });
 
 function getColorFromName(name: string): [string, string, string] {

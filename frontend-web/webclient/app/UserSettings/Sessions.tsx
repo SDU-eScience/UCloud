@@ -1,11 +1,11 @@
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import HttpClient from "Authentication/lib";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {UAParser} from "ua-parser-js";
+import UAParser from "ua-parser-js";
 import Box from "ui-components/Box";
 import Button from "ui-components/Button";
 import Divider from "ui-components/Divider";
@@ -21,7 +21,7 @@ export interface SessionsProps {
 }
 
 export const Sessions: React.FunctionComponent<SessionsProps> = props => {
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const [sessions, setSessionParameters, sessionParameters] = useCloudAPI<Page<UserSession>>(
         listUserSessions({itemsPerPage: 10, page: 0}),
         emptyPage

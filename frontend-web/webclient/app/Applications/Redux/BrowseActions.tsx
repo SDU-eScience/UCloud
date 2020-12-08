@@ -26,13 +26,14 @@ export const receivePage = (page: Page<FullAppInfo>): ReceiveApp => ({
     }
 });
 
-export const fetchByTag = async (tag: string, itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
+export const fetchByTag = async (tag: string, excludeTools: string[], itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
     type: Tag.RECEIVE_APP,
     payload: await unwrapCall(
         Client.get<Page<FullAppInfo>>(buildQueryString(
             "/hpc/apps/searchTags",
             {
                 query: tag,
+                excludeTools,
                 itemsPerPage,
                 page
             }
@@ -56,7 +57,8 @@ export const fetch = async (itemsPerPage: number, page: number): Promise<Receive
 export async function receiveAppsByKey(
     itemsPerPage: number,
     page: number,
-    tag: string
+    tag: string,
+    excludeTools: string[]
 ): Promise<ReceiveAppsByKey | ByTagError> {
     try {
         return ({
@@ -66,6 +68,7 @@ export async function receiveAppsByKey(
                     "/hpc/apps/searchTags",
                     {
                         query: tag,
+                        excludeTools: excludeTools.join(","),
                         itemsPerPage,
                         page
                     }

@@ -146,9 +146,7 @@ export function useGlobalCloudAPI<T, Parameters = any>(
     return [state.call, doFetch, state.parameters];
 }
 
-/**
- * @deprecated
- */
+/**  @deprecated - Refer to `useCloudCommand` instead */
 export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
     return useCloudCommand();
 }

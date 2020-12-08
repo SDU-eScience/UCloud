@@ -33,7 +33,8 @@ class AppStoreAsyncDao(
         user: SecurityPrincipal,
         project: String?,
         memberGroups: List<String>,
-        tags: List<String>
+        tags: List<String>,
+        excludeTools: List<String>?
     ): List<String> {
         return ctx.withSession { session ->
             session
@@ -44,6 +45,7 @@ class AppStoreAsyncDao(
                         setParameter("groups", memberGroups)
                         setParameter("tags", tags)
                         setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
+                        setParameter("exclude", excludeTools?.map { it.toLowerCase() } ?: emptyList())
                     },
                     """
                     SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
@@ -64,7 +66,7 @@ class AppStoreAsyncDao(
                         ) or (
                             :isAdmin
                         )
-                    )
+                    ) AND (A.tool_name NOT IN (select unnest(:exclude::text[])))
                     ORDER BY A.name
                     """
                 )
@@ -84,9 +86,11 @@ class AppStoreAsyncDao(
         user: SecurityPrincipal,
         project: String?,
         memberGroups: List<String>,
-        applicationNames: List<String>
+        applicationNames: List<String>,
+        excludeTools: List<String>?
     ): Pair<List<Application>, Int> {
         val items = ctx.withSession { session ->
+            val excludeNormalized = excludeTools?.map {it.toLowerCase()} ?: emptyList()
             session
                 .sendPreparedStatement(
                     {
@@ -95,6 +99,7 @@ class AppStoreAsyncDao(
                         setParameter("project", project)
                         setParameter("groups", memberGroups)
                         setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
+                        setParameter("exclude", excludeNormalized)
                     },
                     """
                 SELECT A.*
@@ -120,8 +125,8 @@ class AppStoreAsyncDao(
                         )
                     ) or (
                         :isAdmin
-                    ) 
-                )
+                    )
+                ) AND (A.tool_name NOT IN (select unnest(:exclude::text[])))
                 ORDER BY A.name
                 """
                 )
@@ -130,7 +135,6 @@ class AppStoreAsyncDao(
                 .map { it.toApplicationWithInvocation() }
 
         }
-
         return Pair(
             items, items.size
         )
