@@ -3,6 +3,7 @@ package dk.sdu.cloud.support.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import dk.sdu.cloud.slack.api.Ticket
@@ -17,6 +18,7 @@ internal val ticket = Ticket(
     "ID",
     SecurityPrincipal("username", Role.USER, "first", "last", 123456),
     "userAgent",
+    "subject",
     "This is the message"
 )
 
@@ -27,6 +29,10 @@ class TicketServiceTest {
         val client = ClientMock.authenticatedClient
         ClientMock.mockCallSuccess(
             SlackDescriptions.sendSupport,
+            Unit
+        )
+        ClientMock.mockCallSuccess(
+            MailDescriptions.sendSupport,
             Unit
         )
         val ticketService = TicketService(client)
