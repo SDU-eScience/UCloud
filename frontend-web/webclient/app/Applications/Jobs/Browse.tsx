@@ -14,11 +14,11 @@ import {useHistory} from "react-router";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {ListRow, ListRowStat} from "ui-components/List";
 import Text, {TextSpan} from "ui-components/Text";
-import {errorMessageOrDefault, prettierString, shortUUID} from "UtilityFunctions";
+import {errorMessageOrDefault, prettierString, shortUUID, stopPropagation} from "UtilityFunctions";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
 import {inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
-import {Box, Button, Flex, InputGroup, Label} from "ui-components";
+import {Box, Button, Checkbox, Flex, InputGroup, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
@@ -27,6 +27,7 @@ import {JobStateIcon} from "./JobStateIcon";
 import {addStandardDialog} from "UtilityComponents";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
 
 const itemsPerPage = 50;
 
@@ -820,13 +821,26 @@ export const Browse: React.FunctionComponent = () => {
 
     return <MainContainer
         main={
-            <Pagination.ListV2
-                page={jobs.data}
-                loading={jobs.loading}
-                onLoadMore={loadMore}
-                pageRenderer={pageRenderer}
-                infiniteScrollGeneration={infScrollId}
-            />
+            <>
+                <StickyBox backgroundColor="white">
+                    <Label ml={10} width="auto">
+                        <Checkbox
+                            size={27}
+                            onClick={() => checkAllJobs(!allChecked)}
+                            checked={allChecked}
+                            onChange={stopPropagation}
+                        />
+                        <Box as={"span"}>Select all</Box>
+                    </Label>
+                </StickyBox>
+                <Pagination.ListV2
+                    page={jobs.data}
+                    loading={jobs.loading}
+                    onLoadMore={loadMore}
+                    pageRenderer={pageRenderer}
+                    infiniteScrollGeneration={infScrollId}
+                />
+            </>
         }
 
         sidebar={
@@ -838,6 +852,14 @@ export const Browse: React.FunctionComponent = () => {
 
     function onUpdateFilter(f: FetchJobsOptions) {
         console.log(f);
+    }
+
+    function checkAllJobs(checked: boolean) {
+        const checkedJobs = new Set<string>();
+        if (checked) {
+            jobs.data.items.forEach(job => checkedJobs.add(job.id));
+        }
+        setChecked(checkedJobs);
     }
 };
 
@@ -954,14 +976,13 @@ function FilterOptions({onUpdateFilter, children}: {
     );
 }
 
+const StickyBox = styled(Box)`
+    position: sticky;
+    z-index: 50;
+`;
 // Old component pasted below
 
 /*
-const StickyBox = styled(Box)`
-    position: sticky;
-    top: 95px;
-    z-index: 50;
-`;
 
 
 const Runs: React.FunctionComponent = () => {
