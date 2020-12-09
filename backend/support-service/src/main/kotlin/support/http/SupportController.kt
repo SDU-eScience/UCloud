@@ -37,6 +37,7 @@ class SupportController(
                     ctx.jobId,
                     ctx.securityPrincipal,
                     call.request.userAgent() ?: "Missing UA",
+                    request.subject,
                     request.message
                 )
 

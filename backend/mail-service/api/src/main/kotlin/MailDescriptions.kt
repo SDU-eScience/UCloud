@@ -22,8 +22,32 @@ data class SendBulkRequest(
     val messages: List<SendRequest>
 )
 
+data class SendSupportEmailRequest(
+    val fromEmail: String,
+    val subject: String,
+    val message: String
+)
+
 object MailDescriptions : CallDescriptionContainer("mail") {
     val baseContext = "/api/mail"
+
+    val sendSupport = call<SendSupportEmailRequest, Unit, CommonErrorMessage>("sendSupport") {
+        auth {
+            roles = setOf(Role.SERVICE)
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"support"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
 
     val send = call<SendRequest, Unit, CommonErrorMessage>("send") {
         auth {

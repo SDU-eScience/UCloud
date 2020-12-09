@@ -5,6 +5,9 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.mail.api.MailDescriptions
+import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.SendSupportEmailRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.slack.api.SendSupportRequest
@@ -22,10 +25,19 @@ class TicketService(private val authenticatedClient: AuthenticatedClient) {
                 ticket.requestId,
                 ticket.principal,
                 ticket.userAgent,
+                ticket.subject,
                 ticket.message
             ),
             authenticatedClient
         ).orThrow()
+        MailDescriptions.sendSupport.call(
+            SendSupportEmailRequest(
+                ticket.principal.email ?: "",
+                ticket.subject,
+                ticket.message
+            ),
+            authenticatedClient
+        )
     }
 
     companion object : Loggable {

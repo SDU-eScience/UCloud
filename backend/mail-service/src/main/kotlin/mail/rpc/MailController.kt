@@ -13,6 +13,10 @@ class MailController(private val mailService: MailService) : Controller {
             ok(mailService.send(ctx.securityPrincipal, request.userId, request.subject, request.message, request.mandatory!!))
         }
 
+        implement(MailDescriptions.sendSupport) {
+            ok(mailService.sendSupportTicket(request.fromEmail, request.subject, request.message))
+        }
+
         implement(MailDescriptions.sendBulk) {
             request.messages.forEach {
                 val allowedToSend = mailService.allowedToSend(it.userId)
