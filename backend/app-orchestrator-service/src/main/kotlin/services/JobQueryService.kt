@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.NameAndVersion
@@ -18,7 +19,7 @@ class JobQueryService(
     private val db: AsyncDBSessionFactory,
     private val projectCache: ProjectCache,
     private val appStoreCache: AppStoreCache,
-    private val machineTypeCache: MachineTypeCache,
+    private val productCache: ProductCache,
 ) {
     suspend fun browse(
         securityPrincipal: Actor,
@@ -150,7 +151,7 @@ class JobQueryService(
                 .map { it.parameters.product }
                 .toSet()
                 .map {
-                    it to machineTypeCache.find(it.provider, it.id, it.category)
+                    it to productCache.find<Product.Compute>(it.provider, it.id, it.category)
                 }
                 .toMap()
 
@@ -225,170 +226,6 @@ class JobQueryService(
             ).associateBy { it.job.id }
         }
     }
-
-    suspend fun findFromUrlId(
-        ctx: DBContext,
-        urlId: String,
-        owner: String?,
-    ): VerifiedJobWithAccessToken? {
-        TODO()
-        /*
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("urlId", urlId)
-                        setParameter("username", owner)
-                    },
-
-                    """
-                        select *
-                        from job_information
-                        where
-                            (:username::text is null or owner = :username) and
-                            (system_id = :urlId or url = :urlId) and
-                            (state != 'SUCCESS' and state != 'FAILURE')
-                    """
-                )
-                .rows
-                .map { it.toVerifiedJob(false, appService) }
-                .singleOrNull()
-        }
-         */
-    }
-
-    suspend fun isUrlOccupied(
-        ctx: DBContext,
-        urlId: String,
-    ): Boolean {
-        TODO()
-        /*
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("urlId", urlId)
-                    },
-
-                    """
-                        select count(system_id)
-                        from job_information
-                        where
-                            (system_id = :urlId or url = :urlId) and
-                            state != 'SUCCESS' and
-                            state != 'FAILURE'
-                    """
-                )
-                .rows
-                .map { it.getLong(0)!! }
-                .singleOrNull() ?: 0L > 0L
-        }
-        */
-    }
-
-    suspend fun canUseUrl(
-        ctx: DBContext,
-        requestedBy: String,
-        urlId: String,
-    ): Boolean {
-        TODO()
-        /*
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("requestedBy", requestedBy)
-                        setParameter("urlId", urlId)
-                    },
-
-                    """
-                        select count(url)
-                        from public_links
-                        where
-                            url = :urlId and
-                            username = :requestedBy
-                    """
-                )
-                .rows
-                .singleOrNull()
-                ?.let { it.getLong(0)!! }  ?: 0L > 0L
-        }
-         */
-    }
-
-    /*
-    suspend fun listPublicUrls(
-        ctx: DBContext,
-        requestedBy: String,
-        pagination: NormalizedPaginationRequest
-    ): Page<PublicLink> {
-        return ctx.withSession { session ->
-            val parameters: EnhancedPreparedStatement.() -> Unit = {
-                setParameter("requestedBy", requestedBy)
-            }
-
-            val itemsInTotal = session
-                .sendPreparedStatement(
-                    parameters,
-                    """
-                        select count(pl.url)
-                        from 
-                            public_links pl
-                        where
-                            pl.username = :requestedBy
-                    """
-                )
-                .rows
-                .singleOrNull()
-                ?.let { it.getLong(0)!! } ?: 0L
-
-            val items = session
-                .sendPreparedStatement(
-                    {
-                        parameters()
-                        setParameter("limit", pagination.itemsPerPage)
-                        setParameter("offset", pagination.offset)
-                    },
-
-                    """
-                        select url, system_id, name, in_use
-                        from
-                        (
-                            select
-                               pl.url,
-                               j.system_id,
-                               j.name,
-                               (j.state is not null and j.state != 'FAILURE' and j.state != 'SUCCESS') as in_use,
-                               row_number() over(partition by pl.url order by (j.state is not null and j.state != 'FAILURE' and j.state != 'SUCCESS')) as rn
-                           from
-                               public_links pl left join job_information j on pl.url = j.url
-                           where
-                               pl.username = :requestedBy
-                        ) t
-                        where t.rn = 1
-                        order by t.in_use, t.url
-                        limit :limit
-                        offset :offset;
-                    """
-                )
-                .rows
-                .map {
-                    val url = it.getString(0)!!
-                    val inUseBy = it.getString(1)
-                    val inUseByName = it.getString(2)
-                    val activelyInUse = it.getBoolean(3)!!
-
-                    PublicLink(
-                        url,
-                        if (activelyInUse) inUseBy else null,
-                        if (activelyInUse) inUseByName ?: inUseBy else null
-                    )
-                }
-
-            Page(itemsInTotal.toInt(), pagination.itemsPerPage, pagination.page, items)
-        }
-    }
-     */
 }
 
 fun RowData.toJob(): Job {

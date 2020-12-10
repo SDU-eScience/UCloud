@@ -36,25 +36,7 @@ data class FindByName(val name: String) {
     }
 }
 
-data class FindByStringId(val id: String) {
-    @Deprecated("replaced by BulkRequest")
-    @get:JsonIgnore
-    val bulk: List<String>
-        get() = id.split(",")
-
-    companion object {
-        /**
-         * Note this method is not universally accepted by all requests accepting a [FindByStringId]
-         */
-        fun bulk(ids: List<String>): FindByName {
-            if (ids.any { it.contains(",") || it.contains("\n") }) {
-                throw IllegalArgumentException("ID contains an invalid char: $ids")
-            }
-
-            return FindByName(ids.joinToString(","))
-        }
-    }
-}
+data class FindByStringId(val id: String)
 
 data class FindByLongId(val id: Long)
 data class FindByIntId(val id: Int)

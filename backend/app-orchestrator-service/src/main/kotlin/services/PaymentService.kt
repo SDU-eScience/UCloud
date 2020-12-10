@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.app.orchestrator.api.Ingress
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -18,7 +19,54 @@ object MissedPayments : SQLTable("missed_payments") {
     val reservationId = text("reservation_id")
     val amount = long("amount")
     val createdAt = timestamp("created_at")
+    val type = text("type")
 }
+
+sealed class Payment {
+    abstract val chargeId: String
+    abstract val units: Long
+    abstract val pricePerUnit: Long
+    abstract val type: String
+    abstract val resourceId: String
+
+    abstract val launchedBy: String
+    abstract val project: String?
+    abstract val product: ProductReference
+
+    data class OfJob(val job: Job, val timeUsedInMillis: Long, override val chargeId: String) : Payment() {
+        override val type = "job"
+        override val resourceId = job.id
+
+        override val pricePerUnit = job.billing.pricePerUnit
+        override val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * job.parameters.replicas
+
+        override val product = job.parameters.product
+        override val launchedBy: String = job.owner.launchedBy
+        override val project: String? = job.owner.project
+
+        companion object {
+            private const val MILLIS_PER_MINUTE = 1000L * 60
+        }
+    }
+
+    data class OfIngress(val ingress: Ingress, override val units: Long, override val chargeId: String) : Payment() {
+        override val type = "ingress"
+        override val resourceId = ingress.id
+
+        override val pricePerUnit = ingress.billing.pricePerUnit
+
+        override val product = ingress.product
+        override val launchedBy: String = ingress.owner.username
+        override val project: String? = ingress.owner.project
+    }
+}
+
+val Payment.wallet: Wallet
+    get() = Wallet(
+        project ?: launchedBy,
+        if (project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
+        ProductCategoryId(product.category, product.provider)
+    )
 
 class PaymentService(
     private val db: DBContext,
@@ -30,103 +78,85 @@ class PaymentService(
         object Duplicate : ChargeResult()
     }
 
-    suspend fun charge(
-        job: Job,
-        timeUsedInMillis: Long,
-        chargeId: String = "",
-    ): ChargeResult {
-        val parameters = job.parameters ?: error("no parameters")
-        val pricePerUnit = job.billing.pricePerUnit
-
-        val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * parameters.replicas
-        val price = pricePerUnit * units
-        val result = Wallets.reserveCredits.call(
-            ReserveCreditsRequest(
-                job.id + chargeId,
-                price,
-                Time.now(),
-                Wallet(
-                    job.owner.project ?: job.owner.launchedBy,
-                    if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
-                    ProductCategoryId(parameters.product.category, parameters.product.provider),
+    suspend fun charge(payment: Payment): ChargeResult {
+        with(payment) {
+            val price = pricePerUnit * units
+            val result = Wallets.reserveCredits.call(
+                ReserveCreditsRequest(
+                    resourceId + chargeId,
+                    price,
+                    Time.now(),
+                    wallet,
+                    launchedBy,
+                    product.id,
+                    units,
+                    chargeImmediately = true,
+                    skipIfExists = true,
+                    transactionType = TransactionType.PAYMENT,
                 ),
-                job.owner.launchedBy,
-                parameters.product.id,
-                units,
-                chargeImmediately = true,
-                skipIfExists = true,
-                transactionType = TransactionType.PAYMENT,
-            ),
-            serviceClient
-        )
+                serviceClient
+            )
 
-        if (result is IngoingCallResponse.Error) {
-            if (result.statusCode == HttpStatusCode.PaymentRequired) {
-                return ChargeResult.InsufficientFunds
-            }
-            if (result.statusCode == HttpStatusCode.Conflict) {
-                return ChargeResult.Duplicate
-            }
-            log.error("Failed to charge payment for job: ${job.id} $result")
-            db.withSession { session ->
-                session.insert(MissedPayments) {
-                    set(MissedPayments.reservationId, job.id)
-                    set(MissedPayments.amount, price)
-                    set(MissedPayments.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+            if (result is IngoingCallResponse.Error) {
+                if (result.statusCode == HttpStatusCode.PaymentRequired) {
+                    return ChargeResult.InsufficientFunds
+                }
+                if (result.statusCode == HttpStatusCode.Conflict) {
+                    return ChargeResult.Duplicate
+                }
+                log.error("Failed to charge payment for $type: $resourceId $result")
+                db.withSession { session ->
+                    session.insert(MissedPayments) {
+                        set(MissedPayments.reservationId, resourceId)
+                        set(MissedPayments.amount, price)
+                        set(MissedPayments.type, type)
+                        set(MissedPayments.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
+                    }
                 }
             }
-        }
 
-        return ChargeResult.Charged(price, pricePerUnit)
+            return ChargeResult.Charged(price, pricePerUnit)
+        }
     }
 
-    suspend fun reserve(job: Job) {
-        val parameters = job.parameters ?: error("no parameters")
-        val pricePerUnit = job.billing.pricePerUnit
+    suspend fun reserve(payment: Payment, expiresIn: Long = 1000L * 60 * 60) {
+        with(payment) {
+            val price = pricePerUnit * units
 
-        // Note: We reserve credits for a single hour if there is no explicit allocation
-        val timeAllocationMillis = parameters.timeAllocation?.toMillis() ?: 3600 * 1000L
-        val units = ceil(timeAllocationMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * parameters.replicas
-        val price = pricePerUnit * units
-
-        val code = Wallets.reserveCredits.call(
-            ReserveCreditsRequest(
-                job.id,
-                price,
-                Time.now() + timeAllocationMillis * 3,
-                Wallet(
-                    job.owner.project ?: job.owner.launchedBy,
-                    if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
-                    ProductCategoryId(parameters.product.category, parameters.product.provider),
+            val code = Wallets.reserveCredits.call(
+                ReserveCreditsRequest(
+                    resourceId,
+                    price,
+                    Time.now() + expiresIn,
+                    wallet,
+                    launchedBy,
+                    product.id,
+                    units,
+                    discardAfterLimitCheck = true,
+                    transactionType = TransactionType.PAYMENT,
                 ),
-                job.owner.launchedBy,
-                parameters.product.id,
-                units,
-                discardAfterLimitCheck = true,
-                transactionType = TransactionType.PAYMENT,
-            ),
-            serviceClient
-        ).statusCode
+                serviceClient
+            ).statusCode
 
-        when {
-            code == HttpStatusCode.PaymentRequired -> {
-                throw RPCException(
-                    "Insufficient funds for job",
-                    HttpStatusCode.PaymentRequired,
-                    "NOT_ENOUGH_${ProductArea.COMPUTE}_CREDITS"
-                )
+            when {
+                code == HttpStatusCode.PaymentRequired -> {
+                    throw RPCException(
+                        "Insufficient funds for job",
+                        HttpStatusCode.PaymentRequired,
+                        "NOT_ENOUGH_${ProductArea.COMPUTE}_CREDITS"
+                    )
+                }
+
+                code.isSuccess() -> {
+                    // Do nothing
+                }
+
+                else -> throw RPCException.fromStatusCode(code)
             }
-
-            code.isSuccess() -> {
-                // Do nothing
-            }
-
-            else -> throw RPCException.fromStatusCode(code)
         }
     }
 
     companion object : Loggable {
         override val log = logger()
-        private const val MILLIS_PER_MINUTE = 1000L * 60
     }
 }

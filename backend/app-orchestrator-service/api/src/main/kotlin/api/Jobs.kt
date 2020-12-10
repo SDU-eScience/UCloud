@@ -7,6 +7,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.BulkRequest
@@ -227,11 +228,7 @@ data class JobParameters(
     }
 }
 
-data class ComputeProductReference(
-    val id: String,
-    val category: String,
-    val provider: String,
-)
+typealias ComputeProductReference = ProductReference
 
 data class JobOutput(
     val outputFolder: String,

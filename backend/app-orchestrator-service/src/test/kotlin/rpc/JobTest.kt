@@ -59,7 +59,7 @@ private fun KtorApplicationTestSetupContext.configureCallbackServer(
         serviceClient,
         vncService,
         webService,
-        MachineTypeCache(ClientMock.authenticatedClient)
+        ProductCache(ClientMock.authenticatedClient)
     ))
 }
 

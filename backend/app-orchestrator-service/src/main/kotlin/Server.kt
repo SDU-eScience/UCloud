@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator
 
-import app.orchestrator.rpc.PublicLinkController
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
 import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
@@ -8,6 +7,7 @@ import dk.sdu.cloud.app.orchestrator.api.ProviderManifest
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.services.JobDao
 import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
+import dk.sdu.cloud.app.orchestrator.rpc.IngressController
 import dk.sdu.cloud.app.orchestrator.rpc.JobController
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -41,17 +41,17 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             ).authenticateClient(OutgoingHttpCall)
         }
 
-        val machineCache = MachineTypeCache(serviceClient)
+        val productCache = ProductCache(serviceClient)
         val paymentService = PaymentService(db, serviceClient)
         val parameterExportService = ParameterExportService()
         val jobFileService = JobFileService(userClientFactory, serviceClient, appStoreCache)
-        val publicLinks = PublicLinkService()
+        val projectCache = ProjectCache(serviceClient)
 
         val jobQueryService = JobQueryService(
             db,
-            ProjectCache(serviceClient),
+            projectCache,
             appStoreCache,
-            machineCache,
+            productCache,
         )
 
         // TODO Providers
@@ -85,7 +85,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             jobQueryService,
             serviceClient,
             providers,
-            machineCache
+            productCache
         )
 
         val jobOrchestrator =
@@ -120,6 +120,17 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         runBlocking { jobMonitoring.initialize() }
 
+        val ingressDao = IngressDao()
+        val ingressService = IngressService(
+            db,
+            ingressDao,
+            providers,
+            projectCache,
+            productCache,
+            jobOrchestrator,
+            paymentService
+        )
+
         with(micro.server) {
             configureControllers(
                 JobController(
@@ -129,11 +140,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
                 CallbackController(jobOrchestrator),
 
-                PublicLinkController(
-                    db,
-                    jobQueryService,
-                    publicLinks
-                )
+                IngressController(ingressService)
             )
         }
 

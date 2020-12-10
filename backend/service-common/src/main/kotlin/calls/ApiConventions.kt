@@ -192,7 +192,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
 @TSDefinition("""
 export type BulkRequest<T> = T | { type: "bulk", items: T[] }
 """)
-sealed class BulkRequest<T : Any> {
+sealed class BulkRequest<out T : Any> {
     abstract val items: List<T>
 
     @TSDefinition("")
@@ -222,7 +222,13 @@ sealed class BulkRequest<T : Any> {
     }
 
     @TSDefinition("")
-    data class Bulk<T : Any>(override val items: List<T>) : BulkRequest<T>()
+    data class Bulk<T : Any>(override val items: List<T>) : BulkRequest<T>() {
+        init {
+            if (items.size > 1000) {
+                throw RPCException("Cannot exceed 1000 requests in a single payload", HttpStatusCode.BadRequest)
+            }
+        }
+    }
 }
 
 fun <T : Any> bulkRequestOf(vararg items: T): BulkRequest<T> {

@@ -364,6 +364,22 @@ class ProductService {
                     getField(ProductTable.priority)
                 )
             }
+            else -> {
+                Product.Generic(
+                    getField(ProductTable.id),
+                    getField(ProductTable.pricePerUnit),
+                    ProductCategoryId(
+                        getField(ProductTable.category),
+                        getField(ProductTable.provider)
+                    ),
+                    getField(ProductTable.description),
+                    when (val reason = getFieldNullable(ProductTable.availability)) {
+                        null -> ProductAvailability.Available()
+                        else -> ProductAvailability.Unavailable(reason)
+                    },
+                    getField(ProductTable.priority)
+                )
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
 import dk.sdu.cloud.app.license.api.LicenseServerRequest
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -11,6 +12,7 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
@@ -34,11 +36,12 @@ class JobVerificationService(
     private val jobs: JobQueryService,
     private val serviceClient: AuthenticatedClient,
     private val providers: Providers,
-    private val machineTypeCache: MachineTypeCache,
+    private val productCache: ProductCache,
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
         userClient: AuthenticatedClient,
+        listeners: List<JobListener> = emptyList()
     ): VerifiedJobWithAccessToken {
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
@@ -99,7 +102,7 @@ class JobVerificationService(
         }
 
         // Check product
-        val machine = machineTypeCache.find(
+        val machine = productCache.find<Product.Compute>(
             unverifiedJob.request.product.provider,
             unverifiedJob.request.product.id,
             unverifiedJob.request.product.category
@@ -126,20 +129,8 @@ class JobVerificationService(
             userClient
         )
 
-        // Check URL
-        val resources = unverifiedJob.request.resources!!
-        resources.filterIsInstance<AppParameterValue.Ingress>().forEach { ingress ->
-            val url = ingress.domain
-            if (jobs.isUrlOccupied(db, url)) {
-                throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
-            }
-
-            if (!jobs.canUseUrl(db, unverifiedJob.username, url)) {
-                throw RPCException("Not allowed to use selected URL", HttpStatusCode.BadRequest)
-            }
-        }
-
         // Check peers
+        val resources = unverifiedJob.request.resources!!
         run {
             val parameterPeers = application.invocation.parameters
                 .filterIsInstance<ApplicationParameter.Peer>()
@@ -189,7 +180,7 @@ class JobVerificationService(
         }
 
         val id = UUID.randomUUID().toString()
-        return VerifiedJobWithAccessToken(
+        val verified = VerifiedJobWithAccessToken(
             Job(
                 id,
                 JobOwner(
@@ -198,7 +189,7 @@ class JobVerificationService(
                 ),
                 listOf(
                     JobUpdate(
-                        System.currentTimeMillis(),
+                        Time.now(),
                         JobState.IN_QUEUE,
                         "UCloud has accepted your job into the queue"
                     )
@@ -209,6 +200,9 @@ class JobVerificationService(
             ),
             "REPLACED_LATER"
         )
+
+        listeners.forEach { it.onVerified(db, verified.job) }
+        return verified
     }
 
     private suspend fun findApplication(job: UnverifiedJob): Application {

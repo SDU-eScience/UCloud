@@ -251,7 +251,7 @@ class JobManagement(
                 )
 
                 // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
-                var nextFullScan = System.currentTimeMillis() + 15_000
+                var nextFullScan = Time.now() + 15_000
 
                 listenerLoop@ while (currentCoroutineContext().isActive) {
                     if (volcanoWatch.isClosedForReceive) {
@@ -350,7 +350,7 @@ class JobManagement(
 
                                 if (ev.type == "DELETED") {
                                     val expiry = ev.theObject.expiry
-                                    if (expiry != null && System.currentTimeMillis() >= expiry) {
+                                    if (expiry != null && Time.now() >= expiry) {
                                         // NOTE(Dan): Expiry plugin will simply delete the object. This is why we must
                                         // check if the reason was expiration here.
                                         markJobAsComplete(jobId, ev.theObject)
