@@ -9,16 +9,21 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.SimpleCache
 
-class MachineTypeCache(private val serviceClient: AuthenticatedClient) {
-    val machines = SimpleCache<String, List<Product.Compute>> { provider ->
+class ProductCache(private val serviceClient: AuthenticatedClient) {
+    val machines = SimpleCache<String, List<Product>> { provider ->
         Products.retrieveAllFromProvider
             .call(RetrieveAllFromProviderRequest(provider), serviceClient)
             .orThrow()
-            .filterIsInstance<Product.Compute>()
     }
 
-    suspend fun find(provider: String, id: String, category: String): Product.Compute? {
+    suspend inline fun <reified T : Product> find(
+        provider: String,
+        id: String,
+        category: String
+    ): T? {
         val machines = machines.get(provider) ?: return null
-        return machines.find { it.id == id && it.category.id == category && it.category.provider == provider }
+        return machines
+            .filterIsInstance<T>()
+            .find { it.id == id && it.category.id == category && it.category.provider == provider }
     }
 }

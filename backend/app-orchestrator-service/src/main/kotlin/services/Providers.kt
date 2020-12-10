@@ -1,11 +1,9 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.Compute
-import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
 import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
-import dk.sdu.cloud.app.orchestrator.api.ProviderManifest
+import dk.sdu.cloud.app.orchestrator.api.IngressProvider
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.service.Actor
@@ -16,7 +14,8 @@ data class ProviderCommunication(
     val api: Compute,
     val client: AuthenticatedClient,
     val wsClient: AuthenticatedClient,
-    val provider: ComputeProviderManifest
+    val provider: ComputeProviderManifest,
+    val ingressApi: IngressProvider?,
 )
 
 class Providers(
@@ -33,26 +32,34 @@ class Providers(
 
     suspend fun prepareCommunication(provider: String): ProviderCommunication {
         if (developmentModeEnabled) {
-            return ProviderCommunication(ucloudCompute,
+            return ProviderCommunication(
+                ucloudCompute,
                 serviceClient,
                 wsServiceClient,
-                hardcodedProvider
+                hardcodedProvider,
+                IngressProvider(UCLOUD_PROVIDER),
             )
         }
         if (provider != UCLOUD_PROVIDER) {
             throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
         }
 
-        return ProviderCommunication(ucloudCompute, serviceClient, wsServiceClient, hardcodedProvider)
+        return ProviderCommunication(
+            ucloudCompute,
+            serviceClient,
+            wsServiceClient,
+            hardcodedProvider,
+            IngressProvider(UCLOUD_PROVIDER),
+        )
     }
 
-    suspend fun verifyProvider(provider: String, principal: SecurityPrincipal) {
+    suspend fun verifyProvider(provider: String, principal: Actor) {
         if (developmentModeEnabled) return
         if (provider != UCLOUD_PROVIDER) {
             throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
         }
 
-        if (principal.username != "_app-kubernetes") {
+        if (principal.safeUsername() != "_app-kubernetes") {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
     }

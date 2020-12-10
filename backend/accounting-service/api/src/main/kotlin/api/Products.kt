@@ -20,7 +20,8 @@ const val UCLOUD_PROVIDER = "ucloud"
 
 enum class ProductArea {
     STORAGE,
-    COMPUTE
+    COMPUTE,
+    GENERIC
 }
 
 data class ProductCategory(
@@ -31,6 +32,12 @@ data class ProductCategory(
 data class ProductCategoryId(
     val id: String,
     val provider: String
+)
+
+data class ProductReference(
+    val id: String,
+    val category: String,
+    val provider: String,
 )
 
 typealias CreateProductRequest = Product
@@ -70,7 +77,8 @@ sealed class ProductAvailability {
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = Product.Storage::class, name = "storage"),
-    JsonSubTypes.Type(value = Product.Compute::class, name = "compute")
+    JsonSubTypes.Type(value = Product.Compute::class, name = "compute"),
+    JsonSubTypes.Type(value = Product.Generic::class, name = "generic"),
 )
 sealed class Product {
     abstract val category: ProductCategoryId
@@ -123,6 +131,24 @@ sealed class Product {
             if (gpu != null) require(gpu >= 0) { "gpu is negative ($this)" }
             if (cpu != null) require(cpu >= 0) { "cpu is negative ($this)" }
             if (memoryInGigs != null) require(memoryInGigs >= 0) { "memoryInGigs is negative ($this)" }
+        }
+    }
+
+    data class Generic(
+        override val id: String,
+        override val pricePerUnit: Long,
+        override val category: ProductCategoryId,
+        override val description: String = "",
+        override val availability: ProductAvailability = ProductAvailability.Available(),
+        override val priority: Int = 0,
+    ) : Product() {
+        @get:JsonIgnore
+        override val area = ProductArea.GENERIC
+
+        init {
+            require(pricePerUnit >= 0)
+            require(id.isNotBlank())
+            require(description.count { it == '\n' } == 0)
         }
     }
 }

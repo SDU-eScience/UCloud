@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Dec 08 13:20:04 CET 2020 */
+/* Generated at: Thu Dec 10 14:24:50 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -624,7 +624,7 @@ export interface JobParameters {
     /**
      * A reference to the product that this job will be executed on
      */
-    product: ComputeProductReference,
+    product: accounting.ProductReference,
     /**
      * A name for this job assigned by the user.
      * 
@@ -684,11 +684,6 @@ export interface JobParameters {
 export interface NameAndVersion {
     name: string,
     version: string,
-}
-export interface ComputeProductReference {
-    id: string,
-    category: string,
-    provider: string,
 }
 /**
  * A parameter supplied to a compute job
@@ -913,20 +908,143 @@ export interface JobsControlSubmitFileRequest {
     jobId: string,
     filePath: string,
 }
-export interface CreateLinkRequest {
-    url: string,
+/**
+ * An L7 ingress-point (HTTP)
+ */
+export interface Ingress {
+    id: string,
+    domain: string,
+    product: accounting.ProductReference,
+    /**
+     * Information about the owner of this resource
+     */
+    owner: IngressOwner,
+    /**
+     * Information about when this resource was created
+     */
+    createdAt: number /* int64 */,
+    /**
+     * The current status of this resource
+     */
+    status: IngressStatus,
+    /**
+     * Billing information associated with this `Ingress`
+     */
+    billing: IngressBilling,
+    /**
+     * A list of updates for this `Ingress`
+     */
+    updates: IngressUpdate[],
+    resolvedProduct?: accounting.ProductNS.Generic,
 }
-export interface DeleteLinkRequest {
-    url: string,
+export interface IngressOwner {
+    /**
+     * The username of the user which created this resource.
+     * 
+     * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
+     */
+    username: string,
+    /**
+     * The project which owns the resource
+     */
+    project?: string,
 }
-export interface PublicLink {
-    url: string,
-    inUseBy?: string,
-    inUseByUIFriendly?: string,
+/**
+ * The status of an `Ingress`
+ */
+export interface IngressStatus {
+    /**
+     * The ID of the `Job` that this `Ingress` is currently bound to
+     */
+    boundTo?: string,
+    state: "PREPARING" | "READY" | "UNAVAILABLE",
 }
-export interface ListLinkRequest {
+export interface IngressBilling {
+    pricePerUnit: number /* int64 */,
+    creditsCharged: number /* int64 */,
+}
+export interface IngressUpdate {
+    /**
+     * A timestamp for when this update was registered by UCloud
+     */
+    timestamp: number /* int64 */,
+    /**
+     * The new state that the `Ingress` transitioned to (if any)
+     */
+    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    /**
+     * A new status message for the `Ingress` (if any)
+     */
+    status?: string,
+    didBind: boolean,
+    newBinding?: string,
+}
+export interface IngressesBrowseRequest {
+    includeUpdates?: boolean,
+    includeProduct?: boolean,
     itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
+    next?: string,
+    consistency?: "PREFER" | "REQUIRE",
+    itemsToSkip?: number /* int64 */,
+    domain?: string,
+    provider?: string,
+}
+export interface IngressesCreateResponse {
+    ids: string[],
+}
+export interface IngressCreateRequestItem {
+    domain: string,
+    product: accounting.ProductReference,
+}
+export interface IngressRetrieve {
+    id: string,
+}
+export interface IngressRetrieveWithFlags {
+    id: string,
+    includeUpdates?: boolean,
+    includeProduct?: boolean,
+}
+export interface IngressSettings {
+    domainPrefix: string,
+    domainSuffix: string,
+}
+export interface IngressesRetrieveSettingsRequest {
+    product: accounting.ProductReference,
+}
+export interface IngressControlUpdateRequestItem {
+    id: string,
+    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    status?: string,
+    clearBindingToJob?: boolean,
+}
+export interface IngressControlChargeCreditsResponse {
+    /**
+     * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
+     */
+    insufficientFunds: IngressId[],
+    /**
+     * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
+     */
+    duplicateCharges: IngressId[],
+}
+export interface IngressId {
+    id: string,
+}
+export interface IngressControlChargeCreditsRequestItem {
+    /**
+     * The ID of the `Ingress`
+     */
+    id: string,
+    /**
+     * The ID of the charge
+     * 
+     * This charge ID must be unique for the `Ingress`, UCloud will reject charges which are not unique.
+     */
+    chargeId: string,
+    /**
+     * Amount of units to charge the user
+     */
+    units: number /* int64 */,
 }
 export interface ApplicationWithFavoriteAndTags {
     metadata: ApplicationMetadata,
@@ -1139,7 +1257,7 @@ export interface BlockStorage {
  * HTTP Ingress
  */
 export interface Ingress {
-    domain: string,
+    id: string,
     type: "ingress",
 }
 }
@@ -1729,6 +1847,38 @@ export function submitFile(
         payload: request,
     };
 }
+export function update(
+    request: BulkRequest<IngressControlUpdateRequestItem>
+): APICallParameters<BulkRequest<IngressControlUpdateRequestItem>, any /* unknown */> {
+    return {
+        method: "POST",
+        path: "/api/ingresses/control" + "/update",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function retrieve(
+    request: IngressRetrieveWithFlags
+): APICallParameters<IngressRetrieveWithFlags, Ingress> {
+    return {
+        method: "GET",
+        path: buildQueryString("/api/ingresses/control" + "/retrieve", {id: request.id, includeProduct: request.includeProduct, includeUpdates: request.includeUpdates}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function chargeCredits(
+    request: BulkRequest<IngressControlChargeCreditsRequestItem>
+): APICallParameters<BulkRequest<IngressControlChargeCreditsRequestItem>, IngressControlChargeCreditsResponse> {
+    return {
+        method: "POST",
+        path: "/api/ingresses/control" + "/chargeCredits",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
 }
 export namespace license {
 export function get(
@@ -2071,37 +2221,57 @@ export function openInteractiveSession(
     };
 }
 }
-export namespace urls {
-export function list(
-    request: ListLinkRequest
-): APICallParameters<ListLinkRequest, Page<PublicLink>> {
+export namespace ingresses {
+export function browse(
+    request: IngressesBrowseRequest
+): APICallParameters<IngressesBrowseRequest, PageV2<Ingress>> {
     return {
         method: "GET",
-        path: buildQueryString("/api/hpc/urls", {itemsPerPage: request.itemsPerPage, page: request.page}),
+        path: buildQueryString("/api/compute/ingresses" + "/browse", {consistency: request.consistency, domain: request.domain, includeProduct: request.includeProduct, includeUpdates: request.includeUpdates, itemsPerPage: request.itemsPerPage, itemsToSkip: request.itemsToSkip, next: request.next, provider: request.provider}),
         parameters: request,
         reloadId: Math.random(),
     };
 }
 export function create(
-    request: CreateLinkRequest
-): APICallParameters<CreateLinkRequest, any /* unknown */> {
+    request: BulkRequest<IngressCreateRequestItem>
+): APICallParameters<BulkRequest<IngressCreateRequestItem>, IngressesCreateResponse> {
     return {
         method: "POST",
-        path: "/api/hpc/urls",
+        path: "/api/compute/ingresses",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
     };
 }
 export function remove(
-    request: DeleteLinkRequest
-): APICallParameters<DeleteLinkRequest, any /* unknown */> {
+    request: BulkRequest<IngressRetrieve>
+): APICallParameters<BulkRequest<IngressRetrieve>, any /* unknown */> {
     return {
         method: "DELETE",
-        path: "/api/hpc/urls",
+        path: "/api/compute/ingresses",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
+    };
+}
+export function retrieve(
+    request: IngressRetrieveWithFlags
+): APICallParameters<IngressRetrieveWithFlags, Ingress> {
+    return {
+        method: "GET",
+        path: buildQueryString("/api/compute/ingresses" + "/retrieve", {id: request.id, includeProduct: request.includeProduct, includeUpdates: request.includeUpdates}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function retrieveSettings(
+    request: IngressesRetrieveSettingsRequest
+): APICallParameters<IngressesRetrieveSettingsRequest, IngressSettings> {
+    return {
+        method: "GET",
+        path: buildQueryString("/api/compute/ingresses" + "/retrieveSettings", {product: request.product}),
+        parameters: request,
+        reloadId: Math.random(),
     };
 }
 }
@@ -3132,7 +3302,7 @@ export interface WalletBalance {
     balance: number /* int64 */,
     allocated: number /* int64 */,
     used: number /* int64 */,
-    area: "STORAGE" | "COMPUTE",
+    area: "STORAGE" | "COMPUTE" | "GENERIC",
 }
 export interface RetrieveBalanceRequest {
     id?: string,
@@ -3144,7 +3314,7 @@ export interface SetBalanceRequest {
     lastKnownBalance: number /* int64 */,
     newBalance: number /* int64 */,
 }
-export type Product = ProductNS.Storage | ProductNS.Compute
+export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Generic
 export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
 export interface FindProductRequest {
     provider: string,
@@ -3158,7 +3328,7 @@ export interface ListProductsRequest {
 }
 export interface ListProductsByAreaRequest {
     provider: string,
-    area: "STORAGE" | "COMPUTE",
+    area: "STORAGE" | "COMPUTE" | "GENERIC",
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
 }
@@ -3173,7 +3343,7 @@ export interface UsageChart {
     lines: UsageLine[],
 }
 export interface UsageLine {
-    area: "STORAGE" | "COMPUTE",
+    area: "STORAGE" | "COMPUTE" | "GENERIC",
     category: string,
     projectPath?: string,
     projectId?: string,
@@ -3187,6 +3357,11 @@ export interface UsageRequest {
     bucketSize: number /* int64 */,
     periodStart: number /* int64 */,
     periodEnd: number /* int64 */,
+}
+export interface ProductReference {
+    id: string,
+    category: string,
+    provider: string,
 }
 export namespace products {
 export function findProduct(
@@ -3383,6 +3558,15 @@ export interface Compute {
     memoryInGigs?: number /* int32 */,
     gpu?: number /* int32 */,
     type: "compute",
+}
+export interface Generic {
+    id: string,
+    pricePerUnit: number /* int64 */,
+    category: ProductCategoryId,
+    description: string,
+    availability: ProductAvailability,
+    priority: number /* int32 */,
+    type: "generic",
 }
 }
 }

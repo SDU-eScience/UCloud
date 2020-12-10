@@ -13,18 +13,21 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.PaginationRequestV2
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 import java.util.concurrent.atomic.AtomicInteger
+
+interface JobListener {
+    suspend fun onVerified(ctx: DBContext, job: Job)
+    suspend fun onCreate(ctx: DBContext, job: Job)
+    suspend fun onTermination(ctx: DBContext, job: Job)
+}
 
 /**
  * The job orchestrator is responsible for the orchestration of computation providers.
@@ -46,6 +49,16 @@ class JobOrchestrator(
     private val userClientFactory: UserClientFactory,
     private val parameterExportService: ParameterExportService,
 ) {
+    private val listeners = ArrayList<JobListener>()
+
+    fun addListener(listener: JobListener) {
+        listeners.add(listener)
+    }
+
+    fun removeListener(listener: JobListener) {
+        listeners.remove(listener)
+    }
+
     private suspend fun extendToken(accessToken: String, allowRefreshes: Boolean): Pair<String?, AuthenticatedClient> {
         return AuthDescriptions.tokenExtension.call(
             TokenExtensionRequest(
@@ -85,6 +98,8 @@ class JobOrchestrator(
 
         try {
             val (_, tmpUserClient) = extendToken(accessToken, allowRefreshes = false)
+            // NOTE(Dan): Cannot convert due to suspension
+            @Suppress("ConvertCallChainIntoSequence")
             val verifiedJobs = req.items
                 // Immediately export parameters (before verification code changes it)
                 .onEach { request ->
@@ -98,7 +113,8 @@ class JobOrchestrator(
                 .map { jobRequest ->
                     jobVerificationService.verifyOrThrow(
                         UnverifiedJob(jobRequest, principal.username, project),
-                        tmpUserClient
+                        tmpUserClient,
+                        listeners
                     )
                 }
                 // Check for duplicates
@@ -119,7 +135,13 @@ class JobOrchestrator(
 
             // Reserve resources (and check that resources are available)
             for (job in verifiedJobs) {
-                paymentService.reserve(job.job)
+                paymentService.reserve(
+                    Payment.OfJob(
+                        job.job,
+                        timeUsedInMillis = job.job.parameters.timeAllocation?.toMillis() ?: 1000L * 60 * 60,
+                        chargeId = ""
+                    )
+                )
             }
 
             // Prepare job folders (needs to happen before database insertion)
@@ -138,6 +160,7 @@ class JobOrchestrator(
             db.withSession { session ->
                 for (job in verifiedJobs) {
                     jobDao.create(session, job)
+                    listeners.forEach { it.onCreate(session, job.job) }
                 }
             }
 
@@ -217,13 +240,14 @@ class JobOrchestrator(
 
                         if (newState.isFinal()) {
                             handleFinalState(jobWithToken)
+                            listeners.forEach { it.onTermination(session, job) }
                         }
                     } else if (newState != null && currentState.isFinal()) {
                         log.info("Ignoring job update for $jobId by ${comm.provider} (bad state transition)")
                         continue
                     }
 
-                    jobDao.insertUpdate(session, jobId, System.currentTimeMillis(), newState, newStatus)
+                    jobDao.insertUpdate(session, jobId, Time.now(), newState, newStatus)
                 }
             }
         }
@@ -268,9 +292,11 @@ class JobOrchestrator(
                 val jobWithToken = loadedJobs[jobId] ?: error("Job should have been loaded by now")
                 for (charge in charges) {
                     val chargeResult = paymentService.charge(
-                        jobWithToken.job,
-                        charge.wallDuration.toMillis(),
-                        charge.chargeId
+                        Payment.OfJob(
+                            jobWithToken.job,
+                            charge.wallDuration.toMillis(),
+                            charge.chargeId
+                        )
                     )
 
                     when (chargeResult) {
@@ -394,37 +420,6 @@ class JobOrchestrator(
                 ).orThrow()
             }
         }
-    }
-
-    suspend fun lookupOwnJob(jobId: String, securityPrincipal: SecurityPrincipal): Job {
-        TODO(
-            """
-        val jobWithToken = findJobForId(jobId)
-        computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
-        return jobWithToken.job
-        """
-        )
-    }
-
-    suspend fun lookupOwnJobByUrl(urlId: String, securityPrincipal: SecurityPrincipal): Job {
-        TODO(
-            """
-        val jobWithToken = findJobForUrl(urlId)
-        computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
-        return jobWithToken.job
-        """
-        )
-    }
-
-    private suspend fun findJobForUrl(
-        urlId: String,
-        jobOwner: SecurityPrincipalToken? = null,
-    ): VerifiedJobWithAccessToken {
-        /*
-        return jobQueryService.findFromUrlId(db, urlId, jobOwner?.principal?.username)
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-         */
-        TODO()
     }
 
     suspend fun follow(

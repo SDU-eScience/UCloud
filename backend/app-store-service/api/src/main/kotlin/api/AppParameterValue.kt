@@ -110,13 +110,7 @@ sealed class AppParameterValue {
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("HTTP Ingress")
-    data class Ingress(val domain: String) {
-        init {
-            if (!domain.matches(hostNameRegex)) {
-                throw RPCException("Invalid domain: $domain", HttpStatusCode.BadRequest)
-            }
-        }
-
+    data class Ingress(val id: String) {
         val type = "ingress"
     }
 }

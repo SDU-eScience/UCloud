@@ -135,7 +135,7 @@ data class PaginationRequestV2(
 ) : WithPaginationRequestV2
 
 interface WithPaginationRequestV2 {
-    val itemsPerPage: Int
+    val itemsPerPage: Int?
     val next: String?
     val consistency: PaginationRequestV2Consistency?
     val itemsToSkip: Long?
@@ -144,7 +144,7 @@ interface WithPaginationRequestV2 {
         if ((itemsToSkip ?: 0) < 0) throw RPCException("Invalid offset", HttpStatusCode.BadRequest)
 
         return NormalizedPaginationRequestV2(
-            when (itemsPerPage) {
+            when (val itemsPerPage = itemsPerPage) {
                 10, 25, 50, 100, 250 -> itemsPerPage
                 else -> 50
             },
