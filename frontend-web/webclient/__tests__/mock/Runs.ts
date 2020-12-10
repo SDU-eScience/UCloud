@@ -39,7 +39,12 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 resolvedProduct: undefined,
                 resolvedApplication: undefined
             },
-            "output": undefined
+            output: undefined,
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "a4f35d51-40bf-496f-bcd9-5813cb5f91db",
@@ -70,7 +75,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 replicas: 1,
                 allowDuplicateJob: true,
             },
-            output: undefined
+            output: undefined,
+            status: {
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "812cf11a-3a16-4a98-80ce-763613cf560b",
@@ -96,12 +105,17 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
                 replicas: 1,
                 allowDuplicateJob: true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "FAILURE"
+            }
         },
         {
             id: "a2cfcd0a-e24b-443c-bc47-a05fe748530f",
@@ -131,6 +145,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "SUCCESS"
+            }
         },
         {
             id: "245cd7ba-ec9e-499f-8da0-a6d41c118387",
@@ -160,6 +179,10 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                state: "IN_QUEUE"
+            }
         },
         {
             id: "51ef3ada-6578-4e3f-aff2-c5591dfe5f36",
@@ -189,6 +212,10 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                startedAt: new Date().getTime() - 10_000,
+                state: "IN_QUEUE"
+            }
         },
         {
             id: "16f0b2bc-db9b-468e-aadf-d6657cfa2494",
@@ -218,6 +245,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "CANCELING"
+            }
         },
         {
             id: "bd562fdb-249a-43b9-909d-96279bf96d7b",
@@ -247,6 +279,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "11d45177-c2c0-4254-9068-03f8ad2cdfeb",
@@ -276,6 +313,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "ad88b9f5-6bc9-40b4-b6be-bde7de38708e",
@@ -305,6 +347,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "12a2717f-dd4c-4d24-a948-fe00cadc51e6",
@@ -334,6 +381,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "c7dccff3-ebd6-4ce8-95c8-1a85ed8b56d2",
@@ -363,6 +415,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "2b691748-9ad1-4ed3-bbe3-2f651245a041",
@@ -392,6 +449,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "94606ccd-af7f-43ce-b3bf-95e8858f12a1",
@@ -421,6 +483,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 3,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "aab92994-bed7-43f9-9ef4-cb9a7f60715b",
@@ -450,6 +517,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 3,
                 "allowDuplicateJob": true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "9ce5332c-c52e-4b0a-b935-c5bd9a73f1d3",
@@ -479,6 +551,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 replicas: 1,
                 allowDuplicateJob: true,
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "383f7238-9e70-4a8d-90a4-db99967300ab",
@@ -507,6 +584,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 replicas: 1,
                 allowDuplicateJob: true
+            },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
             }
         },
         {
@@ -537,6 +619,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 "replicas": 1,
                 "allowDuplicateJob": true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         },
         {
             id: "127d2123-9520-4c41-813c-2d808b2746da",
@@ -565,6 +652,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 "replicas": 1,
                 "allowDuplicateJob": true,
+            },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
             }
         },
         {
@@ -595,9 +687,14 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 replicas: 1,
                 allowDuplicateJob: true
             },
+            status: {
+                expiresAt: new Date().getTime() + 30_000,
+                startedAt: new Date().getTime() - 10_000,
+                state: "RUNNING"
+            }
         }
     ],
-    "next": "20-cafbbfef-265d-4995-8bad-e44212541a76"
+    next: "20-cafbbfef-265d-4995-8bad-e44212541a76"
 };
 
 test("Test silencer", () => {

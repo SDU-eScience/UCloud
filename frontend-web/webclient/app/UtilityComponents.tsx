@@ -814,7 +814,7 @@ export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
 function WarningToOptions(props: {errorCode: string}): JSX.Element {
     const trashFolder = Client.hasActiveProject ?
         `${Client.currentProjectFolder}/Members' Files/${Client.username}/Trash` :
-        `${Client.homeFolder}/Trash`;
+        `${Client.homeFolder}Trash`;
 
     const workspacePath = Client.hasActiveProject ?
         `${Client.currentProjectFolder}/Members' Files/${Client.username}` : Client.homeFolder;

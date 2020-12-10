@@ -19,7 +19,7 @@ interface ListV2Props<T> {
 }
 
 type ListV2Type = <T>(props: PropsWithChildren<ListV2Props<T>>, context?: any) => JSX.Element;
-export const ListV2: ListV2Type = (props) => {
+export const ListV2: ListV2Type = props => {
     const [allPages, setAllPages] = useState<React.ReactNode[]>([]);
     useEffect(() => {
         setAllPages([]);
