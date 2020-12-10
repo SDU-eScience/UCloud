@@ -28,10 +28,12 @@ data class SendSupportEmailRequest(
     val message: String
 )
 
+typealias SendSupportEmailResponse = Unit
+
 object MailDescriptions : CallDescriptionContainer("mail") {
     val baseContext = "/api/mail"
 
-    val sendSupport = call<SendSupportEmailRequest, Unit, CommonErrorMessage>("sendSupport") {
+    val sendSupport = call<SendSupportEmailRequest, SendSupportEmailResponse, CommonErrorMessage>("sendSupport") {
         auth {
             roles = setOf(Role.SERVICE)
             access = AccessRight.READ_WRITE

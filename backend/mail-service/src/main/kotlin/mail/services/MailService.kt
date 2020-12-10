@@ -44,6 +44,16 @@ class MailService(
     private val devMode: Boolean = false,
     private val ctx: DBContext
 ) {
+    private var session: Session
+
+    init {
+        //Setup Mail Server
+        val properties = System.getProperties()
+        properties.setProperty("mail.smtp.host", "localhost")
+        properties.setProperty("mail.smtp.port", "25")
+
+        session = Session.getInstance(properties)
+    }
 
     object MailCounterTable: SQLTable("mail_counting") {
         val mailCount = long("mail_count", notNull = true)
@@ -128,13 +138,6 @@ class MailService(
     ) {
         val recipientAddress = InternetAddress("support@escience.sdu.dk")
 
-        // Setup mail server
-        val properties = System.getProperties()
-        properties.setProperty("mail.smtp.host", "localhost")
-        properties.setProperty("mail.smtp.port", "25")
-
-        val session = Session.getInstance(properties)
-
         try {
             val message = MimeMessage(session)
             message.setFrom(InternetAddress(fromEmail))
@@ -197,13 +200,6 @@ class MailService(
         }
 
         val recipientAddress = InternetAddress(getEmail.email)
-
-        // Setup mail server
-        val properties = System.getProperties()
-        properties.setProperty("mail.smtp.host", "localhost")
-        properties.setProperty("mail.smtp.port", "25")
-
-        val session = Session.getInstance(properties)
 
         try {
             val message = MimeMessage(session)

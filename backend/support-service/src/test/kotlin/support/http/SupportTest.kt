@@ -35,7 +35,7 @@ class SupportTest {
                     method = HttpMethod.Post,
                     path = "/api/support/ticket",
                     user = TestUsers.user,
-                    request = CreateTicketRequest("subbject", "This is message")
+                    request = CreateTicketRequest("subject", "This is message")
                 ).assertSuccess()
             }
         )

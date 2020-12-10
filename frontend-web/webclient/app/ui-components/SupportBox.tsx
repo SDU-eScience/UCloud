@@ -47,7 +47,7 @@ export default function Support(): JSX.Element {
         if (text.trim()) {
             try {
                 setLoading(true);
-                await Client.post("/support/ticket", {subject: `${title}`, message: `${type}: ${text}`});
+                await Client.post("/support/ticket", {subject: title, message: `${type}: ${text}`});
                 textArea.current!.value = "";
                 titleArea.current!.value = "";
                 setVisible(false);
