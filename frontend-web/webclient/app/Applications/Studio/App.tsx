@@ -14,7 +14,7 @@ import {
 import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
 import {Tag} from "Applications/Card";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useCloudCommand, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
@@ -30,7 +30,7 @@ import {RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Button, Checkbox, Flex, Icon, Label, Text, VerticalButtonGroup} from "ui-components";
+import {Button, Checkbox, Flex, Icon, Label, List, Text, VerticalButtonGroup} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
@@ -38,7 +38,12 @@ import Input, {HiddenInputField, InputLabel} from "ui-components/Input";
 import {SidebarPages} from "ui-components/Sidebar";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
-import {stopPropagation} from "UtilityFunctions";
+import {prettierString, stopPropagation} from "UtilityFunctions";
+import * as Modal from "react-modal";
+import {ListRow} from "ui-components/List";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+
+const IS_GROUP_AND_PROJECT_SEARCHING_WIP = true;
 
 interface AppOperations {
     onInit: () => void;
@@ -95,7 +100,7 @@ const LeftAlignedTableHeader = styled(TableHeader)`
 const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOperations> = props => {
     const name = props.match.params.name;
 
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
     const [access, setAccess] = React.useState<ApplicationAccessRight>(ApplicationAccessRight.LAUNCH);
     const [permissionEntries, setPermissionEntries] = React.useState<ApplicationPermissionEntry[]>([]);
@@ -147,10 +152,32 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
+    const [modalType, setModalType] = React.useState<"PROJECT" | "GROUP" | null>(null);
+    Modal.setAppElement("#app");
 
     if (Client.userRole !== "ADMIN") return null;
     return (
         <MainContainer
+            additional={
+                <Modal style={defaultModalStyle} isOpen={modalType !== null}>
+                    {!modalType ? null :
+                        <ListSelector
+                            key={modalType}
+                            type={modalType}
+                            onSelect={selection => {
+                                if (modalType === "GROUP") {
+                                    groupEntityField.current!.value = selection;
+                                } else if (modalType === "PROJECT") {
+                                    projectEntityField.current!.value = selection;
+                                } else {
+                                    snackbarStore.addFailure("Unhandled modalType: " + modalType, false)
+                                }
+                                setModalType(null);
+                            }}
+                        />}
+                </Modal>
+            }
+
             header={(
                 <Heading.h1>
                     <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} cacheBust={logoCacheBust} />
@@ -163,7 +190,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                 <VerticalButtonGroup>
                     <Button fullWidth as="label">
                         Upload Logo
-                    <HiddenInputField
+                        <HiddenInputField
                             type="file"
                             onChange={async e => {
                                 const target = e.target;
@@ -256,59 +283,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Permissions</Heading.h2>
                         <Box mt={16}>
-                            <form
-                                onSubmit={async e => {
-                                    e.preventDefault();
-                                    if (commandLoading) return;
-
-                                    if (selectedEntityType === AccessEntityType.USER) {
-                                        const userField = userEntityField.current;
-                                        if (userField === null) return;
-
-                                        const userValue = userField.value;
-                                        if (userValue === "") return;
-
-                                        await invokeCommand(updateApplicationPermission({
-                                            applicationName: name,
-                                            changes: [{
-                                                entity: {user: userValue, project: null, group: null},
-                                                rights: access,
-                                                revoke: false
-                                            }]
-                                        }));
-                                        setPermissionEntries(await loadApplicationPermissionEntries(name));
-                                        userField.value = "";
-                                    } else if (selectedEntityType === AccessEntityType.PROJECT_GROUP) {
-                                        const projectField = projectEntityField.current;
-                                        if (projectField === null) return;
-
-                                        const projectValue = projectField.value;
-                                        if (projectValue === "") return;
-
-                                        const groupField = groupEntityField.current;
-                                        if (groupField === null) return;
-
-                                        const groupValue = groupField.value;
-                                        if (groupValue === "") return;
-
-                                        await invokeCommand(updateApplicationPermission(
-                                            {
-                                                applicationName: name,
-                                                changes: [
-                                                    {
-                                                        entity: {user: null, project: projectValue, group: groupValue},
-                                                        rights: access,
-                                                        revoke: false
-                                                    }
-                                                ]
-                                            }
-                                        ));
-                                        setPermissionEntries(await loadApplicationPermissionEntries(name));
-                                        projectField.value = "";
-                                        groupField.value = "";
-                                    }
-                                }}
-                            >
+                            <form onSubmit={onPermissionsSubmit}>
                                 <Flex height={45}>
                                     <InputLabel width={350} leftLabel>
                                         <ClickableDropdown
@@ -338,8 +313,10 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                     leftLabel
                                                     rightLabel
                                                     required
+                                                    onClick={() => IS_GROUP_AND_PROJECT_SEARCHING_WIP ? null : setModalType("PROJECT")}
                                                     width={180}
                                                     type="text"
+                                                    readOnly={!IS_GROUP_AND_PROJECT_SEARCHING_WIP}
                                                     ref={projectEntityField}
                                                     placeholder="Project name"
                                                 />
@@ -347,6 +324,9 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                     leftLabel
                                                     rightLabel
                                                     required
+                                                    disabled={!IS_GROUP_AND_PROJECT_SEARCHING_WIP && (projectEntityField.current?.value ?? "") === ""}
+                                                    onClick={() => IS_GROUP_AND_PROJECT_SEARCHING_WIP ? null : setModalType("GROUP")}
+                                                    readOnly={!IS_GROUP_AND_PROJECT_SEARCHING_WIP}
                                                     width={180}
                                                     type="text"
                                                     ref={groupEntityField}
@@ -385,8 +365,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                         {(permissionEntry.entity.user) ? (
                                                             permissionEntry.entity.user
                                                         ) : (
-                                                            `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                        )}</TableCell>
+                                                                `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                            )}</TableCell>
                                                     <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                     <TableCell textAlign="right">
                                                         <Button
@@ -400,8 +380,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                             Remove permission for {(permissionEntry.entity.user) ? (
                                                                                 permissionEntry.entity.user
                                                                             ) : (
-                                                                                `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                                            )}                                                                          
+                                                                                    `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                                                )}
                                                                         </Text>
                                                                     </Box>
                                                                 ),
@@ -487,8 +467,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                     {version.isPublic ? (
                                                         <Box ml={28}>Everyone can see and launch this version of {appTitle}.</Box>
                                                     ) : (
-                                                        <Box ml={28}>Access to this version is restricted as defined in Permissions.</Box>
-                                                    )}
+                                                            <Box ml={28}>Access to this version is restricted as defined in Permissions.</Box>
+                                                        )}
                                                 </Box>
                                             </TableCell>
                                             <TableCell textAlign="right">
@@ -524,6 +504,58 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
             )}
         />
     );
+
+    async function onPermissionsSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        if (commandLoading) return;
+
+        if (selectedEntityType === AccessEntityType.USER) {
+            const userField = userEntityField.current;
+            if (userField === null) return;
+
+            const userValue = userField.value;
+            if (userValue === "") return;
+
+            await invokeCommand(updateApplicationPermission({
+                applicationName: name,
+                changes: [{
+                    entity: {user: userValue, project: null, group: null},
+                    rights: access,
+                    revoke: false
+                }]
+            }));
+            setPermissionEntries(await loadApplicationPermissionEntries(name));
+            userField.value = "";
+        } else if (selectedEntityType === AccessEntityType.PROJECT_GROUP) {
+            const projectField = projectEntityField.current;
+            if (projectField === null) return;
+
+            const projectValue = projectField.value;
+            if (projectValue === "") return;
+
+            const groupField = groupEntityField.current;
+            if (groupField === null) return;
+
+            const groupValue = groupField.value;
+            if (groupValue === "") return;
+
+            await invokeCommand(updateApplicationPermission(
+                {
+                    applicationName: name,
+                    changes: [
+                        {
+                            entity: {user: null, project: projectValue, group: groupValue},
+                            rights: access,
+                            revoke: false
+                        }
+                    ]
+                }
+            ));
+            setPermissionEntries(await loadApplicationPermissionEntries(name));
+            projectField.value = "";
+            groupField.value = "";
+        }
+    }
 };
 
 const WordBreakBox = styled(Box)`
@@ -544,5 +576,61 @@ const mapDispatchToProps = (
 
     setLoading: loading => dispatch(loadingAction(loading))
 });
+
+interface ListSelectorProps {
+    type: "GROUP" | "PROJECT";
+    onSelect(selection: string): void;
+}
+
+function ListSelector({type, onSelect}: ListSelectorProps): JSX.Element {
+    const [groups, fetchGroups, groupParams] = useCloudAPI(type === "GROUP" ? {noop: true} : {noop: true}, emptyPage);
+    const [projects, fetchProjects, projectParams] = useCloudAPI(type === "PROJECT" ? {noop: true} : {noop: true}, emptyPage);
+    const ref = React.useRef<number>();
+    const searchRef = React.useRef<HTMLInputElement>(null);
+
+    const onKeyUp = React.useCallback(() => {
+        if (ref.current !== -1) {
+            window.clearTimeout(ref.current);
+        }
+        ref.current = (window.setTimeout(() => {
+            console.log("TODO");
+            // TODO
+            if (type === "GROUP") {
+                // Search in groups by searchRef;
+            } else if (type === "PROJECT") {
+                // Search in projects by searchRef;
+            }
+        }, 500));
+
+    }, [searchRef.current, fetchGroups, fetchProjects]);
+
+
+    // FIXME: Should be based on groups.data and project.data
+    const content = type === "GROUP" ? ["GROUP1", "GROUP2", "GROUP3", "GROUP4"] : ["PROJECT1", "PROJECT2", "PROJECT3"];
+
+    return (
+        <Box>
+            <Input
+                key={type}
+                onKeyUp={onKeyUp}
+                autoComplete="off"
+                ref={searchRef}
+                placeholder={`Enter ${prettierString(type)} name`}
+            />
+            <List>
+                {content.map(c => (
+                    <ListRow
+                        key={c}
+                        left={c}
+                        right={<Button onClick={() => onSelect(c)}>Select</Button>}
+                    />
+                ))}
+            </List>
+        </Box>
+    );
+}
+
+
+
 
 export default connect(null, mapDispatchToProps)(App);

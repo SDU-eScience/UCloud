@@ -55,7 +55,7 @@ class ApplicationService(
         resourcesOwnedBy: String,
         grantRecipient: GrantRecipient,
     ): List<ProductCategory> {
-        verifyCanApplyTo(ctx, resourcesOwnedBy, actor, grantRecipient)
+        verifyCanApplyTo(ctx, resourcesOwnedBy, actor, grantRecipient, false)
 
         val balance = Wallets.retrieveBalance.call(
             RetrieveBalanceRequest(resourcesOwnedBy, WalletOwnerType.PROJECT, false),
@@ -73,7 +73,7 @@ class ApplicationService(
         application: CreateApplication
     ): Long {
         val returnedId = ctx.withSession { session ->
-            verifyCanApplyTo(session, application.resourcesOwnedBy, actor, application.grantRecipient)
+            verifyCanApplyTo(session, application.resourcesOwnedBy, actor, application.grantRecipient, true)
 
             val id = session
                 .sendPreparedStatement(
@@ -164,15 +164,28 @@ class ApplicationService(
         resourcesOwnedBy: String,
         actor: Actor.User,
         recipient: GrantRecipient,
+        isApplying: Boolean,
     ) {
         ctx.withSession { session ->
-            if (recipient is GrantRecipient.PersonalProject) {
-                if (recipient.username != actor.username) {
-                    throw RPCException(
-                        "You cannot submit an application on behalf of someone else",
-                        HttpStatusCode.Forbidden
-                    )
+            log.debug("verifyCanApplyTo($resourcesOwnedBy, $actor, $recipient, $isApplying)")
+            if (isApplying) {
+                if (recipient is GrantRecipient.PersonalProject) {
+                    if (recipient.username != actor.username) {
+                        throw RPCException(
+                            "You cannot submit an application on behalf of someone else",
+                            HttpStatusCode.Forbidden
+                        )
+                    }
                 }
+            }
+
+            if (!isApplying) {
+                val isAdminInTargetProject = Projects.viewMemberInProject.call(
+                    ViewMemberInProjectRequest(resourcesOwnedBy, actor.username),
+                    serviceClient
+                ).throwIfInternal().orNull()?.member?.role?.isAdmin() == true
+
+                if (isAdminInTargetProject) return@withSession
             }
 
             val recipientProjectId = when (recipient) {
@@ -182,14 +195,13 @@ class ApplicationService(
             }
 
             if (recipientProjectId != null) {
-                val userStatus = Projects.viewMemberInProject.call(
+                val isAdminInRecipientProject = Projects.viewMemberInProject.call(
                     ViewMemberInProjectRequest(recipientProjectId, actor.username),
                     serviceClient
-                ).throwIfInternal().orRethrowAs {
-                    throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
-                }
+                ).throwIfInternal().orNull()?.member?.role?.isAdmin() == true
 
-                if (!userStatus.member.role.isAdmin()) {
+                if (!isAdminInRecipientProject) {
+                    log.debug("Deny: 1")
                     throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
                 }
             }
@@ -205,6 +217,7 @@ class ApplicationService(
                     null
                 }
 
+            // NOTE(Dan): Not applying to a parent project (of which we are an admin of the child project)
             if (parentProjectOrNull == null || resourcesOwnedBy != parentProjectOrNull) {
                 val settings = settings.fetchSettings(session, Actor.System, resourcesOwnedBy)
                 val isAllowed = settings.allowRequestsFrom.any { it.matches(actor.principal) }
@@ -214,6 +227,7 @@ class ApplicationService(
                         }
 
                 if (!isAllowed || emailIsBlacklisted) {
+                    log.debug("Deny: 3")
                     throw RPCException(
                         "You are not allowed to submit applications to this project",
                         HttpStatusCode.Forbidden
