@@ -27,8 +27,6 @@ class AclService(
     }
 
     suspend fun updatePermissions(serverId: String, changes: List<AclChange>, accessEntity: AccessEntity) {
-        println(accessEntity)
-        println(changes)
         if (dao.hasPermission(db, serverId, accessEntity, ServerAccessRight.READ_WRITE)) {
             changes.forEach { change ->
                 //Needed so there always is one admin connected and that one cannot change permissions for one self.
