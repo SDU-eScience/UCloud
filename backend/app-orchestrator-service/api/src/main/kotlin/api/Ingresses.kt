@@ -173,6 +173,7 @@ typealias IngressesRetrieveResponse = Ingress
 data class IngressesRetrieveSettingsRequest(val product: ProductReference)
 typealias IngressesRetrieveSettingsResponse = IngressSettings
 
+@TSNamespace("compute.ingresses")
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object Ingresses : CallDescriptionContainer("ingresses") {
     const val baseContext = "/api/compute/ingresses"

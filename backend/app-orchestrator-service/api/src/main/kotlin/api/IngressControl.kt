@@ -49,6 +49,7 @@ data class IngressControlChargeCreditsResponse(
     val duplicateCharges: List<IngressId>,
 )
 
+@TSNamespace("compute.ingresses.control")
 object IngressControl : CallDescriptionContainer("ingresses.control") {
     const val baseContext = "/api/ingresses/control"
 

@@ -139,11 +139,14 @@ private fun GenerationContext.generateOp(
     info: CallExtension,
     registry: Map<String, ComputedType>,
 ) {
-    val namespace = simplifyNamespace(
-        info.call.containerRef.javaClass.canonicalName!!.substringBeforeLast('.') +
-            if (info.call.containerRef.javaClass.annotations.any { it is TSTopLevel }) ""
-            else '.' + info.call.namespace.substringAfterLast('.')
-    )
+
+    val namespace =
+        (info.call.containerRef.javaClass.annotations.find { it is TSNamespace } as TSNamespace?)?.namespace
+            ?: simplifyNamespace(
+                info.call.containerRef.javaClass.canonicalName!!.substringBeforeLast('.') +
+                    if (info.call.containerRef.javaClass.annotations.any { it is TSTopLevel }) ""
+                    else '.' + info.call.namespace.substringAfterLast('.')
+            )
 
     writer(namespace) {
         if (op.summary != null) {
