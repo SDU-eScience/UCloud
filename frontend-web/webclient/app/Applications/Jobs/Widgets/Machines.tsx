@@ -10,8 +10,8 @@ import {useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 import {UCLOUD_PROVIDER} from "Accounting";
-import {compute} from "UCloud";
-import ComputeProductReference = compute.ComputeProductReference;
+import {accounting} from "UCloud";
+import ComputeProductReference = accounting.ProductReference;
 import styled from "styled-components";
 
 export const reservationMachine = "reservation-machine";
