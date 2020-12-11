@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
+import dk.sdu.cloud.app.orchestrator.api.ingressPoints
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
@@ -28,6 +29,7 @@ class WebService(
     private val sessions: SessionDao,
     private val prefix: String,
     private val domain: String,
+    private val ingressService: IngressService,
     private val devMode: Boolean = false
 ) {
     // Relatively low maxAge to make sure that we renew the session id regularly
@@ -35,7 +37,22 @@ class WebService(
         sessions.findSessionOrNull(db, sessionId, InteractiveSessionType.WEB)
     }
 
+    private val ingressCache = SimpleCache<String, JobIdAndRank>(maxAge = 60_000 * 15L) { domain ->
+        ingressService.retrieveJobIdByDomainOrNull(domain)?.let { JobIdAndRank(it, 0) }
+    }
+
     suspend fun createSession(jobAndRank: JobAndRank): OpenSession.Web {
+        if (jobAndRank.job.ingressPoints.isNotEmpty()) {
+            val domain = ingressService.retrieveDomainsByJobId(jobAndRank.job.id).firstOrNull()
+            if (domain != null) {
+                return OpenSession.Web(
+                    jobAndRank.job.id,
+                    0, // NOTE(Dan): We currently only support ingress for jobs with one rank
+                    domain
+                )
+            }
+        }
+
         val webSessionId = db.withSession { session ->
             sessions.createSession(session, jobAndRank, InteractiveSessionType.WEB)
         }
@@ -108,6 +125,12 @@ class WebService(
         route("${KubernetesCompute.baseContext}/app-authorization/{...}") {
             handle {
                 val host = call.request.host()
+
+                if (ingressCache.get(host) != null) {
+                    call.respondText("", status = HttpStatusCode.OK)
+                    return@handle
+                }
+
                 if (!host.startsWith(prefix) || !host.endsWith(domain)) {
                     call.respondText("Forbidden", status = HttpStatusCode.Forbidden)
                     return@handle

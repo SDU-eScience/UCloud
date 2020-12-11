@@ -12,9 +12,11 @@ import dk.sdu.cloud.service.BroadcastingStream
  */
 class ProxyPlugin(
     private val broadcastingStream: BroadcastingStream,
+    private val ingressService: IngressService,
 ) : JobManagementPlugin {
     override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {
-        broadcastingStream.broadcast(ProxyEvent(jobId, true), ProxyEvents.events)
+        val domains = ingressService.retrieveDomainsByJobId(jobId)
+        broadcastingStream.broadcast(ProxyEvent(jobId, true, domains), ProxyEvents.events)
     }
 
     override suspend fun JobManagement.onCleanup(jobId: String) {

@@ -1,15 +1,13 @@
 package dk.sdu.cloud.app.kubernetes
 
-import dk.sdu.cloud.app.kubernetes.rpc.AppKubernetesController
-import dk.sdu.cloud.app.kubernetes.rpc.MaintenanceController
-import dk.sdu.cloud.app.kubernetes.rpc.ReloadController
-import dk.sdu.cloud.app.kubernetes.rpc.ShellController
+import dk.sdu.cloud.app.kubernetes.rpc.*
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.kubernetes.services.proxy.ApplicationProxyService
 import dk.sdu.cloud.app.kubernetes.services.proxy.EnvoyConfigurationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
+import dk.sdu.cloud.app.orchestrator.api.IngressSettings
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
@@ -56,6 +54,10 @@ class Server(
         val maintenance = MaintenanceService(db, k8Dependencies)
         val resourceCache = ResourceCache(serviceClient)
         val sessions = SessionDao()
+        val ingressService = IngressService(
+            IngressSettings(configuration.prefix, "." + configuration.domain),
+            db
+        )
 
         val jobManagement = JobManagement(
             k8Dependencies,
@@ -83,7 +85,8 @@ class Server(
             register(FairSharePlugin)
             if (micro.developmentModeEnabled) register(MinikubePlugin)
             register(ConnectToJobPlugin)
-            register(ProxyPlugin(broadcastingStream))
+            register(ingressService)
+            register(ProxyPlugin(broadcastingStream, ingressService))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers
             // related to our infrastructure setup
@@ -131,7 +134,8 @@ class Server(
             k8 = k8Dependencies,
             devMode = micro.developmentModeEnabled,
             db = db,
-            sessions = sessions
+            sessions = sessions,
+            ingressService = ingressService
         )
 
         with(micro.server) {
@@ -144,7 +148,8 @@ class Server(
                 ),
                 ReloadController(k8Dependencies),
                 MaintenanceController(maintenance),
-                ShellController(k8Dependencies, db, sessions)
+                ShellController(k8Dependencies, db, sessions),
+                IngressController(ingressService)
             )
         }
 

@@ -78,7 +78,7 @@ class TunnelManager(private val k8: K8Dependencies) {
 
                     // Needed to compile code
                     @Suppress("UNREACHABLE_CODE")
-                    return@run -1
+                    return@run 1
                 }
 
                 val newTunnel = createTunnel(id, localPort, remotePort, rank)
@@ -105,6 +105,7 @@ class TunnelManager(private val k8: K8Dependencies) {
         val podName = pod.metadata?.name ?: throw RPCException("Pod has no name", HttpStatusCode.InternalServerError)
 
         if (!isRunningInsideKubernetes) {
+            @Suppress("BlockingMethodInNonBlockingContext")
             val k8sTunnel = run {
                 // Using kubectl port-forward appears to be a lot more reliable than using the alternatives.
                 ProcessBuilder().apply {
@@ -123,11 +124,12 @@ class TunnelManager(private val k8: K8Dependencies) {
 
             // Consume first line (wait for process to be ready)
             val bufferedReader = k8sTunnel.inputStream.bufferedReader()
+            @Suppress("BlockingMethodInNonBlockingContext")
             bufferedReader.readLine()
 
             val job = k8.scope.launch {
                 // Read remaining lines to avoid buffer filling up
-                bufferedReader.lineSequence().forEach {
+                bufferedReader.lineSequence().forEach { _ ->
                     // Discard line
                 }
             }
@@ -137,7 +139,6 @@ class TunnelManager(private val k8: K8Dependencies) {
                 jobId = jobId,
                 ipAddress = "127.0.0.1",
                 localPort = localPortSuggestion,
-                urlId = null,
                 _isAlive = {
                     k8sTunnel.isAlive
                 },
@@ -145,8 +146,6 @@ class TunnelManager(private val k8: K8Dependencies) {
                     k8sTunnel.destroyForcibly()
                     job.cancel()
                 },
-                originalIpAddress = pod.status?.podIP ?: "127.0.0.1",
-                originalPort = remotePort
             )
         } else {
             val ipAddress =
@@ -156,7 +155,6 @@ class TunnelManager(private val k8: K8Dependencies) {
                 jobId = jobId,
                 ipAddress = ipAddress,
                 localPort = remotePort,
-                urlId = null,
                 _isAlive = {
                     runCatching {
                         k8.client.getResource<Pod>(KubernetesResources.pod.withNameAndNamespace(podName, namespace))

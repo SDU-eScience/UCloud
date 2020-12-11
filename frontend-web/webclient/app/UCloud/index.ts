@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Fri Dec 11 09:47:03 CET 2020 */
+/* Generated at: Fri Dec 11 12:13:13 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -991,6 +991,95 @@ export namespace compute {
         compute: ManifestFeatureSupportNS.Compute,
     }
 
+    /**
+     * An L7 ingress-point (HTTP)
+     */
+    export interface Ingress {
+        id: string,
+        domain: string,
+        product: accounting.ProductReference,
+        /**
+         * Information about the owner of this resource
+         */
+        owner: IngressOwner,
+        /**
+         * Information about when this resource was created
+         */
+        createdAt: number /* int64 */
+        ,
+        /**
+         * The current status of this resource
+         */
+        status: IngressStatus,
+        /**
+         * Billing information associated with this `Ingress`
+         */
+        billing: IngressBilling,
+        /**
+         * A list of updates for this `Ingress`
+         */
+        updates: IngressUpdate[],
+        resolvedProduct?: accounting.ProductNS.Generic,
+    }
+
+    export interface IngressOwner {
+        /**
+         * The username of the user which created this resource.
+         *
+         * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
+         */
+        username: string,
+        /**
+         * The project which owns the resource
+         */
+        project?: string,
+    }
+
+    /**
+     * The status of an `Ingress`
+     */
+    export interface IngressStatus {
+        /**
+         * The ID of the `Job` that this `Ingress` is currently bound to
+         */
+        boundTo?: string,
+        state: "PREPARING" | "READY" | "UNAVAILABLE",
+    }
+
+    export interface IngressBilling {
+        pricePerUnit: number /* int64 */
+        ,
+        creditsCharged: number /* int64 */
+        ,
+    }
+
+    export interface IngressUpdate {
+        /**
+         * A timestamp for when this update was registered by UCloud
+         */
+        timestamp: number /* int64 */
+        ,
+        /**
+         * The new state that the `Ingress` transitioned to (if any)
+         */
+        state?: "PREPARING" | "READY" | "UNAVAILABLE",
+        /**
+         * A new status message for the `Ingress` (if any)
+         */
+        status?: string,
+        didBind: boolean,
+        newBinding?: string,
+    }
+
+    export interface IngressSettings {
+        domainPrefix: string,
+        domainSuffix: string,
+    }
+
+    export interface IngressProviderRetrieveSettingsRequest {
+        product: accounting.ProductReference,
+    }
+
     export interface JobsCreateResponse {
         ids: string[],
     }
@@ -1087,86 +1176,6 @@ export namespace compute {
         filePath: string,
     }
 
-    /**
-     * An L7 ingress-point (HTTP)
-     */
-    export interface Ingress {
-        id: string,
-        domain: string,
-        product: accounting.ProductReference,
-        /**
-         * Information about the owner of this resource
-         */
-        owner: IngressOwner,
-        /**
-         * Information about when this resource was created
-         */
-        createdAt: number /* int64 */
-        ,
-        /**
-         * The current status of this resource
-         */
-        status: IngressStatus,
-        /**
-         * Billing information associated with this `Ingress`
-         */
-        billing: IngressBilling,
-        /**
-         * A list of updates for this `Ingress`
-         */
-        updates: IngressUpdate[],
-        resolvedProduct?: accounting.ProductNS.Generic,
-    }
-
-    export interface IngressOwner {
-        /**
-         * The username of the user which created this resource.
-         *
-         * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
-         */
-        username: string,
-        /**
-         * The project which owns the resource
-         */
-        project?: string,
-    }
-
-    /**
-     * The status of an `Ingress`
-     */
-    export interface IngressStatus {
-        /**
-         * The ID of the `Job` that this `Ingress` is currently bound to
-         */
-        boundTo?: string,
-        state: "PREPARING" | "READY" | "UNAVAILABLE",
-    }
-
-    export interface IngressBilling {
-        pricePerUnit: number /* int64 */
-        ,
-        creditsCharged: number /* int64 */
-        ,
-    }
-
-    export interface IngressUpdate {
-        /**
-         * A timestamp for when this update was registered by UCloud
-         */
-        timestamp: number /* int64 */
-        ,
-        /**
-         * The new state that the `Ingress` transitioned to (if any)
-         */
-        state?: "PREPARING" | "READY" | "UNAVAILABLE",
-        /**
-         * A new status message for the `Ingress` (if any)
-         */
-        status?: string,
-        didBind: boolean,
-        newBinding?: string,
-    }
-
     export interface IngressesBrowseRequest {
         includeUpdates?: boolean,
         includeProduct?: boolean,
@@ -1197,11 +1206,6 @@ export namespace compute {
         id: string,
         includeUpdates?: boolean,
         includeProduct?: boolean,
-    }
-
-    export interface IngressSettings {
-        domainPrefix: string,
-        domainSuffix: string,
     }
 
     export interface IngressesRetrieveSettingsRequest {
@@ -2500,6 +2504,54 @@ export namespace compute {
                 return {
                     method: "POST",
                     path: "/api/ingresses/control" + "/chargeCredits",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+        }
+        export namespace ucloud {
+            export function create(
+                request: BulkRequest<Ingress>
+            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
+                return {
+                    method: "POST",
+                    path: "/ucloud/ucloud/compute/ingresses",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function remove(
+                request: BulkRequest<Ingress>
+            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
+                return {
+                    method: "DELETE",
+                    path: "/ucloud/ucloud/compute/ingresses",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function retrieveSettings(
+                request: IngressProviderRetrieveSettingsRequest
+            ): APICallParameters<IngressProviderRetrieveSettingsRequest, IngressSettings> {
+                return {
+                    method: "GET",
+                    path: buildQueryString("/ucloud/ucloud/compute/ingresses" + "/retrieveSettings", {product: request.product}),
+                    parameters: request,
+                    reloadId: Math.random(),
+                };
+            }
+
+            export function verify(
+                request: BulkRequest<Ingress>
+            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
+                return {
+                    method: "POST",
+                    path: "/ucloud/ucloud/compute/ingresses" + "/verify",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,

@@ -28,14 +28,13 @@ class ApplicationProxyService(
     private val entries = HashMap<String, RouteAndCluster>()
     private val lock = Mutex()
 
-    private suspend fun addEntry(tunnel: Tunnel) {
+    private suspend fun addEntry(tunnel: Tunnel, domains: List<String>) {
         lock.withLock {
             if (entries.containsKey(tunnel.jobId)) return
 
-            val fullDomain = if (tunnel.urlId == null) {
-                prefix + tunnel.jobId + "." + domain
-            } else {
-                prefix + tunnel.urlId + "." + domain
+            val fullDomain = when {
+                domains.firstOrNull() != null -> domains.first()
+                else -> prefix + tunnel.jobId + "." + domain
             }
 
             entries[tunnel.jobId] = RouteAndCluster(
@@ -70,7 +69,7 @@ class ApplicationProxyService(
             GlobalScope.launch {
                 try {
                     if (event.shouldCreate) {
-                        addEntry(createOrUseExistingTunnel(event.id))
+                        addEntry(createOrUseExistingTunnel(event.id), event.domains ?: emptyList())
                     } else {
                         removeEntry(event.id)
                     }
