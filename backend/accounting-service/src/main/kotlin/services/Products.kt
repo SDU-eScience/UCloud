@@ -364,8 +364,8 @@ class ProductService {
                     getField(ProductTable.priority)
                 )
             }
-            else -> {
-                Product.Generic(
+            ProductArea.INGRESS -> {
+                Product.Ingress(
                     getField(ProductTable.id),
                     getField(ProductTable.pricePerUnit),
                     ProductCategoryId(

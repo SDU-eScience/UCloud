@@ -208,7 +208,7 @@ class IngressService(
 
             val settingsByProduct = specs.groupBy { it.product }.map { (product, _) ->
                 product to api.retrieveSettings
-                    .call(IngressProviderRetrieveSettingsRequest(product), comms.client)
+                    .call(product, comms.client)
                     .orRethrowAs {
                         if (it.statusCode == HttpStatusCode.NotFound) {
                             throw RPCException("Invalid product", HttpStatusCode.NotFound)
@@ -225,7 +225,7 @@ class IngressService(
             val ingress = db.withSession { session ->
                 specs.map { spec ->
                     val product =
-                        productCache.find<Product.Generic>(
+                        productCache.find<Product.Ingress>(
                             spec.product.provider,
                             spec.product.id,
                             spec.product.category
@@ -319,7 +319,7 @@ class IngressService(
         val comms = providers.prepareCommunication(requestedProduct.provider)
         val ingressApi = comms.ingressApi ?: throw RPCException("Ingress not supported", HttpStatusCode.BadRequest)
         return ingressApi.retrieveSettings.call(
-            IngressProviderRetrieveSettingsRequest(requestedProduct),
+            requestedProduct,
             comms.client
         ).orThrow()
     }

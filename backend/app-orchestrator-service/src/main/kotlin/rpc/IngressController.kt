@@ -48,7 +48,7 @@ class IngressController(
         }
 
         implement(Ingresses.retrieveSettings) {
-            ok(ingressService.retrieveSettings(ctx.securityPrincipal.toActor(), request.product))
+            ok(ingressService.retrieveSettings(ctx.securityPrincipal.toActor(), request))
         }
 
         implement(IngressControl.update) {

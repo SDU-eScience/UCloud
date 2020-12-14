@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Fri Dec 11 12:13:13 CET 2020 */
+/* Generated at: Mon Dec 14 08:15:34 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -1019,7 +1019,7 @@ export namespace compute {
          * A list of updates for this `Ingress`
          */
         updates: IngressUpdate[],
-        resolvedProduct?: accounting.ProductNS.Generic,
+        resolvedProduct?: accounting.ProductNS.Ingress,
     }
 
     export interface IngressOwner {
@@ -3998,7 +3998,7 @@ export namespace accounting {
         ,
         used: number /* int64 */
         ,
-        area: "STORAGE" | "COMPUTE" | "GENERIC",
+        area: "STORAGE" | "COMPUTE" | "INGRESS",
     }
 
     export interface RetrieveBalanceRequest {
@@ -4015,7 +4015,7 @@ export namespace accounting {
         ,
     }
 
-    export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Generic
+    export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress
     export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
 
     export interface FindProductRequest {
@@ -4034,7 +4034,7 @@ export namespace accounting {
 
     export interface ListProductsByAreaRequest {
         provider: string,
-        area: "STORAGE" | "COMPUTE" | "GENERIC",
+        area: "STORAGE" | "COMPUTE" | "INGRESS",
         itemsPerPage?: number /* int32 */
         ,
         page?: number /* int32 */
@@ -4055,7 +4055,7 @@ export namespace accounting {
     }
 
     export interface UsageLine {
-        area: "STORAGE" | "COMPUTE" | "GENERIC",
+        area: "STORAGE" | "COMPUTE" | "INGRESS",
         category: string,
         projectPath?: string,
         projectId?: string,
@@ -4323,7 +4323,7 @@ export namespace accounting {
             type: "compute",
         }
 
-        export interface Generic {
+        export interface Ingress {
             id: string,
             pricePerUnit: number /* int64 */
             ,
@@ -4332,7 +4332,7 @@ export namespace accounting {
             availability: ProductAvailability,
             priority: number /* int32 */
             ,
-            type: "generic",
+            type: "ingress",
         }
     }
 }

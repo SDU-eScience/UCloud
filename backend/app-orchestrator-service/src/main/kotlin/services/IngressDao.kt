@@ -14,7 +14,7 @@ object IngressUpdatesTable : SQLTable("ingress_updates") {
     val state = text("state")
     val status = text("status")
     val changeBinding = bool("change_binding")
-    val boundTo = text("boundTo")
+    val boundTo = text("bound_to")
 }
 
 object IngressTable : SQLTable("ingresses") {
@@ -182,7 +182,7 @@ class IngressDao {
                             where
                                 (
                                     :isSystem or
-                                    (i.owner_project is null and :project is null and i.owner_username = :username) or
+                                    (i.owner_project is null and :project::text is null and i.owner_username = :username) or
                                     (i.owner_project = :project)
                                 ) and
                                 (:domain::text is null or i.domain = :domain) and

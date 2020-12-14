@@ -21,7 +21,7 @@ const val UCLOUD_PROVIDER = "ucloud"
 enum class ProductArea {
     STORAGE,
     COMPUTE,
-    GENERIC
+    INGRESS
 }
 
 data class ProductCategory(
@@ -78,7 +78,7 @@ sealed class ProductAvailability {
 @JsonSubTypes(
     JsonSubTypes.Type(value = Product.Storage::class, name = "storage"),
     JsonSubTypes.Type(value = Product.Compute::class, name = "compute"),
-    JsonSubTypes.Type(value = Product.Generic::class, name = "generic"),
+    JsonSubTypes.Type(value = Product.Ingress::class, name = "ingress"),
 )
 sealed class Product {
     abstract val category: ProductCategoryId
@@ -134,7 +134,7 @@ sealed class Product {
         }
     }
 
-    data class Generic(
+    data class Ingress(
         override val id: String,
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
@@ -143,7 +143,7 @@ sealed class Product {
         override val priority: Int = 0,
     ) : Product() {
         @get:JsonIgnore
-        override val area = ProductArea.GENERIC
+        override val area = ProductArea.INGRESS
 
         init {
             require(pricePerUnit >= 0)

@@ -77,7 +77,7 @@ data class Ingress(
     @UCloudApiDoc("A list of updates for this `Ingress`")
     val updates: List<IngressUpdate> = emptyList(),
 
-    val resolvedProduct: Product.Generic? = null
+    val resolvedProduct: Product.Ingress? = null
 ) : IngressSpecification, IngressId
 
 data class IngressBilling(
@@ -170,7 +170,7 @@ typealias IngressesDeleteResponse = Unit
 typealias IngressesRetrieveRequest = IngressRetrieveWithFlags
 typealias IngressesRetrieveResponse = Ingress
 
-data class IngressesRetrieveSettingsRequest(val product: ProductReference)
+typealias IngressesRetrieveSettingsRequest = ProductReference
 typealias IngressesRetrieveSettingsResponse = IngressSettings
 
 @TSNamespace("compute.ingresses")

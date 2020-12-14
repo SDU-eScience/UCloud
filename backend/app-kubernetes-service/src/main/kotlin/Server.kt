@@ -56,7 +56,8 @@ class Server(
         val sessions = SessionDao()
         val ingressService = IngressService(
             IngressSettings(configuration.prefix, "." + configuration.domain),
-            db
+            db,
+            serviceClient
         )
 
         val jobManagement = JobManagement(

@@ -13,6 +13,12 @@ import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
+val sampleIngress = Product.Ingress(
+    "u1-ingress",
+    0,
+    ProductCategoryId("ingress", UCLOUD_PROVIDER)
+)
+
 val sampleCompute = Product.Compute(
     "u1-standard-1",
     100_000,
@@ -27,7 +33,7 @@ val sampleStorage = Product.Storage(
     ProductCategoryId("cephfs", UCLOUD_PROVIDER)
 )
 
-val sampleProducts = listOf(sampleCompute, sampleStorage)
+val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress)
 
 /**
  * Creates a sample catalog of products

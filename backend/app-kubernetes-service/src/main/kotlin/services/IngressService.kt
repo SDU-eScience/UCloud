@@ -1,12 +1,13 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
-import dk.sdu.cloud.app.orchestrator.api.Ingress
-import dk.sdu.cloud.app.orchestrator.api.IngressSettings
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.ingressPoints
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -24,6 +25,7 @@ object IngressTable : SQLTable("ingresses") {
 class IngressService(
     val settings: IngressSettings,
     private val db: DBContext,
+    private val serviceClient: AuthenticatedClient,
 ) : JobManagementPlugin {
     suspend fun create(ingresses: BulkRequest<Ingress>) {
         db.withSession { session ->
@@ -61,6 +63,15 @@ class IngressService(
                     set(IngressTable.domain, ingress.domain)
                 }
             }
+
+            IngressControl.update.call(
+                bulkRequestOf(
+                    ingresses.items.map {
+                        IngressControlUpdateRequestItem(it.id, IngressState.READY, "Ingress is now ready")
+                    }
+                ),
+                serviceClient
+            ).orThrow()
         }
     }
 

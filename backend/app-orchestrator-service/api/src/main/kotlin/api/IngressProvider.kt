@@ -14,7 +14,7 @@ typealias IngressProviderDeleteResponse = Unit
 typealias IngressProviderVerifyRequest = BulkRequest<Ingress>
 typealias IngressProviderVerifyResponse = Unit
 
-data class IngressProviderRetrieveSettingsRequest(val product: ProductReference)
+typealias IngressProviderRetrieveSettingsRequest = ProductReference
 typealias IngressProviderRetrieveSettingsResponse = IngressSettings
 
 open class IngressProvider(namespace: String) : CallDescriptionContainer("ingresses.provider.$namespace") {
