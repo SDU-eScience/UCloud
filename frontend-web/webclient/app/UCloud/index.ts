@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Mon Dec 14 08:15:34 CET 2020 */
+/* Generated at: Mon Dec 14 10:31:33 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -1076,10 +1076,6 @@ export namespace compute {
         domainSuffix: string,
     }
 
-    export interface IngressProviderRetrieveSettingsRequest {
-        product: accounting.ProductReference,
-    }
-
     export interface JobsCreateResponse {
         ids: string[],
     }
@@ -1206,10 +1202,6 @@ export namespace compute {
         id: string,
         includeUpdates?: boolean,
         includeProduct?: boolean,
-    }
-
-    export interface IngressesRetrieveSettingsRequest {
-        product: accounting.ProductReference,
     }
 
     export interface IngressControlUpdateRequestItem {
@@ -2460,11 +2452,15 @@ export namespace compute {
         }
 
         export function retrieveSettings(
-            request: IngressesRetrieveSettingsRequest
-        ): APICallParameters<IngressesRetrieveSettingsRequest, IngressSettings> {
+            request: accounting.ProductReference
+        ): APICallParameters<accounting.ProductReference, IngressSettings> {
             return {
                 method: "GET",
-                path: buildQueryString("/api/compute/ingresses" + "/retrieveSettings", {product: request.product}),
+                path: buildQueryString("/api/compute/ingresses" + "/retrieveSettings", {
+                    category: request.category,
+                    id: request.id,
+                    provider: request.provider
+                }),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -2536,11 +2532,15 @@ export namespace compute {
             }
 
             export function retrieveSettings(
-                request: IngressProviderRetrieveSettingsRequest
-            ): APICallParameters<IngressProviderRetrieveSettingsRequest, IngressSettings> {
+                request: accounting.ProductReference
+            ): APICallParameters<accounting.ProductReference, IngressSettings> {
                 return {
                     method: "GET",
-                    path: buildQueryString("/ucloud/ucloud/compute/ingresses" + "/retrieveSettings", {product: request.product}),
+                    path: buildQueryString("/ucloud/ucloud/compute/ingresses" + "/retrieveSettings", {
+                        category: request.category,
+                        id: request.id,
+                        provider: request.provider
+                    }),
                     parameters: request,
                     reloadId: Math.random(),
                 };

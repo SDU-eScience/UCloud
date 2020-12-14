@@ -2,15 +2,8 @@ import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {useProjectId} from "Project";
 import {useCloudAPI} from "Authentication/DataHook";
-import {emptyPageV2} from "DefaultObjects";
 import * as UCloud from "UCloud";
-import {PageRenderer} from "Pagination/PaginationV2";
-import * as Pagination from "Pagination";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import MainContainer from "MainContainer/MainContainer";
-import {accounting, compute} from "UCloud";
-import Ingress = compute.Ingress;
+import {accounting} from "UCloud";
 import ProductNS = accounting.ProductNS;
 
 const Create: React.FunctionComponent<{ computeProvider?: string }> = props => {
@@ -54,8 +47,12 @@ const Create: React.FunctionComponent<{ computeProvider?: string }> = props => {
 
         if (selectedProduct) {
             fetchIngressSettings(
-                UCloud.compute.ingresses.retrieveSettings({product: selectedProduct})
-            )
+                UCloud.compute.ingresses.retrieveSettings({
+                    id: selectedProduct.id,
+                    provider: selectedProduct.category.provider,
+                    category: selectedProduct.category.id
+                })
+            );
         }
 
         fetchWallets(UCloud.accounting.wallets.retrieveBalance({}));
