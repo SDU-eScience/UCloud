@@ -123,7 +123,7 @@ const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (sel
                     key={it.id}
                     left={it.domain}
                     leftSub={<>
-                        <ListRowStat>{it.id}</ListRowStat><SpacedDash />
+                        <ListRowStat>{it.product.category} ({it.product.provider})</ListRowStat><SpacedDash />
                         <ListRowStat>{it.status.state}</ListRowStat><SpacedDash />
                         {it.status.boundTo ? <><ListRowStat>Bound to {it.status.boundTo}</ListRowStat><SpacedDash /></> : null}
                         <ListRowStat>{creditFormatter(it.billing.pricePerUnit)}</ListRowStat>
