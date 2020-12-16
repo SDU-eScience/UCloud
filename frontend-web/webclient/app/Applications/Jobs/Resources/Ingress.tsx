@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "UCloud"
-import {Checkbox, Input, Label, SelectableText, SelectableTextWrapper} from "ui-components";
+import {Box, Checkbox, Input, Label, SelectableText, SelectableTextWrapper} from "ui-components";
 import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
 import Create from "Applications/Ingresses/Create";
@@ -24,7 +24,7 @@ export const IngressResource: React.FunctionComponent<{
     try {
         const validatedMachineReservation = validateMachineReservation();
         provider = validatedMachineReservation?.provider;
-    } catch (e) { /* EMPTY */ }
+    } catch (e) { /* EMPTY */}
 
     React.useEffect(() => {
         if (!props.inputRef) return;
@@ -36,7 +36,7 @@ export const IngressResource: React.FunctionComponent<{
     }, [props.inputRef, url]);
 
     return props.application.invocation.applicationType !== "WEB" ? null : (
-        <>
+        <div>
             <div>
                 <Label mb={10}>
                     <Checkbox size={28} checked={props.enabled} onChange={() => {
@@ -50,7 +50,14 @@ export const IngressResource: React.FunctionComponent<{
                 <Warning warning="By enabling this setting, anyone with a link can gain access to the application." />
                 {props.enabled ? (
                     <>
-                        <Input readOnly value={url} ref={props.inputRef} onClick={() => setModalOpen(true)} />
+                        <Input
+                            mt="8px"
+                            placeholder="Click to select public IP..."
+                            readOnly
+                            value={url}
+                            ref={props.inputRef}
+                            onClick={() => setModalOpen(true)}
+                        />
                         <ReactModal
                             isOpen={modalOpen}
                             style={defaultModalStyle}
@@ -58,21 +65,23 @@ export const IngressResource: React.FunctionComponent<{
                             shouldCloseOnOverlayClick
                             onRequestClose={() => setModalOpen(false)}
                         >
-                            <SelectableTextWrapper>
-                                <SelectableText mr={3} selected={isBrowsing} onClick={() => setIsBrowsing(true)}>
-                                    Browse
-                                </SelectableText>
-                                <SelectableText selected={!isBrowsing} onClick={() => setIsBrowsing(!true)}>
-                                    Create
-                                </SelectableText>
-                            </SelectableTextWrapper>
-                            {isBrowsing ?
-                                <Browse computeProvider={provider} onSelect={url => {setUrl(url); setModalOpen(false);}} /> :
-                                <Create computeProvider={provider} />}
+                            <Box my="12px">
+                                <SelectableTextWrapper>
+                                    <SelectableText mr={3} selected={isBrowsing} onClick={() => setIsBrowsing(true)}>
+                                        Browse
+                                    </SelectableText>
+                                    <SelectableText selected={!isBrowsing} onClick={() => setIsBrowsing(!true)}>
+                                        Create
+                                    </SelectableText>
+                                </SelectableTextWrapper>
+                                {isBrowsing ?
+                                    <Browse computeProvider={provider} onSelect={url => {setUrl(url); setModalOpen(false);}} /> :
+                                    <Create computeProvider={provider} />}
+                            </Box>
                         </ReactModal>
                     </>
                 ) : (<></>)}
             </div>
-        </>
+        </div>
     );
 };
