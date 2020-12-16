@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class CreateTicketRequest(
+    val subject: String,
     val message: String
 )
 
