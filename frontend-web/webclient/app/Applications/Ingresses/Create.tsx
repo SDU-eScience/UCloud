@@ -8,7 +8,7 @@ import ProductNS = accounting.ProductNS;
 import {Box, Button, Flex, Input, Label, Select, Text} from "ui-components";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
-const Create: React.FunctionComponent<{computeProvider?: string}> = props => {
+const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinished?: () => void}> = props => {
     const [selectedProvider, setSelectedProvider] = useState(props.computeProvider);
     const canChangeProvider = props.computeProvider === undefined;
     const [selectedProduct, setSelectedProduct] = useState<ProductNS.Ingress | null>(null);
@@ -107,7 +107,7 @@ const Create: React.FunctionComponent<{computeProvider?: string}> = props => {
         <Button onClick={register} fullWidth>Register ingress</Button>
     </div>
 
-    function register() {
+    async function register() {
         if (!domainRef.current?.value) {
             snackbarStore.addFailure("Domain can't be empty.", false);
             return;
@@ -123,7 +123,7 @@ const Create: React.FunctionComponent<{computeProvider?: string}> = props => {
             return;
         }
 
-        invokeCommand(UCloud.compute.ingresses.create({
+        const {ids} = await invokeCommand(UCloud.compute.ingresses.create({
             domain: ingressSettings.data.domainPrefix + domainRef.current.value + ingressSettings.data.domainSuffix,
             product: {
                 category: selectedProduct.category.id,
@@ -131,6 +131,12 @@ const Create: React.FunctionComponent<{computeProvider?: string}> = props => {
                 provider: props.computeProvider ?? selectedProvider!
             }
         }));
+
+
+        if (ids?.length) {
+            snackbarStore.addSuccess(`Created ${ids.length} ingresse(s).`, false);
+            props.onCreateFinished?.();
+        }
     }
 };
 

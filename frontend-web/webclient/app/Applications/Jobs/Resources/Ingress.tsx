@@ -76,7 +76,7 @@ export const IngressResource: React.FunctionComponent<{
                                 </SelectableTextWrapper>
                                 {isBrowsing ?
                                     <Browse computeProvider={provider} onSelect={url => {setUrl(url); setModalOpen(false);}} /> :
-                                    <Create computeProvider={provider} />}
+                                    <Create computeProvider={provider} onCreateFinished={() => setIsBrowsing(true)} />}
                             </Box>
                         </ReactModal>
                     </>
