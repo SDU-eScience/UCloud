@@ -8,8 +8,91 @@ import * as Pagination from "Pagination";
 import {compute} from "UCloud";
 import Ingress = compute.Ingress;
 import {PageRenderer} from "Pagination/PaginationV2";
+import {ListRow, ListRowStat} from "ui-components/List";
+import {Button, Flex, Icon, Text} from "ui-components";
+import {Client} from "Authentication/HttpClientInstance";
+import {creditFormatter} from "Project/ProjectUsage";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
-const Browse: React.FunctionComponent<{ computeProvider?: string }> = props => {
+const data: compute.Ingress[] = [{
+    id: "id",
+    domain: "domain",
+    billing: {pricePerUnit: 100000, creditsCharged: 0},
+    createdAt: 123890123,
+    owner: {
+        username: Client.username!,
+    },
+    product: {
+        category: "category",
+        id: "id",
+        provider: "provider"
+    },
+    status: {
+        state: "PREPARING",
+        boundTo: undefined
+    },
+    updates: [],
+    resolvedProduct: undefined
+}, {
+    id: "id2",
+    domain: "domain2",
+    billing: {pricePerUnit: 200000, creditsCharged: 1000000},
+    createdAt: 123890123 + 1000000,
+    owner: {
+        username: Client.username + " foo",
+    },
+    product: {
+        category: "category 2 ",
+        id: "id 2",
+        provider: "provider2"
+    },
+    status: {
+        state: "PREPARING",
+        boundTo: "foodbarz"
+    },
+    updates: [],
+    resolvedProduct: undefined
+}, {
+    id: "id3",
+    domain: "domain3",
+    billing: {pricePerUnit: 300000, creditsCharged: 2000000},
+    createdAt: 123890123 + 2000000,
+    owner: {
+        username: Client.username + " foo",
+    },
+    product: {
+        category: "category 3 ",
+        id: "id 3",
+        provider: "provider3"
+    },
+    status: {
+        state: "READY"
+    },
+    updates: [],
+    resolvedProduct: undefined
+}, {
+    id: "id3",
+    domain: "domain3",
+    billing: {pricePerUnit: 300000, creditsCharged: 2000000},
+    createdAt: 123890123 + 2000000,
+    owner: {
+        username: Client.username + " foo",
+    },
+    product: {
+        category: "category 3 ",
+        id: "id 3",
+        provider: "provider3"
+    },
+    status: {
+        state: "READY",
+        boundTo: "foo"
+    },
+    updates: [],
+    resolvedProduct: undefined
+}];
+
+
+const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (selection: string) => void}> = props => {
     const projectId = useProjectId();
     const [infScrollId, setInfScrollId] = useState(0);
     const [ingresses, fetchIngresses] = useCloudAPI(
@@ -33,7 +116,33 @@ const Browse: React.FunctionComponent<{ computeProvider?: string }> = props => {
     }, [reload, projectId]);
 
     const pageRenderer = useCallback<PageRenderer<Ingress>>(page => {
-        return null;
+        return page.items.map(it => {
+            const isDisabled = it.status.boundTo != null || it.status.state !== "READY";
+            return (
+                <ListRow
+                    key={it.id}
+                    left={it.domain}
+                    leftSub={<>
+                        <ListRowStat>{it.id}</ListRowStat><SpacedDash />
+                        <ListRowStat>{it.status.state}</ListRowStat><SpacedDash />
+                        {it.status.boundTo ? <><ListRowStat>Bound to {it.status.boundTo}</ListRowStat><SpacedDash /></> : null}
+                        <ListRowStat>{creditFormatter(it.billing.pricePerUnit)}</ListRowStat>
+                    </>}
+                    right={<>
+                        {props.onSelect != null ? <Button
+                            disabled={isDisabled}
+                            onClick={() => props.onSelect!(it.domain)}
+                            height="35px"
+                            width="80px"
+                            mr="16px"
+                        >Use</Button> : null}
+                        <ClickableDropdown trigger={<Icon name="ellipsis" />}>
+                            TODO
+                        </ClickableDropdown>
+                    </>}
+                />
+            )
+        });
     }, []);
 
     return <Pagination.ListV2
@@ -44,5 +153,9 @@ const Browse: React.FunctionComponent<{ computeProvider?: string }> = props => {
         pageRenderer={pageRenderer}
     />;
 };
+
+function SpacedDash() {
+    return <ListRowStat><Text mx="6px">-</Text></ListRowStat>
+}
 
 export default Browse;

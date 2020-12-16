@@ -1,15 +1,19 @@
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
 import {useProjectId} from "Project";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as UCloud from "UCloud";
 import {accounting} from "UCloud";
 import ProductNS = accounting.ProductNS;
+import {Box, Button, Flex, Input, Label, Select, Text} from "ui-components";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
-const Create: React.FunctionComponent<{ computeProvider?: string }> = props => {
+const Create: React.FunctionComponent<{computeProvider?: string}> = props => {
     const [selectedProvider, setSelectedProvider] = useState(props.computeProvider);
     const canChangeProvider = props.computeProvider === undefined;
     const [selectedProduct, setSelectedProduct] = useState<ProductNS.Ingress | null>(null);
+    const [, invokeCommand] = useCloudCommand();
+    const domainRef = React.useRef<HTMLInputElement>(null);
 
     const projectId = useProjectId();
 
@@ -63,7 +67,71 @@ const Create: React.FunctionComponent<{ computeProvider?: string }> = props => {
         reload();
     }, [reload, projectId, selectedProvider, selectedProduct]);
 
-    return null;
+    return <div>
+        <Flex>
+            {!canChangeProvider ? null : <Box width="50%">
+                <Label>
+                    1. Select Provider
+                    <Select placeholder="Provider...">
+                        <option onClick={() => setSelectedProvider(undefined)}></option>
+                        {viableProviders.map(provider =>
+                            <option key={provider} onClick={() => setSelectedProvider(provider)}>
+                                {provider}
+                            </option>
+                        )}
+                    </Select>
+                </Label>
+            </Box>}
+            <Box width="50%">
+                <Label>
+                    {!canChangeProvider ? "1" : "2"}. Select Product
+                    <Select placeholder="Product...">
+                        <option onClick={() => setSelectedProduct(null)}></option>
+                        {allProductsFromProvider.data.filter(it => it.type === "ingress").map(product =>
+                            <option key={product.id} onClick={() => setSelectedProduct(product as ProductNS.Ingress)}>
+                                {product.id}
+                            </option>
+                        )}
+                    </Select>
+                </Label>
+            </Box>
+        </Flex>
+        <Label my="6px">
+            {!canChangeProvider ? "2" : "3"}. Select domain
+            <Flex>
+                <Text mt="7px">
+                    app-</Text><Input placeholder="Enter domain..." ref={domainRef} type="text" /><Text mt="7px">.cloud.sdu.dk
+                </Text>
+            </Flex>
+        </Label>
+        <Button onClick={register} fullWidth>Register ingress</Button>
+    </div>
+
+    function register() {
+        if (!domainRef.current?.value) {
+            snackbarStore.addFailure("Domain can't be empty.", false);
+            return;
+        }
+
+        if (!selectedProduct) {
+            snackbarStore.addFailure("Please select a product.", false);
+            return;
+        }
+
+        if (!selectedProvider && !canChangeProvider) {
+            snackbarStore.addFailure("Please select a provider.", false);
+            return;
+        }
+
+        invokeCommand(UCloud.compute.ingresses.create({
+            domain: ingressSettings.data.domainPrefix + domainRef.current.value + ingressSettings.data.domainSuffix,
+            product: {
+                category: selectedProduct.category.id,
+                id: selectedProduct.id,
+                provider: props.computeProvider ?? selectedProvider!
+            }
+        }));
+    }
 };
 
 export default Create;
