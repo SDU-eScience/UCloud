@@ -37,14 +37,14 @@ interface InsufficientFunds {
 }
 
 export const Create: React.FunctionComponent = () => {
-    const {appName, appVersion} = useRouteMatch<{ appName: string, appVersion: string }>().params;
+    const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
     const [, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{ cost: number, balance: number }>({cost: 0, balance: 0});
+    const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number}>({cost: 0, balance: 0});
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -54,6 +54,8 @@ export const Create: React.FunctionComponent = () => {
         (name) => ({type: "input_directory", description: "", title: "", optional: true, name}));
     const peers = useResource("resourcePeer",
         (name) => ({type: "peer", description: "", title: "", optional: true, name}));
+
+    const [ingressEnabled, setIngressEnabled] = useState(false);
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
@@ -191,7 +193,7 @@ export const Create: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Runs);
     useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
 
-    if (application === null) return <MainContainer main={<LoadingIcon size={36}/>}/>;
+    if (application === null) return <MainContainer main={<LoadingIcon size={36} />} />;
 
     const mandatoryParameters = application.invocation!.parameters.filter(it =>
         !it.optional
@@ -209,7 +211,7 @@ export const Create: React.FunctionComponent = () => {
         headerSize={48}
         header={
             <Flex mx={["0px", "0px", "0px", "0px", "0px", "50px"]}>
-                <AppHeader slim application={application}/>
+                <AppHeader slim application={application} />
             </Flex>
         }
         sidebar={
@@ -229,7 +231,7 @@ export const Create: React.FunctionComponent = () => {
                     Import parameters
                 </OutlineButton>
 
-                <FavoriteToggle application={application}/>
+                <FavoriteToggle application={application} />
 
                 <Button
                     type={"button"}
@@ -242,8 +244,8 @@ export const Create: React.FunctionComponent = () => {
                 <Box mt={32} color={estimatedCost.balance >= estimatedCost.cost ? "black" : "red"} textAlign="center">
                     {estimatedCost.balance === 0 ? null : (
                         <>
-                            <Icon name={"grant"}/>{" "}
-                            Estimated cost: <br/>
+                            <Icon name={"grant"} />{" "}
+                            Estimated cost: <br />
 
                             {creditFormatter(estimatedCost.cost, 0)}
                         </>
@@ -252,8 +254,8 @@ export const Create: React.FunctionComponent = () => {
                 <Box mt={32} color="black" textAlign="center">
                     {estimatedCost.balance === 0 ? null : (
                         <>
-                            <Icon name="grant"/>{" "}
-                            Current balance: <br/>
+                            <Icon name="grant" />{" "}
+                            Current balance: <br />
 
                             {creditFormatter(estimatedCost.balance, 0)}
                         </>
@@ -264,10 +266,10 @@ export const Create: React.FunctionComponent = () => {
         main={
             <ContainerForText>
                 <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
-                    {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode}/> : null}
+                    {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
                     <ImportParameters application={application} onImport={onLoadParameters}
-                                      importDialogOpen={importDialogOpen}
-                                      onImportDialogClose={() => setImportDialogOpen(false)}/>
+                        importDialogOpen={importDialogOpen}
+                        onImportDialogClose={() => setImportDialogOpen(false)} />
                     <ReservationParameter
                         application={application}
                         errors={reservationErrors}
@@ -280,9 +282,7 @@ export const Create: React.FunctionComponent = () => {
                             <Heading.h4>Mandatory Parameters</Heading.h4>
                             <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                 {mandatoryParameters.map(param => (
-                                    <Widget key={param.name} parameter={param} errors={errors}
-                                            active={true}
-                                    />
+                                    <Widget key={param.name} parameter={param} errors={errors} active={true} />
                                 ))}
                             </Grid>
                         </Box>
@@ -293,10 +293,10 @@ export const Create: React.FunctionComponent = () => {
                             <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                 {activeParameters.map(param => (
                                     <Widget key={param.name} parameter={param} errors={errors}
-                                            active={true}
-                                            onRemove={() => {
-                                                setActiveOptParams(activeOptParams.filter(it => it !== param.name));
-                                            }}
+                                        active={true}
+                                        onRemove={() => {
+                                            setActiveOptParams(activeOptParams.filter(it => it !== param.name));
+                                        }}
                                     />
                                 ))}
                             </Grid>
@@ -305,20 +305,21 @@ export const Create: React.FunctionComponent = () => {
                     {inactiveParameters.length === 0 ? null : (
                         <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
                             <Widget key={param.name} parameter={param} errors={errors}
-                                    active={false}
-                                    onActivate={() => {
-                                        setActiveOptParams([...activeOptParams, param.name]);
-                                    }}
+                                active={false}
+                                onActivate={() => {
+                                    setActiveOptParams([...activeOptParams, param.name]);
+                                }}
                             />
-                        )}/>
+                        )} />
                     )}
 
                     {/* Resources */}
+
                     <IngressResource
                         application={application}
                         inputRef={urlRef}
-                        enabled={false}
-                        setEnabled={() => 42}
+                        enabled={ingressEnabled}
+                        setEnabled={enabled => setIngressEnabled(enabled)}
                     />
 
                     <FolderResource
