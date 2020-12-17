@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
@@ -28,51 +29,61 @@ class IngressService(
     private val serviceClient: AuthenticatedClient,
 ) : JobManagementPlugin {
     suspend fun create(ingresses: BulkRequest<Ingress>) {
-        db.withSession { session ->
-            for (ingress in ingresses.items) {
-                val isValid = ingress.domain.startsWith(settings.domainPrefix) &&
-                    ingress.domain.endsWith(settings.domainSuffix)
+        try {
+            db.withSession { session ->
+                for (ingress in ingresses.items) {
+                    val isValid = ingress.domain.startsWith(settings.domainPrefix) &&
+                        ingress.domain.endsWith(settings.domainSuffix)
 
-                if (!isValid) {
-                    throw RPCException("Received invalid request from UCloud", HttpStatusCode.BadRequest)
-                }
+                    if (!isValid) {
+                        throw RPCException("Received invalid request from UCloud", HttpStatusCode.BadRequest)
+                    }
 
-                val id = ingress.domain.removePrefix(settings.domainPrefix).removeSuffix(settings.domainSuffix)
-                if (id.length < 5) {
-                    throw RPCException("Ingress domain must be at least 5 characters long", HttpStatusCode.BadRequest)
-                }
-
-                for (badWord in blacklistedWords) {
-                    if (id.contains(badWord)) {
+                    val id = ingress.domain.removePrefix(settings.domainPrefix).removeSuffix(settings.domainSuffix)
+                    if (id.length < 5) {
                         throw RPCException(
-                            "Invalid link. Try a different name.",
+                            "Ingress domain must be at least 5 characters long",
                             HttpStatusCode.BadRequest
                         )
                     }
-                }
 
-                if (!id.toLowerCase().matches(regex) || id.toLowerCase().matches(uuidRegex)) {
-                    throw RPCException(
-                        "Invalid ingress requested. Must only contain letters a-z, and numbers 0-9.",
-                        HttpStatusCode.BadRequest
-                    )
-                }
+                    for (badWord in blacklistedWords) {
+                        if (id.contains(badWord)) {
+                            throw RPCException(
+                                "Invalid link. Try a different name.",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
+                    }
 
-                session.insert(IngressTable) {
-                    set(IngressTable.id, ingress.id)
-                    set(IngressTable.domain, ingress.domain)
+                    if (!id.toLowerCase().matches(regex) || id.toLowerCase().matches(uuidRegex)) {
+                        throw RPCException(
+                            "Invalid ingress requested. Must only contain letters a-z, and numbers 0-9.",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    session.insert(IngressTable) {
+                        set(IngressTable.id, ingress.id)
+                        set(IngressTable.domain, ingress.domain)
+                    }
                 }
             }
-
-            IngressControl.update.call(
-                bulkRequestOf(
-                    ingresses.items.map {
-                        IngressControlUpdateRequestItem(it.id, IngressState.READY, "Ingress is now ready")
-                    }
-                ),
-                serviceClient
-            ).orThrow()
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            }
+            throw ex
         }
+
+        IngressControl.update.call(
+            bulkRequestOf(
+                ingresses.items.map {
+                    IngressControlUpdateRequestItem(it.id, IngressState.READY, "Ingress is now ready")
+                }
+            ),
+            serviceClient
+        ).orThrow()
     }
 
     suspend fun delete(ingresses: BulkRequest<Ingress>) {

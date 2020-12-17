@@ -10,9 +10,11 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.throwError
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import java.util.*
@@ -164,13 +166,15 @@ class IngressService(
 
             // Verify permissions before calling provider
             for (item in deletedItems) {
-                val project = item.owner.project
-                if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
-                    throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
-                }
+                if (actor != Actor.System) {
+                    val project = item.owner.project
+                    if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
+                        throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+                    }
 
-                if (project == null && item.owner.username != actor.safeUsername()) {
-                    throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+                    if (project == null && item.owner.username != actor.safeUsername()) {
+                        throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+                    }
                 }
 
                 if (item.status.boundTo != null) {
@@ -274,10 +278,15 @@ class IngressService(
                 }
             }
 
-            api.create.call(
+            val createResp = api.create.call(
                 bulkRequestOf(ingress),
                 comms.client
-            ).orThrow()
+            )
+
+            if (!createResp.statusCode.isSuccess()) {
+                delete(Actor.System, bulkRequestOf(ingress.map { IngressRetrieve(it.id) }))
+                createResp.throwError()
+            }
 
             ingress.map { it.id }
         }

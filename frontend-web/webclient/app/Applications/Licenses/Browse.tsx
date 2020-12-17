@@ -6,7 +6,7 @@ import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authenticati
 import {useProjectId} from "Project";
 import {emptyPageV2} from "DefaultObjects";
 import List, {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {Box, Button, Grid, Text} from "ui-components";
+import {Box, Button, Text} from "ui-components";
 import {doNothing, prettierString, shortUUID} from "UtilityFunctions";
 import {creditFormatter} from "Project/ProjectUsage";
 import HexSpin from "LoadingIcon/LoadingIcon";
@@ -81,7 +81,8 @@ export const Browse: React.FunctionComponent<{
     useEffect(reload, [projectId]);
 
     const callbacks: LicenseOpCallback = useMemo(() => {
-        return {commandLoading, invokeCommand, reload, history, onUse: onUse ?? doNothing}
+        return {commandLoading, invokeCommand, reload, history, onUse: onUse ?? doNothing,
+            standalone: standalone === true}
     }, [commandLoading, invokeCommand, reload, onUse]);
 
     if (standalone === true) {
@@ -272,6 +273,7 @@ interface LicenseOpCallback {
     reload: () => void;
     history: History<unknown>;
     onUse: (License) => void;
+    standalone: boolean;
 }
 
 async function licenseOpActivate(selected: LicenseGroup[], cb: LicenseOpCallback) {
@@ -311,7 +313,6 @@ function isLicenseEnabled(instance: License): OperationEnabled {
 
 const licenseOperations: Operation<LicenseGroup, LicenseOpCallback>[] = [
     {
-        icon: "check",
         text: "Activate",
         primary: true,
         enabled: (selected) => selected.length > 0 && selected.every(it => it.instances.length === 0),
@@ -327,7 +328,8 @@ const licenseOperations: Operation<LicenseGroup, LicenseOpCallback>[] = [
     {
         text: "Use",
         primary: true,
-        enabled: selected => {
+        enabled: (selected, cb) => {
+            if (cb.standalone) return false;
             if (selected.length !== 1) return false;
             if (selected[0].instances.length !== 1) return false;
             return isLicenseEnabled(selected[0].instances[0]);
@@ -340,7 +342,7 @@ const licenseOperations: Operation<LicenseGroup, LicenseOpCallback>[] = [
         icon: "trash",
         text: "Delete",
         color: "red",
-        enabled: selected => selected.length > 0 && selected.every(it => it.instances.length === 1),
+        enabled: (selected, cb) => cb.standalone && selected.length > 0 && selected.every(it => it.instances.length === 1),
         onClick: (selected, cb) => {
             if (cb.commandLoading) return;
             addStandardDialog({
@@ -370,7 +372,7 @@ const licenseInstanceOperations: Operation<License, LicenseOpCallback>[] = [
         icon: "trash",
         text: "Delete",
         color: "red",
-        enabled: (selected) => selected.length > 0,
+        enabled: (selected, cb) => selected.length > 0 && cb.standalone,
         onClick: (selected, cb) => {
             if (cb.commandLoading) return;
             addStandardDialog({
@@ -397,7 +399,8 @@ const licenseInstanceOperations: Operation<License, LicenseOpCallback>[] = [
     {
         text: "Use",
         primary: true,
-        enabled: (selected) => {
+        enabled: (selected, cb) => {
+            if (cb.standalone) return false;
             if (selected.length !== 1) return false;
             return isLicenseEnabled(selected[0]);
         },

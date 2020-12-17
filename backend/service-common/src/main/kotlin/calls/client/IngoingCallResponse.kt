@@ -27,6 +27,11 @@ fun <T : Any> IngoingCallResponse<T, *>.orThrow(): T {
     return result
 }
 
+fun <T : Any> IngoingCallResponse<T, *>.throwError(): Nothing {
+    orThrow()
+    throw IllegalStateException("Attempted to throw on a call which was successful: $this")
+}
+
 fun <T : Any, E : Any> IngoingCallResponse<T, E>.orRethrowAs(rethrow: (IngoingCallResponse.Error<T, E>) -> Nothing): T {
     when (this) {
         is IngoingCallResponse.Ok -> {

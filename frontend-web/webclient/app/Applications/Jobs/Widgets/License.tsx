@@ -9,7 +9,6 @@ import {PointerInput} from "Applications/Jobs/Widgets/Peer";
 import * as Licenses from "Applications/Licenses";
 import {useCallback, useState} from "react";
 import ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
 import License = compute.License;
 
 interface LicenseProps extends WidgetProps {

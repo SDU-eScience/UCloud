@@ -9,6 +9,7 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
+import io.ktor.http.*
 import kotlin.test.*
 
 class Ingress : IntegrationTest() {
@@ -107,5 +108,39 @@ class Ingress : IntegrationTest() {
         ).orThrow()
 
         assertThatInstance(browseWithBadDomain, "finds nothing") { it.items.isEmpty() }
+    }
+
+    @Test
+    fun `test that a duplicate domain is handled correctly`() = t {
+        val root = initializeRootProject()
+        val user = createUser()
+        addFundsToPersonalProject(root, user.username, sampleIngress.category)
+
+        val product = ProductReference(sampleIngress.id, sampleIngress.category.id, sampleIngress.category.provider)
+        val settings = Ingresses.retrieveSettings.call(product, user.client).orThrow()
+
+        val responses = (0 until 5).map {
+            Ingresses.create.call(
+                bulkRequestOf(
+                    IngressCreateRequestItem("${settings.domainPrefix}testing${settings.domainSuffix}", product)
+                ),
+                user.client
+            )
+        }
+
+        assertThatInstance(
+            Ingresses.browse.call(IngressesBrowseRequest(), user.client).orThrow(),
+            "has only a single item"
+        ) { it.items.size == 1 }
+
+        assertThatInstance(
+            responses,
+            "was initially successful"
+        ) { responses[0].statusCode.isSuccess() }
+
+        assertThatInstance(
+            responses,
+            "when needed, failed with a 409 status code"
+        ) { responses.drop(1).all { it.statusCode == HttpStatusCode.Conflict } }
     }
 }
