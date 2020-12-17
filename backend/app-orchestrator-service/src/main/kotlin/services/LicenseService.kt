@@ -2,15 +2,13 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.throwError
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
@@ -127,13 +125,15 @@ class LicenseService(
 
             // Verify permissions before calling provider
             for (item in deletedItems) {
-                val project = item.owner.project
-                if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
-                    throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
-                }
+                if (actor != Actor.System) {
+                    val project = item.owner.project
+                    if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
+                        throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+                    }
 
-                if (project == null && item.owner.username != actor.safeUsername()) {
-                    throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+                    if (project == null && item.owner.username != actor.safeUsername()) {
+                        throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+                    }
                 }
             }
 
@@ -167,7 +167,7 @@ class LicenseService(
             // immediately start calling us back about these resources, even before it has successfully created the
             // resource. This allows the provider to, for example, perform a charge on the resource before it has
             // been marked as 'created'.
-            val ingress = db.withSession { session ->
+            val license = db.withSession { session ->
                 specs.map { spec ->
                     val product =
                         productCache.find<Product.License>(
@@ -192,9 +192,13 @@ class LicenseService(
                 }
             }
 
-            api.create.call(bulkRequestOf(ingress), comms.client).orThrow()
+            val createResp = api.create.call(bulkRequestOf(license), comms.client)
+            if (!createResp.statusCode.isSuccess()) {
+                delete(Actor.System, bulkRequestOf(license.map { LicenseRetrieve(it.id) }))
+                createResp.throwError()
+            }
 
-            ingress.map { it.id }
+            license.map { it.id }
         }
     }
 
