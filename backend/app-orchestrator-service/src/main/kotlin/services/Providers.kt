@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.Compute
 import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
 import dk.sdu.cloud.app.orchestrator.api.IngressProvider
+import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.service.Actor
@@ -16,6 +17,7 @@ data class ProviderCommunication(
     val wsClient: AuthenticatedClient,
     val provider: ComputeProviderManifest,
     val ingressApi: IngressProvider?,
+    val licenseApi: LicenseProvider?,
 )
 
 class Providers(
@@ -38,6 +40,7 @@ class Providers(
                 wsServiceClient,
                 hardcodedProvider,
                 IngressProvider(UCLOUD_PROVIDER),
+                LicenseProvider(UCLOUD_PROVIDER),
             )
         }
         if (provider != UCLOUD_PROVIDER) {
@@ -50,6 +53,7 @@ class Providers(
             wsServiceClient,
             hardcodedProvider,
             IngressProvider(UCLOUD_PROVIDER),
+            LicenseProvider(UCLOUD_PROVIDER),
         )
     }
 

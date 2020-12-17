@@ -12,6 +12,7 @@ import io.ktor.http.HttpMethod
 data class ReloadRequest(val fileLocation: String)
 typealias ReloadResponse = Unit
 
+@TSNamespace("compute.ucloud.jobs")
 object KubernetesCompute : Compute(UCLOUD_PROVIDER) {
     val reload = call<ReloadRequest, ReloadResponse, CommonErrorMessage>("reload") {
         auth {
@@ -32,4 +33,5 @@ object KubernetesCompute : Compute(UCLOUD_PROVIDER) {
     }
 }
 
+@TSNamespace("compute.ucloud.shell")
 object AppKubernetesShell : Shells(UCLOUD_PROVIDER)

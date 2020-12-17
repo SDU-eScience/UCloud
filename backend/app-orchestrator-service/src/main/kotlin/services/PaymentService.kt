@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.orchestrator.api.Ingress
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.License
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
@@ -58,6 +59,17 @@ sealed class Payment {
         override val product = ingress.product
         override val launchedBy: String = ingress.owner.username
         override val project: String? = ingress.owner.project
+    }
+
+    data class OfLicense(val license: License, override val units: Long, override val chargeId: String) : Payment() {
+        override val type = "license"
+        override val resourceId = license.id
+
+        override val pricePerUnit = license.billing.pricePerUnit
+
+        override val product = license.product
+        override val launchedBy: String = license.owner.username
+        override val project: String? = license.owner.project
     }
 }
 

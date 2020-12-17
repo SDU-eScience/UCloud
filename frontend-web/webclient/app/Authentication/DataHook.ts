@@ -76,7 +76,7 @@ export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Pro
     if (parameters.path === undefined) throw Error("Missing path");
     return (await Client.call({
         method,
-        path: parameters.path.replace("/api/", ""),
+        path: parameters.path,
         body: parameters.payload,
         context: parameters.context,
         maxRetries: parameters.maxRetries,
@@ -153,7 +153,7 @@ export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters<u
     return useCloudCommand();
 }
 
-type InvokeCommand = <T = any>(
+export type InvokeCommand = <T = any>(
     call: APICallParameters,
     opts?: {defaultErrorHandler: boolean}
 ) => Promise<T | null>;

@@ -246,8 +246,6 @@ async function importVersion1(application: UCloud.compute.Application, json: any
                 userInputValues[param.name] = {
                     type: "license_server",
                     id: valueFromFile["id"] ?? valueFromFile,
-                    address: "",
-                    port: 0
                 };
                 break;
             case "enumeration":

@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Mon Dec 14 10:31:33 CET 2020 */
+/* Generated at: Tue Dec 15 16:09:40 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -32,15 +32,15 @@ export interface Page<T> {
 
 export type BulkRequest<T> = T | { type: "bulk", items: T[] }
 
-export interface FindByStringId {
-    id: string,
-}
-
 export interface PageV2<T> {
     itemsPerPage: number /* int32 */
     ,
     items: T[],
     next?: string,
+}
+
+export interface FindByStringId {
+    id: string,
 }
 
 export interface PaginationRequest {
@@ -63,6 +63,7 @@ export namespace mail {
         request: SendRequest
     ): APICallParameters<SendRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/mail",
             parameters: request,
@@ -75,6 +76,7 @@ export namespace mail {
         request: SendBulkRequest
     ): APICallParameters<SendBulkRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/mail" + "/bulk",
             parameters: request,
@@ -97,6 +99,7 @@ export namespace mail {
 export namespace auth {
     export function passwordLogin(): APICallParameters<{}, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/auth" + "/login",
             reloadId: Math.random(),
@@ -105,6 +108,7 @@ export namespace auth {
 
     export function refresh(): APICallParameters<{}, AccessToken> {
         return {
+            context: "",
             method: "POST",
             path: "/auth" + "/refresh",
             reloadId: Math.random(),
@@ -113,6 +117,7 @@ export namespace auth {
 
     export function webRefresh(): APICallParameters<{}, AccessTokenAndCsrf> {
         return {
+            context: "",
             method: "POST",
             path: "/auth" + "/refresh" + "/web",
             reloadId: Math.random(),
@@ -123,6 +128,7 @@ export namespace auth {
         request: TokenExtensionRequest
     ): APICallParameters<TokenExtensionRequest, OptionalAuthenticationTokens> {
         return {
+            context: "",
             method: "POST",
             path: "/auth" + "/extend",
             parameters: request,
@@ -135,6 +141,7 @@ export namespace auth {
         request: RequestOneTimeToken
     ): APICallParameters<RequestOneTimeToken, OneTimeAccessToken> {
         return {
+            context: "",
             method: "POST",
             path: buildQueryString("/auth" + "/request", {audience: request.audience}),
             parameters: request,
@@ -146,6 +153,7 @@ export namespace auth {
         request: ClaimOneTimeToken
     ): APICallParameters<ClaimOneTimeToken, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/auth" + "/claim" + "/" + request.jti,
             parameters: request,
@@ -155,6 +163,7 @@ export namespace auth {
 
     export function logout(): APICallParameters<{}, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/auth" + "/logout",
             reloadId: Math.random(),
@@ -163,6 +172,7 @@ export namespace auth {
 
     export function webLogout(): APICallParameters<{}, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/auth" + "/logout" + "/web",
             reloadId: Math.random(),
@@ -173,6 +183,7 @@ export namespace auth {
         request: BulkInvalidateRequest
     ): APICallParameters<BulkInvalidateRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/auth" + "/logout" + "/bulk",
             parameters: request,
@@ -185,6 +196,7 @@ export namespace auth {
         request: ListUserSessionsRequest
     ): APICallParameters<ListUserSessionsRequest, Page<Session>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/auth" + "/sessions", {itemsPerPage: request.itemsPerPage, page: request.page}),
             parameters: request,
@@ -194,6 +206,7 @@ export namespace auth {
 
     export function invalidateSessions(): APICallParameters<{}, any /* unknown */> {
         return {
+            context: "",
             method: "DELETE",
             path: "/auth" + "/sessions",
             reloadId: Math.random(),
@@ -378,6 +391,7 @@ export namespace auth {
             request: CreateSingleUserRequest[]
         ): APICallParameters<CreateSingleUserRequest[], AuthenticationTokens[]> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/register",
                 parameters: request,
@@ -390,6 +404,7 @@ export namespace auth {
             request: UpdateUserInfoRequest
         ): APICallParameters<UpdateUserInfoRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/updateUserInfo",
                 parameters: request,
@@ -400,6 +415,7 @@ export namespace auth {
 
         export function getUserInfo(): APICallParameters<{}, GetUserInfoResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: "/auth/users" + "/userInfo",
                 reloadId: Math.random(),
@@ -410,6 +426,7 @@ export namespace auth {
             request: ChangePasswordRequest
         ): APICallParameters<ChangePasswordRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/password",
                 parameters: request,
@@ -422,6 +439,7 @@ export namespace auth {
             request: ChangePasswordWithResetRequest
         ): APICallParameters<ChangePasswordWithResetRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/password" + "/reset",
                 parameters: request,
@@ -434,6 +452,7 @@ export namespace auth {
             request: LookupUsersRequest
         ): APICallParameters<LookupUsersRequest, LookupUsersResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/lookup",
                 parameters: request,
@@ -446,6 +465,7 @@ export namespace auth {
             request: LookupEmailRequest
         ): APICallParameters<LookupEmailRequest, LookupEmailResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/lookup" + "/email",
                 parameters: request,
@@ -458,6 +478,7 @@ export namespace auth {
             request: LookupUserWithEmailRequest
         ): APICallParameters<LookupUserWithEmailRequest, LookupUserWithEmailResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/lookup" + "/with-email",
                 parameters: request,
@@ -468,6 +489,7 @@ export namespace auth {
 
         export function toggleEmailSubscription(): APICallParameters<{}, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/toggleEmailSubscription",
                 reloadId: Math.random(),
@@ -478,6 +500,7 @@ export namespace auth {
             request: WantsEmailsRequest
         ): APICallParameters<WantsEmailsRequest, boolean> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/wantsEmails",
                 parameters: request,
@@ -490,6 +513,7 @@ export namespace auth {
             request: LookupUIDRequest
         ): APICallParameters<LookupUIDRequest, LookupUIDResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/lookup-uid",
                 parameters: request,
@@ -500,6 +524,7 @@ export namespace auth {
 
         export function openUserIterator(): APICallParameters<{}, FindByStringId> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/iterator" + "/open",
                 reloadId: Math.random(),
@@ -510,6 +535,7 @@ export namespace auth {
             request: FindByStringId
         ): APICallParameters<FindByStringId, Principal[]> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/iterator" + "/next",
                 parameters: request,
@@ -522,6 +548,7 @@ export namespace auth {
             request: FindByStringId
         ): APICallParameters<FindByStringId, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/users" + "/iterator" + "/close",
                 parameters: request,
@@ -533,6 +560,7 @@ export namespace auth {
     export namespace sla {
         export function find(): APICallParameters<{}, ServiceAgreementText> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/sla",
                 reloadId: Math.random(),
@@ -543,6 +571,7 @@ export namespace auth {
             request: AcceptSLARequest
         ): APICallParameters<AcceptSLARequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/sla" + "/accept",
                 parameters: request,
@@ -554,6 +583,7 @@ export namespace auth {
     export namespace twofactor {
         export function createCredentials(): APICallParameters<{}, Create2FACredentialsResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/2fa",
                 reloadId: Math.random(),
@@ -564,6 +594,7 @@ export namespace auth {
             request: AnswerChallengeRequest
         ): APICallParameters<AnswerChallengeRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/auth/2fa" + "/challenge",
                 parameters: request,
@@ -574,6 +605,7 @@ export namespace auth {
 
         export function twoFactorStatus(): APICallParameters<{}, TwoFactorStatusResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: "/auth/2fa" + "/status",
                 reloadId: Math.random(),
@@ -631,6 +663,7 @@ export namespace filesearch {
         request: AdvancedSearchRequest
     ): APICallParameters<AdvancedSearchRequest, Page<file.StorageFile>> {
         return {
+            context: "",
             method: "POST",
             path: "/api/file-search" + "/advanced",
             parameters: request,
@@ -1076,6 +1109,79 @@ export namespace compute {
         domainSuffix: string,
     }
 
+    /**
+     * A `License` for use in `Job`s
+     */
+    export interface License {
+        id: string,
+        product: accounting.ProductReference,
+        /**
+         * Information about the owner of this resource
+         */
+        owner: LicenseOwner,
+        /**
+         * Information about when this resource was created
+         */
+        createdAt: number /* int64 */
+        ,
+        /**
+         * The current status of this resource
+         */
+        status: LicenseStatus,
+        /**
+         * Billing information associated with this `License`
+         */
+        billing: LicenseBilling,
+        /**
+         * A list of updates for this `License`
+         */
+        updates: LicenseUpdate[],
+        resolvedProduct?: accounting.ProductNS.License,
+    }
+
+    export interface LicenseOwner {
+        /**
+         * The username of the user which created this resource.
+         *
+         * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
+         */
+        username: string,
+        /**
+         * The project which owns the resource
+         */
+        project?: string,
+    }
+
+    /**
+     * The status of an `License`
+     */
+    export interface LicenseStatus {
+        state: "PREPARING" | "READY" | "UNAVAILABLE",
+    }
+
+    export interface LicenseBilling {
+        pricePerUnit: number /* int64 */
+        ,
+        creditsCharged: number /* int64 */
+        ,
+    }
+
+    export interface LicenseUpdate {
+        /**
+         * A timestamp for when this update was registered by UCloud
+         */
+        timestamp: number /* int64 */
+        ,
+        /**
+         * The new state that the `License` transitioned to (if any)
+         */
+        state?: "PREPARING" | "READY" | "UNAVAILABLE",
+        /**
+         * A new status message for the `License` (if any)
+         */
+        status?: string,
+    }
+
     export interface JobsCreateResponse {
         ids: string[],
     }
@@ -1235,6 +1341,76 @@ export namespace compute {
          * The ID of the charge
          *
          * This charge ID must be unique for the `Ingress`, UCloud will reject charges which are not unique.
+         */
+        chargeId: string,
+        /**
+         * Amount of units to charge the user
+         */
+        units: number /* int64 */
+        ,
+    }
+
+    export interface LicensesBrowseRequest {
+        includeUpdates?: boolean,
+        includeProduct?: boolean,
+        itemsPerPage?: number /* int32 */
+        ,
+        next?: string,
+        consistency?: "PREFER" | "REQUIRE",
+        itemsToSkip?: number /* int64 */
+        ,
+        provider?: string,
+        tag?: string,
+    }
+
+    export interface LicensesCreateResponse {
+        ids: string[],
+    }
+
+    export interface LicenseCreateRequestItem {
+        product: accounting.ProductReference,
+    }
+
+    export interface LicenseRetrieve {
+        id: string,
+    }
+
+    export interface LicenseRetrieveWithFlags {
+        id: string,
+        includeUpdates?: boolean,
+        includeProduct?: boolean,
+    }
+
+    export interface LicenseControlUpdateRequestItem {
+        id: string,
+        state?: "PREPARING" | "READY" | "UNAVAILABLE",
+        status?: string,
+    }
+
+    export interface LicenseControlChargeCreditsResponse {
+        /**
+         * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
+         */
+        insufficientFunds: LicenseId[],
+        /**
+         * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
+         */
+        duplicateCharges: LicenseId[],
+    }
+
+    export interface LicenseId {
+        id: string,
+    }
+
+    export interface LicenseControlChargeCreditsRequestItem {
+        /**
+         * The ID of the `License`
+         */
+        id: string,
+        /**
+         * The ID of the charge
+         *
+         * This charge ID must be unique for the `License`, UCloud will reject charges which are not unique.
          */
         chargeId: string,
         /**
@@ -1469,19 +1645,6 @@ export namespace compute {
          */
         export interface License {
             id: string,
-            /**
-             * Ignored in user requests - Filled in by UCloud
-             */
-            address: string,
-            /**
-             * Ignored in user requests - Filled in by UCloud
-             */
-            port: number /* int32 */
-            ,
-            /**
-             * Ignored in user requests - Filled in by UCloud
-             */
-            license?: string,
             type: "license_server",
         }
 
@@ -1514,6 +1677,7 @@ export namespace compute {
             request: FindByNameAndPagination
         ): APICallParameters<FindByNameAndPagination, Page<Tool>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/hpc/tools" + "/" + request.appName, {
                     itemsPerPage: request.itemsPerPage,
@@ -1528,6 +1692,7 @@ export namespace compute {
             request: FindByNameAndVersion
         ): APICallParameters<FindByNameAndVersion, Tool> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/hpc/tools" + "/" + request.name + "/" + request.version,
                 parameters: request,
@@ -1539,6 +1704,7 @@ export namespace compute {
             request: PaginationRequest
         ): APICallParameters<PaginationRequest, Page<Tool>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/hpc/tools", {itemsPerPage: request.itemsPerPage, page: request.page}),
                 parameters: request,
@@ -1550,6 +1716,7 @@ export namespace compute {
             request: BinaryStream
         ): APICallParameters<BinaryStream, any /* unknown */> {
             return {
+                context: "",
                 method: "PUT",
                 path: "/api/hpc/tools",
                 parameters: request,
@@ -1562,6 +1729,7 @@ export namespace compute {
             request: UploadApplicationLogoRequest
         ): APICallParameters<UploadApplicationLogoRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/tools" + "/uploadLogo",
                 parameters: request,
@@ -1574,6 +1742,7 @@ export namespace compute {
             request: ClearLogoRequest
         ): APICallParameters<ClearLogoRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/hpc/tools" + "/clearLogo" + "/" + request.name,
                 parameters: request,
@@ -1585,6 +1754,7 @@ export namespace compute {
             request: FetchLogoRequest
         ): APICallParameters<FetchLogoRequest, BinaryStream> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/hpc/tools" + "/logo" + "/" + request.name,
                 parameters: request,
@@ -1592,223 +1762,12 @@ export namespace compute {
             };
         }
     }
-    export namespace ucloud {
-        export interface DrainNodeRequest {
-            node: string,
-        }
-
-        export interface IsPausedResponse {
-            paused: boolean,
-        }
-
-        export interface UpdatePauseStateRequest {
-            paused: boolean,
-        }
-
-        export interface KillJobRequest {
-            jobId: string,
-        }
-
-        export namespace ucloud {
-            /**
-             * Start a compute job (create)
-             *
-             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-             *
-             * Starts one or more compute jobs. The jobs have already been verified by UCloud and it is assumed to be
-             * ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
-             * 5XX status code. Note that the batch must be handled as a single transaction.
-             *
-             * The provider should respond to this request as soon as the jobs have been scheduled. The provider should
-             * then switch to [`jobs.control.update`](#operation/jobs.control.update) in order to provide updates about the progress.
-             */
-            export function create(
-                request: BulkRequest<Job>
-            ): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            /**
-             * Request job cancellation and destruction (delete)
-             *
-             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-             *
-             * Deletes one or more compute jobs. The provider should not only stop the compute job but also delete
-             * _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
-             * should also be deleted. None of the resources attached to the job, however, should be deleted.
-             */
-            export function remove(
-                request: BulkRequest<Job>
-            ): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-                return {
-                    method: "DELETE",
-                    path: "/ucloud/ucloud/compute/jobs",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            /**
-             * Extend the duration of a job (extend)
-             *
-             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-             *
-             *
-             */
-            export function extend(
-                request: BulkRequest<ComputeExtendRequestItem>
-            ): APICallParameters<BulkRequest<ComputeExtendRequestItem>, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs" + "/extend",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            /**
-             * Suspend a job (suspend)
-             *
-             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-             *
-             *
-             */
-            export function suspend(
-                request: BulkRequest<Job>
-            ): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs" + "/suspend",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            /**
-             * Verify UCloud data is synchronized with provider (verify)
-             *
-             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-             *
-             * This call is periodically executed by UCloud against all active providers. It is the job of the
-             * provider to ensure that the jobs listed in the request are in its local database. If some of the
-             * jobs are not in the provider's database then this should be treated as a job which is no longer valid.
-             * The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
-             *
-             * The backend should _not_ attempt to start the job.
-             */
-            export function verify(
-                request: BulkRequest<Job>
-            ): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs" + "/verify",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            export function openInteractiveSession(
-                request: BulkRequest<ComputeOpenInteractiveSessionRequestItem>
-            ): APICallParameters<BulkRequest<ComputeOpenInteractiveSessionRequestItem>, ComputeOpenInteractiveSessionResponse> {
-                return {
-                    method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs" + "/interactiveSession",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            /**
-             * Retrieves the compute provider manifest (retrieveManifest)
-             *
-             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
-             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-             *
-             *
-             */
-            export function retrieveManifest(): APICallParameters<{}, ProviderManifest> {
-                return {
-                    method: "GET",
-                    path: "/ucloud/ucloud/compute/jobs" + "/retrieveManifest",
-                    reloadId: Math.random(),
-                };
-            }
-        }
-        export namespace maintenance {
-            export function drainCluster(): APICallParameters<{}, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/api/app/compute/kubernetes/maintenance" + "/drain-cluster",
-                    reloadId: Math.random(),
-                };
-            }
-
-            export function drainNode(
-                request: DrainNodeRequest
-            ): APICallParameters<DrainNodeRequest, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/api/app/compute/kubernetes/maintenance" + "/drain-node",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            export function isPaused(): APICallParameters<{}, IsPausedResponse> {
-                return {
-                    method: "GET",
-                    path: "/api/app/compute/kubernetes/maintenance" + "/paused",
-                    reloadId: Math.random(),
-                };
-            }
-
-            export function updatePauseState(
-                request: UpdatePauseStateRequest
-            ): APICallParameters<UpdatePauseStateRequest, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/api/app/compute/kubernetes/maintenance" + "/pause",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            export function killJob(
-                request: KillJobRequest
-            ): APICallParameters<KillJobRequest, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/api/app/compute/kubernetes/maintenance" + "/kill-job",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-        }
-    }
     export namespace apps {
         export function findByNameAndVersion(
             request: FindApplicationAndOptionalDependencies
         ): APICallParameters<FindApplicationAndOptionalDependencies, ApplicationWithFavoriteAndTags> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/hpc/apps" + "/" + request.appName + "/" + request.appVersion,
                 parameters: request,
@@ -1820,6 +1779,7 @@ export namespace compute {
             request: HasPermissionRequest
         ): APICallParameters<HasPermissionRequest, boolean> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/hpc/apps" + "/permission" + "/" + request.appName + "/" + request.appVersion + "/" + request.permission,
                 parameters: request,
@@ -1831,6 +1791,7 @@ export namespace compute {
             request: ListAclRequest
         ): APICallParameters<ListAclRequest, DetailedEntityWithPermission[]> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/hpc/apps" + "/list-acl" + "/" + request.appName,
                 parameters: request,
@@ -1842,6 +1803,7 @@ export namespace compute {
             request: UpdateAclRequest
         ): APICallParameters<UpdateAclRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/updateAcl",
                 parameters: request,
@@ -1854,6 +1816,7 @@ export namespace compute {
             request: FindBySupportedFileExtension
         ): APICallParameters<FindBySupportedFileExtension, ApplicationWithExtension[]> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/bySupportedFileExtension",
                 parameters: request,
@@ -1866,6 +1829,7 @@ export namespace compute {
             request: FindByNameAndPagination
         ): APICallParameters<FindByNameAndPagination, Page<ApplicationSummaryWithFavorite>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/hpc/apps" + "/" + request.appName, {
                     itemsPerPage: request.itemsPerPage,
@@ -1880,6 +1844,7 @@ export namespace compute {
             request: PaginationRequest
         ): APICallParameters<PaginationRequest, Page<ApplicationSummaryWithFavorite>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/hpc/apps", {itemsPerPage: request.itemsPerPage, page: request.page}),
                 parameters: request,
@@ -1891,6 +1856,7 @@ export namespace compute {
             request: DeleteAppRequest
         ): APICallParameters<DeleteAppRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/hpc/apps",
                 parameters: request,
@@ -1903,6 +1869,7 @@ export namespace compute {
             request: BinaryStream
         ): APICallParameters<BinaryStream, any /* unknown */> {
             return {
+                context: "",
                 method: "PUT",
                 path: "/api/hpc/apps",
                 parameters: request,
@@ -1915,6 +1882,7 @@ export namespace compute {
             request: FindLatestByToolRequest
         ): APICallParameters<FindLatestByToolRequest, Page<Application>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/hpc/apps" + "/byTool" + "/" + request.tool, {
                     itemsPerPage: request.itemsPerPage,
@@ -1929,6 +1897,7 @@ export namespace compute {
             request: UploadApplicationLogoRequest
         ): APICallParameters<UploadApplicationLogoRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/uploadLogo",
                 parameters: request,
@@ -1941,6 +1910,7 @@ export namespace compute {
             request: ClearLogoRequest
         ): APICallParameters<ClearLogoRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/hpc/apps" + "/clearLogo" + "/" + request.name,
                 parameters: request,
@@ -1952,6 +1922,7 @@ export namespace compute {
             request: FetchLogoRequest
         ): APICallParameters<FetchLogoRequest, BinaryStream> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/hpc/apps" + "/logo" + "/" + request.name,
                 parameters: request,
@@ -1963,6 +1934,7 @@ export namespace compute {
             request: CreateTagsRequest
         ): APICallParameters<CreateTagsRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/createTag",
                 parameters: request,
@@ -1975,6 +1947,7 @@ export namespace compute {
             request: CreateTagsRequest
         ): APICallParameters<CreateTagsRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/deleteTag",
                 parameters: request,
@@ -1987,6 +1960,7 @@ export namespace compute {
             request: TagSearchRequest
         ): APICallParameters<TagSearchRequest, Page<ApplicationSummaryWithFavorite>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/hpc/apps" + "/searchTags", {
                     query: request.query,
@@ -2002,6 +1976,7 @@ export namespace compute {
             request: AppSearchRequest
         ): APICallParameters<AppSearchRequest, Page<ApplicationSummaryWithFavorite>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/hpc/apps" + "/search", {
                     query: request.query,
@@ -2017,6 +1992,7 @@ export namespace compute {
             request: AdvancedSearchRequest
         ): APICallParameters<AdvancedSearchRequest, Page<ApplicationSummaryWithFavorite>> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/advancedSearch",
                 parameters: request,
@@ -2029,6 +2005,7 @@ export namespace compute {
             request: IsPublicRequest
         ): APICallParameters<IsPublicRequest, IsPublicResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/isPublic",
                 parameters: request,
@@ -2041,6 +2018,7 @@ export namespace compute {
             request: SetPublicRequest
         ): APICallParameters<SetPublicRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/setPublic",
                 parameters: request,
@@ -2053,6 +2031,7 @@ export namespace compute {
             request: FavoriteRequest
         ): APICallParameters<FavoriteRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/favorites" + "/" + request.appName + "/" + request.appVersion,
                 parameters: request,
@@ -2064,6 +2043,7 @@ export namespace compute {
             request: PaginationRequest
         ): APICallParameters<PaginationRequest, Page<ApplicationSummaryWithFavorite>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/hpc/apps" + "/favorites", {
                     itemsPerPage: request.itemsPerPage,
@@ -2090,6 +2070,7 @@ export namespace compute {
             request: BulkRequest<JobsControlUpdateRequestItem>
         ): APICallParameters<BulkRequest<JobsControlUpdateRequestItem>, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/jobs/control" + "/update",
                 parameters: request,
@@ -2110,6 +2091,7 @@ export namespace compute {
             request: BulkRequest<JobsControlChargeCreditsRequestItem>
         ): APICallParameters<BulkRequest<JobsControlChargeCreditsRequestItem>, JobsControlChargeCreditsResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/jobs/control" + "/chargeCredits",
                 parameters: request,
@@ -2130,6 +2112,7 @@ export namespace compute {
             request: JobsControlRetrieveRequest
         ): APICallParameters<JobsControlRetrieveRequest, Job> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/jobs/control" + "/retrieve", {
                     id: request.id,
@@ -2158,6 +2141,7 @@ export namespace compute {
             request: JobsControlSubmitFileRequest
         ): APICallParameters<JobsControlSubmitFileRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/jobs/control" + "/submitFile",
                 parameters: request,
@@ -2166,11 +2150,505 @@ export namespace compute {
             };
         }
     }
+    export namespace ucloud {
+        export interface DrainNodeRequest {
+            node: string,
+        }
+
+        export interface IsPausedResponse {
+            paused: boolean,
+        }
+
+        export interface UpdatePauseStateRequest {
+            paused: boolean,
+        }
+
+        export interface KillJobRequest {
+            jobId: string,
+        }
+
+        export interface KubernetesLicense {
+            id: string,
+            address: string,
+            port: number /* int32 */
+            ,
+            tags: string[],
+            license?: string,
+        }
+
+        export interface KubernetesLicenseBrowseRequest {
+            tag?: string,
+            itemsPerPage?: number /* int32 */
+            ,
+            next?: string,
+            consistency?: "PREFER" | "REQUIRE",
+            itemsToSkip?: number /* int64 */
+            ,
+        }
+
+        export namespace licenses {
+            export function create(
+                request: BulkRequest<License>
+            ): APICallParameters<BulkRequest<License>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/licenses",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function remove(
+                request: BulkRequest<License>
+            ): APICallParameters<BulkRequest<License>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "DELETE",
+                    path: "/ucloud/ucloud/licenses",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function verify(
+                request: BulkRequest<License>
+            ): APICallParameters<BulkRequest<License>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/licenses" + "/verify",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export namespace maintenance {
+                export function create(
+                    request: BulkRequest<KubernetesLicense>
+                ): APICallParameters<BulkRequest<KubernetesLicense>, any /* unknown */> {
+                    return {
+                        context: "",
+                        method: "POST",
+                        path: "/ucloud/ucloud/licenses/maintenance",
+                        parameters: request,
+                        reloadId: Math.random(),
+                        payload: request,
+                    };
+                }
+
+                export function browse(
+                    request: KubernetesLicenseBrowseRequest
+                ): APICallParameters<KubernetesLicenseBrowseRequest, PageV2<KubernetesLicense>> {
+                    return {
+                        context: "",
+                        method: "GET",
+                        path: buildQueryString("/ucloud/ucloud/licenses/maintenance" + "/browse", {
+                            consistency: request.consistency,
+                            itemsPerPage: request.itemsPerPage,
+                            itemsToSkip: request.itemsToSkip,
+                            next: request.next,
+                            tag: request.tag
+                        }),
+                        parameters: request,
+                        reloadId: Math.random(),
+                    };
+                }
+
+                export function update(
+                    request: BulkRequest<KubernetesLicense>
+                ): APICallParameters<BulkRequest<KubernetesLicense>, any /* unknown */> {
+                    return {
+                        context: "",
+                        method: "POST",
+                        path: "/ucloud/ucloud/licenses/maintenance" + "/update",
+                        parameters: request,
+                        reloadId: Math.random(),
+                        payload: request,
+                    };
+                }
+            }
+        }
+        export namespace maintenance {
+            export function drainCluster(): APICallParameters<{}, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/api/app/compute/kubernetes/maintenance" + "/drain-cluster",
+                    reloadId: Math.random(),
+                };
+            }
+
+            export function drainNode(
+                request: DrainNodeRequest
+            ): APICallParameters<DrainNodeRequest, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/api/app/compute/kubernetes/maintenance" + "/drain-node",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function isPaused(): APICallParameters<{}, IsPausedResponse> {
+                return {
+                    context: "",
+                    method: "GET",
+                    path: "/api/app/compute/kubernetes/maintenance" + "/paused",
+                    reloadId: Math.random(),
+                };
+            }
+
+            export function updatePauseState(
+                request: UpdatePauseStateRequest
+            ): APICallParameters<UpdatePauseStateRequest, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/api/app/compute/kubernetes/maintenance" + "/pause",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function killJob(
+                request: KillJobRequest
+            ): APICallParameters<KillJobRequest, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/api/app/compute/kubernetes/maintenance" + "/kill-job",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+        }
+        export namespace jobs {
+            /**
+             * Start a compute job (create)
+             *
+             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+             *
+             * Starts one or more compute  The jobs have already been verified by UCloud and it is assumed to be
+             * ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
+             * 5XX status code. Note that the batch must be handled as a single transaction.
+             *
+             * The provider should respond to this request as soon as the jobs have been scheduled. The provider should
+             * then switch to [`control.update`](#operation/control.update) in order to provide updates about the progress.
+             */
+            export function create(
+                request: BulkRequest<Job>
+            ): APICallParameters<BulkRequest<Job>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/compute/jobs",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            /**
+             * Request job cancellation and destruction (delete)
+             *
+             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+             *
+             * Deletes one or more compute  The provider should not only stop the compute job but also delete
+             * _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
+             * should also be deleted. None of the resources attached to the job, however, should be deleted.
+             */
+            export function remove(
+                request: BulkRequest<Job>
+            ): APICallParameters<BulkRequest<Job>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "DELETE",
+                    path: "/ucloud/ucloud/compute/jobs",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            /**
+             * Extend the duration of a job (extend)
+             *
+             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+             *
+             *
+             */
+            export function extend(
+                request: BulkRequest<ComputeExtendRequestItem>
+            ): APICallParameters<BulkRequest<ComputeExtendRequestItem>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/compute/jobs" + "/extend",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            /**
+             * Suspend a job (suspend)
+             *
+             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+             *
+             *
+             */
+            export function suspend(
+                request: BulkRequest<Job>
+            ): APICallParameters<BulkRequest<Job>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/compute/jobs" + "/suspend",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            /**
+             * Verify UCloud data is synchronized with provider (verify)
+             *
+             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+             *
+             * This call is periodically executed by UCloud against all active providers. It is the job of the
+             * provider to ensure that the jobs listed in the request are in its local database. If some of the
+             * jobs are not in the provider's database then this should be treated as a job which is no longer valid.
+             * The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
+             *
+             * The backend should _not_ attempt to start the job.
+             */
+            export function verify(
+                request: BulkRequest<Job>
+            ): APICallParameters<BulkRequest<Job>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/compute/jobs" + "/verify",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function openInteractiveSession(
+                request: BulkRequest<ComputeOpenInteractiveSessionRequestItem>
+            ): APICallParameters<BulkRequest<ComputeOpenInteractiveSessionRequestItem>, ComputeOpenInteractiveSessionResponse> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/compute/jobs" + "/interactiveSession",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            /**
+             * Retrieves the compute provider manifest (retrieveManifest)
+             *
+             * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+             * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+             *
+             *
+             */
+            export function retrieveManifest(): APICallParameters<{}, ProviderManifest> {
+                return {
+                    context: "",
+                    method: "GET",
+                    path: "/ucloud/ucloud/compute/jobs" + "/retrieveManifest",
+                    reloadId: Math.random(),
+                };
+            }
+        }
+        export namespace ingresses {
+            export function create(
+                request: BulkRequest<Ingress>
+            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/ingresses",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function remove(
+                request: BulkRequest<Ingress>
+            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "DELETE",
+                    path: "/ucloud/ucloud/ingresses",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function retrieveSettings(
+                request: accounting.ProductReference
+            ): APICallParameters<accounting.ProductReference, IngressSettings> {
+                return {
+                    context: "",
+                    method: "GET",
+                    path: buildQueryString("/ucloud/ucloud/ingresses" + "/retrieveSettings", {
+                        category: request.category,
+                        id: request.id,
+                        provider: request.provider
+                    }),
+                    parameters: request,
+                    reloadId: Math.random(),
+                };
+            }
+
+            export function verify(
+                request: BulkRequest<Ingress>
+            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/ingresses" + "/verify",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+        }
+    }
+    export namespace licenses {
+        export function browse(
+            request: LicensesBrowseRequest
+        ): APICallParameters<LicensesBrowseRequest, PageV2<License>> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/licenses" + "/browse", {
+                    consistency: request.consistency,
+                    includeProduct: request.includeProduct,
+                    includeUpdates: request.includeUpdates,
+                    itemsPerPage: request.itemsPerPage,
+                    itemsToSkip: request.itemsToSkip,
+                    next: request.next,
+                    provider: request.provider,
+                    tag: request.tag
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export function create(
+            request: BulkRequest<LicenseCreateRequestItem>
+        ): APICallParameters<BulkRequest<LicenseCreateRequestItem>, LicensesCreateResponse> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/licenses",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function remove(
+            request: BulkRequest<LicenseRetrieve>
+        ): APICallParameters<BulkRequest<LicenseRetrieve>, any /* unknown */> {
+            return {
+                context: "",
+                method: "DELETE",
+                path: "/api/licenses",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function retrieve(
+            request: LicenseRetrieveWithFlags
+        ): APICallParameters<LicenseRetrieveWithFlags, License> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/licenses" + "/retrieve", {
+                    id: request.id,
+                    includeProduct: request.includeProduct,
+                    includeUpdates: request.includeUpdates
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export namespace control {
+            export function update(
+                request: BulkRequest<LicenseControlUpdateRequestItem>
+            ): APICallParameters<BulkRequest<LicenseControlUpdateRequestItem>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/api/licenses/control" + "/update",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function retrieve(
+                request: LicenseRetrieveWithFlags
+            ): APICallParameters<LicenseRetrieveWithFlags, License> {
+                return {
+                    context: "",
+                    method: "GET",
+                    path: buildQueryString("/api/licenses/control" + "/retrieve", {
+                        id: request.id,
+                        includeProduct: request.includeProduct,
+                        includeUpdates: request.includeUpdates
+                    }),
+                    parameters: request,
+                    reloadId: Math.random(),
+                };
+            }
+
+            export function chargeCredits(
+                request: BulkRequest<LicenseControlChargeCreditsRequestItem>
+            ): APICallParameters<BulkRequest<LicenseControlChargeCreditsRequestItem>, LicenseControlChargeCreditsResponse> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/api/licenses/control" + "/chargeCredits",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+        }
+    }
     export namespace license {
         export function get(
             request: LicenseServerRequest
         ): APICallParameters<LicenseServerRequest, LicenseServerWithId> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/app/license", {serverId: request.serverId}),
                 parameters: request,
@@ -2182,6 +2660,7 @@ export namespace compute {
             request: DeleteServerRequest
         ): APICallParameters<DeleteServerRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: buildQueryString("/api/app/license", {id: request.id}),
                 parameters: request,
@@ -2194,6 +2673,7 @@ export namespace compute {
             request: UpdateAclRequest
         ): APICallParameters<UpdateAclRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/app/license" + "/updateAcl",
                 parameters: request,
@@ -2206,6 +2686,7 @@ export namespace compute {
             request: ListAclRequest
         ): APICallParameters<ListAclRequest, DetailedAccessEntityWithPermission[]> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/app/license" + "/listAcl", {serverId: request.serverId}),
                 parameters: request,
@@ -2217,6 +2698,7 @@ export namespace compute {
             request: FindByTagRequest
         ): APICallParameters<FindByTagRequest, LicenseServerId[]> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/app/license" + "/by-tag",
                 parameters: request,
@@ -2227,6 +2709,7 @@ export namespace compute {
 
         export function listAll(): APICallParameters<{}, LicenseServerWithId[]> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/app/license" + "/listAll",
                 reloadId: Math.random(),
@@ -2237,6 +2720,7 @@ export namespace compute {
             request: LicenseServerWithId
         ): APICallParameters<LicenseServerWithId, UpdateServerResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/app/license" + "/update",
                 parameters: request,
@@ -2249,6 +2733,7 @@ export namespace compute {
             request: LicenseServer
         ): APICallParameters<LicenseServer, NewServerResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/app/license" + "/new",
                 parameters: request,
@@ -2359,6 +2844,7 @@ export namespace compute {
                 request: AddTagRequest
             ): APICallParameters<AddTagRequest, any /* unknown */> {
                 return {
+                    context: "",
                     method: "POST",
                     path: "/api/app/license/tag" + "/add",
                     parameters: request,
@@ -2371,6 +2857,7 @@ export namespace compute {
                 request: DeleteTagRequest
             ): APICallParameters<DeleteTagRequest, any /* unknown */> {
                 return {
+                    context: "",
                     method: "POST",
                     path: "/api/app/license/tag" + "/delete",
                     parameters: request,
@@ -2383,6 +2870,7 @@ export namespace compute {
                 request: ListTagsRequest
             ): APICallParameters<ListTagsRequest, ListTagsResponse> {
                 return {
+                    context: "",
                     method: "GET",
                     path: buildQueryString("/api/app/license/tag" + "/list", {serverId: request.serverId}),
                     parameters: request,
@@ -2396,8 +2884,9 @@ export namespace compute {
             request: IngressesBrowseRequest
         ): APICallParameters<IngressesBrowseRequest, PageV2<Ingress>> {
             return {
+                context: "",
                 method: "GET",
-                path: buildQueryString("/api/compute/ingresses" + "/browse", {
+                path: buildQueryString("/api/ingresses" + "/browse", {
                     consistency: request.consistency,
                     domain: request.domain,
                     includeProduct: request.includeProduct,
@@ -2416,8 +2905,9 @@ export namespace compute {
             request: BulkRequest<IngressCreateRequestItem>
         ): APICallParameters<BulkRequest<IngressCreateRequestItem>, IngressesCreateResponse> {
             return {
+                context: "",
                 method: "POST",
-                path: "/api/compute/ingresses",
+                path: "/api/ingresses",
                 parameters: request,
                 reloadId: Math.random(),
                 payload: request,
@@ -2428,8 +2918,9 @@ export namespace compute {
             request: BulkRequest<IngressRetrieve>
         ): APICallParameters<BulkRequest<IngressRetrieve>, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
-                path: "/api/compute/ingresses",
+                path: "/api/ingresses",
                 parameters: request,
                 reloadId: Math.random(),
                 payload: request,
@@ -2440,8 +2931,9 @@ export namespace compute {
             request: IngressRetrieveWithFlags
         ): APICallParameters<IngressRetrieveWithFlags, Ingress> {
             return {
+                context: "",
                 method: "GET",
-                path: buildQueryString("/api/compute/ingresses" + "/retrieve", {
+                path: buildQueryString("/api/ingresses" + "/retrieve", {
                     id: request.id,
                     includeProduct: request.includeProduct,
                     includeUpdates: request.includeUpdates
@@ -2455,8 +2947,9 @@ export namespace compute {
             request: accounting.ProductReference
         ): APICallParameters<accounting.ProductReference, IngressSettings> {
             return {
+                context: "",
                 method: "GET",
-                path: buildQueryString("/api/compute/ingresses" + "/retrieveSettings", {
+                path: buildQueryString("/api/ingresses" + "/retrieveSettings", {
                     category: request.category,
                     id: request.id,
                     provider: request.provider
@@ -2471,6 +2964,7 @@ export namespace compute {
                 request: BulkRequest<IngressControlUpdateRequestItem>
             ): APICallParameters<BulkRequest<IngressControlUpdateRequestItem>, any /* unknown */> {
                 return {
+                    context: "",
                     method: "POST",
                     path: "/api/ingresses/control" + "/update",
                     parameters: request,
@@ -2483,6 +2977,7 @@ export namespace compute {
                 request: IngressRetrieveWithFlags
             ): APICallParameters<IngressRetrieveWithFlags, Ingress> {
                 return {
+                    context: "",
                     method: "GET",
                     path: buildQueryString("/api/ingresses/control" + "/retrieve", {
                         id: request.id,
@@ -2498,60 +2993,9 @@ export namespace compute {
                 request: BulkRequest<IngressControlChargeCreditsRequestItem>
             ): APICallParameters<BulkRequest<IngressControlChargeCreditsRequestItem>, IngressControlChargeCreditsResponse> {
                 return {
+                    context: "",
                     method: "POST",
                     path: "/api/ingresses/control" + "/chargeCredits",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-        }
-        export namespace ucloud {
-            export function create(
-                request: BulkRequest<Ingress>
-            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/ucloud/ucloud/compute/ingresses",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            export function remove(
-                request: BulkRequest<Ingress>
-            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
-                return {
-                    method: "DELETE",
-                    path: "/ucloud/ucloud/compute/ingresses",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            export function retrieveSettings(
-                request: accounting.ProductReference
-            ): APICallParameters<accounting.ProductReference, IngressSettings> {
-                return {
-                    method: "GET",
-                    path: buildQueryString("/ucloud/ucloud/compute/ingresses" + "/retrieveSettings", {
-                        category: request.category,
-                        id: request.id,
-                        provider: request.provider
-                    }),
-                    parameters: request,
-                    reloadId: Math.random(),
-                };
-            }
-
-            export function verify(
-                request: BulkRequest<Ingress>
-            ): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
-                return {
-                    method: "POST",
-                    path: "/ucloud/ucloud/compute/ingresses" + "/verify",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -2597,6 +3041,7 @@ export namespace compute {
             request: BulkRequest<JobParameters>
         ): APICallParameters<BulkRequest<JobParameters>, JobsCreateResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/jobs",
                 parameters: request,
@@ -2623,6 +3068,7 @@ export namespace compute {
             request: BulkRequest<FindByStringId>
         ): APICallParameters<BulkRequest<FindByStringId>, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/jobs",
                 parameters: request,
@@ -2643,6 +3089,7 @@ export namespace compute {
             request: JobsRetrieveRequest
         ): APICallParameters<JobsRetrieveRequest, Job> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/jobs" + "/retrieve", {
                     id: request.id,
@@ -2668,6 +3115,7 @@ export namespace compute {
             request: JobsBrowseRequest
         ): APICallParameters<JobsBrowseRequest, PageV2<Job>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/jobs" + "/browse", {
                     consistency: request.consistency,
@@ -2708,6 +3156,7 @@ export namespace compute {
             request: BulkRequest<JobsExtendRequestItem>
         ): APICallParameters<BulkRequest<JobsExtendRequestItem>, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/jobs" + "/extend",
                 parameters: request,
@@ -2720,6 +3169,7 @@ export namespace compute {
             request: BulkRequest<JobsOpenInteractiveSessionRequestItem>
         ): APICallParameters<BulkRequest<JobsOpenInteractiveSessionRequestItem>, JobsOpenInteractiveSessionResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/jobs" + "/interactiveSession",
                 parameters: request,
@@ -2875,6 +3325,7 @@ export namespace project {
         request: CreateProjectRequest
     ): APICallParameters<CreateProjectRequest, FindByStringId> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects",
             parameters: request,
@@ -2887,6 +3338,7 @@ export namespace project {
         request: InviteRequest
     ): APICallParameters<InviteRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/invites",
             parameters: request,
@@ -2899,6 +3351,7 @@ export namespace project {
         request: ViewMemberInProjectRequest
     ): APICallParameters<ViewMemberInProjectRequest, ViewMemberInProjectResponse> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/members", {
                 projectId: request.projectId,
@@ -2913,6 +3366,7 @@ export namespace project {
         request: DeleteMemberRequest
     ): APICallParameters<DeleteMemberRequest, any /* unknown */> {
         return {
+            context: "",
             method: "DELETE",
             path: "/api/projects" + "/members",
             parameters: request,
@@ -2925,6 +3379,7 @@ export namespace project {
         request: ExistsRequest
     ): APICallParameters<ExistsRequest, ExistsResponse> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/exists",
             parameters: request,
@@ -2937,6 +3392,7 @@ export namespace project {
         request: ChangeUserRoleRequest
     ): APICallParameters<ChangeUserRoleRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/members" + "/change-role",
             parameters: request,
@@ -2949,6 +3405,7 @@ export namespace project {
         request: ListFavoriteProjectsRequest
     ): APICallParameters<ListFavoriteProjectsRequest, Page<UserProjectSummary>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/listFavorites", {
                 itemsPerPage: request.itemsPerPage,
@@ -2966,6 +3423,7 @@ export namespace project {
         request: ListProjectsRequest
     ): APICallParameters<ListProjectsRequest, Page<UserProjectSummary>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/list", {
                 itemsPerPage: request.itemsPerPage,
@@ -2982,6 +3440,7 @@ export namespace project {
 
     export function verifyMembership(): APICallParameters<{}, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/verify-membership",
             reloadId: Math.random(),
@@ -2992,6 +3451,7 @@ export namespace project {
         request: AcceptInviteRequest
     ): APICallParameters<AcceptInviteRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/invites" + "/accept",
             parameters: request,
@@ -3004,6 +3464,7 @@ export namespace project {
         request: RejectInviteRequest
     ): APICallParameters<RejectInviteRequest, any /* unknown */> {
         return {
+            context: "",
             method: "DELETE",
             path: "/api/projects" + "/invites" + "/reject",
             parameters: request,
@@ -3014,6 +3475,7 @@ export namespace project {
 
     export function leaveProject(): APICallParameters<{}, any /* unknown */> {
         return {
+            context: "",
             method: "DELETE",
             path: "/api/projects" + "/leave",
             reloadId: Math.random(),
@@ -3024,6 +3486,7 @@ export namespace project {
         request: ListIngoingInvitesRequest
     ): APICallParameters<ListIngoingInvitesRequest, Page<IngoingInvite>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/invites" + "/ingoing", {
                 itemsPerPage: request.itemsPerPage,
@@ -3038,6 +3501,7 @@ export namespace project {
         request: ListOutgoingInvitesRequest
     ): APICallParameters<ListOutgoingInvitesRequest, Page<OutgoingInvite>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/invites" + "/outgoing", {
                 itemsPerPage: request.itemsPerPage,
@@ -3052,6 +3516,7 @@ export namespace project {
         request: TransferPiRoleRequest
     ): APICallParameters<TransferPiRoleRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/transfer-pi",
             parameters: request,
@@ -3064,6 +3529,7 @@ export namespace project {
         request: ArchiveRequest
     ): APICallParameters<ArchiveRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/archive",
             parameters: request,
@@ -3076,6 +3542,7 @@ export namespace project {
         request: ArchiveBulkRequest
     ): APICallParameters<ArchiveBulkRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/archiveBulk",
             parameters: request,
@@ -3088,6 +3555,7 @@ export namespace project {
         request: ViewProjectRequest
     ): APICallParameters<ViewProjectRequest, UserProjectSummary> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/view", {id: request.id}),
             parameters: request,
@@ -3099,6 +3567,7 @@ export namespace project {
         request: ListSubProjectsRequest
     ): APICallParameters<ListSubProjectsRequest, Page<Project>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/sub-projects", {
                 itemsPerPage: request.itemsPerPage,
@@ -3111,6 +3580,7 @@ export namespace project {
 
     export function countSubProjects(): APICallParameters<{}, number /* int64 */> {
         return {
+            context: "",
             method: "GET",
             path: "/api/projects" + "/sub-projects-count",
             reloadId: Math.random(),
@@ -3119,6 +3589,7 @@ export namespace project {
 
     export function viewAncestors(): APICallParameters<{}, Project[]> {
         return {
+            context: "",
             method: "GET",
             path: "/api/projects" + "/ancestors",
             reloadId: Math.random(),
@@ -3129,6 +3600,7 @@ export namespace project {
         request: LookupByTitleRequest
     ): APICallParameters<LookupByTitleRequest, Project> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/lookupByTitle", {title: request.title}),
             parameters: request,
@@ -3140,6 +3612,7 @@ export namespace project {
         request: LookupByIdRequest
     ): APICallParameters<LookupByIdRequest, Project> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/lookupById", {id: request.id}),
             parameters: request,
@@ -3151,6 +3624,7 @@ export namespace project {
         request: LookupByIdBulkRequest
     ): APICallParameters<LookupByIdBulkRequest, Project[]> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/lookupByIdBulk",
             parameters: request,
@@ -3161,6 +3635,7 @@ export namespace project {
 
     export function lookupPrincipalInvestigator(): APICallParameters<{}, LookupPrincipalInvestigatorResponse> {
         return {
+            context: "",
             method: "GET",
             path: "/api/projects" + "/lookup-pi",
             reloadId: Math.random(),
@@ -3171,6 +3646,7 @@ export namespace project {
         request: AllowsRenamingRequest
     ): APICallParameters<AllowsRenamingRequest, AllowsRenamingResponse> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/renameable", {projectId: request.projectId}),
             parameters: request,
@@ -3182,6 +3658,7 @@ export namespace project {
         request: AllowsRenamingRequest
     ): APICallParameters<AllowsRenamingRequest, AllowsRenamingResponse> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/projects" + "/renameable-sub", {projectId: request.projectId}),
             parameters: request,
@@ -3193,6 +3670,7 @@ export namespace project {
         request: ToggleRenamingRequest
     ): APICallParameters<ToggleRenamingRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/toggleRenaming",
             parameters: request,
@@ -3205,6 +3683,7 @@ export namespace project {
         request: RenameProjectRequest
     ): APICallParameters<RenameProjectRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/rename",
             parameters: request,
@@ -3217,6 +3696,7 @@ export namespace project {
         request: UpdateDataManagementPlanRequest
     ): APICallParameters<UpdateDataManagementPlanRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/projects" + "/update-dmp",
             parameters: request,
@@ -3227,6 +3707,7 @@ export namespace project {
 
     export function fetchDataManagementPlan(): APICallParameters<{}, FetchDataManagementPlanResponse> {
         return {
+            context: "",
             method: "GET",
             path: "/api/projects" + "/dmp",
             reloadId: Math.random(),
@@ -3564,6 +4045,7 @@ export namespace project {
             request: UserStatusRequest
         ): APICallParameters<UserStatusRequest, UserStatusResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/membership",
                 parameters: request,
@@ -3576,6 +4058,7 @@ export namespace project {
             request: SearchRequest
         ): APICallParameters<SearchRequest, Page<ProjectMember>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/membership" + "/search", {
                     query: request.query,
@@ -3590,6 +4073,7 @@ export namespace project {
 
         export function count(): APICallParameters<{}, number /* int64 */> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/projects/membership" + "/count",
                 reloadId: Math.random(),
@@ -3600,6 +4084,7 @@ export namespace project {
             request: LookupAdminsRequest
         ): APICallParameters<LookupAdminsRequest, LookupAdminsResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/membership" + "/lookup-admins", {projectId: request.projectId}),
                 parameters: request,
@@ -3611,6 +4096,7 @@ export namespace project {
             request: LookupAdminsBulkRequest
         ): APICallParameters<LookupAdminsBulkRequest, LookupAdminsBulkResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/membership" + "/lookup-admins",
                 parameters: request,
@@ -3629,6 +4115,7 @@ export namespace project {
                 request: ToggleFavoriteRequest
             ): APICallParameters<ToggleFavoriteRequest, any /* unknown */> {
                 return {
+                    context: "",
                     method: "POST",
                     path: "/api/projects/favorite",
                     parameters: request,
@@ -3643,6 +4130,7 @@ export namespace project {
             request: RepositoryListRequest
         ): APICallParameters<RepositoryListRequest, Page<Repository>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/repositories", {
                     itemsPerPage: request.itemsPerPage,
@@ -3658,6 +4146,7 @@ export namespace project {
             request: RepositoryCreateRequest
         ): APICallParameters<RepositoryCreateRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/repositories",
                 parameters: request,
@@ -3670,6 +4159,7 @@ export namespace project {
             request: RepositoryDeleteRequest
         ): APICallParameters<RepositoryDeleteRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/projects/repositories",
                 parameters: request,
@@ -3682,6 +4172,7 @@ export namespace project {
             request: RepositoryUpdateRequest
         ): APICallParameters<RepositoryUpdateRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/repositories" + "/update",
                 parameters: request,
@@ -3694,6 +4185,7 @@ export namespace project {
             request: RepositoryListRequest
         ): APICallParameters<RepositoryListRequest, Page<file.StorageFile>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/repositories" + "/list-files", {
                     itemsPerPage: request.itemsPerPage,
@@ -3709,6 +4201,7 @@ export namespace project {
             request: UpdatePermissionsRequest
         ): APICallParameters<UpdatePermissionsRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/repositories" + "/update-permissions",
                 parameters: request,
@@ -3757,6 +4250,7 @@ export namespace project {
             request: DeleteGroupsRequest
         ): APICallParameters<DeleteGroupsRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/projects/groups",
                 parameters: request,
@@ -3769,6 +4263,7 @@ export namespace project {
             request: CreateGroupRequest
         ): APICallParameters<CreateGroupRequest, FindByStringId> {
             return {
+                context: "",
                 method: "PUT",
                 path: "/api/projects/groups",
                 parameters: request,
@@ -3781,6 +4276,7 @@ export namespace project {
             request: ListGroupsWithSummaryRequest
         ): APICallParameters<ListGroupsWithSummaryRequest, Page<GroupWithSummary>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/groups" + "/summary", {
                     itemsPerPage: request.itemsPerPage,
@@ -3795,6 +4291,7 @@ export namespace project {
             request: ListGroupMembersRequest
         ): APICallParameters<ListGroupMembersRequest, Page<string>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/groups" + "/members", {
                     group: request.group,
@@ -3810,6 +4307,7 @@ export namespace project {
             request: RemoveGroupMemberRequest
         ): APICallParameters<RemoveGroupMemberRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/projects/groups" + "/members",
                 parameters: request,
@@ -3822,6 +4320,7 @@ export namespace project {
             request: AddGroupMemberRequest
         ): APICallParameters<AddGroupMemberRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "PUT",
                 path: "/api/projects/groups" + "/members",
                 parameters: request,
@@ -3834,6 +4333,7 @@ export namespace project {
             request: UpdateGroupNameRequest
         ): APICallParameters<UpdateGroupNameRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/groups" + "/update-name",
                 parameters: request,
@@ -3844,6 +4344,7 @@ export namespace project {
 
         export function listAllGroupMembers(): APICallParameters<{}, string[]> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/groups" + "/list-all-group-members",
                 reloadId: Math.random(),
@@ -3854,6 +4355,7 @@ export namespace project {
             request: IsMemberRequest
         ): APICallParameters<IsMemberRequest, IsMemberResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/groups" + "/is-member",
                 parameters: request,
@@ -3866,6 +4368,7 @@ export namespace project {
             request: GroupExistsRequest
         ): APICallParameters<GroupExistsRequest, GroupExistsResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/projects/groups" + "/exists",
                 parameters: request,
@@ -3876,6 +4379,7 @@ export namespace project {
 
         export function count(): APICallParameters<{}, number /* int64 */> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/projects/groups" + "/count",
                 reloadId: Math.random(),
@@ -3886,6 +4390,7 @@ export namespace project {
             request: ViewGroupRequest
         ): APICallParameters<ViewGroupRequest, GroupWithSummary> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/groups" + "/view", {id: request.id}),
                 parameters: request,
@@ -3897,6 +4402,7 @@ export namespace project {
             request: LookupByGroupTitleRequest
         ): APICallParameters<LookupByGroupTitleRequest, GroupWithSummary> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/groups" + "/lookup-by-title", {
                     projectId: request.projectId,
@@ -3911,6 +4417,7 @@ export namespace project {
             request: LookupProjectAndGroupRequest
         ): APICallParameters<LookupProjectAndGroupRequest, ProjectAndGroup> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/projects/groups" + "/lookup-project-and-group", {
                     project: request.project,
@@ -3998,7 +4505,7 @@ export namespace accounting {
         ,
         used: number /* int64 */
         ,
-        area: "STORAGE" | "COMPUTE" | "INGRESS",
+        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
     }
 
     export interface RetrieveBalanceRequest {
@@ -4015,7 +4522,7 @@ export namespace accounting {
         ,
     }
 
-    export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress
+    export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License
     export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
 
     export interface FindProductRequest {
@@ -4034,7 +4541,7 @@ export namespace accounting {
 
     export interface ListProductsByAreaRequest {
         provider: string,
-        area: "STORAGE" | "COMPUTE" | "INGRESS",
+        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
         itemsPerPage?: number /* int32 */
         ,
         page?: number /* int32 */
@@ -4055,7 +4562,7 @@ export namespace accounting {
     }
 
     export interface UsageLine {
-        area: "STORAGE" | "COMPUTE" | "INGRESS",
+        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
         category: string,
         projectPath?: string,
         projectId?: string,
@@ -4089,6 +4596,7 @@ export namespace accounting {
             request: FindProductRequest
         ): APICallParameters<FindProductRequest, Product> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/products", {
                     provider: request.provider,
@@ -4104,6 +4612,7 @@ export namespace accounting {
             request: Product
         ): APICallParameters<Product, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/products",
                 parameters: request,
@@ -4116,6 +4625,7 @@ export namespace accounting {
             request: Product
         ): APICallParameters<Product, any /* unknown */> {
             return {
+                context: "",
                 method: "PUT",
                 path: "/api/products",
                 parameters: request,
@@ -4128,6 +4638,7 @@ export namespace accounting {
             request: ListProductsRequest
         ): APICallParameters<ListProductsRequest, Page<Product>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/products" + "/list", {
                     provider: request.provider,
@@ -4143,6 +4654,7 @@ export namespace accounting {
             request: ListProductsByAreaRequest
         ): APICallParameters<ListProductsByAreaRequest, Page<Product>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/products" + "/listByArea", {
                     provider: request.provider,
@@ -4159,6 +4671,7 @@ export namespace accounting {
             request: RetrieveAllFromProviderRequest
         ): APICallParameters<RetrieveAllFromProviderRequest, Product[]> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/products" + "/retrieve", {provider: request.provider}),
                 parameters: request,
@@ -4181,6 +4694,7 @@ export namespace accounting {
             request: UsageRequest
         ): APICallParameters<UsageRequest, UsageResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/accounting/visualization" + "/usage", {
                     bucketSize: request.bucketSize,
@@ -4197,6 +4711,7 @@ export namespace accounting {
             request: AddToBalanceRequest
         ): APICallParameters<AddToBalanceRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/add-credits",
                 parameters: request,
@@ -4209,6 +4724,7 @@ export namespace accounting {
             request: AddToBalanceBulkRequest
         ): APICallParameters<AddToBalanceBulkRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/add-credits-bulk",
                 parameters: request,
@@ -4221,6 +4737,7 @@ export namespace accounting {
             request: ReserveCreditsRequest
         ): APICallParameters<ReserveCreditsRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/reserve-credits",
                 parameters: request,
@@ -4233,6 +4750,7 @@ export namespace accounting {
             request: ReserveCreditsBulkRequest
         ): APICallParameters<ReserveCreditsBulkRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/reserve-credits-bulk",
                 parameters: request,
@@ -4245,6 +4763,7 @@ export namespace accounting {
             request: ChargeReservationRequest
         ): APICallParameters<ChargeReservationRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/charge-reservation",
                 parameters: request,
@@ -4257,6 +4776,7 @@ export namespace accounting {
             request: TransferToPersonalRequest
         ): APICallParameters<TransferToPersonalRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/transfer",
                 parameters: request,
@@ -4269,6 +4789,7 @@ export namespace accounting {
             request: RetrieveBalanceRequest
         ): APICallParameters<RetrieveBalanceRequest, RetrieveBalanceResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/accounting/wallets" + "/balance", {
                     id: request.id,
@@ -4284,6 +4805,7 @@ export namespace accounting {
             request: SetBalanceRequest
         ): APICallParameters<SetBalanceRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/set-balance",
                 parameters: request,
@@ -4334,6 +4856,19 @@ export namespace accounting {
             ,
             type: "ingress",
         }
+
+        export interface License {
+            id: string,
+            pricePerUnit: number /* int64 */
+            ,
+            category: ProductCategoryId,
+            description: string,
+            availability: ProductAvailability,
+            priority: number /* int32 */
+            ,
+            tags: string[],
+            type: "license",
+        }
     }
 }
 export namespace password {
@@ -4343,6 +4878,7 @@ export namespace password {
             request: PasswordResetRequest
         ): APICallParameters<PasswordResetRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/password/reset",
                 parameters: request,
@@ -4355,6 +4891,7 @@ export namespace password {
             request: NewPasswordRequest
         ): APICallParameters<NewPasswordRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/password/reset" + "/new",
                 parameters: request,
@@ -4378,6 +4915,7 @@ export namespace activity {
         request: ListActivityByPathRequest
     ): APICallParameters<ListActivityByPathRequest, Page<ActivityForFrontend>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/activity" + "/by-path", {
                 itemsPerPage: request.itemsPerPage,
@@ -4393,6 +4931,7 @@ export namespace activity {
         request: ActivityNS.BrowseByUserNS.Request
     ): APICallParameters<ActivityNS.BrowseByUserNS.Request, ActivityNS.BrowseByUserNS.Response> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/activity" + "/browse", {
                 user: request.user,
@@ -4459,6 +4998,7 @@ export namespace notification {
         request: ListNotificationRequest
     ): APICallParameters<ListNotificationRequest, Page<Notification>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/notifications", {
                 type: request.type,
@@ -4475,6 +5015,7 @@ export namespace notification {
         request: CreateNotification
     ): APICallParameters<CreateNotification, FindByLongId> {
         return {
+            context: "",
             method: "PUT",
             path: "/api/notifications",
             parameters: request,
@@ -4487,6 +5028,7 @@ export namespace notification {
         request: MarkAsReadRequest
     ): APICallParameters<MarkAsReadRequest, MarkResponse> {
         return {
+            context: "",
             method: "POST",
             path: "/api/notifications" + "/read" + "/" + request.bulkId,
             parameters: request,
@@ -4496,6 +5038,7 @@ export namespace notification {
 
     export function markAllAsRead(): APICallParameters<{}, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/notifications" + "/read" + "/all",
             reloadId: Math.random(),
@@ -4506,6 +5049,7 @@ export namespace notification {
         request: DeleteNotificationRequest
     ): APICallParameters<DeleteNotificationRequest, DeleteResponse> {
         return {
+            context: "",
             method: "DELETE",
             path: "/api/notifications" + "/" + request.bulkId,
             parameters: request,
@@ -4564,6 +5108,7 @@ export namespace share {
         request: SharesNS.ListNS.Request
     ): APICallParameters<SharesNS.ListNS.Request, Page<SharesByPath>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/shares", {
                 sharedByMe: request.sharedByMe,
@@ -4579,6 +5124,7 @@ export namespace share {
         request: SharesNS.CreateNS.Request
     ): APICallParameters<SharesNS.CreateNS.Request, any /* unknown */> {
         return {
+            context: "",
             method: "PUT",
             path: "/api/shares",
             parameters: request,
@@ -4591,6 +5137,7 @@ export namespace share {
         request: SharesNS.AcceptNS.Request
     ): APICallParameters<SharesNS.AcceptNS.Request, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/shares" + "/accept",
             parameters: request,
@@ -4603,6 +5150,7 @@ export namespace share {
         request: SharesNS.RevokeNS.Request
     ): APICallParameters<SharesNS.RevokeNS.Request, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/shares" + "/revoke",
             parameters: request,
@@ -4615,6 +5163,7 @@ export namespace share {
         request: SharesNS.UpdateNS.Request
     ): APICallParameters<SharesNS.UpdateNS.Request, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/shares" + "/update",
             parameters: request,
@@ -4627,6 +5176,7 @@ export namespace share {
         request: SharesNS.FindByPathNS.Request
     ): APICallParameters<SharesNS.FindByPathNS.Request, SharesByPath> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/shares" + "/byPath", {path: request.path}),
             parameters: request,
@@ -4638,6 +5188,7 @@ export namespace share {
         request: SharesNS.ListFilesNS.Request
     ): APICallParameters<SharesNS.ListFilesNS.Request, Page<file.StorageFile>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/shares" + "/list-files", {
                 itemsPerPage: request.itemsPerPage,
@@ -4717,6 +5268,7 @@ export namespace file {
         request: CreatePersonalRepositoryRequest
     ): APICallParameters<CreatePersonalRepositoryRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/create-personal-repository",
             parameters: request,
@@ -4729,6 +5281,7 @@ export namespace file {
         request: CreateDirectoryRequest
     ): APICallParameters<CreateDirectoryRequest, LongRunningResponse<any /* unknown */>> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/directory",
             parameters: request,
@@ -4741,6 +5294,7 @@ export namespace file {
         request: ListDirectoryRequest
     ): APICallParameters<ListDirectoryRequest, Page<StorageFile>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/files", {
                 path: request.path,
@@ -4760,6 +5314,7 @@ export namespace file {
         request: DeleteFileRequest
     ): APICallParameters<DeleteFileRequest, LongRunningResponse<any /* unknown */>> {
         return {
+            context: "",
             method: "DELETE",
             path: "/api/files",
             parameters: request,
@@ -4772,6 +5327,7 @@ export namespace file {
         request: MoveRequest
     ): APICallParameters<MoveRequest, LongRunningResponse<any /* unknown */>> {
         return {
+            context: "",
             method: "POST",
             path: buildQueryString("/api/files" + "/move", {
                 path: request.path,
@@ -4787,6 +5343,7 @@ export namespace file {
         request: CopyRequest
     ): APICallParameters<CopyRequest, LongRunningResponse<any /* unknown */>> {
         return {
+            context: "",
             method: "POST",
             path: buildQueryString("/api/files" + "/copy", {
                 path: request.path,
@@ -4802,6 +5359,7 @@ export namespace file {
         request: NormalizePermissionsRequest
     ): APICallParameters<NormalizePermissionsRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/normalize-permissions",
             parameters: request,
@@ -4814,6 +5372,7 @@ export namespace file {
         request: RetrieveQuotaRequest
     ): APICallParameters<RetrieveQuotaRequest, Quota> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/files" + "/quota", {path: request.path, includeUsage: request.includeUsage}),
             parameters: request,
@@ -4825,6 +5384,7 @@ export namespace file {
         request: UpdateQuotaRequest
     ): APICallParameters<UpdateQuotaRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/quota",
             parameters: request,
@@ -4837,6 +5397,7 @@ export namespace file {
         request: TransferQuotaRequest
     ): APICallParameters<TransferQuotaRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/transfer-quota",
             parameters: request,
@@ -4849,6 +5410,7 @@ export namespace file {
         request: LookupFileInDirectoryRequest
     ): APICallParameters<LookupFileInDirectoryRequest, Page<StorageFile>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/files" + "/lookup", {
                 path: request.path,
@@ -4866,6 +5428,7 @@ export namespace file {
         request: StatRequest
     ): APICallParameters<StatRequest, StorageFile> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/files" + "/stat", {path: request.path, attributes: request.attributes}),
             parameters: request,
@@ -4877,6 +5440,7 @@ export namespace file {
         request: FindHomeFolderRequest
     ): APICallParameters<FindHomeFolderRequest, FindHomeFolderResponse> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/files" + "/homeFolder", {username: request.username}),
             parameters: request,
@@ -4888,6 +5452,7 @@ export namespace file {
         request: UpdateAclRequest
     ): APICallParameters<UpdateAclRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/update-acl",
             parameters: request,
@@ -4900,6 +5465,7 @@ export namespace file {
         request: UpdateProjectAclRequest
     ): APICallParameters<UpdateProjectAclRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/update-project-acl",
             parameters: request,
@@ -4912,6 +5478,7 @@ export namespace file {
         request: ReclassifyRequest
     ): APICallParameters<ReclassifyRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/reclassify",
             parameters: request,
@@ -4924,6 +5491,7 @@ export namespace file {
         request: VerifyFileKnowledgeRequest
     ): APICallParameters<VerifyFileKnowledgeRequest, VerifyFileKnowledgeResponse> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/verify-knowledge",
             parameters: request,
@@ -4936,6 +5504,7 @@ export namespace file {
         request: DownloadByURI
     ): APICallParameters<DownloadByURI, BinaryStream> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/files" + "/download", {path: request.path, token: request.token}),
             parameters: request,
@@ -4947,6 +5516,7 @@ export namespace file {
         request: ExtractRequest
     ): APICallParameters<ExtractRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/files" + "/extract",
             parameters: request,
@@ -5196,6 +5766,7 @@ export namespace file {
             request: FindMetadataRequest
         ): APICallParameters<FindMetadataRequest, FindMetadataResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/metadata" + "/find",
                 parameters: request,
@@ -5208,6 +5779,7 @@ export namespace file {
             request: FindByPrefixRequest
         ): APICallParameters<FindByPrefixRequest, FindMetadataResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/metadata" + "/by-prefix",
                 parameters: request,
@@ -5220,6 +5792,7 @@ export namespace file {
             request: UpdateMetadataRequest
         ): APICallParameters<UpdateMetadataRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/metadata",
                 parameters: request,
@@ -5232,6 +5805,7 @@ export namespace file {
             request: RemoveMetadataRequest
         ): APICallParameters<RemoveMetadataRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/files/metadata",
                 parameters: request,
@@ -5244,6 +5818,7 @@ export namespace file {
             request: CreateMetadataRequest
         ): APICallParameters<CreateMetadataRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "PUT",
                 path: "/api/files/metadata",
                 parameters: request,
@@ -5256,6 +5831,7 @@ export namespace file {
             request: VerifyRequest
         ): APICallParameters<VerifyRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/metadata" + "/verify",
                 parameters: request,
@@ -5269,6 +5845,7 @@ export namespace file {
             request: UsageRequest
         ): APICallParameters<UsageRequest, UsageResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/files/stats" + "/usage", {path: request.path}),
                 parameters: request,
@@ -5280,6 +5857,7 @@ export namespace file {
             request: DirectorySizesRequest
         ): APICallParameters<DirectorySizesRequest, DirectorySizesResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/stats" + "/directory-sizes",
                 parameters: request,
@@ -5312,6 +5890,7 @@ export namespace file {
             request: ToggleFavoriteRequest
         ): APICallParameters<ToggleFavoriteRequest, ToggleFavoriteResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: buildQueryString("/api/files/favorite" + "/toggle", {path: request.path}),
                 parameters: request,
@@ -5323,6 +5902,7 @@ export namespace file {
             request: FavoriteStatusRequest
         ): APICallParameters<FavoriteStatusRequest, FavoriteStatusResponse> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/favorite" + "/status",
                 parameters: request,
@@ -5335,6 +5915,7 @@ export namespace file {
             request: PaginationRequest
         ): APICallParameters<PaginationRequest, Page<StorageFile>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/files/favorite" + "/list", {
                     itemsPerPage: request.itemsPerPage,
@@ -5386,6 +5967,7 @@ export namespace file {
             request: SimpleUploadRequest
         ): APICallParameters<SimpleUploadRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/upload" + "/file",
                 parameters: request,
@@ -5398,6 +5980,7 @@ export namespace file {
             request: SimpleBulkUpload
         ): APICallParameters<SimpleBulkUpload, BulkUploadErrorMessage> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/upload" + "/archive",
                 parameters: request,
@@ -5416,6 +5999,7 @@ export namespace file {
             request: TrashRequest
         ): APICallParameters<TrashRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/trash",
                 parameters: request,
@@ -5428,6 +6012,7 @@ export namespace file {
             request: ClearRequest
         ): APICallParameters<ClearRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/files/trash" + "/clear",
                 parameters: request,
@@ -5686,6 +6271,7 @@ export namespace grant {
             request: ApproveApplicationRequest
         ): APICallParameters<ApproveApplicationRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/approve",
                 parameters: request,
@@ -5698,6 +6284,7 @@ export namespace grant {
             request: RejectApplicationRequest
         ): APICallParameters<RejectApplicationRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/reject",
                 parameters: request,
@@ -5710,6 +6297,7 @@ export namespace grant {
             request: CloseApplicationRequest
         ): APICallParameters<CloseApplicationRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/close",
                 parameters: request,
@@ -5722,6 +6310,7 @@ export namespace grant {
             request: CommentOnApplicationRequest
         ): APICallParameters<CommentOnApplicationRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/comment",
                 parameters: request,
@@ -5734,6 +6323,7 @@ export namespace grant {
             request: DeleteCommentRequest
         ): APICallParameters<DeleteCommentRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/grant" + "/comment",
                 parameters: request,
@@ -5746,6 +6336,7 @@ export namespace grant {
             request: CreateApplication
         ): APICallParameters<CreateApplication, FindByLongId> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/submit-application",
                 parameters: request,
@@ -5758,6 +6349,7 @@ export namespace grant {
             request: EditApplicationRequest
         ): APICallParameters<EditApplicationRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/edit",
                 parameters: request,
@@ -5770,6 +6362,7 @@ export namespace grant {
             request: UploadTemplatesRequest
         ): APICallParameters<UploadTemplatesRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/upload-templates",
                 parameters: request,
@@ -5782,6 +6375,7 @@ export namespace grant {
             request: ReadRequestSettingsRequest
         ): APICallParameters<ReadRequestSettingsRequest, ProjectApplicationSettings> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/grant" + "/request-settings", {projectId: request.projectId}),
                 parameters: request,
@@ -5793,6 +6387,7 @@ export namespace grant {
             request: ProjectApplicationSettings
         ): APICallParameters<ProjectApplicationSettings, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/request-settings",
                 parameters: request,
@@ -5805,6 +6400,7 @@ export namespace grant {
             request: ReadTemplatesRequest
         ): APICallParameters<ReadTemplatesRequest, UploadTemplatesRequest> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/grant" + "/read-templates", {projectId: request.projectId}),
                 parameters: request,
@@ -5816,6 +6412,7 @@ export namespace grant {
             request: IngoingApplicationsRequest
         ): APICallParameters<IngoingApplicationsRequest, Page<Application>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/grant" + "/ingoing", {
                     itemsPerPage: request.itemsPerPage,
@@ -5831,6 +6428,7 @@ export namespace grant {
             request: OutgoingApplicationsRequest
         ): APICallParameters<OutgoingApplicationsRequest, Page<Application>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/grant" + "/outgoing", {
                     itemsPerPage: request.itemsPerPage,
@@ -5846,6 +6444,7 @@ export namespace grant {
             request: ViewApplicationRequest
         ): APICallParameters<ViewApplicationRequest, ApplicationWithComments> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/grant" + "/" + request.id,
                 parameters: request,
@@ -5857,6 +6456,7 @@ export namespace grant {
             request: SetEnabledStatusRequest
         ): APICallParameters<SetEnabledStatusRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/set-enabled",
                 parameters: request,
@@ -5869,6 +6469,7 @@ export namespace grant {
             request: IsEnabledRequest
         ): APICallParameters<IsEnabledRequest, IsEnabledResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/grant" + "/is-enabled", {projectId: request.projectId}),
                 parameters: request,
@@ -5880,6 +6481,7 @@ export namespace grant {
             request: BrowseProjectsRequest
         ): APICallParameters<BrowseProjectsRequest, Page<ProjectWithTitle>> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/grant" + "/browse-projects", {
                     itemsPerPage: request.itemsPerPage,
@@ -5894,6 +6496,7 @@ export namespace grant {
             request: UploadLogoRequest
         ): APICallParameters<UploadLogoRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/uploadLogo",
                 parameters: request,
@@ -5906,6 +6509,7 @@ export namespace grant {
             request: FetchLogoRequest
         ): APICallParameters<FetchLogoRequest, BinaryStream> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/grant" + "/logo" + "/" + request.projectId,
                 parameters: request,
@@ -5917,6 +6521,7 @@ export namespace grant {
             request: UploadDescriptionRequest
         ): APICallParameters<UploadDescriptionRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/grant" + "/uploadDescription",
                 parameters: request,
@@ -5929,6 +6534,7 @@ export namespace grant {
             request: FetchDescriptionRequest
         ): APICallParameters<FetchDescriptionRequest, FetchDescriptionResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: buildQueryString("/api/grant" + "/description", {projectId: request.projectId}),
                 parameters: request,
@@ -5955,6 +6561,7 @@ export namespace grant {
     export namespace gifts {
         export function availableGifts(): APICallParameters<{}, AvailableGiftsResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/gifts" + "/available",
                 reloadId: Math.random(),
@@ -5965,6 +6572,7 @@ export namespace grant {
             request: ClaimGiftRequest
         ): APICallParameters<ClaimGiftRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/gifts" + "/claim",
                 parameters: request,
@@ -5975,6 +6583,7 @@ export namespace grant {
 
         export function listGifts(): APICallParameters<{}, ListGiftsResponse> {
             return {
+                context: "",
                 method: "GET",
                 path: "/api/gifts",
                 reloadId: Math.random(),
@@ -5985,6 +6594,7 @@ export namespace grant {
             request: GiftWithCriteria
         ): APICallParameters<GiftWithCriteria, FindByLongId> {
             return {
+                context: "",
                 method: "POST",
                 path: "/api/gifts",
                 parameters: request,
@@ -5997,6 +6607,7 @@ export namespace grant {
             request: DeleteGiftRequest
         ): APICallParameters<DeleteGiftRequest, any /* unknown */> {
             return {
+                context: "",
                 method: "DELETE",
                 path: "/api/gifts",
                 parameters: request,
@@ -6011,6 +6622,7 @@ export namespace task {
         request: ListRequest
     ): APICallParameters<ListRequest, Page<Task>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/tasks", {itemsPerPage: request.itemsPerPage, page: request.page}),
             parameters: request,
@@ -6022,6 +6634,7 @@ export namespace task {
         request: PostStatusRequest
     ): APICallParameters<PostStatusRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/tasks",
             parameters: request,
@@ -6034,6 +6647,7 @@ export namespace task {
         request: CreateRequest
     ): APICallParameters<CreateRequest, Task> {
         return {
+            context: "",
             method: "PUT",
             path: "/api/tasks",
             parameters: request,
@@ -6046,6 +6660,7 @@ export namespace task {
         request: FindByStringId
     ): APICallParameters<FindByStringId, Task> {
         return {
+            context: "",
             method: "GET",
             path: "/api/tasks" + "/" + request.id,
             parameters: request,
@@ -6057,6 +6672,7 @@ export namespace task {
         request: FindByStringId
     ): APICallParameters<FindByStringId, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/tasks" + "/" + request.id,
             parameters: request,
@@ -6125,6 +6741,7 @@ export namespace micro {
     export namespace healthcheck {
         export function status(): APICallParameters<{}, any /* unknown */> {
             return {
+                context: "",
                 method: "GET",
                 path: "/status",
                 reloadId: Math.random(),
@@ -6137,6 +6754,7 @@ export namespace support {
         request: CreateTicketRequest
     ): APICallParameters<CreateTicketRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/support" + "/ticket",
             parameters: request,
@@ -6154,6 +6772,7 @@ export namespace news {
         request: NewPostRequest
     ): APICallParameters<NewPostRequest, any /* unknown */> {
         return {
+            context: "",
             method: "PUT",
             path: "/api/news" + "/post",
             parameters: request,
@@ -6166,6 +6785,7 @@ export namespace news {
         request: UpdatePostRequest
     ): APICallParameters<UpdatePostRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/news" + "/update",
             parameters: request,
@@ -6178,6 +6798,7 @@ export namespace news {
         request: DeleteNewsPostRequest
     ): APICallParameters<DeleteNewsPostRequest, any /* unknown */> {
         return {
+            context: "",
             method: "DELETE",
             path: "/api/news" + "/delete",
             parameters: request,
@@ -6190,6 +6811,7 @@ export namespace news {
         request: TogglePostHiddenRequest
     ): APICallParameters<TogglePostHiddenRequest, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/news" + "/toggleHidden",
             parameters: request,
@@ -6202,6 +6824,7 @@ export namespace news {
         request: ListPostsRequest
     ): APICallParameters<ListPostsRequest, Page<NewsPost>> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/news" + "/list", {
                 filter: request.filter,
@@ -6216,6 +6839,7 @@ export namespace news {
 
     export function listCategories(): APICallParameters<{}, string[]> {
         return {
+            context: "",
             method: "GET",
             path: "/api/news" + "/listCategories",
             reloadId: Math.random(),
@@ -6224,6 +6848,7 @@ export namespace news {
 
     export function listDowntimes(): APICallParameters<{}, Page<NewsPost>> {
         return {
+            context: "",
             method: "GET",
             path: "/api/news" + "/listDowntimes",
             reloadId: Math.random(),
@@ -6234,6 +6859,7 @@ export namespace news {
         request: GetPostByIdRequest
     ): APICallParameters<GetPostByIdRequest, NewsPost> {
         return {
+            context: "",
             method: "GET",
             path: buildQueryString("/api/news" + "/byId", {id: request.id}),
             parameters: request,
@@ -6309,6 +6935,7 @@ export namespace indexing {
         request: QueryRequest
     ): APICallParameters<QueryRequest, Page<file.StorageFile>> {
         return {
+            context: "",
             method: "POST",
             path: "/api/indexing/query",
             parameters: request,
@@ -6321,6 +6948,7 @@ export namespace indexing {
         request: StatisticsRequest
     ): APICallParameters<StatisticsRequest, StatisticsResponse> {
         return {
+            context: "",
             method: "POST",
             path: "/api/indexing/query" + "/statistics",
             parameters: request,
@@ -6333,6 +6961,7 @@ export namespace indexing {
         request: SizeRequest
     ): APICallParameters<SizeRequest, SizeResponse> {
         return {
+            context: "",
             method: "POST",
             path: "/api/indexing/query" + "/size",
             parameters: request,
@@ -6432,6 +7061,7 @@ export namespace avatar {
         request: SerializedAvatar
     ): APICallParameters<SerializedAvatar, any /* unknown */> {
         return {
+            context: "",
             method: "POST",
             path: "/api/avatar" + "/update",
             parameters: request,
@@ -6442,6 +7072,7 @@ export namespace avatar {
 
     export function findAvatar(): APICallParameters<{}, SerializedAvatar> {
         return {
+            context: "",
             method: "GET",
             path: "/api/avatar" + "/find",
             reloadId: Math.random(),
@@ -6452,6 +7083,7 @@ export namespace avatar {
         request: FindBulkRequest
     ): APICallParameters<FindBulkRequest, FindBulkResponse> {
         return {
+            context: "",
             method: "POST",
             path: "/api/avatar" + "/bulk",
             parameters: request,
@@ -6492,6 +7124,7 @@ export namespace contactbook {
         request: QueryContactsRequest
     ): APICallParameters<QueryContactsRequest, QueryContactsResponse> {
         return {
+            context: "",
             method: "POST",
             path: "/api/contactbook",
             parameters: request,
@@ -6504,6 +7137,7 @@ export namespace contactbook {
         request: DeleteRequest
     ): APICallParameters<DeleteRequest, any /* unknown */> {
         return {
+            context: "",
             method: "DELETE",
             path: "/api/contactbook",
             parameters: request,
@@ -6516,6 +7150,7 @@ export namespace contactbook {
         request: InsertRequest
     ): APICallParameters<InsertRequest, any /* unknown */> {
         return {
+            context: "",
             method: "PUT",
             path: "/api/contactbook",
             parameters: request,
@@ -6528,6 +7163,7 @@ export namespace contactbook {
         request: AllContactsForUserRequest
     ): APICallParameters<AllContactsForUserRequest, QueryContactsResponse> {
         return {
+            context: "",
             method: "POST",
             path: "/api/contactbook" + "/all",
             parameters: request,

@@ -5,7 +5,10 @@ import * as Text from "ui-components/Text";
 import Box from "./Box";
 import {Dropdown, DropdownContent} from "./Dropdown";
 
-interface ClickableDropdownState {open: boolean;}
+interface ClickableDropdownState {
+    open: boolean;
+}
+
 interface ClickableDropdownProps<T> {
     children?: any;
     keepOpenOnClick?: boolean;
@@ -18,7 +21,7 @@ interface ClickableDropdownProps<T> {
     top?: string | number;
     bottom?: string | number;
     right?: string | number;
-    options?: {text: string; value: T}[];
+    options?: { text: string; value: T }[];
     chevron?: boolean;
     overflow?: string;
     colorOnHover?: boolean;
@@ -68,8 +71,15 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
         const width = this.props.fullWidth ? "100%" : this.props.width;
         return (
             <Dropdown data-tag="dropdown" ref={this.ref} fullWidth={this.props.fullWidth}>
-                <Text.TextSpan cursor="pointer" onClick={() => {onTriggerClick?.(); this.setState(() => ({open: !this.state.open}))}}>
-                    {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em" /> : null}
+                <Text.TextSpan
+                    cursor="pointer"
+                    onClick={e => {
+                        e.stopPropagation();
+                        onTriggerClick?.();
+                        this.setState(() => ({open: !this.state.open}))
+                    }}
+                >
+                    {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em"/> : null}
                 </Text.TextSpan>
                 {emptyChildren || !this.state.open ? null : (
                     <DropdownContent
@@ -80,7 +90,10 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
                         width={width}
                         hover={false}
                         visible={this.state.open}
-                        onClick={() => !keepOpenOnClick ? this.setState(() => ({open: false})) : null}
+                        onClick={e => {
+                            e.stopPropagation();
+                            !keepOpenOnClick ? this.setState(() => ({open: false})) : null;
+                        }}
                     >
                         {children}
                     </DropdownContent>
@@ -97,7 +110,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
         }
     };
 
-    private handleEscPress = (event: {keyCode: KeyCode}): void => {
+    private handleEscPress = (event: { keyCode: KeyCode }): void => {
         if (event.keyCode === KeyCode.ESC && this.state.open) this.setState(() => ({open: false}));
     };
 }

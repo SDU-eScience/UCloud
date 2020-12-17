@@ -49,6 +49,7 @@ interface ListRowProps {
     icon?: React.ReactNode;
     bg?: string;
     right: React.ReactNode;
+    fontSize?: string | number;
 }
 
 export function ListRow(props: ListRowProps): JSX.Element {
@@ -58,10 +59,13 @@ export function ListRow(props: ListRowProps): JSX.Element {
         <Box maxWidth={`calc(100% - ${truncateWidth})`} width="auto">
             <Truncate
                 cursor={props.navigate ? "pointer" : "default"}
-                onClick={e => {props.navigate?.(); e.stopPropagation();}}
+                onClick={e => {
+                    (props.navigate ?? props.select)?.();
+                    e.stopPropagation();
+                }}
                 mb="-4px"
                 width={1}
-                fontSize={20}
+                fontSize={props.fontSize ?? 20}
             >{props.left}</Truncate>
             <Flex mt="4px">
                 {props.leftSub}
@@ -91,6 +95,11 @@ export function ListRow(props: ListRowProps): JSX.Element {
     );
 }
 
+export const ListStatContainer = styled(Flex)`
+    & > * {
+      margin-right: 16px;
+    }
+`;
 
 export const ListRowStat: React.FunctionComponent<{icon?: IconName; color?: ThemeColor; color2?: ThemeColor}> = props => {
     const color: ThemeColor = props.color ?? "gray";

@@ -59,6 +59,7 @@ class Server(
             db,
             serviceClient
         )
+        val licenseService = LicenseService(serviceClient, db)
 
         val jobManagement = JobManagement(
             k8Dependencies,
@@ -76,7 +77,7 @@ class Server(
             configuration.fullScanFrequency
         ).apply {
             register(TaskPlugin(configuration.toleration))
-            register(ParameterPlugin)
+            register(ParameterPlugin(licenseService))
             register(FileMountPlugin(cephConfig))
             register(MultiNodePlugin)
             register(SharedMemoryPlugin)
@@ -150,7 +151,8 @@ class Server(
                 ReloadController(k8Dependencies),
                 MaintenanceController(maintenance),
                 ShellController(k8Dependencies, db, sessions),
-                IngressController(ingressService)
+                IngressController(ingressService),
+                LicenseController(licenseService),
             )
         }
 

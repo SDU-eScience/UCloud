@@ -183,6 +183,7 @@ private fun GenerationContext.generateOp(
 
         appendLine("> {")
         appendLine("    return {")
+        appendLine("        context: \"\",")
         appendLine("        method: \"${method.value.toUpperCase()}\",")
         append("        path: ")
         with(info.call.http.path) {

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Roles
@@ -9,23 +10,12 @@ import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.ProductAvailability
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.PostgresErrorCodes
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.errorCode
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.getFieldNullable
-import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.int
-import dk.sdu.cloud.service.db.async.long
-import dk.sdu.cloud.service.db.async.paginatedQuery
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.text
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 
@@ -49,6 +39,8 @@ object ProductTable : SQLTable("products") {
     val cpu = int("cpu", notNull = false)
     val gpu = int("gpu", notNull = false)
     val memoryInGigs = int("memory_in_gigs", notNull = false)
+
+    val licenseTags = jsonb("license_tags", notNull = false)
 }
 
 class ProductService {
@@ -80,7 +72,7 @@ class ProductService {
                     }
 
                     when (product) {
-                        is Product.Storage -> {
+                        is Product.Ingress, is Product.Storage -> {
                             // No more attributes
                         }
 
@@ -88,6 +80,10 @@ class ProductService {
                             set(ProductTable.cpu, product.cpu)
                             set(ProductTable.gpu, product.gpu)
                             set(ProductTable.memoryInGigs, product.memoryInGigs)
+                        }
+
+                        is Product.License -> {
+                            set(ProductTable.licenseTags, defaultMapper.writeValueAsString(product.tags))
                         }
                     }
                     set(ProductTable.pricePerUnit, product.pricePerUnit)
@@ -140,6 +136,10 @@ class ProductService {
                             is Product.Compute -> product.memoryInGigs
                             else -> null
                         })
+                        setParameter("tags", when (product) {
+                            is Product.License -> defaultMapper.writeValueAsString(product.tags)
+                            else -> null
+                        })
                     },
 
                     """
@@ -150,7 +150,8 @@ class ProductService {
                             availability = :availability,
                             cpu = :cpu,
                             gpu = :gpu,
-                            memory_in_gigs = :memoryInGigs
+                            memory_in_gigs = :memoryInGigs,
+                            license_tags = :tags::jsonb
                         where 
                             provider = :provider and 
                             category = :category and 
@@ -378,6 +379,23 @@ class ProductService {
                         else -> ProductAvailability.Unavailable(reason)
                     },
                     getField(ProductTable.priority)
+                )
+            }
+            ProductArea.LICENSE -> {
+                Product.License(
+                    getField(ProductTable.id),
+                    getField(ProductTable.pricePerUnit),
+                    ProductCategoryId(
+                        getField(ProductTable.category),
+                        getField(ProductTable.provider)
+                    ),
+                    getField(ProductTable.description),
+                    when (val reason = getFieldNullable(ProductTable.availability)) {
+                        null -> ProductAvailability.Available()
+                        else -> ProductAvailability.Unavailable(reason)
+                    },
+                    getField(ProductTable.priority),
+                    getFieldNullable(ProductTable.licenseTags)?.let { defaultMapper.readValue(it) } ?: emptyList()
                 )
             }
         }

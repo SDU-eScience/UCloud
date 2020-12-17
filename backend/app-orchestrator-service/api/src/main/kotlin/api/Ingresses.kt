@@ -176,7 +176,7 @@ typealias IngressesRetrieveSettingsResponse = IngressSettings
 @TSNamespace("compute.ingresses")
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object Ingresses : CallDescriptionContainer("ingresses") {
-    const val baseContext = "/api/compute/ingresses"
+    const val baseContext = "/api/ingresses"
 
     init {
         title = "Compute: Ingresses"

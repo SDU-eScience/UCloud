@@ -19,7 +19,7 @@ private val log = LoggerFactory.getLogger(InvocationParameter::class.java)
     JsonSubTypes.Type(value = EnvironmentVariableParameter::class, name = "env")
 )
 sealed class InvocationParameter {
-    abstract fun buildInvocationList(
+    abstract suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
         context: InvocationParameterContext = InvocationParameterContext.COMMAND,
         builder: ArgumentBuilder = ArgumentBuilder.Default,
@@ -32,10 +32,10 @@ enum class InvocationParameterContext {
 }
 
 interface ArgumentBuilder {
-    fun build(parameter: ApplicationParameter, value: AppParameterValue): String
+    suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String
 
     companion object Default : ArgumentBuilder {
-        override fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
+        override suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
             when (parameter) {
                 is ApplicationParameter.InputFile, is ApplicationParameter.InputDirectory -> {
                     return (value as AppParameterValue.File).path
@@ -69,22 +69,15 @@ interface ArgumentBuilder {
 
                 is ApplicationParameter.LicenseServer -> {
                     val license = (value as AppParameterValue.License)
-                    return buildString {
-                        append(license.address)
-                        append(":")
-                        append(license.port)
-                        if (license.license != null) {
-                            append("/")
-                            append(license.license)
-                        }
-                    }
+                    return license.id
+
                 }
             }
         }
     }
 }
 
-fun InvocationParameter.buildInvocationSnippet(
+suspend fun InvocationParameter.buildInvocationSnippet(
     parameters: AppParametersWithValues,
     builder: ArgumentBuilder = ArgumentBuilder.Default,
 ): String? {
@@ -93,7 +86,7 @@ fun InvocationParameter.buildInvocationSnippet(
         ?.joinToString(" ") { BashEscaper.safeBashArgument(it) }
 }
 
-fun InvocationParameter.buildEnvironmentValue(
+suspend fun InvocationParameter.buildEnvironmentValue(
     parameters: AppParametersWithValues,
     builder: ArgumentBuilder = ArgumentBuilder.Default,
 ): String? {
@@ -103,7 +96,7 @@ fun InvocationParameter.buildEnvironmentValue(
 }
 
 data class EnvironmentVariableParameter(val variable: String) : InvocationParameter() {
-    override fun buildInvocationList(
+    override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
         context: InvocationParameterContext,
         builder: ArgumentBuilder,
@@ -114,7 +107,7 @@ data class EnvironmentVariableParameter(val variable: String) : InvocationParame
 }
 
 data class WordInvocationParameter(val word: String) : InvocationParameter() {
-    override fun buildInvocationList(
+    override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
         context: InvocationParameterContext,
         builder: ArgumentBuilder,
@@ -134,7 +127,7 @@ data class VariableInvocationParameter(
     val isPrefixVariablePartOfArg: Boolean = false,
     val isSuffixVariablePartOfArg: Boolean = false,
 ) : InvocationParameter() {
-    override fun buildInvocationList(
+    override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
         context: InvocationParameterContext,
         builder: ArgumentBuilder,
@@ -206,7 +199,7 @@ data class BooleanFlagParameter(
     val variableName: String,
     val flag: String,
 ) : InvocationParameter() {
-    override fun buildInvocationList(
+    override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
         context: InvocationParameterContext,
         builder: ArgumentBuilder,
@@ -235,7 +228,7 @@ private data class InvalidParamUsage(
     }
 }
 
-fun Iterable<InvocationParameter>.buildSafeBashString(
+suspend fun Iterable<InvocationParameter>.buildSafeBashString(
     parameters: AppParametersWithValues,
     builder: ArgumentBuilder,
 ): String =

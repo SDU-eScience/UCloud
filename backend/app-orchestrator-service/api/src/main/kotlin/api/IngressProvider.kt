@@ -18,7 +18,7 @@ typealias IngressProviderRetrieveSettingsRequest = ProductReference
 typealias IngressProviderRetrieveSettingsResponse = IngressSettings
 
 open class IngressProvider(namespace: String) : CallDescriptionContainer("ingresses.provider.$namespace") {
-    val baseContext = "/ucloud/$namespace/compute/ingresses"
+    val baseContext = "/ucloud/$namespace/ingresses"
 
     val create = call<IngressProviderCreateRequest, IngressProviderCreateResponse, CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = Roles.PRIVILEGED)

@@ -24,9 +24,9 @@ import kotlinx.coroutines.selects.select
 import java.util.concurrent.atomic.AtomicInteger
 
 interface JobListener {
-    suspend fun onVerified(ctx: DBContext, job: Job)
-    suspend fun onCreate(ctx: DBContext, job: Job)
-    suspend fun onTermination(ctx: DBContext, job: Job)
+    suspend fun onVerified(ctx: DBContext, job: Job) {}
+    suspend fun onCreate(ctx: DBContext, job: Job) {}
+    suspend fun onTermination(ctx: DBContext, job: Job) {}
 }
 
 /**

@@ -3,12 +3,14 @@ package dk.sdu.cloud.app.orchestrator
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
 import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
+import dk.sdu.cloud.app.orchestrator.api.LicenseControl
 import dk.sdu.cloud.app.orchestrator.api.ProviderManifest
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.services.JobDao
 import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
 import dk.sdu.cloud.app.orchestrator.rpc.IngressController
 import dk.sdu.cloud.app.orchestrator.rpc.JobController
+import dk.sdu.cloud.app.orchestrator.rpc.LicenseController
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
@@ -121,15 +123,12 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         runBlocking { jobMonitoring.initialize() }
 
         val ingressDao = IngressDao()
-        val ingressService = IngressService(
-            db,
-            ingressDao,
-            providers,
-            projectCache,
-            productCache,
-            jobOrchestrator,
-            paymentService
-        )
+        val ingressService = IngressService(db, ingressDao, providers, projectCache, productCache,
+            jobOrchestrator, paymentService)
+
+        val licenseDao = LicenseDao(productCache)
+        val licenseService = LicenseService(db, licenseDao, providers, projectCache, productCache,
+            jobOrchestrator, paymentService)
 
         with(micro.server) {
             configureControllers(
@@ -140,7 +139,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
                 CallbackController(jobOrchestrator),
 
-                IngressController(ingressService)
+                IngressController(ingressService),
+
+                LicenseController(licenseService),
             )
         }
 

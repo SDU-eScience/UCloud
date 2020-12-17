@@ -278,17 +278,6 @@ class JobVerificationService(
 
                 is ApplicationParameter.LicenseServer -> {
                     if (providedValue !is AppParameterValue.License) badValue(param)
-                    val license = AppLicenseDescriptions.get.call(
-                        LicenseServerRequest(providedValue.id),
-                        serviceClient
-                    ).orRethrowAs { badValue(param) }
-
-                    userParameters[param.name] = AppParameterValue.License(
-                        id = license.id,
-                        address = license.address,
-                        port = license.port,
-                        license = license.license
-                    )
                 }
             }
         }

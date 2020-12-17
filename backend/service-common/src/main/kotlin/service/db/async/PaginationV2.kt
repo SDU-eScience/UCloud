@@ -87,7 +87,12 @@ suspend fun <T> DBContext.paginateV2(
                 PaginationV2Cache.cache.remove(id)
                 PageV2(request.itemsPerPage, emptyList(), null)
             } else {
-                PageV2(request.itemsPerPage, items, "${(request.itemsToSkip ?: 0) + items.size}-$id")
+                val next =
+                    if (items.size < request.itemsPerPage) null
+                    else "${(request.itemsToSkip ?: 0) + items.size}-$id"
+                PaginationV2Cache.cache.remove(id)
+
+                PageV2(request.itemsPerPage, items, next)
             }
         } catch (ex: Throwable) {
             if (idToRemove != null) {

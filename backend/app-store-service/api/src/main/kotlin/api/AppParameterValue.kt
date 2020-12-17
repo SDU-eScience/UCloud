@@ -83,15 +83,6 @@ sealed class AppParameterValue {
     @UCloudApiDoc("A reference to a license")
     data class License(
         val id: String,
-
-        @UCloudApiDoc("Ignored in user requests - Filled in by UCloud")
-        val address: String = "",
-
-        @UCloudApiDoc("Ignored in user requests - Filled in by UCloud")
-        val port: Int = -1,
-
-        @UCloudApiDoc("Ignored in user requests - Filled in by UCloud")
-        val license: String? = null,
     ) : AppParameterValue() {
         val type = "license_server"
     }

@@ -1,35 +1,73 @@
 import * as React from "react";
 import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Select} from "ui-components";
 import {compute} from "UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
-import {useCloudAPI} from "Authentication/DataHook";
-import LicenseServerId = compute.license.LicenseServerId;
 import AppParameterValueNS = compute.AppParameterValueNS;
+import {PointerInput} from "Applications/Jobs/Widgets/Peer";
+import * as Licenses from "Applications/Licenses";
+import {useCallback, useState} from "react";
+import ReactModal from "react-modal";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+import License = compute.License;
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
 }
 
-export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => {
-    const [licenses] = useCloudAPI<LicenseServerId[]>(UCloud.compute.license.findByTag({
-        tags: props.parameter.tagged,
-    }), []);
+const modalStyle = {
+    content: {
+        borderRadius: "6px",
+        top: "50%",
+        left: "50%",
+        right: "auto",
+        bottom: "auto",
+        marginRight: "-50%",
+        transform: "translate(-50%, -50%)",
+        background: "",
+        minWidth: "800px",
+        maxWidth: "1200px",
+        minHeight: "400px",
+        maxHeight: "80vh"
+    }
+};
 
+export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => {
     const error = props.errors[props.parameter.name] != null;
+    const [open, setOpen] = useState(false);
+    const doOpen = useCallback(() => {
+        setOpen(true);
+    }, [setOpen]);
+    const doClose = useCallback(() => {
+        setOpen(false)
+    }, [setOpen]);
+
+    const onUse = useCallback((license: License) => {
+        LicenseSetter(props.parameter, {type: "license_server", id: license.id});
+        setOpen(false);
+    }, [props.parameter, setOpen]);
+
     return <Flex>
-        <Select id={widgetId(props.parameter)} error={error}>
-            <option value="none" disabled>
-                No license server selected
-            </option>
-            {licenses.data.map(server => (
-                <option key={server.id} value={server.id}>
-                    {server.name}
-                </option>
-            ))}
-        </Select>
+        <ReactModal
+            isOpen={open}
+            style={modalStyle}
+            onRequestClose={doClose}
+            ariaHideApp={false}
+            shouldCloseOnEsc
+        >
+            <Licenses.Browse
+                tagged={props.parameter.tagged}
+                // TODO Provider
+                standalone={false}
+                onUse={onUse}
+            />
+        </ReactModal>
+        <PointerInput
+            id={widgetId(props.parameter)}
+            error={error}
+            onClick={doOpen}
+        />
     </Flex>;
 };
 
