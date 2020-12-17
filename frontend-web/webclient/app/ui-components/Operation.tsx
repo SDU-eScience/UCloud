@@ -118,7 +118,7 @@ export const Operations: OperationsType = props => {
             const opTypeFn = op.operationType ?? ((a, b) => defaultOperationType(a, b, op));
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const As = opTypeFn(props.dropdown, props.operations) as StyledComponent<any, any>;
-            const elem = <OperationComponent As={As} op={op} extra={props.extra} selected={selected}
+            const elem = <OperationComponent key={op.text} As={As} op={op} extra={props.extra} selected={selected}
                                              reasonDisabled={reasonDisabled} dropdown={props.dropdown}/>;
             const priority = As === OutlineButton ? 0 : As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};
