@@ -102,12 +102,14 @@ export function IngressRow(props: IngressRowProps): JSX.Element {
                         Create
                 </SelectableText>
                 </SelectableTextWrapper>
-                {isBrowsing ?
-                    <Browse computeProvider={props.provider} onSelect={ingress => {
-                        setUrl(ingress);
-                        setModalOpen(false);
-                    }} /> :
-                    <Create computeProvider={props.provider} onCreateFinished={() => setIsBrowsing(true)} />}
+                <Box minWidth="600px">
+                    {isBrowsing ?
+                        <Browse computeProvider={props.provider} onSelect={ingress => {
+                            setUrl(ingress);
+                            setModalOpen(false);
+                        }} /> :
+                        <Create computeProvider={props.provider} onCreateFinished={() => setIsBrowsing(true)} />}
+                </Box>
             </Box>
         </ReactModal>
     </>)

@@ -36,6 +36,20 @@ interface InsufficientFunds {
     errorCode?: string;
 }
 
+interface IngressField {
+    index: number;
+    id: React.RefObject<HTMLInputElement>;
+    domain: React.RefObject<HTMLInputElement>;
+}
+
+function newIngressField(index: number): IngressField {
+    return {
+        index,
+        id: React.createRef<HTMLInputElement>(),
+        domain: React.createRef<HTMLInputElement>()
+    }
+}
+
 export const Create: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
     const [, invokeCommand] = useCloudCommand();
@@ -51,7 +65,7 @@ export const Create: React.FunctionComponent = () => {
     const provider = getProviderField();
 
     // NOTE: Should this use `useResource` as well?
-    const [urlInfo, setUrlInfo] = useState([{id: React.createRef<HTMLInputElement>(), domain: React.createRef<HTMLInputElement>(), index: 0}]);
+    const [ingressInfo, setIngressInfo] = useState<IngressField[]>([newIngressField(0)]);
     // NOTEEND
 
     const folders = useResource("resourceFolder",
@@ -144,7 +158,7 @@ export const Create: React.FunctionComponent = () => {
         const peersValidation = validateWidgets(peers.params);
         peers.setErrors(peersValidation.errors);
 
-        const ingressValidation = validateIngresses(urlInfo, ingressEnabled);
+        const ingressValidation = validateIngresses(ingressInfo, ingressEnabled);
 
         if (Object.keys(errors).length === 0 &&
             reservationValidation.options !== undefined &&
@@ -328,17 +342,17 @@ export const Create: React.FunctionComponent = () => {
                             application={application}
                             enabled={ingressEnabled}
                             addRow={() => {
-                                const maxIndex = urlInfo[urlInfo.length - 1].index;
-                                urlInfo.push({id: React.createRef(), domain: React.createRef(), index: maxIndex + 1});
-                                setUrlInfo([...urlInfo]);
+                                const maxIndex = ingressInfo[ingressInfo.length - 1].index;
+                                ingressInfo.push(newIngressField(maxIndex + 1));
+                                setIngressInfo([...ingressInfo]);
                             }}
                             setEnabled={enabled => setIngressEnabled(enabled)}
                         />
 
                         {!ingressEnabled ? null :
-                            urlInfo.map(refs => <IngressRow key={refs.index} refs={refs} provider={provider} onRemove={urlInfo.length > 1 ? () => {
-                                const filtered = urlInfo.filter(it => it.index !== refs.index);
-                                setUrlInfo([...filtered]);
+                            ingressInfo.map(refs => <IngressRow key={refs.index} refs={refs} provider={provider} onRemove={ingressInfo.length > 1 ? () => {
+                                const filtered = ingressInfo.filter(it => it.index !== refs.index);
+                                setIngressInfo([...filtered]);
                             } : undefined} />)
                         }
                     </div>
