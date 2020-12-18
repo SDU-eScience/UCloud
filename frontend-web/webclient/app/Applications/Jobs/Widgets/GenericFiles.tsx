@@ -3,7 +3,7 @@ import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "ui-components";
 import FileSelector from "Files/FileSelector";
-import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
+import {useLayoutEffect, useState} from "react";
 import styled from "styled-components";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";

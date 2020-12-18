@@ -11,7 +11,7 @@ import Link from "ui-components/Link";
 import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "Applications/Jobs/Widgets";
 import * as Heading from "ui-components/Heading";
 import {FolderResource} from "Applications/Jobs/Resources/Folders";
-import {IngressResource} from "Applications/Jobs/Resources/Ingress";
+import {getProviderField, IngressResource, IngressRow, validateIngresses} from "Applications/Jobs/Resources/Ingress";
 import {PeerResource} from "Applications/Jobs/Resources/Peers";
 import {createSpaceForLoadedResources, injectResources, useResource} from "Applications/Jobs/Resources";
 import {
@@ -48,7 +48,11 @@ export const Create: React.FunctionComponent = () => {
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const urlRef = useRef<HTMLInputElement>(null);
+    const provider = getProviderField();
+
+    // NOTE: Should this use `useResource` as well?
+    const [urlInfo, setUrlInfo] = useState([{id: React.createRef<HTMLInputElement>(), domain: React.createRef<HTMLInputElement>()}]);
+    // NOTEEND
 
     const folders = useResource("resourceFolder",
         (name) => ({type: "input_directory", description: "", title: "", optional: true, name}));
@@ -140,17 +144,21 @@ export const Create: React.FunctionComponent = () => {
         const peersValidation = validateWidgets(peers.params);
         peers.setErrors(peersValidation.errors);
 
+        const ingressValidation = validateIngresses(urlInfo, ingressEnabled);
+
         if (Object.keys(errors).length === 0 &&
             reservationValidation.options !== undefined &&
             Object.keys(foldersValidation.errors).length === 0 &&
-            Object.keys(peersValidation.errors).length === 0
+            Object.keys(peersValidation.errors).length === 0 &&
+            ingressValidation.errors.length === 0
         ) {
             const request: UCloud.compute.JobParameters = {
                 ...reservationValidation.options,
                 application: application?.metadata,
                 parameters: values,
                 resources: Object.values(foldersValidation.values)
-                    .concat(Object.values(peersValidation.values)),
+                    .concat(Object.values(peersValidation.values))
+                    .concat(ingressValidation.values),
                 allowDuplicateJob
             };
 
@@ -315,12 +323,21 @@ export const Create: React.FunctionComponent = () => {
 
                     {/* Resources */}
 
-                    <IngressResource
-                        application={application}
-                        inputRef={urlRef}
-                        enabled={ingressEnabled}
-                        setEnabled={enabled => setIngressEnabled(enabled)}
-                    />
+                    <div>
+                        <IngressResource
+                            application={application}
+                            enabled={ingressEnabled}
+                            addRow={() => {
+                                urlInfo.push({id: React.createRef(), domain: React.createRef()});
+                                setUrlInfo([...urlInfo]);
+                            }}
+                            setEnabled={enabled => setIngressEnabled(enabled)}
+                        />
+
+                        {!ingressEnabled ? null :
+                            urlInfo.map((refs, index) => <IngressRow key={index} refs={refs} provider={provider} />)
+                        }
+                    </div>
 
                     <FolderResource
                         {...folders}

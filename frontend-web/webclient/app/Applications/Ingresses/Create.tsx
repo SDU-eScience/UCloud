@@ -68,7 +68,7 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
     }, [reload, projectId, selectedProvider, selectedProduct]);
 
     return <div>
-        <Flex>
+        <Flex mb="6px">
             {!canChangeProvider ? null : <Box width="50%">
                 <Label>
                     1. Select Provider
@@ -96,14 +96,16 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                 </Label>
             </Box>
         </Flex>
-        <Label my="6px">
+        {!selectedProduct ? null : <Label my="6px">
             {!canChangeProvider ? "2" : "3"}. Select domain
             <Flex>
                 <Text mt="7px">
-                    app-</Text><Input placeholder="Enter domain..." ref={domainRef} type="text" /><Text mt="7px">.cloud.sdu.dk
+                    {ingressSettings.data.domainPrefix}</Text><Input placeholder="Enter domain..." ref={domainRef} type="text" />
+                <Text mt="7px">
+                    {ingressSettings.data.domainSuffix}
                 </Text>
             </Flex>
-        </Label>
+        </Label>}
         <Button onClick={register} fullWidth>Register ingress</Button>
     </div>
 
