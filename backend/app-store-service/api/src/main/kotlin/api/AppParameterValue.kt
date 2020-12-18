@@ -89,19 +89,19 @@ sealed class AppParameterValue {
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage")
-    data class BlockStorage(val id: String) {
+    data class BlockStorage(val id: String) : AppParameterValue() {
         val type = "block_storage"
     }
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage")
-    data class Network(val id: String) {
+    data class Network(val id: String) : AppParameterValue() {
         val type = "network"
     }
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("HTTP Ingress")
-    data class Ingress(val id: String) {
+    data class Ingress(val id: String) : AppParameterValue() {
         val type = "ingress"
     }
 }
