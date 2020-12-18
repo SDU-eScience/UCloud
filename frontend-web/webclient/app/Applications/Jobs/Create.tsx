@@ -336,7 +336,7 @@ export const Create: React.FunctionComponent = () => {
                         />
 
                         {!ingressEnabled ? null :
-                            urlInfo.map(refs => <IngressRow key={refs.index} refs={refs} provider={provider} removeRow={urlInfo.length > 1 ? () => {
+                            urlInfo.map(refs => <IngressRow key={refs.index} refs={refs} provider={provider} onRemove={urlInfo.length > 1 ? () => {
                                 const filtered = urlInfo.filter(it => it.index !== refs.index);
                                 setUrlInfo([...filtered]);
                             } : undefined} />)

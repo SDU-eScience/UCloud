@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "UCloud"
-import {Box, Button, Checkbox, Icon, Input, Label, SelectableText, SelectableTextWrapper} from "ui-components";
+import {Box, Button, Checkbox, Flex, Icon, Input, Label, SelectableText, SelectableTextWrapper, Text} from "ui-components";
 import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
 import Create from "Applications/Ingresses/Create";
@@ -34,16 +34,16 @@ export const IngressResource: React.FunctionComponent<{
                         )}
                     />
                 </div>
-                <div>
+                <Box mb="6px">
                     <Warning warning="By enabling this setting, anyone with a link can gain access to the application." />
-                </div>
+                </Box>
             </div>
         );
 
 interface IngressRowProps {
     refs: {id: React.RefObject<HTMLInputElement>; domain: React.RefObject<HTMLInputElement>};
     provider: string | undefined;
-    removeRow?(): void;
+    onRemove?(): void;
 }
 
 export function IngressRow(props: IngressRowProps): JSX.Element {
@@ -63,27 +63,27 @@ export function IngressRow(props: IngressRowProps): JSX.Element {
     }, [props.refs.domain, props.refs.id, url]);
 
     return (<>
-        <Spacer
-            left={<Input
-                mt="8px"
-                placeholder="Click to select public IP..."
-                readOnly
-                value={url.domain}
-                ref={props.refs.domain}
-                onClick={() => setModalOpen(true)}
-            />}
-            right={
-                props.removeRow ? <Button
-                    width="40px"
-                    height="40px"
-                    mt="8px"
-                    ml="6px"
-                    color="red"
-                    onClick={props.removeRow}
-                >
-                    <Icon name="close" />
-                </Button> : null
-            }
+        {props.onRemove ? <>
+            <Label fontSize={1}>
+                <Flex>
+                    {!props.onRemove ? null : (
+                        <>
+                            <Box ml="auto" />
+                            <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}>
+                                Remove <Icon ml="6px" size={16} name="close" />
+                            </Text>
+                        </>
+                    )}
+                </Flex>
+            </Label>
+        </> : null}
+        <Input
+            mb="4px"
+            placeholder="Click to select public IP..."
+            readOnly
+            value={url.domain}
+            ref={props.refs.domain}
+            onClick={() => setModalOpen(true)}
         />
         <Input readOnly hidden ref={props.refs.id} />
         <ReactModal
