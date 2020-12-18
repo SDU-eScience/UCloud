@@ -93,6 +93,7 @@ class JobOrchestrator(
 
         val tokensToInvalidateInCaseOfFailure = ArrayList<String>()
         val jobsToInvalidateInCaseOfFailure = ArrayList<JobWithProvider>()
+        var verifiedJobsInCaseOfFailure: List<VerifiedJobWithAccessToken> = emptyList()
 
         val parameters = ArrayList<ByteArray>()
 
@@ -132,6 +133,8 @@ class JobOrchestrator(
                     job.copy(refreshToken = extendedToken)
                 }
                 .toMutableList()
+
+            verifiedJobsInCaseOfFailure = verifiedJobs
 
             // Reserve resources (and check that resources are available)
             for (job in verifiedJobs) {
@@ -195,6 +198,12 @@ class JobOrchestrator(
                     ),
                     client
                 )
+            }
+
+            db.withSession { session ->
+                verifiedJobsInCaseOfFailure.forEach { (job) ->
+                    listeners.forEach { it.onTermination(session, job) }
+                }
             }
 
             throw ex

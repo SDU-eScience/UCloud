@@ -432,7 +432,7 @@ function hasPermissionToEdit(cb: LicenseOpCallback): OperationEnabled {
         const status = cb.projectStatus.fetch();
         const isAdmin = status.membership.some(membership => membership.projectId === cb.projectId &&
             isAdminOrPI(membership.whoami.role))
-        if (!isAdmin) return "Only PIs of a project can activate a license";
+        if (!isAdmin) return "Only PIs of a project can change a license";
     }
     return true;
 }
