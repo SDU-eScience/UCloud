@@ -644,6 +644,9 @@ export function parseJWT(encodedJWT: string): JWT | null {
 }
 
 export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];
+export type GetElementType<T extends Array<any>> = T extends (infer U)[] ? U : never;
+export type GetArrayReturnType<T> = T extends () => (infer U)[] ? U : never;
+
 export function joinToString(elements: string[], separator = ","): string {
     let result = "";
     let first = true;

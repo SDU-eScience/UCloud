@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Dec 15 16:09:40 CET 2020 */
+/* Generated at: Fri Dec 18 12:09:59 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -1137,6 +1137,7 @@ export namespace compute {
          */
         updates: LicenseUpdate[],
         resolvedProduct?: accounting.ProductNS.License,
+        acl?: LicenseAclEntry[],
     }
 
     export interface LicenseOwner {
@@ -1180,6 +1181,11 @@ export namespace compute {
          * A new status message for the `License` (if any)
          */
         status?: string,
+    }
+
+    export interface LicenseAclEntry {
+        entity: LicenseAclEntryNS.Entity,
+        permissions: "USE"[],
     }
 
     export interface JobsCreateResponse {
@@ -1353,6 +1359,7 @@ export namespace compute {
     export interface LicensesBrowseRequest {
         includeUpdates?: boolean,
         includeProduct?: boolean,
+        includeAcl?: boolean,
         itemsPerPage?: number /* int32 */
         ,
         next?: string,
@@ -1379,6 +1386,12 @@ export namespace compute {
         id: string,
         includeUpdates?: boolean,
         includeProduct?: boolean,
+        includeAcl?: boolean,
+    }
+
+    export interface LicensesUpdateAclRequestItem {
+        id: string,
+        acl: LicenseAclEntry[],
     }
 
     export interface LicenseControlUpdateRequestItem {
@@ -2544,6 +2557,7 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/licenses" + "/browse", {
                     consistency: request.consistency,
+                    includeAcl: request.includeAcl,
                     includeProduct: request.includeProduct,
                     includeUpdates: request.includeUpdates,
                     itemsPerPage: request.itemsPerPage,
@@ -2591,11 +2605,25 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/licenses" + "/retrieve", {
                     id: request.id,
+                    includeAcl: request.includeAcl,
                     includeProduct: request.includeProduct,
                     includeUpdates: request.includeUpdates
                 }),
                 parameters: request,
                 reloadId: Math.random(),
+            };
+        }
+
+        export function updateAcl(
+            request: BulkRequest<LicensesUpdateAclRequestItem>
+        ): APICallParameters<BulkRequest<LicensesUpdateAclRequestItem>, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/licenses" + "/acl",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
             };
         }
 
@@ -2621,6 +2649,7 @@ export namespace compute {
                     method: "GET",
                     path: buildQueryString("/api/licenses/control" + "/retrieve", {
                         id: request.id,
+                        includeAcl: request.includeAcl,
                         includeProduct: request.includeProduct,
                         includeUpdates: request.includeUpdates
                     }),
@@ -3000,6 +3029,16 @@ export namespace compute {
                     reloadId: Math.random(),
                     payload: request,
                 };
+            }
+        }
+    }
+    export namespace LicenseAclEntryNS {
+        export type Entity = EntityNS.ProjectGroup
+        export namespace EntityNS {
+            export interface ProjectGroup {
+                projectId: string,
+                group: string,
+                type: "project_group",
             }
         }
     }

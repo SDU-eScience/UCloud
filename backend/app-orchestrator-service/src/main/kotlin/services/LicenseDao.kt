@@ -1,10 +1,12 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.ResultSet
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -30,6 +32,7 @@ object LicenseTable : SQLTable("licenses") {
     val createdAt = timestamp("created_at")
     val lastUpdate = timestamp("last_update")
     val creditsCharged = long("credits_charged")
+    val acl = jsonb("acl")
 }
 
 class LicenseDao(
@@ -146,6 +149,27 @@ class LicenseDao(
         }
     }
 
+    suspend fun updateAcl(
+        ctx: DBContext,
+        id: LicenseId,
+        acl: List<LicenseAclEntry>
+    ): License {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("acl", defaultMapper.writeValueAsString(acl))
+                        setParameter("id", id.id)
+                    },
+                    "update licenses set acl = :acl::jsonb where id = :id returning *"
+                )
+                .rows
+                .let { mapRows(session, it, null, LicenseDataIncludeFlags(includeAcl = true)) }
+                .singleOrNull()
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+    }
+
     suspend fun browse(
         db: AsyncDBSessionFactory,
         actor: Actor,
@@ -215,7 +239,8 @@ class LicenseDao(
                     it.getField(LicenseTable.productPricePerUnit),
                     it.getField(LicenseTable.creditsCharged),
                 ),
-                emptyList()
+                emptyList(),
+                acl = if (flags.includeAcl == true) defaultMapper.readValue(it.getField(LicenseTable.acl)) else null
             )
         }
 

@@ -2,7 +2,7 @@ import * as React from "react";
 import styled from "styled-components";
 import {
   color,
-  ColorProps,
+  ColorProps, flexGrow, FlexGrowProps,
   fontSize,
   FontSizeProps,
   fontWeight,
@@ -31,7 +31,7 @@ export const bold = (props: {bold?: boolean, theme: Theme}) =>
 
 export const italic = (props: {italic?: boolean}) => (props.italic ? {fontStyle: "italic"} : null);
 
-export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps {
+export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps, FlexGrowProps {
   align?: "left" | "right";
   caps?: boolean;
   regular?: boolean;
@@ -52,6 +52,7 @@ const Text = styled.div<TextProps>`
   ${lineHeight}
   ${space}
   ${color}
+  ${flexGrow}
   ${caps}
   ${regular}
   ${bold}

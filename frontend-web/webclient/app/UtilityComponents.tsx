@@ -782,16 +782,20 @@ const shakeKeyframes = keyframes`
     }
 `;
 
-export const shakeAnimation = css`
+export const shakeAnimation = css<{shaking?: boolean}>`
     &.shaking {
         transform: translate3d(0, 0, 0); 
         animation: ${shakeKeyframes} 0.82s cubic-bezier(.36,.07,.19,.97) both;
     }
+    ${p => p.shaking ? css`& {
+        transform: translate3d(0, 0, 0);
+        animation: ${shakeKeyframes} 0.82s cubic-bezier(.36,.07,.19,.97) both;
+    }` : null}
 `;
 
 export const shakingClassName = "shaking";
 
-export const ShakingBox = styled(Box)`
+export const ShakingBox = styled(Box)<{shaking?: boolean}>`
     ${shakeAnimation}
 `;
 

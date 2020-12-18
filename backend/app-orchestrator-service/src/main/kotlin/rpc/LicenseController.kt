@@ -11,12 +11,12 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.toActor
 
 class LicenseController(
-    private val ingressService: LicenseService
+    private val licenseService: LicenseService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Licenses.browse) {
             ok(
-                ingressService.browse(
+                licenseService.browse(
                     ctx.securityPrincipal.toActor(),
                     ctx.project,
                     request.normalize(),
@@ -29,7 +29,7 @@ class LicenseController(
         implement(Licenses.create) {
             ok(
                 LicensesCreateResponse(
-                    ingressService.create(
+                    licenseService.create(
                         ctx.securityPrincipal.toActor(),
                         ctx.project,
                         request
@@ -39,25 +39,30 @@ class LicenseController(
         }
 
         implement(Licenses.delete) {
-            ingressService.delete(ctx.securityPrincipal.toActor(), request)
+            licenseService.delete(ctx.securityPrincipal.toActor(), request)
             ok(Unit)
         }
 
         implement(Licenses.retrieve) {
-            ok(ingressService.retrieve(ctx.securityPrincipal.toActor(), request, request))
+            ok(licenseService.retrieve(ctx.securityPrincipal.toActor(), request, request))
+        }
+
+        implement(Licenses.updateAcl) {
+            licenseService.updateAcl(ctx.securityPrincipal.toActor(), request)
+            ok(Unit)
         }
 
         implement(LicenseControl.update) {
-            ingressService.update(ctx.securityPrincipal.toActor(), request)
+            licenseService.update(ctx.securityPrincipal.toActor(), request)
             ok(Unit)
         }
 
         implement(LicenseControl.retrieve) {
-            ok(ingressService.retrieve(ctx.securityPrincipal.toActor(), request, request))
+            ok(licenseService.retrieve(ctx.securityPrincipal.toActor(), request, request))
         }
 
         implement(LicenseControl.chargeCredits) {
-            ok(ingressService.charge(ctx.securityPrincipal.toActor(), request))
+            ok(licenseService.charge(ctx.securityPrincipal.toActor(), request))
         }
 
         return@with

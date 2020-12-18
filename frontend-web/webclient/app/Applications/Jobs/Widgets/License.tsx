@@ -10,6 +10,7 @@ import * as Licenses from "Applications/Licenses";
 import {useCallback, useState} from "react";
 import ReactModal from "react-modal";
 import License = compute.License;
+import {Box} from "ui-components";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -28,7 +29,7 @@ const modalStyle = {
         minWidth: "800px",
         maxWidth: "1200px",
         minHeight: "400px",
-        maxHeight: "80vh"
+        height: "80vh"
     }
 };
 
@@ -55,12 +56,14 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             ariaHideApp={false}
             shouldCloseOnEsc
         >
-            <Licenses.Browse
-                tagged={props.parameter.tagged}
-                // TODO Provider
-                standalone={false}
-                onUse={onUse}
-            />
+            <Box height={"100%"} overflow={"auto"}>
+                <Licenses.Browse
+                    tagged={props.parameter.tagged}
+                    // TODO Provider
+                    standalone={false}
+                    onUse={onUse}
+                />
+            </Box>
         </ReactModal>
         <PointerInput
             id={widgetId(props.parameter)}

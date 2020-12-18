@@ -1,11 +1,14 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.PaginationRequestV2Consistency
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequestV2
 import io.ktor.http.*
 
@@ -21,6 +24,7 @@ data class LicenseRetrieveWithFlags(
     override val id: String,
     override val includeUpdates: Boolean? = null,
     override val includeProduct: Boolean? = null,
+    override val includeAcl: Boolean? = null,
 ) : LicenseDataIncludeFlags, LicenseId
 
 interface LicenseDataIncludeFlags {
@@ -29,17 +33,22 @@ interface LicenseDataIncludeFlags {
 
     @UCloudApiDoc("Includes `resolvedProduct`")
     val includeProduct: Boolean?
+
+    @UCloudApiDoc("Includes `acl`")
+    val includeAcl: Boolean?
 }
 
 data class LicenseDataIncludeFlagsImpl(
-    override val includeUpdates: Boolean?,
-    override val includeProduct: Boolean?
+    override val includeUpdates: Boolean? = null,
+    override val includeProduct: Boolean? = null,
+    override val includeAcl: Boolean? = null,
 ) : LicenseDataIncludeFlags
 
 fun LicenseDataIncludeFlags(
     includeUpdates: Boolean? = null,
     includeProduct: Boolean? = null,
-): LicenseDataIncludeFlags = LicenseDataIncludeFlagsImpl(includeUpdates, includeProduct)
+    includeAcl: Boolean? = null,
+): LicenseDataIncludeFlags = LicenseDataIncludeFlagsImpl(includeUpdates, includeProduct, includeAcl)
 
 interface LicenseSpecification {
     @UCloudApiDoc("The product used for the `License`")
@@ -68,7 +77,9 @@ data class License(
     @UCloudApiDoc("A list of updates for this `License`")
     val updates: List<LicenseUpdate> = emptyList(),
 
-    val resolvedProduct: Product.License? = null
+    val resolvedProduct: Product.License? = null,
+
+    val acl: List<LicenseAclEntry>? = null,
 ) : LicenseSpecification, LicenseId
 
 data class LicenseBilling(
@@ -136,6 +147,7 @@ interface LicenseFilters {
 data class LicensesBrowseRequest(
     override val includeUpdates: Boolean? = null,
     override val includeProduct: Boolean? = null,
+    override val includeAcl: Boolean? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
@@ -161,6 +173,38 @@ typealias LicensesDeleteResponse = Unit
 
 typealias LicensesRetrieveRequest = LicenseRetrieveWithFlags
 typealias LicensesRetrieveResponse = License
+
+data class LicenseAclEntry(
+    val entity: Entity,
+    val permissions: List<Permission>
+) {
+    @JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = TYPE_PROPERTY
+    )
+    @JsonSubTypes(
+        JsonSubTypes.Type(value = Entity.ProjectGroup::class, name = "project_group"),
+    )
+    sealed class Entity {
+        data class ProjectGroup(
+            val projectId: String,
+            val group: String
+        ) : Entity()
+    }
+
+    enum class Permission {
+        USE,
+    }
+}
+
+typealias LicensesUpdateAclRequest = BulkRequest<LicensesUpdateAclRequestItem>
+data class LicensesUpdateAclRequestItem(
+    override val id: String,
+    val acl: List<LicenseAclEntry>
+) : LicenseId
+
+typealias LicensesUpdateAclResponse = Unit
 
 @TSNamespace("compute.licenses")
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -188,5 +232,9 @@ object Licenses : CallDescriptionContainer("licenses") {
 
     val retrieve = call<LicensesRetrieveRequest, LicensesRetrieveResponse, CommonErrorMessage>("retrieve") {
         httpRetrieve(baseContext)
+    }
+
+    val updateAcl = call<LicensesUpdateAclRequest, LicensesUpdateAclResponse, CommonErrorMessage>("updateAcl") {
+        httpUpdate(baseContext, "acl")
     }
 }

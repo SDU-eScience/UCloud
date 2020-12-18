@@ -38,28 +38,54 @@ class LicenseService(
 
                 ctx.withSession { session ->
                     licenses.forEach { license ->
-                        val retrievedLicenses = dao.retrieve(session, LicenseId(license.id), LicenseDataIncludeFlags())
-                            ?: throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
+                        val retrievedLicense = dao.retrieve(
+                            session,
+                            LicenseId(license.id),
+                            LicenseDataIncludeFlags(includeAcl = true)
+                        ) ?: throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
 
-                        if (jobProject != retrievedLicenses.owner.project) {
+                        if (jobProject != retrievedLicense.owner.project) {
                             throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
                         }
 
-                        if (jobProject == null && jobLauncher != retrievedLicenses.owner.username) {
+                        if (jobProject == null && jobLauncher != retrievedLicense.owner.username) {
                             throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
                         }
 
-                        if (retrievedLicenses.product.provider != computeProvider) {
+                        if (retrievedLicense.product.provider != computeProvider) {
                             throw RPCException(
                                 "Cannot use license provided by " +
-                                    "${retrievedLicenses.product.provider} in job provided by $computeProvider",
+                                    "${retrievedLicense.product.provider} in job provided by $computeProvider",
                                 HttpStatusCode.BadRequest
                             )
                         }
 
-                        if (retrievedLicenses.status.state != LicenseState.READY) {
+                        if (jobProject != null &&
+                            projectCache.retrieveRole(jobLauncher, jobProject)?.isAdmin() != true
+                        ) {
+                            // We are not an admin. This means we must have an entry in the acl
+                            val projectStatus = projectCache.retrieveProjectStatus(jobLauncher)
+                            val groups = projectStatus.userStatus?.groups ?: emptyList()
+                            val hasAccess = retrievedLicense.acl!!.any { entry ->
+                                val entity = entry.entity
+                                if (!entry.permissions.any { it == LicenseAclEntry.Permission.USE }) return@any false
+                                if (entity !is LicenseAclEntry.Entity.ProjectGroup) return@any false
+
+                                groups.any { it.group == entity.group && it.project == entity.projectId }
+                            }
+
+                            if (!hasAccess) {
+                                throw RPCException(
+                                    "You do not have permissions to use this license. " +
+                                        "Contact your PI to get access",
+                                    HttpStatusCode.Forbidden
+                                )
+                            }
+                        }
+
+                        if (retrievedLicense.status.state != LicenseState.READY) {
                             throw RPCException(
-                                "Ingress ${retrievedLicenses.product.id} is not ready",
+                                "Ingress ${retrievedLicense.product.id} is not ready",
                                 HttpStatusCode.BadRequest
                             )
                         }
@@ -107,12 +133,28 @@ class LicenseService(
         return result
     }
 
+    private suspend fun checkWritePermission(
+        actor: Actor,
+        license: License
+    ) {
+        if (actor != Actor.System) {
+            val project = license.owner.project
+            if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
+                throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+            }
+
+            if (project == null && license.owner.username != actor.safeUsername()) {
+                throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+            }
+        }
+    }
+
+    private val genericErrorMessage = "Not found or permission denied"
+
     suspend fun delete(
         actor: Actor,
         deletionRequest: BulkRequest<LicenseId>
     ) {
-        val genericErrorMessage = "Not found or permission denied"
-
         db.withSession { session ->
             val ids = deletionRequest.items.map { it.id }
             val deletedItems = dao.delete(session, ids)
@@ -125,16 +167,7 @@ class LicenseService(
 
             // Verify permissions before calling provider
             for (item in deletedItems) {
-                if (actor != Actor.System) {
-                    val project = item.owner.project
-                    if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
-                        throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
-                    }
-
-                    if (project == null && item.owner.username != actor.safeUsername()) {
-                        throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
-                    }
-                }
+                checkWritePermission(actor, item)
             }
 
             // TODO This could cause problems when a failure happens for a single provider
@@ -199,6 +232,18 @@ class LicenseService(
             }
 
             license.map { it.id }
+        }
+    }
+
+    suspend fun updateAcl(
+        actor: Actor,
+        request: BulkRequest<LicensesUpdateAclRequestItem>
+    ) {
+        db.withSession { session ->
+            request.items.forEach { update ->
+                val license = dao.updateAcl(session, update, update.acl)
+                checkWritePermission(actor, license)
+            }
         }
     }
 
