@@ -12,7 +12,7 @@ import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import {MutableRefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {MutableRefObject, useCallback, useEffect, useRef, useState} from "react";
 import {accounting, compute, PageV2} from "UCloud";
 import KubernetesLicense = compute.ucloud.KubernetesLicense;
 import licenseApi = compute.ucloud.licenses.maintenance;
@@ -22,7 +22,7 @@ import * as Pagination from "Pagination";
 import ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {useProjectStatus} from "Project/cache";
-import {useProjectId, useProjectManagementStatus} from "Project";
+import {useProjectId} from "Project";
 import {UCLOUD_PROVIDER} from "Accounting";
 import Wallet = accounting.Wallet;
 

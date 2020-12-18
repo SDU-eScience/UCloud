@@ -92,7 +92,7 @@ const data: compute.Ingress[] = [{
 }];
 
 
-const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (selection: string) => void}> = props => {
+const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (selection: {id: string; domain: string}) => void}> = props => {
     const projectId = useProjectId();
     const [infScrollId, setInfScrollId] = useState(0);
     const [ingresses, fetchIngresses] = useCloudAPI(
@@ -131,7 +131,7 @@ const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (sel
                     right={<>
                         {props.onSelect != null ? <Button
                             disabled={isDisabled}
-                            onClick={() => props.onSelect!(it.domain)}
+                            onClick={() => props.onSelect!({domain: it.domain, id: it.id})}
                             height="35px"
                             width="80px"
                             mr="16px"
