@@ -51,7 +51,7 @@ export const Create: React.FunctionComponent = () => {
     const provider = getProviderField();
 
     // NOTE: Should this use `useResource` as well?
-    const [urlInfo, setUrlInfo] = useState([{id: React.createRef<HTMLInputElement>(), domain: React.createRef<HTMLInputElement>()}]);
+    const [urlInfo, setUrlInfo] = useState([{id: React.createRef<HTMLInputElement>(), domain: React.createRef<HTMLInputElement>(), index: 0}]);
     // NOTEEND
 
     const folders = useResource("resourceFolder",
@@ -328,14 +328,18 @@ export const Create: React.FunctionComponent = () => {
                             application={application}
                             enabled={ingressEnabled}
                             addRow={() => {
-                                urlInfo.push({id: React.createRef(), domain: React.createRef()});
+                                const maxIndex = urlInfo[urlInfo.length - 1].index;
+                                urlInfo.push({id: React.createRef(), domain: React.createRef(), index: maxIndex + 1});
                                 setUrlInfo([...urlInfo]);
                             }}
                             setEnabled={enabled => setIngressEnabled(enabled)}
                         />
 
                         {!ingressEnabled ? null :
-                            urlInfo.map((refs, index) => <IngressRow key={index} refs={refs} provider={provider} />)
+                            urlInfo.map(refs => <IngressRow key={refs.index} refs={refs} provider={provider} removeRow={urlInfo.length > 1 ? () => {
+                                const filtered = urlInfo.filter(it => it.index !== refs.index);
+                                setUrlInfo([...filtered]);
+                            } : undefined} />)
                         }
                     </div>
 

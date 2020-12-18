@@ -812,8 +812,8 @@ export const Browse: React.FunctionComponent = () => {
         const job = jobs.data.items.find(it => it.id === entry);
         if (job == null) continue;
         if (
-            // NOTE                                           job can expire locally, holding outdated state
-            checked.has(entry) && inCancelableState(job.status.state) && !isRunExpired(job)
+            // NOTE                      job can expire locally, holding outdated state
+            inCancelableState(job.status.state) && !isRunExpired(job)
         ) {
             cancelableJobs.push(entry);
         }

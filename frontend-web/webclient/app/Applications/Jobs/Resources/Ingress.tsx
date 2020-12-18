@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as UCloud from "UCloud"
-import {Box, Button, Checkbox, Input, Label, SelectableText, SelectableTextWrapper} from "ui-components";
+import {Box, Button, Checkbox, Icon, Input, Label, SelectableText, SelectableTextWrapper} from "ui-components";
 import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
 import Create from "Applications/Ingresses/Create";
@@ -14,7 +14,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 export const IngressResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
     enabled: boolean;
-    addRow: () => void;
+    addRow(): void;
     setEnabled: React.Dispatch<React.SetStateAction<boolean>>;
 }> = props =>
         props.application.invocation.applicationType !== "WEB" ? null : (
@@ -43,6 +43,7 @@ export const IngressResource: React.FunctionComponent<{
 interface IngressRowProps {
     refs: {id: React.RefObject<HTMLInputElement>; domain: React.RefObject<HTMLInputElement>};
     provider: string | undefined;
+    removeRow?(): void;
 }
 
 export function IngressRow(props: IngressRowProps): JSX.Element {
@@ -62,13 +63,27 @@ export function IngressRow(props: IngressRowProps): JSX.Element {
     }, [props.refs.domain, props.refs.id, url]);
 
     return (<>
-        <Input
-            mt="8px"
-            placeholder="Click to select public IP..."
-            readOnly
-            value={url.domain}
-            ref={props.refs.domain}
-            onClick={() => setModalOpen(true)}
+        <Spacer
+            left={<Input
+                mt="8px"
+                placeholder="Click to select public IP..."
+                readOnly
+                value={url.domain}
+                ref={props.refs.domain}
+                onClick={() => setModalOpen(true)}
+            />}
+            right={
+                props.removeRow ? <Button
+                    width="40px"
+                    height="40px"
+                    mt="8px"
+                    ml="6px"
+                    color="red"
+                    onClick={props.removeRow}
+                >
+                    <Icon name="close" />
+                </Button> : null
+            }
         />
         <Input readOnly hidden ref={props.refs.id} />
         <ReactModal

@@ -251,8 +251,8 @@ export const View: React.FunctionComponent = () => {
     }, [status]);
 
     useEffect(() => {
-        let t1;
-        let t2;
+        let t1: number | undefined;
+        let t2: number | undefined;
         if (job) {
             t1 = setTimeout(() => {
                 setDataAnimationAllowed(true);
