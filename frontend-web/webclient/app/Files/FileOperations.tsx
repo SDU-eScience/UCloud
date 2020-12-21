@@ -18,7 +18,7 @@ import {
     getParentPath,
     isAnyFixedFolder,
     isAnyMockFile,
-    isArchiveExtension, isAUserPersonalFolder, isPartOfProject, isPersonalRootFolder,
+    isArchiveExtension, isAUserPersonalFolder, isMembersFiles, isPartOfProject, isPersonalRootFolder,
     isTrashFolder,
     moveToTrash,
     pathComponents,
@@ -30,6 +30,7 @@ import * as UF from "UtilityFunctions";
 import CONF from "../../site.config.json";
 import {
     explainPersonalRepo,
+    isRepository,
     promptDeleteRepository,
     repositoryName,
     updatePermissionsPrompt
@@ -224,15 +225,17 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Move to Trash",
         onClick: (files, cb) => {
-            moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload(), projects: cb.projects});
+            moveToTrash({files, client: Client, callback: () => cb.requestReload(), projects: cb.projects});
         },
         disabled: (files, cb) => {
             if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
             else if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
             else if (
-                files.find(it => (isAUserPersonalFolder(it.path)) !== undefined &&
-                cb.projectMembers.includes(pathComponents(it.path)[3]))
+                files.find(it => isAUserPersonalFolder(it.path) ||
+                    /* if user is still part of project, files cannot be deleted - UNLESS it is current user's files  */
+                    (cb.projectMembers.includes(pathComponents(it.path)[3]) && pathComponents(it.path)[3] !== Client.username)
+                )
             ) return true;
             else return files.every(({path}) => isTrashFolder(path) || isTrashFolder(getParentPath(path)));
         },
@@ -309,7 +312,7 @@ export const defaultFileOperations: FileOperation[] = [
                 promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload);
             }
         },
-        disabled: files => files.length !== 1,
+        disabled: files => files.length !== 1 || files.some(it => isMembersFiles(it.path)),
         icon: "trash",
         color: "red",
         repositoryMode: FileOperationRepositoryMode.REQUIRED

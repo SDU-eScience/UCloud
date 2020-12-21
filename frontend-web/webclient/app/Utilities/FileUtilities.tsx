@@ -514,17 +514,15 @@ export function clearTrashDialog({onConfirm}: {onConfirm: () => void}): void {
 interface MoveToTrash {
     files: File[];
     client: HttpClient;
-    setLoading: () => void;
     callback: () => void;
     projects: ProjectName[];
 }
 
-export const moveToTrash = ({files, client, setLoading, callback, projects}: MoveToTrash): void => {
+export const moveToTrash = ({files, client, callback, projects}: MoveToTrash): void => {
     const paths = files.map(f => f.path);
     moveToTrashDialog({
         filePaths: paths, onConfirm: async () => {
             try {
-                setLoading();
                 await client.post("/files/trash/", {files: paths});
                 snackbarStore.addInformation("Moving files to trash", false);
                 callback();
