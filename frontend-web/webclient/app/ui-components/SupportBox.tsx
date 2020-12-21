@@ -14,6 +14,7 @@ import Flex from "./Flex";
 import Icon from "./Icon";
 import Label from "./Label";
 import Radio from "./Radio";
+import Text from "./Text";
 import {Spacer} from "./Spacer";
 import {TextDiv, TextSpan} from "./Text";
 import TextArea from "./TextArea";
@@ -87,11 +88,21 @@ export default function Support(): JSX.Element {
                 <Box width="100%" pr={"16px"} color="text">
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
-                        right={!CONF.SITE_DOCUMENTATION_URL ? null : (
-                            <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
-                                <Icon name="docs" mr=".5em" />Documentation
-                            </ExternalLink>
-                        )}
+                        right={<>
+                            {!CONF.SITE_FAQ_URL ? null : (
+                                <ExternalLink href={CONF.SITE_FAQ_URL}>
+                                    <Flex>
+                                        <b style={{fontSize: "24px", marginRight: ".5em"}}>?</b>
+                                        <Text mt="5px" mr="0.8em">FAQ</Text>
+                                    </Flex>
+                                </ExternalLink>
+                            )}
+                            {!CONF.SITE_DOCUMENTATION_URL ? null : (
+                                <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
+                                    <Icon name="docs" mr=".5em" />Documentation
+                                </ExternalLink>
+                            )}
+                        </>}
                     />
                     <Flex mt="8px">
                         <Label>
