@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 21-12-20
+
+Bug fix for auth server (Duplicate users when WAYF supplies no email).
+
+```
+✅  Deployment(auth, 1.28.4): (UP-TO-DATE)
+```
+
 ## 08-12-20
 
 Bug fix for grant application editor.
