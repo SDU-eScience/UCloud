@@ -26,7 +26,11 @@ class JobQueryService(
         project: String?,
         pagination: NormalizedPaginationRequestV2,
         flags: JobDataIncludeFlags,
+        filters: JobFilters? = null,
+        sortBy: JobsSortBy? = null,
     ): PageV2<VerifiedJobWithAccessToken> {
+        val sortByOrDefault = sortBy ?: JobsSortBy.CREATED_AT
+
         return db.paginateV2(
             securityPrincipal,
             pagination,
@@ -44,6 +48,15 @@ class JobQueryService(
                             setParameter("project", project)
                             setParameter("isAdmin", isAdmin)
                             setParameter("isSystem", isSystem)
+
+                            setParameter("filterApplication", filters?.filterApplication)
+                            setParameter("filterLaunchedBy", filters?.filterLaunchedBy)
+                            setParameter("filterState", filters?.filterState?.name)
+                            setParameter("filterTitle", filters?.filterTitle)
+                            setParameter("filterAfter", filters?.filterAfter)
+                            setParameter("filterBefore", filters?.filterBefore)
+
+                            setParameter("sortBy", sortByOrDefault.name)
                         },
 
                         """
@@ -55,8 +68,37 @@ class JobQueryService(
                                         :isSystem or
                                         (j.launched_by = :username and project is null or j.project = :project::text) or
                                         (:isAdmin and :project::text is not null and j.project = :project::text)
+                                    ) and
+                                    (
+                                        :filterApplication::text is null or
+                                        j.application_name = :filterApplication
+                                    ) and
+                                    (
+                                        :filterLaunchedBy::text is null or
+                                        j.launched_by = :filterLaunchedBy
+                                    ) and
+                                    (
+                                        :filterState::text is null or
+                                        j.current_state = :filterState
+                                    ) and
+                                    (
+                                        :filterTitle::text is null or
+                                        j.name ilike '%' || :filterTitle || '%'
+                                    ) and
+                                    (
+                                        :filterBefore::bigint is null or
+                                        j.started_at < to_timestamp(:filterBefore / 1000)
+                                    ) and
+                                    (
+                                        :filterAfter::bigint is null or
+                                        j.started_at > to_timestamp(:filterAfter / 1000)
                                     )
                                 order by
+                                    case :sortBy::text
+                                        when 'STATE' then j.current_state
+                                        when 'APPLICATION' then j.application_name
+                                    end
+                                    desc,
                                     last_update desc
                         """
                     )

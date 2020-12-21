@@ -39,7 +39,14 @@ class JobController(
             verifySlaFromPrincipal()
             ok(
                 jobQueryService
-                    .browse(ctx.securityPrincipal.toActor(), ctx.project, request.normalize(), request)
+                    .browse(
+                        ctx.securityPrincipal.toActor(),
+                        ctx.project,
+                        request.normalize(),
+                        request,
+                        request,
+                        request.sortBy
+                    )
                     .mapItems { it.job }
             )
         }

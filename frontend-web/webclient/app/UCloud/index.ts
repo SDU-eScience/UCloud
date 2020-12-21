@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Fri Dec 18 12:09:59 CET 2020 */
+/* Generated at: Mon Dec 21 12:32:57 CET 2020 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -1211,6 +1211,15 @@ export namespace compute {
         includeUpdates?: boolean,
         includeApplication?: boolean,
         includeProduct?: boolean,
+        sortBy?: "CREATED_AT" | "STATE" | "APPLICATION",
+        filterApplication?: string,
+        filterLaunchedBy?: string,
+        filterState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+        filterTitle?: string,
+        filterBefore?: number /* int64 */
+        ,
+        filterAfter?: number /* int64 */
+        ,
     }
 
     export interface JobsExtendRequestItem {
@@ -3158,13 +3167,20 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/jobs" + "/browse", {
                     consistency: request.consistency,
+                    filterAfter: request.filterAfter,
+                    filterApplication: request.filterApplication,
+                    filterBefore: request.filterBefore,
+                    filterLaunchedBy: request.filterLaunchedBy,
+                    filterState: request.filterState,
+                    filterTitle: request.filterTitle,
                     includeApplication: request.includeApplication,
                     includeParameters: request.includeParameters,
                     includeProduct: request.includeProduct,
                     includeUpdates: request.includeUpdates,
                     itemsPerPage: request.itemsPerPage,
                     itemsToSkip: request.itemsToSkip,
-                    next: request.next
+                    next: request.next,
+                    sortBy: request.sortBy
                 }),
                 parameters: request,
                 reloadId: Math.random(),

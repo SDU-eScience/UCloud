@@ -248,6 +248,15 @@ interface JobDataIncludeFlags {
     val includeProduct: Boolean?
 }
 
+interface JobFilters {
+    val filterApplication: String?
+    val filterLaunchedBy: String?
+    val filterState: JobState?
+    val filterTitle: String?
+    val filterBefore: Long?
+    val filterAfter: Long?
+}
+
 fun JobDataIncludeFlags(
     includeParameters: Boolean? = null,
     includeUpdates: Boolean? = null,
@@ -289,8 +298,21 @@ data class JobsBrowseRequest(
     override val includeUpdates: Boolean? = null,
     override val includeApplication: Boolean? = null,
     override val includeProduct: Boolean? = null,
-) : WithPaginationRequestV2, JobDataIncludeFlags
+    val sortBy: JobsSortBy? = null,
+    override val filterApplication: String? = null,
+    override val filterLaunchedBy: String? = null,
+    override val filterState: JobState? = null,
+    override val filterTitle: String? = null,
+    override val filterBefore: Long? = null,
+    override val filterAfter: Long? = null,
+) : WithPaginationRequestV2, JobDataIncludeFlags, JobFilters
 typealias JobsBrowseResponse = PageV2<Job>
+
+enum class JobsSortBy {
+    CREATED_AT,
+    STATE,
+    APPLICATION,
+}
 
 typealias JobsDeleteRequest = BulkRequest<FindByStringId>
 typealias JobsDeleteResponse = Unit

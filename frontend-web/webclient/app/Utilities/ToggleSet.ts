@@ -50,4 +50,12 @@ export class ToggleSet<T> {
     clear() {
         this.privateItems = [];
     }
+
+    activateAll(items: T[]) {
+        for (const item of items) {
+            if (!this.has(item)) {
+                this.fastAdd(item);
+            }
+        }
+    }
 }

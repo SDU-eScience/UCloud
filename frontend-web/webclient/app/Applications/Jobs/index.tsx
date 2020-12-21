@@ -1,5 +1,7 @@
 import * as UCloud from "UCloud";
-import {PropType} from "UtilityFunctions";
+import {PropType, shortUUID} from "UtilityFunctions";
+import {compute} from "UCloud";
+import Job = compute.Job;
 
 export type JobState = NonNullable<PropType<UCloud.compute.JobUpdate, "state">>;
 
@@ -50,3 +52,15 @@ export const stateToTitle = (state: JobState): string => {
             return "Unknown";
     }
 };
+
+export function jobTitle(job: Job): string {
+    return job.parameters.name ?? shortUUID(job.id)
+}
+
+export function jobAppTitle(job: Job): string {
+    return job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name;
+}
+
+export function jobAppVersion(job: Job): string {
+    return job.parameters.application.version;
+}
