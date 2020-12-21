@@ -437,6 +437,9 @@ class JobOrchestrator(
     ) {
         with(callHandler) {
             withContext<WSCall> {
+                log.info("Actor: $actor")
+                log.info("Project: ${ctx.project}")
+                log.info("ID: ${request.id}")
                 val (initialJob) = jobQueryService.retrieve(
                     actor,
                     ctx.project,

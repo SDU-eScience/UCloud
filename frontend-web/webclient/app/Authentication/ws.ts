@@ -43,6 +43,7 @@ interface WebsocketRequest<T = any> {
     streamId: string;
     bearer: string;
     payload: T | null;
+    project?: string;
 }
 
 interface SubscribeParameters<T = any> {
@@ -92,10 +93,13 @@ export class WebSocketConnection {
             }
         });
 
+        const project = this.client.projectId;
+
         this.sendMessage({
             call,
             streamId,
             payload,
+            project,
             bearer: this.settings.includeAuthentication !== false ?
                 await this.client.receiveAccessTokenOrRefreshIt() : undefined
         });

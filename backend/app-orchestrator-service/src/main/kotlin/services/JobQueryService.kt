@@ -194,8 +194,8 @@ class JobQueryService(
                             j.id = :jobId and
                             (
                                 :isSystem or
-                                (j.launched_by = :username and project is null or j.project = :project::text) or
-                                (:isAdmin and :project::text is not null and j.project = :project::text)
+                                (j.launched_by = :username and (project is null or j.project = :project::text)) or
+                                (:isAdmin and project is not null and j.project = :project::text)
                             )
                     """
                 )
