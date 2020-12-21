@@ -7,6 +7,7 @@ import {accounting} from "UCloud";
 import ProductNS = accounting.ProductNS;
 import {Box, Button, Flex, Input, Label, Select, Text} from "ui-components";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Spacer} from "ui-components/Spacer";
 
 const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinished?: () => void}> = props => {
     const [selectedProvider, setSelectedProvider] = useState(props.computeProvider);
@@ -68,8 +69,8 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
     }, [reload, projectId, selectedProvider, selectedProduct]);
 
     return <div>
-        <Flex mb="6px">
-            {!canChangeProvider ? null : <Box width="50%">
+        <Spacer mb="6px"
+            left={!canChangeProvider ? null : <Box width="calc(50% - 10px)">
                 <Label>
                     1. Select Provider
                     <Select placeholder="Provider...">
@@ -82,7 +83,7 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                     </Select>
                 </Label>
             </Box>}
-            <Box width="50%">
+            right={<Box width="calc(50% - 10px)">
                 <Label>
                     {!canChangeProvider ? "1" : "2"}. Select Product
                     <Select placeholder="Product...">
@@ -94,8 +95,8 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                         )}
                     </Select>
                 </Label>
-            </Box>
-        </Flex>
+            </Box>}
+        />
         {!selectedProduct ? null : <Label my="6px">
             {!canChangeProvider ? "2" : "3"}. Select domain
             <Flex>
