@@ -114,7 +114,7 @@ suspend fun <T> DBContext.paginateV2(
             if (request.consistency == PaginationRequestV2Consistency.REQUIRE) {
                 throw RPCException("Outdated 'next' token supplied. Please restart query.", HttpStatusCode.Gone)
             }
-            return paginateV2(principal, request.copy(itemsToSkip = parsedOffset), create, skip, fetch)
+            return paginateV2(principal, request.copy(itemsToSkip = parsedOffset, next = null), create, skip, fetch)
         } else {
             val (username, session) = cached
             if (username != principal.safeUsername()) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
