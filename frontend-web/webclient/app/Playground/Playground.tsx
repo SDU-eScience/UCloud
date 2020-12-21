@@ -8,6 +8,7 @@ import {ThemeColor} from "ui-components/theme";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useCloudAPI} from "Authentication/DataHook";
 import {defaultAvatar} from "UserSettings/Avataaar";
+import {ConfirmationButton} from "ui-components/ConfirmationAction";
 
 export const Playground: React.FunctionComponent = () => {
     const [result, setParams, params] = useCloudAPI<typeof defaultAvatar>(
@@ -47,6 +48,7 @@ export const Playground: React.FunctionComponent = () => {
                 Refetch
             </Button>
 
+            <ConfirmationButton/>
         </>
     );
     return <MainContainer main={main} />;
