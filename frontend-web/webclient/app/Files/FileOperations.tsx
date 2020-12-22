@@ -30,7 +30,6 @@ import * as UF from "UtilityFunctions";
 import CONF from "../../site.config.json";
 import {
     explainPersonalRepo,
-    isRepository,
     promptDeleteRepository,
     repositoryName,
     updatePermissionsPrompt
