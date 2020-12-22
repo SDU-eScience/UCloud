@@ -1,6 +1,8 @@
 import {defaultFileOperations, FileOperationCallback} from "../../app/Files/FileOperations";
 import {File} from "../../app/Files";
 import {SensitivityLevelMap} from "../../app/DefaultObjects";
+import {Client} from "../../app/Authentication/HttpClientInstance";
+
 const UPLOAD_FILES = "Upload Files";
 const NEW_FOLDER = "New Folder";
 const EMPTY_TRASH = "Empty Trash";
@@ -81,37 +83,37 @@ describe("Delete-operation", () => {
 });
 
 const files: File[] = [{
-    "fileType": "FILE",
-    "path": "/home/user/astronaut.png",
-    "modifiedAt": 1607942099598,
-    "ownerName": "user",
-    "size": 820,
-    "acl": [],
-    "sensitivityLevel": SensitivityLevelMap.PRIVATE,
-    "ownSensitivityLevel": null,
-    "permissionAlert": false
+    fileType: "FILE",
+    path: "/home/user/astronaut.png",
+    modifiedAt: 1607942099598,
+    ownerName: "user",
+    size: 820,
+    acl: [],
+    sensitivityLevel: SensitivityLevelMap.PRIVATE,
+    ownSensitivityLevel: null,
+    permissionAlert: false
 },
 {
-    "fileType": "DIRECTORY",
-    "path": "/home/user/Jobs",
-    "modifiedAt": 1607942116998,
-    "ownerName": "user",
-    "size": 96,
-    "acl": [],
-    "sensitivityLevel": SensitivityLevelMap.PRIVATE,
-    "ownSensitivityLevel": null,
-    "permissionAlert": false
+    fileType: "DIRECTORY",
+    path: "/home/user/Jobs",
+    modifiedAt: 1607942116998,
+    ownerName: "user",
+    size: 96,
+    acl: [],
+    sensitivityLevel: SensitivityLevelMap.PRIVATE,
+    ownSensitivityLevel: null,
+    permissionAlert: false
 },
 {
-    "fileType": "DIRECTORY",
-    "path": "/home/user/Trash",
-    "modifiedAt": 1607941637310,
-    "ownerName": "user",
-    "size": 64,
-    "acl": [],
-    "sensitivityLevel": SensitivityLevelMap.PRIVATE,
-    "ownSensitivityLevel": null,
-    "permissionAlert": false
+    fileType: "DIRECTORY",
+    path: "/home/user/Trash",
+    modifiedAt: 1607941637310,
+    ownerName: "user",
+    size: 64,
+    acl: [],
+    sensitivityLevel: SensitivityLevelMap.PRIVATE,
+    ownSensitivityLevel: null,
+    permissionAlert: false
 }];
 
 describe("MoveToTrash-operation", () => {
@@ -119,41 +121,45 @@ describe("MoveToTrash-operation", () => {
 
     if (!moveToTrash) throw Error("moveToTrash not defined");
 
-     test("Is not disabled", () => {
+    test("Is not disabled", () => {
         expect(moveToTrash.disabled([file], cb)).toBeFalsy();
     })
 
-/*    test("Is disabled due to permissions TODO", () => {
-        expect(moveToTrash.disabled).toBeFalsy();
+
+    /*
+        FIXME: this relies on a hook. How to solve here, where the functinoality matches the hook?
+        test("Is disabled due to permissions TODO", () => {
+            expect(moveToTrash.disabled).toBeFalsy();
+        });
+     */
+
+    test("Is disabled because file is fixed", () => {
+        expect(moveToTrash.disabled([{...directory, path: `/home/${Client.username}/Jobs`}], cb)).toBeTruthy();
     });
 
-    test("Is disabled because file is fixed TODO", () => {
-        expect(moveToTrash.disabled).toBeFalsy();
+    test("Is disabled because file is mock file", () => {
+        expect(moveToTrash.disabled([{...file, mockTag: "foo"}], cb)).toBeTruthy();
     });
 
-    test("Is disabled because file is mock file TODO", () => {
-        expect(moveToTrash.disabled).toBeFalsy();
-    });
+    // test("Is disabled as file is owned by user in project TODO", () => {
+    //     expect(moveToTrash.disabled).toBeFalsy();
+    // });
 
-    test("Is disabled as file is owned by user in project TODO", () => {
-        expect(moveToTrash.disabled).toBeFalsy();
-    });
-
-    test("Is NOT disabled as file is owned by user in project, but user is not part of project anymore TODO", () => {
-        expect(moveToTrash.disabled).toBeFalsy();
-    }); */
+    // test("Is NOT disabled as file is owned by user in project, but user is not part of project anymore TODO", () => {
+    //     expect(moveToTrash.disabled).toBeFalsy();
+    // });
 
     test("Is disabled because file is trash folder", () => {
-        expect(moveToTrash.disabled(files, cb)).toBeTruthy();
-    });
-/* 
-    test("Is disabled because file is in trash folder TODO", () => {
-        expect(moveToTrash.disabled).toBeTruthy();
+        expect(moveToTrash.disabled([trashfolder], cb)).toBeTruthy();
     });
 
-    test("Is disabled because file is in folder in trash folder TODO", () => {
-        expect(moveToTrash.disabled).toBeFalsy();
-    }); */
+    test("Is disabled because file is in trash folder", () => {
+        expect(moveToTrash.disabled([{...file, path: trashfolder.path + "/astronaut.png"}], cb)).toBeTruthy();
+    });
+
+    // test("Is disabled because file is in folder in trash folder", () => {
+    //     expect(moveToTrash.disabled([{...file, path: trashfolder.path + "/astronauts/astronaut.png"}], cb)).toBeTruthy();
+    // });
 });
 
 // if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
