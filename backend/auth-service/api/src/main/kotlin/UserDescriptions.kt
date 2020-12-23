@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
@@ -49,6 +50,11 @@ data class GetUserInfoResponse(
     val firstNames: String?,
     val lastName: String?
 )
+
+data class GetSecurityPrincipalRequest(
+    val username: String
+)
+typealias GetSecurityPrincipalResponse = SecurityPrincipal
 
 data class WantsEmailsRequest(
     val username: String?
@@ -119,6 +125,21 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             path {
                 using(baseContext)
                 +"userInfo"
+            }
+        }
+    }
+
+    val getSecurityPrincipal = call<GetSecurityPrincipalRequest, GetSecurityPrincipalResponse, CommonErrorMessage>("getSecurityPrincipal") {
+        auth {
+            roles = setOf(Role.SERVICE)
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"securityPrincipal"
             }
         }
     }

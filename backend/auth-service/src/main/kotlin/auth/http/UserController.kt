@@ -8,6 +8,7 @@ import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserAsyncDAO
 import dk.sdu.cloud.auth.services.UserCreationService
+import dk.sdu.cloud.auth.services.UserException
 import dk.sdu.cloud.auth.services.UserIterationService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
@@ -18,6 +19,7 @@ import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.application.call
 import io.ktor.features.origin
@@ -96,6 +98,24 @@ class UserController(
                 information.firstNames,
                 information.lastName
             ))
+        }
+
+        implement(UserDescriptions.getSecurityPrincipal) {
+            val principal = db.withTransaction {
+                userDAO.findById(it, request.username)
+            }
+            principal as Person
+            ok(
+                SecurityPrincipal(
+                    request.username,
+                    principal.role,
+                    principal.firstNames,
+                    principal.lastName,
+                    principal.uid,
+                    principal.email,
+                    principal.twoFactorAuthentication
+                )
+            )
         }
 
         implement(UserDescriptions.changePassword) {

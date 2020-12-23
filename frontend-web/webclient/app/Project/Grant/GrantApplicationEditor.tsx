@@ -4,7 +4,22 @@ import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
-import {Box, Button, ButtonGroup, Card, ExternalLink, Flex, Icon, Input, Label, Text, TextArea, theme, Tooltip} from "ui-components";
+import {
+    Box,
+    Button,
+    ButtonGroup,
+    Card,
+    ExternalLink,
+    Flex,
+    Icon,
+    Input,
+    Label,
+    Link,
+    Text,
+    TextArea,
+    theme,
+    Tooltip
+} from "ui-components";
 import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
     grantsRetrieveProducts, GrantsRetrieveProductsResponse,
@@ -32,7 +47,7 @@ import {
     ReadTemplatesResponse,
     rejectGrantApplication,
     ResourceRequest,
-    submitGrantApplication,
+    submitGrantApplication, transferApplication,
     viewGrantApplication,
     ViewGrantApplicationResponse
 } from "Project/Grant/index";
@@ -709,6 +724,23 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }, [state.editingApplication?.id]);
 
+        //TODO Should be a modal
+        const transferRequest = useCallback( async () => {
+            if (state.editingApplication !== undefined) {
+                addStandardDialog({
+                    title: "Transfer application?",
+                    message: "Are you sure you wish to transfer this application?",
+                    onConfirm: async () => {
+                        await runWork(transferApplication({
+                            applicationId: state.editingApplication!.id,
+                            transferToProjectId: "4face5d8-a5eb-43a1-972c-5f9ae72e1f64"
+                        }));
+                        state.reload();
+                    }
+                });
+            }
+        }, [state.editingApplication?.id])
+
         const closeRequest = useCallback(async () => {
             if (state.editingApplication !== undefined) {
                 addStandardDialog({
@@ -917,6 +949,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             >
                                                                                 Reject
                                                                     </Button>
+                                                                            {state.editingApplication?.grantRecipient!.type !== "existing_project" ?
+                                                                                <Button
+                                                                                    color="blue"
+                                                                                    onClick={transferRequest}
+                                                                                    disabled={!isLocked}
+                                                                                >
+                                                                                    Transfer to other project
+                                                                                </Button> : null
+                                                                            }
                                                                         </> : null
                                                                     }
                                                                     {!state.approver && !grantFinalized ?
@@ -930,7 +971,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     </Button>
                                                                         </> : null
                                                                     }
-
                                                                 </>
                                                             )}
                                                         </ButtonGroup>

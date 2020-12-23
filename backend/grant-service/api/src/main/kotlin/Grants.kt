@@ -168,6 +168,9 @@ typealias RejectApplicationResponse = Unit
 data class CloseApplicationRequest(val requestId: Long)
 typealias CloseApplicationResponse = Unit
 
+data class TransferApplicationRequest(val applicationId: Long, val transferToProjectId: String)
+typealias TransferApplicationResponse = Unit
+
 data class CommentOnApplicationRequest(val requestId: Long, val comment: String)
 typealias CommentOnApplicationResponse = Unit
 
@@ -311,10 +314,17 @@ data class BrowseProjectsRequest(
 typealias BrowseProjectsResponse = Page<ProjectWithTitle>
 data class ProjectWithTitle(val projectId: String, val title: String)
 
+data class FindAffiliationsRequest(
+    val username: String,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
+typealias FindAffiliationsResponse = Page<ProjectWithTitle>
+
 data class GrantsRetrieveProductsRequest(
     val projectId: String,
     val recipientType: String,
-    val recipientId: String,
+    val recipientId: String
 )
 data class GrantsRetrieveProductsResponse(
     val availableProducts: List<ProductCategory>
@@ -699,6 +709,28 @@ object Grants : CallDescriptionContainer("grant") {
     }
 
     /**
+     * Transfers application to other root project
+     */
+    val transferApplication =
+        call<TransferApplicationRequest, TransferApplicationResponse, CommonErrorMessage>("transferApplication") {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.AUTHENTICATED
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"transfer"
+                }
+
+                body { bindEntireRequestFromBody()}
+            }
+        }
+
+    /**
      * Lists active [Application]s which are 'ingoing' (received by) to a project
      */
     val ingoingApplications =
@@ -818,6 +850,26 @@ object Grants : CallDescriptionContainer("grant") {
             params {
                 +boundTo(BrowseProjectsRequest::itemsPerPage)
                 +boundTo(BrowseProjectsRequest::page)
+            }
+        }
+    }
+
+    val findAffiliations = call<FindAffiliationsRequest, FindAffiliationsResponse, CommonErrorMessage>("FindAffiliations") {
+        auth {
+            access = AccessRight.READ
+        }
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"find-affiliation"
+            }
+
+            params {
+                +boundTo(FindAffiliationsRequest::username)
+                +boundTo(FindAffiliationsRequest::itemsPerPage)
+                +boundTo(FindAffiliationsRequest::page)
             }
         }
     }

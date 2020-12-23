@@ -1,6 +1,10 @@
 package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.GetSecurityPrincipalRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
@@ -10,7 +14,9 @@ import dk.sdu.cloud.grant.services.ApplicationService
 import dk.sdu.cloud.grant.services.CommentService
 import dk.sdu.cloud.grant.services.SettingsService
 import dk.sdu.cloud.grant.services.TemplateService
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.toActor
@@ -55,6 +61,22 @@ class GrantController(
                 request.requestId,
                 ApplicationStatus.CLOSED
             )
+            ok(Unit)
+        }
+
+        implement(Grants.transferApplication) {
+            val application =  applications.viewApplicationById(db, ctx.securityPrincipal.toActor(), request.applicationId)
+            if (application.first.grantRecipient.toString() != GrantRecipient.EXISTING_PROJECT_TYPE) {
+                applications.transferApplication(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    ctx.project,
+                    request.applicationId,
+                    request.transferToProjectId
+                )
+            } else {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Transfer not applicable to existing projects")
+            }
             ok(Unit)
         }
 
@@ -168,6 +190,20 @@ class GrantController(
 
         implement(Grants.browseProjects) {
             ok(settings.browse(db, ctx.securityPrincipal.toActor(), request.normalize()))
+        }
+
+        implement(Grants.findAffiliations) {
+            val user = UserDescriptions.getSecurityPrincipal.call(
+                GetSecurityPrincipalRequest(request.username),
+                serviceClient
+            ).orThrow()
+            ok(
+                settings.browse(
+                    db,
+                    user.toActor(),
+                    PaginationRequest(request.itemsPerPage, request.page).normalize()
+                )
+            )
         }
 
         implement(Grants.uploadLogo) {

@@ -403,6 +403,37 @@ export function browseProjects(request: BrowseProjectsRequest): APICallParameter
     };
 }
 
+export interface FindAffiliationsRequest {
+    username: string,
+    itemsPerPage: number,
+    page: number
+}
+export type FindAffiliationsResponse = Page<{projectId: string, title: string}>;
+
+export function findAffiliations(request: FindAffiliationsRequest): APICallParameters<FindAffiliationsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/find-affiliations", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface TransferApplicationRequest {
+    applicationId: number;
+    transferToProjectId: string
+}
+
+export function transferApplication(request: TransferApplicationRequest): APICallParameters<TransferApplicationRequest> {
+    return {
+        method: "POST",
+        path:"/grant/transfer",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
 export interface ListOutgoingApplications extends PaginationRequest {
     filter?: GrantApplicationFilter;
 }

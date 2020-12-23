@@ -23,6 +23,28 @@ data class ProjectForVerification(
 class QueryService(
     private val projects: ProjectService
 ) {
+    suspend fun searchProjectPaths(ctx: DBContext, actor: Actor, query: String): Map<String, String> {
+        return ctx.withSession { session ->
+            val results = session.sendPreparedStatement(
+                {
+                    setParameter("query", "%$query%")
+                },
+                """
+                    SELECT *
+                    FROM projects
+                    WHERE title LIKE :query
+                """
+            ).rows
+
+            val paths = mutableMapOf<String, String>()
+            results.forEach {
+                val path = viewAncestors(ctx, actor, it.getField(ProjectTable.id)).map { it.title }
+                paths[it.getField(ProjectTable.id)] = path.joinToString("/")
+            }
+            paths
+        }
+    }
+
     suspend fun isMemberOfGroup(
         ctx: DBContext,
         queries: List<IsMemberQuery>

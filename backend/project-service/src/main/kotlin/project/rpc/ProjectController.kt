@@ -13,7 +13,7 @@ import io.ktor.http.*
 class ProjectController(
     private val db: DBContext,
     private val projects: ProjectService,
-    private val queries: QueryService,
+    private val queries: QueryService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
@@ -308,6 +308,17 @@ class ProjectController(
                         ctx.securityPrincipal.toActor(),
                         ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
                     )
+                )
+            )
+        }
+
+        implement(Projects.searchProjectPaths) {
+            ok(
+                SearchProjectPathsResponse(
+                    queries.searchProjectPaths(
+                        db,
+                        ctx.securityPrincipal.toActor(),
+                        request.query)
                 )
             )
         }
