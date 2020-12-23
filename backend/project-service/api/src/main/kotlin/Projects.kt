@@ -914,7 +914,7 @@ object Projects : CallDescriptionContainer("project") {
 
             path {
                 using(baseContext)
-                +"find-project-paths"
+                +"search-project-paths"
             }
 
             params {
