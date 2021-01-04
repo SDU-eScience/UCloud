@@ -4,11 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.api.FindProductRequest
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.api.ProductAvailability
-import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Actor
@@ -41,6 +37,8 @@ object ProductTable : SQLTable("products") {
     val memoryInGigs = int("memory_in_gigs", notNull = false)
 
     val licenseTags = jsonb("license_tags", notNull = false)
+
+    val paymentModel = text("payment_model", notNull = false)
 }
 
 class ProductService {
@@ -72,7 +70,7 @@ class ProductService {
                     }
 
                     when (product) {
-                        is Product.Ingress, is Product.Storage -> {
+                        is Product.Storage -> {
                             // No more attributes
                         }
 
@@ -84,6 +82,11 @@ class ProductService {
 
                         is Product.License -> {
                             set(ProductTable.licenseTags, defaultMapper.writeValueAsString(product.tags))
+                            set(ProductTable.paymentModel, product.paymentModel.name)
+                        }
+
+                        is Product.Ingress -> {
+                            set(ProductTable.paymentModel, product.paymentModel.name)
                         }
                     }
                     set(ProductTable.pricePerUnit, product.pricePerUnit)
@@ -120,26 +123,36 @@ class ProductService {
                         setParameter("pricePerUnit", product.pricePerUnit)
                         setParameter("id", product.id)
                         setParameter("description", product.description)
-                        setParameter("availability", when(val availability = product.availability) {
-                            is ProductAvailability.Available -> null
-                            is ProductAvailability.Unavailable -> availability.reason
-                        })
-                        setParameter("cpu", when(product) {
-                            is Product.Compute -> product.cpu
-                            else -> null
-                        })
-                        setParameter("gpu", when(product) {
-                            is Product.Compute -> product.gpu
-                            else -> null
-                        })
-                        setParameter("memoryInGigs", when(product) {
-                            is Product.Compute -> product.memoryInGigs
-                            else -> null
-                        })
-                        setParameter("tags", when (product) {
-                            is Product.License -> defaultMapper.writeValueAsString(product.tags)
-                            else -> null
-                        })
+                        setParameter(
+                            "availability", when (val availability = product.availability) {
+                                is ProductAvailability.Available -> null
+                                is ProductAvailability.Unavailable -> availability.reason
+                            }
+                        )
+                        setParameter(
+                            "cpu", when (product) {
+                                is Product.Compute -> product.cpu
+                                else -> null
+                            }
+                        )
+                        setParameter(
+                            "gpu", when (product) {
+                                is Product.Compute -> product.gpu
+                                else -> null
+                            }
+                        )
+                        setParameter(
+                            "memoryInGigs", when (product) {
+                                is Product.Compute -> product.memoryInGigs
+                                else -> null
+                            }
+                        )
+                        setParameter(
+                            "tags", when (product) {
+                                is Product.License -> defaultMapper.writeValueAsString(product.tags)
+                                else -> null
+                            }
+                        )
                     },
 
                     """
@@ -378,7 +391,9 @@ class ProductService {
                         null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)
                     },
-                    getField(ProductTable.priority)
+                    getField(ProductTable.priority),
+                    getFieldNullable(ProductTable.paymentModel)?.let { PaymentModel.valueOf(it) }
+                        ?: PaymentModel.PER_ACTIVATION
                 )
             }
             ProductArea.LICENSE -> {
@@ -395,7 +410,9 @@ class ProductService {
                         else -> ProductAvailability.Unavailable(reason)
                     },
                     getField(ProductTable.priority),
-                    getFieldNullable(ProductTable.licenseTags)?.let { defaultMapper.readValue(it) } ?: emptyList()
+                    getFieldNullable(ProductTable.licenseTags)?.let { defaultMapper.readValue(it) } ?: emptyList(),
+                    getFieldNullable(ProductTable.paymentModel)?.let { PaymentModel.valueOf(it) }
+                        ?: PaymentModel.PER_ACTIVATION
                 )
             }
         }

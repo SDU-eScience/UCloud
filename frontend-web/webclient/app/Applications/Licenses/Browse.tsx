@@ -37,6 +37,7 @@ import {AclPermission} from "Applications/Licenses/index";
 import {TextSpan} from "ui-components/Text";
 import LicenseAclEntry = compute.LicenseAclEntry;
 import LicensesCreateResponse = compute.LicensesCreateResponse;
+import {PaymentModelExplainer} from "Accounting/PaymentModelExplainer";
 
 interface LicenseGroup {
     product: ProductNS.License;
@@ -220,8 +221,10 @@ export const Browse: React.FunctionComponent<{
                             leftSub={
                                 <ListStatContainer>
                                     <ListRowStat icon={"id"}>{g.product.category.provider}</ListRowStat>
-                                    <ListRowStat icon={"grant"}>Unit
-                                        price: {creditFormatter(g.product.pricePerUnit, 0)}</ListRowStat>
+                                    <ListRowStat icon={"grant"}>
+                                        <PaymentModelExplainer model={g.product.paymentModel}/>:
+                                        {creditFormatter(g.product.pricePerUnit, 0)}
+                                    </ListRowStat>
                                     {g.instances.length !== 1 ? null : (
                                         <InstanceStats instance={g.instances[0]} onInspect={callbacks.inspect}/>
                                     )}
