@@ -42,8 +42,11 @@ import {prettierString, stopPropagation} from "UtilityFunctions";
 import * as Modal from "react-modal";
 import {ListRow} from "ui-components/List";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
-
-const IS_GROUP_AND_PROJECT_SEARCHING_WIP = true;
+import {buildQueryString} from "Utilities/URIUtilities";
+import {PredicatedLoadingSpinner} from "LoadingIcon/LoadingIcon";
+import {groupSummaryRequest} from "Project";
+import {GroupWithSummary} from "Project/GroupList";
+import {associateBy} from "Utilities/CollectionUtilities";
 
 interface AppOperations {
     onInit: () => void;
@@ -150,6 +153,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const tags = apps.data.items.length > 0 ? apps.data.items[0].tags : [];
     const newTagField = useRef<HTMLInputElement>(null);
     const userEntityField = React.useRef<HTMLInputElement>(null);
+    const [project, setProject] = useState<string>("");
+    const [group, setGroup] = useState<string>("");
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
     const [modalType, setModalType] = React.useState<"PROJECT" | "GROUP" | null>(null);
@@ -159,16 +164,25 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     return (
         <MainContainer
             additional={
-                <Modal style={defaultModalStyle} isOpen={modalType !== null}>
+                <Modal
+                    style={defaultModalStyle}
+                    onRequestClose={() => setModalType(null)}
+                    shouldCloseOnEsc
+                    shouldCloseOnOverlayClick
+                    isOpen={modalType !== null}
+                >
                     {!modalType ? null :
                         <ListSelector
                             key={modalType}
                             type={modalType}
-                            onSelect={selection => {
+                            selectedProject={project}
+                            onSelect={(key, name) => {
                                 if (modalType === "GROUP") {
-                                    groupEntityField.current!.value = selection;
+                                    setGroup(key);
+                                    groupEntityField.current!.value = name;
                                 } else if (modalType === "PROJECT") {
-                                    projectEntityField.current!.value = selection;
+                                    setProject(key);
+                                    projectEntityField.current!.value = name;
                                 } else {
                                     snackbarStore.addFailure("Unhandled modalType: " + modalType, false)
                                 }
@@ -313,10 +327,10 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                     leftLabel
                                                     rightLabel
                                                     required
-                                                    onClick={() => IS_GROUP_AND_PROJECT_SEARCHING_WIP ? null : setModalType("PROJECT")}
+                                                    onClick={() => setModalType("PROJECT")}
                                                     width={180}
                                                     type="text"
-                                                    readOnly={!IS_GROUP_AND_PROJECT_SEARCHING_WIP}
+                                                    readOnly
                                                     ref={projectEntityField}
                                                     placeholder="Project name"
                                                 />
@@ -324,9 +338,9 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                     leftLabel
                                                     rightLabel
                                                     required
-                                                    disabled={!IS_GROUP_AND_PROJECT_SEARCHING_WIP && (projectEntityField.current?.value ?? "") === ""}
-                                                    onClick={() => IS_GROUP_AND_PROJECT_SEARCHING_WIP ? null : setModalType("GROUP")}
-                                                    readOnly={!IS_GROUP_AND_PROJECT_SEARCHING_WIP}
+                                                    disabled={(projectEntityField.current?.value ?? "") === ""}
+                                                    onClick={() => setModalType("GROUP")}
+                                                    readOnly
                                                     width={180}
                                                     type="text"
                                                     ref={groupEntityField}
@@ -579,58 +593,66 @@ const mapDispatchToProps = (
 
 interface ListSelectorProps {
     type: "GROUP" | "PROJECT";
-    onSelect(selection: string): void;
+    selectedProject?: string;
+    onSelect(key: string, name: string): void;
 }
 
-function ListSelector({type, onSelect}: ListSelectorProps): JSX.Element {
-    const [groups, fetchGroups, groupParams] = useCloudAPI(type === "GROUP" ? {noop: true} : {noop: true}, emptyPage);
-    const [projects, fetchProjects, projectParams] = useCloudAPI(type === "PROJECT" ? {noop: true} : {noop: true}, emptyPage);
+function fetchProjectsRequest(request: {query: string}): APICallParameters {
+    return {
+        path: buildQueryString("projects/search-project-paths", request),
+        method: "GET"
+    }
+}
+
+function ListSelector({type, onSelect, selectedProject}: ListSelectorProps): JSX.Element {
+    const [groups, fetchGroups] = useCloudAPI<Page<GroupWithSummary>>({noop: true}, emptyPage);
+    const [projects, fetchProjects] = useCloudAPI<{paths: Record<string, string>}>({noop: true}, {paths: {}});
     const ref = React.useRef<number>();
     const searchRef = React.useRef<HTMLInputElement>(null);
+
+    React.useEffect(() => {
+        if (selectedProject) fetchGroups(groupSummaryRequest({page: 0, itemsPerPage: 100}, selectedProject));
+    }, [selectedProject])
 
     const onKeyUp = React.useCallback(() => {
         if (ref.current !== -1) {
             window.clearTimeout(ref.current);
         }
         ref.current = (window.setTimeout(() => {
-            console.log("TODO");
-            // TODO
-            if (type === "GROUP") {
-                // Search in groups by searchRef;
-            } else if (type === "PROJECT") {
-                // Search in projects by searchRef;
+            if (type === "PROJECT") {
+                fetchProjects(fetchProjectsRequest({query: searchRef.current!.value}));
             }
         }, 500));
 
     }, [searchRef.current, fetchGroups, fetchProjects]);
 
+    const mappedGroups: Record<string, string> = {};
+    groups.data.items.forEach(g => mappedGroups[g.groupId] = g.groupTitle);
 
-    // FIXME: Should be based on groups.data and project.data
-    const content = type === "GROUP" ? ["GROUP1", "GROUP2", "GROUP3", "GROUP4"] : ["PROJECT1", "PROJECT2", "PROJECT3"];
+    const content = type === "GROUP" ? mappedGroups : projects.data.paths;
 
     return (
         <Box>
-            <Input
+            {type === "PROJECT" ? <Input
                 key={type}
                 onKeyUp={onKeyUp}
                 autoComplete="off"
                 ref={searchRef}
                 placeholder={`Enter ${prettierString(type)} name`}
-            />
+            /> : null}
+            <Box mt="6px">{Object.keys(content).length === 0 ? "No results" : null}</Box>
+            <PredicatedLoadingSpinner loading={groups.loading || projects.loading} />
             <List>
-                {content.map(c => (
+                {Object.keys(content).map(key => (
                     <ListRow
-                        key={c}
-                        left={c}
-                        right={<Button onClick={() => onSelect(c)}>Select</Button>}
+                        key={key}
+                        left={content[key]}
+                        right={<Button onClick={() => onSelect(key, content[key])}>Select</Button>}
                     />
                 ))}
             </List>
         </Box>
     );
 }
-
-
-
 
 export default connect(null, mapDispatchToProps)(App);

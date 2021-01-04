@@ -132,13 +132,14 @@ export function projectRoleToStringIcon(role: ProjectRole): IconName {
     }
 }
 
-export function groupSummaryRequest(payload: PaginationRequest): APICallParameters<PaginationRequest> {
+export function groupSummaryRequest(payload: PaginationRequest, projectOverride?: string): APICallParameters<PaginationRequest> {
     return {
         path: buildQueryString(`${groupContext}/summary`, payload),
         method: "GET",
         reloadId: Math.random(),
         parameters: payload,
-        payload
+        payload,
+        projectOverride
     };
 }
 
