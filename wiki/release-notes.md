@@ -7,6 +7,29 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 04-01-21
+
+Minor changes. ToS has been published.
+
+```
+✅  Deployment(webclient, 0.38.37): (UP-TO-DATE)
+✅  Deployment(app-license, 0.2.5): (UP-TO-DATE)
+✅  Deployment(mail, 0.2.7): (UP-TO-DATE)
+✅  Deployment(alerting, 1.2.7): (UP-TO-DATE)
+✅  Deployment(slack, 0.1.2): (UP-TO-DATE)
+✅  Deployment(auth, 1.28.5): (UP-TO-DATE)
+✅  Deployment(support, 1.4.6): (UP-TO-DATE)
+✅  Deployment(grant, 0.1.16): (UP-TO-DATE)
+```
+
+## 21-12-20
+
+Bug fix for auth server (Duplicate users when WAYF supplies no email).
+
+```
+✅  Deployment(auth, 1.28.4): (UP-TO-DATE)
+```
+
 ## 08-12-20
 
 Bug fix for grant application editor.

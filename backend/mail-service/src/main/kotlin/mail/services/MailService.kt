@@ -44,6 +44,16 @@ class MailService(
     private val devMode: Boolean = false,
     private val ctx: DBContext
 ) {
+    private var session: Session
+
+    init {
+        //Setup Mail Server
+        val properties = System.getProperties()
+        properties.setProperty("mail.smtp.host", "localhost")
+        properties.setProperty("mail.smtp.port", "25")
+
+        session = Session.getInstance(properties)
+    }
 
     object MailCounterTable: SQLTable("mail_counting") {
         val mailCount = long("mail_count", notNull = true)
@@ -106,6 +116,56 @@ class MailService(
         """.trimIndent()
     }
 
+    private fun addSupportTemplate(text: String): String {
+        return """
+        <!DOCTYPE HTML>
+        <html>
+            <body style='margin:0; padding:0; font-family: "IBM Plex Sans", sans-serif, system-ui, -apple-system,
+                Segoe UI, Roboto, Ubuntu, Cantarell, Oxygen, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+                "Segoe UI Symbol", "Noto Color Emoji";'>
+                <div style="padding: 2em 4em 2em 4em; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    $text
+                </div>
+            </body>
+        </html>
+        """.trimIndent()
+    }
+
+    suspend fun sendSupportTicket(
+        fromEmail: String,
+        subject: String,
+        text: String
+    ) {
+        val recipientAddress = InternetAddress("support@escience.sdu.dk")
+
+        try {
+            val message = MimeMessage(session)
+            message.setFrom(InternetAddress(fromEmail))
+            message.addRecipient(Message.RecipientType.TO, recipientAddress)
+            message.subject = subject
+
+            val multipart = MimeMultipart()
+
+            // style paragraphs (not a good solution, but with best support)
+            val finalText = text.replace("<p>", "<p style=\"line-height: 1.2em; margin:0 0 1em 0;\">")
+
+            val bodyPart = MimeBodyPart()
+            val bodyWithTemplate = addSupportTemplate(finalText)
+
+            bodyPart.setContent(bodyWithTemplate, "text/html")
+            multipart.addBodyPart(bodyPart)
+
+            message.setContent(multipart)
+            if (devMode) {
+                fakeSend(message)
+            } else {
+                Transport.send(message)
+            }
+        } catch (e: Throwable) {
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to send email")
+        }
+    }
+
     suspend fun send(
         principal: SecurityPrincipal,
         recipient: String,
@@ -140,13 +200,6 @@ class MailService(
         }
 
         val recipientAddress = InternetAddress(getEmail.email)
-
-        // Setup mail server
-        val properties = System.getProperties()
-        properties.setProperty("mail.smtp.host", "localhost")
-        properties.setProperty("mail.smtp.port", "25")
-
-        val session = Session.getInstance(properties)
 
         try {
             val message = MimeMessage(session)

@@ -6,8 +6,10 @@ import java.util.*
 
 bundle { ctx ->
     name = "auth"
-    version = "1.28.3"
+    version = "1.28.5"
 
+    val tos = config<String>("tos", "Terms of Service")
+    val tosVersion = config<Int>("tosVersion", "Terms of Service version")
     val host = config<String>("host", "Host name (no schema). E.g. 'cloud.sdu.dk'")
     val scheme = config<String>("scheme", "Scheme (http or https)", "https")
     val trustLocalhost = config<Boolean>("trustLocalhost", "Should we trust the localhost origin?", false)
@@ -247,7 +249,7 @@ bundle { ctx ->
         )
     }
 
-    withConfigMap("auth-config", version = "6") {
+    withConfigMap("auth-config", version = "7") {
         val trustedOrigins = ArrayList<String>().apply {
             add(host)
             if (trustLocalhost) add("localhost")
@@ -316,7 +318,8 @@ bundle { ctx ->
                     "production" to true, // As in not local development
                     "services" to services,
                     "tokenExtension" to tokenExtension,
-                    "unconditionalPasswordResetWhitelist" to listOf("_password-reset")
+                    "unconditionalPasswordResetWhitelist" to listOf("_password-reset"),
+                    "serviceLicenseAgreement" to mapOf("text" to tos, "version" to tosVersion)
                 )
             )
         )
