@@ -87,11 +87,11 @@ class JobQueryService(
                                     ) and
                                     (
                                         :filterBefore::bigint is null or
-                                        j.started_at < to_timestamp(:filterBefore / 1000)
+                                        j.started_at < to_timestamp(:filterBefore::bigint / 1000)
                                     ) and
                                     (
                                         :filterAfter::bigint is null or
-                                        j.started_at > to_timestamp(:filterAfter / 1000)
+                                        j.started_at > to_timestamp(:filterAfter::bigint / 1000)
                                     )
                                 order by
                                     case :sortBy::text
