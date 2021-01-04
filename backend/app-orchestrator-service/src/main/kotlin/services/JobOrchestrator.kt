@@ -628,6 +628,17 @@ class JobOrchestrator(
         }
     }
 
+    suspend fun utilization(providerActor: Actor): JobsUtilizationResponse {
+        val (api, client) = providers.prepareCommunication(providerActor)
+        val response = api.utilization.call(Unit, client).orThrow()
+
+        return JobsUtilizationResponse(
+            response.allocatable,
+            response.used,
+            response.jobs
+        )
+    }
+
     companion object : Loggable {
         override val log = logger()
     }

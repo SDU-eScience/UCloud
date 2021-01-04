@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.defaultMapper
+import org.elasticsearch.cluster.metadata.AliasAction
 import java.util.*
 
 object KubernetesResources {
@@ -12,6 +13,7 @@ object KubernetesResources {
     val daemonSet = KubernetesResourceLocator("apps", "v1", "daemonsets")
     val deployment = KubernetesResourceLocator("apps", "v1", "deployments")
     val job = KubernetesResourceLocator("batch", "v1", "jobs")
+    val node = KubernetesResourceLocator(API_GROUP_CORE, "v1", "nodes")
     val replicaSet = KubernetesResourceLocator("apps", "v1", "replicasets")
     val statefulSet = KubernetesResourceLocator("apps", "v1", "statefulsets")
     val events = KubernetesResourceLocator(API_GROUP_CORE, "v1", "events")
@@ -589,6 +591,22 @@ data class NetworkPolicy(
     data class IngressRule(
         var from: List<Peer>? = emptyList(),
         var ports: List<Port>? = emptyList()
+    )
+}
+
+data class Node(
+    var apiVersion: String = "v1",
+    var kind: String = "Node",
+    var metadata: ObjectMeta? = null,
+    var status: Status? = null
+) {
+    data class Status(
+        var allocatable: Allocatable? = null
+    )
+
+    data class Allocatable(
+        var cpu: Int? = null,
+        var memory: String? = null
     )
 }
 

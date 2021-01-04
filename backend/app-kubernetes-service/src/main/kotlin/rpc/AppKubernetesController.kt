@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.services.JobAndRank
 import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
+import dk.sdu.cloud.app.kubernetes.services.UtilizationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -27,6 +28,7 @@ class AppKubernetesController(
     private val logService: K8LogService,
     private val webService: WebService,
     private val vncService: VncService,
+    private val utilizationService: UtilizationService
 ) : Controller {
     private val streams = HashMap<String, ReceiveChannel<*>>()
     private val streamsMutex = Mutex()
@@ -143,6 +145,14 @@ class AppKubernetesController(
                     }
                 }
             }
+        }
+
+        implement(KubernetesCompute.utilization) {
+            ok(UtilizationResponse(
+                utilizationService.allocatable(),
+                utilizationService.used(),
+                utilizationService.jobs()
+            ))
         }
 
         return@configure
