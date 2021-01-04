@@ -25,8 +25,6 @@ class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagement
         vSpec.queue = DEFAULT_QUEUE
         vSpec.policies = emptyList()
         vSpec.plugins = mapOf(
-            // I don't believe we will need this. TODO(Dan): Ask Emiliano if he is interested
-            //"ssh" to ArrayList(),
             "env" to ArrayList(),
             "svc" to ArrayList(),
         )

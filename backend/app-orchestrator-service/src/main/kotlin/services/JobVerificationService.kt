@@ -17,6 +17,8 @@ import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.util.*
 
 data class UnverifiedJob(
@@ -86,8 +88,10 @@ class JobVerificationService(
 
             when (tool.description.backend) {
                 ToolBackend.SINGULARITY -> {
-                    throw RPCException("Unsupported UCloud application. Please contact support.",
-                        HttpStatusCode.BadRequest)
+                    throw RPCException(
+                        "Unsupported UCloud application. Please contact support.",
+                        HttpStatusCode.BadRequest
+                    )
                 }
 
                 ToolBackend.DOCKER -> {
@@ -227,9 +231,6 @@ class JobVerificationService(
     ): Map<String, AppParameterValue> {
         val userParameters = HashMap(job.request.parameters)
 
-        // TODO FIXME IMPORTANT
-        // Check if we have any apps which use defaultValue for advanced types
-
         for (param in app.invocation.parameters) {
             var providedValue = userParameters[param.name]
             if (!param.optional && param.defaultValue == null && providedValue == null) {
@@ -241,10 +242,42 @@ class JobVerificationService(
             }
 
             if (param.defaultValue != null && providedValue == null) {
-                providedValue = TODO("Extract default value")
+                providedValue = when (param) {
+                    is ApplicationParameter.InputFile,
+                    is ApplicationParameter.InputDirectory,
+                    is ApplicationParameter.Peer,
+                    is ApplicationParameter.LicenseServer
+                    -> null // Not supported and application should not have been validated. Silently fail.
+
+                    is ApplicationParameter.Text -> (param.defaultValue as? String)?.let { AppParameterValue.Text(it) }
+                    is ApplicationParameter.Integer -> {
+                        (param.defaultValue as? Number)?.let { AppParameterValue.Integer(BigInteger(it.toString())) }
+                    }
+                    is ApplicationParameter.FloatingPoint -> {
+                        (param.defaultValue as? Number)?.let {
+                            AppParameterValue.FloatingPoint(BigDecimal(it.toString()))
+                        }
+                    }
+                    is ApplicationParameter.Bool -> (param.defaultValue as? Boolean)?.let { AppParameterValue.Bool(it) }
+                    is ApplicationParameter.Enumeration -> {
+                        (param.defaultValue as? Map<*, *>)?.let { map ->
+                            val value = (map["value"] as? String)
+                            val option = param.options.find { it.value == value }
+                            if (option != null) {
+                                AppParameterValue.Text(value!!)
+                            } else {
+                                null
+                            }
+                        }
+                    }
+                }
+
+                if (providedValue == null) {
+                    throw RPCException("Missing value for '${param.name}'", HttpStatusCode.BadRequest)
+                }
             }
 
-            check(providedValue != null) { "Missing value for ${param}" }
+            check(providedValue != null) { "Missing value for $param" }
 
             when (param) {
                 is ApplicationParameter.InputDirectory, is ApplicationParameter.InputFile -> {
