@@ -1,37 +1,39 @@
 import styled from "styled-components";
 import * as React from "react";
 import {Button} from "ui-components/index";
-import {useCallback, useLayoutEffect, useRef} from "react";
+import {useCallback, useLayoutEffect, useRef, useState} from "react";
+import {ButtonProps} from "ui-components/Button";
+import Icon, {IconName} from "ui-components/Icon";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {shakeAnimation, shakingClassName} from "UtilityComponents";
+import {doNothing} from "UtilityFunctions";
+import {fontSize, FontSizeProps} from "styled-system";
 
-const Wrapper = styled.div`
-  --progress-border: #2B3044;
-  --progress-active: #F6F8FF;
-  --progress-success: #16BF78;
-  --color: #F6F8FF;
-  --background: #1A1E32;
+const Wrapper = styled(Button)<{ align?: "left" | "center" } & FontSizeProps>`
+  --progress-border: var(--background, #f00);
+  --progress-active: var(--white, #f00);
+  --progress-success: var(--color, #f00);
+  --color: var(--${p => p.textColor}, #f00);
+  --background: var(--${p => p.color}, #f00);
   --tick-stroke: var(--progress-active);
-  --shadow: #{rgba(#00093D, .2)};
-  --shadow-active: #{rgba(#00093D, .32)};
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 19px;
-  padding: 12px 32px;
-  border: 0;
-  border-radius: 24px;
+
+  padding: 10px 34px 10px 2px;
+
+  ${shakeAnimation};
+  ${fontSize};
+
   outline: none;
   user-select: none;
   cursor: pointer;
   backface-visibility: hidden;
   -webkit-appearance: none;
   -webkit-tap-highlight-color: transparent;
-  transition: transform .3s, box-shadow .3s;
-  box-shadow: 0 var(--shadow-y, 4px) var(--shadow-blur, 12px) var(--shadow);
-  transform: scale(var(--scale, 1));
+  min-width: 140px;
 
-  & > div {
+  & > .icons {
     border-radius: 50%;
     top: 12px;
-    left: 12px;
+    left: 15px;
     position: absolute;
     background: var(--progress-border);
     transition: transform .3s, opacity .2s;
@@ -39,7 +41,7 @@ const Wrapper = styled.div`
     transform: translateX(var(--icon-x, -4px));
   }
 
-  & > div:before {
+  & > .icons:before {
     content: '';
     width: 16px;
     height: 16px;
@@ -53,19 +55,19 @@ const Wrapper = styled.div`
     transition: transform .32s ease;
   }
 
-  svg {
+  .icons > svg {
     display: block;
     fill: none;
     width: 20px;
     height: 20px;
   }
 
-  svg.progress {
+  .icons > svg.progress {
     transform: rotate(-90deg) scale(var(--progress-scale, 1));
     transition: transform .5s ease;
   }
 
-  svg.progress circle {
+  .icons > svg.progress circle {
     stroke-dashoffset: 1;
     stroke-dasharray: var(--progress-array, 0) 52;
     stroke-width: 16;
@@ -73,7 +75,7 @@ const Wrapper = styled.div`
     transition: stroke-dasharray var(--duration) linear;
   }
 
-  svg.tick {
+  .icons > svg.tick {
     left: 0;
     top: 0;
     position: absolute;
@@ -84,7 +86,7 @@ const Wrapper = styled.div`
     transition: stroke .3s ease .7s;
   }
 
-  svg.tick polyline {
+  .icons > svg.tick polyline {
     stroke-dasharray: 18 18 18;
     stroke-dashoffset: var(--tick-offset, 18);
     transition: stroke-dashoffset .4s ease .7s;
@@ -93,14 +95,20 @@ const Wrapper = styled.div`
   ul {
     margin: 0;
     padding: 0;
-    text-align: center;
+    ${p => p.align !== "left" ? ({
+      textAlign: "center",
+      position: "relative",
+      left: "8px"
+    }) : ({
+      textAlign: "left",
+      position: "absolute",
+      left: "54px"
+    })}
     pointer-events: none;
     list-style: none;
-    min-width: 52px;
-    position: relative;
+    min-width: 80%;
     backface-visibility: hidden;
     transition: transform .3s;
-    transform: translate3d(var(--ul-x, 0), 0, 0);
   }
 
   ul li {
@@ -131,18 +139,6 @@ const Wrapper = styled.div`
     opacity: var(--ul-o-3, 0);
   }
 
-  &:focus:not(.process), &:hover:not(.process) {
-    --shadow: var(--shadow-active);
-    --shadow-y: 8px;
-    --shadow-blur: 16px;
-  }
-
-  &:active:not(.process) {
-    --scale: .96;
-    --shadow-y: 4px;
-    --shadow-blur: 8px;
-  }
-
   &.process {
     --icon-x: 0;
     --ul-y: -100%;
@@ -153,9 +149,30 @@ const Wrapper = styled.div`
 
   &.process,
   &.success {
-    --ul-x: 8px;
     --icon-o: 1;
     --progress-array: 52;
+  }
+
+  &.process > .ucloud-native-icons, &.success > .ucloud-native-icons {
+    opacity: 0;
+  }
+
+  .ucloud-native-icons {
+    ${p => p.align !== "left" ? ({
+      position: "relative",
+      left: "10px"
+    }) : ({
+      position: "absolute",
+      left: "16px"
+    })}
+  }
+
+  & {
+    transform: scale(1);
+  }
+
+  &:hover {
+    transform: scale(1.03);
   }
 
   &.success {
@@ -171,7 +188,7 @@ const Wrapper = styled.div`
     --ul-o-3: 1;
   }
 
-  &.success > div svg.progress {
+  &.success > .icons svg.progress {
     animation: tick .3s linear forwards .4s;
   }
 
@@ -182,54 +199,108 @@ const Wrapper = styled.div`
   }
 `;
 
-export const ConfirmationButton: React.FunctionComponent = () => {
-    const buttonRef = useRef<HTMLDivElement>(null);
-    const button = buttonRef.current;
+export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
+    actionText: string,
+    doneText?: string,
+    icon: IconName,
+    onAction?: () => void;
+}> = props => {
+    const buttonRef = useRef<HTMLButtonElement>(null);
     const timeout = useRef(-1);
+    const timer = useRef(1600);
+    const tickRate = 50;
+    const [showHelp, setShowHelp] = useState(false);
+    const wasReset = useRef(false);
 
     const success = useCallback(() => {
+        const button = buttonRef.current;
         if (!button) return;
-        button.classList.add("success");
-    }, [button]);
+        timer.current -= tickRate;
+        if (timer.current <= 0) {
+            button.classList.add("success");
+            timeout.current = setTimeout(countUp, tickRate);
+            setTimeout(() => {
+                if (props.onAction) props.onAction();
+            }, 1000);
+        } else {
+            timeout.current = setTimeout(success, tickRate);
+        }
+    }, [buttonRef.current, props.onAction]);
+
+    const countUp = useCallback(() => {
+        const button = buttonRef.current;
+        if (!button) return;
+        timer.current += tickRate;
+        if (timer.current >= 1600) {
+            timer.current = 1600;
+        } else {
+            timeout.current = setTimeout(countUp, tickRate);
+        }
+    }, [buttonRef.current]);
 
     const start = useCallback(() => {
+        const button = buttonRef.current;
         if (!button) return;
         if (button.classList.contains("process")) return;
-
-        button.classList.add("process")
-        timeout.current = setTimeout(success, 1600);
-    }, [button]);
-
-    const end = useCallback(() => {
-        if (!button) return;
-        button.classList.remove("process");
         if (timeout.current !== -1) {
             clearTimeout(timeout.current);
             timeout.current = -1;
         }
-    }, [button, timeout]);
+
+        if (button.classList.contains("success")) {
+            wasReset.current = true;
+        }
+
+        button.classList.remove("success");
+        button.classList.add("process");
+        timeout.current = setTimeout(success, tickRate);
+    }, [buttonRef.current]);
+
+    const end = useCallback(() => {
+        const button = buttonRef.current;
+        if (!button) return;
+        button.classList.remove("process");
+        if (timeout.current !== -1) {
+            clearTimeout(timeout.current);
+            timeout.current = setTimeout(countUp, tickRate);
+        }
+
+        if (timer.current > 1500 && !wasReset.current) {
+            button.classList.add("shaking");
+            setShowHelp(true);
+            setTimeout(() => {
+                setShowHelp(false);
+                buttonRef.current?.classList?.remove("shaking");
+            }, 1500);
+        }
+
+        wasReset.current = false;
+    }, [buttonRef.current, timeout]);
 
     useLayoutEffect(() => {
+        const button = buttonRef.current;
         if (!button) return;
 
         button.style.setProperty("--duration", "1600ms");
-    }, [button]);
+    }, [buttonRef.current]);
 
-    return <Button>
-        <Wrapper onMouseDown={start} onTouchStart={start} onMouseUp={end} onTouchEnd={end} ref={buttonRef}>
-            <div>
-                <svg className="progress" viewBox="0 0 32 32">
-                    <circle r="8" cx="16" cy="16"/>
-                </svg>
-                <svg className="tick" viewBox="0 0 24 24">
-                    <polyline points="18,7 11,16 6,12"/>
-                </svg>
-            </div>
-            <ul>
-                <li>Publish</li>
-                <li>Sure ?</li>
-                <li>Public</li>
-            </ul>
-        </Wrapper>
-    </Button>
+    return <Wrapper {...props} onMouseDown={start} onTouchStart={start} onMouseUp={end} onTouchEnd={end}
+                    onClick={doNothing} ref={buttonRef}>
+        <div className={"ucloud-native-icons"}>
+            <Icon name={props.icon} size={"20"}/>
+        </div>
+        <div className={"icons"}>
+            <svg className="progress" viewBox="0 0 32 32">
+                <circle r="8" cx="16" cy="16"/>
+            </svg>
+            <svg className="tick" viewBox="0 0 24 24">
+                <polyline points="18,7 11,16 6,12"/>
+            </svg>
+        </div>
+        <ul>
+            <li>{showHelp ? "Hold to confirm" : props.actionText}</li>
+            <li>Hold to confirm</li>
+            <li>{props.doneText ?? "Done"}</li>
+        </ul>
+    </Wrapper>;
 };

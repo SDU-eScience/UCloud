@@ -4,15 +4,20 @@ import {Icon} from "ui-components";
 import * as Text from "ui-components/Text";
 import Box from "./Box";
 import {Dropdown, DropdownContent} from "./Dropdown";
-
-interface ClickableDropdownState {
-    open: boolean;
-}
+import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from "react";
 
 interface ClickableDropdownProps<T> {
-    children?: any;
-    keepOpenOnClick?: boolean;
     trigger: React.ReactNode;
+    children?: any;
+    options?: { text: string; value: T }[];
+
+    keepOpenOnClick?: boolean;
+    keepOpenOnOutsideClick?: boolean;
+    onChange?: (value: T) => void;
+    onTriggerClick?: () => void;
+    onClose?: () => void;
+    open?: boolean;
+
     fullWidth?: boolean;
     height?: string | number;
     width?: string | number;
@@ -21,37 +26,73 @@ interface ClickableDropdownProps<T> {
     top?: string | number;
     bottom?: string | number;
     right?: string | number;
-    options?: { text: string; value: T }[];
+
     chevron?: boolean;
     overflow?: string;
     colorOnHover?: boolean;
     squareTop?: boolean;
-    keepOpenOnOutsideClick?: boolean;
-    onChange?: (value: T) => void;
-    onTriggerClick?: () => void;
 }
 
-class ClickableDropdown<T extends string> extends React.Component<ClickableDropdownProps<T>, ClickableDropdownState> {
-    private ref = React.createRef<HTMLDivElement>();
+type ClickableDropdownType = <T>(props: PropsWithChildren<ClickableDropdownProps<T>>, context?: any) =>
+    JSX.Element | null;
 
-    constructor(props: Readonly<ClickableDropdownProps<T>>) {
-        super(props);
-        this.state = {open: false};
+const ClickableDropdown: ClickableDropdownType =
+    ({keepOpenOnClick, onChange, onTriggerClick, ...props}) => {
+        const dropdownRef = useRef<HTMLDivElement>(null);
+        const [open, setOpen] = useState(props.open ?? false);
+        const isControlled = useMemo(() => props.open !== undefined, []);
+
+        useEffect(() => {
+            if (isControlled && props.open !== undefined) {
+                setOpen(props.open);
+            }
+        }, [props.open]);
+
+
+        const close = useCallback(() => {
+            if (isControlled && props.onClose) props.onClose();
+            else if (!isControlled) setOpen(false);
+        }, [props.onClose]);
+
+        const doOpen = useCallback(() => {
+            onTriggerClick?.();
+            if (!isControlled) setOpen(true);
+        }, [onTriggerClick]);
+
+        const toggle = useCallback(() => {
+            if (open) close();
+            else doOpen();
+        }, [open]);
+
         let neither = true;
         if (props.children) neither = false;
-        if (!!props.onChange && !!props.options) neither = false;
+        if (!!onChange && !!props.options) neither = false;
         if (neither) throw Error("Clickable dropdown must have either children prop or options and onChange");
-        document.addEventListener("mousedown", this.handleClickOutside);
-        document.addEventListener("keydown", this.handleEscPress);
-    }
 
-    public componentWillUnmount = (): void => {
-        document.removeEventListener("mousedown", this.handleClickOutside);
-        document.removeEventListener("keydown", this.handleEscPress);
-    };
+        // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
+        const handleClickOutside = useCallback(event => {
+            if (props.keepOpenOnOutsideClick) return;
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target) && open) {
+                close();
+            }
+        }, [props.keepOpenOnOutsideClick, open]);
 
-    public render(): JSX.Element {
-        const {keepOpenOnClick, onChange, onTriggerClick, ...props} = this.props;
+        const handleEscPress = useCallback((event: { keyCode: KeyCode }): void => {
+            if (event.keyCode === KeyCode.ESC && open) {
+                close();
+            }
+        }, [open]);
+
+
+        useEffect(() => {
+            document.addEventListener("mousedown", handleClickOutside);
+            document.addEventListener("keydown", handleEscPress);
+            return () => {
+                document.removeEventListener("mousedown", handleClickOutside);
+                document.removeEventListener("keydown", handleEscPress);
+            };
+        }, [handleClickOutside, handleEscPress]);
+
         let children: React.ReactNode[] = [];
         if (props.options !== undefined && onChange) {
             children = props.options.map((opt, i) => (
@@ -68,31 +109,31 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
             children = props.children;
         }
         const emptyChildren = (React.Children.map(children, it => it) ?? []).length === 0;
-        const width = this.props.fullWidth ? "100%" : this.props.width;
+        const width = props.fullWidth ? "100%" : props.width;
         return (
-            <Dropdown data-tag="dropdown" ref={this.ref} fullWidth={this.props.fullWidth}>
+            <Dropdown data-tag="dropdown" ref={dropdownRef} fullWidth={props.fullWidth}>
                 <Text.TextSpan
                     cursor="pointer"
                     onClick={e => {
+                        e.preventDefault();
                         e.stopPropagation();
-                        onTriggerClick?.();
-                        this.setState(() => ({open: !this.state.open}))
+                        toggle();
                     }}
                 >
-                    {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em"/> : null}
+                    {props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em"/> : null}
                 </Text.TextSpan>
-                {emptyChildren || !this.state.open ? null : (
+                {emptyChildren || !open ? null : (
                     <DropdownContent
                         overflow={"visible"}
-                        squareTop={this.props.squareTop}
+                        squareTop={props.squareTop}
                         cursor="pointer"
                         {...props}
                         width={width}
                         hover={false}
-                        visible={this.state.open}
+                        visible={open}
                         onClick={e => {
                             e.stopPropagation();
-                            !keepOpenOnClick ? this.setState(() => ({open: false})) : null;
+                            !keepOpenOnClick ? close() : null;
                         }}
                     >
                         {children}
@@ -100,19 +141,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
                 )}
             </Dropdown>
         );
+
     }
-
-    // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
-    private handleClickOutside = event => {
-        if (this.props.keepOpenOnOutsideClick) return;
-        if (this.ref.current && !this.ref.current.contains(event.target) && this.state.open) {
-            this.setState(() => ({open: false}));
-        }
-    };
-
-    private handleEscPress = (event: { keyCode: KeyCode }): void => {
-        if (event.keyCode === KeyCode.ESC && this.state.open) this.setState(() => ({open: false}));
-    };
-}
 
 export default ClickableDropdown;

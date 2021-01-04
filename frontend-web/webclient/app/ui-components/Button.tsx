@@ -46,6 +46,7 @@ export const asSquare = (props: {asSquare?: boolean}) => props.asSquare ? {
 export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps, WidthProps {
     fullWidth?: boolean;
     textColor?: ThemeColor;
+    color?: string | ThemeColor;
     lineHeight?: number | string;
     title?: string;
     attached?: boolean;

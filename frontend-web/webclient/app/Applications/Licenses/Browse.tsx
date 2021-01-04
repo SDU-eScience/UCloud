@@ -478,33 +478,24 @@ const licenseOperations: Operation<LicenseGroup, LicenseOpCallback>[] = [
         icon: "trash",
         text: "Delete",
         color: "red",
+        confirm: true,
         enabled(selected, cb) {
             if (!(cb.standalone && selected.length > 0 && selected.every(it => it.instances.length === 1))) {
                 return false;
             }
             return hasPermissionToEdit(cb);
         },
-        onClick: (selected, cb) => {
+        onClick: async (selected, cb) => {
             if (cb.commandLoading) return;
-            addStandardDialog({
-                title: `Deletion of licenses`,
-                addToFront: true,
-                confirmText: "Delete",
-                cancelText: "Cancel",
-                confirmButtonColor: "red",
-                cancelButtonColor: "green",
-                message: `Are you sure you wish to delete 1 license?`,
-                onConfirm: async () => {
-                    await cb.invokeCommand(licenseApi.remove({
-                        type: "bulk",
-                        items: selected.map(license => ({
-                            id: license.instances[0].id
-                        }))
-                    }));
 
-                    cb.reload();
-                }
-            });
+            await cb.invokeCommand(licenseApi.remove({
+                type: "bulk",
+                items: selected.map(license => ({
+                    id: license.instances[0].id
+                }))
+            }));
+
+            cb.reload();
         }
     },
     {
