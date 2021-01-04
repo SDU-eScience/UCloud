@@ -541,24 +541,15 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
             setPermissionEntries(await loadApplicationPermissionEntries(name));
             userField.value = "";
         } else if (selectedEntityType === AccessEntityType.PROJECT_GROUP) {
-            const projectField = projectEntityField.current;
-            if (projectField === null) return;
-
-            const projectValue = projectField.value;
-            if (projectValue === "") return;
-
-            const groupField = groupEntityField.current;
-            if (groupField === null) return;
-
-            const groupValue = groupField.value;
-            if (groupValue === "") return;
+            if (!project) return;
+            if (!group) return;
 
             await invokeCommand(updateApplicationPermission(
                 {
                     applicationName: name,
                     changes: [
                         {
-                            entity: {user: null, project: projectValue, group: groupValue},
+                            entity: {user: null, project, group},
                             rights: access,
                             revoke: false
                         }
@@ -566,8 +557,10 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                 }
             ));
             setPermissionEntries(await loadApplicationPermissionEntries(name));
-            projectField.value = "";
-            groupField.value = "";
+            projectEntityField.current!.value = "";
+            groupEntityField.current.value = "";
+            setGroup("");
+            setProject("");
         }
     }
 };
