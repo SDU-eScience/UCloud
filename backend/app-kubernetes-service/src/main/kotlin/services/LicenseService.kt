@@ -111,7 +111,6 @@ class LicenseService(
                 ).rowsAffected != 0L
 
                 if (!success) throw RPCException("License does not exist: ${newLicense.id}", HttpStatusCode.NotFound)
-                // TODO Update product if needed
 
                 Products.updateProduct.call(
                     newLicense.toProduct(),

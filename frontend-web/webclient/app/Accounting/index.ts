@@ -1,9 +1,12 @@
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Client} from "Authentication/HttpClientInstance";
+import {PropType} from "UtilityFunctions";
+import * as UCloud from "UCloud";
 
 export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 1000 * 60 * 30};
 
 export type AccountType = "USER" | "PROJECT";
+export type PaymentModel = NonNullable<PropType<UCloud.accounting.ProductNS.License, "paymentModel">>;
 
 export interface ProductCategoryId {
     id: string;

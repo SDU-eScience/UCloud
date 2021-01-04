@@ -1,14 +1,16 @@
 import {IconName} from "ui-components/Icon";
 import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "ui-components/index";
-import {PropsWithChildren, useCallback} from "react";
+import {PropsWithChildren, useCallback, useState} from "react";
 import * as React from "react";
 import {StyledComponent} from "styled-components";
 import {TextSpan} from "ui-components/Text";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {preventDefault} from "UtilityFunctions";
 import Grid from "ui-components/Grid";
+import {ConfirmationButton} from "ui-components/ConfirmationAction";
 
-type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
+type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex |
+    typeof ConfirmationButton;
 
 /**
  * The enabled function can either return a boolean or a string.
@@ -30,6 +32,7 @@ export interface Operation<T, R = undefined> {
     operationType?: (inDropdown: boolean, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
     canAppearInDropdown?: boolean;
+    confirm?: boolean;
 }
 
 export function defaultOperationType(
@@ -37,12 +40,14 @@ export function defaultOperationType(
     allOperations: Operation<unknown, unknown>[],
     op: Operation<unknown, unknown>,
 ): OperationComponentType {
-    if (op.primary) {
+    if (op.confirm === true) {
+        return ConfirmationButton;
+    } else if (op.primary) {
         return Button;
     } else if (allOperations.length === 1) {
         return OutlineButton;
     } else if (inDropdown) {
-        return Box;
+        return Flex;
     } else {
         return Flex;
     }
@@ -50,18 +55,35 @@ export function defaultOperationType(
 
 const OperationComponent: React.FunctionComponent<{
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    As: StyledComponent<any, any>;
+    As: React.ComponentType<any>;
     op: Operation<unknown, unknown>;
     extra: unknown;
     selected: unknown[];
     reasonDisabled?: string;
     dropdown: boolean;
-}> = ({As, op, selected, extra, reasonDisabled, dropdown}) => {
+    onAction: () => void;
+}> = ({As, op, selected, extra, reasonDisabled, dropdown, onAction}) => {
     const onClick = useCallback((e: React.SyntheticEvent) => {
         if (op.primary === true) e.stopPropagation();
         if (reasonDisabled !== undefined) return;
         op.onClick(selected, extra);
-    }, [op, selected, extra, reasonDisabled]);
+        onAction();
+    }, [op, selected, extra, reasonDisabled, onAction]);
+
+    // eslint-disable-next-line
+    const extraProps: Record<string, any> = {};
+
+    if (As === ConfirmationButton) {
+        extraProps["onAction"] = onClick;
+        extraProps["asSquare"] = dropdown;
+        extraProps["actionText"] = op.text;
+        extraProps["align"] = "left"
+        extraProps["fontSize"] = "large"
+        if (dropdown) {
+            extraProps["ml"] = "-16px";
+            extraProps["width"] = "calc(100% + 32px)"
+        }
+    }
     const component = <As
         cursor="pointer"
         color={reasonDisabled === undefined ? op.color : "gray"}
@@ -69,10 +91,15 @@ const OperationComponent: React.FunctionComponent<{
         onClick={onClick}
         data-tag={`${op.text}-action`}
         disabled={reasonDisabled !== undefined}
-        fullWidth={!dropdown}
+        fullWidth
+        height={"38px"}
+        icon={op.icon}
+        {...extraProps}
     >
-        {op.icon ? <Icon size={16} mr="1em" name={op.icon}/> : null}
-        <span>{op.text}</span>
+        {As === ConfirmationButton ? null : <>
+            {op.icon ? <Icon size={20} mr="1em" name={op.icon}/> : null}
+            <span>{op.text}</span>
+        </>}
     </As>;
 
     if (reasonDisabled === undefined) return component;
@@ -94,6 +121,13 @@ type OperationsType = <T, R = undefined>(props: PropsWithChildren<OperationProps
     JSX.Element | null;
 
 export const Operations: OperationsType = props => {
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const closeDropdown = useCallback(() => {
+        setDropdownOpen(false);
+    }, [setDropdownOpen]);
+    const openDropdown = useCallback(() => {
+        setDropdownOpen(true);
+    }, [setDropdownOpen]);
     if (props.operations.length === 0) return null;
 
     // Don't render anything if we are a dropdown and we have selected something
@@ -119,7 +153,8 @@ export const Operations: OperationsType = props => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const As = opTypeFn(props.dropdown, props.operations) as StyledComponent<any, any>;
             const elem = <OperationComponent key={op.text} As={As} op={op} extra={props.extra} selected={selected}
-                                             reasonDisabled={reasonDisabled} dropdown={props.dropdown}/>;
+                                             reasonDisabled={reasonDisabled} dropdown={props.dropdown}
+                                             onAction={closeDropdown}/>;
             const priority = As === OutlineButton ? 0 : As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};
         })
@@ -156,8 +191,12 @@ export const Operations: OperationsType = props => {
             {content.length === 0 ? <Box ml={"30px"}/> :
                 <Flex alignItems={"center"} justifyContent={"center"}>
                     <ClickableDropdown
-                        width={"175px"}
-                        left={"-160px"}
+                        width={"220px"}
+                        left={"-200px"}
+                        open={dropdownOpen}
+                        onTriggerClick={openDropdown}
+                        keepOpenOnClick={true}
+                        onClose={closeDropdown}
                         trigger={(
                             <Icon
                                 onClick={preventDefault}

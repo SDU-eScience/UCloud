@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Mon Dec 21 12:32:57 CET 2020 */
+/* Generated at: Mon Jan 04 10:20:13 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -4934,6 +4934,7 @@ export namespace accounting {
             availability: ProductAvailability,
             priority: number /* int32 */
             ,
+            paymentModel: "PER_ACTIVATION",
             type: "ingress",
         }
 
@@ -4947,6 +4948,7 @@ export namespace accounting {
             priority: number /* int32 */
             ,
             tags: string[],
+            paymentModel: "PER_ACTIVATION",
             type: "license",
         }
     }

@@ -143,6 +143,7 @@ sealed class Product {
         override val description: String = "",
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
+        val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
     ) : Product() {
         @get:JsonIgnore
         override val area = ProductArea.INGRESS
@@ -161,7 +162,8 @@ sealed class Product {
         override val description: String = "",
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
-        val tags: List<String> = emptyList()
+        val tags: List<String> = emptyList(),
+        val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
     ) : Product() {
         @get:JsonIgnore
         override val area = ProductArea.LICENSE
@@ -172,6 +174,10 @@ sealed class Product {
             require(description.count { it == '\n' } == 0)
         }
     }
+}
+
+enum class PaymentModel {
+    PER_ACTIVATION
 }
 
 data class FindProductRequest(

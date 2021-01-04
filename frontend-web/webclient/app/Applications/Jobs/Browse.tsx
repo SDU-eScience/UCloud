@@ -22,7 +22,7 @@ import {Box, Checkbox, Flex, InputGroup, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
-import {isJobStateTerminal, jobAppTitle, jobAppVersion, JobState, jobTitle, stateToTitle} from "./index";
+import {isJobStateTerminal, jobAppTitle, jobAppVersion, JobSortBy, JobState, jobTitle, stateToTitle} from "./index";
 import {JobStateIcon} from "./JobStateIcon";
 import styled from "styled-components";
 import {ToggleSet} from "Utilities/ToggleSet";
@@ -38,14 +38,15 @@ export const Browse: React.FunctionComponent = () => {
     useTitle("Runs")
     useSidebarPage(SidebarPages.Runs);
 
+    const [sortBy, setSortBy] = useState<JobSortBy>("CREATED_AT");
     const [filters, setFilters] = useState<Partial<JobsBrowseRequest>>({});
     const [infScrollId, setInfScrollId] = useState(0);
     const [jobs, fetchJobs] = useCloudAPI<UCloud.PageV2<UCloud.compute.Job>>({noop: true}, emptyPageV2);
 
     const refresh = useCallback(() => {
-        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, ...flags}));
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, ...flags, ...filters, sortBy}));
         setInfScrollId(id => id + 1);
-    }, []);
+    }, [sortBy, filters]);
 
     const history = useHistory();
 
@@ -55,13 +56,13 @@ export const Browse: React.FunctionComponent = () => {
     const projectId = useProjectId();
 
     useEffect(() => {
-        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, ...flags, ...filters}));
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, ...flags, ...filters, sortBy}));
         setInfScrollId(id => id + 1);
-    }, [projectId, filters]);
+    }, [projectId, filters, sortBy]);
 
     const loadMore = useCallback(() => {
-        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next, ...flags, ...filters}));
-    }, [jobs.data, filters]);
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next, ...flags, ...filters, sortBy}));
+    }, [jobs.data, filters, sortBy]);
 
     const [checked, setChecked] = useState<{ set: ToggleSet<Job> }>({set: new ToggleSet()});
     const allChecked = checked.set.items.length > 0 && checked.set.items.length === jobs.data.items.length;
@@ -124,15 +125,23 @@ export const Browse: React.FunctionComponent = () => {
         main={
             <>
                 <StickyBox backgroundColor="white">
-                    <Label ml={10} width="auto">
-                        <Checkbox
-                            size={27}
-                            onClick={checkAllJobs}
-                            checked={allChecked}
-                            onChange={stopPropagation}
-                        />
-                        <Box as={"span"}>Select all</Box>
-                    </Label>
+                    <Box flexGrow={1}>
+                        <Label ml={10} width="auto">
+                            <Checkbox
+                                size={27}
+                                onClick={checkAllJobs}
+                                checked={allChecked}
+                                onChange={stopPropagation}
+                            />
+                            <Box as={"span"}>Select all</Box>
+                        </Label>
+                    </Box>
+                    <ClickableDropdown
+                        chevron
+                        trigger={"Sort by: " + sortBys.find(it => it.value === sortBy)?.text ?? ""}
+                        onChange={setSortBy}
+                        options={sortBys}
+                    />
                 </StickyBox>
                 <Pagination.ListV2
                     page={jobs.data}
@@ -145,10 +154,17 @@ export const Browse: React.FunctionComponent = () => {
         }
 
         sidebar={
-            <FilterOptions onUpdateFilter={f => setFilters(f)} />
+            <FilterOptions onUpdateFilter={f => setFilters(f)}/>
         }
     />;
 };
+
+type SortBy = { text: string, value: JobSortBy };
+const sortBys: SortBy[] = [
+    {text: "Created at", value: "CREATED_AT"},
+    {text: "State", value: "STATE"},
+    {text: "Application", value: "APPLICATION"},
+];
 
 type Filter = { text: string; value: JobState | "null" };
 const dayInMillis = 24 * 60 * 60 * 1000;
@@ -269,6 +285,10 @@ const FilterOptions: React.FunctionComponent<{
 const StickyBox = styled(Box)`
   position: sticky;
   z-index: 50;
+  top: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
 `;
 
 export default Browse;

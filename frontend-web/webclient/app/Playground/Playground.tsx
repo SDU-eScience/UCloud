@@ -6,35 +6,26 @@ import * as PublicLinks from "Applications/PublicLinks/Management";
 import {dialogStore} from "Dialog/DialogStore";
 import {ThemeColor} from "ui-components/theme";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {useCloudAPI} from "Authentication/DataHook";
-import {defaultAvatar} from "UserSettings/Avataaar";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 
 export const Playground: React.FunctionComponent = () => {
-    const [result, setParams, params] = useCloudAPI<typeof defaultAvatar>(
-        {path: "/avatar/find", method: "GET"},
-        defaultAvatar,
-        {cacheKey: "avatar", cacheTtlMs: 10_000}
-    );
-
-    console.log(result);
-    console.log("render");
-
-
     const main = (
         <>
-            <EveryIcon />
+            <Grid gridTemplateColumns={"repeat(5, 1fr)"} mb={"32px"}>
+                <EveryIcon />
+            </Grid>
             <Grid
-                gridTemplateColumns="repeat(auto-fit, minmax(40px, 40px))"
+                gridTemplateColumns="repeat(10, 1fr)"
                 style={{overflowY: "scroll"}}
+                mb={"32px"}
             >
                 {colors.map((c: ThemeColor) => (
                     <Box
                         title={`${c}, ${getCssVar(c)}`}
                         key={c}
                         backgroundColor={c}
-                        width="40px"
-                        height="40px"
+                        height={"100px"}
+                        width={"100%"}
                     />
                 ))}
             </Grid>
@@ -44,11 +35,8 @@ export const Playground: React.FunctionComponent = () => {
             }}>
                 Trigger me
             </Button>
-            <Button onClick={() => setParams({...params})}>
-                Refetch
-            </Button>
 
-            <ConfirmationButton/>
+            <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"}/>
         </>
     );
     return <MainContainer main={main} />;
