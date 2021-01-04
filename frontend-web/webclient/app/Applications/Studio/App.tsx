@@ -558,7 +558,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
             ));
             setPermissionEntries(await loadApplicationPermissionEntries(name));
             projectEntityField.current!.value = "";
-            groupEntityField.current.value = "";
+            groupEntityField.current!.value = "";
             setGroup("");
             setProject("");
         }
