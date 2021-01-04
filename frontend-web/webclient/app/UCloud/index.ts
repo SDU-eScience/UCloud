@@ -1024,6 +1024,22 @@ export namespace compute {
         compute: ManifestFeatureSupportNS.Compute,
     }
 
+    export interface RetrieveUtilizationResponse {
+        available: CpuAndMemory,
+        used: CpuAndMemory,
+        jobs: JobUtilization
+    }
+
+    export interface CpuAndMemory {
+        cpu: number,
+        memory: number
+    }
+
+    export interface JobUtilization {
+        running: number,
+        pending: number
+    }
+
     /**
      * An L7 ingress-point (HTTP)
      */
@@ -3231,6 +3247,15 @@ export namespace compute {
                 reloadId: Math.random(),
                 payload: request,
             };
+        }
+
+        export function retrieveUtilization(): APICallParameters<{}, RetrieveUtilizationResponse> {
+            return {
+                context: "",
+                method: "GET",
+                path: "/api/jobs" + "/utilization",
+                reloadId: Math.random(),
+            }
         }
     }
     export namespace OpenSessionNS {

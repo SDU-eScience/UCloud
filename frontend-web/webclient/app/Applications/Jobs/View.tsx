@@ -4,7 +4,6 @@ import {PRODUCT_NAME} from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import * as Jobs from "./index";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
@@ -403,6 +402,15 @@ const Content = styled.div`
 `;
 
 const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
+    const [utilization, setUtilization] = useCloudAPI<compute.RetrieveUtilizationResponse | null>(
+        {noop: true},
+        null 
+    );
+
+    useEffect(() => {
+        setUtilization(compute.jobs.retrieveUtilization())
+    }, [status]);
+ 
     return <>
         <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
@@ -419,7 +427,7 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
                 </>)
             }
         </Heading.h3>
-        <Busy job={job} />
+        <Busy job={job} utilization={utilization.data} />
     </>;
 };
 
@@ -432,10 +440,10 @@ const BusyWrapper = styled(Box)`
   }
 `;
 
-const Busy: React.FunctionComponent<{job: Job}> = ({job}) => {
-    const clusterUtilization = 90;
-    const numberOfJobs = 50;
-    const numberOfJobsInQueue = 10;
+const Busy: React.FunctionComponent<{
+        job: Job;
+        utilization: compute.RetrieveUtilizationResponse | null
+}> = ({job, utilization}) => {
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -450,9 +458,13 @@ const Busy: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <BusyWrapper ref={ref}>
         <Box mt={"16px"}>
             <Box mb={"16px"}>
-                Your reserved machine is currently quite popular.
-                Cluster utilization is currently at {clusterUtilization}% with {numberOfJobs} jobs running
-                and {numberOfJobsInQueue} in the queue.
+                Your reserved machine is currently quite popular.<br />
+                { utilization ? (
+                    <>
+                        Cluster utilization is currently at {Math.floor(utilization.used.cpu / utilization.available.cpu * 100)}%
+                        with {utilization.jobs.running} jobs running and {utilization.jobs.pending} in the queue.
+                    </>
+                ) : (<></>)}
             </Box>
 
             <CancelButton job={job} state={"IN_QUEUE"} />
