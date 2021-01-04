@@ -4,6 +4,7 @@ import {compute} from "UCloud";
 import Job = compute.Job;
 
 export type JobState = NonNullable<PropType<UCloud.compute.JobUpdate, "state">>;
+export type JobSortBy = NonNullable<PropType<UCloud.compute.JobsBrowseRequest, "sortBy">>;
 
 export function isJobStateTerminal(state: JobState): boolean {
     return state === "SUCCESS" || state === "FAILURE" || state === "EXPIRED";
