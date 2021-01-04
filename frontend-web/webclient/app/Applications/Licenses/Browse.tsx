@@ -27,7 +27,7 @@ import {AppToolLogo} from "Applications/AppToolLogo";
 import {useHistory} from "react-router";
 import {History} from 'history';
 import {dateToString} from "Utilities/DateUtilities";
-import {addStandardDialog, ShakingBox} from "UtilityComponents";
+import {ShakingBox} from "UtilityComponents";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
 import {Client} from "Authentication/HttpClientInstance";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
@@ -36,6 +36,7 @@ import * as Pagination from "Pagination";
 import {AclPermission} from "Applications/Licenses/index";
 import {TextSpan} from "ui-components/Text";
 import LicenseAclEntry = compute.LicenseAclEntry;
+import LicensesCreateResponse = compute.LicensesCreateResponse;
 
 interface LicenseGroup {
     product: ProductNS.License;
@@ -222,7 +223,7 @@ export const Browse: React.FunctionComponent<{
                                     <ListRowStat icon={"grant"}>Unit
                                         price: {creditFormatter(g.product.pricePerUnit, 0)}</ListRowStat>
                                     {g.instances.length !== 1 ? null : (
-                                        <InstanceStats instance={g.instances[0]}/>
+                                        <InstanceStats instance={g.instances[0]} onInspect={callbacks.inspect}/>
                                     )}
                                 </ListStatContainer>
                             }
@@ -242,7 +243,7 @@ export const Browse: React.FunctionComponent<{
                                     left={<Text>{shortUUID(instance.id)}</Text>}
                                     leftSub={
                                         <ListStatContainer>
-                                            <InstanceStats instance={instance}/>
+                                            <InstanceStats instance={instance} onInspect={callbacks.inspect}/>
                                         </ListStatContainer>
                                     }
                                     right={
@@ -340,7 +341,13 @@ export const Browse: React.FunctionComponent<{
     }
 };
 
-const InstanceStats: React.FunctionComponent<{ instance: License }> = ({instance}) => {
+const InstanceStats: React.FunctionComponent<{
+    instance: License,
+    onInspect: (instance: License) => void
+}> = ({instance, onInspect}) => {
+    const onClick = useCallback(() => {
+        onInspect(instance);
+    }, [instance, onInspect]);
     return <>
         <ListRowStat icon={"hashtag"}>
             {prettierString(instance.status.state)}
@@ -348,9 +355,12 @@ const InstanceStats: React.FunctionComponent<{ instance: License }> = ({instance
         <ListRowStat icon={"grant"}>
             Credits charged: {creditFormatter(instance.billing.creditsCharged, 0)}
         </ListRowStat>
-        <ListRowStat icon={"calendar"}>
-            Created at: {dateToString(instance.createdAt)}
-        </ListRowStat>
+        {(instance.acl?.length ?? 0) === 0 ?
+            <ListRowStat icon={"warning"} color={"red"} textColor={"red"} cursor={"pointer"} onClick={onClick}>
+                Usable only be project admins
+            </ListRowStat> :
+            null
+        }
     </>;
 }
 
@@ -372,7 +382,7 @@ interface LicenseOpCallback {
 
 async function licenseOpActivate(selected: LicenseGroup[], cb: LicenseOpCallback) {
     if (cb.commandLoading) return;
-    await cb.invokeCommand(
+    const resp = await cb.invokeCommand<LicensesCreateResponse>(
         licenseApi.create({
             type: "bulk",
             items: selected.map(g => ({
@@ -384,7 +394,20 @@ async function licenseOpActivate(selected: LicenseGroup[], cb: LicenseOpCallback
             }))
         })
     );
-    cb.reload();
+    const ids = resp?.ids ?? [];
+    if (ids.length === 1) {
+        const license = await cb.invokeCommand<License>(
+            licenseApi.retrieve({id: ids[0], includeUpdates: true, includeAcl: true})
+        );
+        if (license) {
+            cb.reload();
+            cb.inspect(license);
+        } else {
+            cb.reload();
+        }
+    } else {
+        cb.reload();
+    }
 }
 
 function hasPermissionsToUseLicense(projectStatus: ProjectStatus, instance: License): OperationEnabled {
@@ -480,7 +503,7 @@ const licenseOperations: Operation<LicenseGroup, LicenseOpCallback>[] = [
         color: "red",
         confirm: true,
         enabled(selected, cb) {
-            if (!(cb.standalone && selected.length > 0 && selected.every(it => it.instances.length === 1))) {
+            if (!(selected.length > 0 && selected.every(it => it.instances.length === 1))) {
                 return false;
             }
             return hasPermissionToEdit(cb);
@@ -512,31 +535,22 @@ const licenseInstanceOperations: Operation<License, LicenseOpCallback>[] = [
         icon: "trash",
         text: "Delete",
         color: "red",
+        confirm: true,
         enabled: (selected, cb) => {
-            if (!(selected.length > 0 && cb.standalone)) return false;
+            if (!(selected.length > 0)) return false;
             return hasPermissionToEdit(cb);
         },
-        onClick: (selected, cb) => {
+        onClick: async (selected, cb) => {
             if (cb.commandLoading) return;
-            addStandardDialog({
-                title: `Deletion of licenses`,
-                addToFront: true,
-                confirmText: "Delete",
-                cancelText: "Cancel",
-                confirmButtonColor: "red",
-                cancelButtonColor: "green",
-                message: `Are you sure you wish to delete ${selected.length} licenses?`,
-                onConfirm: async () => {
-                    await cb.invokeCommand(licenseApi.remove({
-                        type: "bulk",
-                        items: selected.map(license => ({
-                            id: license.id
-                        }))
-                    }));
 
-                    cb.reload();
-                }
-            });
+            await cb.invokeCommand(licenseApi.remove({
+                type: "bulk",
+                items: selected.map(license => ({
+                    id: license.id
+                }))
+            }));
+
+            cb.reload();
         }
     },
     {

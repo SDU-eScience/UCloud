@@ -4,8 +4,7 @@ import {Button} from "ui-components/index";
 import {useCallback, useLayoutEffect, useRef, useState} from "react";
 import {ButtonProps} from "ui-components/Button";
 import Icon, {IconName} from "ui-components/Icon";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {shakeAnimation, shakingClassName} from "UtilityComponents";
+import {shakeAnimation} from "UtilityComponents";
 import {doNothing} from "UtilityFunctions";
 import {fontSize, FontSizeProps} from "styled-system";
 

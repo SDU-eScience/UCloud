@@ -7,6 +7,7 @@ import {stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
 import {Icon, Text} from "ui-components/index";
 import {ThemeColor} from "./theme";
+import {Cursor} from "ui-components/Types";
 
 type StringOrNumber = string | number;
 
@@ -101,12 +102,20 @@ export const ListStatContainer = styled(Flex)`
     }
 `;
 
-export const ListRowStat: React.FunctionComponent<{icon?: IconName; color?: ThemeColor; color2?: ThemeColor}> = props => {
+export const ListRowStat: React.FunctionComponent<{
+    icon?: IconName;
+    color?: ThemeColor;
+    color2?: ThemeColor;
+    textColor?: ThemeColor;
+    onClick?: () => void;
+    cursor?: Cursor;
+}> = props => {
     const color: ThemeColor = props.color ?? "gray";
     const color2: ThemeColor = props.color2 ?? "white";
     return (
         <>
-            <Text color="gray" fontSize={0} mr={"4px"}>
+            <Text color={props.textColor ?? "gray"} fontSize={0} mr={"4px"} cursor={props.cursor}
+                  onClick={props.onClick}>
                 {!props.icon ? null : (<>
                     <Icon size={"10"} color={color} color2={color2} name={props.icon} mt={"-2px"} />
                     {" "}

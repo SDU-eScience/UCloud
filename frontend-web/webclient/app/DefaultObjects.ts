@@ -1,7 +1,7 @@
 import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
-import {DetailedFileSearchReduxState, SortOrder} from "Files";
+import {DetailedFileSearchReduxState} from "Files";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
