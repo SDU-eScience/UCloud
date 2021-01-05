@@ -4,8 +4,8 @@ import com.sun.jna.Platform
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
-import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
-import dk.sdu.cloud.app.kubernetes.api.ReloadRequest
+import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
+import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
 import dk.sdu.cloud.app.license.AppLicenseService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
@@ -16,10 +16,9 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.StorageService
 import dk.sdu.cloud.file.favorite.FileFavoriteService
@@ -51,6 +50,7 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.share.ShareService
 import dk.sdu.cloud.support.SupportService
@@ -442,6 +442,7 @@ object UCloudLauncher : Loggable {
                 return@runBlocking
             }
 
+            integrationTestingIsKubernetesReady = false
             isRunning = true
             Runtime.getRuntime().addShutdownHook(Thread { shutdown() })
 
@@ -560,6 +561,7 @@ object UCloudLauncher : Loggable {
         }
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     fun requireK8s() {
         if (isK8sRunning) return
         k3sContainer = K3sContainer()
@@ -576,14 +578,85 @@ object UCloudLauncher : Loggable {
         k3sContainer.copyFileFromContainer("/etc/rancher/k3s/k3s.yaml", target.absolutePath)
         val correctConfig = target.readText().replace("127.0.0.1:6443", "127.0.0.1:${k3sContainer.getMappedPort(6443)}")
         target.writeText(correctConfig)
-        isK8sRunning = true
+
+        val volcanoDeployment = File(tempDir, "volcano.yml")
+        volcanoDeployment.outputStream().use { outs ->
+            javaClass.classLoader.getResourceAsStream("volcano.yml")!!.use { ins -> ins.copyTo(outs) }
+        }
 
         runBlocking {
-            KubernetesCompute.reload.call(
-                ReloadRequest(cephfsHome),
-                serviceClient
-            ).orThrow()
+            ProcessBuilder(
+                *buildList {
+                    add("kubectl")
+                    add("create")
+                    add("--kubeconfig")
+                    add(target.absolutePath)
+                    add("namespace")
+                    add("app-kubernetes")
+                }.toTypedArray()
+            ).start().waitFor()
+
+            ProcessBuilder(
+                *buildList {
+                    add("kubectl")
+                    add("create")
+                    add("--kubeconfig")
+                    add(target.absolutePath)
+                    add("namespace")
+                    add("volcano-system")
+                }.toTypedArray()
+            ).start().waitFor()
+
+
+            ProcessBuilder(
+                *buildList {
+                    add("kubectl")
+                    add("create")
+                    add("--kubeconfig")
+                    add(target.absolutePath)
+                    add("-f")
+                    add(volcanoDeployment.absolutePath)
+                }.toTypedArray()
+            ).start().waitFor()
+
+            // TODO Create persistent volume claim
+            val client = KubernetesClient(KubernetesConfigurationSource.KubeConfigFile(target.absolutePath, null))
+            client.createResource(
+                KubernetesResources.persistentVolumes,
+                defaultMapper.writeValueAsString(
+                    PersistentVolume(
+                        metadata = ObjectMeta("storage"),
+                        spec = PersistentVolume.Spec(
+                            capacity = mapOf("storage" to "1000Gi"),
+                            volumeMode = "Filesystem",
+                            accessModes = listOf("ReadWriteMany"),
+                            persistentVolumeReclaimPolicy = "Retain",
+                            storageClassName = "",
+                            hostPath = HostPathVolumeSource(cephfsHome)
+                        )
+                    )
+                )
+            )
+
+            client.createResource(
+                KubernetesResources.persistentVolumeClaims.withNamespace("app-kubernetes"),
+                defaultMapper.writeValueAsString(
+                    PersistentVolumeClaim(
+                        metadata = ObjectMeta("cephfs", namespace = "app-kubernetes"),
+                        spec = PersistentVolumeClaim.Spec(
+                            accessModes = listOf("ReadWriteMany"),
+                            storageClassName = "",
+                            volumeName = "storage",
+                            resources = Pod.Container.ResourceRequirements(requests = mapOf("storage" to "1000Gi"))
+                        )
+                    )
+                )
+            )
         }
+
+        isK8sRunning = true
+        integrationTestingKubernetesFilePath = target.absolutePath
+        integrationTestingIsKubernetesReady = true
     }
 }
 

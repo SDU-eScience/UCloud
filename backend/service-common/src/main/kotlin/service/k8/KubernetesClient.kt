@@ -46,7 +46,9 @@ sealed class KubernetesConfigurationSource {
             data class UserData(
                 val token: String?,
                 @JsonAlias("client-certificate") val clientCertificate: String?,
-                @JsonAlias("client-key") val clientKey: String?
+                @JsonAlias("client-key") val clientKey: String?,
+                val username: String?,
+                val password: String?
             )
         }
 
@@ -80,6 +82,12 @@ sealed class KubernetesConfigurationSource {
                     ?: error("Unknown user, kube config contains: $tree")
 
                 val authenticationMethod = when {
+                    cluster.cluster.certificateAuthorityData != null -> {
+                        log.warn("NOT YET IMPLEMENTED: CUSTOM CERTIFICATE AUTHORITY DATA")
+                        log.info("Falling back to proxy method")
+                        KubernetesAuthenticationMethod.Proxy(context, kubeConfigFile.absolutePath)
+                    }
+
                     user.user.token != null -> {
                         val (username, password) = user.user.token.split(':')
                         KubernetesAuthenticationMethod.BasicAuth(username, password)
@@ -92,6 +100,10 @@ sealed class KubernetesConfigurationSource {
                         )
 
                         KubernetesAuthenticationMethod.Proxy(actualContext.name)
+                    }
+
+                    user.user.username != null && user.user.password != null -> {
+                        KubernetesAuthenticationMethod.BasicAuth(user.user.username, user.user.password)
                     }
 
                     else -> {
@@ -154,6 +166,12 @@ sealed class KubernetesConfigurationSource {
             return null
         }
     }
+
+    object Placeholder : KubernetesConfigurationSource() {
+        override fun retrieveConnection(): KubernetesConnection? {
+            error("retrieveConnection() was called on a placeholder source")
+        }
+    }
 }
 
 fun URLBuilder.fixedClone(): Url {
@@ -174,15 +192,19 @@ fun URLBuilder.fixedClone(): Url {
 sealed class KubernetesAuthenticationMethod {
     open fun configureClient(httpClientConfig: HttpClientConfig<*>) {}
     open fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {}
-    class Proxy(val context: String?) : KubernetesAuthenticationMethod() {
+    class Proxy(val context: String?, val configFile: String? = null) : KubernetesAuthenticationMethod() {
         @OptIn(ExperimentalStdlibApi::class)
         private fun startProxy(): Process {
             return ProcessBuilder(
                 *buildList {
                     add("kubectl")
-                    if(context != null) {
+                    if (context != null) {
                         add("--context")
                         add(context)
+                    }
+                    if (configFile != null) {
+                        add("--kubeconfig")
+                        add(configFile)
                     }
                     add("proxy")
                     add("--disable-filter=true")
@@ -294,23 +316,23 @@ class KubernetesClient(
     private val configurationSource: KubernetesConfigurationSource = KubernetesConfigurationSource.Auto
 ) {
     @PublishedApi
-    internal val conn = configurationSource.retrieveConnection() ?: error("Found no valid Kubernetes configuration")
-
-    @PublishedApi
-    internal val httpClient = HttpClient(CIO) {
-        // NOTE(Dan): Not using OkHttp here because of a input buffering issue causing watched resources to not
-        // always flush. It is not clear to me how to make OkHttp/Ktor/??? not do this input buffering. Using the CIO
-        // engine seemingly resolves the issue.
-        conn.authenticationMethod.configureClient(this)
-        install(HttpTimeout) {
-            this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-            this.connectTimeoutMillis = 1000 * 60
-            this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-        }
+    internal val conn by lazy {
+        configurationSource.retrieveConnection() ?: error("Found no valid Kubernetes configuration")
     }
 
-    init {
-        log.debug("Kubernetes client will use the following connection parameters: $conn")
+    @PublishedApi
+    internal val httpClient by lazy {
+        HttpClient(CIO) {
+            // NOTE(Dan): Not using OkHttp here because of a input buffering issue causing watched resources to not
+            // always flush. It is not clear to me how to make OkHttp/Ktor/??? not do this input buffering. Using the CIO
+            // engine seemingly resolves the issue.
+            conn.authenticationMethod.configureClient(this)
+            install(HttpTimeout) {
+                this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+                this.connectTimeoutMillis = 1000 * 60
+                this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+            }
+        }
     }
 
     fun buildUrl(
@@ -382,7 +404,7 @@ class KubernetesClient(
         }
     }
 
-    inline suspend fun <reified T> sendRequest(
+    suspend inline fun <reified T> sendRequest(
         method: HttpMethod,
         locator: KubernetesResourceLocator,
         queryParameters: Map<String, String> = emptyMap(),

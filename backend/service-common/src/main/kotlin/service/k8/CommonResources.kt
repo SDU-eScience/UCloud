@@ -16,7 +16,9 @@ object KubernetesResources {
     val statefulSet = KubernetesResourceLocator("apps", "v1", "statefulsets")
     val events = KubernetesResourceLocator(API_GROUP_CORE, "v1", "events")
     val namespaces = KubernetesResourceLocator(API_GROUP_CORE, "v1", "namespaces", namespace = NAMESPACE_ANY)
-    val persistentVolumes = KubernetesResourceLocator(API_GROUP_CORE, "v1", "persistentvolumes", null, NAMESPACE_ANY)
+    val persistentVolumes = KubernetesResourceLocator(API_GROUP_CORE, "v1", "persistentvolumes",
+        namespace = NAMESPACE_ANY)
+    val persistentVolumeClaims = KubernetesResourceLocator(API_GROUP_CORE, "v1", "persistentvolumeclaims")
     val services = KubernetesResourceLocator(API_GROUP_CORE, "v1", "services")
     val networkPolicies = KubernetesResourceLocator("networking.k8s.io", "v1", "networkpolicies")
 }
@@ -591,6 +593,65 @@ data class NetworkPolicy(
         var ports: List<Port>? = emptyList()
     )
 }
+
+data class PersistentVolume(
+    val apiVersion: String = "v1",
+    val kind: String = "PersistentVolume",
+    var metadata: ObjectMeta? = null,
+    var spec: Spec? = null,
+    var status: Status? = null,
+) {
+    data class Spec(
+        var accessModes: List<String> = emptyList(),
+        var capacity: Map<String, Any?>? = null,
+        var mountOptions: List<String> = emptyList(),
+        var persistentVolumeReclaimPolicy: String? = null,
+        var storageClassName: String? = null,
+        var volumeMode: String? = null,
+        var hostPath: HostPathVolumeSource? = null,
+    )
+
+    data class Status(
+        var message: String? = null,
+        var phase: String? = null,
+        var reason: String? = null,
+    )
+}
+
+data class HostPathVolumeSource(
+    var path: String,
+    var type: String = ""
+)
+
+data class PersistentVolumeClaim(
+    var apiVersion: String = "v1",
+    var kind: String = "PersistentVolumeClaim",
+    var metadata: ObjectMeta? = null,
+    var spec: Spec? = null,
+    var status: Status? = null,
+) {
+    data class Spec(
+        var accessModes: List<String> = emptyList(),
+        var dataSource: TypedLocalObjectReference? = null,
+        var resources: Pod.Container.ResourceRequirements? = null,
+        var selector: LabelSelector? = null,
+        var storageClassName: String? = null,
+        var volumeMode: String? = null,
+        var volumeName: String? = null,
+    )
+
+    data class Status(
+        var accessModes: List<String> = emptyList(),
+        var capacity: Map<String, Any?> = emptyMap(),
+        var phase: String? = null,
+    )
+}
+
+data class TypedLocalObjectReference(
+    var apiGroup: String? = null,
+    var kind: String? = null,
+    var name: String? = null
+)
 
 inline class KubernetesNode(val raw: JsonNode)
 
