@@ -37,11 +37,13 @@ object StorageService : Service {
         val folder = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
         val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
 
+        /*
         micro.feature(LogFeature).configureLevels(
             mapOf(
                 "com.github.jasync.sql.db" to Level.INFO
             )
         )
+         */
 
         return Server(
             config,

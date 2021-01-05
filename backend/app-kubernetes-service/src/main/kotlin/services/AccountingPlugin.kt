@@ -26,11 +26,16 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         val now = Time.now()
         val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt ?: run {
             log.warn("Found no last accounting timestamp for job with id $jobId")
-            log.warn("No accounting will be performed for this job")
-            return
+            log.info("Assuming that $jobId was a very fast job")
+            now - 1000L
         }
 
         account(jobId, lastTs, now)
+    }
+
+    override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {
+        val now = System.currentTimeMillis()
+        account(jobId, now, now)
     }
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {
@@ -49,7 +54,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
 
     private suspend fun JobManagement.account(jobId: String, lastTs: Long, now: Long) {
         val timespent = now - lastTs
-        if (timespent <= 0L) {
+        if (timespent < 0L) {
             log.info("No time spent on $jobId ($timespent)")
             log.info("No accounting will be performed")
             return
@@ -58,18 +63,21 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         val name = k8.nameAllocator.jobIdToJobName(jobId)
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
-        JobsControl.chargeCredits.call(
-            bulkRequestOf(
-                JobsControlChargeCreditsRequestItem(
-                    jobId,
-                    lastTs.toString(),
-                    SimpleDuration.fromMillis(timespent)
-                )
-            ),
-            k8.serviceClient
-        ).orThrow()
+        if (timespent > 0L) {
+            JobsControl.chargeCredits.call(
+                bulkRequestOf(
+                    JobsControlChargeCreditsRequestItem(
+                        jobId,
+                        lastTs.toString(),
+                        SimpleDuration.fromMillis(timespent)
+                    )
+                ),
+                k8.serviceClient
+            ).orThrow()
+        }
 
         try {
+            log.debug("Attaching accounting timestamp: $jobId $now")
             k8.client.patchResource(
                 KubernetesResources.volcanoJob.withNameAndNamespace(
                     name,

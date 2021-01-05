@@ -30,15 +30,7 @@ import dk.sdu.cloud.indexing.IndexingService
 import dk.sdu.cloud.integration.backend.sampleStorage
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
-import dk.sdu.cloud.micro.DatabaseConfig
-import dk.sdu.cloud.micro.ElasticFeature
-import dk.sdu.cloud.micro.Log4j2ConfigFactory
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.PlaceholderServiceDescription
-import dk.sdu.cloud.micro.ServiceRegistry
-import dk.sdu.cloud.micro.elasticHighLevelClient
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.migrateAll
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
@@ -61,6 +53,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.elasticsearch.ElasticsearchContainer
@@ -461,7 +454,6 @@ object UCloudLauncher : Loggable {
             )
 
             micro = reg.rootMicro
-
             migrateAll()
             run {
                 // TODO Deal with elasticsearch
