@@ -35,6 +35,8 @@ import {creditFormatter} from "Project/ProjectUsage";
 import JobStatus = compute.JobStatus;
 import {margin, MarginProps} from "styled-system";
 import {useProjectStatus} from "Project/cache";
+import {ProjectName} from "Project";
+import {getProjectNames} from "Utilities/ProjectUtilities";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -479,6 +481,9 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             seconds: Math.floor((msTime % (1000 * 60)) / (1000))
         };
     }
+
+    const projectNames = getProjectNames(useProjectStatus());
+
     let prettyTime = "No job deadline";
     if (time) {
         prettyTime = "";
@@ -536,7 +541,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             statTitle={jobFiles(job.parameters).length === 1 ? "Input file" : "Input files"}
             icon={"ftFolder"}
         >
-            {jobInputString(job.parameters)}
+            {jobInputString(job.parameters, projectNames)}
         </InfoCard>
         <InfoCard stat={workspaceTitle} statTitle={"Project"} icon={"projects"}>
             <b>Launched by:</b> {job.owner.launchedBy}
@@ -622,8 +627,8 @@ function jobFiles(parameters: JobParameters): AppParameterValueNS.File[] {
         .filter(it => it.type === "file") as AppParameterValueNS.File[];
 }
 
-function jobInputString(parameters: JobParameters): string {
-    const allFiles = jobFiles(parameters).map(it => replaceHomeOrProjectFolder(it.path, Client, []));
+function jobInputString(parameters: JobParameters, projects: ProjectName[]): string {
+    const allFiles = jobFiles(parameters).map(it => replaceHomeOrProjectFolder(it.path, Client, projects));
 
     if (allFiles.length === 0) return "No files";
     return joinToString(allFiles, ", ");
@@ -655,6 +660,8 @@ const RunningContent: React.FunctionComponent<{
         setExpiresAt(status.expiresAt);
     }, [status.expiresAt]);
 
+    const projectNames = getProjectNames(useProjectStatus());
+
     return <>
         <RunningInfoWrapper>
             <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
@@ -662,7 +669,7 @@ const RunningContent: React.FunctionComponent<{
                     {!job.parameters.name ? null : <Box><b>Name:</b> {job.parameters.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box><b>Reservation:</b> {job.parameters.product.provider} / {job.parameters.product.id} (x{job.parameters.replicas})</Box>
-                    <Box><b>Input:</b> {jobInputString(job.parameters)}</Box>
+                    <Box><b>Input:</b> {jobInputString(job.parameters, projectNames)}</Box>
                     <Box><b>Launched by:</b> {job.owner.launchedBy} in {job.owner.project ?? "My workspace"}</Box>
                     <Box flexGrow={1} />
                     <Box mt={"16px"}>
