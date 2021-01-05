@@ -455,6 +455,7 @@ class BalanceService(
         origWallet: Wallet? = null,
         initiatedByUsername: String? = null
     ): Unit = with(request) {
+        log.info("reserveCredits($initiatedBy, $request, $reserveForAncestors, $origWallet, $initiatedByUsername)")
         val wallet = request.account
         val originalWallet = origWallet ?: wallet
         require(originalWallet.paysFor == wallet.paysFor)
