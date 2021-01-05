@@ -5,10 +5,8 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
 import {Box, Button, ButtonGroup, Card, ExternalLink, Flex, Icon, Input, Label, Text, TextArea, theme, Tooltip} from "ui-components";
-import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {
-    grantsRetrieveProducts, GrantsRetrieveProductsResponse,
-    ProductArea, ProductCategory,
     productCategoryEquals,
     ProductCategoryId,
     retrieveBalance,
@@ -50,6 +48,11 @@ import {Balance, BalanceExplainer, useStoragePrice} from "Accounting/Balance";
 import {useDispatch} from "react-redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
+import * as UCloud from "UCloud";
+import grantApi = UCloud.grant.grant;
+import {accounting, grant} from "UCloud";
+import GrantsRetrieveProductsResponse = grant.GrantsRetrieveProductsResponse;
+import ProductCategory = accounting.ProductCategory;
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -230,7 +233,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                     balance: it.creditsRequested ?? 0,
                     used: 0,
                     allocated: 0,
-                    area: ProductArea.COMPUTE
+                    area: "COMPUTE"
                 };
             });
             recipient = grantApplication.data.application.grantRecipient;
@@ -260,7 +263,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         availableProducts = products.data.availableProducts;
         reloadProducts = useCallback(() => {
             if (targetProject) {
-                fetchProducts(grantsRetrieveProducts({
+                fetchProducts(grantApi.retrieveProducts({
                     projectId: targetProject,
                     recipientType: recipient.type,
                     recipientId:
@@ -576,7 +579,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
     React.FunctionComponent = target => function MemoizedEditor() {
         const state = useRequestInformation(target);
         const grantFinalized = isGrantFinalized(state.editingApplication?.status);
-        const [loading, runWork] = useAsyncCommand();
+        const [loading, runWork] = useCloudCommand();
         const projectTitleRef = useRef<HTMLInputElement>(null);
         const history = useHistory();
         const dispatch = useDispatch();
@@ -636,7 +639,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     )
                 );
 
-                if (wb.area === ProductArea.STORAGE) {
+                if (wb.area === "STORAGE") {
                     if ((creditsRequested !== undefined) || (quotaRequested !== undefined)) {
                         if ((creditsRequested === undefined) || (quotaRequested === undefined)) {
                             snackbarStore.addFailure("Please fill out both \"Resources\" and \"Quota\" for requested storage product", false);
@@ -957,7 +960,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             <Heading.h4 mt={32}><Flex>Storage <ProductLink /></Flex></Heading.h4>
                             <ResourceContainer>
                                 {state.wallets.map((it, idx) => (
-                                    it.area !== ProductArea.STORAGE ? null :
+                                    it.area !== "STORAGE" ? null :
                                         <StorageRequestCard
                                             wb={it}
                                             state={state}
@@ -972,7 +975,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             <Heading.h4 mt={32}><Flex>Compute <ProductLink /></Flex></Heading.h4>
                             <ResourceContainer>
                                 {state.wallets.map((it, idx) => (
-                                    it.area !== ProductArea.COMPUTE ? null :
+                                    it.area !== "COMPUTE" ? null :
                                         <ComputeRequestCard
                                             key={idx}
                                             wb={it}
@@ -1083,7 +1086,7 @@ const CommentBox: React.FunctionComponent<{
     avatar: AvatarType,
     reload: () => void
 }> = ({comment, avatar, reload}) => {
-    const [, runCommand] = useAsyncCommand();
+    const [, runCommand] = useCloudCommand();
     const onDelete = useCallback(() => {
         addStandardDialog({
             title: "Confirm comment deletion",
@@ -1145,7 +1148,7 @@ const PostCommentWidget: React.FunctionComponent<{
     reload: () => void
 }> = ({applicationId, avatar, reload}) => {
     const commentBoxRef = useRef<HTMLTextAreaElement>(null);
-    const [loading, runWork] = useAsyncCommand();
+    const [loading, runWork] = useCloudCommand();
     const submitComment = useCallback(async (e) => {
         e.preventDefault();
 

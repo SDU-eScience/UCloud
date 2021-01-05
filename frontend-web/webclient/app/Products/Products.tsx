@@ -24,9 +24,9 @@ function Products(): JSX.Element {
             <Description />
 
             <Box my="16px" />
-            <MachineView area={ProductArea.STORAGE} />
+            <MachineView area={"STORAGE"} />
             <Box my="16px" />
-            <MachineView area={ProductArea.COMPUTE} />
+            <MachineView area={"COMPUTE"} />
         </ContainerForText>
     );
 
@@ -59,7 +59,7 @@ function MachineView({area}: {area: string}): JSX.Element {
     );
 
     const [activeMachine, setActiveMachine] = React.useState<Product | undefined>(undefined);
-    const isStorage = ProductArea.STORAGE === area;
+    const isStorage = "STORAGE" === area;
 
     return (<>
         <Card
@@ -136,7 +136,7 @@ function MachineView({area}: {area: string}): JSX.Element {
                             <TableHeaderCell>Name</TableHeaderCell>
                             <TableCell>{activeMachine.id}</TableCell>
                         </TableRow>
-                        {area !== ProductArea.COMPUTE ? null :
+                        {area !== "COMPUTE" ? null :
                             <>
                                 <TableRow>
                                     <th>vCPU</th>
@@ -159,8 +159,8 @@ function MachineView({area}: {area: string}): JSX.Element {
                         <TableRow>
                             <th>Price</th>
                             <TableCell>
-                                {creditFormatter(activeMachine.pricePerUnit * (area === ProductArea.COMPUTE ? 60 : 30))}
-                                {area === ProductArea.COMPUTE ? "/hour" : " per GB/month"}
+                                {creditFormatter(activeMachine.pricePerUnit * (area === "COMPUTE" ? 60 : 30))}
+                                {area === "COMPUTE" ? "/hour" : " per GB/month"}
                             </TableCell>
                         </TableRow>
                         <TableRow>

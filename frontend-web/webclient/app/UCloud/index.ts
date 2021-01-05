@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Mon Jan 04 10:20:13 CET 2021 */
+/* Generated at: Tue Jan 05 14:52:33 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -72,6 +72,19 @@ export namespace mail {
         };
     }
 
+    export function sendSupport(
+        request: SendSupportEmailRequest
+    ): APICallParameters<SendSupportEmailRequest, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/mail" + "/support",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
     export function sendBulk(
         request: SendBulkRequest
     ): APICallParameters<SendBulkRequest, any /* unknown */> {
@@ -90,6 +103,12 @@ export namespace mail {
         subject: string,
         message: string,
         mandatory?: boolean,
+    }
+
+    export interface SendSupportEmailRequest {
+        fromEmail: string,
+        subject: string,
+        message: string,
     }
 
     export interface SendBulkRequest {
@@ -1558,6 +1577,7 @@ export namespace compute {
 
     export interface TagSearchRequest {
         query: string,
+        excludeTools?: string,
         itemsPerPage?: number /* int32 */
         ,
         page?: number /* int32 */
@@ -1986,6 +2006,7 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/hpc/apps" + "/searchTags", {
                     query: request.query,
+                    excludeTools: request.excludeTools,
                     itemsPerPage: request.itemsPerPage,
                     page: request.page
                 }),
@@ -4646,6 +4667,11 @@ export namespace accounting {
         provider: string,
     }
 
+    export interface ProductCategory {
+        id: ProductCategoryId,
+        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
+    }
+
     export namespace products {
         export function findProduct(
             request: FindProductRequest
@@ -6271,6 +6297,16 @@ export namespace grant {
         projectId: string,
     }
 
+    export interface GrantsRetrieveProductsResponse {
+        availableProducts: accounting.ProductCategory[],
+    }
+
+    export interface GrantsRetrieveProductsRequest {
+        projectId: string,
+        recipientType: string,
+        recipientId: string,
+    }
+
     export interface AvailableGiftsResponse {
         gifts: GiftWithId[],
     }
@@ -6598,6 +6634,22 @@ export namespace grant {
                 reloadId: Math.random(),
             };
         }
+
+        export function retrieveProducts(
+            request: GrantsRetrieveProductsRequest
+        ): APICallParameters<GrantsRetrieveProductsRequest, GrantsRetrieveProductsResponse> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/grant" + "/retrieveProducts", {
+                    projectId: request.projectId,
+                    recipientId: request.recipientId,
+                    recipientType: request.recipientType
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
     }
     export namespace GrantRecipientNS {
         export interface PersonalProject {
@@ -6821,6 +6873,7 @@ export namespace support {
     }
 
     export interface CreateTicketRequest {
+        subject: string,
         message: string,
     }
 }

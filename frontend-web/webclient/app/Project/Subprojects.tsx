@@ -131,8 +131,8 @@ const SelectableWallet: React.FunctionComponent<{
                             <th />
                             <td>
                                 <Icon
-                                    color2={props.wallet.area === ProductArea.COMPUTE ? undefined : "white"}
-                                    name={props.wallet.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
+                                    color2={props.wallet.area === "COMPUTE" ? undefined : "white"}
+                                    name={props.wallet.area === "COMPUTE" ? "cpu" : "ftFileSystem"}
                                     size={32}
                                 />
                             </td>

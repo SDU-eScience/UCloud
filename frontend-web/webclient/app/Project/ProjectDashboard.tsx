@@ -109,9 +109,9 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         }));
     }, [projectId]);
 
-    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.COMPUTE));
+    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "COMPUTE"));
     const computeCreditsUsedInPeriod = computeUsageInPeriod(computeCharts);
-    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.STORAGE));
+    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "STORAGE"));
     const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     function isAdmin(): boolean {

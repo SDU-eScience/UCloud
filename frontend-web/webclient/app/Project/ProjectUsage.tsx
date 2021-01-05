@@ -12,7 +12,7 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {
-    ProductArea,
+    ProductArea, productAreas,
     productAreaTitle,
     retrieveBalance,
     RetrieveBalanceResponse,
@@ -192,7 +192,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
 
-    const [productArea, setProductArea] = useState(ProductArea.COMPUTE);
+    const [productArea, setProductArea] = useState("COMPUTE");
     const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3]);
 
     const currentTime = new Date();
@@ -247,7 +247,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                         />
                     </UsageHeader>
                     <SelectableTextWrapper>
-                        {Object.keys(ProductArea).map((area: ProductArea) => (
+                        {productAreas.map((area: ProductArea) => (
                             <SelectableText
                                 key={area}
                                 mr="1em"
@@ -262,9 +262,9 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
             sidebar={null}
             main={
                 <Box mt="8px">
-                    {productArea === ProductArea.COMPUTE ?
+                    {productArea === "COMPUTE" ?
                         <VisualizationForArea
-                            area={ProductArea.COMPUTE}
+                            area={"COMPUTE"}
                             projectId={projectId}
                             usageResponse={usageResponse}
                             durationOption={durationOption}
@@ -272,7 +272,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                         />
                         :
                         <VisualizationForArea
-                            area={ProductArea.STORAGE}
+                            area={"STORAGE"}
                             projectId={projectId}
                             usageResponse={usageResponse}
                             durationOption={durationOption}
