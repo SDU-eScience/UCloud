@@ -217,12 +217,11 @@ const Subprojects: React.FunctionComponent = () => {
                 snackbarStore.addFailure("Project name can't be empty", false);
                 return;
             }
-            await promises.makeCancelable(
-                await runCommand(createProject({
-                    title: subprojectName,
-                    parent: projectId
-                }))
-            ).promise;
+
+            await runCommand(createProject({
+                title: subprojectName,
+                parent: projectId
+            }));
 
             snackbarStore.addSuccess(`Subproject created`, true);
             createSubprojectRef.current!.value = "";

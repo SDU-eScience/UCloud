@@ -25,7 +25,8 @@ class ApplicationSearchService (
         securityPrincipal: SecurityPrincipal,
         project: String?,
         tags: List<String>,
-        normalizedPaginationRequest: NormalizedPaginationRequest
+        normalizedPaginationRequest: NormalizedPaginationRequest,
+        excludeTools: List<String>? = emptyList()
     ): Page<ApplicationSummaryWithFavorite> {
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
@@ -40,7 +41,8 @@ class ApplicationSearchService (
                 project,
                 projectGroups,
                 tags,
-                normalizedPaginationRequest
+                normalizedPaginationRequest,
+                excludeTools
             )
         }
     }

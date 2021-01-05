@@ -99,6 +99,7 @@ data class SetPublicRequest(
 
 data class TagSearchRequest(
     val query: String,
+    val excludeTools: String? = null,
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
@@ -208,6 +209,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
             params {
                 +boundTo(TagSearchRequest::query)
+                +boundTo(TagSearchRequest::excludeTools)
                 +boundTo(TagSearchRequest::itemsPerPage)
                 +boundTo(TagSearchRequest::page)
             }

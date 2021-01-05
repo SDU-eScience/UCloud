@@ -1,6 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
+import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
@@ -48,14 +49,32 @@ class ReindexService(
 
         try {
             elastic.reindex(request, RequestOptions.DEFAULT)
-        } catch (ex: IOException) {
-            //Did not finish reindexing in 2 min (timeout)
-            val fromCount = getDocumentCountSum(fromIndices, lowLevelClient)
-            var toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
-            while (fromCount != toCount) {
-                log.info("Waiting for target index to reach count: $fromCount. Currently doc count is: $toCount")
-                Thread.sleep(10000)
-                toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
+        } catch (ex: Exception) {
+            when (ex) {
+                is IOException -> {
+                    //Did not finish reindexing in 2 min (timeout)
+                    val fromCount = getDocumentCountSum(fromIndices, lowLevelClient)
+                    var toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
+                    while (fromCount != toCount) {
+                        log.info("Waiting for target index to reach count: $fromCount. Currently doc count is: $toCount")
+                        Thread.sleep(10000)
+                        toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
+                    }
+                }
+                is ElasticsearchStatusException -> {
+                    //This is most likely due to API changes resulting in not same mapping for entire week
+                    if (ex.message == "Unable to parse response body") {
+                        log.info("status exception")
+                        log.info(ex.toString())
+                    }
+                    else {
+                        throw ex
+                    }
+                }
+                else -> {
+                    log.warn("not known exception")
+                    throw ex
+                }
             }
         }
         //Delete old indices

@@ -101,16 +101,17 @@ class AppLicenseAsyncDao {
                         setParameter("groups", groups)
                     },
                     """
-                        SELECT * 
+                        SELECT DISTINCT ON (server_id) *
                         FROM license_servers AS LS
                         INNER JOIN permissions as P
                             ON LS.id = P.server_id
                         WHERE LS.id IN (SELECT T.license_server FROM tags AS T where T.name IN (select unnest(:tags::text[])))
                             AND (
                                 P.username = :user
-                                OR ((P.project, P.project_group) IN (select unnest(:projects::text[]), unnest(:groups::text[]))) 
+                                OR ((P.project, P.project_group) IN (select unnest(:projects::text[]), unnest(:groups::text[])))
                                 AND (P.permission = 'READ_WRITE' OR P.permission = 'READ')
                             )
+                        ;
                     """
 
                     //query

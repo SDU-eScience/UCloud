@@ -14,6 +14,7 @@ import Flex from "./Flex";
 import Icon from "./Icon";
 import Label from "./Label";
 import Radio from "./Radio";
+import Text from "./Text";
 import {Spacer} from "./Spacer";
 import {TextDiv, TextSpan} from "./Text";
 import TextArea from "./TextArea";
@@ -25,6 +26,7 @@ const enum SupportType {
 
 export default function Support(): JSX.Element {
     const textArea = useRef<HTMLTextAreaElement>(null);
+    const titleArea = useRef<HTMLTextAreaElement>(null);
     const supportBox = useRef<HTMLTextAreaElement>(null);
     const [loading, setLoading] = useState(false);
     const [visible, setVisible] = useState(false);
@@ -42,11 +44,13 @@ export default function Support(): JSX.Element {
     async function onSubmit(event: React.FormEvent): Promise<void> {
         event.preventDefault();
         const text = textArea.current?.value ?? "";
+        const title = titleArea.current?.value ?? "";
         if (text.trim()) {
             try {
                 setLoading(true);
-                await Client.post("/support/ticket", {message: `${type}: ${text}`});
+                await Client.post("/support/ticket", {subject: title, message: `${type}: ${text}`});
                 textArea.current!.value = "";
+                titleArea.current!.value = "";
                 setVisible(false);
                 setLoading(false);
                 snackbarStore.addSuccess("Support ticket submitted!", false);
@@ -84,11 +88,21 @@ export default function Support(): JSX.Element {
                 <Box width="100%" pr={"16px"} color="text">
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
-                        right={!CONF.SITE_DOCUMENTATION_URL ? null : (
-                            <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
-                                <Icon name="docs" mr=".5em" />Documentation
-                            </ExternalLink>
-                        )}
+                        right={<>
+                            {!CONF.SITE_FAQ_URL ? null : (
+                                <ExternalLink href={CONF.SITE_FAQ_URL}>
+                                    <Flex>
+                                        <b style={{fontSize: "24px", marginRight: ".5em"}}>?</b>
+                                        <Text mt="5px" mr="0.8em">FAQ</Text>
+                                    </Flex>
+                                </ExternalLink>
+                            )}
+                            {!CONF.SITE_DOCUMENTATION_URL ? null : (
+                                <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
+                                    <Icon name="docs" mr=".5em" />Documentation
+                                </ExternalLink>
+                            )}
+                        </>}
                     />
                     <Flex mt="8px">
                         <Label>
@@ -108,13 +122,15 @@ export default function Support(): JSX.Element {
                         Bug
                     </Label>
                     </Flex>
-                    <TextDiv mt="10px">
-                        {type === SupportType.BUG ? "Describe your problem below and we will investigate it." :
-                            "Describe your suggestion and we will look into it."
-                        }
-                    </TextDiv>
 
                     <form onSubmit={onSubmit}>
+                        <TextDiv mt="10px"> Subject </TextDiv>
+                        <TextArea width="100%" ref={titleArea} rows={1} />
+                        <TextDiv mt="10px">
+                            {type === SupportType.BUG ? "Describe your problem below and we will investigate it." :
+                                "Describe your suggestion and we will look into it."
+                            }
+                        </TextDiv>
                         <TextArea width="100%" ref={textArea} rows={6} />
                         <Button
                             mt="6px"

@@ -1,4 +1,4 @@
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import HttpClient from "Authentication/lib";
 import {emptyPage} from "DefaultObjects";
@@ -21,7 +21,7 @@ export interface SessionsProps {
 }
 
 export const Sessions: React.FunctionComponent<SessionsProps> = props => {
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const [sessions, setSessionParameters, sessionParameters] = useCloudAPI<Page<UserSession>>(
         listUserSessions({itemsPerPage: 10, page: 0}),
         emptyPage

@@ -131,22 +131,26 @@ class GrantController(
         }
 
         implement(Grants.ingoingApplications) {
-            ok(applications.listIngoingApplications(
-                db,
-                ctx.securityPrincipal.toActor(),
-                ctx.project ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                request.normalize(),
-                request.filter
-            ))
+            ok(
+                applications.listIngoingApplications(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    ctx.project ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
+                    request.normalize(),
+                    request.filter
+                )
+            )
         }
 
         implement(Grants.outgoingApplications) {
-            ok(applications.listOutgoingApplications(
-                db,
-                ctx.securityPrincipal.toActor(),
-                request.normalize(),
-                request.filter
-            ))
+            ok(
+                applications.listOutgoingApplications(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    request.normalize(),
+                    request.filter
+                )
+            )
         }
 
         implement(Grants.viewApplication) {
@@ -187,9 +191,40 @@ class GrantController(
         }
 
         implement(Grants.fetchDescription) {
-            ok(FetchDescriptionResponse(
-                settings.fetchDescription(db, request.projectId)
-            ))
+            ok(
+                FetchDescriptionResponse(
+                    settings.fetchDescription(db, request.projectId)
+                )
+            )
+        }
+
+        implement(Grants.retrieveProducts) {
+            val recipient = when (request.recipientType) {
+                GrantRecipient.PERSONAL_TYPE -> {
+                    GrantRecipient.PersonalProject(request.recipientId)
+                }
+
+                GrantRecipient.EXISTING_PROJECT_TYPE -> {
+                    GrantRecipient.ExistingProject(request.recipientId)
+                }
+
+                GrantRecipient.NEW_PROJECT_TYPE -> {
+                    GrantRecipient.NewProject(request.recipientId)
+                }
+
+                else -> throw RPCException("Invalid recipientType", HttpStatusCode.BadRequest)
+            }
+
+            ok(
+                GrantsRetrieveProductsResponse(
+                    applications.retrieveProducts(
+                        db,
+                        ctx.securityPrincipal.toActor(),
+                        request.projectId,
+                        recipient
+                    )
+                )
+            )
         }
 
         return@with
