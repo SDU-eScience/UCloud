@@ -14,7 +14,7 @@ import {
     Icon,
     Input,
     Label,
-    Link,
+    List,
     Text,
     TextArea,
     theme,
@@ -34,6 +34,8 @@ import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
     approveGrantApplication,
+    browseProjects,
+    BrowseProjectsResponse,
     closeGrantApplication,
     Comment,
     commentOnGrantApplication,
@@ -65,6 +67,10 @@ import {Balance, BalanceExplainer, useStoragePrice} from "Accounting/Balance";
 import {useDispatch} from "react-redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
+import ReactModal from "react-modal";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {emptyPage} from "DefaultObjects";
+import {Spacer} from "ui-components/Spacer";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -724,22 +730,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }, [state.editingApplication?.id]);
 
-        //TODO Should be a modal
-        const transferRequest = useCallback( async () => {
+        const transferRequest = useCallback(async (toProjectId: string) => {
             if (state.editingApplication !== undefined) {
-                addStandardDialog({
-                    title: "Transfer application?",
-                    message: "Are you sure you wish to transfer this application?",
-                    onConfirm: async () => {
-                        await runWork(transferApplication({
-                            applicationId: state.editingApplication!.id,
-                            transferToProjectId: "4face5d8-a5eb-43a1-972c-5f9ae72e1f64"
-                        }));
-                        state.reload();
-                    }
-                });
+                await runWork(transferApplication({
+                    applicationId: state.editingApplication!.id,
+                    transferToProjectId: toProjectId
+                }));
+                state.reload();
             }
-        }, [state.editingApplication?.id])
+        }, [state.editingApplication?.id]);
 
         const closeRequest = useCallback(async () => {
             if (state.editingApplication !== undefined) {
@@ -835,6 +834,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 }
             }
         }, [state.editingApplication, storagePrice]);
+
+
+        const [transferringApplication, setTransferringApplication] = useState(false);
 
         return (
             <MainContainer
@@ -941,18 +943,18 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                 disabled={!isLocked}
                                                                             >
                                                                                 Approve
-                                                                    </Button>
+                                                                            </Button>
                                                                             <Button
                                                                                 color="red"
                                                                                 onClick={rejectRequest}
                                                                                 disabled={!isLocked}
                                                                             >
                                                                                 Reject
-                                                                    </Button>
+                                                                            </Button>
                                                                             {state.editingApplication?.grantRecipient!.type !== "existing_project" ?
                                                                                 <Button
                                                                                     color="blue"
-                                                                                    onClick={transferRequest}
+                                                                                    onClick={() => setTransferringApplication(true)}
                                                                                     disabled={!isLocked}
                                                                                 >
                                                                                     Transfer to other project
@@ -968,7 +970,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                 disabled={!isLocked}
                                                                             >
                                                                                 Withdraw
-                                                                    </Button>
+                                                                            </Button>
                                                                         </> : null
                                                                     }
                                                                 </>
@@ -1074,14 +1076,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     ) : (
                                             <ButtonGroup>
                                                 <Button
-                                                    color={"green"}
+                                                    color="green"
                                                     fullWidth
                                                     disabled={loading}
                                                     onClick={submitRequest}
                                                 >
                                                     Save Changes
-                                        </Button>
-                                                <Button color={"red"} onClick={discardChanges}>Discard changes</Button>
+                                                </Button>
+                                                <Button color="red" onClick={discardChanges}>Discard changes</Button>
                                             </ButtonGroup>
                                         )
                                 )}
@@ -1089,9 +1091,57 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         </Box>
                     </Flex>
                 }
+                additional={
+                    <TransferApplicationPrompt
+                        isActive={transferringApplication}
+                        close={() => setTransferringApplication(false)}
+                        transfer={transferRequest}
+                    />}
             />
         );
     };
+
+
+interface TransferApplicationPromptProps {
+    isActive: boolean;
+    close(): void;
+    transfer(toProjectId: string): Promise<void>;
+}
+
+function TransferApplicationPrompt({isActive, close, transfer}: TransferApplicationPromptProps) {
+    const [projects] = useCloudAPI<BrowseProjectsResponse>(browseProjects({page: 0, itemsPerPage: 100}), emptyPage);
+
+    return (
+        <ReactModal
+            style={defaultModalStyle}
+            isOpen={isActive}
+            onRequestClose={close}
+            shouldCloseOnEsc
+            shouldCloseOnOverlayClick
+        >
+            <List>
+                {projects.data.items.map(it =>
+                    <Spacer
+                        key={it.projectId}
+                        left={<Box key={it.projectId} >{it.title}</Box>}
+                        right={<Button onClick={async () =>
+                            addStandardDialog({
+                                title: "Transfer project",
+                                message: `Transfer application to ${it.title}?`,
+                                onConfirm: async () => {
+                                    await transfer(it.projectId);
+                                    close();
+                                },
+                                confirmText: "Transfer",
+                                cancelText: "Back"
+                            })
+                        }>Transfer</Button>}
+                    />
+                )}
+            </List>
+        </ReactModal>
+    );
+}
 
 const CommentApplicationWrapper = styled.div`
     display: grid;
