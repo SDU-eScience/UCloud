@@ -1,6 +1,8 @@
 package dk.sdu.cloud.elastic.management.services
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import io.ktor.http.HttpStatusCode
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
@@ -14,6 +16,60 @@ import java.time.LocalDate
 class ReindexService(
     private val elastic: RestHighLevelClient
 ) {
+
+    fun reindexSpecificIndices(fromIndices: List<String>, toIndices: List<String>, lowLevelClient: RestClient) {
+        println("reindexing")
+        if (fromIndices.isEmpty() || fromIndices.size != toIndices.size) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "From cannot be empty or sizes are not equal.")
+        }
+        fromIndices.forEachIndexed { index, fromIndex ->
+            val toIndex = toIndices[index]
+            log.info("Reindexing: $fromIndex to $toIndex")
+            if (!indexExists(toIndex, elastic)) {
+                createIndex(toIndex, elastic)
+            }
+
+            val request = ReindexRequest()
+
+            request.setSourceIndices(fromIndex)
+            request.setDestIndex(toIndex)
+            request.setSourceBatchSize(2500)
+            request.setTimeout(TimeValue.timeValueMinutes(2))
+
+            try {
+                elastic.reindex(request, RequestOptions.DEFAULT)
+            } catch (ex: Exception) {
+                when (ex) {
+                    is IOException -> {
+                        //Did not finish reindexing in 2 min (timeout)
+                        val fromCount = getDocumentCountSum(listOf(fromIndex), lowLevelClient)
+                        var toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
+                        while (fromCount != toCount) {
+                            log.info("Waiting for target index to reach count: $fromCount. Currently doc count is: $toCount")
+                            Thread.sleep(10000)
+                            toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
+                        }
+                    }
+                    is ElasticsearchStatusException -> {
+                        //This is most likely due to API changes resulting in not same mapping for entire week
+                        if (ex.message == "Unable to parse response body") {
+                            log.info("status exception")
+                            log.info(ex.toString())
+                        }
+                        else {
+                            throw ex
+                        }
+                    }
+                    else -> {
+                        log.warn("not known exception")
+                        throw ex
+                    }
+                }
+            }
+            //Delete old indices
+            deleteIndex(fromIndex, elastic)
+        }
+    }
 
     fun reindex(fromIndices: List<String>, toIndex: String, lowLevelClient: RestClient) {
         //Should always be lowercase

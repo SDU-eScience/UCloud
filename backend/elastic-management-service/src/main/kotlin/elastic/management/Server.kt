@@ -8,6 +8,7 @@ import dk.sdu.cloud.elastic.management.services.ReindexService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
 import dk.sdu.cloud.elastic.management.services.deleteIndex
 import dk.sdu.cloud.elastic.management.services.getAllEmptyIndices
+import dk.sdu.cloud.elastic.management.services.getListOfIndices
 import dk.sdu.cloud.elastic.management.services.getShardCount
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.commandLineArguments
@@ -105,6 +106,24 @@ class Server(
             try {
                 val reindexService = ReindexService(elasticHighLevelClient)
                 reindexService.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", elasticLowLevelClient)
+                exitProcess(0)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                exitProcess(1)
+            }
+        }
+
+        if (micro.commandLineArguments.contains("--reindexSpecific")) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                val reindexService = ReindexService(elasticHighLevelClient)
+                //SPECIFY HERE WHAT TO REINDEX NOT IN ARGS
+                val fromIndices = getListOfIndices(elasticHighLevelClient, "*2021.12*")
+                val toIndices = fromIndices.map { it.replace("-2021.", "-2020.") }
+                println(fromIndices)
+                println(toIndices)
+
+                reindexService.reindexSpecificIndices(fromIndices, toIndices, elasticLowLevelClient)
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
