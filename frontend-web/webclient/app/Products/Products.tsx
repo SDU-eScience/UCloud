@@ -16,6 +16,8 @@ import * as ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {Spacer} from "ui-components/Spacer";
 import CONF from "../../site.config.json";
+import {accounting} from "UCloud";
+import ProductNS = accounting.ProductNS;
 
 function Products(): JSX.Element {
     const main = (
@@ -60,6 +62,7 @@ function MachineView({area}: {area: string}): JSX.Element {
 
     const [activeMachine, setActiveMachine] = React.useState<Product | undefined>(undefined);
     const isStorage = "STORAGE" === area;
+    const isCompute = "COMPUTE" === area;
 
     return (<>
         <Card
@@ -87,9 +90,9 @@ function MachineView({area}: {area: string}): JSX.Element {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHeaderCell>Name</TableHeaderCell>
-                                            {isStorage ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
-                                            {isStorage ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
-                                            {isStorage ? null : <TableHeaderCell>GPU</TableHeaderCell>}
+                                            {!isCompute ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
+                                            {!isCompute ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
+                                            {!isCompute ? null : <TableHeaderCell>GPU</TableHeaderCell>}
                                             <TableHeaderCell>Price</TableHeaderCell>
                                             <TableHeaderCell>Description</TableHeaderCell>
                                         </TableRow>
@@ -97,11 +100,12 @@ function MachineView({area}: {area: string}): JSX.Element {
                                     <tbody>
                                         {machines.data.items.map(machine => {
                                             if (machine === null) return null;
+                                            const computeProduct = area === "COMPUTE" ? machine as ProductNS.Compute : null;
                                             return <TableRow key={machine.id} onClick={() => setActiveMachine(machine)}>
                                                 <TableCell>{machine.id}</TableCell>
-                                                {isStorage ? null : <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>}
-                                                {isStorage ? null : <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>}
-                                                {isStorage ? null : <TableCell>{machine.gpu ?? 0}</TableCell>}
+                                                {!computeProduct ? null : <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
+                                                {!computeProduct ? null : <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
+                                                {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
                                                 <TableCell>
                                                     {creditFormatter(machine.pricePerUnit * (isStorage ? 30 : 60), 3)}{isStorage ? " per GB/month" : "/hour"}
                                                 </TableCell>
@@ -136,7 +140,7 @@ function MachineView({area}: {area: string}): JSX.Element {
                             <TableHeaderCell>Name</TableHeaderCell>
                             <TableCell>{activeMachine.id}</TableCell>
                         </TableRow>
-                        {area !== "COMPUTE" ? null :
+                        {area !== "COMPUTE" || !("cpu" in activeMachine) ? null :
                             <>
                                 <TableRow>
                                     <th>vCPU</th>

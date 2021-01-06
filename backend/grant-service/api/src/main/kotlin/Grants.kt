@@ -317,7 +317,7 @@ data class GrantsRetrieveProductsRequest(
     val recipientId: String,
 )
 data class GrantsRetrieveProductsResponse(
-    val availableProducts: List<ProductCategory>
+    val availableProducts: List<Product>
 )
 
 /**

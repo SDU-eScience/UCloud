@@ -49,12 +49,19 @@ class ApplicationService(
     private val notifications: NotificationService,
     private val serviceClient: AuthenticatedClient
 ) {
+    private val productCacheByProvider = SimpleCache<String, List<Product>> {
+        Products.retrieveAllFromProvider.call(
+            RetrieveAllFromProviderRequest(it),
+            serviceClient
+        ).orNull()
+    }
+
     suspend fun retrieveProducts(
         ctx: DBContext,
         actor: Actor.User,
         resourcesOwnedBy: String,
         grantRecipient: GrantRecipient,
-    ): List<ProductCategory> {
+    ): List<Product> {
         verifyCanApplyTo(ctx, resourcesOwnedBy, actor, grantRecipient, false)
 
         val balance = Wallets.retrieveBalance.call(
@@ -62,8 +69,9 @@ class ApplicationService(
             serviceClient
         ).orThrow()
 
-        return balance.wallets.map {
-            ProductCategory(it.wallet.paysFor, it.area)
+        return balance.wallets.flatMap{ wb ->
+            val allProducts = productCacheByProvider.get(wb.wallet.paysFor.provider) ?: emptyList()
+            allProducts.filter { it.category.id == wb.wallet.paysFor.id }
         }
     }
 

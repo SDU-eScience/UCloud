@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Wed Jan 06 11:49:21 CET 2021 */
+/* Generated at: Wed Jan 06 14:08:12 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -4681,11 +4681,6 @@ export namespace accounting {
         provider: string,
     }
 
-    export interface ProductCategory {
-        id: ProductCategoryId,
-        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
-    }
-
     export namespace products {
         export function findProduct(
             request: FindProductRequest
@@ -6354,7 +6349,7 @@ export namespace grant {
     }
 
     export interface GrantsRetrieveProductsResponse {
-        availableProducts: accounting.ProductCategory[],
+        availableProducts: accounting.Product[],
     }
 
     export interface GrantsRetrieveProductsRequest {

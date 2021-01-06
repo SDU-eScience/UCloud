@@ -78,7 +78,7 @@ export const BalanceExplainer: React.FunctionComponent<{
 
     let pricePerUnit: number | null = null;
     let productName: string | null = null;
-    let productArea: "compute" | "storage" | null = null;
+    let productArea: "compute" | "storage" | "ingress" | "license" | null = null;
     {
         for (const prod of computeProducts.data.items) {
             if (productCategoryEquals(prod.category, props.productCategory)) {
@@ -99,6 +99,8 @@ export const BalanceExplainer: React.FunctionComponent<{
             }
         }
     }
+
+    if (productArea === "ingress" || productArea === "license") return null;
 
     if (productName === null || pricePerUnit === null || productArea === null) {
         return <>{creditFormatter(props.amount)}</>;
