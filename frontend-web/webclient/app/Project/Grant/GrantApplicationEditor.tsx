@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {useProjectManagementStatus} from "Project";
+import {ProjectName, useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
@@ -41,6 +41,8 @@ import {
     commentOnGrantApplication,
     deleteGrantApplicationComment,
     editGrantApplication,
+    findAffiliations,
+    FindAffiliationsResponse,
     GrantApplication,
     GrantApplicationStatus,
     GrantRecipient,
@@ -71,6 +73,7 @@ import ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {emptyPage} from "DefaultObjects";
 import {Spacer} from "ui-components/Spacer";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -156,7 +159,7 @@ interface UseRequestInformation {
 function useRequestInformation(target: RequestTarget): UseRequestInformation {
     let targetProject: string | undefined;
     let wallets: WalletBalance[] = [];
-    let reloadWallets: () => void = () => {
+    let reloadWallets = () => {
         /* empty */
     };
     let recipient: GrantRecipient;
@@ -1092,11 +1095,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     </Flex>
                 }
                 additional={
-                    <TransferApplicationPrompt
-                        isActive={transferringApplication}
-                        close={() => setTransferringApplication(false)}
-                        transfer={transferRequest}
-                    />}
+                    state.editingApplication != null && state.editingApplication.grantRecipientPi ?
+                        <TransferApplicationPrompt
+                            isActive={transferringApplication}
+                            close={() => setTransferringApplication(false)}
+                            transfer={transferRequest}
+                            username={state.editingApplication.grantRecipientPi}
+                        /> : null
+                }
             />
         );
     };
@@ -1104,12 +1110,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
 interface TransferApplicationPromptProps {
     isActive: boolean;
+    username: string;
     close(): void;
     transfer(toProjectId: string): Promise<void>;
 }
 
-function TransferApplicationPrompt({isActive, close, transfer}: TransferApplicationPromptProps) {
-    const [projects] = useCloudAPI<BrowseProjectsResponse>(browseProjects({page: 0, itemsPerPage: 100}), emptyPage);
+function TransferApplicationPrompt({isActive, close, transfer, username}: TransferApplicationPromptProps) {
+    const [projects] = useCloudAPI<FindAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, username}), emptyPage);
 
     return (
         <ReactModal
