@@ -316,7 +316,7 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
     }
 
-    val utilization = call<ComputeUtilizationRequest, ComputeUtilizationResponse, CommonErrorMessage>("utilization") {
+    val retrieveUtilization = call<ComputeUtilizationRequest, ComputeUtilizationResponse, CommonErrorMessage>("retrieveUtilization") {
         httpRetrieve(baseContext, "utilization")
     }
 

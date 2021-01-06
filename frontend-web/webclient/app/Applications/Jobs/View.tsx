@@ -408,7 +408,7 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     );
 
     useEffect(() => {
-        setUtilization(compute.jobs.utilization())
+        setUtilization(compute.jobs.retrieveUtilization())
     }, [status]);
  
     return <>

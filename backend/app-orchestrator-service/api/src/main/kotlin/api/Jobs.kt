@@ -482,7 +482,7 @@ object Jobs : CallDescriptionContainer("jobs") {
         }
     }
 
-    val utilization = call<JobsUtilizationRequest, JobsUtilizationResponse, CommonErrorMessage>("utilization") {
+    val retrieveUtilization = call<JobsUtilizationRequest, JobsUtilizationResponse, CommonErrorMessage>("retrieveUtilization") {
         httpRetrieve(baseContext, "utilization")
 
         documentation {

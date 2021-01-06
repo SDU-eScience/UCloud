@@ -146,7 +146,7 @@ class AppKubernetesController(
             }
         }
 
-        implement(KubernetesCompute.utilization) {
+        implement(KubernetesCompute.retrieveUtilization) {
             ok(ComputeUtilizationResponse(
                 utilizationService.retrieveCapacity(),
                 utilizationService.retrieveUsedCapacity(),
