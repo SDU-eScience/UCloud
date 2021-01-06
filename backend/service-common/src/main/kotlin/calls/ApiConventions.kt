@@ -17,7 +17,6 @@ object UCloudApi {
     const val BROWSE = "browse"
     const val SEARCH = "search"
     const val VERIFY = "verify"
-    const val UTILIZATION = "utilization"
 }
 
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(
@@ -81,35 +80,6 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
         path {
             using(baseContext)
             +"${UCloudApi.RETRIEVE}${subResource?.capitalize() ?: ""}"
-        }
-
-        if (R::class != Unit::class) {
-            params {
-                R::class.memberProperties.forEach { param ->
-                    if (R::class.primaryConstructor?.parameters?.any { it.name == param.name } == true) {
-                        +boundTo(param)
-                    }
-                }
-            }
-        }
-    }
-}
-
-inline fun <reified R : Any> CallDescription<R, *, *>.httpUtilization(
-    baseContext: String,
-    roles: Set<Role> = Roles.END_USER,
-) {
-    auth {
-        access = AccessRight.READ
-        this.roles = roles
-    }
-
-    http {
-        method = HttpMethod.Get
-
-        path {
-            using(baseContext)
-            +UCloudApi.UTILIZATION
         }
 
         if (R::class != Unit::class) {

@@ -89,11 +89,11 @@ data class ComputeOpenInteractiveSessionRequestItem(
 )
 data class ComputeOpenInteractiveSessionResponse(val sessions: List<OpenSession>)
 
-typealias UtilizationRequest = Unit
-data class UtilizationResponse(
-    val allocatable: CpuAndMemory,
-    val used: CpuAndMemory,
-    val jobs: JobUtilization
+typealias ComputeUtilizationRequest = Unit
+data class ComputeUtilizationResponse(
+    val capacity: CpuAndMemory,
+    val usedCapacity: CpuAndMemory,
+    val queueStatus: QueueStatus
 )
 
 data class CpuAndMemory(
@@ -101,7 +101,7 @@ data class CpuAndMemory(
     val memory: Long
 )
 
-data class JobUtilization(
+data class QueueStatus(
     val running: Int,
     val pending: Int
 )
@@ -316,7 +316,8 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
     }
 
-    val utilization = call<UtilizationRequest, UtilizationResponse, CommonErrorMessage>("utilization") {
-        httpUtilization(baseContext)
+    val utilization = call<ComputeUtilizationRequest, ComputeUtilizationResponse, CommonErrorMessage>("utilization") {
+        httpRetrieve(baseContext, "utilization")
     }
+
 }

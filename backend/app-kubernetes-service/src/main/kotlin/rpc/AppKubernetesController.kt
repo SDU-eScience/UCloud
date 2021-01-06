@@ -20,7 +20,6 @@ import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
-import java.util.concurrent.CancellationException
 import kotlin.collections.HashMap
 
 class AppKubernetesController(
@@ -148,10 +147,10 @@ class AppKubernetesController(
         }
 
         implement(KubernetesCompute.utilization) {
-            ok(UtilizationResponse(
-                utilizationService.allocatable(),
-                utilizationService.used(),
-                utilizationService.jobs()
+            ok(ComputeUtilizationResponse(
+                utilizationService.retrieveCapacity(),
+                utilizationService.retrieveUsedCapacity(),
+                utilizationService.retrieveQueueStatus()
             ))
         }
 

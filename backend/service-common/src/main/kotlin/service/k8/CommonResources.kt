@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.defaultMapper
-import org.elasticsearch.cluster.metadata.AliasAction
 import java.util.*
 
 object KubernetesResources {

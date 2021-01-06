@@ -291,9 +291,9 @@ typealias JobsRetrieveResponse = Job
 
 typealias JobsUtilizationRequest = Unit
 data class JobsUtilizationResponse(
-    val available: CpuAndMemory,
-    val used: CpuAndMemory,
-    val jobs: JobUtilization
+    val capacity: CpuAndMemory,
+    val usedCapacity: CpuAndMemory,
+    val queueStatus: QueueStatus
 )
 
 data class JobsBrowseRequest(
@@ -483,7 +483,7 @@ object Jobs : CallDescriptionContainer("jobs") {
     }
 
     val utilization = call<JobsUtilizationRequest, JobsUtilizationResponse, CommonErrorMessage>("utilization") {
-        httpUtilization(baseContext)
+        httpRetrieve(baseContext, "utilization")
 
         documentation {
             summary = "Retrieve utilization information from cluster"

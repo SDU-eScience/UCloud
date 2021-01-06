@@ -402,13 +402,13 @@ const Content = styled.div`
 `;
 
 const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
-    const [utilization, setUtilization] = useCloudAPI<compute.RetrieveUtilizationResponse | null>(
+    const [utilization, setUtilization] = useCloudAPI<compute.JobsUtilizationResponse | null>(
         {noop: true},
         null 
     );
 
     useEffect(() => {
-        setUtilization(compute.jobs.retrieveUtilization())
+        setUtilization(compute.jobs.utilization())
     }, [status]);
  
     return <>
@@ -442,14 +442,15 @@ const BusyWrapper = styled(Box)`
 
 const Busy: React.FunctionComponent<{
         job: Job;
-        utilization: compute.RetrieveUtilizationResponse | null
+        utilization: compute.JobsUtilizationResponse | null
 }> = ({job, utilization}) => {
     const ref = useRef<HTMLDivElement>(null);
+    const clusterUtilization = utilization ? Math.floor(utilization.usedCapacity.cpu / utilization.capacity.cpu * 100) : 0
 
     useEffect(() => {
         const t = setTimeout(() => {
             ref.current?.classList.add("active");
-        }, 6000);
+        }, 3000);
         return () => {
             clearTimeout(t);
         };
@@ -458,11 +459,15 @@ const Busy: React.FunctionComponent<{
     return <BusyWrapper ref={ref}>
         <Box mt={"16px"}>
             <Box mb={"16px"}>
-                Your reserved machine is currently quite popular.<br />
-                { utilization ? (
+                { clusterUtilization > 80 ? (
                     <>
-                        Cluster utilization is currently at {Math.floor(utilization.used.cpu / utilization.available.cpu * 100)}%
-                        with {utilization.jobs.running} jobs running and {utilization.jobs.pending} in the queue.
+                        Your reserved machine is currently quite popular.<br />
+                        { utilization ? (
+                            <>
+                                Cluster utilization is currently at {clusterUtilization}% with {utilization.queueStatus.running} jobs
+                                running and {utilization.queueStatus.pending} in the queue.
+                            </>
+                        ) : (<></>)}
                     </>
                 ) : (<></>)}
             </Box>

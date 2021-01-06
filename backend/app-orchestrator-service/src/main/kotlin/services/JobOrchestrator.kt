@@ -628,14 +628,14 @@ class JobOrchestrator(
         }
     }
 
-    suspend fun utilization(providerActor: Actor): JobsUtilizationResponse {
+    suspend fun retrieveUtilization(providerActor: Actor): JobsUtilizationResponse {
         val (api, client) = providers.prepareCommunication(providerActor)
         val response = api.utilization.call(Unit, client).orThrow()
 
         return JobsUtilizationResponse(
-            response.allocatable,
-            response.used,
-            response.jobs
+            response.capacity,
+            response.usedCapacity,
+            response.queueStatus
         )
     }
 
