@@ -53,7 +53,6 @@ export const Browse: React.FunctionComponent<{
     const projectId = useProjectId();
     const projectStatus = useProjectStatus();
     const history = useHistory();
-    const [wallets, fetchWallets] = useCloudAPI<UCloud.accounting.RetrieveBalanceResponse>({noop: true}, {wallets: []});
     const [licenses, fetchLicenses] = useCloudAPI<PageV2<License>>({noop: true}, emptyPageV2);
     const [products, setProducts] = useState<ProductNS.License[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
@@ -62,7 +61,7 @@ export const Browse: React.FunctionComponent<{
     const [selected, setSelected] = useState<{ groups: ToggleSet<LicenseGroup>, instances: ToggleSet<License> }>(
         {groups: new ToggleSet(), instances: new ToggleSet()}
     );
-    const loading = wallets.loading || licenses.loading || loadingProducts || commandLoading;
+    const loading = licenses.loading || loadingProducts || commandLoading;
 
     /*
      * Callbacks
@@ -90,7 +89,6 @@ export const Browse: React.FunctionComponent<{
         selected.groups.clear();
         selected.instances.clear();
         setSelected({...selected});
-        fetchWallets(UCloud.accounting.wallets.retrieveBalance({}));
         fetchLicenses(UCloud.compute.licenses.browse({itemsPerPage: 250, includeAcl: true, includeUpdates: true}));
     }, [projectId, selected]);
 
@@ -132,38 +130,26 @@ export const Browse: React.FunctionComponent<{
     /*
      * Effects
      */
-    const availableProductTypes = useMemo(
-        () => wallets.data.wallets
-            .filter(it => it.area === "LICENSE" &&
-                (provider === undefined || it.wallet.paysFor.provider === provider))
-            .map(it => it.wallet.paysFor),
-        [wallets.data]
-    );
-
     useEffect(() => {
         // Fetch all products when the available types change
         let didCancel = false;
         setLoadingProducts(true);
 
         (async () => {
-            const allProducts: ProductNS.License[] = [];
-            const providers = new Set<string>();
-            for (const product of availableProductTypes) {
-                providers.add(product.provider);
-            }
+            const res = await callAPI(
+                UCloud.accounting.products.browse({
+                    filterProvider: provider,
+                    filterUsable: true,
+                    filterArea: "LICENSE",
+                    itemsPerPage: 250,
+                    includeBalance: true
+                })
+            );
 
-            for (const provider of providers) {
-                if (didCancel) break;
-                const res = await callAPI(UCloud.accounting.products.retrieveAllFromProvider({provider}));
-                res
-                    .filter(it => it.type === "license")
-                    .map(it => it as ProductNS.License)
-                    .filter(product => {
-                        return availableProductTypes.find(type => type.id === product.category.id) !== undefined;
-                    })
-                    .filter(it => !tagged ? true : tagged.some(tag => it.tags.indexOf(tag) !== -1))
-                    .forEach(it => allProducts.push(it));
-            }
+            const allProducts: ProductNS.License[] = res.items
+                .filter(it => it.type === "license")
+                .map(it => it as ProductNS.License)
+                .filter(it => !tagged ? true : tagged.some(tag => it.tags.indexOf(tag) !== -1))
 
             if (!didCancel) {
                 setLoadingProducts(false);
@@ -174,7 +160,7 @@ export const Browse: React.FunctionComponent<{
         return () => {
             didCancel = true;
         };
-    }, [availableProductTypes, tagged]);
+    }, [projectId, tagged]);
 
     const groups: LicenseGroup[] = products.map(product => ({product, instances: []}));
     for (const license of licenses.data.items) {
@@ -222,8 +208,10 @@ export const Browse: React.FunctionComponent<{
                                 <ListStatContainer>
                                     <ListRowStat icon={"id"}>{g.product.category.provider}</ListRowStat>
                                     <ListRowStat icon={"grant"}>
-                                        <PaymentModelExplainer model={g.product.paymentModel}/>:
-                                        {creditFormatter(g.product.pricePerUnit, 0)}
+                                        <PaymentModelExplainer
+                                            model={g.product.paymentModel}
+                                            price={g.product.pricePerUnit}
+                                        />
                                     </ListRowStat>
                                     {g.instances.length !== 1 ? null : (
                                         <InstanceStats instance={g.instances[0]} onInspect={callbacks.inspect}/>
@@ -306,7 +294,8 @@ export const Browse: React.FunctionComponent<{
                                 {dateToString(update.timestamp)}
                                 <br/>
                                 {update.status ? <TextSpan mr={"10px"}>{update.status}</TextSpan> : null}
-                                {!update.state ? null : <><Icon name={"hashtag"} size={"12px"} color={"gray"} /> {prettierString(update.state)}</>}
+                                {!update.state ? null : <><Icon name={"hashtag"} size={"12px"}
+                                                                color={"gray"}/> {prettierString(update.state)}</>}
                             </li>
                         })}
                     </ul>
@@ -578,7 +567,7 @@ const licenseInstanceOperations: Operation<License, LicenseOpCallback>[] = [
     }
 ];
 
-const LicensePermissions: React.FunctionComponent<{license: License, reload: () => void}> = ({license, reload}) => {
+const LicensePermissions: React.FunctionComponent<{ license: License, reload: () => void }> = ({license, reload}) => {
     const projectId = useProjectId();
     const [projectGroups, fetchProjectGroups, groupParams] =
         useCloudAPI<Page<GroupWithSummary>>({noop: true}, emptyPage);

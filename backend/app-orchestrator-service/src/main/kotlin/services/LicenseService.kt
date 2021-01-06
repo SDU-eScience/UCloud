@@ -1,7 +1,9 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.BulkRequest
@@ -41,8 +43,9 @@ class LicenseService(
                         val retrievedLicense = dao.retrieve(
                             session,
                             LicenseId(license.id),
-                            LicenseDataIncludeFlags(includeAcl = true)
+                            LicenseDataIncludeFlags(includeAcl = true, includeProduct = true)
                         ) ?: throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
+                        val product = retrievedLicense.resolvedProduct!!
 
                         if (jobProject != retrievedLicense.owner.project) {
                             throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
@@ -87,6 +90,14 @@ class LicenseService(
                             throw RPCException(
                                 "Ingress ${retrievedLicense.product.id} is not ready",
                                 HttpStatusCode.BadRequest
+                            )
+                        }
+
+                        if (product.paymentModel == PaymentModel.FREE_BUT_REQUIRE_BALANCE) {
+                            paymentService.creditCheck(
+                                product,
+                                job.owner.project ?: job.owner.launchedBy,
+                                if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
                             )
                         }
                     }
