@@ -70,19 +70,21 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
 
     return <div>
         <Spacer mb="6px"
-            left={!canChangeProvider ? null : <Box width="calc(50% - 10px)">
-                <Label>
-                    1. Select Provider
-                    <Select placeholder="Provider...">
-                        <option onClick={() => setSelectedProvider(undefined)}></option>
-                        {viableProviders.map(provider =>
-                            <option key={provider} onClick={() => setSelectedProvider(provider)}>
-                                {provider}
-                            </option>
-                        )}
-                    </Select>
-                </Label>
-            </Box>}
+            left={
+                <Box width="calc(50% - 10px)">
+                    <Label>
+                        1. Select Provider
+                        {canChangeProvider ? <Select placeholder="Provider...">
+                            <option onClick={() => setSelectedProvider(undefined)}></option>
+                            {viableProviders.map(provider =>
+                                <option key={provider} onClick={() => setSelectedProvider(provider)}>
+                                    {provider}
+                                </option>
+                            )}
+                        </Select> : <Input value={props.computeProvider} readOnly />}
+                    </Label>
+                </Box>
+            }
             right={<Box width="calc(50% - 10px)">
                 <Label>
                     {!canChangeProvider ? "1" : "2"}. Select Product
