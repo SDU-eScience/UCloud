@@ -9,88 +9,9 @@ import {compute} from "UCloud";
 import Ingress = compute.Ingress;
 import {PageRenderer} from "Pagination/PaginationV2";
 import {ListRow, ListRowStat} from "ui-components/List";
-import {Button, Flex, Icon, Text} from "ui-components";
-import {Client} from "Authentication/HttpClientInstance";
+import {Button, Icon, Text} from "ui-components";
 import {creditFormatter} from "Project/ProjectUsage";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-
-const data: compute.Ingress[] = [{
-    id: "id",
-    domain: "domain",
-    billing: {pricePerUnit: 100000, creditsCharged: 0},
-    createdAt: 123890123,
-    owner: {
-        username: Client.username!,
-    },
-    product: {
-        category: "category",
-        id: "id",
-        provider: "provider"
-    },
-    status: {
-        state: "PREPARING",
-        boundTo: undefined
-    },
-    updates: [],
-    resolvedProduct: undefined
-}, {
-    id: "id2",
-    domain: "domain2",
-    billing: {pricePerUnit: 200000, creditsCharged: 1000000},
-    createdAt: 123890123 + 1000000,
-    owner: {
-        username: Client.username + " foo",
-    },
-    product: {
-        category: "category 2 ",
-        id: "id 2",
-        provider: "provider2"
-    },
-    status: {
-        state: "PREPARING",
-        boundTo: "foodbarz"
-    },
-    updates: [],
-    resolvedProduct: undefined
-}, {
-    id: "id3",
-    domain: "domain3",
-    billing: {pricePerUnit: 300000, creditsCharged: 2000000},
-    createdAt: 123890123 + 2000000,
-    owner: {
-        username: Client.username + " foo",
-    },
-    product: {
-        category: "category 3 ",
-        id: "id 3",
-        provider: "provider3"
-    },
-    status: {
-        state: "READY"
-    },
-    updates: [],
-    resolvedProduct: undefined
-}, {
-    id: "id3",
-    domain: "domain3",
-    billing: {pricePerUnit: 300000, creditsCharged: 2000000},
-    createdAt: 123890123 + 2000000,
-    owner: {
-        username: Client.username + " foo",
-    },
-    product: {
-        category: "category 3 ",
-        id: "id 3",
-        provider: "provider3"
-    },
-    status: {
-        state: "READY",
-        boundTo: "foo"
-    },
-    updates: [],
-    resolvedProduct: undefined
-}];
-
 
 const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (selection: {id: string; domain: string}) => void}> = props => {
     const projectId = useProjectId();

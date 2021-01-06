@@ -126,7 +126,7 @@ export const Create: React.FunctionComponent = () => {
 
         // Load parameters
         for (const param of parameters) {
-            const value = values[param.name]
+            const value = values[param.name];
             if (value) {
                 setWidgetValues([{param, value}]);
             }
