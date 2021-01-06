@@ -43,6 +43,14 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
         }
     }
 
+    /*  Should be equivalent to the current filling of viableProviders.
+    
+    wallets.data.wallets
+        .filter(it => it.area === "INGRESS")
+        .map(it => it.wallet.paysFor.provider)); 
+    
+    */
+
     const reload = useCallback(() => {
         if (selectedProvider) {
             fetchProductsFromProvider(
