@@ -1,8 +1,10 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
@@ -40,8 +42,12 @@ class IngressService(
 
                 ctx.withSession { session ->
                     ingressPoints.forEach { ingress ->
-                        val retrievedIngress = dao.retrieve(session, IngressId(ingress.id), IngressDataIncludeFlags())
-                            ?: throw RPCException("Invalid ingress: ${ingress.id}", HttpStatusCode.BadRequest)
+                        val retrievedIngress = dao.retrieve(
+                            session,
+                            IngressId(ingress.id),
+                            IngressDataIncludeFlags(includeProduct = true)
+                        ) ?: throw RPCException("Invalid ingress: ${ingress.id}", HttpStatusCode.BadRequest)
+                        val product = retrievedIngress.resolvedProduct!!
 
                         if (jobProject != retrievedIngress.owner.project) {
                             throw RPCException("Invalid ingress: ${ingress.id}", HttpStatusCode.BadRequest)
@@ -70,6 +76,14 @@ class IngressService(
                             throw RPCException(
                                 "Ingress ${retrievedIngress.domain} is already in use",
                                 HttpStatusCode.BadRequest
+                            )
+                        }
+
+                        if (product.paymentModel == PaymentModel.FREE_BUT_REQUIRE_BALANCE) {
+                            paymentService.creditCheck(
+                                product,
+                                job.owner.project ?: job.owner.launchedBy,
+                                if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
                             )
                         }
                     }

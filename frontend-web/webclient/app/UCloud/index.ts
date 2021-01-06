@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Jan 05 14:52:33 CET 2021 */
+/* Generated at: Wed Jan 06 11:49:21 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -30,14 +30,14 @@ export interface Page<T> {
     ,
 }
 
-export type BulkRequest<T> = T | { type: "bulk", items: T[] }
-
 export interface PageV2<T> {
     itemsPerPage: number /* int32 */
     ,
     items: T[],
     next?: string,
 }
+
+export type BulkRequest<T> = T | { type: "bulk", items: T[] }
 
 export interface FindByStringId {
     id: string,
@@ -4628,6 +4628,20 @@ export namespace accounting {
         provider: string,
     }
 
+    export interface ProductsBrowseRequest {
+        itemsPerPage?: number /* int32 */
+        ,
+        next?: string,
+        consistency?: "PREFER" | "REQUIRE",
+        itemsToSkip?: number /* int64 */
+        ,
+        filterProvider?: string,
+        filterArea?: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
+        filterUsable?: boolean,
+        filterCategory?: string,
+        includeBalance?: boolean,
+    }
+
     export interface UsageResponse {
         charts: UsageChart[],
     }
@@ -4755,6 +4769,28 @@ export namespace accounting {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/products" + "/retrieve", {provider: request.provider}),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export function browse(
+            request: ProductsBrowseRequest
+        ): APICallParameters<ProductsBrowseRequest, PageV2<Product>> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/products" + "/browse", {
+                    consistency: request.consistency,
+                    filterArea: request.filterArea,
+                    filterCategory: request.filterCategory,
+                    filterProvider: request.filterProvider,
+                    filterUsable: request.filterUsable,
+                    includeBalance: request.includeBalance,
+                    itemsPerPage: request.itemsPerPage,
+                    itemsToSkip: request.itemsToSkip,
+                    next: request.next
+                }),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -4905,6 +4941,11 @@ export namespace accounting {
             availability: ProductAvailability,
             priority: number /* int32 */
             ,
+            /**
+             * Included only with certain endpoints which support `includeBalance`
+             */
+            balance?: number /* int64 */
+            ,
             type: "storage",
         }
 
@@ -4923,6 +4964,11 @@ export namespace accounting {
             ,
             gpu?: number /* int32 */
             ,
+            /**
+             * Included only with certain endpoints which support `includeBalance`
+             */
+            balance?: number /* int64 */
+            ,
             type: "compute",
         }
 
@@ -4935,7 +4981,12 @@ export namespace accounting {
             availability: ProductAvailability,
             priority: number /* int32 */
             ,
-            paymentModel: "PER_ACTIVATION",
+            paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+            /**
+             * Included only with certain endpoints which support `includeBalance`
+             */
+            balance?: number /* int64 */
+            ,
             type: "ingress",
         }
 
@@ -4949,7 +5000,12 @@ export namespace accounting {
             priority: number /* int32 */
             ,
             tags: string[],
-            paymentModel: "PER_ACTIVATION",
+            paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+            /**
+             * Included only with certain endpoints which support `includeBalance`
+             */
+            balance?: number /* int64 */
+            ,
             type: "license",
         }
     }

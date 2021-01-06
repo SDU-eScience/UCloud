@@ -285,6 +285,12 @@ class LicenseDao(
             licenses = licenses.filter { Pair(it.product.id, it.product.provider) in viableProducts }
         }
 
+        if (flags.includeProduct == true) {
+            licenses = licenses.map {
+                it.copy(resolvedProduct = products.find(it.product.provider, it.product.id, it.product.category))
+            }
+        }
+
         return licenses
     }
 }

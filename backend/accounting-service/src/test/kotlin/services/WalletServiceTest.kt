@@ -303,7 +303,6 @@ class WalletServiceTest {
 
         runBlocking {
             walletService.requirePermissionToReadBalance(
-                db,
                 Actor.User(user),
                 walletUserStandard.id,
                 walletUserStandard.type

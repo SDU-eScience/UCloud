@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
+import java.util.*
 import kotlin.math.ceil
 
 object MissedPayments : SQLTable("missed_payments") {
@@ -33,6 +34,7 @@ sealed class Payment {
     abstract val launchedBy: String
     abstract val project: String?
     abstract val product: ProductReference
+    abstract val productArea: ProductArea
 
     data class OfJob(val job: Job, val timeUsedInMillis: Long, override val chargeId: String) : Payment() {
         override val type = "job"
@@ -44,6 +46,7 @@ sealed class Payment {
         override val product = job.parameters.product
         override val launchedBy: String = job.owner.launchedBy
         override val project: String? = job.owner.project
+        override val productArea = ProductArea.COMPUTE
 
         companion object {
             private const val MILLIS_PER_MINUTE = 1000L * 60
@@ -59,6 +62,7 @@ sealed class Payment {
         override val product = ingress.product
         override val launchedBy: String = ingress.owner.username
         override val project: String? = ingress.owner.project
+        override val productArea = ProductArea.INGRESS
     }
 
     data class OfLicense(val license: License, override val units: Long, override val chargeId: String) : Payment() {
@@ -70,6 +74,7 @@ sealed class Payment {
         override val product = license.product
         override val launchedBy: String = license.owner.username
         override val project: String? = license.owner.project
+        override val productArea = ProductArea.LICENSE
     }
 }
 
@@ -155,7 +160,7 @@ class PaymentService(
                     throw RPCException(
                         "Insufficient funds for job",
                         HttpStatusCode.PaymentRequired,
-                        "NOT_ENOUGH_${ProductArea.COMPUTE}_CREDITS"
+                        "NOT_ENOUGH_${payment.productArea}_CREDITS"
                     )
                 }
 
@@ -165,6 +170,43 @@ class PaymentService(
 
                 else -> throw RPCException.fromStatusCode(code)
             }
+        }
+    }
+
+    suspend fun creditCheck(
+        product: Product,
+        accountId: String,
+        accountType: WalletOwnerType,
+    ) {
+        val code = Wallets.reserveCredits.call(
+            ReserveCreditsRequest(
+                UUID.randomUUID().toString(),
+                1L,
+                System.currentTimeMillis(),
+                Wallet(accountId, accountType, product.category),
+                "_ucloud",
+                product.id,
+                0L,
+                discardAfterLimitCheck = true,
+                transactionType = TransactionType.PAYMENT
+            ),
+            serviceClient
+        ).statusCode
+
+        when {
+            code == HttpStatusCode.PaymentRequired -> {
+                throw RPCException(
+                    "Insufficient funds for job",
+                    HttpStatusCode.PaymentRequired,
+                    "NOT_ENOUGH_${product.area}_CREDITS"
+                )
+            }
+
+            code.isSuccess() -> {
+                // Do nothing
+            }
+
+            else -> throw RPCException.fromStatusCode(code)
         }
     }
 

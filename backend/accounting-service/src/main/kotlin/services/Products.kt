@@ -7,12 +7,8 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 
 object ProductCategoryTable : SQLTable("product_categories") {
@@ -41,7 +37,9 @@ object ProductTable : SQLTable("products") {
     val paymentModel = text("payment_model", notNull = false)
 }
 
-class ProductService {
+class ProductService(
+    private val balanceService: BalanceService,
+) {
     suspend fun create(
         ctx: DBContext,
         actor: Actor,
@@ -278,6 +276,97 @@ class ProductService {
                 )
                 .mapItems { it.toProduct() }
         }
+    }
+
+    suspend fun browse(
+        ctx: AsyncDBSessionFactory,
+        actor: Actor,
+        project: String?,
+        request: ProductsBrowseRequest
+    ): PageV2<Product> {
+        balanceService.requirePermissionToReadBalance(
+            actor,
+            project ?: actor.safeUsername(),
+            if (project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
+        )
+
+        return ctx.paginateV2(
+            actor,
+            request.normalize(),
+            create = { session ->
+                val params: EnhancedPreparedStatement.() -> Unit = {
+                    with(request) {
+                        setParameter("filterCategory", filterCategory)
+                        setParameter("filterProvider", filterProvider)
+                        setParameter("filterArea", filterArea?.name)
+                    }
+                }
+
+                if (request.filterUsable != true && request.includeBalance != true) {
+                    session.sendPreparedStatement(
+                        params,
+                        """
+                            declare c cursor for
+                            select *
+                            from products p
+                            where
+                                (:filterCategory::text is null or p.category = :filterCategory) and
+                                (:filterProvider::text is null or p.provider = :filterProvider) and
+                                (:filterArea::text is null or p.area = :filterArea)
+                            order by p.provider, p.priority, p.id
+                        """
+                    )
+                } else {
+                    session.sendPreparedStatement(
+                        {
+                            params()
+                            setParameter("accountId", project ?: actor.safeUsername())
+                            setParameter(
+                                "accountType",
+                                (if (project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER).name
+                            )
+                            setParameter("filterUsable", request.filterUsable == true)
+                            setParameter("requireCredits", PaymentModel.FREE_BUT_REQUIRE_BALANCE.name)
+                        },
+                        """
+                            declare c cursor for
+                            with my_wallets as(
+                                select *
+                                from wallets
+                                where
+                                    account_id = :accountId and
+                                    account_type = :accountType and
+                                    (:filterCategory::text is null or product_category = :filterCategory) and
+                                    (:filterProvider::text is null or product_provider = :filterProvider)
+                            )
+                            select p.*, w.balance
+                            from 
+                                products p left outer join my_wallets w 
+                                    on (p.category = w.product_category and p.provider = w.product_provider)
+                            where
+                                (:filterCategory::text is null or p.category = :filterCategory) and
+                                (:filterProvider::text is null or p.provider = :filterProvider) and
+                                (:filterArea::text is null or p.area = :filterArea) and
+                                (
+                                    not :filterUsable or 
+                                    (w.balance is not null and w.balance > 0) or 
+                                    (p.price_per_unit = 0 and p.payment_model != :requireCredits)
+                                )
+                            order by p.provider, p.priority, p.id
+                        """
+                    )
+                }
+            },
+            mapper = { _, rows ->
+                rows.map {
+                    val product = it.toProduct()
+                    if (request.includeBalance == true) {
+                        product.balance = it.getLong("balance")
+                    }
+                    product
+                }
+            }
+        )
     }
 
     private suspend fun createProductCategoryIfNotExists(

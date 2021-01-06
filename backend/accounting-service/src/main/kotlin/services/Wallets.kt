@@ -66,7 +66,6 @@ class BalanceService(
     private val client: AuthenticatedClient
 ) {
     suspend fun requirePermissionToReadBalance(
-        ctx: DBContext,
         initiatedBy: Actor,
         accountId: String,
         walletOwnerType: WalletOwnerType
@@ -159,7 +158,7 @@ class BalanceService(
         includeChildren: Boolean
     ): List<WalletBalance> {
         return ctx.withSession { session ->
-            requirePermissionToReadBalance(session, initiatedBy, accountId, accountOwnerType)
+            requirePermissionToReadBalance(initiatedBy, accountId, accountOwnerType)
             verificationService.verify(accountId, accountOwnerType)
 
             val accountIds = if (accountOwnerType == WalletOwnerType.PROJECT && includeChildren) {
@@ -212,7 +211,7 @@ class BalanceService(
         verify: Boolean = true
     ): Pair<Long, Boolean> {
         return ctx.withSession { session ->
-            requirePermissionToReadBalance(session, initiatedBy, account.id, account.type)
+            requirePermissionToReadBalance(initiatedBy, account.id, account.type)
 
             session
                 .sendPreparedStatement(
