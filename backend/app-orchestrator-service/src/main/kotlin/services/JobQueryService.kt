@@ -35,9 +35,12 @@ class JobQueryService(
             securityPrincipal,
             pagination,
             create = { session ->
-                val isAdmin =
-                    if (project == null) false
-                    else projectCache.retrieveRole(securityPrincipal.username, project)?.isAdmin() == true
+                val projectRole =
+                    if (project != null) projectCache.retrieveRole(securityPrincipal.username, project)
+                    else null
+
+                val isAdmin = projectRole?.isAdmin() == true
+                val isMember = projectRole != null
 
                 val isSystem = securityPrincipal == Actor.System
 
@@ -47,6 +50,7 @@ class JobQueryService(
                             setParameter("username", securityPrincipal.username)
                             setParameter("project", project)
                             setParameter("isAdmin", isAdmin)
+                            setParameter("isMember", isMember)
                             setParameter("isSystem", isSystem)
 
                             setParameter("filterApplication", filters?.filterApplication)
@@ -66,7 +70,8 @@ class JobQueryService(
                                 where 
                                     (
                                         :isSystem or
-                                        (j.launched_by = :username and (project is null or j.project = :project::text)) or
+                                        (j.launched_by = :username and 
+                                            (project is null or (j.project = :project::text and :isMember))) or
                                         (:isAdmin and :project::text is not null and j.project = :project::text)
                                     ) and
                                     (
@@ -214,9 +219,12 @@ class JobQueryService(
         flags: JobDataIncludeFlags,
     ): VerifiedJobWithAccessToken {
         return db.withSession { session ->
-            val isAdmin =
-                if (project == null) false
-                else projectCache.retrieveRole(securityPrincipal.username, project)?.isAdmin() == true
+            val projectRole =
+                if (project != null) projectCache.retrieveRole(securityPrincipal.username, project)
+                else null
+
+            val isAdmin = projectRole?.isAdmin() == true
+            val isMember = projectRole != null
 
             val isSystem = securityPrincipal == Actor.System
 
@@ -224,6 +232,7 @@ class JobQueryService(
                 .sendPreparedStatement(
                     {
                         setParameter("isAdmin", isAdmin)
+                        setParameter("isMember", isMember)
                         setParameter("project", project)
                         setParameter("jobId", jobId)
                         setParameter("username", securityPrincipal.username)
@@ -236,7 +245,7 @@ class JobQueryService(
                             j.id = :jobId and
                             (
                                 :isSystem or
-                                (j.launched_by = :username and (project is null or j.project = :project::text)) or
+                                (j.launched_by = :username and (project is null or (j.project = :project::text and :isMember))) or
                                 (:isAdmin and project is not null and j.project = :project::text)
                             )
                     """

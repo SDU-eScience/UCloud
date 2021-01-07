@@ -448,13 +448,12 @@ class BalanceService(
 
     suspend fun reserveCredits(
         ctx: DBContext,
-        initiatedBy: Actor,
+        initiatedBy: String,
         request: ReserveCreditsRequest,
         reserveForAncestors: Boolean = true,
         origWallet: Wallet? = null,
-        initiatedByUsername: String? = null
     ): Unit = with(request) {
-        log.info("reserveCredits($initiatedBy, $request, $reserveForAncestors, $origWallet, $initiatedByUsername)")
+        log.info("reserveCredits($initiatedBy, $request, $reserveForAncestors, $origWallet)")
         val wallet = request.account
         val originalWallet = origWallet ?: wallet
         require(originalWallet.paysFor == wallet.paysFor)
@@ -464,7 +463,7 @@ class BalanceService(
             ctx.withSession { session ->
                 val ancestorWallets = if (reserveForAncestors) wallet.ancestors() else emptyList()
 
-                val (balance, walletExists) = getBalance(ctx, initiatedBy, wallet, true)
+                val (balance, walletExists) = getBalance(ctx, Actor.System, wallet, true)
                 if (!walletExists) {
                     setBalance(session, Actor.System, request.account, 0L, 0L)
                 }
@@ -518,7 +517,7 @@ class BalanceService(
                         set(TransactionTable.productProvider, wallet.paysFor.provider)
                         set(TransactionTable.amount, amount)
                         set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
-                        set(TransactionTable.initiatedBy, initiatedByUsername ?: initiatedBy.safeUsername())
+                        set(TransactionTable.initiatedBy, initiatedBy)
                         set(TransactionTable.isReserved, true)
                         set(TransactionTable.productId, productId)
                         set(TransactionTable.units, productUnits)
@@ -537,11 +536,10 @@ class BalanceService(
                     // the parents should have it
                     reserveCredits(
                         session,
-                        Actor.System,
+                        initiatedBy,
                         request.copy(account = ancestor, discardAfterLimitCheck = false, skipIfExists = false),
                         reserveForAncestors = false,
                         origWallet = wallet,
-                        initiatedByUsername = initiatedByUsername ?: initiatedBy.safeUsername()
                     )
                 }
 
@@ -634,7 +632,7 @@ class BalanceService(
             val id = UUID.randomUUID().toString()
             reserveCredits(
                 session,
-                actor,
+                actor.safeUsername(),
                 ReserveCreditsRequest(
                     jobId = id,
                     amount = request.amount,
