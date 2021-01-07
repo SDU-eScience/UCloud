@@ -641,6 +641,8 @@ const RunningContent: React.FunctionComponent<{
 }> = ({job, updateListeners, status}) => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
+    const projects = useProjectStatus();
+    const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ?? "My Workspace";
     const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
         const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
         if (!commandLoading && expiresAt) {
@@ -670,7 +672,7 @@ const RunningContent: React.FunctionComponent<{
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box><b>Reservation:</b> {job.parameters.product.provider} / {job.parameters.product.id} (x{job.parameters.replicas})</Box>
                     <Box><b>Input:</b> {jobInputString(job.parameters, projectNames)}</Box>
-                    <Box><b>Launched by:</b> {job.owner.launchedBy} in {job.owner.project ?? "My workspace"}</Box>
+                    <Box><b>Launched by:</b> {job.owner.launchedBy} in {workspaceTitle}</Box>
                     <Box flexGrow={1} />
                     <Box mt={"16px"}>
                         <CancelButton job={job} state={"RUNNING"} fullWidth />
