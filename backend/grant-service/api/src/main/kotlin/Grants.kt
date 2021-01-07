@@ -863,7 +863,7 @@ object Grants : CallDescriptionContainer("grant") {
 
             path {
                 using(baseContext)
-                +"find-affiliation"
+                +"find-affiliations"
             }
 
             params {
