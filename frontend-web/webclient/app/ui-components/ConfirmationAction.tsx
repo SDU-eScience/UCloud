@@ -284,7 +284,10 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         button.style.setProperty("--duration", "1600ms");
     }, [buttonRef.current]);
 
-    return <Wrapper {...props} onMouseDown={start} onTouchStart={start} onMouseUp={end} onTouchEnd={end}
+    const passedProps = {...props};
+    delete passedProps.onAction;
+
+    return <Wrapper {...passedProps} onMouseDown={start} onTouchStart={start} onMouseUp={end} onTouchEnd={end}
                     onClick={doNothing} ref={buttonRef}>
         <div className={"ucloud-native-icons"}>
             <Icon name={props.icon} size={"20"}/>

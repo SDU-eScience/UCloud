@@ -6,7 +6,7 @@ import Warning from "ui-components/Warning";
 import Create from "Applications/Ingresses/Create";
 import Browse from "Applications/Ingresses/Browse";
 import ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {defaultModalStyle, largeModalStyle} from "Utilities/ModalUtilities";
 import {validateMachineReservation} from "../Widgets/Machines";
 import {Spacer} from "ui-components/Spacer";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -30,7 +30,7 @@ export const IngressResource: React.FunctionComponent<{
                             </Label>
                         }
                         right={!props.enabled ? null : (
-                            <Button onClick={props.addRow} height="32px" width="160px">Add ingress</Button>
+                            <Button onClick={props.addRow} height="32px" width="160px">Add public links</Button>
                         )}
                     />
                 </div>
@@ -88,7 +88,8 @@ export function IngressRow(props: IngressRowProps): JSX.Element {
         <Input readOnly hidden ref={props.refs.id} />
         <ReactModal
             isOpen={modalOpen}
-            style={defaultModalStyle}
+            ariaHideApp={false}
+            style={largeModalStyle}
             shouldCloseOnEsc
             shouldCloseOnOverlayClick
             onRequestClose={() => setModalOpen(false)}

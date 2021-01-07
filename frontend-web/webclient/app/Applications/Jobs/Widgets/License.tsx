@@ -11,27 +11,11 @@ import {useCallback, useState} from "react";
 import ReactModal from "react-modal";
 import License = compute.License;
 import {Box} from "ui-components";
+import {largeModalStyle} from "Utilities/ModalUtilities";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
 }
-
-const modalStyle = {
-    content: {
-        borderRadius: "6px",
-        top: "50%",
-        left: "50%",
-        right: "auto",
-        bottom: "auto",
-        marginRight: "-50%",
-        transform: "translate(-50%, -50%)",
-        background: "",
-        minWidth: "800px",
-        maxWidth: "1200px",
-        minHeight: "400px",
-        height: "80vh"
-    }
-};
 
 export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => {
     const error = props.errors[props.parameter.name] != null;
@@ -51,7 +35,7 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
     return <Flex>
         <ReactModal
             isOpen={open}
-            style={modalStyle}
+            style={largeModalStyle}
             onRequestClose={doClose}
             ariaHideApp={false}
             shouldCloseOnEsc
