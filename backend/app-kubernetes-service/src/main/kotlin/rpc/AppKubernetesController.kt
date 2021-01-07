@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.services.JobAndRank
 import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
+import dk.sdu.cloud.app.kubernetes.services.UtilizationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -19,7 +20,6 @@ import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
-import java.util.concurrent.CancellationException
 import kotlin.collections.HashMap
 
 class AppKubernetesController(
@@ -27,6 +27,7 @@ class AppKubernetesController(
     private val logService: K8LogService,
     private val webService: WebService,
     private val vncService: VncService,
+    private val utilizationService: UtilizationService
 ) : Controller {
     private val streams = HashMap<String, ReceiveChannel<*>>()
     private val streamsMutex = Mutex()
@@ -143,6 +144,14 @@ class AppKubernetesController(
                     }
                 }
             }
+        }
+
+        implement(KubernetesCompute.retrieveUtilization) {
+            ok(ComputeUtilizationResponse(
+                utilizationService.retrieveCapacity(),
+                utilizationService.retrieveUsedCapacity(),
+                utilizationService.retrieveQueueStatus()
+            ))
         }
 
         return@configure

@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.kubernetes.services
 
 class NameAllocator {
     suspend fun jobIdToNamespace(jobId: String): String {
-        return "app-kubernetes"
+        return namespace
     }
 
     fun jobIdToJobName(jobId: String): String {
@@ -22,5 +22,10 @@ class NameAllocator {
 
     suspend fun jobIdAndRankToPodName(jobId: String, rank: Int): String {
         return jobIdToJobName(jobId) + "-job-" + rank
+    }
+
+    companion object {
+        const val namespace = "app-kubernetes"
+        const val nodeLabel = "ucloud-compute"
     }
 }

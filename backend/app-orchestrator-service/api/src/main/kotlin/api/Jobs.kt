@@ -289,6 +289,13 @@ data class JobsRetrieveRequest(
 ) : JobDataIncludeFlags
 typealias JobsRetrieveResponse = Job
 
+typealias JobsUtilizationRequest = Unit
+data class JobsUtilizationResponse(
+    val capacity: CpuAndMemory,
+    val usedCapacity: CpuAndMemory,
+    val queueStatus: QueueStatus
+)
+
 data class JobsBrowseRequest(
     override val itemsPerPage: Int,
     override val next: String? = null,
@@ -472,6 +479,14 @@ object Jobs : CallDescriptionContainer("jobs") {
 
         documentation {
             summary = "Retrieve a single Job"
+        }
+    }
+
+    val retrieveUtilization = call<JobsUtilizationRequest, JobsUtilizationResponse, CommonErrorMessage>("retrieveUtilization") {
+        httpRetrieve(baseContext, "utilization")
+
+        documentation {
+            summary = "Retrieve utilization information from cluster"
         }
     }
 

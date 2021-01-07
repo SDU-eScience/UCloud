@@ -4,7 +4,6 @@ import {PRODUCT_NAME} from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import * as Jobs from "./index";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
@@ -28,7 +27,6 @@ import {compute} from "UCloud";
 import Job = compute.Job;
 import JobParameters = compute.JobParameters;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
-import {addStandardDialog} from "UtilityComponents";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import JobUpdate = compute.JobUpdate;
 import {creditFormatter} from "Project/ProjectUsage";
@@ -406,6 +404,15 @@ const Content = styled.div`
 `;
 
 const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
+    const [utilization, setUtilization] = useCloudAPI<compute.JobsUtilizationResponse | null>(
+        {noop: true},
+        null
+    );
+
+    useEffect(() => {
+        setUtilization(compute.jobs.retrieveUtilization())
+    }, [status]);
+
     return <>
         <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
@@ -422,7 +429,7 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
                 </>)
             }
         </Heading.h3>
-        <Busy job={job}/>
+        <Busy job={job} utilization={utilization.data}/>
     </>;
 };
 
@@ -435,11 +442,13 @@ const BusyWrapper = styled(Box)`
   }
 `;
 
-const Busy: React.FunctionComponent<{ job: Job }> = ({job}) => {
-    const clusterUtilization = 90;
-    const numberOfJobs = 50;
-    const numberOfJobsInQueue = 10;
+const Busy: React.FunctionComponent<{
+    job: Job;
+    utilization: compute.JobsUtilizationResponse | null
+}> = ({job, utilization}) => {
     const ref = useRef<HTMLDivElement>(null);
+    const clusterUtilization = utilization ?
+        Math.floor((utilization.usedCapacity.cpu / utilization.capacity.cpu) * 100) : 0;
 
     useEffect(() => {
         const t = setTimeout(() => {
@@ -453,9 +462,21 @@ const Busy: React.FunctionComponent<{ job: Job }> = ({job}) => {
     return <BusyWrapper ref={ref}>
         <Box mt={"16px"}>
             <Box mb={"16px"}>
-                Your reserved machine is currently quite popular.
-                Cluster utilization is currently at {clusterUtilization}% with {numberOfJobs} jobs running
-                and {numberOfJobsInQueue} in the queue.
+                {clusterUtilization > 80 ? (
+                    <>
+                        Your reserved machine is currently quite popular.<br/>
+                        {utilization ? (
+                            <>
+                                Cluster utilization is currently at {clusterUtilization}%
+                                with {utilization.queueStatus.running} jobs
+                                running and {utilization.queueStatus.pending} in the queue.
+                            </>
+                        ) : null}
+                    </>
+                ) : (
+                    <>We are currently preparing the software required for your job. This step might take a few
+                        minutes.</>
+                )}
             </Box>
 
             <CancelButton job={job} state={"IN_QUEUE"}/>

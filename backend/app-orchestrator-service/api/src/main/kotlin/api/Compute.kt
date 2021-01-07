@@ -89,6 +89,23 @@ data class ComputeOpenInteractiveSessionRequestItem(
 )
 data class ComputeOpenInteractiveSessionResponse(val sessions: List<OpenSession>)
 
+typealias ComputeUtilizationRequest = Unit
+data class ComputeUtilizationResponse(
+    val capacity: CpuAndMemory,
+    val usedCapacity: CpuAndMemory,
+    val queueStatus: QueueStatus
+)
+
+data class CpuAndMemory(
+    val cpu: Double,
+    val memory: Long
+)
+
+data class QueueStatus(
+    val running: Int,
+    val pending: Int
+)
+
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 open class Compute(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
     val baseContext = "/ucloud/$namespace/compute/jobs"
@@ -298,4 +315,9 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
             CommonErrorMessage>("openInteractiveSession") {
         httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
     }
+
+    val retrieveUtilization = call<ComputeUtilizationRequest, ComputeUtilizationResponse, CommonErrorMessage>("retrieveUtilization") {
+        httpRetrieve(baseContext, "utilization", roles = Roles.PRIVILEGED)
+    }
+
 }

@@ -131,7 +131,7 @@ class ApplicationService(
                 )
                 .rows
                 .single()
-                .getLong("id")!!
+                .get("id")?.let { (it as Number).toLong() }!!
 
             insertResources(session, application.requestedResources, id)
 

@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Wed Jan 06 14:08:12 CET 2021 */
+/* Generated at: Thu Jan 07 12:14:57 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -1043,6 +1043,26 @@ export namespace compute {
         compute: ManifestFeatureSupportNS.Compute,
     }
 
+    export interface ComputeUtilizationResponse {
+        capacity: CpuAndMemory,
+        usedCapacity: CpuAndMemory,
+        queueStatus: QueueStatus,
+    }
+
+    export interface CpuAndMemory {
+        cpu: number /* float64 */
+        ,
+        memory: number /* int64 */
+        ,
+    }
+
+    export interface QueueStatus {
+        running: number /* int32 */
+        ,
+        pending: number /* int32 */
+        ,
+    }
+
     /**
      * An L7 ingress-point (HTTP)
      */
@@ -1217,6 +1237,12 @@ export namespace compute {
         includeUpdates?: boolean,
         includeApplication?: boolean,
         includeProduct?: boolean,
+    }
+
+    export interface JobsUtilizationResponse {
+        capacity: CpuAndMemory,
+        usedCapacity: CpuAndMemory,
+        queueStatus: QueueStatus,
     }
 
     export interface JobsBrowseRequest {
@@ -2520,6 +2546,15 @@ export namespace compute {
                     reloadId: Math.random(),
                 };
             }
+
+            export function retrieveUtilization(): APICallParameters<{}, ComputeUtilizationResponse> {
+                return {
+                    context: "",
+                    method: "GET",
+                    path: "/ucloud/ucloud/compute/jobs" + "/retrieveUtilization",
+                    reloadId: Math.random(),
+                };
+            }
         }
         export namespace ingresses {
             export function create(
@@ -3168,6 +3203,23 @@ export namespace compute {
                     includeUpdates: request.includeUpdates
                 }),
                 parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        /**
+         * Retrieve utilization information from cluster (retrieveUtilization)
+         *
+         * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+         * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+         *
+         *
+         */
+        export function retrieveUtilization(): APICallParameters<{}, JobsUtilizationResponse> {
+            return {
+                context: "",
+                method: "GET",
+                path: "/api/jobs" + "/retrieveUtilization",
                 reloadId: Math.random(),
             };
         }

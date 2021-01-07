@@ -69,6 +69,7 @@ class Server(
 
         val logService = K8LogService(k8Dependencies)
         val maintenance = MaintenanceService(db, k8Dependencies)
+        val utilizationService = UtilizationService(k8Dependencies)
         val resourceCache = ResourceCache(serviceClient)
         val sessions = SessionDao()
         val ingressService = IngressService(
@@ -164,6 +165,7 @@ class Server(
                     logService,
                     webService,
                     vncService,
+                    utilizationService
                 ),
                 MaintenanceController(maintenance),
                 ShellController(k8Dependencies, db, sessions),
