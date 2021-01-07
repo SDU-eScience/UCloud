@@ -1147,8 +1147,8 @@ function TransferApplicationPrompt({isActive, close, transfer, username}: Transf
                                 message: `Transfer application to ${it.title}?`,
                                 onConfirm: async () => {
                                     setIsConfirming(false);
-                                    await transfer(it.projectId);
                                     close();
+                                    await transfer(it.projectId);
                                     history.push("/project/grants/ingoing");
                                 }
                             })
