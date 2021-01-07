@@ -87,7 +87,7 @@ export const ReservationParameter: React.FunctionComponent<{
                 <Flex mb={"1em"}>
                     <Label>
                         Number of replicas
-                        <Input id={reservationReplicas} onBlur={recalculateCost}/>
+                        <Input id={reservationReplicas} onBlur={recalculateCost} defaultValue={"1"}/>
                     </Label>
                 </Flex>
                 {errors["replicas"] ? <TextP color={"red"}>{errors["replicas"]}</TextP> : null}
