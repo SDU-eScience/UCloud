@@ -70,7 +70,7 @@ class UtilizationService(
         )
 
         val runningJobs = jobs.filter { job ->
-            job.status?.state?.phase == "Running"
+            job.status?.state?.phase == VolcanoJobPhase.Running
         }
 
         val pending = jobs.filter { job ->
