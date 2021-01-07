@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
+import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
 import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.QueueStatus
@@ -15,7 +16,7 @@ class UtilizationService(
 ) {
     suspend fun retrieveCapacity(): CpuAndMemory {
          val namespace = k8.client.getResource<Namespace>(
-                KubernetesResources.namespaces.withName("app-kubernetes")
+                KubernetesResources.namespaces.withName(NameAllocator.namespace)
             )
 
         val computeAnnotation = namespace.metadata?.annotations?.get("scheduler.alpha.kubernetes.io/node-selector")?.toString()
@@ -23,8 +24,8 @@ class UtilizationService(
         val nodes = k8.client.listResources<Node>(KubernetesResources.node.withNamespace(NAMESPACE_ANY))
             .items
             .filter { node ->
-                computeAnnotation != "ucloud-compute=true" ||
-                    node.metadata?.labels?.get("ucloud-compute") == "true"
+                computeAnnotation != "${NameAllocator.nodeLabel}=true" ||
+                    node.metadata?.labels?.get(NameAllocator.nodeLabel) == "true"
             }
 
         val nodeAllocatableCpu = nodes.sumOf { node ->
@@ -40,9 +41,9 @@ class UtilizationService(
 
     suspend fun retrieveUsedCapacity(): CpuAndMemory {
         val jobs = k8.client.listResources<VolcanoJob>(
-            KubernetesResources.volcanoJob.withNamespace("app-kubernetes")
+            KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         ).filter { job ->
-            job.status?.state?.phase == "Running"
+            job.status?.state?.phase == VolcanoJobPhase.Running
         }
 
         val cpuUsage = jobs.sumOf { job ->
@@ -66,7 +67,7 @@ class UtilizationService(
 
     suspend fun retrieveQueueStatus(): QueueStatus{
         val jobs = k8.client.listResources<VolcanoJob>(
-            KubernetesResources.volcanoJob.withNamespace("app-kubernetes")
+            KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         )
 
         val runningJobs = jobs.filter { job ->

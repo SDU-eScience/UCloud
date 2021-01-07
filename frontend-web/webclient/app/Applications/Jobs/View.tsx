@@ -27,7 +27,6 @@ import {compute} from "UCloud";
 import Job = compute.Job;
 import JobParameters = compute.JobParameters;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
-import {addStandardDialog} from "UtilityComponents";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import JobUpdate = compute.JobUpdate;
 import {creditFormatter} from "Project/ProjectUsage";
@@ -448,7 +447,8 @@ const Busy: React.FunctionComponent<{
     utilization: compute.JobsUtilizationResponse | null
 }> = ({job, utilization}) => {
     const ref = useRef<HTMLDivElement>(null);
-    const clusterUtilization = utilization ? Math.floor(utilization.usedCapacity.cpu / utilization.capacity.cpu * 100) : 0
+    const clusterUtilization = utilization ?
+        Math.floor((utilization.usedCapacity.cpu / utilization.capacity.cpu) * 100) : 0;
 
     useEffect(() => {
         const t = setTimeout(() => {
@@ -471,12 +471,12 @@ const Busy: React.FunctionComponent<{
                                 with {utilization.queueStatus.running} jobs
                                 running and {utilization.queueStatus.pending} in the queue.
                             </>
-                        ) : (
-                            <>We are currently preparing the software required for your job. This step might take a few
-                                minutes.</>
-                        )}
+                        ) : null}
                     </>
-                ) : (<></>)}
+                ) : (
+                    <>We are currently preparing the software required for your job. This step might take a few
+                        minutes.</>
+                )}
             </Box>
 
             <CancelButton job={job} state={"IN_QUEUE"}/>
