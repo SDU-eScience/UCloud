@@ -1,5 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {emptyPage} from "DefaultObjects";
+import {emptyPage, emptyPageV2} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -54,6 +54,10 @@ import {creditFormatter, durationOptions} from "Project/ProjectUsage";
 import {computeUsageInPeriod} from "Project/ProjectDashboard";
 import {useProjectManagementStatus} from "Project";
 import Warning from "ui-components/Warning";
+import * as UCloud from "UCloud";
+import {accounting, PageV2} from "UCloud";
+import Product = accounting.Product;
+import {groupBy} from "Utilities/CollectionUtilities";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -119,9 +123,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         {quotaInBytes: 0, quotaUsed: 0, quotaInTotal: 0}
     );
 
-    const [wallets, setWalletsParams] = useCloudAPI<RetrieveBalanceResponse>(
-        {noop: true}, {wallets: []}
-    );
+    const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
 
     const [outgoingApps, fetchOutgoingApps] = useCloudAPI<Page<GrantApplication>>(
         {noop: true},
@@ -147,10 +149,10 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             includeUsage: true
         }));
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
-        setWalletsParams(retrieveBalance({
-            id: undefined,
-            type: undefined,
-            includeChildren: false
+        fetchProducts(UCloud.accounting.products.browse({
+            itemsPerPage: 250,
+            filterUsable: true,
+            includeBalance: true
         }));
         fetchOutgoingApps(listOutgoingApplications({
             itemsPerPage: 10,
@@ -195,9 +197,9 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             />
 
             <DashboardResources
-                wallets={wallets.data.wallets}
+                products={products.data.items}
                 quota={quota.data}
-                loading={wallets.loading || quota.loading}
+                loading={products.loading || quota.loading}
             />
             <DashboardProjectUsage />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
@@ -440,11 +442,23 @@ function DashboardProjectUsage(): JSX.Element | null {
         </DashboardCard>
     );
 }
-function DashboardResources({wallets, loading, quota}: {
-    wallets: WalletBalance[];
+function DashboardResources({products, loading, quota}: {
+    products: Product[];
     quota: RetrieveQuotaResponse,
     loading: boolean
 }): JSX.Element | null {
+    const productsByCategory = groupBy(products, it => `${it.category.id}-${it.category.provider}`);
+    const wallets: {category: string, provider: string, balance: number, isFreeWithBalanceCheck: boolean}[] = [];
+    Object.values(productsByCategory).forEach(group => {
+        if (group.length === 0) return;
+        const category = group[0].category.id;
+        const provider = group[0].category.provider;
+        const balance = group[0].balance!;
+        const isFreeWithBalanceCheck = group
+            .every(it => "paymentModel" in it && it.paymentModel === "FREE_BUT_REQUIRE_BALANCE");
+
+        wallets.push({category, provider, balance, isFreeWithBalanceCheck});
+    });
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={"/project/grants-landing"}>
         <Button fullWidth mt={8}>Apply for resources</Button>
@@ -457,7 +471,7 @@ function DashboardResources({wallets, loading, quota}: {
             isLoading={loading}
             icon={"grant"}
         >
-            {wallets.length === 0 ? (
+            {products.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     <Text>
                         Apply for resources to use storage and compute on UCloud.
@@ -472,13 +486,17 @@ function DashboardResources({wallets, loading, quota}: {
                                 <tbody>
                                     {wallets.slice(0, 7).map((n, i) => (
                                         <TableRow key={i}>
-                                            <TableCell>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</TableCell>
-                                            <TableCell>
-                                                <Balance
-                                                    textAlign="right"
-                                                    amount={n.balance}
-                                                    productCategory={n.wallet.paysFor}
-                                                />
+                                            <TableCell>{n.provider} / {n.category}</TableCell>
+                                            <TableCell textAlign={"right"}>
+                                                {!n.isFreeWithBalanceCheck ? null :
+                                                    n.balance > 0 ? <Icon name={"check"} color={"green"}/> : null
+                                                }
+                                                {n.isFreeWithBalanceCheck ? null :
+                                                    <Balance
+                                                        amount={n.balance}
+                                                        productCategory={{id: n.category, provider: n.provider}}
+                                                    />
+                                                }
                                             </TableCell>
                                         </TableRow>
                                     ))}
