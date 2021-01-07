@@ -1116,7 +1116,13 @@ interface TransferApplicationPromptProps {
 }
 
 function TransferApplicationPrompt({isActive, close, transfer, username}: TransferApplicationPromptProps) {
-    const [projects] = useCloudAPI<FindAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, username}), emptyPage);
+    const [projects, fetchProjects] = useCloudAPI<FindAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, username}), emptyPage);
+
+    React.useEffect(() => {
+        if (username) {
+            fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, username}))
+        }
+    }, [username]);
 
     return (
         <ReactModal
