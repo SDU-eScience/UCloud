@@ -1118,6 +1118,8 @@ interface TransferApplicationPromptProps {
 function TransferApplicationPrompt({isActive, close, transfer, username}: TransferApplicationPromptProps) {
     const [projects, fetchProjects] = useCloudAPI<FindAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, username}), emptyPage);
 
+    const history = useHistory();
+
     React.useEffect(() => {
         if (username) {
             fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, username}))
@@ -1144,6 +1146,7 @@ function TransferApplicationPrompt({isActive, close, transfer, username}: Transf
                                 onConfirm: async () => {
                                     await transfer(it.projectId);
                                     close();
+                                    history.push("/project/grants/ingoing");
                                 },
                                 confirmText: "Transfer",
                                 cancelText: "Back"
