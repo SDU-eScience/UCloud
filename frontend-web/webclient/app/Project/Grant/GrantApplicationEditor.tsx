@@ -1139,19 +1139,11 @@ function TransferApplicationPrompt({isActive, close, transfer, username}: Transf
                     <Spacer
                         key={it.projectId}
                         left={<Box key={it.projectId} >{it.title}</Box>}
-                        right={<Button my="3px" width="115px" height="40px" onClick={async () =>
-                            addStandardDialog({
-                                title: "Transfer project",
-                                message: `Transfer application to ${it.title}?`,
-                                onConfirm: async () => {
-                                    await transfer(it.projectId);
-                                    close();
-                                    history.push("/project/grants/ingoing");
-                                },
-                                confirmText: "Transfer",
-                                cancelText: "Back"
-                            })
-                        }>Transfer</Button>}
+                        right={<Button my="3px" width="115px" height="40px" onClick={async () => {
+                            await transfer(it.projectId);
+                            close();
+                            history.push("/project/grants/ingoing");
+                        }}>Transfer</Button>}
                     />
                 )}
             </List>
