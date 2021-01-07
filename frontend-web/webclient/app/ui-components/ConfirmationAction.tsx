@@ -167,7 +167,12 @@ const Wrapper = styled(Button)<{ align?: "left" | "center" } & FontSizeProps>`
   }
 
   &:hover {
-    transform: scale(1.03);
+    ${p => !p.asSquare ? ({
+      transform: "scale(1.03)"
+    }) : ({
+      filter: "saturate(110%)",
+      transform: "scale(1)"
+    })}
   }
 
   &.success {
