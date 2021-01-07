@@ -1117,6 +1117,8 @@ interface TransferApplicationPromptProps {
 
 function TransferApplicationPrompt({isActive, close, transfer, username}: TransferApplicationPromptProps) {
     const [projects, fetchProjects] = useCloudAPI<FindAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, username}), emptyPage);
+
+    /* FIXME: Work-around for showing modal AND dialog. Change to hold-to-confirm button when merged with scheduling */
     const [isConfirming, setIsConfirming] = useState(false);
 
     const history = useHistory();
