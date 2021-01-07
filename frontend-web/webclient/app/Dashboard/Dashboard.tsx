@@ -1,5 +1,4 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {formatDistanceToNow} from "date-fns/esm";
 import {emptyPage} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
@@ -23,8 +22,6 @@ import {FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
-import {JobStateIcon} from "Applications/Jobs/JobStateIcon";
-import {isRunExpired} from "Utilities/ApplicationUtilities";
 import {IconName} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
 import {APICallState, useCloudAPI} from "Authentication/DataHook";
@@ -32,7 +29,6 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
 import {
-    ProductArea,
     retrieveBalance,
     RetrieveBalanceResponse,
     retrieveQuota,
