@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 07-01-21
+
+Bug fix to app-store.
+
+```
+✅  Deployment(app-store, 0.14.8): (UP-TO-DATE)
+```
+
 ## 04-01-21
 
 Minor changes. ToS has been published.
