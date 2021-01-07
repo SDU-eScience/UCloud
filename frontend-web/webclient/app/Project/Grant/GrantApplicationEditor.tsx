@@ -1117,6 +1117,7 @@ interface TransferApplicationPromptProps {
 
 function TransferApplicationPrompt({isActive, close, transfer, username}: TransferApplicationPromptProps) {
     const [projects, fetchProjects] = useCloudAPI<FindAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, username}), emptyPage);
+    const [isConfirming, setIsConfirming] = useState(false);
 
     const history = useHistory();
 
@@ -1126,7 +1127,7 @@ function TransferApplicationPrompt({isActive, close, transfer, username}: Transf
         }
     }, [username]);
 
-    return (
+    return (isConfirming ? null :
         <ReactModal
             style={defaultModalStyle}
             isOpen={isActive}
@@ -1139,10 +1140,18 @@ function TransferApplicationPrompt({isActive, close, transfer, username}: Transf
                     <Spacer
                         key={it.projectId}
                         left={<Box key={it.projectId} >{it.title}</Box>}
-                        right={<Button my="3px" width="115px" height="40px" onClick={async () => {
-                            await transfer(it.projectId);
-                            close();
-                            history.push("/project/grants/ingoing");
+                        right={<Button my="3px" width="115px" height="40px" onClick={() => {
+                            setIsConfirming(true);
+                            addStandardDialog({
+                                title: "Transfer to project?",
+                                message: `Transfer application to ${it.title}?`,
+                                onConfirm: async () => {
+                                    setIsConfirming(false);
+                                    await transfer(it.projectId);
+                                    close();
+                                    history.push("/project/grants/ingoing");
+                                }
+                            })
                         }}>Transfer</Button>}
                     />
                 )}
