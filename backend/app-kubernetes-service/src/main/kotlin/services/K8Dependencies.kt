@@ -14,7 +14,7 @@ import dk.sdu.cloud.service.k8.KubernetesClient
  * A small dependencies bundle used by most of the K8 services.
  */
 data class K8Dependencies(
-    val client: KubernetesClient,
+    var client: KubernetesClient,
     val scope: BackgroundScope,
     val serviceClient: AuthenticatedClient,
     val nameAllocator: NameAllocator,

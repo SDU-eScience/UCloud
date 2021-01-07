@@ -29,7 +29,7 @@ class Server(
         val verificationService = VerificationService(client)
         val balanceService = BalanceService(projectCache, verificationService, client)
         val visualizationService = VisualizationService(balanceService, projectCache)
-        val productService = ProductService()
+        val productService = ProductService(balanceService)
 
         if (micro.commandLineArguments.contains("--low-funds-check")) {
             val jobs = CronJobs(db, client, config)

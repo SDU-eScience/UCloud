@@ -67,7 +67,7 @@ class RefreshingJWTAuthenticator(
                     result.statusCode == HttpStatusCode.Unauthorized ||
                     result.statusCode == HttpStatusCode.Forbidden
                 ) {
-                    throw IllegalStateException("We are not authorized to refresh the token! $result")
+                    throw RPCException("We are not authorized to refresh the token", result.statusCode)
                 }
 
                 if (result.statusCode == HttpStatusCode.NotFound && attempts < 5) {

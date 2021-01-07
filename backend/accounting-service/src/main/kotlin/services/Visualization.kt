@@ -31,7 +31,7 @@ class VisualizationService(
         query: TimeRangeQuery
     ): UsageResponse {
         return ctx.withSession { session ->
-            balance.requirePermissionToReadBalance(session, actor, accountId, accountType)
+            balance.requirePermissionToReadBalance(actor, accountId, accountType)
 
             data class RowKey(
                 val accountId: String,

@@ -1,13 +1,13 @@
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {LoadingMainContainer} from "MainContainer/MainContainer";
 import {useCallback} from "react";
 import * as React from "react";
 import {RouteComponentProps} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, ContainerForText, Markdown} from "ui-components";
-import * as Heading from "ui-components/Heading";
+import {Button, Markdown} from "ui-components";
 import styled from "styled-components";
+import {addStandardDialog} from "UtilityComponents";
 
 function fetchSla(): APICallParameters {
     return {
@@ -39,7 +39,7 @@ const Container = styled.div`
 
 const ServiceLicenseAgreement: React.FunctionComponent<RouteComponentProps> = props => {
     const [sla] = useCloudAPI<ServiceAgreementText>(fetchSla(), {version: 0, text: ""});
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const onAccept = useCallback(async () => {
         try {
             await invokeCommand(acceptSla(sla.data.version));
@@ -62,7 +62,12 @@ const ServiceLicenseAgreement: React.FunctionComponent<RouteComponentProps> = pr
                     <Container>
                         <Markdown>{sla.data.text}</Markdown>
 
-                        <Button color={"green"} onClick={onAccept} fullWidth>
+                        <Button color={"green"} onClick={() => addStandardDialog({
+                            message: "",
+                            confirmText: "I have read and accept the terms of service",
+                            cancelText: "Back",
+                            onConfirm: onAccept
+                        })} fullWidth>
                             I have read and accept the terms of service
                         </Button>
                     </Container>

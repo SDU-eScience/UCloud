@@ -168,9 +168,9 @@ class UserAsyncDAO(
             val success = session
                 .sendPreparedStatement(
                     {
-                        setParameter("firstNames", firstNames)
-                        setParameter("lastName", lastName)
-                        setParameter("email", email)
+                        setParameter("firstNames", firstNames?.takeIf { it.isNotBlank() })
+                        setParameter("lastName", lastName?.takeIf { it.isNotBlank() })
+                        setParameter("email", email?.takeIf { it.isNotBlank() })
                         setParameter("username", username)
                     },
                     """
@@ -393,21 +393,19 @@ class UserAsyncDAO(
      */
     suspend fun findByWayfIdAndUpdateEmail(db: DBContext, wayfId: String, email: String?): Person.ByWAYF {
         val principal = db.withSession { session ->
-            if (email != null) {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("email", email)
-                            setParameter("wayfId", wayfId)
-                        },
-                        """
-                            UPDATE principals
-                            SET email = :email
-                            WHERE wayf_id = :wayfId
-                            RETURNING *
-                        """
-                    ).rows.singleOrNull()
-            } else null
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("email", email)
+                        setParameter("wayfId", wayfId)
+                    },
+                    """
+                        UPDATE principals
+                        SET email = coalesce(:email::text, email)
+                        WHERE wayf_id = :wayfId
+                        RETURNING *
+                    """
+                ).rows.singleOrNull()
         }
         return principal?.toPrincipal(false) as? Person.ByWAYF ?: throw UserException.NotFound()
     }
@@ -626,4 +624,3 @@ class UserAsyncDAO(
         }
     }
 }
-

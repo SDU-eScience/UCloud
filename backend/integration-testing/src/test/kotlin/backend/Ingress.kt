@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
@@ -13,6 +14,10 @@ import io.ktor.http.*
 import kotlin.test.*
 
 class Ingress : IntegrationTest() {
+    init {
+        UCloudLauncher.requireK8s()
+    }
+
     @Test
     fun `test ingress create and delete`() = t {
         val root = initializeRootProject()

@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.kubernetes
 
+import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
+import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
 import dk.sdu.cloud.app.kubernetes.rpc.*
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.kubernetes.services.proxy.ApplicationProxyService
@@ -17,9 +19,10 @@ import dk.sdu.cloud.service.RedisBroadcastingStream
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.k8.KubernetesClient
+import dk.sdu.cloud.service.k8.KubernetesConfigurationSource
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import java.io.File
 
 class Server(
@@ -40,15 +43,29 @@ class Server(
         val nameAllocator = NameAllocator()
         val db = AsyncDBSessionFactory(micro.databaseConfig)
 
-        val k8sClient = KubernetesClient()
-
         val k8Dependencies = K8Dependencies(
-            k8sClient,
+            if (integrationTestingIsKubernetesReady) KubernetesClient()
+            else KubernetesClient(KubernetesConfigurationSource.Placeholder),
+
             micro.backgroundScope,
             serviceClient,
             nameAllocator,
             DockerImageSizeQuery()
         )
+
+        if (!integrationTestingIsKubernetesReady) {
+            GlobalScope.launch {
+                while (isActive && !integrationTestingIsKubernetesReady) {
+                    delay(100)
+                }
+
+                if (integrationTestingIsKubernetesReady) {
+                    k8Dependencies.client = KubernetesClient(
+                        KubernetesConfigurationSource.KubeConfigFile(integrationTestingKubernetesFilePath, null)
+                    )
+                }
+            }
+        }
 
         val logService = K8LogService(k8Dependencies)
         val maintenance = MaintenanceService(db, k8Dependencies)
@@ -150,7 +167,6 @@ class Server(
                     vncService,
                     utilizationService
                 ),
-                ReloadController(k8Dependencies),
                 MaintenanceController(maintenance),
                 ShellController(k8Dependencies, db, sessions),
                 IngressController(ingressService),

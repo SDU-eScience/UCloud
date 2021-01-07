@@ -48,6 +48,8 @@ class SlackNotifier(
               - *Request ID (Audit):* ${ticket.requestId}
               - *User agent:* ${ticket.userAgent}
 
+            Subject: ${ticket.subject}
+
             The following message was attached:
 
         """.trimIndent() + ticket.message.lines().joinToString("\n") { "> $it" }

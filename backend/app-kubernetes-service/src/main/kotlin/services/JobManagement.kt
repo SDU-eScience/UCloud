@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
@@ -216,6 +217,9 @@ class JobManagement(
             val lock = distributedLocks.create("app-k8-watcher", duration = 60_000)
             while (isActive) {
                 try {
+                    if (!integrationTestingIsKubernetesReady) {
+                        delay(100)
+                    }
                     becomeMasterAndListen(lock)
                 } catch (ex: Throwable) {
                     log.warn("An exception occurred while processing Kubernetes events")
@@ -347,6 +351,7 @@ class JobManagement(
                                 log.debug("Volcano job watch: ${ev.theObject.status}")
                                 val jobName = ev.theObject.metadata?.name ?: return@r
                                 val jobId = k8.nameAllocator.jobNameToJobId(jobName)
+                                val jobNamespace = ev.theObject.metadata?.namespace ?: return@r
 
                                 if (ev.type == "DELETED") {
                                     val expiry = ev.theObject.expiry
@@ -412,6 +417,10 @@ class JobManagement(
                                         val didChange = k8.addStatus(jobId, statusUpdate)
                                         if (didChange) {
                                             markJobAsComplete(jobId, ev.theObject)
+                                            k8.client.deleteResource(
+                                                KubernetesResources.volcanoJob
+                                                    .withNameAndNamespace(jobName, jobNamespace)
+                                            )
                                         }
                                     } else {
                                         val didChangeState = k8.changeState(jobId, newState!!, statusUpdate)

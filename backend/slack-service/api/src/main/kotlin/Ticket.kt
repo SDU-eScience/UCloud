@@ -6,5 +6,6 @@ data class Ticket(
     val requestId: String,
     val principal: SecurityPrincipal,
     val userAgent: String,
+    val subject: String,
     val message: String
 )

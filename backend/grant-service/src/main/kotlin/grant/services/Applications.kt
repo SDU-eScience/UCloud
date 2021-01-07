@@ -49,63 +49,40 @@ class ApplicationService(
     private val notifications: NotificationService,
     private val serviceClient: AuthenticatedClient
 ) {
+    private val productCacheByProvider = SimpleCache<String, List<Product>> {
+        Products.retrieveAllFromProvider.call(
+            RetrieveAllFromProviderRequest(it),
+            serviceClient
+        ).orNull()
+    }
+
+    suspend fun retrieveProducts(
+        ctx: DBContext,
+        actor: Actor.User,
+        resourcesOwnedBy: String,
+        grantRecipient: GrantRecipient,
+    ): List<Product> {
+        verifyCanApplyTo(ctx, resourcesOwnedBy, actor, grantRecipient, false)
+
+        val balance = Wallets.retrieveBalance.call(
+            RetrieveBalanceRequest(resourcesOwnedBy, WalletOwnerType.PROJECT, false),
+            serviceClient
+        ).orThrow()
+
+        return balance.wallets.flatMap{ wb ->
+            val allProducts = productCacheByProvider.get(wb.wallet.paysFor.provider) ?: emptyList()
+            allProducts.filter { it.category.id == wb.wallet.paysFor.id }
+        }
+    }
+
     suspend fun submit(
         ctx: DBContext,
         actor: Actor.User,
         application: CreateApplication
     ): Long {
         val returnedId = ctx.withSession { session ->
-            val projectId =
-                with(application) {
-                    when (val grantRecipient = this.grantRecipient) {
-                        is GrantRecipient.PersonalProject -> null
-                        is GrantRecipient.ExistingProject -> grantRecipient.projectId
-                        is GrantRecipient.NewProject -> null
-                    }
-                }
+            verifyCanApplyTo(session, application.resourcesOwnedBy, actor, application.grantRecipient, true)
 
-            if (projectId != null) {
-                val userStatus = Projects.viewMemberInProject.call(
-                    ViewMemberInProjectRequest(projectId, actor.username),
-                    serviceClient
-                ).orRethrowAs {
-                    if (it.statusCode.value in 500..599) {
-                        throw RPCException.fromStatusCode(it.statusCode)
-                    } else {
-                        throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
-                    }
-                }
-
-                if (!userStatus.member.role.isAdmin()) {
-                    throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
-                }
-            }
-
-            val projectOrNull =
-                if (projectId != null) {
-                    Projects.lookupById.call(
-                        LookupByIdRequest(projectId),
-                        serviceClient
-                    ).orThrow()
-                } else {
-                    null
-                }
-            val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
-            if (projectOrNull == null || application.resourcesOwnedBy != projectOrNull.parent) {
-                if (!settings.allowRequestsFrom.any { it.matches(actor.principal) } ||
-                    (actor.principal.email != null
-                        && settings.excludeRequestsFrom.any {
-                            it as UserCriteria.EmailDomain
-                            actor.principal.email!!.endsWith(it.domain)
-                        }
-                    )
-                ) {
-                    throw RPCException(
-                        "You are not allowed to submit applications to this project",
-                        HttpStatusCode.Forbidden
-                    )
-                }
-            }
             val id = session
                 .sendPreparedStatement(
                     {
@@ -190,13 +167,91 @@ class ApplicationService(
         return returnedId
     }
 
+    private suspend fun verifyCanApplyTo(
+        ctx: DBContext,
+        resourcesOwnedBy: String,
+        actor: Actor.User,
+        recipient: GrantRecipient,
+        isApplying: Boolean,
+    ) {
+        ctx.withSession { session ->
+            log.debug("verifyCanApplyTo($resourcesOwnedBy, $actor, $recipient, $isApplying)")
+            if (isApplying) {
+                if (recipient is GrantRecipient.PersonalProject) {
+                    if (recipient.username != actor.username) {
+                        throw RPCException(
+                            "You cannot submit an application on behalf of someone else",
+                            HttpStatusCode.Forbidden
+                        )
+                    }
+                }
+            }
+
+            if (!isApplying) {
+                val isAdminInTargetProject = Projects.viewMemberInProject.call(
+                    ViewMemberInProjectRequest(resourcesOwnedBy, actor.username),
+                    serviceClient
+                ).throwIfInternal().orNull()?.member?.role?.isAdmin() == true
+
+                if (isAdminInTargetProject) return@withSession
+            }
+
+            val recipientProjectId = when (recipient) {
+                is GrantRecipient.PersonalProject -> null
+                is GrantRecipient.ExistingProject -> recipient.projectId
+                is GrantRecipient.NewProject -> null
+            }
+
+            if (recipientProjectId != null) {
+                val isAdminInRecipientProject = Projects.viewMemberInProject.call(
+                    ViewMemberInProjectRequest(recipientProjectId, actor.username),
+                    serviceClient
+                ).throwIfInternal().orNull()?.member?.role?.isAdmin() == true
+
+                if (!isAdminInRecipientProject) {
+                    log.debug("Deny: 1")
+                    throw RPCException("You are not allowed to submit to this project", HttpStatusCode.Forbidden)
+                }
+            }
+
+            // The parent project if that is what we are applying to
+            val parentProjectOrNull =
+                if (recipientProjectId != null) {
+                    Projects.lookupById.call(
+                        LookupByIdRequest(recipientProjectId),
+                        serviceClient
+                    ).orThrow().parent
+                } else {
+                    null
+                }
+
+            // NOTE(Dan): Not applying to a parent project (of which we are an admin of the child project)
+            if (parentProjectOrNull == null || resourcesOwnedBy != parentProjectOrNull) {
+                val settings = settings.fetchSettings(session, Actor.System, resourcesOwnedBy)
+                val isAllowed = settings.allowRequestsFrom.any { it.matches(actor.principal) }
+                val emailIsBlacklisted = actor.principal.email != null &&
+                        settings.excludeRequestsFrom.any {
+                            actor.principal.email!!.endsWith((it as UserCriteria.EmailDomain).domain)
+                        }
+
+                if (!isAllowed || emailIsBlacklisted) {
+                    log.debug("Deny: 3")
+                    throw RPCException(
+                        "You are not allowed to submit applications to this project",
+                        HttpStatusCode.Forbidden
+                    )
+                }
+            }
+        }
+    }
+
     private suspend fun autoApproveApplication(
         ctx: DBContext,
         actor: Actor.User,
         application: Application
     ): Boolean {
         val settings = settings.fetchSettings(ctx, Actor.System, application.resourcesOwnedBy)
-        if(actor.principal.email != null && settings.excludeRequestsFrom.any{
+        if (actor.principal.email != null && settings.excludeRequestsFrom.any {
                 it as UserCriteria.EmailDomain
                 actor.principal.email!!.endsWith(it.domain)
             }) {
@@ -387,13 +442,16 @@ class ApplicationService(
                     {
                         setParameter("id", id)
                         setParameter("status", newStatus.name)
-                        setParameter("changedBy",
+                        setParameter(
+                            "changedBy",
                             if (newStatus == ApplicationStatus.APPROVED ||
                                 newStatus == ApplicationStatus.REJECTED ||
                                 newStatus == ApplicationStatus.CLOSED
                             ) {
                                 actor.username
-                            } else { null }
+                            } else {
+                                null
+                            }
                         )
                     },
                     """
@@ -482,6 +540,14 @@ class ApplicationService(
             }
 
             is GrantRecipient.NewProject -> {
+                //Check that grant receiver has enough resources before creating project
+                checkBalance(
+                    application.requestedResources,
+                    application.resourcesOwnedBy,
+                    serviceClient,
+                    TransactionType.TRANSFERRED_TO_PROJECT
+                )
+
                 val (newProjectId) = Projects.create.call(
                     CreateProjectRequest(
                         grantRecipient.projectTitle,
@@ -737,6 +803,37 @@ class ApplicationService(
     }
 }
 
+suspend fun checkBalance(
+    resources: List<ResourceRequest>,
+    projectId: String,
+    serviceClient: AuthenticatedClient,
+    transactionType: TransactionType
+) {
+    val limitCheckId = UUID.randomUUID().toString()
+    val later = Time.now() + (1000 * 60 * 60)
+    Wallets.reserveCreditsBulk.call(
+        ReserveCreditsBulkRequest(
+            resources.mapIndexedNotNull { idx, resource ->
+                val creditsRequested = resource.creditsRequested ?: return@mapIndexedNotNull null
+                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
+                ReserveCreditsRequest(
+                    limitCheckId + idx,
+                    creditsRequested,
+                    later,
+                    Wallet(projectId, WalletOwnerType.PROJECT, paysFor),
+                    productId = "",
+                    productUnits = 0,
+                    jobInitiatedBy = "_ucloud",
+                    discardAfterLimitCheck = true,
+                    transactionType = transactionType
+                )
+            }
+        ),
+        serviceClient
+    ).orThrow()
+}
+
+
 suspend fun grantResourcesToProject(
     sourceProject: String,
     resources: List<ResourceRequest>,
@@ -749,29 +846,7 @@ suspend fun grantResourcesToProject(
     // Start by verifying this project has enough resources
     // TODO This isn't really enough since we still have potential race conditions but this is
     //  extremely hard to deal with this under this microservice architecture.
-    val limitCheckId = UUID.randomUUID().toString()
-    val later = Time.now() + (1000 * 60 * 60)
-    Wallets.reserveCreditsBulk.call(
-        ReserveCreditsBulkRequest(
-            resources.mapIndexedNotNull { idx, resource ->
-                val creditsRequested = resource.creditsRequested ?: return@mapIndexedNotNull null
-                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
-                ReserveCreditsRequest(
-                    limitCheckId + idx,
-                    creditsRequested,
-                    later,
-                    Wallet(sourceProject, WalletOwnerType.PROJECT, paysFor),
-                    productId = "",
-                    productUnits = 0,
-                    jobInitiatedBy = "_ucloud",
-                    discardAfterLimitCheck = true,
-                    transactionType = transactionType
-                )
-            }
-        ),
-        serviceClient
-    ).orThrow()
-
+    checkBalance(resources, sourceProject, serviceClient, transactionType)
     val usage = FileDescriptions.retrieveQuota.call(
         RetrieveQuotaRequest(projectHomeDirectory(sourceProject)),
         serviceClient

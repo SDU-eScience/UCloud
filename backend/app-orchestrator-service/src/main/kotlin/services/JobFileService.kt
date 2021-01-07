@@ -127,25 +127,33 @@ class JobFileService(
 
         log.debug("The destination path is ${destPath.path}")
 
-        val uploadResp = MultiPartUploadDescriptions.simpleUpload.call(
-            SimpleUploadRequest(
-                location = destPath.path,
-                sensitivity = null,
-                file = BinaryStream.outgoingFromChannel(
-                    fileData,
-                    contentLength = length,
-                    contentType = ContentType.defaultForFilePath(filePath)
-                )
-            ),
-            userClient
-        )
-        if (uploadResp is IngoingCallResponse.Error) {
-            when (uploadResp.statusCode) {
-                HttpStatusCode.Forbidden -> {
-                    // Permissions might have been lost for output directory. We silently ignore this.
-                }
+        try {
+            val uploadResp = MultiPartUploadDescriptions.simpleUpload.call(
+                SimpleUploadRequest(
+                    location = destPath.path,
+                    sensitivity = null,
+                    file = BinaryStream.outgoingFromChannel(
+                        fileData,
+                        contentLength = length,
+                        contentType = ContentType.defaultForFilePath(filePath)
+                    )
+                ),
+                userClient
+            )
+            if (uploadResp is IngoingCallResponse.Error) {
+                when (uploadResp.statusCode) {
+                    HttpStatusCode.Forbidden -> {
+                        // Permissions might have been lost for output directory. We silently ignore this.
+                    }
 
-                else -> uploadResp.orThrow()
+                    else -> uploadResp.orThrow()
+                }
+            }
+        } catch (ex: RPCException) {
+            if (ex.httpStatusCode == HttpStatusCode.Forbidden || ex.httpStatusCode == HttpStatusCode.Unauthorized) {
+                log.debug("Attempted to submit a file after token has been invalidated - Silently ignoring this error")
+            } else {
+                throw ex
             }
         }
     }

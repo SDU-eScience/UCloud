@@ -34,6 +34,9 @@ import {creditFormatter} from "Project/ProjectUsage";
 import JobStatus = compute.JobStatus;
 import {margin, MarginProps} from "styled-system";
 import {useProjectStatus} from "Project/cache";
+import {ProjectName} from "Project";
+import {getProjectNames} from "Utilities/ProjectUtilities";
+import {ConfirmationButton} from "ui-components/ConfirmationAction";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -450,7 +453,7 @@ const Busy: React.FunctionComponent<{
     useEffect(() => {
         const t = setTimeout(() => {
             ref.current?.classList.add("active");
-        }, 3000);
+        }, 6000);
         return () => {
             clearTimeout(t);
         };
@@ -500,6 +503,9 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
             seconds: Math.floor((msTime % (1000 * 60)) / (1000))
         };
     }
+
+    const projectNames = getProjectNames(useProjectStatus());
+
     let prettyTime = "No job deadline";
     if (time) {
         prettyTime = "";
@@ -557,7 +563,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
             statTitle={jobFiles(job.parameters).length === 1 ? "Input file" : "Input files"}
             icon={"ftFolder"}
         >
-            {jobInputString(job.parameters)}
+            {jobInputString(job.parameters, projectNames)}
         </InfoCard>
         <InfoCard stat={workspaceTitle} statTitle={"Project"} icon={"projects"}>
             <b>Launched by:</b> {job.owner.launchedBy}
@@ -643,8 +649,8 @@ function jobFiles(parameters: JobParameters): AppParameterValueNS.File[] {
         .filter(it => it.type === "file") as AppParameterValueNS.File[];
 }
 
-function jobInputString(parameters: JobParameters): string {
-    const allFiles = jobFiles(parameters).map(it => replaceHomeOrProjectFolder(it.path, Client, []));
+function jobInputString(parameters: JobParameters, projects: ProjectName[]): string {
+    const allFiles = jobFiles(parameters).map(it => replaceHomeOrProjectFolder(it.path, Client, projects));
 
     if (allFiles.length === 0) return "No files";
     return joinToString(allFiles, ", ");
@@ -657,6 +663,8 @@ const RunningContent: React.FunctionComponent<{
 }> = ({job, updateListeners, status}) => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
+    const projects = useProjectStatus();
+    const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ?? "My Workspace";
     const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
         const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
         if (!commandLoading && expiresAt) {
@@ -676,6 +684,8 @@ const RunningContent: React.FunctionComponent<{
         setExpiresAt(status.expiresAt);
     }, [status.expiresAt]);
 
+    const projectNames = getProjectNames(useProjectStatus());
+
     return <>
         <RunningInfoWrapper>
             <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
@@ -683,8 +693,8 @@ const RunningContent: React.FunctionComponent<{
                     {!job.parameters.name ? null : <Box><b>Name:</b> {job.parameters.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box><b>Reservation:</b> {job.parameters.product.provider} / {job.parameters.product.id} (x{job.parameters.replicas})</Box>
-                    <Box><b>Input:</b> {jobInputString(job.parameters)}</Box>
-                    <Box><b>Launched by:</b> {job.owner.launchedBy} in {job.owner.project ?? "My workspace"}</Box>
+                    <Box><b>Input:</b> {jobInputString(job.parameters, projectNames)}</Box>
+                    <Box><b>Launched by:</b> {job.owner.launchedBy} in {workspaceTitle}</Box>
                     <Box flexGrow={1}/>
                     <Box mt={"16px"}>
                         <CancelButton job={job} state={"RUNNING"} fullWidth/>
@@ -960,23 +970,16 @@ const CancelButton: React.FunctionComponent<{
     fullWidth?: boolean
 }> = ({job, state, fullWidth}) => {
     const [loading, invokeCommand] = useCloudCommand();
-    const onCancel = useCallback(() => {
+    const onCancel = useCallback(async () => {
         if (!loading) {
-            addStandardDialog({
-                title: "Deletion of job",
-                message: "Are you sure you wish to stop and delete this job?",
-                onConfirm: async () => {
-                    await invokeCommand(compute.jobs.remove({id: job.id}));
-                },
-                confirmText: "Delete job",
-                cancelText: "Do not delete"
-            });
+            await invokeCommand(compute.jobs.remove({id: job.id}));
         }
     }, [loading]);
 
-    return <Button type={"button"} color={"red"} disabled={loading} onClick={onCancel} fullWidth={fullWidth}>
-        {state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
-    </Button>;
+    return <ConfirmationButton
+        color={"red"} icon={"trash"} onAction={onCancel} fullWidth={fullWidth}
+        actionText={state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
+    />;
 };
 
 const ProviderUpdates: React.FunctionComponent<{

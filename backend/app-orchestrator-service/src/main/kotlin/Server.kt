@@ -101,7 +101,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 paymentService,
                 providers,
                 userClientFactory,
-                parameterExportService
+                parameterExportService,
+                projectCache
             )
 
         val jobMonitoring = JobMonitoringService(
@@ -122,7 +123,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         runBlocking { jobMonitoring.initialize() }
 
-        val ingressDao = IngressDao()
+        val ingressDao = IngressDao(productCache)
         val ingressService = IngressService(db, ingressDao, providers, projectCache, productCache,
             jobOrchestrator, paymentService)
 

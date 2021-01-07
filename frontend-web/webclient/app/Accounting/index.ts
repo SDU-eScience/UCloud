@@ -7,6 +7,8 @@ export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 100
 
 export type AccountType = "USER" | "PROJECT";
 export type PaymentModel = NonNullable<PropType<UCloud.accounting.ProductNS.License, "paymentModel">>;
+export type ProductArea = NonNullable<PropType<UCloud.accounting.ListProductsByAreaRequest, "area">>;
+export const productAreas: ProductArea[] = ["STORAGE", "COMPUTE", "INGRESS", "LICENSE"];
 
 export interface ProductCategoryId {
     id: string;
@@ -14,17 +16,25 @@ export interface ProductCategoryId {
     title?: string;
 }
 
-export enum ProductArea {
-    COMPUTE = "COMPUTE",
-    STORAGE = "STORAGE"
+export function productToArea(product: UCloud.accounting.Product): ProductArea {
+    switch (product.type) {
+        case "compute": return "COMPUTE";
+        case "ingress": return "INGRESS";
+        case "license": return "LICENSE";
+        case "storage": return "STORAGE";
+    }
 }
 
 export function productAreaTitle(area: ProductArea): string {
     switch (area) {
-        case ProductArea.COMPUTE:
+        case "COMPUTE":
             return "Compute";
-        case ProductArea.STORAGE:
+        case "STORAGE":
             return "Storage";
+        case "INGRESS":
+            return "Ingress";
+        case "LICENSE":
+            return "Application license";
     }
 }
 
@@ -124,18 +134,7 @@ export function retrieveCredits(request: RetrieveCreditsRequest): APICallParamet
 
 // Machines
 
-export interface Product {
-    id: string;
-    pricePerUnit: number;
-    category: ProductCategoryId;
-    description: string;
-    availability: { type: "available" | "unavailable"; reason?: string };
-    priority: number;
-    cpu?: number;
-    memoryInGigs?: number;
-    gpu?: number;
-    type: "compute" | "storage";
-}
+export type Product = UCloud.accounting.Product;
 
 export interface ListProductsRequest extends PaginationRequest {
     provider: string;

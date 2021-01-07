@@ -1,10 +1,9 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.app.store.api.AppStore
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.app.store.api.ToolStore
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -20,7 +19,6 @@ import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.toByteArray
-import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -28,7 +26,7 @@ object SampleApplications {
     val figlet = NameAndVersion("figlet", "1.0.0")
     val longRunning = NameAndVersion("long-running", "1.0.0")
 
-    fun figletParams(text: String): Map<String, Any> = mapOf("text" to text)
+    fun figletParams(text: String): Map<String, AppParameterValue> = mapOf("text" to AppParameterValue.Text(text))
 
     suspend fun create() {
         ToolStore.create.call(
@@ -126,10 +124,10 @@ object SampleApplications {
         ).orThrow()
     }
 }
-@Ignore
+
+fun Product.Compute.reference(): ComputeProductReference = ComputeProductReference(id, category.id, category.provider)
+
 class ApplicationTest : IntegrationTest() {
-    // TODO
-    /*
     @Test
     fun `test figlet`() = t {
         UCloudLauncher.requireK8s()
@@ -139,18 +137,21 @@ class ApplicationTest : IntegrationTest() {
         val rootProject = initializeRootProject()
         initializeAllPersonalFunds(user.username, rootProject)
 
-        val jobId = JobDescriptions.start.call(
-            StartJobRequest(
-                SampleApplications.figlet,
-                reservation = sampleCompute.id,
-                parameters = SampleApplications.figletParams("Hello, World!")
+        val jobId = Jobs.create.call(
+            bulkRequestOf(
+                JobParameters(
+                    SampleApplications.figlet,
+                    sampleCompute.reference(),
+                    parameters = SampleApplications.figletParams("Hello, World"),
+                    resources = emptyList(),
+                )
             ),
             user.client
-        ).orThrow().jobId
+        ).orThrow().ids.single()
 
-        val status: JobWithStatus = waitForJob(jobId, user.client)
+        val status: Job = waitForJob(jobId, user.client)
 
-        val outputFolder = status.outputFolder!!
+        val outputFolder = status.output!!.outputFolder
         retrySection {
             val stdout = FileDescriptions.download
                 .call(
@@ -173,12 +174,12 @@ class ApplicationTest : IntegrationTest() {
     private suspend fun waitForJob(
         jobId: String,
         userClient: AuthenticatedClient
-    ): JobWithStatus {
-        lateinit var status: JobWithStatus
+    ): Job {
+        lateinit var status: Job
         retrySection(attempts = 300, delay = 10_000) {
-            status = JobDescriptions.findById.call(FindByStringId(jobId), userClient).orThrow()
-            require(status.state.isFinal()) { "Current job state is: ${status.state}" }
-            require(status.outputFolder != null)
+            status = Jobs.retrieve.call(JobsRetrieveRequest(jobId), userClient).orThrow()
+            require(status.status.state.isFinal()) { "Current job state is: ${status.status.state}" }
+            require(status.output != null) { "output must be non-null" }
         }
         return status
     }
@@ -193,15 +194,18 @@ class ApplicationTest : IntegrationTest() {
 
         val wbBefore = findPersonalWallet(user.username, user.client, sampleCompute.category)!!
 
-        val jobId = JobDescriptions.start.call(
-            StartJobRequest(
-                SampleApplications.longRunning,
-                reservation = sampleCompute.id,
-                parameters = emptyMap(),
-                maxTime = SimpleDuration(0, 0, 30)
+        val jobId = Jobs.create.call(
+            bulkRequestOf(
+                JobParameters(
+                    SampleApplications.longRunning,
+                    sampleCompute.reference(),
+                    parameters = emptyMap(),
+                    resources = emptyList(),
+                    timeAllocation = SimpleDuration(0, 0, 30),
+                )
             ),
             user.client
-        ).orThrow().jobId
+        ).orThrow().ids.single()
 
         waitForJob(jobId, user.client)
 
@@ -222,14 +226,17 @@ class ApplicationTest : IntegrationTest() {
         val wbBefore = findProjectWallet(project.projectId, project.piClient, sampleCompute.category)
             ?: error("Could not find wallet")
 
-        val jobId = JobDescriptions.start.call(
-            StartJobRequest(
-                SampleApplications.figlet,
-                reservation = sampleCompute.id,
-                parameters = SampleApplications.figletParams("Hello")
+        val jobId = Jobs.create.call(
+            bulkRequestOf(
+                JobParameters(
+                    SampleApplications.figlet,
+                    sampleCompute.reference(),
+                    parameters = SampleApplications.figletParams("Hello"),
+                    resources = emptyList(),
+                )
             ),
             project.piClient.withProject(project.projectId)
-        ).orThrow().jobId
+        ).orThrow().ids.single()
 
         val finalJob = waitForJob(jobId, project.piClient.withProject(project.projectId))
 
@@ -239,7 +246,7 @@ class ApplicationTest : IntegrationTest() {
         assertEquals(wbBefore.balance - sampleCompute.pricePerUnit, wbAfter.balance)
 
         assertThatInstance(finalJob, "has a correct output folder") { resp ->
-            val outputFolder = resp.outputFolder
+            val outputFolder = resp.output!!.outputFolder
             outputFolder != null && outputFolder.startsWith(
                 joinPath(
                     projectHomeDirectory(project.projectId),
@@ -266,14 +273,17 @@ class ApplicationTest : IntegrationTest() {
         val wbBefore = findProjectWallet(project.projectId, project.piClient, sampleCompute.category)
             ?: error("Could not find wallet")
 
-        val jobId = JobDescriptions.start.call(
-            StartJobRequest(
-                SampleApplications.figlet,
-                reservation = sampleCompute.id,
-                parameters = SampleApplications.figletParams("Hello")
+        val jobId = Jobs.create.call(
+            bulkRequestOf(
+                JobParameters(
+                    SampleApplications.figlet,
+                    sampleCompute.reference(),
+                    parameters = SampleApplications.figletParams("Hello"),
+                    resources = emptyList(),
+                )
             ),
             user.client.withProject(project.projectId)
-        ).orThrow().jobId
+        ).orThrow().ids.single()
 
         val finalJob = waitForJob(jobId, user.client.withProject(project.projectId))
 
@@ -283,8 +293,8 @@ class ApplicationTest : IntegrationTest() {
         assertEquals(wbBefore.balance - sampleCompute.pricePerUnit, wbAfter.balance)
 
         assertThatInstance(finalJob, "has a correct output folder") { resp ->
-            val outputFolder = resp.outputFolder
-            outputFolder != null && outputFolder.startsWith(
+            val outputFolder = resp.output!!.outputFolder
+            outputFolder.startsWith(
                 joinPath(
                     projectHomeDirectory(project.projectId),
                     PERSONAL_REPOSITORY,
@@ -304,11 +314,14 @@ class ApplicationTest : IntegrationTest() {
         setPersonalQuota(rootProject, user.username, 10.GiB) // Set a quota but don't add funds
 
         assertThatInstance(
-            JobDescriptions.start.call(
-                StartJobRequest(
-                    SampleApplications.figlet,
-                    reservation = sampleCompute.id,
-                    parameters = SampleApplications.figletParams("Hello")
+            Jobs.create.call(
+                bulkRequestOf(
+                    JobParameters(
+                        SampleApplications.figlet,
+                        sampleCompute.reference(),
+                        parameters = SampleApplications.figletParams("Hello"),
+                        resources = emptyList(),
+                    )
                 ),
                 user.client
             ),
@@ -326,16 +339,18 @@ class ApplicationTest : IntegrationTest() {
         setPersonalQuota(rootProject, user.username, 0.GiB) // add funds but no quota
 
         assertThatInstance(
-            JobDescriptions.start.call(
-                StartJobRequest(
-                    SampleApplications.figlet,
-                    reservation = sampleCompute.id,
-                    parameters = SampleApplications.figletParams("Hello")
+            Jobs.create.call(
+                bulkRequestOf(
+                    JobParameters(
+                        SampleApplications.figlet,
+                        sampleCompute.reference(),
+                        parameters = SampleApplications.figletParams("Hello"),
+                        resources = emptyList(),
+                    )
                 ),
                 user.client
             ),
             "fails with payment required"
         ) { it.statusCode == HttpStatusCode.PaymentRequired }
     }
-     */
 }

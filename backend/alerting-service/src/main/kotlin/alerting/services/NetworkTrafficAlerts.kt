@@ -128,7 +128,7 @@ class NetworkTrafficAlerts(
     )
 
     data class Info(
-        val offset: Int,
+        val offset: Long,
         val file: LogFileInfo
     )
 

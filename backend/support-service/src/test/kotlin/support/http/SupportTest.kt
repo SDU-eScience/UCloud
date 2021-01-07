@@ -35,7 +35,7 @@ class SupportTest {
                     method = HttpMethod.Post,
                     path = "/api/support/ticket",
                     user = TestUsers.user,
-                    request = CreateTicketRequest("This is message")
+                    request = CreateTicketRequest("subject", "This is message")
                 ).assertSuccess()
             }
         )
@@ -50,7 +50,7 @@ class SupportTest {
                     method = HttpMethod.Post,
                     path = "/api/support/ticket",
                     user = TestUsers.user,
-                    request = CreateTicketRequest("This is a message".repeat(53000))
+                    request = CreateTicketRequest("subject", "This is a message".repeat(53000))
                 ).assertStatus(HttpStatusCode.PayloadTooLarge)
             }
         )
@@ -66,7 +66,7 @@ class SupportTest {
                         method = HttpMethod.Post,
                         path = "/api/support/ticket",
                         user = TestUsers.user,
-                        request = CreateTicketRequest("This is a message")
+                        request = CreateTicketRequest("subject", "This is a message")
                     ).assertSuccess()
                 }
                 //Request 11 within an hour should fail.
@@ -74,7 +74,7 @@ class SupportTest {
                     method = HttpMethod.Post,
                     path = "/api/support/ticket",
                     user = TestUsers.user,
-                    request = CreateTicketRequest("This is a message")
+                    request = CreateTicketRequest("subject", "This is a message")
                 ).assertFailure()
             }
         )

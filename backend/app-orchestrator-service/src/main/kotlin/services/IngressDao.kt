@@ -35,7 +35,9 @@ object IngressTable : SQLTable("ingresses") {
     val creditsCharged = long("credits_charged")
 }
 
-class IngressDao {
+class IngressDao(
+    private val products: ProductCache,
+) {
     suspend fun create(
         ctx: DBContext,
         ingress: Ingress
@@ -258,6 +260,12 @@ class IngressDao {
                 .mapValues { all -> all.value.map { it.second } }
 
             ingresses = ingresses.map { it.copy(updates = allUpdates.getValue(it.id)) }
+        }
+
+        if (flags.includeProduct == true) {
+            ingresses = ingresses.map {
+                it.copy(resolvedProduct = products.find(it.product.provider, it.product.id, it.product.category))
+            }
         }
 
         return ingresses

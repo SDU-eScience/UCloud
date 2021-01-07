@@ -6,14 +6,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.TYPE_PROPERTY
-import dk.sdu.cloud.service.WithPaginationRequest
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.service.*
 import io.ktor.http.HttpMethod
 
 const val UCLOUD_PROVIDER = "ucloud"
@@ -68,6 +62,7 @@ sealed class ProductAvailability {
             return javaClass.hashCode()
         }
     }
+
     data class Unavailable(val reason: String) : ProductAvailability()
 }
 
@@ -89,6 +84,9 @@ sealed class Product {
     abstract val description: String
     abstract val availability: ProductAvailability
     abstract val priority: Int
+
+    @UCloudApiDoc("Included only with certain endpoints which support `includeBalance`")
+    var balance: Long? = null
 
     @get:JsonIgnore
     abstract val area: ProductArea
@@ -177,6 +175,11 @@ sealed class Product {
 }
 
 enum class PaymentModel {
+    @UCloudApiDoc(
+        "Indicates that the product has a `pricePerUnit` of 0" +
+            ", but the wallet must still receive a balance check 1 credit"
+    )
+    FREE_BUT_REQUIRE_BALANCE,
     PER_ACTIVATION
 }
 
@@ -205,6 +208,32 @@ typealias ListProductsByAreaResponse = Page<Product>
 
 data class RetrieveAllFromProviderRequest(val provider: String)
 typealias RetrieveAllFromProviderResponse = List<Product>
+
+interface ProductFilters {
+    val filterArea: ProductArea?
+    val filterProvider: String?
+    val filterUsable: Boolean?
+    val filterCategory: String?
+}
+
+interface ProductFlags {
+    val includeBalance: Boolean?
+}
+
+data class ProductsBrowseRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+
+    override val filterProvider: String? = null,
+    override val filterArea: ProductArea? = null,
+    override val filterUsable: Boolean? = null,
+    override val filterCategory: String? = null,
+
+    override val includeBalance: Boolean? = null
+) : WithPaginationRequestV2, ProductFilters, ProductFlags
+typealias ProductsBrowseResponse = PageV2<Product>
 
 object Products : CallDescriptionContainer("products") {
     const val baseContext = "/api/products"
@@ -268,6 +297,7 @@ object Products : CallDescriptionContainer("products") {
         }
     }
 
+    @Deprecated("Switch to `browse`")
     val listProductsByType =
         call<ListProductsByAreaRequest, ListProductsByAreaResponse, CommonErrorMessage>("listProductionsByType") {
             auth {
@@ -292,6 +322,7 @@ object Products : CallDescriptionContainer("products") {
             }
         }
 
+    @Deprecated("Switch to `browse`")
     val listProducts = call<ListProductsRequest, ListProductsResponse, CommonErrorMessage>("listProducts") {
         auth {
             access = AccessRight.READ
@@ -314,6 +345,7 @@ object Products : CallDescriptionContainer("products") {
         }
     }
 
+    @Deprecated("Use with caution. This call will likely be replaced with a paginated call (i.e. `browse`)")
     val retrieveAllFromProvider =
         call<RetrieveAllFromProviderRequest, RetrieveAllFromProviderResponse, CommonErrorMessage>(
             "retrieveAllFromProvider"
@@ -336,4 +368,8 @@ object Products : CallDescriptionContainer("products") {
                 }
             }
         }
+
+    val browse = call<ProductsBrowseRequest, ProductsBrowseResponse, CommonErrorMessage>("browse") {
+        httpBrowse(baseContext)
+    }
 }

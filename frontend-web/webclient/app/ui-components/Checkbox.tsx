@@ -55,8 +55,11 @@ Checkbox.displayName = "Checkbox";
 
 Checkbox.defaultProps = {
     size: 20,
-    checked: false,
     disabled: false
+
+    // NOTE(Dan): The line below has been removed since it forced all checkboxes to be controlled even when this
+    // wasn't the intended behavior.
+    // checked: false,
 };
 
 export default Checkbox;

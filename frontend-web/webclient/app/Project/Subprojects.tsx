@@ -131,8 +131,8 @@ const SelectableWallet: React.FunctionComponent<{
                             <th />
                             <td>
                                 <Icon
-                                    color2={props.wallet.area === ProductArea.COMPUTE ? undefined : "white"}
-                                    name={props.wallet.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
+                                    color2={props.wallet.area === "COMPUTE" ? undefined : "white"}
+                                    name={props.wallet.area === "COMPUTE" ? "cpu" : "ftFileSystem"}
                                     size={32}
                                 />
                             </td>
@@ -217,12 +217,11 @@ const Subprojects: React.FunctionComponent = () => {
                 snackbarStore.addFailure("Project name can't be empty", false);
                 return;
             }
-            await promises.makeCancelable(
-                await runCommand(createProject({
-                    title: subprojectName,
-                    parent: projectId
-                }))
-            ).promise;
+
+            await runCommand(createProject({
+                title: subprojectName,
+                parent: projectId
+            }));
 
             snackbarStore.addSuccess(`Subproject created`, true);
             createSubprojectRef.current!.value = "";

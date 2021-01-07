@@ -33,7 +33,7 @@ class AccountingController(
         implement(Wallets.reserveCredits) {
             balance.reserveCredits(
                 db,
-                Actor.SystemOnBehalfOfUser(request.jobInitiatedBy),
+                request.jobInitiatedBy,
                 request
             )
 
@@ -45,7 +45,7 @@ class AccountingController(
                 request.reservations.forEach { reservation ->
                     balance.reserveCredits(
                         session,
-                        Actor.SystemOnBehalfOfUser(reservation.jobInitiatedBy),
+                        reservation.jobInitiatedBy,
                         reservation
                     )
                 }

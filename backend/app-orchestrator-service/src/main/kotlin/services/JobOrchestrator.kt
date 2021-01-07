@@ -48,6 +48,7 @@ class JobOrchestrator(
     private val providers: Providers,
     private val userClientFactory: UserClientFactory,
     private val parameterExportService: ParameterExportService,
+    private val projectCache: ProjectCache,
 ) {
     private val listeners = ArrayList<JobListener>()
 
@@ -346,10 +347,17 @@ class JobOrchestrator(
         return loadedJobs
     }
 
+    private enum class Action {
+        CANCEL,
+        EXTEND,
+        OPEN_INTERACTIVE_SESSION,
+    }
+
     private suspend fun loadAndVerifyUserJobs(
         session: AsyncDBConnection,
         jobIds: Set<String>,
         user: Actor,
+        @Suppress("UNUSED_PARAMETER") action: Action,
         flags: JobDataIncludeFlags = JobDataIncludeFlags(includeParameters = true),
     ): Map<String, VerifiedJobWithAccessToken> {
         val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
@@ -357,8 +365,17 @@ class JobOrchestrator(
             throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
         }
 
-        val ownsAllJobs = loadedJobs.values.all {
-            it.job.owner.launchedBy == user.safeUsername() || user == Actor.System
+        val ownsAllJobs = loadedJobs.values.all { (job, _) ->
+            if (user == Actor.System) return@all true
+            val project = job.owner.project
+            if (project != null) {
+                val projectRole = projectCache.retrieveRole(user.safeUsername(), project)
+                val isUserAndLauncher = job.owner.launchedBy == user.safeUsername() && projectRole != null
+                val isProjectAdmin = projectRole?.isAdmin() == true
+                isUserAndLauncher || isProjectAdmin
+            } else {
+                job.owner.launchedBy == user.safeUsername()
+            }
         }
         if (!ownsAllJobs) {
             throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
@@ -390,7 +407,7 @@ class JobOrchestrator(
     suspend fun extendDuration(request: BulkRequest<JobsExtendRequestItem>, userActor: Actor.User) {
         val extensions = request.items.groupBy { it.jobId }
         db.withSession { session ->
-            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor)
+            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor, Action.EXTEND)
             val providers = jobs.values.map { it.job.parameters.product.provider }
                 .map { providers.prepareCommunication(it) }
 
@@ -419,7 +436,7 @@ class JobOrchestrator(
         val extensions = request.items.groupBy { it.id }
 
         db.withSession { session ->
-            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor)
+            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor, Action.CANCEL)
             val jobsByProvider = jobs.values.groupBy { it.job.parameters.product.provider }
             for ((provider, providerJobs) in jobsByProvider) {
                 val comm = providers.prepareCommunication(provider)
@@ -569,19 +586,12 @@ class JobOrchestrator(
         return db.withSession { session ->
             val requestsByJobId = request.items.groupBy { it.id }
             val jobIds = request.items.map { it.id }.toSet()
-            val jobs = jobQueryService.retrievePrivileged(session, jobIds, JobDataIncludeFlags()).values
+            val jobs = loadAndVerifyUserJobs(session, jobIds, actor, Action.OPEN_INTERACTIVE_SESSION).values
             val jobsByProvider = jobs.groupBy { it.job.parameters.product.provider }
 
             if (jobs.size != jobIds.size) {
                 log.debug("Not all jobs were found")
                 throw RPCException(errorMessage, HttpStatusCode.Forbidden)
-            }
-
-            for ((job) in jobs) {
-                if (actor != Actor.System && job.owner.launchedBy != actor.safeUsername()) {
-                    log.debug("User does not have permission to launch ${job.id}")
-                    throw RPCException(errorMessage, HttpStatusCode.Forbidden)
-                }
             }
 
             val sessions = ArrayList<OpenSessionWithProvider>()

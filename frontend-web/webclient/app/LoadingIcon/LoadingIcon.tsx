@@ -83,4 +83,9 @@ const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
     </HexSpinWrapper>
 );
 
+export function PredicatedLoadingSpinner({loading, size}: {loading: boolean, size?: number}): JSX.Element | null {
+    if (loading) return <HexSpin size={size} />
+    return null;
+}
+
 export default HexSpin;

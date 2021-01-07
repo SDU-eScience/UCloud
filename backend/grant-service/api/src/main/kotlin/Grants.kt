@@ -7,6 +7,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategory
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.project.api.CreateProjectRequest
@@ -309,6 +310,15 @@ data class BrowseProjectsRequest(
 ) : WithPaginationRequest
 typealias BrowseProjectsResponse = Page<ProjectWithTitle>
 data class ProjectWithTitle(val projectId: String, val title: String)
+
+data class GrantsRetrieveProductsRequest(
+    val projectId: String,
+    val recipientType: String,
+    val recipientId: String,
+)
+data class GrantsRetrieveProductsResponse(
+    val availableProducts: List<Product>
+)
 
 /**
  * [Grants] provide a way for users of UCloud to apply for resources ([ResourceRequest]) for any [GrantRecipient]
@@ -808,6 +818,29 @@ object Grants : CallDescriptionContainer("grant") {
             params {
                 +boundTo(BrowseProjectsRequest::itemsPerPage)
                 +boundTo(BrowseProjectsRequest::page)
+            }
+        }
+    }
+
+    val retrieveProducts = call<GrantsRetrieveProductsRequest, GrantsRetrieveProductsResponse, CommonErrorMessage>(
+        "retrieveProducts"
+    ) {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"retrieveProducts"
+            }
+
+            params {
+                +boundTo(GrantsRetrieveProductsRequest::projectId)
+                +boundTo(GrantsRetrieveProductsRequest::recipientId)
+                +boundTo(GrantsRetrieveProductsRequest::recipientType)
             }
         }
     }
