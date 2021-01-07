@@ -101,7 +101,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 paymentService,
                 providers,
                 userClientFactory,
-                parameterExportService
+                parameterExportService,
+                projectCache
             )
 
         val jobMonitoring = JobMonitoringService(

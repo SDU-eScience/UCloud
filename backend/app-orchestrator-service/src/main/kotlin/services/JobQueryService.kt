@@ -66,7 +66,7 @@ class JobQueryService(
                                 where 
                                     (
                                         :isSystem or
-                                        (j.launched_by = :username and project is null or j.project = :project::text) or
+                                        (j.launched_by = :username and (project is null or j.project = :project::text)) or
                                         (:isAdmin and :project::text is not null and j.project = :project::text)
                                     ) and
                                     (
