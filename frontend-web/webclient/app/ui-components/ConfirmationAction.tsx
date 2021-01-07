@@ -92,13 +92,14 @@ const Wrapper = styled(Button)<{ align?: "left" | "center" } & FontSizeProps>`
   }
 
   ul {
-    margin: 0;
     padding: 0;
     ${p => p.align !== "left" ? ({
+      margin: "0 0 0 40px",
       textAlign: "center",
       position: "relative",
       left: "8px"
     }) : ({
+      margin: "0",
       textAlign: "left",
       position: "absolute",
       left: "54px"
@@ -157,13 +158,8 @@ const Wrapper = styled(Button)<{ align?: "left" | "center" } & FontSizeProps>`
   }
 
   .ucloud-native-icons {
-    ${p => p.align !== "left" ? ({
-      position: "relative",
-      left: "10px"
-    }) : ({
-      position: "absolute",
-      left: "16px"
-    })}
+    position: absolute;
+    left: 15px;
   }
 
   & {
