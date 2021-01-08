@@ -8,6 +8,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {preventDefault} from "UtilityFunctions";
 import Grid from "ui-components/Grid";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
+import {ThemeColor} from "ui-components/theme";
 
 type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex |
     typeof ConfirmationButton;
@@ -27,7 +28,8 @@ export interface Operation<T, R = undefined> {
     onClick: (selected: T[], extra: R) => void;
     enabled: (selected: T[], extra: R) => OperationEnabled;
     icon?: IconName;
-    color?: string;
+    color?: ThemeColor;
+    hoverColor?: ThemeColor;
     outline?: boolean;
     operationType?: (inDropdown: boolean, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
@@ -79,6 +81,7 @@ const OperationComponent: React.FunctionComponent<{
         extraProps["actionText"] = op.text;
         extraProps["align"] = "left"
         extraProps["fontSize"] = "large"
+        extraProps["hoverColor"] = op.hoverColor;
         if (dropdown) {
             extraProps["ml"] = "-16px";
             extraProps["width"] = "calc(100% + 32px)"
