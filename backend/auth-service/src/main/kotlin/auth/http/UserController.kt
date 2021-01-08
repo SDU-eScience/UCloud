@@ -100,21 +100,12 @@ class UserController(
             ))
         }
 
-        implement(UserDescriptions.getSecurityPrincipal) {
+        implement(UserDescriptions.getPrincipal) {
             val principal = db.withTransaction {
                 userDAO.findById(it, request.username)
             }
-            principal as Person
             ok(
-                SecurityPrincipal(
-                    request.username,
-                    principal.role,
-                    principal.firstNames,
-                    principal.lastName,
-                    principal.uid,
-                    principal.email,
-                    principal.twoFactorAuthentication
-                )
+                principal
             )
         }
 

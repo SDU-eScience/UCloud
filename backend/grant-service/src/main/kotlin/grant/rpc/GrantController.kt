@@ -2,8 +2,8 @@ package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.GetSecurityPrincipalRequest
+import dk.sdu.cloud.auth.api.GetPrincipalRequest
+import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
@@ -14,7 +14,6 @@ import dk.sdu.cloud.grant.services.ApplicationService
 import dk.sdu.cloud.grant.services.CommentService
 import dk.sdu.cloud.grant.services.SettingsService
 import dk.sdu.cloud.grant.services.TemplateService
-import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.DBContext
@@ -193,14 +192,24 @@ class GrantController(
         }
 
         implement(Grants.findAffiliations) {
-            val user = UserDescriptions.getSecurityPrincipal.call(
-                GetSecurityPrincipalRequest(request.username),
+            val user = UserDescriptions.getPrincipal.call(
+                GetPrincipalRequest(request.username),
                 serviceClient
             ).orThrow()
+            user as Person
+            val principal = SecurityPrincipal(
+                request.username,
+                user.role,
+                user.firstNames,
+                user.lastName,
+                user.uid,
+                user.email,
+                user.twoFactorAuthentication
+            )
             ok(
                 settings.browse(
                     db,
-                    user.toActor(),
+                    principal.toActor(),
                     PaginationRequest(request.itemsPerPage, request.page).normalize()
                 )
             )

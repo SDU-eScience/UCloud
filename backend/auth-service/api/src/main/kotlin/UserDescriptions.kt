@@ -52,10 +52,10 @@ data class GetUserInfoResponse(
     val lastName: String?
 )
 
-data class GetSecurityPrincipalRequest(
+data class GetPrincipalRequest(
     val username: String
 )
-typealias GetSecurityPrincipalResponse = SecurityPrincipal
+typealias GetPrincipalResponse = Principal
 
 data class WantsEmailsRequest(
     val username: String?
@@ -130,7 +130,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         }
     }
 
-    val getSecurityPrincipal = call<GetSecurityPrincipalRequest, GetSecurityPrincipalResponse, CommonErrorMessage>("getSecurityPrincipal") {
+    val getPrincipal = call<GetPrincipalRequest, GetPrincipalResponse, CommonErrorMessage>("getSecurityPrincipal") {
         auth {
             roles = setOf(Role.SERVICE)
             access = AccessRight.READ
@@ -145,7 +145,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             }
 
             params {
-                +boundTo(GetSecurityPrincipalRequest::username)
+                +boundTo(GetPrincipalRequest::username)
             }
         }
     }
