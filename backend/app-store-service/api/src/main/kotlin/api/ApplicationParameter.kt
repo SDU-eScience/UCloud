@@ -14,6 +14,7 @@ private const val TYPE_ENUMERATION = "enumeration"
 private const val TYPE_FLOATING_POINT = "floating_point"
 private const val TYPE_PEER = "peer"
 private const val TYPE_LICENSE_SERVER = "license_server"
+private const val TYPE_INGRESS = "ingress"
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -29,7 +30,8 @@ private const val TYPE_LICENSE_SERVER = "license_server"
     JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT),
     JsonSubTypes.Type(value = ApplicationParameter.Peer::class, name = TYPE_PEER),
     JsonSubTypes.Type(value = ApplicationParameter.Enumeration::class, name = TYPE_ENUMERATION),
-    JsonSubTypes.Type(value = ApplicationParameter.LicenseServer::class, name = TYPE_LICENSE_SERVER)
+    JsonSubTypes.Type(value = ApplicationParameter.LicenseServer::class, name = TYPE_LICENSE_SERVER),
+    JsonSubTypes.Type(value = ApplicationParameter.Ingress::class, name = TYPE_INGRESS),
 )
 sealed class ApplicationParameter(val type: String) {
     abstract var name: String
@@ -133,6 +135,15 @@ sealed class ApplicationParameter(val type: String) {
                     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
                 )
         }
+    }
+
+    class Ingress(
+        override var name: String = "",
+        override val title: String,
+        override val description: String,
+    ) : ApplicationParameter(TYPE_INGRESS) {
+        override val defaultValue: Any? = null
+        override val optional = false
     }
 
     data class LicenseServer(

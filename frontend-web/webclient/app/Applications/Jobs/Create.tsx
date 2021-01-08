@@ -11,7 +11,7 @@ import Link from "ui-components/Link";
 import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "Applications/Jobs/Widgets";
 import * as Heading from "ui-components/Heading";
 import {FolderResource} from "Applications/Jobs/Resources/Folders";
-import {getProviderField, IngressResource, IngressRow, validateIngresses} from "Applications/Jobs/Resources/Ingress";
+import {getProviderField, IngressResource} from "Applications/Jobs/Resources/Ingress";
 import {PeerResource} from "Applications/Jobs/Resources/Peers";
 import {createSpaceForLoadedResources, injectResources, useResource} from "Applications/Jobs/Resources";
 import {
@@ -36,20 +36,6 @@ interface InsufficientFunds {
     errorCode?: string;
 }
 
-interface IngressField {
-    index: number;
-    id: React.RefObject<HTMLInputElement>;
-    domain: React.RefObject<HTMLInputElement>;
-}
-
-function newIngressField(index: number): IngressField {
-    return {
-        index,
-        id: React.createRef<HTMLInputElement>(),
-        domain: React.createRef<HTMLInputElement>()
-    }
-}
-
 export const Create: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
     const [, invokeCommand] = useCloudCommand();
@@ -64,16 +50,12 @@ export const Create: React.FunctionComponent = () => {
 
     const provider = getProviderField();
 
-    // NOTE: Should this use `useResource` as well?
-    const [ingressInfo, setIngressInfo] = useState<IngressField[]>([newIngressField(0)]);
-    // NOTEEND
-
-    const folders = useResource("resourceFolder",
+    const ingress = useResource("ingress", provider,
+        (name) => ({type: "ingress", description: "", title: "", optional: true, name}));
+    const folders = useResource("resourceFolder", provider,
         (name) => ({type: "input_directory", description: "", title: "", optional: true, name}));
-    const peers = useResource("resourcePeer",
+    const peers = useResource("resourcePeer", provider,
         (name) => ({type: "peer", description: "", title: "", optional: true, name}));
-
-    const [ingressEnabled, setIngressEnabled] = useState(false);
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
@@ -120,6 +102,7 @@ export const Create: React.FunctionComponent = () => {
         // Find resources and render if needed
         if (createSpaceForLoadedResources(folders, resources, "file", jobBeingLoaded, importedJob)) return;
         if (createSpaceForLoadedResources(peers, resources, "peer", jobBeingLoaded, importedJob)) return;
+        if (createSpaceForLoadedResources(ingress, resources, "ingress", jobBeingLoaded, importedJob)) return;
 
         // Load reservation
         setReservation(importedJob);
@@ -135,6 +118,7 @@ export const Create: React.FunctionComponent = () => {
         // Load resources
         injectResources(folders, resources, "file");
         injectResources(peers, resources, "peer");
+        injectResources(ingress, resources, "ingress");
     }, [application, activeOptParams, folders, peers]);
 
     useLayoutEffect(() => {
@@ -158,13 +142,13 @@ export const Create: React.FunctionComponent = () => {
         const peersValidation = validateWidgets(peers.params);
         peers.setErrors(peersValidation.errors);
 
-        const ingressValidation = validateIngresses(ingressInfo, ingressEnabled);
+        const ingressValidation = validateWidgets(ingress.params);
+        ingress.setErrors(ingressValidation.errors);
 
         if (Object.keys(errors).length === 0 &&
             reservationValidation.options !== undefined &&
             Object.keys(foldersValidation.errors).length === 0 &&
-            Object.keys(peersValidation.errors).length === 0 &&
-            ingressValidation.errors.length === 0
+            Object.keys(peersValidation.errors).length === 0
         ) {
             const request: UCloud.compute.JobParameters = {
                 ...reservationValidation.options,
@@ -172,7 +156,7 @@ export const Create: React.FunctionComponent = () => {
                 parameters: values,
                 resources: Object.values(foldersValidation.values)
                     .concat(Object.values(peersValidation.values))
-                    .concat(ingressValidation.values),
+                    .concat(Object.values(ingressValidation.values)),
                 allowDuplicateJob
             };
 
@@ -210,7 +194,7 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers]);
+    }, [application, folders, peers, ingress]);
 
     useSidebarPage(SidebarPages.Runs);
     useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
@@ -304,7 +288,8 @@ export const Create: React.FunctionComponent = () => {
                             <Heading.h4>Mandatory Parameters</Heading.h4>
                             <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                 {mandatoryParameters.map(param => (
-                                    <Widget key={param.name} parameter={param} errors={errors} active={true} />
+                                    <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                            active />
                                 ))}
                             </Grid>
                         </Box>
@@ -314,8 +299,8 @@ export const Create: React.FunctionComponent = () => {
                             <Heading.h4>Additional Parameters</Heading.h4>
                             <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                 {activeParameters.map(param => (
-                                    <Widget key={param.name} parameter={param} errors={errors}
-                                        active={true}
+                                    <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                        active
                                         onRemove={() => {
                                             setActiveOptParams(activeOptParams.filter(it => it !== param.name));
                                         }}
@@ -326,7 +311,7 @@ export const Create: React.FunctionComponent = () => {
                     )}
                     {inactiveParameters.length === 0 ? null : (
                         <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
-                            <Widget key={param.name} parameter={param} errors={errors}
+                            <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                 active={false}
                                 onActivate={() => {
                                     setActiveOptParams([...activeOptParams, param.name]);
@@ -336,26 +321,10 @@ export const Create: React.FunctionComponent = () => {
                     )}
 
                     {/* Resources */}
-
-                    <div>
-                        <IngressResource
-                            application={application}
-                            enabled={ingressEnabled}
-                            addRow={() => {
-                                const maxIndex = ingressInfo[ingressInfo.length - 1].index;
-                                ingressInfo.push(newIngressField(maxIndex + 1));
-                                setIngressInfo([...ingressInfo]);
-                            }}
-                            setEnabled={enabled => setIngressEnabled(enabled)}
-                        />
-
-                        {!ingressEnabled ? null :
-                            ingressInfo.map(refs => <IngressRow key={refs.index} refs={refs} provider={provider} onRemove={ingressInfo.length > 1 ? () => {
-                                const filtered = ingressInfo.filter(it => it.index !== refs.index);
-                                setIngressInfo([...filtered]);
-                            } : undefined} />)
-                        }
-                    </div>
+                    <IngressResource
+                        {...ingress}
+                        application={application}
+                    />
 
                     <FolderResource
                         {...folders}

@@ -249,7 +249,8 @@ class JobVerificationService(
                     is ApplicationParameter.InputFile,
                     is ApplicationParameter.InputDirectory,
                     is ApplicationParameter.Peer,
-                    is ApplicationParameter.LicenseServer
+                    is ApplicationParameter.LicenseServer,
+                    is ApplicationParameter.Ingress
                     -> null // Not supported and application should not have been validated. Silently fail.
 
                     is ApplicationParameter.Text -> (param.defaultValue as? String)?.let { AppParameterValue.Text(it) }
@@ -314,6 +315,10 @@ class JobVerificationService(
 
                 is ApplicationParameter.LicenseServer -> {
                     if (providedValue !is AppParameterValue.License) badValue(param)
+                }
+
+                is ApplicationParameter.Ingress -> {
+                    if (providedValue !is AppParameterValue.Ingress) badValue(param)
                 }
             }
         }

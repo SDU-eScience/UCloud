@@ -15,6 +15,7 @@ import {GenericTextParameter, GenericTextSetter, GenericTextValidator} from "App
 import {EnumParameter, EnumSetter, EnumValidator} from "Applications/Jobs/Widgets/Enum";
 import {PeerParameter, PeerSetter, PeerValidator} from "Applications/Jobs/Widgets/Peer";
 import {LicenseParameter, LicenseSetter, LicenseValidator} from "Applications/Jobs/Widgets/License";
+import {IngressParameter} from "Applications/Jobs/Widgets/Ingress";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -37,6 +38,8 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
             return <PeerParameter {...props} parameter={props.parameter}/>;
         case "license_server":
             return <LicenseParameter {...props} parameter={props.parameter}/>;
+        case "ingress":
+            return <IngressParameter {...props} parameter={props.parameter}/>;
     }
 };
 
@@ -59,6 +62,7 @@ const setters: WidgetSetter[] = [
 ];
 
 export interface WidgetProps {
+    provider?: string;
     parameter: ApplicationParameter;
     errors: Record<string, string>;
 }

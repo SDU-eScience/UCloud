@@ -11,10 +11,12 @@ export interface ResourceHook {
     setSize: (size: number) => void;
     params: ApplicationParameter[];
     errors: Record<string, string>;
+    provider?: string;
     setErrors: (newErrors: Record<string, string>) => void;
 }
 
-export function useResource(ns: string, paramMapper: (name: string) => ApplicationParameter): ResourceHook {
+export function useResource(ns: string, provider: string | undefined,
+                            paramMapper: (name: string) => ApplicationParameter): ResourceHook {
     const counter = useRef<number>(0);
     const [params, setParams] = useState<ApplicationParameter[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -24,8 +26,8 @@ export function useResource(ns: string, paramMapper: (name: string) => Applicati
     }, [params]);
 
     const onRemove = useCallback((id: string) => {
-        setParams(params.filter(it => it.name !== id));
-    }, [params]);
+        setParams(oldParams => oldParams.filter(it => it.name !== id));
+    }, [setParams]);
 
     const setSize = useCallback((size: number) => {
         const params: ApplicationParameter[] = [];
@@ -36,7 +38,7 @@ export function useResource(ns: string, paramMapper: (name: string) => Applicati
         setParams(params);
     }, [setParams, setErrors]);
 
-    return {onAdd, onRemove, params, errors, setErrors, setSize};
+    return {onAdd, onRemove, params, errors, setErrors, setSize, provider};
 }
 
 export function createSpaceForLoadedResources(

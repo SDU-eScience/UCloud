@@ -70,7 +70,10 @@ interface ArgumentBuilder {
                 is ApplicationParameter.LicenseServer -> {
                     val license = (value as AppParameterValue.License)
                     return license.id
+                }
 
+                is ApplicationParameter.Ingress -> {
+                    return (value as AppParameterValue.Ingress).id
                 }
             }
         }
