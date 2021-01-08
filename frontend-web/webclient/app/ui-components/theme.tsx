@@ -507,6 +507,15 @@ const theme = {
     borderWidth,
 };
 
+export function selectHoverColor(inputColor: string | ThemeColor): string | ThemeColor {
+    switch (inputColor) {
+        case "red":
+            return "darkRed";
+        default:
+            return inputColor;
+    }
+}
+
 export type Theme = typeof theme;
 
 export default theme;

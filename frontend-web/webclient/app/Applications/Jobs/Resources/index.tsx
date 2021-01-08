@@ -11,15 +11,17 @@ export interface ResourceHook {
     setSize: (size: number) => void;
     params: ApplicationParameter[];
     errors: Record<string, string>;
+    provider?: string;
     setErrors: (newErrors: Record<string, string>) => void;
 }
 
 type ResourcePrefix = "resource";
 type PeerResourceNS = `${ResourcePrefix}Peer`;
 type FolderResourceNS = `${ResourcePrefix}Folder`;
-type ResourceTypes = FolderResourceNS | PeerResourceNS;
+type ResourceTypes = FolderResourceNS | PeerResourceNS | "ingress";
 
-export function useResource(ns: ResourceTypes, paramMapper: (name: string) => ApplicationParameter): ResourceHook {
+export function useResource(ns: ResourceTypes, provider: string | undefined,
+    paramMapper: (name: string) => ApplicationParameter): ResourceHook {
     const counter = useRef<number>(0);
     const [params, setParams] = useState<ApplicationParameter[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -29,8 +31,8 @@ export function useResource(ns: ResourceTypes, paramMapper: (name: string) => Ap
     }, [params]);
 
     const onRemove = useCallback((id: string) => {
-        setParams(params.filter(it => it.name !== id));
-    }, [params]);
+        setParams(oldParams => oldParams.filter(it => it.name !== id));
+    }, [setParams]);
 
     const setSize = useCallback((size: number) => {
         const params: ApplicationParameter[] = [];
@@ -41,7 +43,7 @@ export function useResource(ns: ResourceTypes, paramMapper: (name: string) => Ap
         setParams(params);
     }, [setParams, setErrors]);
 
-    return {onAdd, onRemove, params, errors, setErrors, setSize};
+    return {onAdd, onRemove, params, errors, setErrors, setSize, provider};
 }
 
 export function createSpaceForLoadedResources(

@@ -7,8 +7,9 @@ import Icon, {IconName} from "ui-components/Icon";
 import {shakeAnimation} from "UtilityComponents";
 import {doNothing} from "UtilityFunctions";
 import {fontSize, FontSizeProps} from "styled-system";
+import {selectHoverColor, ThemeColor} from "ui-components/theme";
 
-const Wrapper = styled(Button)<{ align?: "left" | "center" } & FontSizeProps>`
+const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string } & FontSizeProps>`
   --progress-border: var(--background, #f00);
   --progress-active: var(--white, #f00);
   --progress-success: var(--color, #f00);
@@ -28,6 +29,14 @@ const Wrapper = styled(Button)<{ align?: "left" | "center" } & FontSizeProps>`
   -webkit-appearance: none;
   -webkit-tap-highlight-color: transparent;
   min-width: 140px;
+  background: var(--background, #f00);
+  
+  &:hover {
+    ${p => p.asSquare ? ({
+        "--progress-border": `var(--${p.hoverColor ?? selectHoverColor(p.color ?? "blue")}, #f00)`,
+        "--background": `var(--${p.hoverColor ?? selectHoverColor(p.color ?? "blue")}, #f00)`
+    }) : ({})}
+  }
 
   & > .icons {
     border-radius: 50%;
@@ -170,7 +179,6 @@ const Wrapper = styled(Button)<{ align?: "left" | "center" } & FontSizeProps>`
     ${p => !p.asSquare ? ({
       transform: "scale(1.03)"
     }) : ({
-      filter: "saturate(110%)",
       transform: "scale(1)"
     })}
   }
@@ -204,6 +212,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     doneText?: string,
     icon: IconName,
     onAction?: () => void;
+    hoverColor?: ThemeColor;
 }> = props => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const timeout = useRef(-1);

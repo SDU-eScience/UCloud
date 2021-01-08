@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Jan 07 12:14:57 CET 2021 */
+/* Generated at: Fri Jan 08 09:43:16 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -972,6 +972,7 @@ export namespace compute {
         | ApplicationParameterNS.Peer
         | ApplicationParameterNS.Enumeration
         | ApplicationParameterNS.LicenseServer
+        | ApplicationParameterNS.Ingress
 
     export interface VncDescription {
         password?: string,
@@ -3445,6 +3446,16 @@ export namespace compute {
             defaultValue?: any /* unknown */
             ,
             type: "license_server",
+        }
+
+        export interface Ingress {
+            name: string,
+            title: string,
+            description: string,
+            defaultValue?: any /* unknown */
+            ,
+            optional: boolean,
+            type: "ingress",
         }
     }
 }
