@@ -45,10 +45,12 @@ export const ListV2: ListV2Type = props => {
 
     return <Box>
         {allPages.map((node, i) => <React.Fragment key={i}>{node}</React.Fragment>)}
-        <Box margin={"0 auto"} maxWidth={"500px"}>
-            <Button fullWidth type={"button"} onClick={props.onLoadMore} disabled={!props.page.next}>
-                {!props.page.next ? "No more results returned from UCloud" : "Load more"}
-            </Button>
-        </Box>
+        {props.page.next || allPages.length > 1 ?
+            <Box margin={"0 auto"} maxWidth={"500px"}>
+                <Button fullWidth type={"button"} onClick={props.onLoadMore} disabled={!props.page.next}>
+                    {!props.page.next ? "No more results returned from UCloud" : "Load more"}
+                </Button>
+            </Box> : null
+        }
     </Box>;
 }
