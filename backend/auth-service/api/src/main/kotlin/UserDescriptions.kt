@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
 
 data class LookupUsersRequest(val users: List<String>)
@@ -137,9 +138,14 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
         http {
             method = HttpMethod.Get
+
             path {
                 using(baseContext)
                 +"securityPrincipal"
+            }
+
+            params {
+                +boundTo(GetSecurityPrincipalRequest::username)
             }
         }
     }
