@@ -57,7 +57,6 @@ export function createSpaceForLoadedResources(
     if (resources.params.length !== resourceFolders.length) {
         jobBeingLoaded.current = importedJob;
         resources.setSize(resourceFolders.length);
-        console.log("We need to load again", jobBeingLoaded.current);
         return true;
     }
     return false;
