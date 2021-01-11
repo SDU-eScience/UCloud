@@ -15,7 +15,7 @@ import {GenericTextParameter, GenericTextSetter, GenericTextValidator} from "App
 import {EnumParameter, EnumSetter, EnumValidator} from "Applications/Jobs/Widgets/Enum";
 import {PeerParameter, PeerSetter, PeerValidator} from "Applications/Jobs/Widgets/Peer";
 import {LicenseParameter, LicenseSetter, LicenseValidator} from "Applications/Jobs/Widgets/License";
-import {IngressParameter} from "Applications/Jobs/Widgets/Ingress";
+import {IngressParameter, IngressSetter, IngressValidator} from "Applications/Jobs/Widgets/Ingress";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -49,7 +49,8 @@ const validators: WidgetValidator[] = [
     FilesValidator,
     EnumValidator,
     PeerValidator,
-    LicenseValidator
+    LicenseValidator,
+    IngressValidator,
 ];
 
 const setters: WidgetSetter[] = [
@@ -58,7 +59,8 @@ const setters: WidgetSetter[] = [
     FilesSetter,
     EnumSetter,
     PeerSetter,
-    LicenseSetter
+    LicenseSetter,
+    IngressSetter
 ];
 
 export interface WidgetProps {

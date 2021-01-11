@@ -73,7 +73,6 @@ export const Create: React.FunctionComponent = () => {
     const onLoadParameters = useCallback((importedJob: Partial<JobParameters>) => {
         if (application == null) return;
         jobBeingLoaded.current = null;
-
         const parameters = application.invocation.parameters;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];

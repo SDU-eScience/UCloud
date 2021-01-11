@@ -55,8 +55,8 @@ export function createSpaceForLoadedResources(
 ): boolean {
     const resourceFolders = values.filter(it => it.type === type);
     if (resources.params.length !== resourceFolders.length) {
-        resources.setSize(resourceFolders.length);
         jobBeingLoaded.current = importedJob;
+        resources.setSize(resourceFolders.length);
         return true;
     }
     return false;
