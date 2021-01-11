@@ -73,6 +73,7 @@ export const Create: React.FunctionComponent = () => {
     const onLoadParameters = useCallback((importedJob: Partial<JobParameters>) => {
         if (application == null) return;
         jobBeingLoaded.current = null;
+        console.log("Loading parameters");
 
         const parameters = application.invocation.parameters;
         const values = importedJob.parameters ?? {};
@@ -100,9 +101,13 @@ export const Create: React.FunctionComponent = () => {
         }
 
         // Find resources and render if needed
+        console.log(0);
         if (createSpaceForLoadedResources(folders, resources, "file", jobBeingLoaded, importedJob)) return;
+        console.log(1);
         if (createSpaceForLoadedResources(peers, resources, "peer", jobBeingLoaded, importedJob)) return;
+        console.log(2);
         if (createSpaceForLoadedResources(ingress, resources, "ingress", jobBeingLoaded, importedJob)) return;
+        console.log(3);
 
         // Load reservation
         setReservation(importedJob);
@@ -126,6 +131,8 @@ export const Create: React.FunctionComponent = () => {
             onLoadParameters(jobBeingLoaded.current);
         }
     });
+
+    console.log("Rendering component", jobBeingLoaded.current);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
