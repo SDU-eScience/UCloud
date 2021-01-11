@@ -10,7 +10,6 @@ import * as Licenses from "Applications/Licenses";
 import {useCallback, useState} from "react";
 import ReactModal from "react-modal";
 import License = compute.License;
-import {Box} from "ui-components";
 import {largeModalStyle} from "Utilities/ModalUtilities";
 
 interface LicenseProps extends WidgetProps {
