@@ -12,14 +12,45 @@ import {jobTitle} from "Applications/Jobs";
 interface JobSelectorProps {
     isShown: boolean;
     trigger: JSX.Element;
+    allowAutoConfigure: boolean;
+    hasSelectedJob: boolean;
     setShown: (show: boolean) => void;
     onSelect: (job: UCloud.compute.Job) => void;
+    suggestedApplication?: {name: string, version: string};
 }
 
-export function JobSelector({isShown, setShown, onSelect, trigger}: JobSelectorProps): JSX.Element {
+export function JobSelector({
+    isShown,
+    setShown,
+    onSelect,
+    trigger,
+    suggestedApplication,
+    allowAutoConfigure,
+    hasSelectedJob
+}: JobSelectorProps): JSX.Element {
     const [jobs, fetchJobs] = useCloudAPI<UCloud.PageV2<UCloud.compute.Job>, UCloud.compute.JobsBrowseRequest>(
         {noop: true}, emptyPageV2
     );
+
+    React.useEffect(() => {
+        fetchJobs(UCloud.compute.jobs.browse({
+            filterApplication: suggestedApplication?.name,
+            itemsPerPage: 25,
+            filterState: "RUNNING",
+            includeApplication: true,
+            includeParameters: false,
+            includeProduct: false,
+            includeUpdates: false
+        }));
+    }, [suggestedApplication])
+
+
+    React.useEffect(() => {
+        if (!hasSelectedJob && jobs.data.items.length > 0 && allowAutoConfigure && suggestedApplication != null) {
+            // Auto-configure a job if one can be selected
+            onSelect(jobs.data.items[0]);
+        }
+    }, [hasSelectedJob, jobs.data, allowAutoConfigure, suggestedApplication]);
 
     const loadMore = React.useCallback(() => {
         fetchJobs(UCloud.compute.jobs.browse({
@@ -71,7 +102,7 @@ export function JobSelector({isShown, setShown, onSelect, trigger}: JobSelectorP
                     <br />
                     {dateToString(job.status.startedAt!)}
                 </Box>
-                <Button type={"button"} onClick={() => onSelect(job)}>
+                <Button type="button" onClick={() => onSelect(job)}>
                     Select
                 </Button>
             </Flex>
@@ -79,7 +110,18 @@ export function JobSelector({isShown, setShown, onSelect, trigger}: JobSelectorP
     }
 }
 
-export function ControlledJobSelector({trigger, onSelect}: Omit<JobSelectorProps, "isShown" | "setShown">): JSX.Element {
+export function ControlledJobSelector(props: Omit<JobSelectorProps, "isShown" | "setShown">): JSX.Element {
     const [isShown, setIsShown] = React.useState(false);
-    return <JobSelector isShown={isShown} setShown={setIsShown} trigger={trigger} onSelect={onSelect} />
+    return <JobSelector
+        isShown={isShown}
+        setShown={setIsShown}
+        allowAutoConfigure={props.allowAutoConfigure}
+        hasSelectedJob={props.hasSelectedJob}
+        trigger={props.trigger}
+        suggestedApplication={props.suggestedApplication}
+        onSelect={job => {
+            setIsShown(false);
+            props.onSelect(job);
+        }}
+    />
 }

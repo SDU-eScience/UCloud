@@ -93,7 +93,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const [selectedPeer, setSelectedPeer] = useState<string | undefined>(undefined);
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
 
-    const [suggestedApplicationApi, fetchApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(
+    const [suggestedApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(
         props.suggestedApplication ?
             UCloud.compute.apps.findByName({appName: props.suggestedApplication, itemsPerPage: 50, page: 0}) :
             {noop: true},
@@ -107,13 +107,21 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     React.useEffect(() => {
         if (props.suggestedApplication === null && allowAutoConfigure) {
             setAllowAutoConfigure(false);
-
         }
     }, [props.suggestedApplication, allowAutoConfigure]);
 
     return (
         <ControlledJobSelector
-            onSelect={job => setSelectedPeer(job.id)}
+            hasSelectedJob={selectedPeer != null}
+            suggestedApplication={suggestedApplication ? {
+                name: suggestedApplication.parameters.application.name,
+                version: suggestedApplication.parameters.application.version
+            } : undefined}
+            allowAutoConfigure={allowAutoConfigure}
+            onSelect={job => {
+                setSelectedPeer(job.id);
+                setAllowAutoConfigure(false);
+            }}
             trigger={
                 <Input
                     id={widgetId(props.parameter) + "job"}
