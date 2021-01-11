@@ -3,7 +3,6 @@ package dk.sdu.cloud
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
-import dk.sdu.cloud.app.license.AppLicenseService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
@@ -27,7 +26,6 @@ import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.ProjectService
 import dk.sdu.cloud.project.repository.ProjectRepositoryService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
-import dk.sdu.cloud.service.ClassDiscovery
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.share.ShareService
 import dk.sdu.cloud.support.SupportService
@@ -44,7 +42,6 @@ val services = setOf(
     AccountingService,
     ActivityService,
     AppKubernetesService,
-    AppLicenseService,
     AppOrchestratorService,
     AppStoreService,
     AuditIngestionService,
