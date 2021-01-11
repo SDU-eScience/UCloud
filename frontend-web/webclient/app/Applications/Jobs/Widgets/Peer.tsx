@@ -4,27 +4,15 @@ import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {compute} from "UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "ui-components/Flex";
-import {RefObject, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import Text from "ui-components/Text";
-import {Link} from "react-router-dom";
-import {runApplication, viewApplication} from "Applications/Pages";
-import * as ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {useState} from "react";
 import Box from "ui-components/Box";
-import * as Heading from "ui-components/Heading";
-import OutlineButton from "ui-components/OutlineButton";
-import {Refresh} from "Navigation/Header";
-import Divider from "ui-components/Divider";
-import * as Pagination from "Pagination";
-import {shortUUID} from "UtilityFunctions";
-import {dateToString} from "Utilities/DateUtilities";
-import Button from "ui-components/Button";
 import styled from "styled-components";
 import Input from "ui-components/Input";
 import Label from "ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import {ControlledJobSelector} from "../JobSelector";
+import {emptyPage} from "DefaultObjects";
+import {useCloudAPI} from "Authentication/DataHook";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -105,28 +93,42 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const [selectedPeer, setSelectedPeer] = useState<string | undefined>(undefined);
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
 
-    const [isSelectorOpen, setSelectorOpen] = useState<boolean>(false);
-    return null;
-
-    /*
-    const [suggestedApplicationApi] = useCloudAPI<Page<WithAppMetadata>>(
+    const [suggestedApplicationApi, fetchApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(
         props.suggestedApplication ?
-            listByName({name: props.suggestedApplication, itemsPerPage: 50, page: 0}) :
+            UCloud.compute.apps.findByName({appName: props.suggestedApplication, itemsPerPage: 50, page: 0}) :
             {noop: true},
         {...emptyPage, itemsPerPage: -1}
     );
 
-    const [availablePeers, fetchAvailablePeers, peerParams] = useCloudAPI<Page<JobWithStatus>, ListJobsProps>(
-        {noop: true},
-        {...emptyPage, itemsPerPage: -1}
+    console.log(suggestedApplicationApi.data.items);
+
+    const [suggestedApplication] = suggestedApplicationApi.data.items;
+
+    React.useEffect(() => {
+        if (props.suggestedApplication === null && allowAutoConfigure) {
+            setAllowAutoConfigure(false);
+
+        }
+    }, [props.suggestedApplication, allowAutoConfigure]);
+
+    return (
+        <ControlledJobSelector
+            onSelect={job => setSelectedPeer(job.id)}
+            trigger={
+                <Input
+                    id={widgetId(props.parameter) + "job"}
+                    /* height is not recognized as a prop for some reason */
+                    style={{height: "39px"}}
+                    value={selectedPeer}
+                    placeholder="No selected job"
+                    readOnly
+                />
+            }
+        />
     );
 
-    const suggestedApplication = suggestedApplicationApi.data.items.length > 0 ?
-        suggestedApplicationApi.data.items[0] : null;
+    /* 
 
-    if (props.suggestedApplication === null && allowAutoConfigure) {
-        setAllowAutoConfigure(false);
-    }
 
     if ((suggestedApplicationApi.data.itemsPerPage !== -1 || isSelectorOpen) && peerParams.noop) {
         // Load available peers once we have loaded the suggested application (if one exists)

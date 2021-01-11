@@ -15,8 +15,13 @@ export interface ResourceHook {
     setErrors: (newErrors: Record<string, string>) => void;
 }
 
-export function useResource(ns: string, provider: string | undefined,
-                            paramMapper: (name: string) => ApplicationParameter): ResourceHook {
+type ResourcePrefix = "resource";
+type PeerResourceNS = `${ResourcePrefix}Peer`;
+type FolderResourceNS = `${ResourcePrefix}Folder`;
+type ResourceTypes = FolderResourceNS | PeerResourceNS | "ingress";
+
+export function useResource(ns: ResourceTypes, provider: string | undefined,
+    paramMapper: (name: string) => ApplicationParameter): ResourceHook {
     const counter = useRef<number>(0);
     const [params, setParams] = useState<ApplicationParameter[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});

@@ -11,20 +11,22 @@ import {jobTitle} from "Applications/Jobs";
 
 interface JobSelectorProps {
     isShown: boolean;
+    trigger: JSX.Element;
     setShown: (show: boolean) => void;
     onSelect: (job: UCloud.compute.Job) => void;
-    trigger: JSX.Element;
 }
 
-function JobSelector({isShown, setShown, onSelect, trigger}: JobSelectorProps): JSX.Element {
-    const [jobs, fetchJobs] = useCloudAPI<UCloud.PageV2<UCloud.compute.Job>, UCloud.compute.JobsBrowseRequest>({noop: true}, emptyPageV2);
+export function JobSelector({isShown, setShown, onSelect, trigger}: JobSelectorProps): JSX.Element {
+    const [jobs, fetchJobs] = useCloudAPI<UCloud.PageV2<UCloud.compute.Job>, UCloud.compute.JobsBrowseRequest>(
+        {noop: true}, emptyPageV2
+    );
 
     const loadMore = React.useCallback(() => {
         fetchJobs(UCloud.compute.jobs.browse({
             next: jobs.data.next,
             itemsPerPage: 25,
             filterState: "RUNNING",
-            includeApplication: false,
+            includeApplication: true,
             includeParameters: false,
             includeProduct: false,
             includeUpdates: false
@@ -36,8 +38,26 @@ function JobSelector({isShown, setShown, onSelect, trigger}: JobSelectorProps): 
             {trigger}
         </span>
 
-        <ReactModal isOpen={isShown} shouldCloseOnEsc shouldCloseOnOverlayClick onRequestClose={() => setShown(false)} style={defaultModalStyle}>
-            <ListV2 page={jobs.data} loading={jobs.loading} onLoadMore={loadMore} pageRenderer={pageRenderer} />
+        <ReactModal
+            isOpen={isShown}
+            shouldCloseOnEsc
+            shouldCloseOnOverlayClick
+            onRequestClose={() => setShown(false)}
+            style={defaultModalStyle}
+        >
+            <ListV2
+                customEmptyPage={
+                    <Box width={500}>
+                        You don&#39;t currently have any running jobs. You can start a new job by selecting an
+                        application
+                        (in &quot;Apps&quot;) and submitting it to be run.
+                            </Box>
+                }
+                page={jobs.data}
+                loading={jobs.loading}
+                onLoadMore={loadMore}
+                pageRenderer={pageRenderer}
+            />
         </ReactModal>
     </>);
 
