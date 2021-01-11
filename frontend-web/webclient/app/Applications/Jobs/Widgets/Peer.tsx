@@ -57,7 +57,7 @@ export const PeerValidator: WidgetValidator = (param) => {
             return {valid: false, message: "All fields must be filled out."};
         }
 
-        return {valid: false, value: {type: "peer", jobId: jobElem.value, hostname: nameElem.value}};
+        return {valid: true, value: {type: "peer", jobId: jobElem.value, hostname: nameElem.value}};
     }
 
     return {valid: true};
