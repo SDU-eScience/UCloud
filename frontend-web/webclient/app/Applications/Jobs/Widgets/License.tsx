@@ -40,14 +40,12 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             ariaHideApp={false}
             shouldCloseOnEsc
         >
-            <Box height={"100%"} overflow={"auto"}>
-                <Licenses.Browse
-                    tagged={props.parameter.tagged}
-                    // TODO Provider
-                    standalone={false}
-                    onUse={onUse}
-                />
-            </Box>
+            <Licenses.Browse
+                tagged={props.parameter.tagged}
+                // TODO Provider
+                standalone={false}
+                onUse={onUse}
+            />
         </ReactModal>
         <PointerInput
             id={widgetId(props.parameter)}

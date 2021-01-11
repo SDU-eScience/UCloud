@@ -28,7 +28,7 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
   backface-visibility: hidden;
   -webkit-appearance: none;
   -webkit-tap-highlight-color: transparent;
-  min-width: 140px;
+  min-width: 170px;
   background: var(--background, #f00);
   
   &:hover {

@@ -4,14 +4,17 @@ import {PropsWithChildren, useCallback, useState} from "react";
 import * as React from "react";
 import {StyledComponent} from "styled-components";
 import {TextSpan} from "ui-components/Text";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import ClickableDropdown, {ClickableDropdownProps} from "ui-components/ClickableDropdown";
 import {preventDefault} from "UtilityFunctions";
 import Grid from "ui-components/Grid";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import {ThemeColor} from "ui-components/theme";
+import * as Heading from "ui-components/Heading";
 
 type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex |
     typeof ConfirmationButton;
+
+export type OperationLocation = "SIDEBAR" | "IN_ROW" | "TOPBAR";
 
 /**
  * The enabled function can either return a boolean or a string.
@@ -31,14 +34,14 @@ export interface Operation<T, R = undefined> {
     color?: ThemeColor;
     hoverColor?: ThemeColor;
     outline?: boolean;
-    operationType?: (inDropdown: boolean, allOperations: Operation<T, R>[]) => OperationComponentType;
+    operationType?: (location: OperationLocation, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
-    canAppearInDropdown?: boolean;
+    canAppearInLocation?: (location: OperationLocation) => boolean;
     confirm?: boolean;
 }
 
 export function defaultOperationType(
-    inDropdown: boolean,
+    location: OperationLocation,
     allOperations: Operation<unknown, unknown>[],
     op: Operation<unknown, unknown>,
 ): OperationComponentType {
@@ -48,7 +51,7 @@ export function defaultOperationType(
         return Button;
     } else if (allOperations.length === 1) {
         return OutlineButton;
-    } else if (inDropdown) {
+    } else if (location === "IN_ROW" || location === "TOPBAR") {
         return Flex;
     } else {
         return Flex;
@@ -62,9 +65,9 @@ const OperationComponent: React.FunctionComponent<{
     extra: unknown;
     selected: unknown[];
     reasonDisabled?: string;
-    dropdown: boolean;
+    location: OperationLocation;
     onAction: () => void;
-}> = ({As, op, selected, extra, reasonDisabled, dropdown, onAction}) => {
+}> = ({As, op, selected, extra, reasonDisabled, location, onAction}) => {
     const onClick = useCallback((e: React.SyntheticEvent) => {
         if (op.primary === true) e.stopPropagation();
         if (reasonDisabled !== undefined) return;
@@ -77,12 +80,12 @@ const OperationComponent: React.FunctionComponent<{
 
     if (As === ConfirmationButton) {
         extraProps["onAction"] = onClick;
-        extraProps["asSquare"] = dropdown;
+        extraProps["asSquare"] = location === "IN_ROW" || location === "TOPBAR";
         extraProps["actionText"] = op.text;
         extraProps["align"] = "left"
         extraProps["fontSize"] = "large"
         extraProps["hoverColor"] = op.hoverColor;
-        if (dropdown) {
+        if (location === "IN_ROW" || location === "TOPBAR") {
             extraProps["ml"] = "-16px";
             extraProps["width"] = "calc(100% + 32px)"
         }
@@ -94,7 +97,7 @@ const OperationComponent: React.FunctionComponent<{
         onClick={onClick}
         data-tag={`${op.text}-action`}
         disabled={reasonDisabled !== undefined}
-        fullWidth
+        fullWidth={!op.primary || location !== "TOPBAR"}
         height={"38px"}
         icon={op.icon}
         {...extraProps}
@@ -110,7 +113,7 @@ const OperationComponent: React.FunctionComponent<{
 };
 
 interface OperationProps<T, R = undefined> {
-    dropdown: boolean;
+    location: OperationLocation;
     operations: Operation<T, R>[];
     selected: T[];
     extra: R;
@@ -133,17 +136,16 @@ export const Operations: OperationsType = props => {
     }, [setDropdownOpen]);
     if (props.operations.length === 0) return null;
 
-    // Don't render anything if we are a dropdown and we have selected something
-    if (props.selected.length > 0 && props.dropdown) return null;
-    if (props.dropdown && !props.row) return null;
+    // Don't render anything if we are in row and we have selected something
+    if (props.selected.length > 0 && props.location === "IN_ROW") return null;
+    if (props.location === "IN_ROW" && !props.row) return null;
 
-    const selected = props.dropdown ? [props.row!] : props.selected;
+    const selected = props.location === "IN_ROW" ? [props.row!] : props.selected;
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
     const operations: { elem: JSX.Element, priority: number, primary: boolean }[] = props.operations
-        .filter(op => op.enabled(selected, props.extra) !== false)
-        .filter(op => !props.dropdown || op.canAppearInDropdown !== false || op.primary)
+        .filter(op => op.enabled(selected, props.extra) !== false && op.canAppearInLocation?.(props.location) !== false)
         .map(op => {
             const enabled = op.enabled(selected, props.extra);
             let reasonDisabled: string | undefined = undefined;
@@ -154,9 +156,9 @@ export const Operations: OperationsType = props => {
 
             const opTypeFn = op.operationType ?? ((a, b) => defaultOperationType(a, b, op));
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const As = opTypeFn(props.dropdown, props.operations) as StyledComponent<any, any>;
+            const As = opTypeFn(props.location, props.operations) as StyledComponent<any, any>;
             const elem = <OperationComponent key={op.text} As={As} op={op} extra={props.extra} selected={selected}
-                                             reasonDisabled={reasonDisabled} dropdown={props.dropdown}
+                                             reasonDisabled={reasonDisabled} location={props.location}
                                              onAction={closeDropdown}/>;
             const priority = As === OutlineButton ? 0 : As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};
@@ -164,7 +166,7 @@ export const Operations: OperationsType = props => {
         .filter(op => op !== null)
         .map(op => op!);
 
-    if (!(selected.length === 0 || props.operations.length === 1 || props.dropdown)) {
+    if (!(selected.length === 0 || props.operations.length === 1) && props.location === "SIDEBAR") {
         operations.push({
             elem: <div key={"selected"}>
                 <TextSpan bold>
@@ -187,41 +189,70 @@ export const Operations: OperationsType = props => {
 
     const primaryContent = operations.filter(it => it.primary).map(it => it.elem);
 
-    if (props.dropdown) {
-        return <>
-            {primaryContent}
-            <Box mr={"10px"}/>
-            {content.length === 0 ? <Box ml={"30px"}/> :
-                <Flex alignItems={"center"} justifyContent={"center"}>
-                    <ClickableDropdown
-                        width={"220px"}
-                        left={"-200px"}
-                        open={dropdownOpen}
-                        onTriggerClick={openDropdown}
-                        keepOpenOnClick={true}
-                        onClose={closeDropdown}
-                        trigger={(
-                            <Icon
-                                onClick={preventDefault}
-                                ml={"5px"}
-                                mr={"10px"}
-                                name={"ellipsis"}
-                                size={"1em"}
-                                rotation={90}
-                                data-tag={props.dropdownTag}
-                            />
-                        )}
-                    >
-                        {content}
-                    </ClickableDropdown>
+    const dropdownProps: ClickableDropdownProps<unknown> = {
+        width: "220px",
+        left: "-200px",
+        open: dropdownOpen,
+        onTriggerClick: openDropdown,
+        keepOpenOnClick: true,
+        onClose: closeDropdown,
+        trigger: (
+            <Icon
+                onClick={preventDefault}
+                ml={"5px"}
+                mr={"10px"}
+                name={"ellipsis"}
+                size={"1em"}
+                rotation={90}
+                data-tag={props.dropdownTag}
+            />
+        )
+    };
+
+    switch (props.location) {
+        case "IN_ROW":
+            return <>
+                {primaryContent}
+                <Box mr={"10px"}/>
+                {content.length === 0 ? <Box ml={"30px"}/> :
+                    <Flex alignItems={"center"} justifyContent={"center"}>
+                        <ClickableDropdown {...dropdownProps}>
+                            {content}
+                        </ClickableDropdown>
+                    </Flex>
+                }
+            </>;
+
+        case "SIDEBAR":
+            if (content.length === 0 && primaryContent.length === 0) return null;
+            return (
+                <Grid gridTemplateColumns={"1 fr"} gridGap={"8px"} my={"8px"}>
+                    {primaryContent}
+                    {content}
+                </Grid>
+            );
+
+        case "TOPBAR":
+            return <>
+                <Flex alignItems={"center"}>
+                    <Heading.h3 flexGrow={1}>
+                        {entityNamePlural}
+                        {" "}
+                        {props.selected.length === 0 ? null :
+                            <TextSpan color={"gray"} fontSize={"80%"}>{props.selected.length} selected</TextSpan>
+                        }
+                    </Heading.h3>
+                    {primaryContent}
+                    <Box mr={"10px"}/>
+                    {content.length === 0 ? <Box ml={"30px"}/> :
+                        <Flex alignItems={"center"} justifyContent={"center"}>
+                            <ClickableDropdown {...dropdownProps}>
+                                {content}
+                            </ClickableDropdown>
+                        </Flex>
+                    }
+                    <Box mr={"8px"}/>
                 </Flex>
-            }
-        </>;
-    } else {
-        if (content.length === 0 && primaryContent.length === 0) return null;
-        return <Grid gridTemplateColumns={"1 fr"} gridGap={"8px"} my={"8px"}>
-            {primaryContent}
-            {content}
-        </Grid>;
+            </>;
     }
 };

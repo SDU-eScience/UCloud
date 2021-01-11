@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import * as UCloud from "UCloud";
 import {accounting, compute, PageV2} from "UCloud";
 import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
@@ -38,11 +38,15 @@ import {TextSpan} from "ui-components/Text";
 import LicenseAclEntry = compute.LicenseAclEntry;
 import LicensesCreateResponse = compute.LicensesCreateResponse;
 import {PaymentModelExplainer} from "Accounting/PaymentModelExplainer";
+import {StickyBox} from "ui-components/StickyBox";
+import {useScrollStatus} from "Utilities/ScrollStatus";
 
 interface LicenseGroup {
     product: ProductNS.License;
     instances: UCloud.compute.License[];
 }
+
+const entityName = "License";
 
 export const Browse: React.FunctionComponent<{
     provider?: string;
@@ -57,6 +61,8 @@ export const Browse: React.FunctionComponent<{
     const [products, setProducts] = useState<ProductNS.License[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [commandLoading, invokeCommand] = useCloudCommand();
+    const scrollingContainerRef = useRef<HTMLDivElement>(null);
+    const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [inspecting, setInspecting] = useState<{ product: ProductNS.License, license: License } | null>(null);
     const [selected, setSelected] = useState<{ groups: ToggleSet<LicenseGroup>, instances: ToggleSet<License> }>(
         {groups: new ToggleSet(), instances: new ToggleSet()}
@@ -67,14 +73,12 @@ export const Browse: React.FunctionComponent<{
      * Callbacks
      */
     const selectGroup = useCallback((group: LicenseGroup) => {
-        if (!standalone) return;
         selected.groups.toggle(group);
         selected.instances.clear();
         setSelected({groups: selected.groups, instances: selected.instances});
-    }, [selected, standalone]);
+    }, [selected]);
 
     const selectInstance = useCallback((instance: License) => {
-        if (!standalone) return;
         const shouldClear = selected.instances.items
             .some(it => !equal(it.product, instance.product));
         if (shouldClear) selected.instances.clear();
@@ -82,7 +86,7 @@ export const Browse: React.FunctionComponent<{
         selected.instances.toggle(instance);
         selected.groups.clear();
         setSelected({groups: selected.groups, instances: selected.instances});
-    }, [selected, standalone]);
+    }, [selected]);
 
     // TODO(Dan): Interface breaks down if you have more than 250 instances
     const reload = useCallback(() => {
@@ -220,8 +224,9 @@ export const Browse: React.FunctionComponent<{
                             }
                             right={
                                 <>
-                                    <Operations dropdown operations={licenseOperations} selected={selected.groups.items}
-                                                extra={callbacks} entityNameSingular={"license"} row={g}/>
+                                    <Operations location={"IN_ROW"} operations={licenseOperations}
+                                                selected={selected.groups.items} extra={callbacks}
+                                                entityNameSingular={entityName} row={g}/>
                                 </>
                             }
                         />
@@ -238,9 +243,9 @@ export const Browse: React.FunctionComponent<{
                                         </ListStatContainer>
                                     }
                                     right={
-                                        <Operations dropdown operations={licenseInstanceOperations}
+                                        <Operations location={"IN_ROW"} operations={licenseInstanceOperations}
                                                     selected={selected.instances.items} extra={callbacks}
-                                                    entityNameSingular={"license"} row={instance}/>
+                                                    entityNameSingular={entityName} row={instance}/>
                                     }
                                 />
                             </Box>
@@ -312,24 +317,39 @@ export const Browse: React.FunctionComponent<{
                 <>
                     <Link to={"/project/grants-landing"}><Button fullWidth>Request a license</Button></Link>
                     <Operations
-                        dropdown={false}
+                        location={"SIDEBAR"}
                         operations={licenseOperations}
                         selected={selected.groups.items}
                         extra={callbacks}
-                        entityNameSingular={"license"}
+                        entityNameSingular={entityName}
                     />
                     <Operations
-                        dropdown={false}
+                        location={"SIDEBAR"}
                         operations={licenseInstanceOperations}
                         selected={selected.instances.items}
                         extra={callbacks}
-                        entityNameSingular={"license"}
+                        entityNameSingular={entityName}
                     />
                 </>
             }
         />;
     } else {
-        return main;
+        return <Box ref={scrollingContainerRef}>
+            <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
+                {selected.instances.items.length === 0 ?
+                    <Operations selected={selected.groups.items} location={"TOPBAR"} entityNameSingular={entityName}
+                                extra={callbacks} operations={licenseOperations}/>
+                    : null
+                }
+                {selected.instances.items.length > 0 ?
+                    <Operations selected={selected.instances.items} location={"TOPBAR"} entityNameSingular={entityName}
+                                extra={callbacks} operations={licenseInstanceOperations}/>
+                    : null
+                }
+            </StickyBox>
+
+            {main}
+        </Box>;
     }
 };
 

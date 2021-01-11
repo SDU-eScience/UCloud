@@ -25,9 +25,8 @@ import {getStartOfDay, getStartOfWeek} from "Activity/Page";
 import {isJobStateTerminal, jobAppTitle, jobAppVersion, JobSortBy, JobState, jobTitle, stateToTitle} from "./index";
 import {JobStateIcon} from "./JobStateIcon";
 import styled from "styled-components";
-import {ToggleSet} from "Utilities/ToggleSet";
+import {useToggleSet} from "Utilities/ToggleSet";
 import {compute} from "UCloud";
-import Job = compute.Job;
 import JobsBrowseRequest = compute.JobsBrowseRequest;
 
 const itemsPerPage = 50;
@@ -64,21 +63,7 @@ export const Browse: React.FunctionComponent = () => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next, ...flags, ...filters, sortBy}));
     }, [jobs.data, filters, sortBy]);
 
-    const [checked, setChecked] = useState<{ set: ToggleSet<Job> }>({set: new ToggleSet()});
-    const allChecked = checked.set.items.length > 0 && checked.set.items.length === jobs.data.items.length;
-    const toggle = useCallback((job: Job) => {
-        checked.set.toggle(job);
-        setChecked({...checked});
-    }, [setChecked]);
-
-    const checkAllJobs = useCallback(() => {
-        if (allChecked) {
-            checked.set.clear();
-        } else {
-            checked.set.activateAll(jobs.data.items);
-        }
-        setChecked({...checked});
-    }, [setChecked, jobs, allChecked]);
+    const toggleSet = useToggleSet(jobs.data.items);
 
     const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => {
         return <>
@@ -90,8 +75,8 @@ export const Browse: React.FunctionComponent = () => {
                             key={job.id}
                             navigate={() => history.push(`/applications/jobs/${job.id}`)}
                             icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name}/>}
-                            isSelected={checked.set.has(job)}
-                            select={() => toggle(job)}
+                            isSelected={toggleSet.checked.has(job)}
+                            select={() => toggleSet.toggle(job)}
                             left={<Text cursor="pointer">{jobTitle(job)}</Text>}
                             leftSub={<>
                                 <ListRowStat color="gray" icon="id">
@@ -119,7 +104,7 @@ export const Browse: React.FunctionComponent = () => {
                 })}
             </List>
         </>
-    }, [checked]);
+    }, [toggleSet]);
 
     return <MainContainer
         main={
@@ -129,8 +114,8 @@ export const Browse: React.FunctionComponent = () => {
                         <Label ml={10} width="auto">
                             <Checkbox
                                 size={27}
-                                onClick={checkAllJobs}
-                                checked={allChecked}
+                                onClick={toggleSet.checkAll}
+                                checked={toggleSet.allChecked}
                                 onChange={stopPropagation}
                             />
                             <Box as={"span"}>Select all</Box>

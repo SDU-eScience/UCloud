@@ -1,4 +1,5 @@
 import equal from "fast-deep-equal";
+import {useCallback, useMemo, useState} from "react";
 
 export class ToggleSet<T> {
     private privateItems: T[] = [];
@@ -58,4 +59,40 @@ export class ToggleSet<T> {
             }
         }
     }
+}
+
+interface ToggleSetHook<T> {
+    checked: ToggleSet<T>;
+    allChecked: boolean;
+    toggle: (item: T) => void;
+    checkAll: () => void;
+    uncheckAll: () => void;
+}
+
+export function useToggleSet<T>(items: T[]): ToggleSetHook<T> {
+    const [checked, setChecked] = useState<{ set: ToggleSet<T> }>({set: new ToggleSet()});
+    const allChecked = checked.set.items.length > 0 && checked.set.items.length === items.length;
+    const toggle = useCallback((job: T) => {
+        checked.set.toggle(job);
+        setChecked({...checked});
+    }, [setChecked]);
+
+    const checkAll = useCallback(() => {
+        if (allChecked) {
+            checked.set.clear();
+        } else {
+            checked.set.activateAll(items);
+        }
+        setChecked({...checked});
+    }, [setChecked, items, allChecked]);
+
+    const uncheckAll = useCallback(() => {
+        checked.set.clear();
+        setChecked({...checked});
+    }, [setChecked, items, allChecked]);
+
+
+    return useMemo(() => {
+        return {checked: checked.set, allChecked, toggle, checkAll, uncheckAll};
+    }, [checked, allChecked, toggle, checkAll, uncheckAll]);
 }

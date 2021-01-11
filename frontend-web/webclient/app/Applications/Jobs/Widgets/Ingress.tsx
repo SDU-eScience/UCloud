@@ -1,9 +1,8 @@
 import * as React from "react";
-import {Box, Flex, SelectableText, SelectableTextWrapper} from "ui-components";
+import {Flex} from "ui-components";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "Utilities/ModalUtilities";
 import Browse from "Applications/Ingresses/Browse";
-import Create from "Applications/Ingresses/Create";
 import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "Applications/Jobs/Widgets/index";
 import {PointerInput} from "Applications/Jobs/Widgets/Peer";
@@ -12,10 +11,6 @@ import {compute} from "UCloud";
 import Ingress = compute.Ingress;
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {getProjectNames} from "Utilities/ProjectUtilities";
-import {useProjectStatus} from "Project/cache";
-import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
 import {callAPI} from "Authentication/DataHook";
 
 interface IngressProps extends WidgetProps {
@@ -23,7 +18,6 @@ interface IngressProps extends WidgetProps {
 }
 
 export const IngressParameter: React.FunctionComponent<IngressProps> = props => {
-    const [isBrowsing, setIsBrowsing] = React.useState(true);
     const error = props.errors[props.parameter.name] != null;
     const [open, setOpen] = useState(false);
     const doOpen = useCallback(() => {
@@ -81,20 +75,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <Box my="12px">
-                <SelectableTextWrapper>
-                    <SelectableText mr={3} selected={isBrowsing} onClick={() => setIsBrowsing(true)}>
-                        Browse
-                    </SelectableText>
-                    <SelectableText selected={!isBrowsing} onClick={() => setIsBrowsing(false)}>
-                        Create
-                    </SelectableText>
-                </SelectableTextWrapper>
-                {isBrowsing ?
-                    <Browse computeProvider={props.provider} onSelect={onUse}/> :
-                    <Create computeProvider={props.provider} onCreateFinished={() => setIsBrowsing(true)}/>
-                }
-            </Box>
+            <Browse computeProvider={props.provider} onSelect={onUse}/>
         </ReactModal>
     </Flex>);
 }
