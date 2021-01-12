@@ -205,14 +205,6 @@ exports[`Dashboard Dashboard mount 1`] = `
 }
 
 .c19 {
-  border-radius: 6px;
-  padding: 1em 1em 1em 1em;
-  height: auto;
-  color: #000;
-  background-color: lightYellow;
-}
-
-.c23 {
   color: #8393A7;
 }
 
@@ -283,7 +275,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   cursor: inherit;
 }
 
-.c24 {
+.c20 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -296,13 +288,6 @@ exports[`Dashboard Dashboard mount 1`] = `
   height: auto;
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
   border: 0px solid #c9d3df;
-  border-radius: 6px;
-}
-
-.c20 {
-  padding: 1em 1em 1em 1em;
-  height: auto;
-  border: 1px solid #ffed33;
   border-radius: 6px;
 }
 
@@ -332,13 +317,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   cursor: inherit;
 }
 
-.c21 {
-  cursor: inherit;
-  font-size: 14px;
-  color: #000;
-}
-
-.c26 {
+.c22 {
   cursor: inherit;
   font-size: 14px;
   color: #53657d;
@@ -355,7 +334,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: var(--textHighlight);
 }
 
-.c25 {
+.c21 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -363,7 +342,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: #1e252e;
 }
 
-.c25:hover {
+.c21:hover {
   color: var(--textHighlight);
 }
 
@@ -379,11 +358,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   border-bottom: 0px;
 }
 
-.c22 {
-  white-space: pre;
-}
-
-.c27 {
+.c23 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
@@ -393,22 +368,22 @@ exports[`Dashboard Dashboard mount 1`] = `
   background-color: #fff;
 }
 
-.c30 {
+.c26 {
   border: 0px;
   border-spacing: 0;
 }
 
-.c31 {
+.c27 {
   border: 0px;
   border-spacing: 0;
   text-align: right;
 }
 
-.c28 {
+.c24 {
   cursor: auto;
 }
 
-.c28 > .c29 {
+.c24 > .c25 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
@@ -722,22 +697,135 @@ exports[`Dashboard Dashboard mount 1`] = `
         </div>
       </div>
       <div
-        className="c19 c20"
-        color="black"
+        className="c4 c5"
         height="auto"
+        overflow="hidden"
+        width="100%"
       >
         <div
-          className="c7"
+          className=""
+          style={
+            Object {
+              "borderTop": "5px solid var(--purple, #f00)",
+            }
+          }
+        />
+        <div
+          className="c6 dashboard-card-inner"
+          height="100%"
         >
-          <div>
-            <div
-              className="c21 c22"
-              color="black"
+          <div
+            className="c7"
+          >
+            <svg
+              className="c8"
+              clipRule="evenodd"
+              color="#53657d"
               cursor="inherit"
-              fontSize={1}
+              fill="currentcolor"
+              fillRule="evenodd"
+              height="20"
+              m={8}
+              ml={0}
+              viewBox="0 0 24 25"
+              width="20"
             >
-              TODO
-            </div>
+              <path
+                d="M13.206 5.723l10.023 5.108c.492.25.77.67.77 1.17 0 .49-.278.92-.77 1.17L5.228 22.337l7.978-16.615z"
+                fill="currentcolor"
+              />
+              <path
+                d="M5.229 22.338l-2.884 1.469a1.72 1.72 0 01-1.562.006C.284 23.564 0 23.138 0 22.638V1.358C0 .858.284.43.783.183a1.714 1.714 0 011.562.006l10.861 5.533-7.977 16.616z"
+              />
+            </svg>
+            <a
+              className="c9"
+              color="text"
+              href="/applications/results"
+              onClick={[Function]}
+            >
+              <h3
+                className="c10"
+                cursor="inherit"
+                fontSize={4}
+              >
+                Recent Runs
+              </h3>
+            </a>
+            <div
+              className="c11"
+            />
+          </div>
+          <div
+            className="c12"
+            data-tag="loading-spinner"
+            height={32}
+            width={32}
+          >
+            <svg
+              height={32}
+              id="svg"
+              version="1.1"
+              viewBox="0 0 220 220"
+              width={32}
+              xmlns="http://www.w3.org/2000/svg"
+              xmlnsXlink="http://www.w3.org/1999/xlink"
+            >
+              <path
+                d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"
+              />
+              <path
+                d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+              />
+              <path
+                d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"
+              />
+              <path
+                d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+              />
+              <path
+                d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"
+              />
+              <path
+                d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"
+              />
+              <path
+                d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"
+              />
+              <path
+                d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+              />
+              <path
+                d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"
+              />
+              <path
+                d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"
+              />
+              <path
+                d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"
+              />
+              <path
+                d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+              <path
+                d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+              <path
+                d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+              />
+              <path
+                d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+            </svg>
           </div>
         </div>
       </div>
@@ -796,11 +884,11 @@ exports[`Dashboard Dashboard mount 1`] = `
               className="c11"
             />
             <div
-              className="c23"
+              className="c19"
               color="#8393A7"
             >
               <svg
-                className="c24"
+                className="c20"
                 clipRule="evenodd"
                 color="iconColor"
                 color2="#8393A7"
@@ -843,7 +931,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             >
               As you as use UCloud notifications will appear here.
               <a
-                className="c25"
+                className="c21"
                 color="text"
                 href="/applications/overview"
                 mt={8}
@@ -1026,7 +1114,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c26"
+            className="c22"
             color="darkGray"
             cursor="inherit"
             fontSize={1}
@@ -1034,36 +1122,36 @@ exports[`Dashboard Dashboard mount 1`] = `
             Past 30 days
           </div>
           <table
-            className="c27"
+            className="c23"
             width="100%"
           >
             <tbody>
               <tr
-                className="c28"
+                className="c24"
                 cursor="auto"
               >
                 <td
-                  className="c29 c30"
+                  className="c25 c26"
                 >
                   Storage
                 </td>
                 <td
-                  className="c29 c31"
+                  className="c25 c27"
                 >
                   0 DKK
                 </td>
               </tr>
               <tr
-                className="c28"
+                className="c24"
                 cursor="auto"
               >
                 <td
-                  className="c29 c30"
+                  className="c25 c26"
                 >
                   Compute
                 </td>
                 <td
-                  className="c29 c31"
+                  className="c25 c27"
                 >
                   0 DKK
                 </td>
