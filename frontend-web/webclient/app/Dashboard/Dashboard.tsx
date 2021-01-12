@@ -58,6 +58,9 @@ import * as UCloud from "UCloud";
 import {accounting, PageV2} from "UCloud";
 import Product = accounting.Product;
 import {groupBy} from "Utilities/CollectionUtilities";
+import {JobStateIcon} from "Applications/Jobs/JobStateIcon";
+import {isRunExpired} from "Utilities/ApplicationUtilities";
+import formatDistanceToNow from "date-fns/formatDistanceToNow";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -70,7 +73,7 @@ export const DashboardCard: React.FunctionComponent<{
     width?: string,
     minWidth?: string,
     onClick?: () => void;
-}> = ({title, subtitle, onClick, color, isLoading= false, icon = undefined, children, height = "auto", minHeight, width = "100%", minWidth}) => (
+}> = ({title, subtitle, onClick, color, isLoading = false, icon = undefined, children, height = "auto", minHeight, width = "100%", minWidth}) => (
     <Card
         onClick={onClick}
         overflow="hidden"
@@ -135,6 +138,10 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         emptyPage
     );
 
+    const [jobs, fetchJobs] = useCloudAPI<PageV2<UCloud.compute.Job>>(UCloud.compute.jobs.browse({
+        itemsPerPage: 10,
+    }), emptyPage);
+
     React.useEffect(() => {
         props.onInit();
         reload(true);
@@ -164,6 +171,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             page: 0,
             filter: GrantApplicationFilter.ACTIVE
         }));
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage: 10}));
     }
 
     const favoriteOrUnfavorite = async (file: File): Promise<void> => {
@@ -188,7 +196,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 favorite={favoriteOrUnfavorite}
             />
 
-            <DashboardAnalyses/>
+            <DashboardAnalyses runs={jobs} />
 
             <DashboardNotifications
                 onNotificationAction={onNotificationAction}
@@ -215,41 +223,41 @@ const DashboardFavoriteFiles = ({files, isLoading, favorite, error}: {
     favorite: (file: File) => void;
     error?: string
 }): JSX.Element => (
-        <DashboardCard
-            title={<Link to={fileTablePage(Client.favoritesFolder)}><Heading.h3>Favorite Files</Heading.h3></Link>}
-            color="blue"
-            isLoading={isLoading}
-            icon={"starFilled"}
-        >
-            {files.length || error ? null : (
-                <NoResultsCardBody title="No favorite files">
-                    <Text>
-                        Click the <Icon name="starEmpty" /> next to one of your files to mark it as a favorite.
+    <DashboardCard
+        title={<Link to={fileTablePage(Client.favoritesFolder)}><Heading.h3>Favorite Files</Heading.h3></Link>}
+        color="blue"
+        isLoading={isLoading}
+        icon={"starFilled"}
+    >
+        {files.length || error ? null : (
+            <NoResultsCardBody title="No favorite files">
+                <Text>
+                    Click the <Icon name="starEmpty" /> next to one of your files to mark it as a favorite.
                     All of your favorite files will appear here.
                     <Link to={fileTablePage(Client.activeHomeFolder)}>
-                            <Button fullWidth mt={8}>Explore files</Button>
-                        </Link>
-                    </Text>
-                </NoResultsCardBody>
-            )}
-            <Error error={error} />
-            <List>
-                {files.slice(0, 7).map(file => (
-                    <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
-                        <ListFileContent file={file} pixelsWide={200} />
-                        <Icon
-                            ml="auto"
-                            size="1em"
-                            name="starFilled"
-                            color="blue"
-                            cursor="pointer"
-                            onClick={() => favorite(file)}
-                        />
-                    </Flex>
-                ))}
-            </List>
-        </DashboardCard>
-    );
+                        <Button fullWidth mt={8}>Explore files</Button>
+                    </Link>
+                </Text>
+            </NoResultsCardBody>
+        )}
+        <Error error={error} />
+        <List>
+            {files.slice(0, 7).map(file => (
+                <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
+                    <ListFileContent file={file} pixelsWide={200} />
+                    <Icon
+                        ml="auto"
+                        size="1em"
+                        name="starFilled"
+                        color="blue"
+                        cursor="pointer"
+                        onClick={() => favorite(file)}
+                    />
+                </Flex>
+            ))}
+        </List>
+    </DashboardCard>
+);
 
 const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): JSX.Element => {
     const iconType = UF.iconFromFilePath(file.path, file.fileType);
@@ -266,50 +274,49 @@ const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): 
     );
 };
 
-const DashboardAnalyses: React.FunctionComponent = () => <Warning>TODO</Warning>/*(
-        <DashboardCard
-            title={<Link to={"/applications/results"}><Heading.h3>Recent Runs</Heading.h3></Link>}
-            color="purple"
-            isLoading={isLoading}
-            icon={"apps"}
-        >
-            {analyses.length || error ? null : (
-                <NoResultsCardBody title={"No recent application runs"}>
-                    <Text>
-                        When you run an application on UCloud the results will appear here.
+const DashboardAnalyses: React.FunctionComponent<{runs: APICallState<PageV2<UCloud.compute.Job>>}> = ({runs}) => (
+    <DashboardCard
+        title={<Link to={"/applications/results"}><Heading.h3>Recent Runs</Heading.h3></Link>}
+        color="purple"
+        isLoading={runs.loading}
+        icon={"apps"}
+    >
+        {runs.data.items.length || runs.error ? null : (
+            <NoResultsCardBody title={"No recent application runs"}>
+                <Text>
+                    When you run an application on UCloud the results will appear here.
 
                     <Link to={"/applications/overview"} mt={8}>
-                            <Button fullWidth mt={8}>Explore applications</Button>
-                        </Link>
-                    </Text>
-                </NoResultsCardBody>
-            )}
-            <Error error={error} />
-            <List>
-                {analyses.slice(0, 7).map((analysis: JobWithStatus, index: number) => (
-                    <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
-                        <JobStateIcon
-                            size="1.2em"
-                            pr="0.3em"
-                            state={analysis.state}
-                            isExpired={isRunExpired(analysis)}
-                            mr="8px"
-                        />
-                        <Link to={`/applications/results/${analysis.jobId}`}>
-                            <EllipsedText width={130} fontSize={2}>
-                                {analysis.metadata.title}
-                            </EllipsedText>
-                        </Link>
-                        <Box ml="auto" />
-                        <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(analysis.modifiedAt!), {
-                            addSuffix: true
-                        })}</Text>
-                    </Flex>
-                ))}
-            </List>
-        </DashboardCard>
-    );
-    */;
+                        <Button fullWidth mt={8}>Explore applications</Button>
+                    </Link>
+                </Text>
+            </NoResultsCardBody>
+        )}
+        <Error error={runs.error?.why} />
+        <List>
+            {runs.data.items.slice(0, 7).map((run: UCloud.compute.Job, index: number) => (
+                <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
+                    <JobStateIcon
+                        size="1.2em"
+                        pr="0.3em"
+                        state={run.status.state}
+                        isExpired={isRunExpired(run)}
+                        mr="8px"
+                    />
+                    <Link to={`/applications/results/${run.id}`}>
+                        <EllipsedText width={130} fontSize={3}>
+                            {run.parameters.application.name}
+                        </EllipsedText>
+                    </Link>
+                    <Box ml="auto" />
+                    <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(run.updates[run.updates.length - 1]?.timestamp ?? run.status.startedAt), {
+                        addSuffix: true
+                    })}</Text>
+                </Flex>
+            ))}
+        </List>
+    </DashboardCard>
+);
 
 interface DashboardNotificationProps {
     onNotificationAction: (notification: Notification) => void;
@@ -489,7 +496,7 @@ function DashboardResources({products, loading, quota}: {
                                             <TableCell>{n.provider} / {n.category}</TableCell>
                                             <TableCell textAlign={"right"}>
                                                 {!n.isFreeWithBalanceCheck ? null :
-                                                    n.balance > 0 ? <Icon name={"check"} color={"green"}/> : null
+                                                    n.balance > 0 ? <Icon name={"check"} color={"green"} /> : null
                                                 }
                                                 {n.isFreeWithBalanceCheck ? null :
                                                     <Balance
