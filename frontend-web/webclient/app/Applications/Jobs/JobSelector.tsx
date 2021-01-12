@@ -64,6 +64,8 @@ export function JobSelector({
         }));
     }, [jobs.data]);
 
+    ReactModal.setAppElement("#app");
+
     return (<>
         <span onClick={() => setShown(true)}>
             {trigger}

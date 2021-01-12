@@ -309,9 +309,13 @@ const DashboardAnalyses: React.FunctionComponent<{runs: APICallState<PageV2<UClo
                         </EllipsedText>
                     </Link>
                     <Box ml="auto" />
-                    <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(run.updates[run.updates.length - 1]?.timestamp ?? run.status.startedAt), {
-                        addSuffix: true
-                    })}</Text>
+                    <Text fontSize={1} color="grey">
+                        {formatDistanceToNow(
+                            new Date(
+                                run.updates[run.updates.length - 1]?.timestamp ?? run.status.startedAt
+                            ), {addSuffix: true}
+                        )}
+                    </Text>
                 </Flex>
             ))}
         </List>
