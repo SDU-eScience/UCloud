@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
-import {ProjectName, useProjectManagementStatus} from "Project";
+import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
@@ -34,18 +34,15 @@ import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
     approveGrantApplication,
-    browseProjects,
-    BrowseProjectsResponse,
     closeGrantApplication,
     Comment,
     commentOnGrantApplication,
     deleteGrantApplicationComment,
     editGrantApplication,
     findAffiliations,
-    FindAffiliationsResponse,
     GrantApplication,
     GrantApplicationStatus,
-    GrantRecipient,
+    GrantRecipient, GrantsRetrieveAffiliationsResponse,
     isGrantFinalized,
     readTemplates,
     ReadTemplatesResponse,
@@ -1100,7 +1097,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             isActive={transferringApplication}
                             close={() => setTransferringApplication(false)}
                             transfer={transferRequest}
-                            username={state.editingApplication.grantRecipientPi}
+                            grantID={state.editingApplication.id}
                         /> : null
                 }
             />
@@ -1110,13 +1107,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
 interface TransferApplicationPromptProps {
     isActive: boolean;
-    username: string;
+    grantID: number;
     close(): void;
     transfer(toProjectId: string): Promise<void>;
 }
 
-function TransferApplicationPrompt({isActive, close, transfer, username}: TransferApplicationPromptProps) {
-    const [projects, fetchProjects] = useCloudAPI<FindAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, username}), emptyPage);
+function TransferApplicationPrompt({isActive, close, transfer, grantID}: TransferApplicationPromptProps) {
+    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, grantID}), emptyPage);
 
     /* FIXME: Work-around for showing modal AND dialog. Change to hold-to-confirm button when merged with scheduling */
     const [isConfirming, setIsConfirming] = useState(false);
@@ -1124,10 +1121,10 @@ function TransferApplicationPrompt({isActive, close, transfer, username}: Transf
     const history = useHistory();
 
     React.useEffect(() => {
-        if (username) {
-            fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, username}))
+        if (grantID) {
+            fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, grantID}))
         }
-    }, [username]);
+    }, [grantID]);
 
     return (isConfirming ? null :
         <ReactModal
@@ -1245,7 +1242,7 @@ const PostCommentWrapper = styled.form`
 const HelpText = styled.p`
   margin: 0;
   font-size: ${theme.fontSizes[1]}px;
-  color: var(--gray, #ff0000);
+  color: var(--gray, #ff00);
 `;
 
 const PostCommentWidget: React.FunctionComponent<{

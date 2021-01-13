@@ -13,7 +13,7 @@ import io.ktor.http.*
 class ProjectController(
     private val db: DBContext,
     private val projects: ProjectService,
-    private val queries: QueryService
+    private val queries: QueryService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
@@ -312,13 +312,13 @@ class ProjectController(
             )
         }
 
-        implement(Projects.searchProjectPaths) {
+        implement(Projects.search) {
             ok(
                 SearchProjectPathsResponse(
                     queries.searchProjectPaths(
                         db,
                         ctx.securityPrincipal.toActor(),
-                        request.query)
+                        request.path)
                 )
             )
         }

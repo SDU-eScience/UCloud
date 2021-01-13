@@ -46,7 +46,6 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {PredicatedLoadingSpinner} from "LoadingIcon/LoadingIcon";
 import {groupSummaryRequest} from "Project";
 import {GroupWithSummary} from "Project/GroupList";
-import {associateBy} from "Utilities/CollectionUtilities";
 
 interface AppOperations {
     onInit: () => void;
@@ -590,9 +589,9 @@ interface ListSelectorProps {
     onSelect(key: string, name: string): void;
 }
 
-function fetchProjectsRequest(request: {query: string}): APICallParameters {
+function fetchProjectsRequest(request: {path: string}): APICallParameters {
     return {
-        path: buildQueryString("projects/search-project-paths", request),
+        path: buildQueryString("projects/search", request),
         method: "GET"
     }
 }
@@ -613,7 +612,7 @@ function ListSelector({type, onSelect, selectedProject}: ListSelectorProps): JSX
         }
         ref.current = (window.setTimeout(() => {
             if (type === "PROJECT") {
-                fetchProjects(fetchProjectsRequest({query: searchRef.current!.value}));
+                fetchProjects(fetchProjectsRequest({path: searchRef.current!.value}));
             }
         }, 500));
 

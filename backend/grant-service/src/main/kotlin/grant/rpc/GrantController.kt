@@ -64,18 +64,13 @@ class GrantController(
         }
 
         implement(Grants.transferApplication) {
-            val application =  applications.viewApplicationById(db, ctx.securityPrincipal.toActor(), request.applicationId)
-            if (application.first.grantRecipient.toString() != GrantRecipient.EXISTING_PROJECT_TYPE) {
-                applications.transferApplication(
-                    db,
-                    ctx.securityPrincipal.toActor(),
-                    ctx.project,
-                    request.applicationId,
-                    request.transferToProjectId
-                )
-            } else {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Transfer not applicable to existing projects")
-            }
+            applications.transferApplication(
+                db,
+                ctx.securityPrincipal.toActor(),
+                ctx.project,
+                request.applicationId,
+                request.transferToProjectId
+            )
             ok(Unit)
         }
 
@@ -191,25 +186,30 @@ class GrantController(
             ok(settings.browse(db, ctx.securityPrincipal.toActor(), request.normalize()))
         }
 
-        implement(Grants.findAffiliations) {
-            val user = UserDescriptions.getPrincipal.call(
-                GetPrincipalRequest(request.username),
+        implement(Grants.retrieveAffiliations) {
+            val username = applications.viewApplicationById(db, ctx.securityPrincipal.toActor(), request.grantID).first.requestedBy
+            val principal = UserDescriptions.retrievePrincipal.call(
+                GetPrincipalRequest(username),
                 serviceClient
             ).orThrow()
-            user as Person
-            val principal = SecurityPrincipal(
-                request.username,
-                user.role,
-                user.firstNames,
-                user.lastName,
-                user.uid,
-                user.email,
-                user.twoFactorAuthentication
-            )
+            val user = when (principal) {
+                is Person -> {
+                    SecurityPrincipal(
+                        principal.id,
+                        principal.role,
+                        principal.firstNames,
+                        principal.lastName,
+                        principal.uid,
+                        principal.email,
+                        principal.twoFactorAuthentication
+                    )
+                }
+                else -> throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "user not found")
+            }
             ok(
                 settings.browse(
                     db,
-                    principal.toActor(),
+                    user.toActor(),
                     PaginationRequest(request.itemsPerPage, request.page).normalize()
                 )
             )

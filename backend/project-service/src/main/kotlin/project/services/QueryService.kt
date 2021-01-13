@@ -1,8 +1,10 @@
 package dk.sdu.cloud.project.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
@@ -24,15 +26,19 @@ class QueryService(
     private val projects: ProjectService
 ) {
     suspend fun searchProjectPaths(ctx: DBContext, actor: Actor, query: String): Map<String, String> {
+        val role = if (actor is Actor.User) actor.principal.role else Role.USER
+        if (role !in Roles.ADMIN) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "User not admin")
+        }
         return ctx.withSession { session ->
             val results = session.sendPreparedStatement(
                 {
-                    setParameter("query", "%$query%")
+                    setParameter("query", query)
                 },
                 """
                     SELECT *
                     FROM projects
-                    WHERE title LIKE :query
+                    WHERE title LIKE '%' || :query || '%'
                 """
             ).rows
 

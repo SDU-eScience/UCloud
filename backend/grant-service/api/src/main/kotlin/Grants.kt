@@ -314,12 +314,12 @@ data class BrowseProjectsRequest(
 typealias BrowseProjectsResponse = Page<ProjectWithTitle>
 data class ProjectWithTitle(val projectId: String, val title: String)
 
-data class FindAffiliationsRequest(
-    val username: String,
+data class GrantsRetrieveAffiliationsRequest(
+    val grantID: Long,
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
 ) : WithPaginationRequest
-typealias FindAffiliationsResponse = Page<ProjectWithTitle>
+typealias GrantsRetrieveAffiliationsResponse = Page<ProjectWithTitle>
 
 data class GrantsRetrieveProductsRequest(
     val projectId: String,
@@ -854,7 +854,11 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
-    val findAffiliations = call<FindAffiliationsRequest, FindAffiliationsResponse, CommonErrorMessage>("FindAffiliations") {
+    val retrieveAffiliations = call<
+            GrantsRetrieveAffiliationsRequest,
+            GrantsRetrieveAffiliationsResponse,
+            CommonErrorMessage
+            >("retrieveAffiliations") {
         auth {
             access = AccessRight.READ
         }
@@ -863,13 +867,13 @@ object Grants : CallDescriptionContainer("grant") {
 
             path {
                 using(baseContext)
-                +"find-affiliations"
+                +"retrieveAffiliations"
             }
 
             params {
-                +boundTo(FindAffiliationsRequest::username)
-                +boundTo(FindAffiliationsRequest::itemsPerPage)
-                +boundTo(FindAffiliationsRequest::page)
+                +boundTo(GrantsRetrieveAffiliationsRequest::grantID)
+                +boundTo(GrantsRetrieveAffiliationsRequest::itemsPerPage)
+                +boundTo(GrantsRetrieveAffiliationsRequest::page)
             }
         }
     }

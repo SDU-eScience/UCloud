@@ -196,7 +196,7 @@ typealias FetchDataManagementPlanRequest = Unit
 data class FetchDataManagementPlanResponse(val dmp: String?)
 
 data class SearchProjectPathsRequest(
-    val query: String
+    val path: String
 )
 data class SearchProjectPathsResponse(
     val paths: Map<String, String>
@@ -904,7 +904,7 @@ object Projects : CallDescriptionContainer("project") {
             }
         }
 
-    val searchProjectPaths = call<SearchProjectPathsRequest, SearchProjectPathsResponse, CommonErrorMessage>("findProjectPaths") {
+    val search = call<SearchProjectPathsRequest, SearchProjectPathsResponse, CommonErrorMessage>("search") {
         auth {
             access = AccessRight.READ
         }
@@ -914,11 +914,11 @@ object Projects : CallDescriptionContainer("project") {
 
             path {
                 using(baseContext)
-                +"search-project-paths"
+                +"search"
             }
 
             params {
-                +boundTo(SearchProjectPathsRequest::query)
+                +boundTo(SearchProjectPathsRequest::path)
             }
         }
     }

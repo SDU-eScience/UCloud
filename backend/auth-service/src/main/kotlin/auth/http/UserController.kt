@@ -100,7 +100,7 @@ class UserController(
             ))
         }
 
-        implement(UserDescriptions.getPrincipal) {
+        implement(UserDescriptions.retrievePrincipal) {
             val principal = db.withTransaction {
                 userDAO.findById(it, request.username)
             }

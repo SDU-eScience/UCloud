@@ -130,7 +130,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         }
     }
 
-    val getPrincipal = call<GetPrincipalRequest, GetPrincipalResponse, CommonErrorMessage>("getSecurityPrincipal") {
+    val retrievePrincipal = call<GetPrincipalRequest, GetPrincipalResponse, CommonErrorMessage>("retrievePrincipal") {
         auth {
             roles = setOf(Role.SERVICE)
             access = AccessRight.READ
@@ -141,7 +141,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
             path {
                 using(baseContext)
-                +"securityPrincipal"
+                +"retrievePrincipal"
             }
 
             params {

@@ -1,4 +1,4 @@
-package project.services
+package dk.sdu.cloud.project.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.project.api.ProjectEvent

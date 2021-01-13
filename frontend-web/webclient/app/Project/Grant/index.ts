@@ -403,17 +403,17 @@ export function browseProjects(request: BrowseProjectsRequest): APICallParameter
     };
 }
 
-export interface FindAffiliationsRequest {
-    username: string,
+export interface GrantsRetrieveAffiliationsRequest {
+    grantID: number,
     itemsPerPage: number,
     page: number
 }
-export type FindAffiliationsResponse = Page<{projectId: string, title: string}>;
+export type GrantsRetrieveAffiliationsResponse = Page<{projectId: string, title: string}>;
 
-export function findAffiliations(request: FindAffiliationsRequest): APICallParameters<FindAffiliationsRequest> {
+export function findAffiliations(request: GrantsRetrieveAffiliationsRequest): APICallParameters<GrantsRetrieveAffiliationsRequest> {
     return {
         method: "GET",
-        path: buildQueryString("/grant/find-affiliations", request),
+        path: buildQueryString("/grant/retrieveAffiliations", request),
         parameters: request,
         reloadId: Math.random()
     };
