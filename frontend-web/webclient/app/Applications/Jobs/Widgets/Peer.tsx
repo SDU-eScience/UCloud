@@ -90,7 +90,7 @@ interface JobSelectorProps {
 }
 
 const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
-    const [selectedPeer, setSelectedPeer] = useState<string | undefined>(undefined);
+    const [selectedPeer, setSelectedPeer] = useState<string>("");
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
 
     const [suggestedApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(
@@ -99,8 +99,6 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             {noop: true},
         {...emptyPage, itemsPerPage: -1}
     );
-
-    console.log(suggestedApplicationApi.data.items);
 
     const [suggestedApplication] = suggestedApplicationApi.data.items;
 
@@ -137,7 +135,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
 
     /* 
 
-
+            DELETE THIS COMMENT-BLOCK WHEN SUGGESTED APP WORKS AS INTENDED.
     if ((suggestedApplicationApi.data.itemsPerPage !== -1 || isSelectorOpen) && peerParams.noop) {
         // Load available peers once we have loaded the suggested application (if one exists)
         const name = suggestedApplication ? suggestedApplication.metadata.name : undefined;
