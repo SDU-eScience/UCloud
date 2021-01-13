@@ -266,10 +266,12 @@ class JobOrchestrator(
     private suspend fun handleFinalState(jobWithToken: VerifiedJobWithAccessToken) {
         jobFileService.cleanupAfterMounts(jobWithToken)
 
-        AuthDescriptions.logout.call(
-            Unit,
-            serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
-        ).throwIfInternal()
+        runCatching {
+            AuthDescriptions.logout.call(
+                Unit,
+                serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
+            ).throwIfInternal()
+        }
 
         MetadataDescriptions.verify.call(
             VerifyRequest(jobWithToken.job.files.map { it.path }),

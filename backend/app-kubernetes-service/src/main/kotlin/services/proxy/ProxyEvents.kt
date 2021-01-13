@@ -5,7 +5,8 @@ import dk.sdu.cloud.events.EventStreamContainer
 data class ProxyEvent(
     val id: String,
     val shouldCreate: Boolean,
-    val domains: List<String>? = null
+    val domains: List<String>? = null,
+    val replicas: Int = 1
 )
 
 object ProxyEvents : EventStreamContainer() {
