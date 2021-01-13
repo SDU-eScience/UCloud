@@ -1242,7 +1242,7 @@ const PostCommentWrapper = styled.form`
 const HelpText = styled.p`
   margin: 0;
   font-size: ${theme.fontSizes[1]}px;
-  color: var(--gray, #ff00);
+  color: var(--gray, #f00);
 `;
 
 const PostCommentWidget: React.FunctionComponent<{
