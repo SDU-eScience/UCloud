@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
-import dk.sdu.cloud.app.license.api.LicenseServerRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.*
