@@ -304,7 +304,7 @@ const DashboardAnalyses: React.FunctionComponent<{runs: APICallState<PageV2<UClo
                         isExpired={isRunExpired(run)}
                         mr="8px"
                     />
-                    <Link to={`/applications/results/${run.id}`}>
+                    <Link to={`/applications/jobs/${run.id}`}>
                         <EllipsedText width={175} fontSize={3}>
                             {jobTitle(run)} ({jobAppTitle(run)})
                         </EllipsedText>
