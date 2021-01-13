@@ -43,7 +43,7 @@ class Providers(
                 LicenseProvider(UCLOUD_PROVIDER),
             )
         }
-        if (provider != UCLOUD_PROVIDER) {
+        if (provider != UCLOUD_PROVIDER && provider != "_app-kubernetes") {
             throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
         }
 

@@ -16,7 +16,10 @@ class ProxyPlugin(
 ) : JobManagementPlugin {
     override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {
         val domains = ingressService.retrieveDomainsByJobId(jobId)
-        broadcastingStream.broadcast(ProxyEvent(jobId, true, domains), ProxyEvents.events)
+        broadcastingStream.broadcast(
+            ProxyEvent(jobId, true, domains, jobFromServer.spec?.minAvailable ?: 1),
+            ProxyEvents.events
+        )
     }
 
     override suspend fun JobManagement.onCleanup(jobId: String) {

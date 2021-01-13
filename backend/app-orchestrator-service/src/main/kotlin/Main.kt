@@ -5,7 +5,15 @@ import dk.sdu.cloud.app.orchestrator.api.AppOrchestratorServiceDescription
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 
-class Configuration()
+class Configuration(
+    val provider: Provider = Provider()
+)
+
+data class Provider(
+    val domain: String = "localhost",
+    val https: Boolean = false,
+    val port: Int = 8080
+)
 
 object AppOrchestratorService : Service {
     override val description = AppOrchestratorServiceDescription

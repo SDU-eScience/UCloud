@@ -61,6 +61,7 @@ object Roles {
     val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP)
     val END_USER = setOf(Role.USER, Role.ADMIN)
     val PRIVILEGED = setOf(Role.ADMIN, Role.SERVICE)
+    val SERVICE = setOf(Role.SERVICE)
 
     @Deprecated("Corrected spelling", replaceWith = ReplaceWith("Roles.PRIVILEGED"), DeprecationLevel.HIDDEN)
     val PRIVILEDGED = setOf(Role.ADMIN, Role.SERVICE)

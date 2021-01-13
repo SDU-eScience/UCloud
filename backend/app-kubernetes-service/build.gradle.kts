@@ -1,4 +1,4 @@
-version = "0.20.0-beta.3"
+version = "0.20.0-rc5"
 
 application {
     mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"

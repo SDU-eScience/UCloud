@@ -62,7 +62,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             serviceClient,
             serviceClientWS,
             ComputeProviderManifest(
-                ComputeProvider(UCLOUD_PROVIDER, "localhost", false, 8080),
+                ComputeProvider(UCLOUD_PROVIDER, config.provider.domain, config.provider.https, config.provider.port),
                 ProviderManifest().apply {
                     with(features) {
                         with(compute) {

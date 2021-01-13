@@ -125,6 +125,7 @@ class WebService(
         route("${KubernetesCompute.baseContext}/app-authorization/{...}") {
             handle {
                 val host = call.request.host()
+                log.info("Authorizing request: $host")
 
                 if (ingressCache.get(host) != null) {
                     call.respondText("", status = HttpStatusCode.OK)

@@ -25,30 +25,32 @@ class ApplicationProxyService(
     private val prefix: String = "app-",
     private val domain: String = "cloud.sdu.dk"
 ) {
-    private val entries = HashMap<String, RouteAndCluster>()
+    private val entries = HashMap<String, List<RouteAndCluster>>()
     private val lock = Mutex()
 
-    private suspend fun addEntry(tunnel: Tunnel, domains: List<String>) {
+    private suspend fun addEntry(tunnel: Tunnel, domains: List<String>, replicas: Int) {
         lock.withLock {
             if (entries.containsKey(tunnel.jobId)) return
 
-            val fullDomain = when {
-                domains.firstOrNull() != null -> domains.first()
-                else -> prefix + tunnel.jobId + "." + domain
+            val fullDomains = when {
+                domains.firstOrNull() != null -> domains
+                else -> (0 until replicas).map { prefix + tunnel.jobId + "-" + it + "." + domain }
             }
 
-            entries[tunnel.jobId] = RouteAndCluster(
-                EnvoyRoute(
-                    fullDomain,
-                    tunnel.jobId
-                ),
+            entries[tunnel.jobId] = fullDomains.map { fullDomain ->
+                RouteAndCluster(
+                    EnvoyRoute(
+                        fullDomain,
+                        tunnel.jobId
+                    ),
 
-                EnvoyCluster(
-                    tunnel.jobId,
-                    tunnel.ipAddress,
-                    tunnel.localPort
+                    EnvoyCluster(
+                        tunnel.jobId,
+                        tunnel.ipAddress,
+                        tunnel.localPort
+                    )
                 )
-            )
+            }
         }
 
         renderConfiguration()
@@ -69,7 +71,7 @@ class ApplicationProxyService(
             GlobalScope.launch {
                 try {
                     if (event.shouldCreate) {
-                        addEntry(createOrUseExistingTunnel(event.id), event.domains ?: emptyList())
+                        addEntry(createOrUseExistingTunnel(event.id), event.domains ?: emptyList(), event.replicas)
                     } else {
                         removeEntry(event.id)
                     }
@@ -88,8 +90,8 @@ class ApplicationProxyService(
         // be significantly more complex to implement and we are on a bit of a tight schedule.
 
         val allEntries = lock.withLock { entries.map { it.value } }
-        val routes = allEntries.map { it.route }
-        val clusters = allEntries.map { it.cluster }
+        val routes = allEntries.flatMap { e -> e.map { it.route } }
+        val clusters = allEntries.flatMap { e -> e.map { it.cluster } }
         envoyConfigurationService.configure(routes, clusters)
     }
 
