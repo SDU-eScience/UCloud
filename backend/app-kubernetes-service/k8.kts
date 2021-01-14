@@ -127,6 +127,12 @@ bundle { ctx ->
         )
 
         addRule(
+            apiGroups = listOf(""),
+            resources = listOf("nodes", "namespaces"),
+            verbs = listOf("list", "get")
+        )
+
+        addRule(
             apiGroups = listOf("batch", "extensions"),
             resources = listOf("jobs", "networkpolicies"),
             verbs = listOf("*")
