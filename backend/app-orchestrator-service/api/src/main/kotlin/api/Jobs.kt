@@ -289,8 +289,22 @@ data class JobsRetrieveRequest(
 ) : JobDataIncludeFlags
 typealias JobsRetrieveResponse = Job
 
-typealias JobsUtilizationRequest = Unit
-data class JobsUtilizationResponse(
+data class JobsRetrieveUtilizationRequest(
+    val provider: String?,
+    val jobId: String?
+) {
+    init {
+        if (jobId == null && provider == null) {
+            throw RPCException("Must provide either provider or jobId", HttpStatusCode.BadRequest)
+        }
+
+        if (jobId != null && provider != null) {
+            throw RPCException("Can only provide one of provider or jobId", HttpStatusCode.BadRequest)
+        }
+    }
+}
+
+data class JobsRetrieveUtilizationResponse(
     val capacity: CpuAndMemory,
     val usedCapacity: CpuAndMemory,
     val queueStatus: QueueStatus
@@ -482,7 +496,9 @@ object Jobs : CallDescriptionContainer("jobs") {
         }
     }
 
-    val retrieveUtilization = call<JobsUtilizationRequest, JobsUtilizationResponse, CommonErrorMessage>("retrieveUtilization") {
+    val retrieveUtilization = call<JobsRetrieveUtilizationRequest, JobsRetrieveUtilizationResponse, CommonErrorMessage>(
+        "retrieveUtilization"
+    ) {
         httpRetrieve(baseContext, "utilization")
 
         documentation {

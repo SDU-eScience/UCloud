@@ -404,13 +404,13 @@ const Content = styled.div`
 `;
 
 const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
-    const [utilization, setUtilization] = useCloudAPI<compute.JobsUtilizationResponse | null>(
+    const [utilization, setUtilization] = useCloudAPI<compute.JobsRetrieveUtilizationResponse | null>(
         {noop: true},
         null
     );
 
     useEffect(() => {
-        setUtilization(compute.jobs.retrieveUtilization())
+        setUtilization(compute.jobs.retrieveUtilization({jobId: job.id}))
     }, [status]);
 
     return <>
@@ -444,7 +444,7 @@ const BusyWrapper = styled(Box)`
 
 const Busy: React.FunctionComponent<{
     job: Job;
-    utilization: compute.JobsUtilizationResponse | null
+    utilization: compute.JobsRetrieveUtilizationResponse | null
 }> = ({job, utilization}) => {
     const ref = useRef<HTMLDivElement>(null);
     const clusterUtilization = utilization ?

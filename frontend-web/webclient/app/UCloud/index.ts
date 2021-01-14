@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Fri Jan 08 09:43:16 CET 2021 */
+/* Generated at: Thu Jan 14 07:20:57 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -1240,10 +1240,15 @@ export namespace compute {
         includeProduct?: boolean,
     }
 
-    export interface JobsUtilizationResponse {
+    export interface JobsRetrieveUtilizationResponse {
         capacity: CpuAndMemory,
         usedCapacity: CpuAndMemory,
         queueStatus: QueueStatus,
+    }
+
+    export interface JobsRetrieveUtilizationRequest {
+        provider?: string,
+        jobId?: string,
     }
 
     export interface JobsBrowseRequest {
@@ -2129,7 +2134,7 @@ export namespace compute {
          * Push state changes to UCloud (update)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
+         * ![Auth: SERVICE](https://img.shields.io/static/v1?label=Auth&message=SERVICE&color=informational&style=flat-square)
          *
          * Pushes one or more state changes to UCloud. UCloud will always treat all updates as a single
          * transaction. UCloud may reject the status updates if it deems them to be invalid. For example, an
@@ -2153,7 +2158,7 @@ export namespace compute {
          * Charge the user for the job (chargeCredits)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
+         * ![Auth: SERVICE](https://img.shields.io/static/v1?label=Auth&message=SERVICE&color=informational&style=flat-square)
          *
          *
          */
@@ -2174,7 +2179,7 @@ export namespace compute {
          * Retrieve job information (retrieve)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
+         * ![Auth: SERVICE](https://img.shields.io/static/v1?label=Auth&message=SERVICE&color=informational&style=flat-square)
          *
          * Allows the compute backend to query the UCloud database for a job owned by the compute provider.
          */
@@ -2200,7 +2205,7 @@ export namespace compute {
          * Submit output file to UCloud (submitFile)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
+         * ![Auth: SERVICE](https://img.shields.io/static/v1?label=Auth&message=SERVICE&color=informational&style=flat-square)
          *
          * Submits an output file to UCloud which is not available to be put directly into the storage resources
          * mounted by the compute provider.
@@ -2738,242 +2743,6 @@ export namespace compute {
             }
         }
     }
-    export namespace license {
-        export function get(
-            request: LicenseServerRequest
-        ): APICallParameters<LicenseServerRequest, LicenseServerWithId> {
-            return {
-                context: "",
-                method: "GET",
-                path: buildQueryString("/api/app/license", {serverId: request.serverId}),
-                parameters: request,
-                reloadId: Math.random(),
-            };
-        }
-
-        export function remove(
-            request: DeleteServerRequest
-        ): APICallParameters<DeleteServerRequest, any /* unknown */> {
-            return {
-                context: "",
-                method: "DELETE",
-                path: buildQueryString("/api/app/license", {id: request.id}),
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function updateAcl(
-            request: UpdateAclRequest
-        ): APICallParameters<UpdateAclRequest, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/app/license" + "/updateAcl",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function listAcl(
-            request: ListAclRequest
-        ): APICallParameters<ListAclRequest, DetailedAccessEntityWithPermission[]> {
-            return {
-                context: "",
-                method: "GET",
-                path: buildQueryString("/api/app/license" + "/listAcl", {serverId: request.serverId}),
-                parameters: request,
-                reloadId: Math.random(),
-            };
-        }
-
-        export function findByTag(
-            request: FindByTagRequest
-        ): APICallParameters<FindByTagRequest, LicenseServerId[]> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/app/license" + "/by-tag",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function listAll(): APICallParameters<{}, LicenseServerWithId[]> {
-            return {
-                context: "",
-                method: "GET",
-                path: "/api/app/license" + "/listAll",
-                reloadId: Math.random(),
-            };
-        }
-
-        export function update(
-            request: LicenseServerWithId
-        ): APICallParameters<LicenseServerWithId, UpdateServerResponse> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/app/license" + "/update",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function new_(
-            request: LicenseServer
-        ): APICallParameters<LicenseServer, NewServerResponse> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/app/license" + "/new",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export interface LicenseServerWithId {
-            id: string,
-            name: string,
-            address: string,
-            port: number /* int32 */
-            ,
-            license?: string,
-        }
-
-        export interface LicenseServerRequest {
-            serverId: string,
-        }
-
-        export interface DeleteServerRequest {
-            id: string,
-        }
-
-        export interface UpdateAclRequest {
-            serverId: string,
-            changes: AclChange[],
-        }
-
-        export interface AclChange {
-            entity: AccessEntity,
-            rights: "READ" | "READ_WRITE",
-            revoke: boolean,
-        }
-
-        export interface AccessEntity {
-            user?: string,
-            project?: string,
-            group?: string,
-        }
-
-        export interface DetailedAccessEntityWithPermission {
-            entity: DetailedAccessEntity,
-            permission: "READ" | "READ_WRITE",
-        }
-
-        export interface DetailedAccessEntity {
-            user?: string,
-            project?: Project,
-            group?: Project,
-        }
-
-        export interface Project {
-            id: string,
-            title: string,
-        }
-
-        export interface ListAclRequest {
-            serverId: string,
-        }
-
-        export interface LicenseServerId {
-            id: string,
-            name: string,
-        }
-
-        export interface FindByTagRequest {
-            tags: string[],
-        }
-
-        export interface UpdateServerResponse {
-            serverId: string,
-        }
-
-        export interface NewServerResponse {
-            serverId: string,
-        }
-
-        export interface LicenseServer {
-            name: string,
-            address: string,
-            port: number /* int32 */
-            ,
-            license?: string,
-        }
-
-        export interface AddTagRequest {
-            serverId: string,
-            tag: string,
-        }
-
-        export interface DeleteTagRequest {
-            serverId: string,
-            tag: string,
-        }
-
-        export interface ListTagsResponse {
-            tags: string[],
-        }
-
-        export interface ListTagsRequest {
-            serverId: string,
-        }
-
-        export namespace tag {
-            export function add(
-                request: AddTagRequest
-            ): APICallParameters<AddTagRequest, any /* unknown */> {
-                return {
-                    context: "",
-                    method: "POST",
-                    path: "/api/app/license/tag" + "/add",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            export function remove(
-                request: DeleteTagRequest
-            ): APICallParameters<DeleteTagRequest, any /* unknown */> {
-                return {
-                    context: "",
-                    method: "POST",
-                    path: "/api/app/license/tag" + "/delete",
-                    parameters: request,
-                    reloadId: Math.random(),
-                    payload: request,
-                };
-            }
-
-            export function list(
-                request: ListTagsRequest
-            ): APICallParameters<ListTagsRequest, ListTagsResponse> {
-                return {
-                    context: "",
-                    method: "GET",
-                    path: buildQueryString("/api/app/license/tag" + "/list", {serverId: request.serverId}),
-                    parameters: request,
-                    reloadId: Math.random(),
-                };
-            }
-        }
-    }
     export namespace ingresses {
         export function browse(
             request: IngressesBrowseRequest
@@ -3216,11 +2985,17 @@ export namespace compute {
          *
          *
          */
-        export function retrieveUtilization(): APICallParameters<{}, JobsUtilizationResponse> {
+        export function retrieveUtilization(
+            request: JobsRetrieveUtilizationRequest
+        ): APICallParameters<JobsRetrieveUtilizationRequest, JobsRetrieveUtilizationResponse> {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/jobs" + "/retrieveUtilization",
+                path: buildQueryString("/api/jobs" + "/retrieveUtilization", {
+                    jobId: request.jobId,
+                    provider: request.provider
+                }),
+                parameters: request,
                 reloadId: Math.random(),
             };
         }

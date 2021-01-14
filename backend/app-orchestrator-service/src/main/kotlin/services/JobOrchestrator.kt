@@ -640,11 +640,22 @@ class JobOrchestrator(
         }
     }
 
-    suspend fun retrieveUtilization(providerActor: Actor): JobsUtilizationResponse {
-        val (api, client) = providers.prepareCommunication(providerActor)
+    suspend fun retrieveUtilization(
+        actor: Actor,
+        project: String?,
+        jobId: String?,
+        provider: String?,
+    ): JobsRetrieveUtilizationResponse {
+        if (jobId == null && provider == null) throw IllegalArgumentException("jobId and provider == null")
+        if (jobId != null && provider != null) throw IllegalArgumentException("jobId and provider != null")
+
+        val providerId = provider ?:
+            jobQueryService.retrieve(actor, project, jobId!!, JobDataIncludeFlags()).job.parameters.product.provider
+
+        val (api, client) = providers.prepareCommunication(providerId)
         val response = api.retrieveUtilization.call(Unit, client).orThrow()
 
-        return JobsUtilizationResponse(
+        return JobsRetrieveUtilizationResponse(
             response.capacity,
             response.usedCapacity,
             response.queueStatus
