@@ -27,6 +27,7 @@ class CronJobResource(
         spec = CronJobSpec().apply {
             this.schedule = schedule
 
+            concurrencyPolicy = "Forbid"
             jobTemplate = JobTemplateSpec().apply {
                 metadata = ObjectMeta().apply {
                     name = this@CronJobResource.name
