@@ -139,6 +139,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                 jobId = jobId,
                 ipAddress = "127.0.0.1",
                 localPort = localPortSuggestion,
+                rank = rank,
                 _isAlive = {
                     k8sTunnel.isAlive
                 },
@@ -155,6 +156,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                 jobId = jobId,
                 ipAddress = ipAddress,
                 localPort = remotePort,
+                rank = rank,
                 _isAlive = {
                     runCatching {
                         k8.client.getResource<Pod>(KubernetesResources.pod.withNameAndNamespace(podName, namespace))
