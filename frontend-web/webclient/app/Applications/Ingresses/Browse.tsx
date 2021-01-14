@@ -50,9 +50,9 @@ const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (se
         }
     }), [props.onSelect]);
 
-    const pageRenderer = useCallback<PageRenderer<Ingress>>(page => {
+    const pageRenderer = useCallback<PageRenderer<Ingress>>(items => {
         return <List childPadding={"8px"} bordered={false}>
-            {page.items.map(it =>
+            {items.map(it =>
                 <ListRow
                     key={it.id}
                     left={it.domain}

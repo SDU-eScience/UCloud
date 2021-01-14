@@ -14,7 +14,7 @@ import {useHistory} from "react-router";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import List, {ListRow, ListRowStat} from "ui-components/List";
 import Text, {TextSpan} from "ui-components/Text";
-import {prettierString, stopPropagation} from "UtilityFunctions";
+import {prettierString, stopPropagation, useEffectSkipMount} from "UtilityFunctions";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
@@ -65,10 +65,10 @@ export const Browse: React.FunctionComponent = () => {
 
     const toggleSet = useToggleSet(jobs.data.items);
 
-    const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => {
+    const pageRenderer = useCallback((items: UCloud.compute.Job[]): React.ReactNode => {
         return <>
             <List bordered={false} childPadding={"8px"}>
-                {page.items.map(job => {
+                {items.map(job => {
                     const isExpired = isRunExpired(job);
                     return (
                         <ListRow
@@ -139,7 +139,7 @@ export const Browse: React.FunctionComponent = () => {
         }
 
         sidebar={
-            <FilterOptions onUpdateFilter={f => setFilters(f)}/>
+            <FilterOptions onUpdateFilter={f => {console.log("Updating filters"); setFilters(f)}}/>
         }
     />;
 };
@@ -180,7 +180,7 @@ const FilterOptions: React.FunctionComponent<{
         setSecondDate(end);
     }
 
-    useEffect(() => {
+    useEffectSkipMount(() => {
         onUpdateFilter({
             filterAfter: firstDate?.getTime(),
             filterBefore: secondDate?.getTime(),

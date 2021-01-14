@@ -335,8 +335,8 @@ const LicenseServers: React.FunctionComponent = () => {
                                 page={licenses.data}
                                 infiniteScrollGeneration={infScroll}
                                 onLoadMore={loadMore}
-                                pageRenderer={page => (
-                                    page.items.map(licenseServer => (
+                                pageRenderer={items => (
+                                    items.map(licenseServer => (
                                         <Card key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
                                             <Flex justifyContent="space-between">
                                                 <Box>
