@@ -30,7 +30,6 @@ import {compute} from "UCloud";
 import JobsBrowseRequest = compute.JobsBrowseRequest;
 import {Operation, Operations} from "ui-components/Operation";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {addStandardDialog} from "UtilityComponents";
 
 const itemsPerPage = 50;
 
@@ -47,18 +46,11 @@ function pluralS(runs: UCloud.compute.Job[]): string {
 const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
     {
         text: "Cancel jobs",
-        onClick: (selected, extra) => addStandardDialog({
-            title: "Cancel jobs?",
-            message: `Are you sure you want to cancel ${selected.length} job${pluralS(selected)}?`,
-            onConfirm: async () => {
-                await extra.invokeCommand(UCloud.compute.jobs.remove({type: "bulk", items: selected.map(it => ({id: it.id}))}));
-                snackbarStore.addSuccess(`Canceled job${pluralS(selected)}.`, false);
-            },
-            confirmButtonColor: "red",
-            confirmText: "Cancel",
-            cancelButtonColor: "blue",
-            cancelText: "Back"
-        }),
+        confirm: true,
+        onClick: async (selected, extra) => {
+            await extra.invokeCommand(UCloud.compute.jobs.remove({type: "bulk", items: selected.map(it => ({id: it.id}))}));
+            snackbarStore.addSuccess(`Canceled job${pluralS(selected)}.`, false);
+        },
         enabled: selected =>
             (selected.some(it => inCancelableState(it.status.state))) ? true : "No cancelable runs selected",
     }
