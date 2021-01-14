@@ -47,8 +47,8 @@ class WebService(
             if (domain != null) {
                 return OpenSession.Web(
                     jobAndRank.job.id,
-                    0, // NOTE(Dan): We currently only support ingress for jobs with one rank
-                    domain
+                    jobAndRank.rank,
+                    "http://$domain"
                 )
             }
         }
