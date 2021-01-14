@@ -69,7 +69,7 @@ object Roles {
     val ADMIN = setOf(Role.ADMIN)
     val THIRD_PARTY_APP = setOf(Role.THIRD_PARTY_APP)
     val PUBLIC = setOf(*Role.values())
-    val PROVIDER = setOf(Role.PROVIDER)
+    val PROVIDER = setOf(Role.PROVIDER, Role.SERVICE)
 }
 
 /**

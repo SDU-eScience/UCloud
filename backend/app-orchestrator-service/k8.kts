@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-orchestrator"
-    version = "2.4.0-rc7"
+    version = "2.4.0-rc8"
     val domain: String = config("domain", "The provider domain")
     val port: Int = config("port", "The provider port", 443)
     val https: Boolean = config("https", "Provider https", true)
@@ -13,6 +13,8 @@ bundle { ctx ->
         addSimpleMapping("/api/hpc/urls")
         addSimpleMapping("/api/app/compute")
         addSimpleMapping("/api/jobs")
+        addSimpleMapping("/api/ingresses")
+        addSimpleMapping("/api/licenses")
     }
 
     val deployment = withDeployment {

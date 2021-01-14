@@ -29,7 +29,6 @@ import {useToggleSet} from "Utilities/ToggleSet";
 import {compute} from "UCloud";
 import JobsBrowseRequest = compute.JobsBrowseRequest;
 import {Operation, Operations} from "ui-components/Operation";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 
 const itemsPerPage = 50;
 
@@ -39,17 +38,16 @@ interface JobOperationCallbacks {
     invokeCommand: InvokeCommand;
 }
 
-function pluralS(runs: UCloud.compute.Job[]): string {
-    return runs.length > 1 ? "s" : "";
-}
-
 const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
     {
-        text: "Cancel jobs",
+        text: "Cancel",
         confirm: true,
-        onClick: async (selected, extra) => {
-            await extra.invokeCommand(UCloud.compute.jobs.remove({type: "bulk", items: selected.map(it => ({id: it.id}))}));
-            snackbarStore.addSuccess(`Canceled job${pluralS(selected)}.`, false);
+        color: "red",
+        onClick: async (selected, extra)  => {
+            await extra.invokeCommand(UCloud.compute.jobs.remove({
+                type: "bulk",
+                items: selected.map(it => ({id: it.id}))
+            }));
         },
         enabled: selected =>
             (selected.some(it => inCancelableState(it.status.state))) ? true : "No cancelable runs selected",

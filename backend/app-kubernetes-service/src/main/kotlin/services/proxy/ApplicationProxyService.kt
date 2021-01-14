@@ -29,7 +29,7 @@ class ApplicationProxyService(
     private val lock = Mutex()
 
     private suspend fun addEntry(id: String, tunnels: List<Tunnel>, domains: List<String>) {
-        require(tunnels.size == domains.size || domains.isEmpty()) {
+        require(tunnels.size == domains.size || domains.isEmpty() || (tunnels.size == 1 && domains.isNotEmpty())) {
             "domains must either be empty or tunnels and domains should match in size"
         }
 
@@ -38,24 +38,42 @@ class ApplicationProxyService(
         lock.withLock {
             if (entries.containsKey(id)) return
 
-            val fullDomains = when {
-                domains.isNotEmpty() -> domains
-                else -> tunnels.map { prefix + id + "-" + it.rank + "." + domain }
-            }
+            if (tunnels.size == 1 && domains.isNotEmpty()) {
+                entries[id] = domains.mapIndexed { idx, domain ->
+                    val tunnel = tunnels.single()
+                    RouteAndCluster(
+                        EnvoyRoute(
+                            domain,
+                            tunnel.jobId + "-" + idx
+                        ),
 
-            entries[id] = tunnels.zip(fullDomains).map { (tunnel, domain) ->
-                RouteAndCluster(
-                    EnvoyRoute(
-                        domain,
-                        tunnel.jobId + "-" + tunnel.rank
-                    ),
-
-                    EnvoyCluster(
-                        tunnel.jobId + "-" + tunnel.rank,
-                        tunnel.ipAddress,
-                        tunnel.localPort
+                        EnvoyCluster(
+                            tunnel.jobId + "-" + idx,
+                            tunnel.ipAddress,
+                            tunnel.localPort
+                        )
                     )
-                )
+                }
+            } else {
+                val fullDomains = when {
+                    domains.isNotEmpty() -> domains
+                    else -> tunnels.map { prefix + id + "-" + it.rank + "." + domain }
+                }
+
+                entries[id] = tunnels.zip(fullDomains).map { (tunnel, domain) ->
+                    RouteAndCluster(
+                        EnvoyRoute(
+                            domain,
+                            tunnel.jobId + "-" + tunnel.rank
+                        ),
+
+                        EnvoyCluster(
+                            tunnel.jobId + "-" + tunnel.rank,
+                            tunnel.ipAddress,
+                            tunnel.localPort
+                        )
+                    )
+                }
             }
         }
 

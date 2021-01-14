@@ -3,11 +3,12 @@ import {useCallback, useEffect, useState} from "react";
 import {useProjectId} from "Project";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as UCloud from "UCloud";
-import {accounting} from "UCloud";
+import {accounting, PageV2} from "UCloud";
 import ProductNS = accounting.ProductNS;
 import {Box, Button, Flex, Input, Label, Select, Text} from "ui-components";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Spacer} from "ui-components/Spacer";
+import {emptyPageV2} from "DefaultObjects";
 
 const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinished?: () => void}> = props => {
     const [selectedProvider, setSelectedProvider] = useState(props.computeProvider);
@@ -18,14 +19,9 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
 
     const projectId = useProjectId();
 
-    const [allProductsFromProvider, fetchProductsFromProvider] = useCloudAPI<UCloud.accounting.Product[]>(
+    const [allProducts, fetchProducts] = useCloudAPI<PageV2<UCloud.accounting.Product>>(
         {noop: true},
-        []
-    );
-
-    const [wallets, fetchWallets] = useCloudAPI<UCloud.accounting.RetrieveBalanceResponse>(
-        {noop: true},
-        {wallets: []}
+        emptyPageV2
     );
 
     const [ingressSettings, fetchIngressSettings] = useCloudAPI<UCloud.compute.IngressSettings>(
@@ -33,30 +29,17 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
         {domainPrefix: "", domainSuffix: ""}
     );
 
-    // Select provider dropdown will select from viableProviders
-    // When a provider is selected their products are loaded
-    // When a product is selected their settings are fetched
-    const viableProviders: string[] = [];
-    for (const wallet of wallets.data.wallets) {
-        if (wallet.area === "INGRESS") {
-            viableProviders.push(wallet.wallet.paysFor.provider);
-        }
-    }
-
-    /*  Should be equivalent to the current filling of viableProviders.
-    
-    wallets.data.wallets
-        .filter(it => it.area === "INGRESS")
-        .map(it => it.wallet.paysFor.provider)); 
-    
-    */
+    const viableProviders = Array.from(new Set<string>(allProducts.data.items.map(it => it.category.provider)));
 
     const reload = useCallback(() => {
-        if (selectedProvider) {
-            fetchProductsFromProvider(
-                UCloud.accounting.products.retrieveAllFromProvider({provider: selectedProvider})
-            );
-        }
+        fetchProducts(
+            UCloud.accounting.products.browse({
+                filterProvider: selectedProvider,
+                filterUsable: true,
+                filterArea: "INGRESS",
+                itemsPerPage: 250,
+            })
+        );
 
         if (selectedProduct) {
             fetchIngressSettings(
@@ -67,10 +50,7 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                 })
             );
         }
-
-        fetchWallets(UCloud.accounting.wallets.retrieveBalance({}));
     }, [selectedProvider, selectedProduct]);
-
 
     useEffect(() => {
         reload();
@@ -81,9 +61,9 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
             left={
                 <Box width="calc(50% - 10px)">
                     <Label>
-                        1. Select Provider
+                        {canChangeProvider ? <>1. Select Provider</> : <>Provider</>}
                         {canChangeProvider ? <Select placeholder="Provider...">
-                            <option onClick={() => setSelectedProvider(undefined)}></option>
+                            <option onClick={() => setSelectedProvider(undefined)}/>
                             {viableProviders.map(provider =>
                                 <option key={provider} onClick={() => setSelectedProvider(provider)}>
                                     {provider}
@@ -97,8 +77,8 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                 <Label>
                     {!canChangeProvider ? "1" : "2"}. Select Product
                     <Select placeholder="Product...">
-                        <option onClick={() => setSelectedProduct(null)}></option>
-                        {allProductsFromProvider.data.filter(it => it.type === "ingress").map(product =>
+                        <option onClick={() => setSelectedProduct(null)}/>
+                        {allProducts.data.items.map(product =>
                             <option key={product.id} onClick={() => setSelectedProduct(product as ProductNS.Ingress)}>
                                 {product.id}
                             </option>
