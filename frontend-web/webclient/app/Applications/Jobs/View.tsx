@@ -23,7 +23,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute} from "UCloud";
+import {compute, file} from "UCloud";
 import Job = compute.Job;
 import JobParameters = compute.JobParameters;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
@@ -36,6 +36,8 @@ import {useProjectStatus} from "Project/cache";
 import {ProjectName} from "Project";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
+import StorageFile = file.StorageFile;
+import {File} from "Files";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -559,8 +561,8 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
         </InfoCard>
         <InfoCard
-            stat={jobFiles(job.parameters).length.toString()}
-            statTitle={jobFiles(job.parameters).length === 1 ? "Input file" : "Input files"}
+            stat={Object.keys(jobFiles(job.parameters)).length.toString()}
+            statTitle={Object.keys(jobFiles(job.parameters)).length === 1 ? "Input file" : "Input files"}
             icon={"ftFolder"}
         >
             {jobInputString(job.parameters, projectNames)}
@@ -644,13 +646,28 @@ AltButtonGroup.defaultProps = {
     marginBottom: "8px"
 };
 
-function jobFiles(parameters: JobParameters): AppParameterValueNS.File[] {
-    return [...Object.values(parameters.parameters ?? {}), ...(parameters.resources ?? [])]
-        .filter(it => it.type === "file") as AppParameterValueNS.File[];
+function jobFiles(parameters: JobParameters): Record<string, AppParameterValueNS.File> {
+    const result: Record<string, AppParameterValueNS.File> = {};
+    const userParams = parameters.parameters ?? {};
+
+    for (const paramName of Object.keys(parameters.parameters ?? {})) {
+        const value = userParams[paramName];
+        if (value.type !== "file") continue;
+        result[paramName] = value as AppParameterValueNS.File;
+    }
+
+    let i = 0;
+    const randomString = Math.random().toString();
+    for (const resource of parameters.resources ?? []) {
+        if (resource.type !== "file") continue;
+        result[`${randomString}_resourceParam${i++}`] = resource as AppParameterValueNS.File;
+    }
+
+    return result;
 }
 
 function jobInputString(parameters: JobParameters, projects: ProjectName[]): string {
-    const allFiles = jobFiles(parameters).map(it => replaceHomeOrProjectFolder(it.path, Client, projects));
+    const allFiles = Object.values(jobFiles(parameters)).map(it => replaceHomeOrProjectFolder(it.path, Client, projects));
 
     if (allFiles.length === 0) return "No files";
     return joinToString(allFiles, ", ");
@@ -947,10 +964,21 @@ const OutputFilesWrapper = styled.div`
 
 const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
     const history = useHistory();
-    const filePaths = jobFiles(job.parameters).map(it => mockFile({path: it.path, type: "DIRECTORY"}));
+    const files: File[] = [];
+
+    const extractedFiles = jobFiles(job.parameters);
+    for (const paramName of Object.keys(extractedFiles)) {
+        const file = extractedFiles[paramName];
+        const allParameters = job.parameters.resolvedApplication?.invocation?.parameters ?? [];
+
+        const isFile = allParameters.find(it => it.name === paramName)?.type === "input_file" ?? false;
+        files.push(mockFile({path: file.path, type: isFile ? "FILE" : "DIRECTORY"}));
+    }
+
     const outputFolder = job.output?.outputFolder;
-    if (outputFolder) filePaths.push(mockFile({path: outputFolder, type: "DIRECTORY"}));
-    if (filePaths.length === 0) return null;
+    if (outputFolder) files.push(mockFile({path: outputFolder, type: "DIRECTORY"}));
+
+    if (files.length === 0) return null;
     return <OutputFilesWrapper>
         <Heading.h3>Files</Heading.h3>
         <VirtualFileTable
@@ -959,7 +987,7 @@ const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
             previewEnabled
             permissionAlertEnabled={false}
             onFileNavigation={f => history.push(fileTablePage(f))}
-            page={arrayToPage(filePaths)}
+            page={arrayToPage(files)}
         />
     </OutputFilesWrapper>;
 };
@@ -992,8 +1020,7 @@ const ProviderUpdates: React.FunctionComponent<{
         if (update.status) {
             appendToXterm(
                 terminal,
-                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}
-`
+                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`
             );
         } else if (update.state) {
             let message = "Your job is now: " + stateToTitle(update.state);

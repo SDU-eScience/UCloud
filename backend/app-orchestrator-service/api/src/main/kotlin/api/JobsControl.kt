@@ -17,6 +17,13 @@ data class JobsControlUpdateRequestItem(
     val jobId: String,
     val state: JobState? = null,
     val status: String? = null,
+    @UCloudApiDoc(
+        "Indicates that this request should be ignored if the current state does not match the expected state"
+    )
+    val expectedState: JobState? = null,
+
+    @UCloudApiDoc("Indicates that this request should be ignored if the current state equals `state`")
+    val expectedDifferentState: Boolean? = null
 )
 
 typealias JobsControlChargeCreditsRequest = BulkRequest<JobsControlChargeCreditsRequestItem>
