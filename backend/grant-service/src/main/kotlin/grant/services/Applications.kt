@@ -510,34 +510,26 @@ class ApplicationService(
         applicationId: Long,
         transferToProjectId: String
     ) {
-        val application =  viewApplicationById(ctx, actor, applicationId)
-        if (application.first.grantRecipient !is GrantRecipient.ExistingProject) {
-            if (currentProject.isNullOrEmpty()) {
-                throw RPCException.fromStatusCode(
-                    HttpStatusCode.BadRequest,
-                    "Not in a project. No applications in Personal workspace"
-                )
-            }
-            if (projects.isAdminOfProject(currentProject!!, actor)) {
-                ctx.withSession { session ->
-                    session
-                        .sendPreparedStatement(
-                            {
-                                setParameter("transfer", transferToProjectId)
-                                setParameter("applicationId", applicationId)
-                            },
-                            """
-                            UPDATE "grant".applications
-                            SET resources_owned_by = :transfer
-                            WHERE id = :applicationId
-                        """
-                        )
-                }
-            } else {
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-            }
-        } else {
+        val application = viewApplicationById(ctx, actor, applicationId)
+        if (application.first.grantRecipient is GrantRecipient.ExistingProject) {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Transfer not applicable to existing projects")
+        }
+        if (!projects.isAdminOfProject(application.first.resourcesOwnedBy, actor)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+        ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("transfer", transferToProjectId)
+                        setParameter("applicationId", applicationId)
+                    },
+                    """
+                        UPDATE "grant".applications
+                        SET resources_owned_by = :transfer
+                        WHERE id = :applicationId
+                    """
+                )
         }
     }
 

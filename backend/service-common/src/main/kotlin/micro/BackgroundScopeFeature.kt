@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -60,10 +61,11 @@ class BackgroundScope : CoroutineScope {
         get() = dispatcher
 
     fun init() {
-        log.debug("Calling init()")
+        log.trace("Calling init()")
+        val shouldLog = didLog.compareAndSet(false, true)
         synchronized(this) {
             if (executor == null) {
-                log.info("Initializing BackgroundScope")
+                if (shouldLog) log.trace("Initializing BackgroundScope")
                 val newCachedThreadPool = Executors.newCachedThreadPool()
                 executor = newCachedThreadPool
                 dispatcher = newCachedThreadPool.asCoroutineDispatcher()
@@ -72,13 +74,13 @@ class BackgroundScope : CoroutineScope {
     }
 
     fun stop() {
-        log.debug("Calling stop()")
+        log.trace("Calling stop()")
         executor?.shutdown()
         executor = null
     }
 
     fun reset() {
-        log.debug("Calling reset()")
+        log.trace("Calling reset()")
         val executor = executor
         if (executor != null) {
             log.info("Resetting BackgroundScope")
@@ -93,6 +95,7 @@ class BackgroundScope : CoroutineScope {
 
     companion object : Loggable {
         override val log = logger()
+        private val didLog = AtomicBoolean(false)
     }
 }
 

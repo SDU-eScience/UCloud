@@ -404,7 +404,7 @@ export function browseProjects(request: BrowseProjectsRequest): APICallParameter
 }
 
 export interface GrantsRetrieveAffiliationsRequest {
-    grantID: number,
+    grantId: number,
     itemsPerPage: number,
     page: number
 }

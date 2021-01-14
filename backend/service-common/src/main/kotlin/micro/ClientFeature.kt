@@ -22,7 +22,7 @@ class ClientFeature : MicroFeature {
         val defaultOutgoingHostResolver = FixedOutgoingHostResolver(defaultHost)
 
         val hostResolver = if (ctx.developmentModeEnabled) {
-            log.info("Initializing client with development mode overrides!")
+            log.trace("Initializing client with development mode overrides!")
             val overrides = ctx.feature(ServiceDiscoveryOverrides)
 
             DevelopmentOutgoingHostResolver(defaultOutgoingHostResolver, overrides)

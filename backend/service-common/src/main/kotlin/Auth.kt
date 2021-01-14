@@ -44,6 +44,8 @@ enum class Role {
      */
     THIRD_PARTY_APP,
 
+    PROVIDER,
+
     /**
      * The user role is unknown.
      *
@@ -59,13 +61,15 @@ object Roles {
     val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP)
     val END_USER = setOf(Role.USER, Role.ADMIN)
     val PRIVILEGED = setOf(Role.ADMIN, Role.SERVICE)
+    val SERVICE = setOf(Role.SERVICE)
 
-    @Deprecated("Corrected spelling", replaceWith = ReplaceWith("Roles.PRIVILEGED"))
+    @Deprecated("Corrected spelling", replaceWith = ReplaceWith("Roles.PRIVILEGED"), DeprecationLevel.HIDDEN)
     val PRIVILEDGED = setOf(Role.ADMIN, Role.SERVICE)
 
     val ADMIN = setOf(Role.ADMIN)
     val THIRD_PARTY_APP = setOf(Role.THIRD_PARTY_APP)
     val PUBLIC = setOf(*Role.values())
+    val PROVIDER = setOf(Role.PROVIDER)
 }
 
 /**

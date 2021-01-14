@@ -1,9 +1,6 @@
 package dk.sdu.cloud.calls.server
 
-import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
@@ -13,7 +10,10 @@ import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 
-class AuthInterceptor(private val tokenValidator: TokenValidation<Any>) {
+class AuthInterceptor(
+    private val tokenValidator: TokenValidation<Any>,
+    private val developmentModeEnabled: Boolean,
+) {
     fun register(server: RpcServer) {
         server.attachFilter(object : IngoingCallFilter.BeforeParsing() {
             override fun canUseContext(ctx: IngoingCall): Boolean = true
@@ -41,9 +41,16 @@ class AuthInterceptor(private val tokenValidator: TokenValidation<Any>) {
                         context.bearer = bearer
 
                         if (context.securityPrincipal.role !in auth.roles) {
-                            log.debug("Security principal is not authorized for this call")
-                            log.debug("Principal is: ${context.securityPrincipal}")
-                            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                            val allowedInDevMode =
+                                // Allow privileged roles to act as a provider in dev mode
+                                (auth.roles == Roles.PROVIDER &&
+                                    context.securityPrincipal.role in Roles.PRIVILEGED)
+
+                            if (!developmentModeEnabled || !allowedInDevMode) {
+                                log.debug("Security principal is not authorized for this call")
+                                log.debug("Principal is: ${context.securityPrincipal}")
+                                throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                            }
                         }
 
                         token.requireScope(call.requiredAuthScope)

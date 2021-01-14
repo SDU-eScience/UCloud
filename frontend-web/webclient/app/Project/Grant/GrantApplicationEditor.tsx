@@ -1097,7 +1097,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             isActive={transferringApplication}
                             close={() => setTransferringApplication(false)}
                             transfer={transferRequest}
-                            grantID={state.editingApplication.id}
+                            grantId={state.editingApplication.id}
                         /> : null
                 }
             />
@@ -1107,13 +1107,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
 interface TransferApplicationPromptProps {
     isActive: boolean;
-    grantID: number;
+    grantId: number;
     close(): void;
     transfer(toProjectId: string): Promise<void>;
 }
 
-function TransferApplicationPrompt({isActive, close, transfer, grantID}: TransferApplicationPromptProps) {
-    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, grantID}), emptyPage);
+function TransferApplicationPrompt({isActive, close, transfer, grantId}: TransferApplicationPromptProps) {
+    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, grantId}), emptyPage);
 
     /* FIXME: Work-around for showing modal AND dialog. Change to hold-to-confirm button when merged with scheduling */
     const [isConfirming, setIsConfirming] = useState(false);
@@ -1121,10 +1121,10 @@ function TransferApplicationPrompt({isActive, close, transfer, grantID}: Transfe
     const history = useHistory();
 
     React.useEffect(() => {
-        if (grantID) {
-            fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, grantID}))
+        if (grantId) {
+            fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, grantId}))
         }
-    }, [grantID]);
+    }, [grantId]);
 
     return (isConfirming ? null :
         <ReactModal

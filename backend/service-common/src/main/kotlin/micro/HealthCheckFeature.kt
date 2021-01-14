@@ -153,7 +153,7 @@ class HealthCheckFeature : MicroFeature {
             return false
         }
 
-        log.debug("Using stream with ID: $id")
+        log.trace("Using stream with ID: $id")
 
         val stream = RedisHealthStream(serviceName, id).health
 

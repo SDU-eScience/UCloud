@@ -12,7 +12,6 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.*
@@ -63,6 +62,7 @@ class WSCall internal constructor(
 }
 
 class WSSession internal constructor(val id: String, val underlyingSession: WebSocketServerSession) {
+    val attributes = AttributeContainer()
     internal val onCloseHandlers = ArrayList<suspend () -> Unit>()
     internal var isActive: Boolean = true
         private set
@@ -152,7 +152,7 @@ class IngoingWebSocketInterceptor(
         engine.application.routing {
             handlers.forEach { (path, calls) ->
                 webSocket(path) {
-                    log.info("New websocket connection at $path")
+                    log.trace("New websocket connection at $path")
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
 
@@ -192,7 +192,7 @@ class IngoingWebSocketInterceptor(
                                         ?.textValue()
                                         ?: continue
 
-                                log.debug("RequestedCall: $requestedCall")
+                                log.trace("RequestedCall: $requestedCall")
 
                                 if (parsedMessage[WSRequest.PAYLOAD_FIELD]?.isNull != false) continue
 

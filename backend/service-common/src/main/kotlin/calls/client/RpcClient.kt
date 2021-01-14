@@ -44,14 +44,14 @@ class RpcClient {
     private val callFilters = ArrayList<OutgoingCallFilter>()
 
     fun attachFilter(filter: OutgoingCallFilter) {
-        log.debug("Attaching filter: $filter")
+        log.trace("Attaching filter: $filter")
         callFilters.add(filter)
     }
 
     fun <Ctx : OutgoingCall, Companion : OutgoingCallCompanion<Ctx>> attachRequestInterceptor(
         interceptor: OutgoingRequestInterceptor<Ctx, Companion>
     ) {
-        log.debug("Attaching interceptor for ${interceptor.companion}: $interceptor")
+        log.trace("Attaching interceptor for ${interceptor.companion}: $interceptor")
         requestInterceptors[interceptor.companion] = interceptor
     }
 

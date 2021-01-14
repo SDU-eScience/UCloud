@@ -315,7 +315,7 @@ typealias BrowseProjectsResponse = Page<ProjectWithTitle>
 data class ProjectWithTitle(val projectId: String, val title: String)
 
 data class GrantsRetrieveAffiliationsRequest(
-    val grantID: Long,
+    val grantId: Long,
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
 ) : WithPaginationRequest
@@ -871,7 +871,7 @@ object Grants : CallDescriptionContainer("grant") {
             }
 
             params {
-                +boundTo(GrantsRetrieveAffiliationsRequest::grantID)
+                +boundTo(GrantsRetrieveAffiliationsRequest::grantId)
                 +boundTo(GrantsRetrieveAffiliationsRequest::itemsPerPage)
                 +boundTo(GrantsRetrieveAffiliationsRequest::page)
             }

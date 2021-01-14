@@ -2,7 +2,6 @@ package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 
 class DeinitFeature : MicroFeature {
     private val handlers = ArrayList<() -> Unit>()

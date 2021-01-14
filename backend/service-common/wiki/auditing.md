@@ -11,17 +11,15 @@ The auditing feature is written as a piece of middleware for ktor. It logs all
 calls made to the backend. It is further enriched by metadata provided by the
 `callDescription`.
 
-The resulting audit log is dispatched to the event stream in two different topics. 
+The resulting audit log is dispatched to the event stream in two different topics.
 
 ---
 
-The topic `http.logs` contains the audit log of all services. These audit
-logs are consumed by logstash and pushed into Elasticsearch for indefinite
-storage. If breaking changes are made to the underlying audit messages then
-the Elasticsearch indexes may break. This can potentially cause messages to no
-longer reach Elasticsearch (and get stuck at the Logstash step). Because of
-this, it is important that breaking changes are not made without manual
-migration. This is also mention in the [deployment checklist](./deployment.md).
+The topic `http.logs` contains the audit log of all services. These audit logs are consumed and pushed into
+Elasticsearch for storage. If breaking changes are made to the underlying audit messages then the Elasticsearch indexes
+may break. This can potentially cause messages to no longer reach Elasticsearch (and get stuck at the Logstash step).
+Because of this, it is important that breaking changes are not made without manual migration. This is also mention in
+the [deployment checklist](./deployment.md).
 
 Additionally, there is an audit topic for each namespace. Services may consume
 from this topic to build services for advanced monitoring. The topics are named
@@ -34,7 +32,7 @@ The following information audited for each request (See the source code in
 
 ```
 data class ServiceDefinition(
-    val name: String, 
+    val name: String,
     val version: String
 )
 
@@ -78,16 +76,12 @@ data class HttpCallLogEntry(
 
 ## Dealing With Sensitive Request Data
 
-In this section I define "sensitive data" as any kind of data we wouldn't
-want anyone to be able to access through the audit logs. It may include any
-kind of data that would by law be classified as sensitive, but it may also
-contain other types of data.
+In this section, "sensitive data" is any kind of data which shouldn't be accible through the audit logs. It may include
+any kind of data that would by law be classified as sensitive, but it may also contain other types of data.
 
-We don't want sensitive data in our logs. The audit log should allow us to
-clearly audit the actions of a user, but it should not contain sensitive data,
-such as passwords. If you are writing a call which will need to accept sensitive
-data you need to declare an alternative request type which has this sensitive
-data redacted. 
+We don't want sensitive data in our logs. The audit log should allow us to clearly audit the actions of a user, but it
+should not contain sensitive data, such as passwords. If you are writing a call which will need to accept sensitive data
+you need to declare an alternative request type which has this sensitive data redacted. 
 
 In the call description you should add:
 
@@ -103,3 +97,4 @@ additional useful information is attached to the audit message.
 
 The following document describes how to verify that auditing works as intended:
 [auditing-scenario.md](auditing-scenario.md).
+
