@@ -40,25 +40,17 @@ interface JobOperationCallbacks {
     invokeCommand: InvokeCommand;
 }
 
-function pluralS(runs: UCloud.compute.Job[]): string {
-    return runs.length > 1 ? "s" : "";
-}
-
 const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
     {
-        text: "Cancel jobs",
-        onClick: (selected, extra) => addStandardDialog({
-            title: "Cancel jobs?",
-            message: `Are you sure you want to cancel ${selected.length} job${pluralS(selected)}?`,
-            onConfirm: async () => {
-                await extra.invokeCommand(UCloud.compute.jobs.remove({type: "bulk", items: selected.map(it => ({id: it.id}))}));
-                snackbarStore.addSuccess(`Canceled job${pluralS(selected)}.`, false);
-            },
-            confirmButtonColor: "red",
-            confirmText: "Cancel",
-            cancelButtonColor: "blue",
-            cancelText: "Back"
-        }),
+        text: "Cancel",
+        confirm: true,
+        color: "red",
+        onClick: async (selected, extra)  => {
+            await extra.invokeCommand(UCloud.compute.jobs.remove({
+                type: "bulk",
+                items: selected.map(it => ({id: it.id}))
+            }));
+        },
         enabled: selected =>
             (selected.some(it => inCancelableState(it.status.state))) ? true : "No cancelable runs selected",
     }

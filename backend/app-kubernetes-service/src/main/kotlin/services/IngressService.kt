@@ -109,10 +109,6 @@ class IngressService(
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val ingressPoints = job.ingressPoints
         if (ingressPoints.isEmpty()) return
-        if (ingressPoints.size > 1) {
-            // TODO(Dan): This should only be a temporary limitation
-            throw RPCException("UCloud/compute only supports a single ingress per Job", HttpStatusCode.BadRequest)
-        }
 
         if (job.parameters.replicas > 1) {
             // TODO(Dan): This should probably be solved at the orchestrator level

@@ -84,7 +84,7 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
     }
 
     val update = call<JobsControlUpdateRequest, JobsControlUpdateResponse, CommonErrorMessage>("update") {
-        httpUpdate(baseContext, "update", roles = Roles.SERVICE)
+        httpUpdate(baseContext, "update", roles = Roles.PROVIDER)
 
         documentation {
             summary = "Push state changes to UCloud"
@@ -118,7 +118,7 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
     val chargeCredits = call<JobsControlChargeCreditsRequest, JobsControlChargeCreditsResponse, CommonErrorMessage>(
         "chargeCredits"
     ) {
-        httpUpdate(baseContext, "chargeCredits", roles = Roles.SERVICE)
+        httpUpdate(baseContext, "chargeCredits", roles = Roles.PROVIDER)
 
         documentation {
             summary = "Charge the user for the job"
@@ -126,7 +126,7 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
     }
 
     val retrieve = call<JobsControlRetrieveRequest, JobsControlRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext, roles = Roles.SERVICE)
+        httpRetrieve(baseContext, roles = Roles.PROVIDER)
 
         documentation {
             summary = "Retrieve job information"
@@ -144,7 +144,7 @@ object JobsControl : CallDescriptionContainer("jobs.control") {
         }
 
         auth {
-            roles = Roles.SERVICE
+            roles = Roles.PROVIDER
             access = AccessRight.READ_WRITE
         }
 
