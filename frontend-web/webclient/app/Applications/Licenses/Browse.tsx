@@ -385,7 +385,7 @@ interface LicenseOpCallback {
     invokeCommand: InvokeCommand;
     reload: () => void;
     history: History<unknown>;
-    onUse: (License) => void;
+    onUse: (license: License) => void;
     standalone: boolean;
     projectStatus: ProjectStatus;
     projectId?: string;

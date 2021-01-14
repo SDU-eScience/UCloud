@@ -4,7 +4,7 @@ import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {useCallback, useEffect, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
+import {InvokeCommand, useAsyncWork, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as Heading from "ui-components/Heading";
 import {emptyPageV2} from "DefaultObjects";
 import {useProjectId} from "Project";
@@ -17,7 +17,7 @@ import Text, {TextSpan} from "ui-components/Text";
 import {prettierString, stopPropagation, useEffectSkipMount} from "UtilityFunctions";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
-import {isRunExpired} from "Utilities/ApplicationUtilities";
+import {inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
 import {Box, Checkbox, Flex, InputGroup, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
@@ -28,8 +28,41 @@ import styled from "styled-components";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {compute} from "UCloud";
 import JobsBrowseRequest = compute.JobsBrowseRequest;
+import {Operation, Operations} from "ui-components/Operation";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {addStandardDialog} from "UtilityComponents";
 
 const itemsPerPage = 50;
+
+const entityName = "Run";
+
+interface JobOperationCallbacks {
+    invokeCommand: InvokeCommand;
+}
+
+function pluralS(runs: UCloud.compute.Job[]): string {
+    return runs.length > 1 ? "s" : "";
+}
+
+const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
+    {
+        text: "Cancel jobs",
+        onClick: (selected, extra) => addStandardDialog({
+            title: "Cancel jobs?",
+            message: `Are you sure you want to cancel ${selected.length} job${pluralS(selected)}?`,
+            onConfirm: async () => {
+                await extra.invokeCommand(UCloud.compute.jobs.remove({type: "bulk", items: selected.map(it => ({id: it.id}))}));
+                snackbarStore.addSuccess(`Canceled job${pluralS(selected)}.`, false);
+            },
+            confirmButtonColor: "red",
+            confirmText: "Cancel",
+            cancelButtonColor: "blue",
+            cancelText: "Back"
+        }),
+        enabled: selected =>
+            (selected.some(it => inCancelableState(it.status.state))) ? true : "No cancelable runs selected",
+    }
+];
 
 const flags: Partial<JobsBrowseRequest> = {includeApplication: true, includeProduct: true};
 
@@ -48,6 +81,9 @@ export const Browse: React.FunctionComponent = () => {
     }, [sortBy, filters]);
 
     const history = useHistory();
+
+    const [, invokeCommand] = useCloudCommand();
+
 
     useRefreshFunction(refresh);
 
@@ -74,7 +110,7 @@ export const Browse: React.FunctionComponent = () => {
                         <ListRow
                             key={job.id}
                             navigate={() => history.push(`/applications/jobs/${job.id}`)}
-                            icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name}/>}
+                            icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name} />}
                             isSelected={toggleSet.checked.has(job)}
                             select={() => toggleSet.toggle(job)}
                             left={<Text cursor="pointer">{jobTitle(job)}</Text>}
@@ -95,9 +131,17 @@ export const Browse: React.FunctionComponent = () => {
                                     </Text>
                                 )}
                                 <Flex width="110px">
-                                    <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px"/>
+                                    <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px" />
                                     <Flex mt="-3px">{stateToTitle(job.status.state)}</Flex>
                                 </Flex>
+                                <Operations
+                                    selected={toggleSet.checked.items}
+                                    location="IN_ROW"
+                                    entityNameSingular={entityName}
+                                    operations={jobOperations}
+                                    row={job}
+                                    extra={{invokeCommand}}
+                                />
                             </>}
                         />
                     )
@@ -138,20 +182,27 @@ export const Browse: React.FunctionComponent = () => {
             </>
         }
 
-        sidebar={
-            <FilterOptions onUpdateFilter={f => {console.log("Updating filters"); setFilters(f)}}/>
-        }
+        sidebar={<>
+            <FilterOptions onUpdateFilter={f => {console.log("Updating filters"); setFilters(f)}} />
+            <Operations
+                selected={toggleSet.checked.items}
+                location="SIDEBAR"
+                entityNameSingular={entityName}
+                operations={jobOperations}
+                extra={{invokeCommand}}
+            />
+        </>}
     />;
 };
 
-type SortBy = { text: string, value: JobSortBy };
+type SortBy = {text: string, value: JobSortBy};
 const sortBys: SortBy[] = [
     {text: "Created at", value: "CREATED_AT"},
     {text: "State", value: "STATE"},
     {text: "Application", value: "APPLICATION"},
 ];
 
-type Filter = { text: string; value: JobState | "null" };
+type Filter = {text: string; value: JobState | "null"};
 const dayInMillis = 24 * 60 * 60 * 1000;
 const appStates: Filter[] =
     (["IN_QUEUE", "RUNNING", "CANCELING", "SUCCESS", "FAILURE", "EXPIRED"] as JobState[])
