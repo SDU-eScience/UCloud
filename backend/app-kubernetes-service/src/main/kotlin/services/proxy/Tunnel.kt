@@ -6,6 +6,7 @@ import java.io.Closeable
 @Suppress("ConstructorParameterNaming")
 class Tunnel(
     val jobId: String,
+    val rank: Int,
     val ipAddress: String,
     val localPort: Int,
     private val _isAlive: suspend () -> Boolean,
