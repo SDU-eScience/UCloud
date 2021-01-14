@@ -547,7 +547,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
 
             {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
-            {!machine?.memoryInGigs ? null : <>{machine?.memoryInGigs}GB RAM &mdash;</>}
+            {!machine?.memoryInGigs ? null : <>{machine?.memoryInGigs}GB RAM</>}
 
             {machine?.cpu && machine.gpu ? <>&mdash;</> : null}
             {!machine?.gpu ? null : <>{" "}{machine?.gpu}x GPU</>}

@@ -225,7 +225,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 
     return (
         <>
-            <div>
+            {showFavorites && filteredItems.length === 0 ? null : <div>
                 <Spacer
                     pt="15px"
                     left={<Heading.h2>{showFavorites ? "Favorites" : tag}</Heading.h2>}
@@ -237,7 +237,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                         )
                     )}
                 />
-            </div>
+            </div>}
             <Box pl="10px" style={{overflowX: "scroll"}} pb="15px">
                 <Grid
                     pt="20px"
