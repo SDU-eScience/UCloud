@@ -38,13 +38,23 @@ data class K8Dependencies(
     suspend fun changeState(
         jobId: String,
         state: JobState,
-        newStatus: String? = null
+        newStatus: String? = null,
+        expectedState: JobState? = null,
+        expectedDifferentState: Boolean = false
     ): Boolean {
         val last = lastMessage.get(jobId)
         val messageAsString = "${state}-${newStatus}"
         if (last != messageAsString) {
             JobsControl.update.call(
-                bulkRequestOf(JobsControlUpdateRequestItem(jobId, state = state, status = newStatus)),
+                bulkRequestOf(
+                    JobsControlUpdateRequestItem(
+                        jobId,
+                        state = state,
+                        status = newStatus,
+                        expectedState = expectedState,
+                        expectedDifferentState = expectedDifferentState
+                    )
+                ),
                 serviceClient
             )
             lastMessage.insert(jobId, messageAsString)

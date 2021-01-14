@@ -992,8 +992,7 @@ const ProviderUpdates: React.FunctionComponent<{
         if (update.status) {
             appendToXterm(
                 terminal,
-                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}
-`
+                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`
             );
         } else if (update.state) {
             let message = "Your job is now: " + stateToTitle(update.state);

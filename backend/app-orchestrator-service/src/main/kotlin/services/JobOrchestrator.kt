@@ -242,6 +242,9 @@ class JobOrchestrator(
                 val (job) = jobWithToken
                 var currentState = job.currentState
                 for (update in updates) {
+                    if (update.expectedState != null && update.expectedState != currentState) continue
+                    if (update.expectedDifferentState == true && update.state == currentState) continue
+
                     val newState = update.state
                     val newStatus = update.status
 
