@@ -3,7 +3,7 @@ import * as UCloud from "UCloud";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import * as Heading from "ui-components/Heading";
 import {emptyPageV2} from "DefaultObjects";
@@ -63,12 +63,14 @@ export const Browse: React.FunctionComponent = () => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next, ...flags, ...filters, sortBy}));
     }, [jobs.data, filters, sortBy]);
 
-    const toggleSet = useToggleSet(jobs.data.items);
+    const [allJobs, setAllJobs] = useState<UCloud.compute.Job[]>([]);
+    const toggleSet = useToggleSet(allJobs);
 
     const pageRenderer = useCallback((items: UCloud.compute.Job[]): React.ReactNode => {
         return <>
             <List bordered={false} childPadding={"8px"}>
                 {items.map(job => {
+                    setAllJobs(items);
                     const isExpired = isRunExpired(job);
                     return (
                         <ListRow
