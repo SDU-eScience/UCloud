@@ -43,14 +43,22 @@ const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
         text: "Cancel",
         confirm: true,
         color: "red",
+        icon: "trash",
         onClick: async (selected, extra)  => {
             await extra.invokeCommand(UCloud.compute.jobs.remove({
                 type: "bulk",
                 items: selected.map(it => ({id: it.id}))
             }));
         },
-        enabled: selected =>
-            (selected.some(it => inCancelableState(it.status.state))) ? true : "No cancelable runs selected",
+        enabled: selected => {
+            if (selected.some(it => inCancelableState(it.status.state))) {
+                return true;
+            } else if (selected.length <= 0) {
+                return false;
+            } else {
+                return "No cancelable runs selected";
+            }
+        },
     }
 ];
 

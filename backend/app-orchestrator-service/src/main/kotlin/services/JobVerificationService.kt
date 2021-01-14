@@ -238,7 +238,7 @@ class JobVerificationService(
                 throw RPCException("Missing value for '${param.name}'", HttpStatusCode.BadRequest)
             }
 
-            if (param.optional && providedValue == null) {
+            if (param.optional && providedValue == null && param.defaultValue == null) {
                 continue // Nothing to validate
             }
 
@@ -280,6 +280,7 @@ class JobVerificationService(
             }
 
             check(providedValue != null) { "Missing value for $param" }
+            userParameters[param.name] = providedValue
 
             when (param) {
                 is ApplicationParameter.InputDirectory, is ApplicationParameter.InputFile -> {
