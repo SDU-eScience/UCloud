@@ -8,6 +8,9 @@ import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.type
+import dk.sdu.cloud.app.orchestrator.api.Jobs
+import dk.sdu.cloud.app.orchestrator.api.JobsCreateRequest
+import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
@@ -542,35 +545,28 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 }
             }
 
-            /*
-            TODO
-            object ApplicationStart : CallWithActivity<StartJobRequest>(
+           object ApplicationStart : CallWithActivity<JobsCreateRequest>(
                 ActivityEventType.usedInApp,
-                JobDescriptions.start,
+                Jobs.create,
                 jacksonTypeRef(),
                 listOf(
-                    "mounts.source",
-                    "parameters.*.source"
+                    "resources.path"
                 ),
                 usesAllDescendants = true
             ) {
                 private fun checkSource(
-                    element: String,
+                    element: AppParameterValue,
                     normalizedFilePath: String,
                     inUserSearch: Boolean = false
                 ): String? {
-                    val clearElement = element.removePrefix("{").removeSuffix("}")
-                    if (clearElement.contains("source")) {
-                        val startIndex = clearElement.indexOf("source=") + "source=".length
-                        val sourceStartString = clearElement.substring(startIndex)
-                        val path = sourceStartString.substring(0, sourceStartString.indexOf(", ")).normalize()
+                    if (element is AppParameterValue.File) {
                         val allParents = normalizedFilePath.parents().drop(1)
                         if (inUserSearch) {
-                            return path
+                            return element.path
                         }
                         allParents.forEach { parentPath ->
-                            if (path == parentPath.normalize()) {
-                                return path
+                            if (element.path == parentPath.normalize()) {
+                                return element.path
                             }
                         }
                     }
@@ -578,7 +574,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 }
 
                 override fun createActivityEvents(
-                    doc: AuditEntry<StartJobRequest>,
+                    doc: AuditEntry<JobsCreateRequest>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
                     normalizedFilePath: String
@@ -586,31 +582,17 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     val activityEventList = ArrayList<ActivityEvent>()
 
                     if (isFileSearch) {
-                        doc.requestJson.mounts.forEach { mount ->
-                            val path = checkSource(mount.toString(), normalizedFilePath)
-                            if (path != null) {
-                                activityEventList.add(
-                                    ActivityEvent.SingleFileUsedByApplication(
-                                        doc.token.principal.username,
-                                        doc.timestamp.time,
-                                        path,
-                                        doc.requestJson.application.name,
-                                        doc.requestJson.application.version
-                                    )
-                                )
-                            }
-                        }
-                        doc.requestJson.parameters.forEach { (t, u) ->
-                            if (t == "directory") {
-                                val path = checkSource(u.toString(), normalizedFilePath)
+                        doc.requestJson.items.forEach { item ->
+                            item.resources?.forEach { resource ->
+                                val path = checkSource(resource, normalizedFilePath)
                                 if (path != null) {
                                     activityEventList.add(
                                         ActivityEvent.SingleFileUsedByApplication(
                                             doc.token.principal.username,
                                             doc.timestamp.time,
                                             path,
-                                            doc.requestJson.application.name,
-                                            doc.requestJson.application.version
+                                            item.application.name,
+                                            item.application.version
                                         )
                                     )
                                 }
@@ -619,37 +601,34 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     }
 
                     if (isUserSearch) {
-                        var filesUsed = ""
-                        doc.requestJson.mounts.forEach { mount ->
-                            val path = checkSource(mount.toString(), normalizedFilePath, inUserSearch = true)
-                            if (path != null) {
-                                filesUsed += "$path, "
-                            }
-                        }
-                        doc.requestJson.parameters.forEach { (t, u) ->
-                            if (t == "directory") {
-                                val path = checkSource(u.toString(), normalizedFilePath, inUserSearch = true)
+                        var filesUsed = mutableListOf<String>()
+                        doc.requestJson.items.forEach { item ->
+                            item.resources?.forEach { resource ->
+                                val path = checkSource(resource, normalizedFilePath, inUserSearch = true)
                                 if (path != null) {
-                                    filesUsed += "$path, "
+                                    filesUsed.add(path)
                                 }
                             }
                         }
-                        val filesUsedTrimmed = filesUsed.substringBeforeLast(',')
-                        activityEventList.add(
-                            ActivityEvent.AllFilesUsedByApplication(
-                                doc.token.principal.username,
-                                doc.timestamp.time,
-                                filesUsedTrimmed,
-                                doc.requestJson.application.name,
-                                doc.requestJson.application.version
-                            )
-                        )
+
+                        doc.requestJson.items.forEach { item ->
+                            filesUsed.forEach { fileUsed ->
+                                activityEventList.add(
+                                    ActivityEvent.AllFilesUsedByApplication(
+                                        doc.token.principal.username,
+                                        doc.timestamp.time,
+                                        fileUsed,
+                                        item.application.name,
+                                        item.application.version
+                                    )
+                                )
+                            }
+                        }
                     }
 
                     return activityEventList
                 }
             }
-             */
 
             object ShareCreated : CallWithActivity<Shares.Create.Request>(
                 ActivityEventType.sharedWith,
