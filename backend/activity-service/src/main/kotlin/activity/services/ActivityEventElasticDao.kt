@@ -560,14 +560,14 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     inUserSearch: Boolean = false
                 ): String? {
                     if (element is AppParameterValue.File) {
-                        val allParents = normalizedFilePath.parents().drop(1)
                         if (inUserSearch) {
                             return element.path
                         }
-                        allParents.forEach { parentPath ->
-                            if (element.path == parentPath.normalize()) {
-                                return element.path
-                            }
+                        if (element.path == normalizedFilePath) {
+                            return element.path
+                        }
+                        if (normalizedFilePath.startsWith("${element.path}/")) {
+                            return normalizedFilePath
                         }
                     }
                     return null
