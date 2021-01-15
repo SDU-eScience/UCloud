@@ -393,8 +393,8 @@ class JobManagement(
                                         }
 
                                         VolcanoJobPhase.Failed -> {
-                                            append("Job has failed")
-                                            newState = JobState.FAILURE
+                                            append("Job is terminating (exit code ≠ 0 or terminated by UCloud/compute)")
+                                            newState = JobState.SUCCESS
                                         }
 
                                         VolcanoJobPhase.Terminated, VolcanoJobPhase.Terminating,
