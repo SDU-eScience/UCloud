@@ -123,7 +123,6 @@ class JobManagement(
     }
 
     suspend fun create(jobs: BulkRequest<ComputeCreateRequestItem>) {
-        throw RPCException("Testing", HttpStatusCode.InternalServerError)
         jobs.items.forEach { create(it) }
     }
 
