@@ -12,7 +12,7 @@ import * as Pagination from "Pagination";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useHistory} from "react-router";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import List, {ListRow, ListRowStat} from "ui-components/List";
+import List, {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import Text, {TextSpan} from "ui-components/Text";
 import {prettierString, stopPropagation, useEffectSkipMount} from "UtilityFunctions";
 import {formatRelative} from "date-fns/esm";
@@ -29,6 +29,7 @@ import {useToggleSet} from "Utilities/ToggleSet";
 import {compute} from "UCloud";
 import JobsBrowseRequest = compute.JobsBrowseRequest;
 import {Operation, Operations} from "ui-components/Operation";
+import { creditFormatter } from "Project/ProjectUsage";
 
 const itemsPerPage = 50;
 
@@ -44,7 +45,7 @@ const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
         confirm: true,
         color: "red",
         icon: "trash",
-        onClick: async (selected, extra)  => {
+        onClick: async (selected, extra) => {
             await extra.invokeCommand(UCloud.compute.jobs.remove({
                 type: "bulk",
                 items: selected.map(it => ({id: it.id}))
@@ -110,20 +111,26 @@ export const Browse: React.FunctionComponent = () => {
                         <ListRow
                             key={job.id}
                             navigate={() => history.push(`/applications/jobs/${job.id}`)}
-                            icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name} />}
+                            icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name}/>}
                             isSelected={toggleSet.checked.has(job)}
                             select={() => toggleSet.toggle(job)}
                             left={<Text cursor="pointer">{jobTitle(job)}</Text>}
-                            leftSub={<>
-                                <ListRowStat color="gray" icon="id">
-                                    {jobAppTitle(job)} v{jobAppVersion(job)}
-                                </ListRowStat>
-                                {job.status.startedAt == null ? null :
-                                    <ListRowStat color="gray" color2="gray" icon="chrono">
-                                        Started {formatRelative(job.status.startedAt, new Date(), {locale: enGB})}
+                            leftSub={
+                                <ListStatContainer>
+                                    <ListRowStat color="gray" icon="id">
+                                        {jobAppTitle(job)} v{jobAppVersion(job)}
                                     </ListRowStat>
-                                }
-                            </>}
+                                    {job.status.startedAt == null ? null :
+                                        <ListRowStat color="gray" color2="gray" icon="chrono">
+                                            Started {formatRelative(job.status.startedAt, new Date(), {locale: enGB})}
+                                        </ListRowStat>
+                                    }
+
+                                    <ListRowStat icon={"grant"}>
+                                        Price: {creditFormatter(job.billing.creditsCharged)}
+                                    </ListRowStat>
+                                </ListStatContainer>
+                            }
                             right={<>
                                 {isJobStateTerminal(job.status.state) || job.status.expiresAt == null ? null : (
                                     <Text mr="25px">
@@ -131,7 +138,7 @@ export const Browse: React.FunctionComponent = () => {
                                     </Text>
                                 )}
                                 <Flex width="110px">
-                                    <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px" />
+                                    <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px"/>
                                     <Flex mt="-3px">{stateToTitle(job.status.state)}</Flex>
                                 </Flex>
                                 <Operations
@@ -183,7 +190,10 @@ export const Browse: React.FunctionComponent = () => {
         }
 
         sidebar={<>
-            <FilterOptions onUpdateFilter={f => {console.log("Updating filters"); setFilters(f)}} />
+            <FilterOptions onUpdateFilter={f => {
+                console.log("Updating filters");
+                setFilters(f)
+            }}/>
             <Operations
                 selected={toggleSet.checked.items}
                 location="SIDEBAR"
@@ -195,14 +205,14 @@ export const Browse: React.FunctionComponent = () => {
     />;
 };
 
-type SortBy = {text: string, value: JobSortBy};
+type SortBy = { text: string, value: JobSortBy };
 const sortBys: SortBy[] = [
     {text: "Created at", value: "CREATED_AT"},
     {text: "State", value: "STATE"},
     {text: "Application", value: "APPLICATION"},
 ];
 
-type Filter = {text: string; value: JobState | "null"};
+type Filter = { text: string; value: JobState | "null" };
 const dayInMillis = 24 * 60 * 60 * 1000;
 const appStates: Filter[] =
     (["IN_QUEUE", "RUNNING", "CANCELING", "SUCCESS", "FAILURE", "EXPIRED"] as JobState[])
