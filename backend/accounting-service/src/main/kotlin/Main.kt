@@ -11,10 +11,8 @@ object AccountingService : Service {
 
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(RefreshingJWTCloudFeature)
-        val config = micro.configuration.requestChunkAtOrNull<Configuration>("accountning") ?:
-            Configuration(
-                notificationLimit =  5000000
-            )
+        val config = micro.configuration.requestChunkAtOrNull<Configuration>("accounting") ?:
+            Configuration(notificationLimit =  5000000)
         return Server(micro, config)
     }
 }
