@@ -70,7 +70,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     fun install(
         client: RpcClient,
-        targetHostResolver: OutgoingHostResolver
+        targetHostResolver: OutgoingHostResolver,
     ) {
         with(client) {
             attachFilter(OutgoingHostResolverInterceptor(targetHostResolver))
@@ -82,7 +82,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     override suspend fun <R : Any, S : Any, E : Any> prepareCall(
         call: CallDescription<R, S, E>,
-        request: R
+        request: R,
     ): OutgoingHttpCall {
         return OutgoingHttpCall(KtorHttpRequestBuilder())
     }
@@ -91,95 +91,81 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     override suspend fun <R : Any, S : Any, E : Any> finalizeCall(
         call: CallDescription<R, S, E>,
         request: R,
-        ctx: OutgoingHttpCall
+        ctx: OutgoingHttpCall,
     ): IngoingCallResponse<S, E> {
         val callId = Random.nextInt(10000) // A non unique call ID for logging purposes only
         val start = Time.now()
         val shortRequestMessage = request.toString().take(100)
 
-        var attempts = 0
-
         val ourSampleCount = sampleCounter.incrementAndGet()
 
-        while (true) {
-            attempts++
-            if (attempts == 5) throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+        with(ctx.builder) {
+            val targetHost = ctx.attributes.outgoingTargetHost
+            val scheme = targetHost.scheme ?: "http"
+            val host = targetHost.host.removeSuffix("/")
+            val port = targetHost.port ?: if (scheme == "https") 443 else 80
+            val http = call.http
 
-            with(ctx.builder) {
-                val targetHost = ctx.attributes.outgoingTargetHost
-                val scheme = targetHost.scheme ?: "http"
-                val host = targetHost.host.removeSuffix("/")
-                val port = targetHost.port ?: if (scheme == "https") 443 else 80
-                val http = call.http
+            val endpoint = http.resolveEndpoint(request, call).removePrefix("/")
+            val url = "$scheme://$host:$port/$endpoint"
 
-                val endpoint = http.resolveEndpoint(request, call).removePrefix("/")
-                val url = "$scheme://$host:$port/$endpoint"
+            url(url)
+            method = http.method
+            body = http.serializeBody(request, call)
+            http.serializeHeaders(request, call).forEach { (name, value) ->
+                header(name, Base64.getEncoder().encodeToString(value.toByteArray(Charsets.UTF_8)))
+            }
 
-                url(url)
-                method = http.method
-                body = http.serializeBody(request, call)
-                http.serializeHeaders(request, call).forEach { (name, value) ->
-                    header(name, Base64.getEncoder().encodeToString(value.toByteArray(Charsets.UTF_8)))
-                }
-
-                if (request is HttpClientConverter.OutgoingCustomHeaders) {
-                    request.clientAddCustomHeaders(call).forEach { (key, value) ->
-                        header(key, Base64.getEncoder().encodeToString(value.toByteArray(Charsets.UTF_8)))
-                    }
-                }
-
-                // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
-                if (body == EmptyContent && method in setOf(
-                        HttpMethod.Put,
-                        HttpMethod.Delete,
-                        HttpMethod.Post,
-                        HttpMethod.Patch
-                    )
-                ) {
-                    body = TextContent("Fix", ContentType.Text.Plain)
-                }
-
-                if (ourSampleCount % SAMPLE_FREQUENCY == 0) {
-                    log.info("[$callId] -> ${call.fullName}: $shortRequestMessage")
-                } else {
-                    log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
+            if (request is HttpClientConverter.OutgoingCustomHeaders) {
+                request.clientAddCustomHeaders(call).forEach { (key, value) ->
+                    header(key, Base64.getEncoder().encodeToString(value.toByteArray(Charsets.UTF_8)))
                 }
             }
 
-            val resp = try {
-                httpClient.request<HttpResponse>(ctx.builder)
-            } catch (ex: ConnectException) {
-                log.debug("[$callId] ConnectException: ${ex.message}")
-                continue
+            // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
+            if (body == EmptyContent && method in setOf(
+                    HttpMethod.Put,
+                    HttpMethod.Delete,
+                    HttpMethod.Post,
+                    HttpMethod.Patch
+                )
+            ) {
+                body = TextContent("Fix", ContentType.Text.Plain)
             }
-
-            if (resp.status.value in 500..599) {
-                log.info("[$callId] name=${call.fullName} Failed with status ${resp.status}. Retrying...")
-                if (call.http.method == HttpMethod.Get) {
-                    continue
-                }
-            }
-
-            val result = parseResponse(resp, call, callId)
-            val end = Time.now()
-
-            val responseDebug =
-                "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
 
             if (ourSampleCount % SAMPLE_FREQUENCY == 0) {
-                log.info(responseDebug)
+                log.info("[$callId] -> ${call.fullName}: $shortRequestMessage")
             } else {
-                log.debug(responseDebug)
+                log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
             }
-
-            return result
         }
+
+        val resp = try {
+            httpClient.request<HttpResponse>(ctx.builder)
+        } catch (ex: ConnectException) {
+            log.debug("[$callId] ConnectException: ${ex.message}")
+            throw RPCException("Could not connect to backend server", HttpStatusCode.BadGateway)
+        }
+
+        val result = parseResponse(resp, call, callId)
+        val end = Time.now()
+
+        val responseDebug =
+            "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
+
+        if (ourSampleCount % SAMPLE_FREQUENCY == 0) {
+            log.info(responseDebug)
+        } else {
+            log.debug(responseDebug)
+        }
+
+        return result
     }
 
     private suspend fun <S : Any> parseResponseToType(
         resp: HttpResponse,
         call: CallDescription<*, *, *>,
-        type: TypeReference<S>
+        type: TypeReference<S>,
     ): S {
         val kClass = type.kClass
         val companionInstance = kClass.companionObjectInstance
@@ -203,7 +189,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     private suspend fun <E : Any, R : Any, S : Any> parseResponse(
         resp: HttpResponse,
         call: CallDescription<R, S, E>,
-        callId: Int
+        callId: Int,
     ): IngoingCallResponse<S, E> {
         return if (resp.status.isSuccess()) {
             IngoingCallResponse.Ok(parseResponseToType(resp, call, call.successType), resp.status)
@@ -223,7 +209,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun defaultBodySerialization(
         payload: Any,
-        call: CallDescription<*, *, *>
+        call: CallDescription<*, *, *>,
     ): OutgoingContent {
         return if (payload is HttpClientConverter.OutgoingBody) {
             payload.clientOutgoingBody(call)
@@ -237,7 +223,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.serializeBody(
         request: R,
-        call: CallDescription<*, *, *>
+        call: CallDescription<*, *, *>,
     ): OutgoingContent {
         return when (val body = body) {
             is HttpBody.BoundToEntireRequest<*> -> {
@@ -261,7 +247,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.serializeHeaders(
         request: R,
-        call: CallDescription<R, *, *>
+        call: CallDescription<R, *, *>,
     ): List<Pair<String, String>> {
         if (headers == null) return emptyList()
 
@@ -290,7 +276,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.resolveEndpoint(
         request: R,
-        call: CallDescription<*, *, *>
+        call: CallDescription<*, *, *>,
     ): String {
         val primaryPath = serializePathSegments(request, call)
         val queryPathMap = serializeQueryParameters(request, call) ?: emptyMap()
@@ -301,7 +287,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.serializePathSegments(
         request: R,
-        call: CallDescription<*, *, *>
+        call: CallDescription<*, *, *>,
     ): String {
         return path.segments.asSequence().mapNotNull {
             when (it) {
@@ -326,7 +312,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.serializeQueryParameters(
         request: R,
-        call: CallDescription<*, *, *>
+        call: CallDescription<*, *, *>,
     ): Map<String, String>? {
         return params?.parameters?.mapNotNull {
             when (it) {
@@ -389,7 +375,7 @@ object HttpClientConverter {
         suspend fun clientIngoingBody(
             description: CallDescription<*, *, *>,
             call: HttpResponse,
-            typeReference: TypeReference<T>
+            typeReference: TypeReference<T>,
         ): T
     }
 }

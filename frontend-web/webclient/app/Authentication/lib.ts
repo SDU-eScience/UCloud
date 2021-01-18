@@ -8,7 +8,6 @@ interface CallParameters {
     path: string;
     body?: object;
     context?: string;
-    maxRetries?: number;
     withCredentials?: boolean;
     projectOverride?: string;
 }
@@ -110,7 +109,6 @@ export default class HttpClient {
      * @param {string} path - the path, should not contain context or /api/
      * @param {object} body - the request body, assumed to be a JS object to be encoded as JSON.
      * @param {string} context - the base of the request (e.g. "/api")
-     * @param {number} maxRetries - the amount of times the call should be retried on failure (Default: 5).
      * @return {Promise} promise
      */
     public async call({
@@ -118,7 +116,6 @@ export default class HttpClient {
         path,
         body,
         context = this.apiContext,
-        maxRetries = 5,
         withCredentials = false,
         projectOverride
     }: CallParameters): Promise<any> {
@@ -148,18 +145,7 @@ export default class HttpClient {
                             this.forceRefresh = true;
                         }
 
-                        if (maxRetries >= 1 && is5xxStatusCode(req.status)) {
-                            this.call({
-                                maxRetries: maxRetries - 1,
-                                method,
-                                path,
-                                body,
-                                context
-                            })
-                                .catch(e => reject(e)).then(e => resolve(e));
-                        } else {
-                            reject({request: req, response: parsedResponse});
-                        }
+                        reject({request: req, response: parsedResponse});
                     };
 
                     req.onload = async () => {
@@ -212,9 +198,8 @@ export default class HttpClient {
     public async get<T = any>(
         path: string,
         context = this.apiContext,
-        maxRetries: number = 5
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "GET", path, body: undefined, context, maxRetries});
+        return this.call({method: "GET", path, body: undefined, context});
     }
 
     /**
@@ -224,9 +209,8 @@ export default class HttpClient {
         path: string,
         body?: object,
         context = this.apiContext,
-        maxRetries: number = 5
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "POST", path, body, context, maxRetries});
+        return this.call({method: "POST", path, body, context});
     }
 
     /**
@@ -236,9 +220,8 @@ export default class HttpClient {
         path: string,
         body: object,
         context = this.apiContext,
-        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "PUT", path, body, context, maxRetries});
+        return this.call({method: "PUT", path, body, context});
     }
 
     /**
@@ -248,9 +231,8 @@ export default class HttpClient {
         path: string,
         body: object,
         context = this.apiContext,
-        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "DELETE", path, body, context, maxRetries});
+        return this.call({method: "DELETE", path, body, context});
     }
 
     /**
@@ -260,9 +242,8 @@ export default class HttpClient {
         path: string,
         body: object,
         context = this.apiContext,
-        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "PATCH", path, body, context, maxRetries});
+        return this.call({method: "PATCH", path, body, context});
     }
 
     /**
@@ -272,9 +253,8 @@ export default class HttpClient {
         path: string,
         body: object,
         context = this.apiContext,
-        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest; response: T}> {
-        return this.call({method: "OPTIONS", path, body, context, maxRetries});
+        return this.call({method: "OPTIONS", path, body, context});
     }
 
     /**
@@ -283,9 +263,8 @@ export default class HttpClient {
     public async head<T = any>(
         path: string,
         context = this.apiContext,
-        maxRetries: number = 5,
     ): Promise<{request: XMLHttpRequest; response: T}> {
-        return this.call({method: "HEAD", path, body: undefined, context, maxRetries});
+        return this.call({method: "HEAD", path, body: undefined, context});
     }
 
     /**
