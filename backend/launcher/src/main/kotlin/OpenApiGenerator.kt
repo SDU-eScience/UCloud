@@ -122,7 +122,8 @@ fun main() {
     writeSpecification(
         knownCalls,
         File("/tmp/swagger/combined"),
-        subtitle = "Full API"
+        subtitle = "Full API",
+        writeMarkdown = true,
     )
 
     run {
@@ -181,6 +182,7 @@ private fun writeSpecification(
     output: File,
     subtitle: String? = null,
     documentation: String? = null,
+    writeMarkdown: Boolean = false
 ) {
     val typeRegistry = LinkedHashMap<String, ComputedType>()
     val doc = OpenAPI().apply {
@@ -397,6 +399,7 @@ private fun writeSpecification(
 
     output.mkdirs()
     generateTypeScriptCode(output, doc, typeRegistry)
+    if (writeMarkdown) injectMarkdownDocs(doc, typeRegistry)
     File(output, "swagger.yaml").writeText(Yaml.pretty(doc))
     File(output, "swagger.json").writeText(Json.pretty(doc))
 }
