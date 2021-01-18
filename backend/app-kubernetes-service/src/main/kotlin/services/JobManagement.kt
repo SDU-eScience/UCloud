@@ -373,6 +373,8 @@ class JobManagement(
                                 val minAvailable = jobStatus.minAvailable
                                 val message = jobState.message
                                 var newState: JobState? = null
+                                var expectedState: JobState? = null
+                                var expectedDifferentState: Boolean = false
 
                                 val statusUpdate = buildString {
                                     when (jobState.phase) {
@@ -383,6 +385,7 @@ class JobManagement(
                                         VolcanoJobPhase.Running -> {
                                             append("Job is now running")
                                             newState = JobState.RUNNING
+                                            expectedDifferentState = true
                                         }
 
                                         VolcanoJobPhase.Restarting -> {
@@ -390,8 +393,8 @@ class JobManagement(
                                         }
 
                                         VolcanoJobPhase.Failed -> {
-                                            append("Job has failed")
-                                            newState = JobState.FAILURE
+                                            append("Job is terminating (exit code ≠ 0 or terminated by UCloud/compute)")
+                                            newState = JobState.SUCCESS
                                         }
 
                                         VolcanoJobPhase.Terminated, VolcanoJobPhase.Terminating,
@@ -423,7 +426,14 @@ class JobManagement(
                                             )
                                         }
                                     } else {
-                                        val didChangeState = k8.changeState(jobId, newState!!, statusUpdate)
+                                        val didChangeState = k8.changeState(
+                                            jobId,
+                                            newState!!,
+                                            statusUpdate,
+                                            expectedState = expectedState,
+                                            expectedDifferentState = expectedDifferentState
+                                        )
+
                                         if (didChangeState) {
                                             plugins.forEach { plugin ->
                                                 with(plugin) {

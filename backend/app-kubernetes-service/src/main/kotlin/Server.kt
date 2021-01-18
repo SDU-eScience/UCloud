@@ -102,6 +102,7 @@ class Server(
             register(ExpiryPlugin)
             register(AccountingPlugin)
             register(MiscellaneousPlugin)
+            register(NetworkLimitPlugin)
             register(FairSharePlugin)
             if (micro.developmentModeEnabled) register(MinikubePlugin)
             register(ConnectToJobPlugin)

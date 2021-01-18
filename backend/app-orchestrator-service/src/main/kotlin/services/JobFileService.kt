@@ -256,18 +256,26 @@ class JobFileService(
     }
 
     suspend fun cleanupAfterMounts(jobWithToken: VerifiedJobWithAccessToken) {
-        // Some minor cleanup #1358 (TODO This probably needs to be more centralized)
-        val job = jobWithToken.job
-        val outputFolder = job.output?.outputFolder ?: return
+        try {
+            // Some minor cleanup #1358 (TODO This probably needs to be more centralized)
+            val job = jobWithToken.job
+            val outputFolder = job.output?.outputFolder ?: return
 
-        val mounts = job.files.map { it.toMountName() }
-        val userClient = userClientFactory(jobWithToken.refreshToken)
+            val mounts = job.files.map { it.toMountName() }
+            val userClient = userClientFactory(jobWithToken.refreshToken)
 
-        mounts.forEach { mountName ->
-            FileDescriptions.deleteFile.call(
-                DeleteFileRequest(joinPath(outputFolder, mountName)),
-                userClient
-            )
+            mounts.forEach { mountName ->
+                FileDescriptions.deleteFile.call(
+                    DeleteFileRequest(joinPath(outputFolder, mountName)),
+                    userClient
+                )
+            }
+        } catch (ex: RPCException) {
+            if (ex.httpStatusCode == HttpStatusCode.Unauthorized) {
+                // Ignore
+            } else {
+                throw ex
+            }
         }
     }
 

@@ -6,7 +6,6 @@ import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
-import dk.sdu.cloud.app.license.AppLicenseService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
@@ -505,7 +504,6 @@ object UCloudLauncher : Loggable {
                 AccountingService,
                 ActivityService,
                 AppKubernetesService,
-                AppLicenseService,
                 AppOrchestratorService,
                 AppStoreService,
                 AuditIngestionService,

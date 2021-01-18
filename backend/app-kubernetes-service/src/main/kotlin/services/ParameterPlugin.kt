@@ -57,17 +57,7 @@ class ParameterPlugin(private val licenseService: LicenseService) : JobManagemen
 private class OurArgBuilder(private val licenseService: LicenseService) : ArgumentBuilder {
     override suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
         return when (parameter) {
-            is ApplicationParameter.InputFile -> {
-                val file = (value as AppParameterValue.File)
-                val components = file.path.normalize().components()
-                if (components.size < 2) {
-                    return ArgumentBuilder.Default.build(parameter, value)
-                }
-
-                joinPath("/work", components[components.lastIndex - 1], components[components.lastIndex])
-            }
-
-            is ApplicationParameter.InputDirectory -> {
+            is ApplicationParameter.InputFile, is ApplicationParameter.InputDirectory -> {
                 val file = (value as AppParameterValue.File)
                 val components = file.path.normalize().components()
                 if (components.isEmpty()) {

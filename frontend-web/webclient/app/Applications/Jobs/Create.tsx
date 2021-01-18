@@ -38,7 +38,7 @@ interface InsufficientFunds {
 
 export const Create: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
-    const [, invokeCommand] = useCloudCommand();
+    const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
         null
@@ -241,6 +241,7 @@ export const Create: React.FunctionComponent = () => {
                 <Button
                     type={"button"}
                     color={"blue"}
+                    disabled={isLoading}
                     onClick={() => submitJob(false)}
                 >
                     Submit

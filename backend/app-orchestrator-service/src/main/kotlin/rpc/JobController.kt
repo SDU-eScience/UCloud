@@ -37,7 +37,12 @@ class JobController(
 
         implement(Jobs.retrieveUtilization) {
             verifySlaFromPrincipal()
-            ok(jobOrchestrator.retrieveUtilization(ctx.securityPrincipal.toActor()))
+            ok(jobOrchestrator.retrieveUtilization(
+                ctx.securityPrincipal.toActor(),
+                ctx.project,
+                request.jobId,
+                request.provider
+            ))
         }
 
         implement(Jobs.browse) {

@@ -90,7 +90,7 @@ interface JobSelectorProps {
 }
 
 const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
-    const [selectedPeer, setSelectedPeer] = useState<string | undefined>(undefined);
+    const [selectedPeer, setSelectedPeer] = useState<string>("");
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
 
     const [suggestedApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(

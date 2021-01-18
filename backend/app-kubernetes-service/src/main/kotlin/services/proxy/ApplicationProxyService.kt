@@ -23,32 +23,58 @@ class ApplicationProxyService(
     private val broadcastingStream: BroadcastingStream,
     private val resources: ResourceCache,
     private val prefix: String = "app-",
-    private val domain: String = "cloud.sdu.dk"
+    private val domain: String = "cloud.sdu.dk",
 ) {
-    private val entries = HashMap<String, RouteAndCluster>()
+    private val entries = HashMap<String, List<RouteAndCluster>>()
     private val lock = Mutex()
 
-    private suspend fun addEntry(tunnel: Tunnel, domains: List<String>) {
+    private suspend fun addEntry(id: String, tunnels: List<Tunnel>, domains: List<String>) {
+        require(tunnels.size == domains.size || domains.isEmpty() || (tunnels.size == 1 && domains.isNotEmpty())) {
+            "domains must either be empty or tunnels and domains should match in size"
+        }
+
+        require(tunnels.all { it.jobId == id }) { "job ids must match" }
+
         lock.withLock {
-            if (entries.containsKey(tunnel.jobId)) return
+            if (entries.containsKey(id)) return
 
-            val fullDomain = when {
-                domains.firstOrNull() != null -> domains.first()
-                else -> prefix + tunnel.jobId + "." + domain
+            if (tunnels.size == 1 && domains.isNotEmpty()) {
+                entries[id] = domains.mapIndexed { idx, domain ->
+                    val tunnel = tunnels.single()
+                    RouteAndCluster(
+                        EnvoyRoute(
+                            domain,
+                            tunnel.jobId + "-" + idx
+                        ),
+
+                        EnvoyCluster(
+                            tunnel.jobId + "-" + idx,
+                            tunnel.ipAddress,
+                            tunnel.localPort
+                        )
+                    )
+                }
+            } else {
+                val fullDomains = when {
+                    domains.isNotEmpty() -> domains
+                    else -> tunnels.map { prefix + id + "-" + it.rank + "." + domain }
+                }
+
+                entries[id] = tunnels.zip(fullDomains).map { (tunnel, domain) ->
+                    RouteAndCluster(
+                        EnvoyRoute(
+                            domain,
+                            tunnel.jobId + "-" + tunnel.rank
+                        ),
+
+                        EnvoyCluster(
+                            tunnel.jobId + "-" + tunnel.rank,
+                            tunnel.ipAddress,
+                            tunnel.localPort
+                        )
+                    )
+                }
             }
-
-            entries[tunnel.jobId] = RouteAndCluster(
-                EnvoyRoute(
-                    fullDomain,
-                    tunnel.jobId
-                ),
-
-                EnvoyCluster(
-                    tunnel.jobId,
-                    tunnel.ipAddress,
-                    tunnel.localPort
-                )
-            )
         }
 
         renderConfiguration()
@@ -69,7 +95,10 @@ class ApplicationProxyService(
             GlobalScope.launch {
                 try {
                     if (event.shouldCreate) {
-                        addEntry(createOrUseExistingTunnel(event.id), event.domains ?: emptyList())
+                        val tunnels = (0 until event.replicas).map { rank ->
+                            createOrUseExistingTunnel(event.id, rank)
+                        }
+                        addEntry(event.id, tunnels, event.domains ?: emptyList())
                     } else {
                         removeEntry(event.id)
                     }
@@ -88,16 +117,16 @@ class ApplicationProxyService(
         // be significantly more complex to implement and we are on a bit of a tight schedule.
 
         val allEntries = lock.withLock { entries.map { it.value } }
-        val routes = allEntries.map { it.route }
-        val clusters = allEntries.map { it.cluster }
+        val routes = allEntries.flatMap { e -> e.map { it.route } }
+        val clusters = allEntries.flatMap { e -> e.map { it.cluster } }
         envoyConfigurationService.configure(routes, clusters)
     }
 
-    private suspend fun createOrUseExistingTunnel(incomingId: String): Tunnel {
+    private suspend fun createOrUseExistingTunnel(incomingId: String, rank: Int): Tunnel {
         val job = jobCache.findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val application = resources.findResources(job).application
         val remotePort = application.invocation.web?.port ?: 80
-        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, 0 /* TODO */)
+        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, rank)
     }
 
     companion object : Loggable {

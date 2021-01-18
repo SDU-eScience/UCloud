@@ -13,7 +13,6 @@ import dk.sdu.cloud.integration.retrySection
 import org.junit.*
 import org.openqa.selenium.By
 
-@Ignore
 class AppTest : EndToEndTest() {
     @Test
     fun `View apps`() = e2e {

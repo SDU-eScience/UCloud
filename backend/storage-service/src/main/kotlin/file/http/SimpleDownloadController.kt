@@ -159,7 +159,9 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                                         stat.path,
                                                         item.path.substringAfter(stat.path).removePrefix("/")
                                                     )
-                                                    val perm = NativeFS.readNativeFilePermissons(File(absoFilePath))
+                                                    val perm = runCatching {
+                                                        NativeFS.readNativeFilePermissons(File(absoFilePath))
+                                                    }.getOrDefault(304472)
                                                     val entry = ZipArchiveEntry(filePath)
                                                     entry.unixMode = perm
                                                     os.putArchiveEntry(entry)

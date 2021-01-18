@@ -47,8 +47,8 @@ class WebService(
             if (domain != null) {
                 return OpenSession.Web(
                     jobAndRank.job.id,
-                    0, // NOTE(Dan): We currently only support ingress for jobs with one rank
-                    domain
+                    jobAndRank.rank,
+                    "http://$domain"
                 )
             }
         }
@@ -125,6 +125,7 @@ class WebService(
         route("${KubernetesCompute.baseContext}/app-authorization/{...}") {
             handle {
                 val host = call.request.host()
+                log.info("Authorizing request: $host")
 
                 if (ingressCache.get(host) != null) {
                     call.respondText("", status = HttpStatusCode.OK)

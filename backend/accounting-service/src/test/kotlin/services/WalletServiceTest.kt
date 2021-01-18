@@ -273,7 +273,7 @@ class WalletServiceTest {
         runBlocking {
             walletService.reserveCredits(
                 db,
-                Actor.SystemOnBehalfOfUser(user.username),
+                user.username,
                 ReserveCreditsRequest(
                     "jobId",
                     25000,

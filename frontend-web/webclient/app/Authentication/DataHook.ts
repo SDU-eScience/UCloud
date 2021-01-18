@@ -38,7 +38,6 @@ declare global {
         path?: string;
         payload?: any;
         context?: string;
-        maxRetries?: number;
         parameters?: Parameters;
         reloadId?: number; // Can be used to force an ID by setting this to a random value
         noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
@@ -79,7 +78,6 @@ export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Pro
         path: parameters.path,
         body: parameters.payload,
         context: parameters.context,
-        maxRetries: parameters.maxRetries,
         withCredentials: parameters.withCredentials,
         projectOverride: parameters.projectOverride
     })).response;

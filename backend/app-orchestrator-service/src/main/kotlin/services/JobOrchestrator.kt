@@ -242,6 +242,9 @@ class JobOrchestrator(
                 val (job) = jobWithToken
                 var currentState = job.currentState
                 for (update in updates) {
+                    if (update.expectedState != null && update.expectedState != currentState) continue
+                    if (update.expectedDifferentState == true && update.state == currentState) continue
+
                     val newState = update.state
                     val newStatus = update.status
 
@@ -266,10 +269,12 @@ class JobOrchestrator(
     private suspend fun handleFinalState(jobWithToken: VerifiedJobWithAccessToken) {
         jobFileService.cleanupAfterMounts(jobWithToken)
 
-        AuthDescriptions.logout.call(
-            Unit,
-            serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
-        ).throwIfInternal()
+        runCatching {
+            AuthDescriptions.logout.call(
+                Unit,
+                serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
+            ).throwIfInternal()
+        }
 
         MetadataDescriptions.verify.call(
             VerifyRequest(jobWithToken.job.files.map { it.path }),
@@ -638,11 +643,22 @@ class JobOrchestrator(
         }
     }
 
-    suspend fun retrieveUtilization(providerActor: Actor): JobsUtilizationResponse {
-        val (api, client) = providers.prepareCommunication(providerActor)
+    suspend fun retrieveUtilization(
+        actor: Actor,
+        project: String?,
+        jobId: String?,
+        provider: String?,
+    ): JobsRetrieveUtilizationResponse {
+        if (jobId == null && provider == null) throw IllegalArgumentException("jobId and provider == null")
+        if (jobId != null && provider != null) throw IllegalArgumentException("jobId and provider != null")
+
+        val providerId = provider ?:
+            jobQueryService.retrieve(actor, project, jobId!!, JobDataIncludeFlags()).job.parameters.product.provider
+
+        val (api, client) = providers.prepareCommunication(providerId)
         val response = api.retrieveUtilization.call(Unit, client).orThrow()
 
-        return JobsUtilizationResponse(
+        return JobsRetrieveUtilizationResponse(
             response.capacity,
             response.usedCapacity,
             response.queueStatus

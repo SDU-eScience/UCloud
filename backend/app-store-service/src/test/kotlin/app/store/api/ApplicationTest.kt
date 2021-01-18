@@ -10,10 +10,7 @@ class ApplicationTest {
         val input = ApplicationParameter.InputDirectory(
             "name",
             false,
-            FileTransferDescription(
-                "source",
-                "destination/"
-            ),
+            null,
             "title",
             "description"
         )
@@ -23,33 +20,6 @@ class ApplicationTest {
         assertEquals("title", input.title)
         assertEquals("input_directory", input.type)
         assertEquals(false, input.optional)
-        assertEquals("source", input.defaultValue?.source)
-
-        input.toInvocationArgument(input.defaultValue!!)
-
-        val results = input.map(mapOf(Pair("source", "anotherSource")))
-        assertEquals("anotherSource", results?.source)
-    }
-
-    @Test
-    fun `Create simple Input file App Param`() {
-        val input = ApplicationParameter.InputFile(
-            "inputFile",
-            false,
-            FileTransferDescription(
-                "source",
-                "destination"),
-            "title",
-            "description"
-        )
-
-        assertEquals("inputFile", input.name)
-        assertEquals(false, input.optional)
-        assertEquals("title", input.title)
-        assertEquals("description", input.description)
-        assertEquals("source", input.defaultValue?.source)
-
-        input.toInvocationArgument(input.defaultValue!!)
     }
 
     @Test
@@ -57,7 +27,7 @@ class ApplicationTest {
         val app = ApplicationParameter.Integer(
             "name",
             false,
-            IntApplicationParameter(2.toBigInteger()),
+            null,
             "title",
             "description",
             1.toBigInteger(),
@@ -72,16 +42,9 @@ class ApplicationTest {
         assertEquals("integer", app.type)
         assertEquals(false, app.optional)
         assertEquals("unitName", app.unitName)
-        assertEquals(2.toBigInteger(), app.defaultValue?.value)
         assertEquals(2.toBigInteger(), app.max)
         assertEquals(1.toBigInteger(), app.min)
         assertEquals(0.toBigInteger(), app.step)
-
-        val result = app.map(3)
-        assertEquals(3.toBigInteger(), result?.value)
-
-        val arg = app.toInvocationArgument(IntApplicationParameter(10.toBigInteger()))
-        assertEquals("10", arg)
     }
 
     @Test
@@ -89,7 +52,7 @@ class ApplicationTest {
         val app = ApplicationParameter.FloatingPoint(
             "name",
             false,
-            DoubleApplicationParameter(2.2.toBigDecimal()),
+            null,
             "title",
             "description",
             1.1.toBigDecimal(),
@@ -104,17 +67,9 @@ class ApplicationTest {
         assertEquals("floating_point", app.type)
         assertEquals(false, app.optional)
         assertEquals("unitName", app.unitName)
-        assertEquals(2.2.toBigDecimal(), app.defaultValue?.value)
         assertEquals(2.2.toBigDecimal(), app.max)
         assertEquals(1.1.toBigDecimal(), app.min)
         assertEquals(0.0.toBigDecimal(), app.step)
-
-        val result = app.map(3.toBigDecimal())!!
-        val diff = 3.0.toBigDecimal() - result.value
-        assertTrue(diff < 0.001.toBigDecimal())
-
-        val arg = app.toInvocationArgument(DoubleApplicationParameter(10.11.toBigDecimal()))
-        assertEquals("10.11", arg)
     }
 
     @Test
@@ -122,7 +77,7 @@ class ApplicationTest {
         val textInput = ApplicationParameter.Text(
             "textName",
             false,
-            StringApplicationParameter("Content"),
+            null,
             "title",
             "description"
         )
@@ -131,10 +86,6 @@ class ApplicationTest {
         assertEquals("text", textInput.type)
         assertEquals("title", textInput.title)
         assertEquals("description", textInput.description)
-
-
-        val arg = textInput.toInvocationArgument(textInput.defaultValue!!)
-        assertEquals("Content", arg)
     }
 
     @Test
@@ -142,7 +93,7 @@ class ApplicationTest {
         val enum = ApplicationParameter.Enumeration(
             "enumName",
             false,
-            EnumerationApplicationParameter("value"),
+            null,
             "title",
             "description",
             listOf(ApplicationParameter.EnumOption("Bash", "0"), ApplicationParameter.EnumOption("Fish", "1"))
@@ -152,9 +103,6 @@ class ApplicationTest {
         assertEquals("enumeration", enum.type)
         assertEquals("title", enum.title)
         assertEquals("description", enum.description)
-
-        val arg = enum.toInvocationArgument(enum.defaultValue!!)
-        assertEquals("value", arg)
     }
 
     @Test
@@ -162,7 +110,7 @@ class ApplicationTest {
         val boolParam = ApplicationParameter.Bool(
             "boolName",
             true,
-            BooleanApplicationParameter(true),
+            null,
             "title",
             "description",
             "veryMuchYes!",
@@ -175,8 +123,5 @@ class ApplicationTest {
         assertEquals("description", boolParam.description)
         assertEquals("veryMuchYes!", boolParam.trueValue)
         assertEquals("notSoMuchNo", boolParam.falseValue)
-
-        val arg = boolParam.toInvocationArgument(boolParam.defaultValue!!)
-        assertEquals("veryMuchYes!", arg)
     }
 }

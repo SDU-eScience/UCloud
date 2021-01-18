@@ -61,6 +61,7 @@ import {groupBy} from "Utilities/CollectionUtilities";
 import {JobStateIcon} from "Applications/Jobs/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import {jobAppTitle, jobTitle} from "Applications/Jobs";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
@@ -171,7 +172,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             page: 0,
             filter: GrantApplicationFilter.ACTIVE
         }));
-        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage: 10}));
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage: 10, includeApplication: true}));
     }
 
     const favoriteOrUnfavorite = async (file: File): Promise<void> => {
@@ -303,9 +304,9 @@ const DashboardAnalyses: React.FunctionComponent<{runs: APICallState<PageV2<UClo
                         isExpired={isRunExpired(run)}
                         mr="8px"
                     />
-                    <Link to={`/applications/results/${run.id}`}>
-                        <EllipsedText width={130} fontSize={3}>
-                            {run.parameters.application.name}
+                    <Link to={`/applications/jobs/${run.id}`}>
+                        <EllipsedText width={175} fontSize={3}>
+                            {jobTitle(run)} ({jobAppTitle(run)})
                         </EllipsedText>
                     </Link>
                     <Box ml="auto" />

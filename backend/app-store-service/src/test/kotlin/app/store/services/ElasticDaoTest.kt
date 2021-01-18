@@ -65,7 +65,7 @@ class ElasticDaoTest {
         assertEquals(2, results.hits.hits.size)
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `Create test - multiple entries`() {
         val elasticHighLevelClient = mockk<RestHighLevelClient>()
         val elasticDAO = ElasticDao(elasticHighLevelClient)
@@ -152,17 +152,17 @@ class ElasticDaoTest {
             response
         }
 
-        every { elasticHighLevelClient.update(any(),any()) } answers {
+        every { elasticHighLevelClient.update(any(), any()) } answers {
             val response = mockk<UpdateResponse>()
             response
         }
 
-        every { elasticHighLevelClient.indices().flush(any(),any()) } answers {
+        every { elasticHighLevelClient.indices().flush(any(), any()) } answers {
             val response = mockk<FlushResponse>()
             response
         }
 
-        every { elasticHighLevelClient.indices().exists(any<GetIndexRequest>(),any())} returns true
+        every { elasticHighLevelClient.indices().exists(any<GetIndexRequest>(), any()) } returns true
 
         elasticDAO.updateApplicationDescriptionInElastic(
             normAppDesc.metadata.name,
@@ -171,7 +171,7 @@ class ElasticDaoTest {
         )
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `Update Description test - not found`() {
         val elasticHighLevelClient = mockk<RestHighLevelClient>()
         val elasticDAO = ElasticDao(elasticHighLevelClient)
@@ -201,7 +201,7 @@ class ElasticDaoTest {
         )
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `Update Description test - multiple entries`() {
         val elasticHighLevelClient = mockk<RestHighLevelClient>()
         val elasticDAO = ElasticDao(elasticHighLevelClient)
@@ -214,7 +214,7 @@ class ElasticDaoTest {
 
         every { elasticHighLevelClient.search(any(), any()) } answers {
             val response = mockk<SearchResponse>()
-            every {response.hits } answers {
+            every { response.hits } answers {
                 SearchHits(
                     arrayOf(mockk(relaxed = true), mockk(relaxed = true)),
                     null,

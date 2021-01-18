@@ -12,6 +12,7 @@ import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.toActor
@@ -197,7 +198,13 @@ class ProductServiceTest {
             val (db, embDB) = TestDB.from(AccountingServiceDescription)
             this.db = db
             this.embeddedDatabase = embDB
-            this.products = ProductService()
+            this.products = ProductService(
+                BalanceService(
+                    ProjectCache(ClientMock.authenticatedClient),
+                    VerificationService(ClientMock.authenticatedClient),
+                    ClientMock.authenticatedClient
+                )
+            )
         }
 
         @AfterClass

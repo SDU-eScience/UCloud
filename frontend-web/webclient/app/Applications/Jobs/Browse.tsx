@@ -4,7 +4,7 @@ import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {useCallback, useEffect, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
+import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as Heading from "ui-components/Heading";
 import {emptyPageV2} from "DefaultObjects";
 import {useProjectId} from "Project";
@@ -12,12 +12,12 @@ import * as Pagination from "Pagination";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useHistory} from "react-router";
 import {AppToolLogo} from "Applications/AppToolLogo";
-import List, {ListRow, ListRowStat} from "ui-components/List";
+import List, {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import Text, {TextSpan} from "ui-components/Text";
-import {prettierString, stopPropagation} from "UtilityFunctions";
+import {prettierString, stopPropagation, useEffectSkipMount} from "UtilityFunctions";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
-import {isRunExpired} from "Utilities/ApplicationUtilities";
+import {inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
 import {Box, Checkbox, Flex, InputGroup, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
@@ -28,8 +28,40 @@ import styled from "styled-components";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {compute} from "UCloud";
 import JobsBrowseRequest = compute.JobsBrowseRequest;
+import {Operation, Operations} from "ui-components/Operation";
+import { creditFormatter } from "Project/ProjectUsage";
 
 const itemsPerPage = 50;
+
+const entityName = "Run";
+
+interface JobOperationCallbacks {
+    invokeCommand: InvokeCommand;
+}
+
+const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
+    {
+        text: "Cancel",
+        confirm: true,
+        color: "red",
+        icon: "trash",
+        onClick: async (selected, extra) => {
+            await extra.invokeCommand(UCloud.compute.jobs.remove({
+                type: "bulk",
+                items: selected.map(it => ({id: it.id}))
+            }));
+        },
+        enabled: selected => {
+            if (selected.some(it => inCancelableState(it.status.state))) {
+                return true;
+            } else if (selected.length <= 0) {
+                return false;
+            } else {
+                return "No cancelable runs selected";
+            }
+        },
+    }
+];
 
 const flags: Partial<JobsBrowseRequest> = {includeApplication: true, includeProduct: true};
 
@@ -49,6 +81,9 @@ export const Browse: React.FunctionComponent = () => {
 
     const history = useHistory();
 
+    const [, invokeCommand] = useCloudCommand();
+
+
     useRefreshFunction(refresh);
 
     useLoading(jobs.loading);
@@ -63,12 +98,14 @@ export const Browse: React.FunctionComponent = () => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next, ...flags, ...filters, sortBy}));
     }, [jobs.data, filters, sortBy]);
 
-    const toggleSet = useToggleSet(jobs.data.items);
+    const [allJobs, setAllJobs] = useState<UCloud.compute.Job[]>([]);
+    const toggleSet = useToggleSet(allJobs);
 
-    const pageRenderer = useCallback((page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode => {
+    const pageRenderer = useCallback((items: UCloud.compute.Job[]): React.ReactNode => {
         return <>
             <List bordered={false} childPadding={"8px"}>
-                {page.items.map(job => {
+                {items.map(job => {
+                    setAllJobs(items);
                     const isExpired = isRunExpired(job);
                     return (
                         <ListRow
@@ -78,16 +115,22 @@ export const Browse: React.FunctionComponent = () => {
                             isSelected={toggleSet.checked.has(job)}
                             select={() => toggleSet.toggle(job)}
                             left={<Text cursor="pointer">{jobTitle(job)}</Text>}
-                            leftSub={<>
-                                <ListRowStat color="gray" icon="id">
-                                    {jobAppTitle(job)} v{jobAppVersion(job)}
-                                </ListRowStat>
-                                {job.status.startedAt == null ? null :
-                                    <ListRowStat color="gray" color2="gray" icon="chrono">
-                                        Started {formatRelative(job.status.startedAt, new Date(), {locale: enGB})}
+                            leftSub={
+                                <ListStatContainer>
+                                    <ListRowStat color="gray" icon="id">
+                                        {jobAppTitle(job)} v{jobAppVersion(job)}
                                     </ListRowStat>
-                                }
-                            </>}
+                                    {job.status.startedAt == null ? null :
+                                        <ListRowStat color="gray" color2="gray" icon="chrono">
+                                            Started {formatRelative(job.status.startedAt, new Date(), {locale: enGB})}
+                                        </ListRowStat>
+                                    }
+
+                                    <ListRowStat icon={"grant"}>
+                                        Price: {creditFormatter(job.billing.creditsCharged)}
+                                    </ListRowStat>
+                                </ListStatContainer>
+                            }
                             right={<>
                                 {isJobStateTerminal(job.status.state) || job.status.expiresAt == null ? null : (
                                     <Text mr="25px">
@@ -98,6 +141,14 @@ export const Browse: React.FunctionComponent = () => {
                                     <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px"/>
                                     <Flex mt="-3px">{stateToTitle(job.status.state)}</Flex>
                                 </Flex>
+                                <Operations
+                                    selected={toggleSet.checked.items}
+                                    location="IN_ROW"
+                                    entityNameSingular={entityName}
+                                    operations={jobOperations}
+                                    row={job}
+                                    extra={{invokeCommand}}
+                                />
                             </>}
                         />
                     )
@@ -138,9 +189,19 @@ export const Browse: React.FunctionComponent = () => {
             </>
         }
 
-        sidebar={
-            <FilterOptions onUpdateFilter={f => setFilters(f)}/>
-        }
+        sidebar={<>
+            <FilterOptions onUpdateFilter={f => {
+                console.log("Updating filters");
+                setFilters(f)
+            }}/>
+            <Operations
+                selected={toggleSet.checked.items}
+                location="SIDEBAR"
+                entityNameSingular={entityName}
+                operations={jobOperations}
+                extra={{invokeCommand}}
+            />
+        </>}
     />;
 };
 
@@ -180,7 +241,7 @@ const FilterOptions: React.FunctionComponent<{
         setSecondDate(end);
     }
 
-    useEffect(() => {
+    useEffectSkipMount(() => {
         onUpdateFilter({
             filterAfter: firstDate?.getTime(),
             filterBefore: secondDate?.getTime(),

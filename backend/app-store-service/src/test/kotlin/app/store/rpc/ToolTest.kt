@@ -7,15 +7,8 @@ import dk.sdu.cloud.app.store.services.ToolAsyncDao
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.TestDB
-import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.assertStatus
-import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.sendRequest
-import dk.sdu.cloud.service.test.withKtorTest
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.service.test.*
+import io.ktor.http.*
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
@@ -27,7 +20,7 @@ import kotlin.test.assertEquals
 
 private fun KtorApplicationTestSetupContext.configureToolServer(
     toolDao: ToolAsyncDao,
-    db: AsyncDBSessionFactory
+    db: AsyncDBSessionFactory,
 ): List<ToolController> {
     val logoService = LogoService(db, mockk(relaxed = true), toolDao)
     return listOf(ToolController(db, toolDao, logoService))
@@ -42,7 +35,7 @@ class ToolTest {
         @BeforeClass
         @JvmStatic
         fun before() {
-            val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+            val (db, embDB) = TestDB.from(AppStoreServiceDescription)
             this.db = db
             this.embDB = embDB
         }

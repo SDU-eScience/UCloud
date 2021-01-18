@@ -94,8 +94,8 @@ export function JobSelector({
         </ReactModal>
     </>);
 
-    function pageRenderer(page: UCloud.PageV2<UCloud.compute.Job>): React.ReactNode {
-        return page.items.map(job => (
+    function pageRenderer(items: UCloud.compute.Job[]): React.ReactNode {
+        return items.map(job => (
             <Flex key={job.id} mb={8}>
                 <Box flexGrow={1}>
                     {job.parameters.application.name}

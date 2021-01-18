@@ -1,4 +1,4 @@
-version = "0.2.4"
+version = "0.3.0-rc0"
 
 application {
     mainClassName = "dk.sdu.cloud.project.repository.MainKt"
