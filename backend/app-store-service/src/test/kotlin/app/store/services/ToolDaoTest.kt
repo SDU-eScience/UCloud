@@ -1,16 +1,10 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.app.store.api.AppStoreServiceDescription
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.NormalizedToolDescription
-import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.app.store.api.ToolBackend
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.util.truncate
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
@@ -18,14 +12,9 @@ import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
-import org.junit.Ignore
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
-class ToolHibernateDaoTest {
+class ToolDaoTest {
 
     private val user = TestUsers.user.copy(username = "user1")
     private val normToolDesc = NormalizedToolDescription(
@@ -87,7 +76,7 @@ class ToolHibernateDaoTest {
         @BeforeClass
         @JvmStatic
         fun before() {
-            val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+            val (db, embDB) = TestDB.from(AppStoreServiceDescription)
             this.db = db
             this.embDB = embDB
         }

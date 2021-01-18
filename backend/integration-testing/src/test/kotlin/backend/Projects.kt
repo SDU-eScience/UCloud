@@ -168,7 +168,7 @@ suspend fun addMemberToProject(
     ).orThrow()
 
 }
-@Ignore
+
 class ProjectTests : IntegrationTest() {
     @Test
     fun `initialization of root project`() = t {

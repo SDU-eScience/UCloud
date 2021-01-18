@@ -3,43 +3,20 @@ package dk.sdu.cloud.app.store.rpc
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.cloud.sdu.app.store.rpc.AppLogoController
 import dk.sdu.cloud.app.store.api.*
-import dk.sdu.cloud.app.store.services.AppStoreAsyncDao
-import dk.sdu.cloud.app.store.services.AppStoreService
-import dk.sdu.cloud.app.store.services.ApplicationLogoAsyncDao
-import dk.sdu.cloud.app.store.services.ApplicationPublicAsyncDao
-import dk.sdu.cloud.app.store.services.ApplicationPublicService
-import dk.sdu.cloud.app.store.services.ApplicationSearchAsyncDao
-import dk.sdu.cloud.app.store.services.ApplicationSearchService
-import dk.sdu.cloud.app.store.services.ApplicationTagsAsyncDao
-import dk.sdu.cloud.app.store.services.ApplicationTagsService
-import dk.sdu.cloud.app.store.services.ElasticDao
-import dk.sdu.cloud.app.store.services.FavoriteAsyncDao
-import dk.sdu.cloud.app.store.services.FavoriteService
-import dk.sdu.cloud.app.store.services.LogoService
-import dk.sdu.cloud.app.store.services.ToolAsyncDao
+import dk.sdu.cloud.app.store.services.*
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
-import dk.sdu.cloud.app.store.util.normAppDesc
-import dk.sdu.cloud.app.store.util.normAppDesc2
-import dk.sdu.cloud.app.store.util.normToolDesc
-import dk.sdu.cloud.app.store.util.truncate
-import dk.sdu.cloud.app.store.util.withNameAndVersion
-import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
+import dk.sdu.cloud.app.store.util.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.*
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.setBody
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.runs
+import io.ktor.http.*
+import io.ktor.server.testing.*
+import io.mockk.*
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass
@@ -59,7 +36,7 @@ private fun KtorApplicationTestSetupContext.configureAppServer(
     favoriteDao: FavoriteAsyncDao,
     appLogoDao: ApplicationLogoAsyncDao,
     elasticDao: ElasticDao,
-    db: AsyncDBSessionFactory
+    db: AsyncDBSessionFactory,
 ): List<Controller> {
     val authClient = mockk<AuthenticatedClient>(relaxed = true)
     val appStore = AppStoreService(
@@ -78,11 +55,11 @@ private fun KtorApplicationTestSetupContext.configureAppServer(
     val publicService = ApplicationPublicService(db, appPublicDao)
     val favoriteService = FavoriteService(db, favoriteDao, authClient)
     return listOf(
-        AppStoreController(appStore), 
-        AppLogoController(logoService), 
-        AppTagController(tagService), 
-        AppSearchController(searchService), 
-        AppPublicController(publicService), 
+        AppStoreController(appStore),
+        AppLogoController(logoService),
+        AppTagController(tagService),
+        AppSearchController(searchService),
+        AppPublicController(publicService),
         AppFavoriteController(favoriteService)
     )
 }
@@ -95,7 +72,7 @@ class AppTest {
         @BeforeClass
         @JvmStatic
         fun before() {
-            val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+            val (db, embDB) = TestDB.from(AppStoreServiceDescription)
             this.db = db
             this.embDB = embDB
         }
@@ -114,6 +91,7 @@ class AppTest {
     fun beforeEach() {
         truncate(db)
     }
+
     @AfterTest
     fun afterEach() {
         truncate(db)
@@ -147,7 +125,16 @@ class AppTest {
                             "original")
                     }
                 }
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
 
             test = {
@@ -238,7 +225,16 @@ class AppTest {
                     val page = Page(1, 10, 0, items)
                     page
                 }
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
             test = {
                 run {
@@ -295,7 +291,16 @@ class AppTest {
                         tagDao.createTags(it, user, "name2", listOf("tag2", "tag3"))
                     }
                 }
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
 
             test = {
@@ -376,7 +381,16 @@ class AppTest {
 
                     }
                 }
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
 
             test = {
@@ -453,7 +467,16 @@ class AppTest {
                     )
                 }
 
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
 
             },
             test = {
@@ -498,7 +521,16 @@ class AppTest {
                     )
                 }
 
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
 
             test = {
@@ -542,7 +574,16 @@ class AppTest {
                     )
                 }
 
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
 
             test = {
@@ -579,7 +620,16 @@ class AppTest {
                 val favoriteDao = mockk<FavoriteAsyncDao>()
                 val appLogoDao = mockk<ApplicationLogoAsyncDao>()
 
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
 
             test = {
@@ -612,7 +662,16 @@ class AppTest {
                 coEvery { tagDao.deleteTags(any(), any(), any(), any()) } just runs
                 every { elasticDAO.addTagToElastic(any(), any()) } just runs
                 every { elasticDAO.removeTagFromElastic(any(), any()) } just runs
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
 
             test = {
@@ -658,7 +717,16 @@ class AppTest {
                 val searchDao = mockk<ApplicationSearchAsyncDao>(relaxed = true)
                 val favoriteDao = mockk<FavoriteAsyncDao>(relaxed = true)
                 val appLogoDao = mockk<ApplicationLogoAsyncDao>(relaxed = true)
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
             test = {
                 val updateLogoRequest = sendRequest(
@@ -692,7 +760,16 @@ class AppTest {
                 val searchDao = mockk<ApplicationSearchAsyncDao>()
                 val favoriteDao = mockk<FavoriteAsyncDao>()
                 val appLogoDao = mockk<ApplicationLogoAsyncDao>(relaxed = true)
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
             test = {
                 val clearLogoRequest = sendRequest(
@@ -721,10 +798,19 @@ class AppTest {
                 val searchDao = mockk<ApplicationSearchAsyncDao>()
                 val favoriteDao = mockk<FavoriteAsyncDao>()
                 val appLogoDao = mockk<ApplicationLogoAsyncDao>()
-                coEvery {appLogoDao.fetchLogo(any(), any())} answers {
+                coEvery { appLogoDao.fetchLogo(any(), any()) } answers {
                     ByteArray(1234)
                 }
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
             test = {
                 val fetchLogoRequest = sendRequest(
@@ -753,7 +839,16 @@ class AppTest {
                 val searchDao = mockk<ApplicationSearchAsyncDao>()
                 val favoriteDao = mockk<FavoriteAsyncDao>()
                 val appLogoDao = mockk<ApplicationLogoAsyncDao>(relaxed = true)
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
             test = {
                 val findLatestByToolRequest = sendRequest(
@@ -785,7 +880,16 @@ class AppTest {
 
                 coEvery { appDao.delete(any(), any(), any(), any(), any(), any()) } just runs
                 every { elasticDAO.deleteApplicationInElastic(any(), any()) } just runs
-                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
+                configureAppServer(toolDao,
+                    aclDao,
+                    appDao,
+                    tagDao,
+                    searchDao,
+                    appPublicDao,
+                    favoriteDao,
+                    appLogoDao,
+                    elasticDAO,
+                    db)
             },
             test = {
                 val deleteRequest = sendJson(

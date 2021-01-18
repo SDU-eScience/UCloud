@@ -1,9 +1,52 @@
 set search_path to app_orchestrator;
 
-delete from app_orchestrator.job_updates where true;
-delete from app_orchestrator.job_resources where true;
-delete from app_orchestrator.job_input_parameters where true;
-delete from app_orchestrator.jobs where true;
+drop table if exists job_updates;
+drop table if exists job_resources;
+drop table if exists job_input_parameters;
+drop table if exists jobs;
+
+create table if not exists jobs
+(
+    id                     text      not null primary key,
+    launched_by            text      not null,
+    project                text,
+    refresh_token          text,
+    application_name       text      not null,
+    application_version    text      not null,
+    price_per_unit         bigint    not null,
+    time_allocation_millis bigint             default null,
+    credits_charged        bigint    not null default 0,
+    product_provider       text      not null,
+    product_category       text      not null,
+    product_id             text      not null,
+    replicas               int       not null default 1,
+    name                   text               default null,
+    output_folder          text               default null,
+    last_scan              timestamp          default now(),
+    current_state          text      not null,
+    last_update            timestamp not null default now()
+);
+
+create table if not exists job_updates
+(
+    job_id text      not null references jobs (id),
+    ts     timestamp not null,
+    state  text default null,
+    status text default null
+);
+
+create table if not exists job_input_parameters
+(
+    job_id text  not null references jobs (id),
+    name   text  not null,
+    value  jsonb not null
+);
+
+create table if not exists job_resources
+(
+    job_id   text  not null references jobs (id),
+    resource jsonb not null
+);
 
 create or replace function migrate_license_server(obj jsonb) returns jsonb as
 $$

@@ -143,6 +143,8 @@ class LicenseService(
                 it.getField(LicenseServerTable.port),
                 defaultMapper.readValue(it.getField(LicenseServerTable.tags)),
                 it.getFieldNullable(LicenseServerTable.license),
+                TODO(),
+                TODO()
             )
         }
     }

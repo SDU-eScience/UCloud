@@ -46,7 +46,7 @@ suspend fun createSampleProducts() {
         ).orThrow()
     }
 }
-@Ignore
+
 class ProductTest : IntegrationTest() {
     @Test
     fun `test product cru`() = t {

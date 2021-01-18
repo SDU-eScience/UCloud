@@ -31,7 +31,7 @@ suspend fun createGift(
         client
     )
 }
-@Ignore
+
 class GiftTests : IntegrationTest() {
     @Test
     fun `test permissions for createGift`() = t {
