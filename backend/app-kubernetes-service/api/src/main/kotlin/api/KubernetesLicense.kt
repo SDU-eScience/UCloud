@@ -20,13 +20,13 @@ data class KubernetesLicense(
     val id: String,
     val address: String,
     val port: Int,
-    val tags: List<String>,
+    val tags: List<String> = emptyList(),
     val license: String?,
     val category: ProductCategoryId,
     val pricePerUnit: Long,
-    val description: String,
-    val availability: ProductAvailability,
-    val priority: Int,
+    val description: String = "",
+    val availability: ProductAvailability = ProductAvailability.Available(),
+    val priority: Int = 0,
     val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
 )
 
