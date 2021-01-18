@@ -21,7 +21,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
                     context.jobId = readJobId
                 } else {
                     if (complainAboutMissingJobId) {
-                        log.warn("Missing Job ID (required)")
+                        log.debug("Missing Job ID (required)")
                     }
 
                     context.jobId = UUID.randomUUID().toString()
