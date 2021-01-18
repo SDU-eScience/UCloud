@@ -126,7 +126,10 @@ class LicenseService(
             1_000_000,
             ProductCategoryId(id, UCLOUD_PROVIDER),
             description = "Software license",
-            tags = tags
+            tags = tags,
+            availability = availability,
+            paymentModel = paymentModel,
+            priority = priority
         )
     }
 
