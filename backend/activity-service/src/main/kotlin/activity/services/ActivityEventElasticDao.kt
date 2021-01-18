@@ -21,12 +21,15 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.share.api.Shares
+import io.ktor.http.LinkHeader.Parameters.Type
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.BoolQueryBuilder
+import org.elasticsearch.index.query.MatchQueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.search.MatchQuery
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 import java.util.*
@@ -62,10 +65,10 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 allParents.forEach { parent ->
                     call.jsonPathToAffectedFiles.forEach { jsonPath ->
                         query.should(
-                            QueryBuilders.matchPhraseQuery(
-                                "requestJson.$jsonPath",
-                                parent
-                            )
+                            QueryBuilders.multiMatchQuery(
+                                parent,
+                                "requestJson.$jsonPath"
+                            ).type(MatchQuery.Type.PHRASE_PREFIX)
                         )
                     }
                 }
@@ -201,10 +204,10 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                         CallWithActivity.all.forEach { call ->
                             call.jsonPathToAffectedFiles.forEach { jsonPath ->
                                 innerQuery.should(
-                                    QueryBuilders.matchPhrasePrefixQuery(
-                                        "requestJson.$jsonPath",
-                                        userHome
-                                    )
+                                    QueryBuilders.multiMatchQuery(
+                                        userHome,
+                                        "requestJson.$jsonPath"
+                                    ).type(MatchQuery.Type.PHRASE_PREFIX)
                                 )
                             }
                         }
@@ -550,7 +553,8 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 Jobs.create,
                 jacksonTypeRef(),
                 listOf(
-                    "resources.path"
+                    "resources.path",
+                    "parameters.*.path"
                 ),
                 usesAllDescendants = true
             ) {
@@ -597,6 +601,20 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                                     )
                                 }
                             }
+                            item.parameters?.values?.forEach { parameter ->
+                                val path = checkSource(parameter, normalizedFilePath)
+                                if (path != null) {
+                                    activityEventList.add(
+                                        ActivityEvent.SingleFileUsedByApplication(
+                                            doc.token.principal.username,
+                                            doc.timestamp.time,
+                                            path,
+                                            item.application.name,
+                                            item.application.version
+                                        )
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -605,6 +623,13 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                         doc.requestJson.items.forEach { item ->
                             item.resources?.forEach { resource ->
                                 val path = checkSource(resource, normalizedFilePath, inUserSearch = true)
+                                if (path != null) {
+                                    filesUsed.add(path)
+                                }
+                            }
+
+                            item.parameters?.values?.forEach { parameter ->
+                                val path = checkSource(parameter, normalizedFilePath, inUserSearch = true)
                                 if (path != null) {
                                     filesUsed.add(path)
                                 }
