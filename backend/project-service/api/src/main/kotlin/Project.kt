@@ -4,7 +4,8 @@ data class Project(
     val id: String,
     val title: String,
     val parent: String?,
-    val archived: Boolean
+    val archived: Boolean,
+    val fullPath: String? = null
 )
 
 data class ProjectGroup(

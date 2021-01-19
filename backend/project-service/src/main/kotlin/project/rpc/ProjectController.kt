@@ -314,11 +314,11 @@ class ProjectController(
 
         implement(Projects.search) {
             ok(
-                SearchProjectPathsResponse(
-                    queries.searchProjectPaths(
-                        db,
-                        ctx.securityPrincipal.toActor(),
-                        request.path)
+                queries.searchProjectPaths(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    request,
+                    request
                 )
             )
         }

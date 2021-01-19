@@ -1,5 +1,6 @@
 package dk.sdu.cloud.project.services
 
+import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
@@ -25,30 +26,44 @@ data class ProjectForVerification(
 class QueryService(
     private val projects: ProjectService
 ) {
-    suspend fun searchProjectPaths(ctx: DBContext, actor: Actor, query: String): Map<String, String> {
+    suspend fun searchProjectPaths(ctx: DBContext, actor: Actor, flags: ProjectIncludeFlags, request: ProjectSearchByPathRequest): PageV2<Project> {
         val role = if (actor is Actor.User) actor.principal.role else Role.USER
         if (role !in Roles.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "User not admin")
         }
-        return ctx.withSession { session ->
-            val results = session.sendPreparedStatement(
-                {
-                    setParameter("query", query)
-                },
-                """
+        return ctx.paginateV2(
+            actor,
+            request.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("query", request.path)
+                    },
+                    """
                     SELECT *
                     FROM projects
                     WHERE title LIKE '%' || :query || '%'
                 """
-            ).rows
+                )
+            },
+            mapper = { session, rows -> mapProjects(rows, actor, flags, session) }
+        )
+    }
 
-            val paths = mutableMapOf<String, String>()
-            results.forEach {
-                val path = viewAncestors(ctx, actor, it.getField(ProjectTable.id)).map { it.title }
-                paths[it.getField(ProjectTable.id)] = path.joinToString("/")
+    suspend fun mapProjects(
+        rows: ResultSet,
+        actor: Actor,
+        flags: ProjectIncludeFlags,
+        session: AsyncDBConnection
+    ): List<Project> {
+        var projects = rows.map { it.toProject() }
+        if (flags.includeFullPath == true) {
+            projects = projects.map { project ->
+                val path = viewAncestors(session, actor, project.id).joinToString("/")
+                project.copy(fullPath = path)
             }
-            paths
         }
+        return projects
     }
 
     suspend fun isMemberOfGroup(

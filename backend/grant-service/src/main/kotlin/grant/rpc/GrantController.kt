@@ -187,7 +187,7 @@ class GrantController(
         }
 
         implement(Grants.retrieveAffiliations) {
-            val username = applications.viewApplicationById(db, ctx.securityPrincipal.toActor(), request.grantID).first.requestedBy
+            val username = applications.viewApplicationById(db, ctx.securityPrincipal.toActor(), request.grantId).first.requestedBy
             val principal = UserDescriptions.retrievePrincipal.call(
                 GetPrincipalRequest(username),
                 serviceClient
