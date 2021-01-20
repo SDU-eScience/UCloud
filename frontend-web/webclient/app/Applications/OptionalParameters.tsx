@@ -157,8 +157,8 @@ class OptionalParameter extends React.Component<OptionalParameterProps, {open: b
                 <OptionalParameter.Base onClick={toggleOpen}>
                     <strong>{parameter.title}</strong>
                     {!open ? (
-                        <EllipsedText>
-                            <Markdown source={parameter.description} allowedTypes={["text",  "paragraph"]} />
+                        <EllipsedText width="200px">
+                            <Markdown source={parameter.description} allowedTypes={["text", "paragraph"]} />
                         </EllipsedText>
                     ) : <Box flexGrow={1} />}
 
