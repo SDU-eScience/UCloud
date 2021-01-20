@@ -28,6 +28,7 @@ import Wallet = accounting.Wallet;
 import {PaymentModel} from "Accounting";
 import {prettierString} from "UtilityFunctions";
 import {InputLabel} from "ui-components/Input";
+import {creditFormatter} from "Project/ProjectUsage";
 
 const PaymentModelOptions: PaymentModel[] = ["PER_ACTIVATION", "FREE_BUT_REQUIRE_BALANCE"];
 
@@ -287,6 +288,9 @@ const LicenseServers: React.FunctionComponent = () => {
 
     if (!Client.userIsAdmin) return null;
 
+    const [openLicenses, setOpenLicenses] = useState<Set<string>>(new Set());
+    console.log(openLicenses);
+
     return (
         <MainContainer
             header={<Heading.h1>License Servers</Heading.h1>}
@@ -416,83 +420,118 @@ const LicenseServers: React.FunctionComponent = () => {
                                 infiniteScrollGeneration={infScroll}
                                 onLoadMore={loadMore}
                                 pageRenderer={items => (
-                                    items.map(licenseServer => (
-                                        <Card key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
-                                            <Flex justifyContent="space-between">
-                                                <Box>
-                                                    <Heading.h4>{licenseServer.id}</Heading.h4>
-                                                    <Box>{licenseServer.address}:{licenseServer.port}</Box>
-                                                </Box>
-                                                <Flex>
+                                    items.map(licenseServer => {
+                                        const isSelected = openLicenses.has(licenseServer.id);
+                                        return (
+                                            <ExpandingCard height={isSelected ? "400px" : "96px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
+                                                <Flex justifyContent="space-between">
                                                     <Box>
-                                                        {licenseServer.license !== null ? (
-                                                            <Tooltip
-                                                                tooltipContentWidth="300px"
-                                                                wrapperOffsetLeft="0"
-                                                                wrapperOffsetTop="4px"
-                                                                right="0"
-                                                                top="1"
-                                                                mb="50px"
-                                                                trigger={(
-                                                                    <Icon
-                                                                        size="20px"
-                                                                        mt="8px"
-                                                                        mr="8px"
-                                                                        color="gray"
-                                                                        name="key"
-                                                                        ml="5px"
-                                                                    />
-                                                                )}
-                                                            >
-                                                                {licenseServer.license}
-                                                            </Tooltip>
-                                                        ) : <Text />}
-                                                    </Box>
-                                                    <Box>
-                                                        <Icon
-                                                            cursor="pointer"
-                                                            size="20px"
-                                                            mt="6px"
-                                                            mr="8px"
-                                                            color="gray"
-                                                            color2="midGray"
-                                                            name="tags"
-                                                            onClick={() => setEditing(licenseServer)}
-                                                        />
-                                                    </Box>
-
-                                                    <Box>
-                                                        <Button
-                                                            color={"red"}
-                                                            type={"button"}
-                                                            px={10}
-
-                                                            onClick={() => addStandardDialog({
-                                                                title: `Are you sure?`,
-                                                                message: `Mark license server '${licenseServer.id}' as inactive?`
-                                                                ,
-                                                                onConfirm: async () => {
-                                                                    // TODO
-                                                                    reload();
+                                                        <Flex>
+                                                            {/* <RotatingIcon onClick={() => {
+                                                                console.log("foo");
+                                                                if (isSelected) {
+                                                                    openLicenses.delete(licenseServer.id);
+                                                                } else {
+                                                                    openLicenses.add(licenseServer.id);
                                                                 }
-                                                            })}
-                                                        >
-                                                            <Icon size={16} name="trash" />
+                                                                setOpenLicenses(new Set(openLicenses));
+                                                            }} size={14} name="close" rotation={isSelected ? 0 : 45} /> */}
+                                                            <Heading.h4>{licenseServer.id}</Heading.h4>
+                                                        </Flex>
+                                                        <Box>{licenseServer.address}:{licenseServer.port}</Box>
+                                                    </Box>
+                                                    <Flex>
+                                                        <Box>
+                                                            {licenseServer.license !== null ? (
+                                                                <Tooltip
+                                                                    tooltipContentWidth="300px"
+                                                                    wrapperOffsetLeft="0"
+                                                                    wrapperOffsetTop="4px"
+                                                                    right="0"
+                                                                    top="1"
+                                                                    mb="50px"
+                                                                    trigger={(
+                                                                        <Icon
+                                                                            size="20px"
+                                                                            mt="8px"
+                                                                            mr="8px"
+                                                                            color="gray"
+                                                                            name="key"
+                                                                            ml="5px"
+                                                                        />
+                                                                    )}
+                                                                >
+                                                                    {licenseServer.license}
+                                                                </Tooltip>
+                                                            ) : <Text />}
+                                                        </Box>
+                                                        <Box>
+                                                            <Icon
+                                                                cursor="pointer"
+                                                                size="20px"
+                                                                mt="6px"
+                                                                mr="8px"
+                                                                color="gray"
+                                                                color2="midGray"
+                                                                name="tags"
+                                                                onClick={() => setEditing(licenseServer)}
+                                                            />
+                                                        </Box>
+
+                                                        <Box>
+                                                            <Button
+                                                                color={"red"}
+                                                                type={"button"}
+                                                                px={10}
+
+                                                                onClick={() => addStandardDialog({
+                                                                    title: `Are you sure?`,
+                                                                    message: `Mark license server '${licenseServer.id}' as inactive?`,
+                                                                    onConfirm: async () => {
+                                                                        // TODO
+                                                                        reload();
+                                                                    }
+                                                                })}
+                                                            >
+                                                                <Icon size={16} name="trash" />
                                                             TODO
                                                         </Button>
+                                                        </Box>
+
+                                                        {!projectId ? null : (
+                                                            <Box>
+                                                                <Button onClick={() => setGranting(licenseServer)}>
+                                                                    Grant copies
+                                                            </Button>
+                                                            </Box>
+                                                        )}
+                                                    </Flex>
+                                                </Flex>
+                                                {/* HIDDEN ON NOT OPEN */}
+                                                <Box height="25px" />
+                                                {licenseServer.availability.type === "available" ?
+                                                    <Heading.h4>Available</Heading.h4> :
+                                                    <Heading.h4>Unvailable: {licenseServer.availability.reason}</Heading.h4>
+                                                }
+
+                                                <Heading.h4>Description</Heading.h4>
+                                                <TextArea width={1} rows={4} defaultValue={licenseServer.description} />
+                                                <Flex>
+                                                    <Box width="50%">
+                                                        <Heading.h4>Price per unit</Heading.h4>
+                                                        {creditFormatter(licenseServer.pricePerUnit)}
                                                     </Box>
 
-                                                    {!projectId ? null : (
-                                                        <Box>
-                                                            <Button onClick={() => setGranting(licenseServer)}>
-                                                                Grant copies
-                                                            </Button>
-                                                        </Box>
-                                                    )}
+                                                    <Box width="50%">
+                                                        <Heading.h4>Payment model</Heading.h4>
+                                                        {prettierString(licenseServer.paymentModel)}
+                                                    </Box>
                                                 </Flex>
-                                            </Flex>
-                                        </Card>
-                                    ))
+
+                                                <Button width={1}>Update</Button>
+                                            </ExpandingCard>
+                                        )
+                                    })
                                 )}
                             />
                         </Box>
@@ -502,5 +541,19 @@ const LicenseServers: React.FunctionComponent = () => {
         />
     );
 };
+
+const ExpandingCard = styled(Card)`
+    transition: height 0.5s;
+    overflow: hidden;
+`;
+
+const RotatingIcon = styled(Icon)`
+    size: 14px;
+    margin-right: 8px;
+    margin-top: 9px;
+    cursor: pointer;
+    color: var(--blue, #f00);
+    transition: transform 0.2s;
+`;
 
 export default LicenseServers;
