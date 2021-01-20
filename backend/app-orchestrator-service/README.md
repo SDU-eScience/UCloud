@@ -32,10 +32,11 @@ __Table:__ The data modal for a `Job`
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.Job-->
 <!--<editor-fold desc="Generated documentation">-->
-A `Job` in UCloud is the core abstraction used to describe a unit of computation. `Job`s provider users a way to run
+A `Job` in UCloud is the core abstraction used to describe a unit of computation.
 
-their computations through a workflow similar to their own workstations but scaling to much bigger and more machines. In
-a simplified view, a `Job` describes the following information:
+
+They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
+much bigger and more machines. In a simplified view, a `Job` describes the following information:
 
 - The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
 - The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
@@ -51,9 +52,11 @@ compute environment and how to launch the software
 correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
 
 At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
-a [job queue](/backend/app-orchestrator-service/wiki/queue.md). Once the provider realizes that the `Job` is running, it
-will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files can be retrieved
-and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`) are available.
+a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
+the `Job`
+is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
+can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
+are available.
 
 Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
 terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
@@ -62,8 +65,8 @@ in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. B
 state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
 
 At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
-delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/resources.md) and release
-any [bound resources](/backend/app-orchestrator-service/wiki/resources.md).
+delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
+any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
 
 
 <!--</editor-fold>-->

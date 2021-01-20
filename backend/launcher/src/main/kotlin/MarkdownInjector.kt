@@ -20,7 +20,7 @@ private sealed class MarkdownReference {
                     8 -> "Byte"
                     16 -> "Short"
                     32 -> "Int"
-                    64 -> "Double"
+                    64 -> "Long"
                     else -> "BigInteger"
                 }
             }

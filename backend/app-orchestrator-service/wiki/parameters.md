@@ -30,6 +30,18 @@ comprehensive guide):
 <!--</editor-fold>-->
 <!-- /typedoc:dk.sdu.cloud.app.store.api.AppParameterValue-->
 
+## Resources
+
+Resources are a special type of value which is used purely for its side effects. Not all values are usable as resources,
+as you will see below. Examples of this includes files. This allows for users to mount additional data that might be
+required in their `Job`s. This is especially powerful in interactive `Job`s which might need to work on multiple
+datasets.
+
+In addition, some resources are __bound resources__. A bound resource is a resource which is bound to a `Job` in a
+mutually exclusive way, this means that this resource cannot be used in another `Job` while it is running. Examples
+of this include the HTTP ingress, which provide users a way to load balance traffic through a custom domain. Bound
+resources are automatically unbound by UCloud at the end of a `Job`.
+
 ## Value Types
 
 ### Files
@@ -111,7 +123,7 @@ An integral value
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `value` | `Double` | No documentation |
+| `value` | `Long` | No documentation |
 | `type` | `"integer"` | No documentation |
 
 

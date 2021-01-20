@@ -45,6 +45,7 @@ const UserCreation = React.lazy(() => import("Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("Login/Wayf"));
 const AppK8Admin = React.lazy(() => import("Admin/AppK8Admin"));
+const Demo = React.lazy(() => import("Playground/Demo"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -115,6 +116,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/applications/studio/a/:name" component={requireAuth(App)} />
 
                     {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
+                    {!inDevEnvironment() ? null : <Route exact path={"/playground/demo"} component={Demo} />}
 
                     <Route exact path="/shares" component={requireAuth(Share.List)} />
 
