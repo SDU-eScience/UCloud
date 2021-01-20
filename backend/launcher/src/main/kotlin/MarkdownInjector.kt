@@ -13,17 +13,99 @@ private sealed class MarkdownReference {
         typeRegistry: Map<String, ComputedType>,
     ): String
 
+    fun typename(type: ComputedType): String {
+        val baseName = when (type) {
+            is ComputedType.Integer -> {
+                when (type.size) {
+                    8 -> "Byte"
+                    16 -> "Short"
+                    32 -> "Int"
+                    64 -> "Long"
+                    else -> "BigInteger"
+                }
+            }
+            is ComputedType.FloatingPoint -> {
+                when(type.size) {
+                    32 -> "Float"
+                    64 -> "Double"
+                    else -> "BigDecimal"
+                }
+            }
+            is ComputedType.Text -> "String"
+            is ComputedType.Bool -> "Boolean"
+            is ComputedType.Array -> "Array<${typename(type.itemType)}>"
+            is ComputedType.Dictionary -> "Map<String, ${typename(type.itemType)}>"
+            is ComputedType.Unknown -> "Any"
+            is ComputedType.Generic -> "Any"
+            is ComputedType.Struct -> typename(type.asRef())
+            is ComputedType.StructRef -> type.qualifiedName.substringAfterLast('.')
+            is ComputedType.Enum -> type.options.joinToString(" | ") { "\"$it\""}
+            is ComputedType.CustomSchema -> "Any"
+        }
+
+        return if (type.optional) "$baseName?"
+        else baseName
+    }
+
     data class TypeDocRef(
         val typeName: String,
+        val includeOwnDoc: Boolean,
+        val includeProps: Boolean,
+        val includePropDoc: Boolean,
         override val lineStart: Int,
         override val lineEnd: Int,
     ) : MarkdownReference() {
         override fun generate(api: OpenAPI, typeRegistry: Map<String, ComputedType>): String {
-            return typeRegistry[typeName]?.documentation ?: ""
+            return buildString {
+                val type = typeRegistry[typeName]
+                if (type != null) {
+                    if (includeOwnDoc && type.documentation != null) {
+                        appendLine(type.documentation!!.lines()[0])
+                        appendLine()
+                    }
+
+                    if (includeProps && type is ComputedType.Struct) {
+                        appendLine("| Property | Type | Description |")
+                        appendLine("|----------|------|-------------|")
+                        type.properties.forEach { (prop, propType) ->
+                            appendLine("| `$prop` | `${typename(propType)}` | ${propType.documentation?.lines()?.firstOrNull() ?: "No documentation"} |")
+                        }
+
+                        appendLine()
+                    }
+
+                    if (includeProps && type is ComputedType.Enum) {
+                        appendLine("| Enum | Description |")
+                        appendLine("|------|-------------|")
+                        type.options.forEach { enum ->
+                            // TODO Documentation missing for enums
+                            appendLine("| `\"$enum\"` | No documentation |")
+                        }
+                        appendLine()
+                    }
+
+                    if (includeOwnDoc && type.documentation != null) {
+                        append(type.documentation!!.lines().drop(1).joinToString("\n"))
+                        appendLine()
+                        appendLine()
+                    }
+
+                    if (includePropDoc && type is ComputedType.Struct) {
+                        type.properties.forEach { (prop, propType) ->
+                            appendLine("---")
+                            appendLine("`${prop}`: ${propType.documentation ?: "No documentation"}")
+                            appendLine()
+                        }
+                        appendLine()
+                    }
+                } else {
+                    append("UNKNOWN TYPE: $typeName")
+                }
+            }
         }
 
         companion object {
-            const val command = "typeref"
+            const val command = "typedoc"
         }
     }
 }
@@ -45,13 +127,23 @@ private data class MarkdownDocument(
                 val trimmedLine = line.trim()
                 if (trimmedLine.startsWith("<!--") && trimmedLine.endsWith("-->")) {
                     val command = trimmedLine.removePrefix("<!--").removeSuffix("-->").trim().split(":")
+                    val args = command.drop(1).map { it.split("=") }.filter { it.size == 2 }
+                        .associateBy { it[0] }.mapValues { it.value[1] }
+
                     val isEnd = command.firstOrNull()?.startsWith("/") == true
                     if (!isEnd) {
                         when (command.firstOrNull()) {
                             MarkdownReference.TypeDocRef.command -> {
                                 val typeName = command.getOrNull(1)
                                 if (typeName != null) {
-                                    refInProgress = MarkdownReference.TypeDocRef(typeName, index, -1)
+                                    refInProgress = MarkdownReference.TypeDocRef(
+                                        typeName,
+                                        includeOwnDoc = (args["includeOwnDoc"] ?: "true") == "true",
+                                        includeProps = (args["includeProps"] ?: "false") == "true",
+                                        includePropDoc = (args["includePropDoc"] ?: "false") == "true",
+                                        lineStart = index,
+                                        lineEnd = -1
+                                    )
                                 }
                             }
                         }
@@ -116,7 +208,11 @@ fun injectMarkdownDocs(
                     // Do nothing
                 } else if (command != null && index == command.lineEnd) {
                     command = if (commandIterator.hasNext()) commandIterator.next() else null
-                    if (commandText != null) writer.appendLine(commandText)
+                    if (commandText != null) {
+                        writer.appendLine("<!--<editor-fold desc=\"Generated documentation\">-->")
+                        writer.appendLine(commandText)
+                        writer.appendLine("<!--</editor-fold>-->")
+                    }
                     commandText = command?.generate(api, typeRegistry)
                     writer.appendLine(line)
                 } else {

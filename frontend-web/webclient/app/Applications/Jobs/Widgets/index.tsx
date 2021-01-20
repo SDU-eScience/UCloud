@@ -24,22 +24,22 @@ export type WidgetSetter = (param: ApplicationParameter, value: AppParameterValu
 const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
     switch (props.parameter.type) {
         case "boolean":
-            return <BoolParameter {...props} parameter={props.parameter}/>;
+            return <BoolParameter {...props} parameter={props.parameter} />;
         case "input_directory":
         case "input_file":
-            return <FilesParameter {...props} parameter={props.parameter}/>;
+            return <FilesParameter {...props} parameter={props.parameter} />;
         case "text":
         case "floating_point":
         case "integer":
-            return <GenericTextParameter {...props} parameter={props.parameter}/>;
+            return <GenericTextParameter {...props} parameter={props.parameter} />;
         case "enumeration":
-            return <EnumParameter {...props} parameter={props.parameter}/>;
+            return <EnumParameter {...props} parameter={props.parameter} />;
         case "peer":
-            return <PeerParameter {...props} parameter={props.parameter}/>;
+            return <PeerParameter {...props} parameter={props.parameter} />;
         case "license_server":
-            return <LicenseParameter {...props} parameter={props.parameter}/>;
+            return <LicenseParameter {...props} parameter={props.parameter} />;
         case "ingress":
-            return <IngressParameter {...props} parameter={props.parameter}/>;
+            return <IngressParameter {...props} parameter={props.parameter} />;
     }
 };
 
@@ -122,14 +122,14 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     <Flex>
                         <Flex>
                             {parameter.title}
-                            {parameter.optional ? null : <MandatoryField/>}
+                            {parameter.optional ? null : <MandatoryField />}
                         </Flex>
                         {!parameter.optional || !props.onRemove ? null : (
                             <>
-                                <Box ml="auto"/>
+                                <Box ml="auto" />
                                 <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}>
                                     Remove
-                                    <Icon ml="6px" size={16} name="close"/>
+                                    <Icon ml="6px" size={16} name="close" />
                                 </Text>
                             </>
                         )}
@@ -137,7 +137,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                 </Label>
                 <WidgetBody {...props} />
                 {error ? <TextP color={"red"}>{error}</TextP> : null}
-                <Markdown source={parameter.description}/>
+                <Markdown source={parameter.description} />
             </Box>
         </>;
     } else {
@@ -145,10 +145,10 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
             <InactiveWidget onClick={toggleOpen}>
                 <strong>{parameter.title}</strong>
                 {!open ? (
-                    <EllipsedText>
-                        <Markdown source={parameter.description} allowedTypes={["text", "paragraph"]}/>
+                    <EllipsedText width="200px">
+                        <Markdown source={parameter.description} allowedTypes={["text", "paragraph"]} />
                     </EllipsedText>
-                ) : <Box flexGrow={1}/>}
+                ) : <Box flexGrow={1} />}
 
                 <Button
                     type="button"
@@ -161,7 +161,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     Use
                 </Button>
             </InactiveWidget>
-            {open ? <Markdown source={parameter.description}/> : null}
+            {open ? <Markdown source={parameter.description} /> : null}
         </Box>;
     }
 };
@@ -176,6 +176,7 @@ const OptionalWidgetSearchWrapper = styled(Box)`
     padding-bottom: 8px;
     overflow-y: auto;
 `;
+
 export const OptionalWidgetSearch: React.FunctionComponent<{
     pool: UCloud.compute.ApplicationParameter[];
     mapper: (p: UCloud.compute.ApplicationParameter) => React.ReactNode;
@@ -263,7 +264,7 @@ export function validateWidgets(params: ApplicationParameter[]): ValidatedWidget
     return result;
 }
 
-export function setWidgetValues(values: { param: ApplicationParameter, value: AppParameterValue }[]): void {
+export function setWidgetValues(values: {param: ApplicationParameter, value: AppParameterValue}[]): void {
     for (const value of values) {
         for (const setter of setters) {
             setter(value.param, value.value);
