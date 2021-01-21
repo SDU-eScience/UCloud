@@ -318,10 +318,12 @@ class LimitCheckerTest : IntegrationTest() {
             project.piClient
         ).orThrow()
 
-        val quota = 1024 * 1024 * 1024L
+        val quota = 1024 * 1024 * 1024 * 1024L
         setProjectQuota(project.projectId, quota)
+
+        val childQuota = 1024 * 1024 * 1024L
         FileDescriptions.updateQuota.call(
-            UpdateQuotaRequest(projectHomeDirectory(child.id), quota),
+            UpdateQuotaRequest(projectHomeDirectory(child.id), childQuota),
             project.piClient.withProject(child.id)
         ).orThrow()
 
@@ -338,7 +340,7 @@ class LimitCheckerTest : IntegrationTest() {
         ).orThrow()
 
         assertEquals(
-            quota,
+            childQuota,
             FileDescriptions.retrieveQuota.call(
                 RetrieveQuotaRequest(projectHomeDirectory(child.id)),
                 project.piClient.withProject(project.projectId)
