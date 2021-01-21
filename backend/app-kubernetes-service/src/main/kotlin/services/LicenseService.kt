@@ -111,6 +111,15 @@ class LicenseService(
                         setParameter("license", newLicense.license)
                         setParameter("port", newLicense.port)
                         setParameter("tags", defaultMapper.writeValueAsString(newLicense.tags))
+
+                        setParameter("priority", newLicense.priority)
+                        setParameter("product_availability", when (val availability = newLicense.availability) {
+                            is ProductAvailability.Available -> null
+                            is ProductAvailability.Unavailable -> availability.reason
+                        })
+                        setParameter("price_per_unit", newLicense.pricePerUnit)
+                        setParameter("description", newLicense.description)
+                        setParameter("payment_model", newLicense.paymentModel.name)
                     },
                     """
                         update app_kubernetes.license_servers
@@ -118,7 +127,12 @@ class LicenseService(
                             address = :address,
                             license = :license::text,
                             port = :port,
-                            tags = :tags
+                            tags = :tags,
+                            priority = :priority,
+                            product_availability = :product_availability,
+                            price_per_unit = :price_per_unit,
+                            description = :description,
+                            payment_model = :payment_model
                         where
                             id = :id
                     """
