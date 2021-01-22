@@ -1,13 +1,36 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.service.SimpleCache
 import io.swagger.v3.oas.models.OpenAPI
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.com.intellij.psi.PsiManager
+import org.jetbrains.kotlin.com.intellij.testFramework.LightVirtualFile
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.psi.*
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
+private val kotlinCompilerEnvironment by lazy {
+    val configOptions = CompilerConfiguration().apply {
+        put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
+    }
+
+    KotlinCoreEnvironment.createForTests(
+        Disposer.newDisposable(),
+        configOptions,
+        EnvironmentConfigFiles.JVM_CONFIG_FILES
+    )
+}
+
 private sealed class MarkdownReference {
     abstract val lineStart: Int
-    abstract val lineEnd: Int
+    abstract var lineEnd: Int
     abstract fun generate(
         api: OpenAPI,
         typeRegistry: Map<String, ComputedType>,
@@ -25,7 +48,7 @@ private sealed class MarkdownReference {
                 }
             }
             is ComputedType.FloatingPoint -> {
-                when(type.size) {
+                when (type.size) {
                     32 -> "Float"
                     64 -> "Double"
                     else -> "BigDecimal"
@@ -39,7 +62,7 @@ private sealed class MarkdownReference {
             is ComputedType.Generic -> "Any"
             is ComputedType.Struct -> typename(type.asRef())
             is ComputedType.StructRef -> type.qualifiedName.substringAfterLast('.')
-            is ComputedType.Enum -> type.options.joinToString(" | ") { "\"$it\""}
+            is ComputedType.Enum -> type.options.joinToString(" | ") { "\"$it\"" }
             is ComputedType.CustomSchema -> "Any"
         }
 
@@ -53,7 +76,7 @@ private sealed class MarkdownReference {
         val includeProps: Boolean,
         val includePropDoc: Boolean,
         override val lineStart: Int,
-        override val lineEnd: Int,
+        override var lineEnd: Int,
     ) : MarkdownReference() {
         override fun generate(api: OpenAPI, typeRegistry: Map<String, ComputedType>): String {
             return buildString {
@@ -68,7 +91,9 @@ private sealed class MarkdownReference {
                         appendLine("| Property | Type | Description |")
                         appendLine("|----------|------|-------------|")
                         type.properties.forEach { (prop, propType) ->
-                            appendLine("| `$prop` | `${typename(propType)}` | ${propType.documentation?.lines()?.firstOrNull() ?: "No documentation"} |")
+                            appendLine("| `$prop` | `${typename(propType)}` | ${
+                                propType.documentation?.lines()?.firstOrNull() ?: "No documentation"
+                            } |")
                         }
 
                         appendLine()
@@ -106,6 +131,131 @@ private sealed class MarkdownReference {
 
         companion object {
             const val command = "typedoc"
+        }
+    }
+
+    data class KotlinClassRef(
+        val path: String,
+        val classPath: String,
+        val documentationOnly: Boolean,
+        override val lineStart: Int,
+        override var lineEnd: Int,
+    ) : MarkdownReference() {
+        override fun generate(api: OpenAPI, typeRegistry: Map<String, ComputedType>): String {
+            val ktFiles = KotlinFileCache.ktFileCache.getBlocking(path) ?: error("Error parsing file at '$path'")
+            for (ktFile in ktFiles) {
+                val components = classPath.split('.')
+                val interfaceFunction = if (components.size >= 2) {
+                    ktFile.children.find {
+                        val interfaceName = components.lastOrNull() ?: return@find false
+                        val expectedPackageName = components.dropLast(1).joinToString(".")
+                        val packageName = ktFile.packageFqName.asString()
+                        if (!(packageName == expectedPackageName || packageName.endsWith(expectedPackageName))) {
+                            return@find false
+                        }
+
+                        it is KtClassOrObject && it.name == interfaceName
+                    } as KtClassOrObject?
+                } else {
+                    null
+                }
+
+                if (interfaceFunction == null) continue
+
+                if (documentationOnly) {
+                    val docText = interfaceFunction.docComment?.text ?: "No documentation"
+                    val docLines = docText.removePrefix("/**").removeSuffix("*/").lines()
+                    return docLines.filterIndexed { index, line ->
+                        when {
+                            index == 0 && line.isBlank() -> false
+                            index == docLines.lastIndex && line.isBlank() -> false
+                            else -> true
+                        }
+                    }.joinToString("\n") { it.trim().removePrefix("*").trim() }
+                }
+                return "```kotlin\n${interfaceFunction?.text ?: continue}\n```"
+            }
+
+            error("Could not find class: '$path/$classPath'")
+        }
+
+        companion object {
+            const val command = "ktclassref"
+        }
+    }
+
+    data class KotlinFunRef(
+        val path: String,
+        val functionPath: String,
+        val includeDocs: Boolean,
+        val includeSignature: Boolean,
+        override val lineStart: Int,
+        override var lineEnd: Int,
+    ) : MarkdownReference() {
+        override fun generate(api: OpenAPI, typeRegistry: Map<String, ComputedType>): String {
+            val ktFiles = KotlinFileCache.ktFileCache.getBlocking(path) ?: error("Error parsing file at '$path'")
+            for (ktFile in ktFiles) {
+                val topLevelFunction = ktFile.children.find {
+                    val fnName = functionPath.substringAfterLast('.')
+                    val expectedPackageName = functionPath.substringBeforeLast('.')
+                    val packageName = ktFile.packageFqName.asString()
+                    it is KtNamedFunction && it.name == fnName &&
+                        (packageName == expectedPackageName || packageName.endsWith(expectedPackageName))
+                } as KtNamedFunction?
+
+                val components = functionPath.split('.')
+                val interfaceFunction = if (components.size >= 3) {
+                    ktFile.children.mapNotNull {
+                        val fnName = components.lastOrNull() ?: return@mapNotNull null
+                        val interfaceName = components.getOrNull(components.lastIndex - 1) ?: return@mapNotNull null
+                        val expectedPackageName = components.dropLast(2).joinToString(".")
+                        val packageName = ktFile.packageFqName.asString()
+                        if (!(packageName == expectedPackageName || packageName.endsWith(expectedPackageName))) {
+                            return@mapNotNull null
+                        }
+
+                        if (it is KtClass && it.name == interfaceName) {
+                            it.declarations.find { decl ->
+                                decl is KtNamedFunction && decl.name == fnName
+                            } as KtNamedFunction?
+                        } else {
+                            null
+                        }
+                    }.singleOrNull()
+                } else {
+                    null
+                }
+
+                return topLevelFunction?.signatureToString() ?: interfaceFunction?.signatureToString() ?: continue
+            }
+
+            error("Could not find function: '$path/$functionPath'")
+        }
+
+        companion object {
+            const val command = "ktfunref"
+        }
+    }
+
+    object KotlinFileCache {
+        val ktFileCache = SimpleCache<String, List<KtFile>>(SimpleCache.DONT_EXPIRE) { path ->
+            File(path).walkTopDown().mapNotNull {
+                if (it.isFile && it.extension == "kt") {
+                    PsiManager
+                        .getInstance(kotlinCompilerEnvironment.project)
+                        .findFile(LightVirtualFile(it.name, KotlinFileType.INSTANCE, it.readText())) as KtFile
+                } else {
+                    null
+                }
+            }.toList()
+        }
+    }
+
+    fun KtNamedFunction.signatureToString(): String {
+        return buildString {
+            appendLine("```kotlin")
+            appendLine(text.replace(children.find { it is KtExpression }?.text ?: "", ""))
+            appendLine("````")
         }
     }
 }
@@ -146,17 +296,47 @@ private data class MarkdownDocument(
                                     )
                                 }
                             }
+
+                            MarkdownReference.KotlinFunRef.command -> {
+                                val path = command.getOrNull(1)
+                                val fnName = command.getOrNull(2)
+                                if (path == null || fnName == null) {
+                                    error("Incorrect usage: $line\n" +
+                                        "Correct usage <!-- $command:<PATH>:<FN_NAME> -->")
+                                }
+
+                                refInProgress = MarkdownReference.KotlinFunRef(
+                                    path,
+                                    fnName,
+                                    includeDocs = (args["includeDocs"] ?: "true") == "true",
+                                    includeSignature = (args["includeSignature"] ?: "true") == "true",
+                                    lineStart = index,
+                                    lineEnd = -1,
+                                )
+                            }
+
+                            MarkdownReference.KotlinClassRef.command -> {
+                                val path = command.getOrNull(1)
+                                val name = command.getOrNull(2)
+                                if (path == null || name == null) {
+                                    error("Incorrect usage: $line\n" +
+                                        "Correct usage <!-- $command:<PATH>:<NAME> -->")
+                                }
+
+                                refInProgress = MarkdownReference.KotlinClassRef(
+                                    path,
+                                    name,
+                                    documentationOnly = (args["documentationOnly"] ?: "false") == "true",
+                                    lineStart = index,
+                                    lineEnd = -1
+                                )
+                            }
                         }
                     } else {
                         if (refInProgress == null) continue
-                        when (command.firstOrNull()?.removePrefix("/")) {
-                            MarkdownReference.TypeDocRef.command -> {
-                                if (refInProgress is MarkdownReference.TypeDocRef) {
-                                    commands.add(refInProgress.copy(lineEnd = index))
-                                    refInProgress = null
-                                }
-                            }
-                        }
+                        refInProgress.lineEnd = index
+                        commands.add(refInProgress)
+                        refInProgress = null
                     }
                 }
             }

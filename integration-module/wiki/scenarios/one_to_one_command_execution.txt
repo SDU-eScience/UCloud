@@ -1,0 +1,41 @@
+# https://sequencediagram.org/
+
+autoactivation
+actor "UCloud User\nAlice#1234" as User
+
+participantgroup #lightgreen ** UCloud\nNetwork**
+participant "UCloud" as UCloud
+database "UCloud DB" as UCloudDB
+end
+
+participantgroup #lightblue **Provider\nNetwork**
+participantgroup #lightyellow **New components**
+participant "Integration Module" as Provider
+participant "Integration Module\nUID 1100" as U1100
+database "Integration DB" as UserDB
+end
+participantgroup #pink **Existing components**
+participant "                                 HPC                                 " as HPC
+end
+end
+
+
+User->UCloud: Start job
+UCloud->UCloudDB: Is mapping \ncomplete?
+UCloudDB-->UCloud: Yes
+UCloud->Provider: Start job for Alice#1234\nauthenticated with _UCloud\naccessToken
+note right of Provider: UCloud verifies the integration\nmodule using TLS
+Provider->Provider: Verify accessToken\nof _UCloud
+Provider-->Provider: OK
+Provider->UserDB: UID of Alice#1234?
+UserDB-->Provider: Alice#1234 has UID 1100
+Provider->*U1100: Create sandbox for\nUID 1100
+U1100-->Provider: OK
+Provider->U1100: Start job
+U1100->HPC: Start job
+HPC-->U1100: OK
+U1100-->Provider: OK
+Provider-->U1100: terminate sandbox
+destroy U1100
+Provider-->UCloud: OK
+UCloud-->User: OK

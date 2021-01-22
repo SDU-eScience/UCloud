@@ -63,7 +63,8 @@ The `ProviderManifest` contains general metadata about the provider.
 |----------|------|-------------|
 | `features` | `ManifestFeatureSupport?` | Contains information about the features supported by this provider |
 
-The manifest, for example, includes information about which `features` are supported by a provider.
+
+The manifest, for example, includes information about which `features` are supported by a provider. 
 
 
 <!--</editor-fold>-->
@@ -81,6 +82,7 @@ Contains information about the features supported by this provider
 |----------|------|-------------|
 | `compute` | `Compute?` | Determines which compute related features are supported by this provider |
 
+    
 Features are by-default always disabled. There is _no_ minimum set of features a provider needs to support.
 
 
@@ -93,11 +95,11 @@ Features are by-default always disabled. There is _no_ minimum set of features a
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-
 | Property | Type | Description |
 |----------|------|-------------|
 | `docker` | `Docker?` | Support for `Tool`s using the `DOCKER` backend |
 | `virtualMachine` | `VirtualMachine?` | Support for `Tool`s using the `VIRTUAL_MACHINE` backend |
+
 
 <!--</editor-fold>-->
 <!-- /typedoc -->
@@ -108,7 +110,6 @@ Features are by-default always disabled. There is _no_ minimum set of features a
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.Docker:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-
 | Property | Type | Description |
 |----------|------|-------------|
 | `enabled` | `Boolean?` | Flag to enable/disable this feature |
@@ -119,6 +120,7 @@ Features are by-default always disabled. There is _no_ minimum set of features a
 | `terminal` | `Boolean?` | Flag to enable/disable the interactive terminal API |
 | `peers` | `Boolean?` | Flag to enable/disable connection between peering `Job`s |
 
+
 <!--</editor-fold>-->
 <!-- /typedoc -->
 
@@ -128,13 +130,13 @@ Features are by-default always disabled. There is _no_ minimum set of features a
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.VirtualMachine:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-
 | Property | Type | Description |
 |----------|------|-------------|
 | `enabled` | `Boolean?` | Flag to enable/disable this feature |
 | `logs` | `Boolean?` | Flag to enable/disable the log API |
 | `vnc` | `Boolean?` | Flag to enable/disable the VNC API |
 | `terminal` | `Boolean?` | Flag to enable/disable the interactive terminal API |
+
 
 <!--</editor-fold>-->
 <!-- /typedoc -->
@@ -159,7 +161,6 @@ UCloud's [accounting](/backend/accounting-service/README.md) module.
 
 <!-- typedoc:dk.sdu.cloud.accounting.api.Product.Compute:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | `String` | No documentation |
@@ -173,6 +174,7 @@ UCloud's [accounting](/backend/accounting-service/README.md) module.
 | `gpu` | `Int?` | No documentation |
 | `balance` | `Long` | Included only with certain endpoints which support `includeBalance` |
 | `type` | `"compute"` | No documentation |
+
 
 <!--</editor-fold>-->
 <!-- /typedoc -->

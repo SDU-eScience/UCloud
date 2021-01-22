@@ -36,11 +36,20 @@ import kotlin.time.measureTime
 import kotlin.time.minutes
 
 interface JobManagementPlugin {
+    /**
+     * Provides a hook for plugins to modify the [VolcanoJob]
+     */
     suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {}
+
+    /**
+     * Provides a hook for plugins to cleanup after a job has finished
+     *
+     * Note: Plugins should assume that partial cleanup might have taken place already.
+     */
     suspend fun JobManagement.onCleanup(jobId: String) {}
 
     /**
-     * Called when the job starts
+     * Called when the job has been submitted to Kubernetes and has started
      *
      * Note: Unlike [onCreate] the value from [jobFromServer] should not be mutated as updates will not be pushed to
      * the Kubernetes server.
@@ -547,3 +556,16 @@ class JobManagement(
         override val log = logger()
     }
 }
+
+/**
+ * woof
+ *
+ * :fie: Woof
+ *
+ * @param a Blah blah
+ * @param b B param
+ */
+fun fie(
+    a: Int,
+    b: Int? = null
+): Int = 42

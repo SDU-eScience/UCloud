@@ -2,7 +2,7 @@
 
 UCloud has applications. The applications are defined by the app-store. UCloud is, at its core, an orchestrator of
 resources. This means that UCloud sends all the hard work to a provider. UCloud has its own
-provider, [UCloud/compute](/backend/app-kubernetes-service/README.md).
+provider, [UCloud/Compute](/backend/app-kubernetes-service/README.md).
 
 ![](/backend/app-orchestrator-service/wiki/overview.png)
 
@@ -26,7 +26,7 @@ starts with the core abstraction used in UCloud's compute, the `Job`.
 <!--</editor-fold>-->
 <!-- /typedoc:dk.sdu.cloud.app.orchestrator.api.Job -->
 
-__Table:__ The data modal for a `Job`
+__Table:__ The data model for a `Job`
 
 ---
 
