@@ -31,20 +31,3 @@ You can read more about the `docker` implementation [here](./wiki/docker.md).
 ### Virtual Machines
 
 No support.
-
-## Connecting to Kubernetes Cluster
-
-
-## Mapping from UCloud Jobs to K8 Jobs
-
-
-## Transferring Files
-
-
-## Interactive Applications
-
-
-### Supported Protocols
-
-### Security
-
