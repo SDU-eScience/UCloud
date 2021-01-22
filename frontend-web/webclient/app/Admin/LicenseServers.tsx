@@ -286,9 +286,10 @@ const LicenseServers: React.FunctionComponent = () => {
         }
     }
 
+    const [openLicenses, setOpenLicenses] = useState<Set<string>>(new Set());
+
     if (!Client.userIsAdmin) return null;
 
-    const [openLicenses, setOpenLicenses] = useState<Set<string>>(new Set());
 
     return (
         <MainContainer
@@ -348,9 +349,12 @@ const LicenseServers: React.FunctionComponent = () => {
 
                             <Label mb="1em">
                                 Availability
-                                <Select defaultValue={isAvailable ? "Available" : "Unavailable"}>
-                                    <option onClick={() => setAvailable(true)}>Available</option>
-                                    <option onClick={() => setAvailable(false)}>Unavailable</option>
+                                <Select
+                                    onChange={e => setAvailable(e.target.value === "available")}
+                                    defaultValue={isAvailable ? "Available" : "Unavailable"}
+                                >
+                                    <option value={"available"}>Available</option>
+                                    <option value={"unavailable"}>Unavailable</option>
                                 </Select>
                             </Label>
 
@@ -364,9 +368,9 @@ const LicenseServers: React.FunctionComponent = () => {
                             <Label>
                                 Payment Model
                                 <Flex mb="1em">
-                                    <Select defaultValue={paymentModel[0]}>
+                                    <Select onChange={e => setPaymentModel(e.target.value as PaymentModel)} defaultValue={paymentModel[0]}>
                                         {PaymentModelOptions.map(it =>
-                                            <option key={it} onClick={() => setPaymentModel(it)}>{prettierString(it)}</option>
+                                            <option key={it} value={it}>{prettierString(it)}</option>
                                         )}
                                     </Select>
                                 </Flex>
@@ -476,7 +480,6 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
 
     const [loading, invokeCommand] = useCloudCommand();
 
-
     /* NOTE(Jonas): Lots of overlap in both branches, but the whole 'isEditing' for each field is cumbersome to  */
     if (isEditing) {
         return (
@@ -498,9 +501,9 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
                 <>
                     <Label mb="1em">
                         Availability
-                        <Select defaultValue={prettierString(licenseServer.availability.type)}>
-                            <option onClick={() => setIsAvailable(true)}>Available</option>
-                            <option onClick={() => setIsAvailable(false)}>Unavailable</option>
+                        <Select onChange={e => setIsAvailable(e.target.value === "available")} defaultValue={prettierString(licenseServer.availability.type)}>
+                            <option value="available">Available</option>
+                            <option value="unavailable">Unavailable</option>
                         </Select>
                     </Label>
 
@@ -531,9 +534,9 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
 
                     <Box width="42.5%">
                         <Heading.h4>Payment model</Heading.h4>
-                        <Select ml="6px" defaultValue={licenseServer.paymentModel}>
+                        <Select ml="6px" onChange={e => setPaymentModelEdit(e.target.value as PaymentModel)} defaultValue={prettierString(licenseServer.paymentModel)}>
                             {PaymentModelOptions.map(it =>
-                                <option key={it} onClick={() => setPaymentModelEdit(it)}>{prettierString(it)}</option>
+                                <option key={it} value={it}>{prettierString(it)}</option>
                             )}
                         </Select>
                     </Box>
