@@ -175,6 +175,33 @@ subprojects {
         systemProperty("java.io.tmpdir", System.getProperty("java.io.tmpdir"))
     }
 
+    tasks.test {
+        filter {
+            isFailOnNoMatchingTests = false
+            excludeTestsMatching("dk.sdu.cloud.integration.*")
+        }
+    }
+
+    task<Test>("integrationTest") {
+        description = "Runs integration test"
+        group = "verification"
+
+        filter {
+            isFailOnNoMatchingTests = false
+            includeTestsMatching("dk.sdu.cloud.integration.backend.*")
+        }
+    }
+
+    task<Test>("e2eTest") {
+        description = "Runs E2E tests"
+        group = "verification"
+
+        filter {
+            isFailOnNoMatchingTests = false
+            includeTestsMatching("dk.sdu.cloud.integration.backend.e2e.*")
+        }
+    }
+
     val compileKotlin: KotlinCompile by tasks
     compileKotlin.kotlinOptions {
         jvmTarget = "11"
