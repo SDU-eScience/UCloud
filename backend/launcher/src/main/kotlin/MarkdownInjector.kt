@@ -96,6 +96,10 @@ private sealed class MarkdownReference {
                             } |")
                         }
 
+                        if (type.properties.isEmpty()) {
+                            appendLine("| - | - | This struct has no properties |")
+                        }
+
                         appendLine()
                     }
 

@@ -29,9 +29,13 @@ data class ProductCategoryId(
     val provider: String
 )
 
+@UCloudApiDoc("Contains a unique reference to a [Product](/backend/accounting-service/README.md)")
 data class ProductReference(
+    @UCloudApiDoc("The `Product` ID")
     val id: String,
+    @UCloudApiDoc("The ID of the `Product`'s category")
     val category: String,
+    @UCloudApiDoc("The provider of the `Product`")
     val provider: String,
 )
 

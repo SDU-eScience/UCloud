@@ -98,7 +98,7 @@ export function JobSelector({
         return items.map(job => (
             <Flex key={job.id} mb={8}>
                 <Box flexGrow={1}>
-                    {job.parameters.application.name}
+                    {job.specification.application.name}
                     {" "}
                     ({jobTitle(job)})
                     <br />

@@ -6,7 +6,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
         {
             id: "2cc8edc6-0e58-423c-93cd-bd20f241fd87",
             owner: {
-                launchedBy: "user",
+                createdBy: "user",
                 project: undefined
             },
             updates: [
@@ -20,7 +20,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 creditsCharged: 8,
                 pricePerUnit: 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -44,12 +44,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0,
         },
         {
             id: "a4f35d51-40bf-496f-bcd9-5813cb5f91db",
             owner: {
-                launchedBy: "user"
+                createdBy: "user"
             },
             updates: [
                 {
@@ -61,7 +62,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 creditsCharged: 0,
                 pricePerUnit: 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -79,12 +80,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             status: {
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "812cf11a-3a16-4a98-80ce-763613cf560b",
             owner: {
-                launchedBy: "user",
+                createdBy: "user",
                 project: undefined
             },
             updates: [
@@ -98,7 +100,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 creditsCharged: 2,
                 pricePerUnit: 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -115,12 +117,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "FAILURE"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "a2cfcd0a-e24b-443c-bc47-a05fe748530f",
             owner: {
-                launchedBy: "user"
+                createdBy: "user"
             },
             "updates": [
                 {
@@ -132,7 +135,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 0,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -149,12 +152,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "SUCCESS"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "245cd7ba-ec9e-499f-8da0-a6d41c118387",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -166,7 +170,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 1,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -182,12 +186,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             status: {
                 expiresAt: new Date().getTime() + 30_000,
                 state: "IN_QUEUE"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "51ef3ada-6578-4e3f-aff2-c5591dfe5f36",
             "owner": {
-                "launchedBy": "user"
+                "createdBy": "user"
             },
             "updates": [
                 {
@@ -199,7 +204,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 0,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -215,12 +220,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             status: {
                 startedAt: new Date().getTime() - 10_000,
                 state: "IN_QUEUE"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "16f0b2bc-db9b-468e-aadf-d6657cfa2494",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -232,7 +238,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 1,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -249,12 +255,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "CANCELING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "bd562fdb-249a-43b9-909d-96279bf96d7b",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -266,7 +273,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 1,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -283,12 +290,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "11d45177-c2c0-4254-9068-03f8ad2cdfeb",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -300,7 +308,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 11,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -317,12 +325,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "ad88b9f5-6bc9-40b4-b6be-bde7de38708e",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -334,7 +343,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 1,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -351,12 +360,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "12a2717f-dd4c-4d24-a948-fe00cadc51e6",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -368,7 +378,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 1,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -385,12 +395,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "c7dccff3-ebd6-4ce8-95c8-1a85ed8b56d2",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -402,7 +413,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 1,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -419,12 +430,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "2b691748-9ad1-4ed3-bbe3-2f651245a041",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -436,7 +448,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 7,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "1"
@@ -453,12 +465,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "94606ccd-af7f-43ce-b3bf-95e8858f12a1",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -470,7 +483,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 0,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "3"
@@ -487,12 +500,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "aab92994-bed7-43f9-9ef4-cb9a7f60715b",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -504,7 +518,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 0,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "3"
@@ -521,12 +535,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "9ce5332c-c52e-4b0a-b935-c5bd9a73f1d3",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -538,7 +553,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 12,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "2"
@@ -555,12 +570,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "383f7238-9e70-4a8d-90a4-db99967300ab",
             owner: {
-                launchedBy: "user",
+                createdBy: "user",
             },
             updates: [
                 {
@@ -572,7 +588,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 creditsCharged: 1,
                 pricePerUnit: 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "3"
@@ -589,12 +605,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "4f7f4075-1d15-42f0-8e3b-09450b514f9f",
             owner: {
-                launchedBy: "user"
+                createdBy: "user"
             },
             updates: [
                 {
@@ -606,7 +623,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 creditsCharged: 24,
                 pricePerUnit: 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "alpine",
                     version: "3"
@@ -623,12 +640,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "127d2123-9520-4c41-813c-2d808b2746da",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -640,7 +658,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 62,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "coder",
                     version: "1.48.2"
@@ -657,12 +675,13 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         },
         {
             id: "83fb8069-6a0e-4d7b-9910-a9e8c63624a5",
             "owner": {
-                "launchedBy": "user",
+                "createdBy": "user",
             },
             "updates": [
                 {
@@ -674,7 +693,7 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 "creditsCharged": 0,
                 "pricePerUnit": 1
             },
-            parameters: {
+            specification: {
                 application: {
                     name: "coder",
                     version: "1.48.2"
@@ -691,7 +710,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
                 expiresAt: new Date().getTime() + 30_000,
                 startedAt: new Date().getTime() - 10_000,
                 state: "RUNNING"
-            }
+            },
+            createdAt: 0
         }
     ],
     "next": "20-cafbbfef-265d-4995-8bad-e44212541a76"

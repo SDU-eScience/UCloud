@@ -59,7 +59,7 @@ sealed class Payment {
 
         override val pricePerUnit = ingress.billing.pricePerUnit
 
-        override val product = ingress.product
+        override val product = ingress.specification.product
         override val launchedBy: String = ingress.owner.username
         override val project: String? = ingress.owner.project
         override val productArea = ProductArea.INGRESS
@@ -71,7 +71,7 @@ sealed class Payment {
 
         override val pricePerUnit = license.billing.pricePerUnit
 
-        override val product = license.product
+        override val product = license.specification.product
         override val launchedBy: String = license.owner.username
         override val project: String? = license.owner.project
         override val productArea = ProductArea.LICENSE

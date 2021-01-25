@@ -25,7 +25,6 @@ import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/Fil
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {compute, file} from "UCloud";
 import Job = compute.Job;
-import JobParameters = compute.JobParameters;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import JobUpdate = compute.JobUpdate;
@@ -38,6 +37,7 @@ import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import StorageFile = file.StorageFile;
 import {File} from "Files";
+import JobSpecification = compute.JobSpecification;
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -314,7 +314,7 @@ export const View: React.FunctionComponent = () => {
                 <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
                     <div className="logo-scale">
                         <div className={"logo"}>
-                            <AppToolLogo name={job?.parameters?.application?.name ?? appNameHint} type={"APPLICATION"}
+                            <AppToolLogo name={job?.specification?.application?.name ?? appNameHint} type={"APPLICATION"}
                                 size={"200px"} />
                         </div>
                     </div>
@@ -418,15 +418,15 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
         <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
-            {job.parameters.name ?
+            {job.specification.name ?
                 (<>
                     We are about to
-                    launch <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
-                    {" "}for <i>{job.parameters.name}</i> (ID: {shortUUID(job.id)})
+                    launch <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
                     We are about to
-                    launch <i>{job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name} v{job.parameters.application.version}</i>
+                    launch <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
                     {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
@@ -496,7 +496,7 @@ const InfoCardsContainer = styled.div`
 `;
 
 const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job, status}) => {
-    let time = job.parameters.timeAllocation;
+    let time = job.specification.timeAllocation;
     if (status.expiresAt && status.startedAt) {
         const msTime = status.expiresAt - status.startedAt;
         time = {
@@ -529,21 +529,22 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
     }
 
     const projects = useProjectStatus();
-    const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ?? "My Workspace";
+    const workspaceTitle = projects.fetch().membership.find(it => it.projectId === job.owner.project)?.title ??
+        "My Workspace";
 
-    const machine = job.parameters.resolvedProduct;
+    const machine = job.specification.resolvedProduct;
     const pricePerUnit = machine?.pricePerUnit ?? 0;
     const estimatedCost = time ?
-        (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.parameters.replicas :
+        (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.specification.replicas :
         0;
 
     return <InfoCardsContainer>
         <InfoCard
-            stat={job.parameters.replicas.toString()}
-            statTitle={job.parameters.replicas === 1 ? "Replica" : "Replicas"}
+            stat={job.specification.replicas.toString()}
+            statTitle={job.specification.replicas === 1 ? "Replica" : "Replicas"}
             icon={"cpu"}
         >
-            <b>{job.parameters.product.provider} / {job.parameters.product.id}</b><br />
+            <b>{job.specification.product.provider} / {job.specification.product.id}</b><br />
             {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
 
             {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
@@ -561,14 +562,14 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
         </InfoCard>
         <InfoCard
-            stat={Object.keys(jobFiles(job.parameters)).length.toString()}
-            statTitle={Object.keys(jobFiles(job.parameters)).length === 1 ? "Input file" : "Input files"}
+            stat={Object.keys(jobFiles(job.specification)).length.toString()}
+            statTitle={Object.keys(jobFiles(job.specification)).length === 1 ? "Input file" : "Input files"}
             icon={"ftFolder"}
         >
-            {jobInputString(job.parameters, projectNames)}
+            {jobInputString(job.specification, projectNames)}
         </InfoCard>
         <InfoCard stat={workspaceTitle} statTitle={"Project"} icon={"projects"}>
-            <b>Launched by:</b> {job.owner.launchedBy}
+            <b>Launched by:</b> {job.owner.createdBy}
         </InfoCard>
     </InfoCardsContainer>;
 };
@@ -613,13 +614,13 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
         <Heading.h2>
             <i>
-                {job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name}
-                {" "}v{job.parameters.application.version}
+                {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                {" "}v{job.specification.application.version}
             </i> is now running
         </Heading.h2>
         <Heading.h3>
             You can follow the progress below
-            {!job.parameters.name ? null : (<> of <i>{job.parameters.name}</i></>)}
+            {!job.specification.name ? null : (<> of <i>{job.specification.name}</i></>)}
         </Heading.h3>
     </>;
 };
@@ -646,7 +647,7 @@ AltButtonGroup.defaultProps = {
     marginBottom: "8px"
 };
 
-function jobFiles(parameters: JobParameters): Record<string, AppParameterValueNS.File> {
+function jobFiles(parameters: JobSpecification): Record<string, AppParameterValueNS.File> {
     const result: Record<string, AppParameterValueNS.File> = {};
     const userParams = parameters.parameters ?? {};
 
@@ -666,7 +667,7 @@ function jobFiles(parameters: JobParameters): Record<string, AppParameterValueNS
     return result;
 }
 
-function jobInputString(parameters: JobParameters, projects: ProjectName[]): string {
+function jobInputString(parameters: JobSpecification, projects: ProjectName[]): string {
     const allFiles = Object.values(jobFiles(parameters)).map(it => replaceHomeOrProjectFolder(it.path, Client, projects));
 
     if (allFiles.length === 0) return "No files";
@@ -707,11 +708,11 @@ const RunningContent: React.FunctionComponent<{
         <RunningInfoWrapper>
             <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                    {!job.parameters.name ? null : <Box><b>Name:</b> {job.parameters.name}</Box>}
+                    {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
-                    <Box><b>Reservation:</b> {job.parameters.product.provider} / {job.parameters.product.id} (x{job.parameters.replicas})</Box>
-                    <Box><b>Input:</b> {jobInputString(job.parameters, projectNames)}</Box>
-                    <Box><b>Launched by:</b> {job.owner.launchedBy} in {workspaceTitle}</Box>
+                    <Box><b>Reservation:</b> {job.specification.product.provider} / {job.specification.product.id} (x{job.specification.replicas})</Box>
+                    <Box><b>Input:</b> {jobInputString(job.specification, projectNames)}</Box>
+                    <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
                     <Box flexGrow={1} />
                     <Box mt={"16px"}>
                         <CancelButton job={job} state={"RUNNING"} fullWidth />
@@ -751,7 +752,7 @@ const RunningContent: React.FunctionComponent<{
         </RunningInfoWrapper>
 
         <RunningJobsWrapper>
-            {Array(job.parameters.replicas).fill(0).map((_, i) => {
+            {Array(job.specification.replicas).fill(0).map((_, i) => {
                 return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />;
             })}
         </RunningJobsWrapper>
@@ -896,12 +897,12 @@ const RunningJobRank: React.FunctionComponent<{
                             Open terminal
                         </Button>
                     </Link>
-                    {job.parameters.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+                    {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
                         <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
                             <Button>Open interface</Button>
                         </Link>
                     )}
-                    {job.parameters.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+                    {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
                         <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
                             e.preventDefault();
 
@@ -936,15 +937,15 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         <Heading.h2>{PRODUCT_NAME} has processed your job</Heading.h2>
         <Heading.h3>
             <i>
-                {job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name}
-                {" "}v{job.parameters.application.version}
+                {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                {" "}v{job.specification.application.version}
             </i>
             {" "}{state === "SUCCESS" ? "succeeded" : state === "EXPIRED" ? "expired" : "failed"}{" "}
-            {job.parameters.name ? <>for <i>{job.parameters.name}</i></> : null}
+            {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <AltButtonGroup minButtonWidth={"200px"}>
-            <Link to={`/applications/${job.parameters.application.name}/${job.parameters.application.version}`}>
+            <Link to={`/applications/${job.specification.application.name}/${job.specification.application.version}`}>
                 <Button>Restart application</Button>
             </Link>
         </AltButtonGroup>
@@ -966,10 +967,10 @@ const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
     const history = useHistory();
     const files: File[] = [];
 
-    const extractedFiles = jobFiles(job.parameters);
+    const extractedFiles = jobFiles(job.specification);
     for (const paramName of Object.keys(extractedFiles)) {
         const file = extractedFiles[paramName];
-        const allParameters = job.parameters.resolvedApplication?.invocation?.parameters ?? [];
+        const allParameters = job.specification.resolvedApplication?.invocation?.parameters ?? [];
 
         const isFile = allParameters.find(it => it.name === paramName)?.type === "input_file" ?? false;
         files.push(mockFile({path: file.path, type: isFile ? "FILE" : "DIRECTORY"}));

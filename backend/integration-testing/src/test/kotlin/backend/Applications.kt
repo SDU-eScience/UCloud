@@ -139,7 +139,7 @@ class ApplicationTest : IntegrationTest() {
 
         val jobId = Jobs.create.call(
             bulkRequestOf(
-                JobParameters(
+                JobSpecification(
                     SampleApplications.figlet,
                     sampleCompute.reference(),
                     parameters = SampleApplications.figletParams("Hello, World"),
@@ -196,7 +196,7 @@ class ApplicationTest : IntegrationTest() {
 
         val jobId = Jobs.create.call(
             bulkRequestOf(
-                JobParameters(
+                JobSpecification(
                     SampleApplications.longRunning,
                     sampleCompute.reference(),
                     parameters = emptyMap(),
@@ -228,7 +228,7 @@ class ApplicationTest : IntegrationTest() {
 
         val jobId = Jobs.create.call(
             bulkRequestOf(
-                JobParameters(
+                JobSpecification(
                     SampleApplications.figlet,
                     sampleCompute.reference(),
                     parameters = SampleApplications.figletParams("Hello"),
@@ -275,7 +275,7 @@ class ApplicationTest : IntegrationTest() {
 
         val jobId = Jobs.create.call(
             bulkRequestOf(
-                JobParameters(
+                JobSpecification(
                     SampleApplications.figlet,
                     sampleCompute.reference(),
                     parameters = SampleApplications.figletParams("Hello"),
@@ -316,7 +316,7 @@ class ApplicationTest : IntegrationTest() {
         assertThatInstance(
             Jobs.create.call(
                 bulkRequestOf(
-                    JobParameters(
+                    JobSpecification(
                         SampleApplications.figlet,
                         sampleCompute.reference(),
                         parameters = SampleApplications.figletParams("Hello"),
@@ -341,7 +341,7 @@ class ApplicationTest : IntegrationTest() {
         assertThatInstance(
             Jobs.create.call(
                 bulkRequestOf(
-                    JobParameters(
+                    JobSpecification(
                         SampleApplications.figlet,
                         sampleCompute.reference(),
                         parameters = SampleApplications.figletParams("Hello"),

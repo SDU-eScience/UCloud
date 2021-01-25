@@ -11,6 +11,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.throwError
+import dk.sdu.cloud.provider.api.AclEntity
+import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
@@ -30,13 +32,13 @@ class LicenseService(
     init {
         orchestrator.addListener(object : JobListener {
             override suspend fun onVerified(ctx: DBContext, job: Job) {
-                val licenses = job.parameters.parameters?.values?.filterIsInstance<AppParameterValue.License>()
+                val licenses = job.specification.parameters?.values?.filterIsInstance<AppParameterValue.License>()
                     ?: emptyList()
                 if (licenses.isEmpty()) return
 
-                val computeProvider = job.parameters.product.provider
+                val computeProvider = job.specification.product.provider
                 val jobProject = job.owner.project
-                val jobLauncher = job.owner.launchedBy
+                val jobLauncher = job.owner.createdBy
 
                 ctx.withSession { session ->
                     licenses.forEach { license ->
@@ -51,14 +53,15 @@ class LicenseService(
                             throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
                         }
 
-                        if (jobProject == null && jobLauncher != retrievedLicense.owner.username) {
+                        if (jobProject == null && jobLauncher != retrievedLicense.owner.createdBy) {
                             throw RPCException("Invalid license: ${license.id}", HttpStatusCode.BadRequest)
                         }
 
-                        if (retrievedLicense.product.provider != computeProvider) {
+                        if (retrievedLicense.specification.product.provider != computeProvider) {
                             throw RPCException(
                                 "Cannot use license provided by " +
-                                    "${retrievedLicense.product.provider} in job provided by $computeProvider",
+                                    "${retrievedLicense.specification.product.provider} in job provided by " +
+                                    computeProvider,
                                 HttpStatusCode.BadRequest
                             )
                         }
@@ -71,8 +74,8 @@ class LicenseService(
                             val groups = projectStatus.userStatus?.groups ?: emptyList()
                             val hasAccess = retrievedLicense.acl!!.any { entry ->
                                 val entity = entry.entity
-                                if (!entry.permissions.any { it == LicenseAclEntry.Permission.USE }) return@any false
-                                if (entity !is LicenseAclEntry.Entity.ProjectGroup) return@any false
+                                if (!entry.permissions.any { it == LicensePermission.USE }) return@any false
+                                if (entity !is AclEntity.ProjectGroup) return@any false
 
                                 groups.any { it.group == entity.group && it.project == entity.projectId }
                             }
@@ -88,7 +91,7 @@ class LicenseService(
 
                         if (retrievedLicense.status.state != LicenseState.READY) {
                             throw RPCException(
-                                "Ingress ${retrievedLicense.product.id} is not ready",
+                                "Ingress ${retrievedLicense.specification.product.id} is not ready",
                                 HttpStatusCode.BadRequest
                             )
                         }
@@ -130,7 +133,7 @@ class LicenseService(
 
         val (username, project) = result.owner
         if (actor is Actor.User && actor.principal.role == Role.PROVIDER) {
-            providers.verifyProvider(result.product.provider, actor)
+            providers.verifyProvider(result.specification.product.provider, actor)
         } else {
             if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
                 throw RPCException(notFoundMessage, HttpStatusCode.NotFound)
@@ -146,7 +149,7 @@ class LicenseService(
 
     private suspend fun checkWritePermission(
         actor: Actor,
-        license: License
+        license: License,
     ) {
         if (actor != Actor.System) {
             val project = license.owner.project
@@ -164,12 +167,12 @@ class LicenseService(
 
     suspend fun delete(
         actor: Actor,
-        deletionRequest: BulkRequest<LicenseId>
+        deletionRequest: BulkRequest<LicenseId>,
     ) {
         db.withSession { session ->
             val ids = deletionRequest.items.map { it.id }
             val deletedItems = dao.delete(session, ids)
-            val byProvider = deletedItems.groupBy { it.product.provider }
+            val byProvider = deletedItems.groupBy { it.specification.product.provider }
 
             // Verify that the items were found
             if (ids.toSet().size != deletedItems.size) {
@@ -196,7 +199,7 @@ class LicenseService(
     suspend fun create(
         actor: Actor,
         project: String?,
-        request: BulkRequest<LicenseCreateRequestItem>
+        request: BulkRequest<LicenseCreateRequestItem>,
     ): List<String> {
         if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
             throw RPCException("You are not a member of the supplied project", HttpStatusCode.Forbidden)
@@ -223,7 +226,9 @@ class LicenseService(
                     val id = UUID.randomUUID().toString()
                     val ingress = License(
                         id,
-                        spec.product,
+                        LicenseSpecification(
+                            spec.product,
+                        ),
                         LicenseOwner(actor.safeUsername(), project),
                         Time.now(),
                         LicenseStatus(LicenseState.PREPARING),
@@ -248,7 +253,7 @@ class LicenseService(
 
     suspend fun updateAcl(
         actor: Actor,
-        request: BulkRequest<LicensesUpdateAclRequestItem>
+        request: BulkRequest<LicensesUpdateAclRequestItem>,
     ) {
         db.withSession { session ->
             request.items.forEach { update ->
@@ -260,7 +265,7 @@ class LicenseService(
 
     suspend fun update(
         actor: Actor,
-        request: LicenseControlUpdateRequest
+        request: LicenseControlUpdateRequest,
     ) {
         db.withSession { session ->
             val now = Time.now()
@@ -268,7 +273,7 @@ class LicenseService(
                 val ingress = dao.retrieve(session, LicenseId(id), LicenseDataIncludeFlags())
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-                providers.verifyProvider(ingress.product.provider, actor)
+                providers.verifyProvider(ingress.specification.product.provider, actor)
 
                 requests.forEach { request ->
                     dao.insertUpdate(
@@ -287,7 +292,7 @@ class LicenseService(
 
     suspend fun charge(
         actor: Actor,
-        request: LicenseControlChargeCreditsRequest
+        request: LicenseControlChargeCreditsRequest,
     ): LicenseControlChargeCreditsResponse {
         val insufficient = ArrayList<LicenseId>()
         val duplicates = ArrayList<LicenseId>()
@@ -297,7 +302,7 @@ class LicenseService(
                 val license = dao.retrieve(session, LicenseId(id), LicenseDataIncludeFlags())
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-                providers.verifyProvider(license.product.provider, actor)
+                providers.verifyProvider(license.specification.product.provider, actor)
 
                 requests.forEach { request ->
                     val chargeResult = paymentService.charge(

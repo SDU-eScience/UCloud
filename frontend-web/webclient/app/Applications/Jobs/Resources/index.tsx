@@ -50,8 +50,8 @@ export function createSpaceForLoadedResources(
     resources: ResourceHook,
     values: AppParameterValue[],
     type: string,
-    jobBeingLoaded: React.MutableRefObject<Partial<compute.JobParameters> | null>,
-    importedJob: Partial<compute.JobParameters>
+    jobBeingLoaded: React.MutableRefObject<Partial<compute.JobSpecification> | null>,
+    importedJob: Partial<compute.JobSpecification>
 ): boolean {
     const resourceFolders = values.filter(it => it.type === type);
     if (resources.params.length !== resourceFolders.length) {
