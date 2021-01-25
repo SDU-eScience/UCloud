@@ -27,9 +27,9 @@ import {ImportParameters} from "Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {FavoriteToggle} from "Applications/FavoriteToggle";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import JobParameters = compute.JobParameters;
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import JobSpecification = compute.JobSpecification;
 
 interface InsufficientFunds {
     why?: string;
@@ -61,7 +61,7 @@ export const Create: React.FunctionComponent = () => {
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
     const [importDialogOpen, setImportDialogOpen] = useState(false);
-    const jobBeingLoaded = useRef<Partial<JobParameters> | null>(null);
+    const jobBeingLoaded = useRef<Partial<JobSpecification> | null>(null);
 
     useEffect(() => {
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
@@ -70,7 +70,7 @@ export const Create: React.FunctionComponent = () => {
     const application = applicationResp.data;
     const history = useHistory();
 
-    const onLoadParameters = useCallback((importedJob: Partial<JobParameters>) => {
+    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
         jobBeingLoaded.current = null;
         const parameters = application.invocation.parameters;
@@ -149,7 +149,7 @@ export const Create: React.FunctionComponent = () => {
             Object.keys(foldersValidation.errors).length === 0 &&
             Object.keys(peersValidation.errors).length === 0
         ) {
-            const request: UCloud.compute.JobParameters = {
+            const request: UCloud.compute.JobSpecification = {
                 ...reservationValidation.options,
                 application: application?.metadata,
                 parameters: values,

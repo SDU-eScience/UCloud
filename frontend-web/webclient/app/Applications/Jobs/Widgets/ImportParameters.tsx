@@ -20,14 +20,14 @@ import {callAPI, useCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {compute} from "UCloud";
-import JobParameters = compute.JobParameters;
+import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
 import styled from "styled-components";
 import {TextP} from "ui-components/Text";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
-    onImport: (parameters: Partial<UCloud.compute.JobParameters>) => void;
+    onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
     importDialogOpen: boolean;
     onImportDialogClose: () => void;
 }> = ({application, onImport, importDialogOpen, onImportDialogClose}) => {
@@ -197,7 +197,7 @@ type ImportMessage =
     { type: "error", message: string };
 
 interface ImportResult {
-    output?: Partial<JobParameters>;
+    output?: Partial<JobSpecification>;
     messages: ImportMessage[];
 }
 
@@ -205,7 +205,7 @@ interface ImportResult {
 async function importVersion1(application: UCloud.compute.Application, json: any): Promise<ImportResult> {
     if (typeof json !== "object") return {messages: [{type: "error", message: "Invalid job parameters file"}]};
 
-    const output: Partial<JobParameters> = {};
+    const output: Partial<JobSpecification> = {};
     const messages: ImportMessage[] = [];
 
     const {parameters, numberOfNodes, mountedFolders, maxTime, machineType, jobName} = json;

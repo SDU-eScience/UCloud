@@ -111,7 +111,9 @@ export const Browse: React.FunctionComponent = () => {
                         <ListRow
                             key={job.id}
                             navigate={() => history.push(`/applications/jobs/${job.id}`)}
-                            icon={<AppToolLogo size="36px" type="APPLICATION" name={job.parameters.application.name}/>}
+                            icon={
+                                <AppToolLogo size="36px" type="APPLICATION" name={job.specification.application.name}/>
+                            }
                             isSelected={toggleSet.checked.has(job)}
                             select={() => toggleSet.toggle(job)}
                             left={<Text cursor="pointer">{jobTitle(job)}</Text>}
