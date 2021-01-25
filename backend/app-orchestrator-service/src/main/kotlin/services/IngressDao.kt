@@ -40,18 +40,18 @@ class IngressDao(
 ) {
     suspend fun create(
         ctx: DBContext,
-        ingress: Ingress
+        ingress: Ingress,
     ) {
         ctx.withSession { session ->
             session.insert(IngressTable) {
                 set(IngressTable.id, ingress.id)
-                set(IngressTable.domain, ingress.domain)
-                set(IngressTable.productId, ingress.product.id)
-                set(IngressTable.productCategory, ingress.product.category)
-                set(IngressTable.productProvider, ingress.product.provider)
+                set(IngressTable.domain, ingress.specification.domain)
+                set(IngressTable.productId, ingress.specification.product.id)
+                set(IngressTable.productCategory, ingress.specification.product.category)
+                set(IngressTable.productProvider, ingress.specification.product.provider)
                 set(IngressTable.productPricePerUnit, ingress.billing.pricePerUnit)
                 set(IngressTable.creditsCharged, ingress.billing.creditsCharged)
-                set(IngressTable.ownerUsername, ingress.owner.username)
+                set(IngressTable.ownerUsername, ingress.owner.createdBy)
                 set(IngressTable.ownerProject, ingress.owner.project)
                 set(IngressTable.currentState, ingress.status.state.name)
                 set(IngressTable.statusBoundTo, ingress.status.boundTo)
@@ -74,7 +74,7 @@ class IngressDao(
     suspend fun insertUpdate(
         ctx: DBContext,
         id: IngressId,
-        update: IngressUpdate
+        update: IngressUpdate,
     ) {
         ctx.withSession { session ->
             session.insert(IngressUpdatesTable) {
@@ -90,7 +90,7 @@ class IngressDao(
     suspend fun chargeCredits(
         ctx: DBContext,
         id: IngressId,
-        creditsCharged: Long
+        creditsCharged: Long,
     ) {
         ctx.withSession { session ->
             val success = session
@@ -113,7 +113,7 @@ class IngressDao(
 
     suspend fun delete(
         ctx: DBContext,
-        ids: List<String>
+        ids: List<String>,
     ): List<Ingress> {
         return ctx.withSession { session ->
             val params: EnhancedPreparedStatement.() -> Unit = {
@@ -137,7 +137,7 @@ class IngressDao(
     suspend fun retrieve(
         ctx: DBContext,
         id: IngressId,
-        flags: IngressDataIncludeFlags
+        flags: IngressDataIncludeFlags,
     ): Ingress? {
         return ctx.withSession { session ->
             session
@@ -201,7 +201,7 @@ class IngressDao(
     private suspend fun mapRows(
         session: AsyncDBConnection,
         rows: ResultSet,
-        flags: IngressDataIncludeFlags
+        flags: IngressDataIncludeFlags,
     ): List<Ingress> {
         val ids = rows
             .map { it.getField(IngressTable.id) }
@@ -211,11 +211,13 @@ class IngressDao(
         var ingresses = rows.map {
             Ingress(
                 it.getField(IngressTable.id),
-                it.getField(IngressTable.domain),
-                ProductReference(
-                    it.getField(IngressTable.productId),
-                    it.getField(IngressTable.productCategory),
-                    it.getField(IngressTable.productProvider),
+                IngressSpecification(
+                    it.getField(IngressTable.domain),
+                    ProductReference(
+                        it.getField(IngressTable.productId),
+                        it.getField(IngressTable.productCategory),
+                        it.getField(IngressTable.productProvider),
+                    )
                 ),
                 IngressOwner(it.getField(IngressTable.ownerUsername), it.getField(IngressTable.ownerProject)),
                 it.getField(IngressTable.createdAt).toDateTime().millis,
@@ -264,7 +266,13 @@ class IngressDao(
 
         if (flags.includeProduct == true) {
             ingresses = ingresses.map {
-                it.copy(resolvedProduct = products.find(it.product.provider, it.product.id, it.product.category))
+                it.copy(
+                    resolvedProduct = products.find(
+                        it.specification.product.provider,
+                        it.specification.product.id,
+                        it.specification.product.category
+                    )
+                )
             }
         }
 

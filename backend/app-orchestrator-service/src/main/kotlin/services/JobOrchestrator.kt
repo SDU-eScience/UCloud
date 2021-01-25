@@ -85,7 +85,7 @@ class JobOrchestrator(
     }
 
     suspend fun startJob(
-        req: BulkRequest<JobParameters>,
+        req: BulkRequest<JobSpecification>,
         accessToken: String,
         principal: Actor,
         project: String?,

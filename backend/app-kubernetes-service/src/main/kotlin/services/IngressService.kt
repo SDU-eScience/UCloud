@@ -32,14 +32,15 @@ class IngressService(
         try {
             db.withSession { session ->
                 for (ingress in ingresses.items) {
-                    val isValid = ingress.domain.startsWith(settings.domainPrefix) &&
-                        ingress.domain.endsWith(settings.domainSuffix)
+                    val isValid = ingress.specification.domain.startsWith(settings.domainPrefix) &&
+                        ingress.specification.domain.endsWith(settings.domainSuffix)
 
                     if (!isValid) {
                         throw RPCException("Received invalid request from UCloud", HttpStatusCode.BadRequest)
                     }
 
-                    val id = ingress.domain.removePrefix(settings.domainPrefix).removeSuffix(settings.domainSuffix)
+                    val id = ingress.specification.domain
+                        .removePrefix(settings.domainPrefix).removeSuffix(settings.domainSuffix)
                     if (id.length < 5) {
                         throw RPCException(
                             "Ingress domain must be at least 5 characters long",
@@ -65,7 +66,7 @@ class IngressService(
 
                     session.insert(IngressTable) {
                         set(IngressTable.id, ingress.id)
-                        set(IngressTable.domain, ingress.domain)
+                        set(IngressTable.domain, ingress.specification.domain)
                     }
                 }
             }

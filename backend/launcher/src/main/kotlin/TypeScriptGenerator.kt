@@ -323,6 +323,7 @@ private fun Appendable.buildType(
                                 append(", ")
                             }
                             append(id)
+                            append(" = unknown")
                         }
                         if (alreadyAdded.isNotEmpty()) {
                             append(">")

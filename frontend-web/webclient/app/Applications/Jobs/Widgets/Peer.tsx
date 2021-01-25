@@ -112,8 +112,8 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         <ControlledJobSelector
             hasSelectedJob={selectedPeer != null}
             suggestedApplication={suggestedApplication ? {
-                name: suggestedApplication.parameters.application.name,
-                version: suggestedApplication.parameters.application.version
+                name: suggestedApplication.specification.application.name,
+                version: suggestedApplication.specification.application.version
             } : undefined}
             allowAutoConfigure={allowAutoConfigure}
             onSelect={job => {

@@ -1,16 +1,15 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobParameters
+import dk.sdu.cloud.app.orchestrator.api.JobSpecification
 import dk.sdu.cloud.service.Loggable
 
 data class ExportedParameters(
     val siteVersion: Int,
-    val request: JobParameters,
+    val request: JobSpecification,
 )
 
 class ParameterExportService {
-    fun exportParameters(parameters: JobParameters): ExportedParameters {
+    fun exportParameters(parameters: JobSpecification): ExportedParameters {
         return ExportedParameters(VERSION, parameters)
     }
 
