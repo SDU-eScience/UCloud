@@ -28,6 +28,12 @@ object LicenseServerTable : SQLTable("license_servers") {
     val port = int("port")
     val license = text("license")
     val tags = jsonb("tags")
+    val category = jsonb("category")
+    val pricePerUnit = long("price_per_unit")
+    val description = text("description")
+    val availability = text("product_availability")
+    val priority = int("priority")
+    val paymentModel = text("payment_model")
 }
 
 object LicenseInstancesTable : SQLTable("license_instances") {
@@ -48,6 +54,14 @@ class LicenseService(
                     set(LicenseServerTable.port, license.port)
                     set(LicenseServerTable.license, license.license)
                     set(LicenseServerTable.tags, defaultMapper.writeValueAsString(license.tags))
+                    set(LicenseServerTable.priority, license.priority)
+                    set(LicenseServerTable.availability, when (val availability = license.availability) {
+                        is ProductAvailability.Available -> null
+                        is ProductAvailability.Unavailable -> availability.reason
+                    })
+                    set(LicenseServerTable.pricePerUnit, license.pricePerUnit)
+                    set(LicenseServerTable.description, license.description)
+                    set(LicenseServerTable.paymentModel, license.paymentModel.name)
                 }
 
                 val resp = Products.createProduct.call(
@@ -97,6 +111,15 @@ class LicenseService(
                         setParameter("license", newLicense.license)
                         setParameter("port", newLicense.port)
                         setParameter("tags", defaultMapper.writeValueAsString(newLicense.tags))
+
+                        setParameter("priority", newLicense.priority)
+                        setParameter("product_availability", when (val availability = newLicense.availability) {
+                            is ProductAvailability.Available -> null
+                            is ProductAvailability.Unavailable -> availability.reason
+                        })
+                        setParameter("price_per_unit", newLicense.pricePerUnit)
+                        setParameter("description", newLicense.description)
+                        setParameter("payment_model", newLicense.paymentModel.name)
                     },
                     """
                         update app_kubernetes.license_servers
@@ -104,7 +127,12 @@ class LicenseService(
                             address = :address,
                             license = :license::text,
                             port = :port,
-                            tags = :tags
+                            tags = :tags,
+                            priority = :priority,
+                            product_availability = :product_availability,
+                            price_per_unit = :price_per_unit,
+                            description = :description,
+                            payment_model = :payment_model
                         where
                             id = :id
                     """
@@ -123,13 +151,13 @@ class LicenseService(
     private fun KubernetesLicense.toProduct(): Product.License {
         return Product.License(
             id,
-            1_000_000,
+            pricePerUnit,
             ProductCategoryId(id, UCLOUD_PROVIDER),
             description = "Software license",
             tags = tags,
             availability = availability,
             paymentModel = paymentModel,
-            priority = priority
+            priority = priority,
         )
     }
 
@@ -143,8 +171,15 @@ class LicenseService(
                 it.getField(LicenseServerTable.port),
                 defaultMapper.readValue(it.getField(LicenseServerTable.tags)),
                 it.getFieldNullable(LicenseServerTable.license),
-                TODO(),
-                TODO()
+                ProductCategoryId(it.getField(LicenseServerTable.id), UCLOUD_PROVIDER),
+                it.getField(LicenseServerTable.pricePerUnit),
+                it.getField(LicenseServerTable.description),
+                when (val reason = it.getFieldNullable(LicenseServerTable.availability)) {
+                    null -> ProductAvailability.Available()
+                    else -> ProductAvailability.Unavailable(reason)
+                },
+                it.getField(LicenseServerTable.priority),
+                PaymentModel.valueOf(it.getField(LicenseServerTable.paymentModel))
             )
         }
     }
