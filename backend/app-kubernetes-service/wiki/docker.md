@@ -11,7 +11,6 @@ various other tasks, such as accounting and additional job validation.
 
 <!-- ktclassref:app-kubernetes-service:services.JobManagementPlugin -->
 <!--<editor-fold desc="Generated documentation">-->
-
 ```kotlin
 interface JobManagementPlugin {
     /**
@@ -51,7 +50,6 @@ interface JobManagementPlugin {
     suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {}
 }
 ```
-
 <!--</editor-fold>-->
 <!-- /ktclassref -->
 
@@ -85,10 +83,10 @@ No documentation
 
 <!-- ktclassref:app-kubernetes-service:services.FairSharePlugin:documentationOnly=true -->
 <!--<editor-fold desc="Generated documentation">-->
-Volcano uses namespaces to control fair-share (used to differentiate between different users). We will use a namespace
-for every type of application owner. That is, if the owner is a user we will create a namespace for them. If the
-application has a project attached to it we will use a namespace dedicated to the project. Namespace creation is done,
-as needed, by the [FairSharePlugin].
+Volcano uses namespaces to control fair-share (used to differentiate between different users). We
+will use a namespace for every type of application owner. That is, if the owner is a user we will create a
+namespace for them. If the application has a project attached to it we will use a namespace dedicated to
+the project. Namespace creation is done, as needed, by the [FairSharePlugin].
 <!--</editor-fold>-->
 <!-- /ktclassref -->
 
@@ -127,7 +125,6 @@ These tasks have the following in common:
 - They can be implemented in only a few lines of code
 - No other code depends on them
 - They can all be run near the end of the plugin pipeline
-
 <!--</editor-fold>-->
 <!-- /ktclassref -->
 
@@ -137,19 +134,18 @@ These tasks have the following in common:
 <!--<editor-fold desc="Generated documentation">-->
 A plugin which adds information about other 'nodes' in the job
 
-A 'node' in this case has a rather loose definition since there is no guarantee that the individual jobs will be placed
-on a physically different node. This all depends on the Volcano scheduler.
+A 'node' in this case has a rather loose definition since there is no guarantee that the individual jobs will be
+placed on a physically different node. This all depends on the Volcano scheduler.
 
 The following information will be added to the `/etc/ucloud` folder:
 
 - `rank.txt`: A file containing a single line with a 0-indexed rank within the job
-- `number_of_nodes.txt`: A file containing a single line with a number indicating how many nodes are participating in
-  this job.
-- `nodes.txt`: A file containing a single line of text for every node. Each line will contain a routable hostname or IP
-  address.
-- `node-$rank.txt`: A file containing a single line of text for the $rank'th node. Format will be identical to the one
-  used in `nodes.txt.
-
+- `number_of_nodes.txt`: A file containing a single line with a number indicating how many nodes are participating
+in this job.
+- `nodes.txt`: A file containing a single line of text for every node. Each line will contain a routable
+hostname or IP address.
+- `node-$rank.txt`: A file containing a single line of text for the $rank'th node. Format will be identical to the
+one used in `nodes.txt.
 <!--</editor-fold>-->
 <!-- /ktclassref -->
 
@@ -165,14 +161,13 @@ No documentation
 
 <!-- ktclassref:app-kubernetes-service:services.ParameterPlugin:documentationOnly=true -->
 <!--<editor-fold desc="Generated documentation">-->
-A plugin which takes information from [ApplicationInvocationDescription.parameters] and makes the information available
-to the user-container
+A plugin which takes information from [ApplicationInvocationDescription.parameters] and makes the information
+available to the user-container
 
 Concretely this means that the following changes will be made:
 
 - The container will receive a new command
 - Environment variables will be initialized with values from the user
-
 <!--</editor-fold>-->
 <!-- /ktclassref -->
 
@@ -180,8 +175,8 @@ Concretely this means that the following changes will be made:
 
 <!-- ktclassref:app-kubernetes-service:services.ProxyPlugin:documentationOnly=true -->
 <!--<editor-fold desc="Generated documentation">-->
-A plugin which sends [ProxyEvents.events] to notify this and other instances of app-kubernetes to configure the proxy
-server
+A plugin which sends [ProxyEvents.events] to notify this and other instances of app-kubernetes to configure the
+proxy server
 <!--</editor-fold>-->
 <!-- /ktclassref -->
 
@@ -191,8 +186,8 @@ server
 <!--<editor-fold desc="Generated documentation">-->
 A plugin which adds a /dev/shm
 
-The size of the shared memory device is set to be limited by the RAM allocated to the job itself. If the job has no RAM
-reservation attached it will default to 1GB of RAM.
+The size of the shared memory device is set to be limited by the RAM allocated to the job itself. If the job has
+no RAM reservation attached it will default to 1GB of RAM.
 <!--</editor-fold>-->
 <!-- /ktclassref -->
 
@@ -202,8 +197,8 @@ reservation attached it will default to 1GB of RAM.
 <!--<editor-fold desc="Generated documentation">-->
 A plugin which initializes the Volcano task
 
-This will create a single task that will start the user's container in the appropriate amount of copies with the correct
-resource (CPU/RAM/GPU) allocation.
+This will create a single task that will start the user's container in the appropriate amount of copies with the
+correct resource (CPU/RAM/GPU) allocation.
 
 Most other plugins depend on this plugin having run.
 <!--</editor-fold>-->

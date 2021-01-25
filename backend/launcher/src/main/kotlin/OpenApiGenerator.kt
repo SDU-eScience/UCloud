@@ -35,10 +35,8 @@ import java.io.File
 import java.lang.reflect.*
 import java.math.BigDecimal
 import java.math.BigInteger
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.hasAnnotation
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.KClass
+import kotlin.reflect.full.*
 import kotlin.reflect.javaType
 import kotlin.reflect.jvm.javaField
 import kotlin.system.exitProcess
@@ -772,7 +770,8 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                 val kotlinType = type.kotlin
 
                 struct.tsDef = kotlinType.findAnnotation<TSDefinition>()
-                val apiDoc = kotlinType.findAnnotation<UCloudApiDoc>()
+                val apiDoc = (listOf(kotlinType) + kotlinType.supertypes.mapNotNull { it.classifier as? KClass<*> })
+                    .mapNotNull { it.findAnnotation<UCloudApiDoc>() }.firstOrNull()
                 if (apiDoc != null) {
                     struct.documentation = apiDoc.documentation
                 }
@@ -783,8 +782,16 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                     val classProp = kotlinType.memberProperties.find { it.name == prop.name }
                     val javaFieldAnnotations = (classProp?.javaField?.annotations?.toList() ?: emptyList())
                     val getterAnnotations = classProp?.getter?.annotations ?: emptyList()
+                    val parentProp = kotlinType.superclasses
+                        .mapNotNull { it.memberProperties.find { it.name == prop.name } }
+                        .firstOrNull()
+
+                    val parentPropAnnotations = parentProp?.annotations ?: emptyList()
+                    val parentJavaAnnotations = parentProp?.javaField?.annotations?.toList() ?: emptyList()
+                    val parentGetterAnnotations = parentProp?.getter?.annotations ?: emptyList()
                     val annotations: Set<Annotation> =
-                        (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
+                        (prop.annotations + javaFieldAnnotations + getterAnnotations +
+                            parentPropAnnotations+ parentJavaAnnotations + parentGetterAnnotations).toSet()
                     if (annotations.any { it is JsonIgnore }) return@forEach
 
                     val propType = traverseType(prop.type.javaType, visitedTypes).asRef()

@@ -315,3 +315,7 @@ As a provider, you must take the following steps to verify the authenticity of a
 It is absolutely critical that JWT verification is configured correctly. For example, some JWT verifiers are known for
 having too relaxed defaults, which in the worst case will skip all verification. It is important that the verifier is
 configured to _only_ accept the parameters mentioned above.
+
+## Recommended Reading
+
+- [Introduction to the Provider API](./provider_api.md)

@@ -25,6 +25,7 @@ import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.ProjectService
 import dk.sdu.cloud.project.repository.ProjectRepositoryService
+import dk.sdu.cloud.provider.ProviderService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.share.ShareService
@@ -64,7 +65,8 @@ val services = setOf(
     ShareService,
     StorageService,
     SupportService,
-    TaskService
+    TaskService,
+    ProviderService
 )
 
 suspend fun main(args: Array<String>) {
