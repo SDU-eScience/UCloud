@@ -16,7 +16,7 @@ import * as Actions from "Applications/Redux/BrowseActions";
 import {Tag} from "Applications/Card";
 import {useCloudCommand, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
-import {emptyPage} from "DefaultObjects";
+import {emptyPage, emptyPageV2} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {loadingAction, LoadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -44,8 +44,9 @@ import {ListRow} from "ui-components/List";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {PredicatedLoadingSpinner} from "LoadingIcon/LoadingIcon";
-import {groupSummaryRequest} from "Project";
+import {groupSummaryRequest, Project} from "Project";
 import {GroupWithSummary} from "Project/GroupList";
+import {PageV2} from "UCloud";
 
 interface AppOperations {
     onInit: () => void;
@@ -589,7 +590,7 @@ interface ListSelectorProps {
     onSelect(key: string, name: string): void;
 }
 
-function fetchProjectsRequest(request: {path: string}): APICallParameters {
+function fetchProjectsRequest(request: {path: string, includeFullPath: boolean}): APICallParameters {
     return {
         path: buildQueryString("projects/search", request),
         method: "GET"
@@ -598,7 +599,7 @@ function fetchProjectsRequest(request: {path: string}): APICallParameters {
 
 function ListSelector({type, onSelect, selectedProject}: ListSelectorProps): JSX.Element {
     const [groups, fetchGroups] = useCloudAPI<Page<GroupWithSummary>>({noop: true}, emptyPage);
-    const [projects, fetchProjects] = useCloudAPI<{paths: Record<string, string>}>({noop: true}, {paths: {}});
+    const [projects, fetchProjects] = useCloudAPI<PageV2<Project>>({noop: true}, emptyPageV2);
     const ref = React.useRef<number>();
     const searchRef = React.useRef<HTMLInputElement>(null);
 
@@ -612,7 +613,7 @@ function ListSelector({type, onSelect, selectedProject}: ListSelectorProps): JSX
         }
         ref.current = (window.setTimeout(() => {
             if (type === "PROJECT") {
-                fetchProjects(fetchProjectsRequest({path: searchRef.current!.value}));
+                fetchProjects(fetchProjectsRequest({path: searchRef.current!.value, includeFullPath: true}));
             }
         }, 500));
 
@@ -620,8 +621,10 @@ function ListSelector({type, onSelect, selectedProject}: ListSelectorProps): JSX
 
     const mappedGroups: Record<string, string> = {};
     groups.data.items.forEach(g => mappedGroups[g.groupId] = g.groupTitle);
+    const mappedProjectPaths: Record<string, string> = {};
+    projects.data.items.forEach(p => mappedProjectPaths[p.id] = p.fullPath!!)
 
-    const content = type === "GROUP" ? mappedGroups : projects.data.paths;
+    const content = type === "GROUP" ? mappedGroups : mappedProjectPaths;
 
     return (
         <Box>

@@ -24,6 +24,7 @@ import {
 } from "Project";
 import {GroupWithSummary} from "Project/GroupList";
 import {Product} from "Accounting";
+import {PageV2} from "UCloud";
 
 export enum KeyCode {
     ENTER = 13,
@@ -32,6 +33,9 @@ export enum KeyCode {
 
 export const emptyPage: Readonly<Page<any>> =
     {items: [], itemsInTotal: 0, itemsPerPage: 25, pageNumber: 0, pagesInTotal: 0};
+
+export const  emptyPageV2: Readonly<PageV2<any>> =
+    {items: [], itemsPerPage: 25};
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -223,7 +227,7 @@ export function initObject(): ReduxObject {
     };
 }
 
-export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
+export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({

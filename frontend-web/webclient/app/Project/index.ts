@@ -218,6 +218,7 @@ export interface Project {
     title: string;
     parent?: string;
     archived: boolean;
+    fullPath?: string;
 }
 
 export interface ProjectGroup {
