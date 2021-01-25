@@ -17,10 +17,12 @@ starts with the core abstraction used in UCloud's compute, the `Job`.
 | `id` | `String` | Unique identifier for this job. |
 | `owner` | `JobOwner` | A reference to the owner of this job |
 | `updates` | `Array<JobUpdate>` | A list of status updates from the compute backend. |
-| `billing` | `JobBilling` | No documentation |
-| `parameters` | `JobParameters` | The parameters used to launch this job. |
+| `billing` | `JobBilling` | Contains information related to billing information for this `Resource` |
+| `specification` | `JobSpecification` | The specification used to launch this job. |
 | `status` | `JobStatus` | A summary of the `Job`'s current status |
+| `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
 | `output` | `JobOutput?` | Information regarding the output of this job. |
+| `acl` | `Array<ResourceAclEntry>?` | An ACL for this `Resource` |
 
 
 <!--</editor-fold>-->
@@ -45,7 +47,7 @@ much bigger and more machines. In a simplified view, a `Job` describes the follo
   includes a reference to the _provider_
 - The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
 
-A `Job` is started by a user request containing the `parameters` of a `Job`. This information is verified by the UCloud
+A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
 orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
 information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
 compute environment and how to launch the software

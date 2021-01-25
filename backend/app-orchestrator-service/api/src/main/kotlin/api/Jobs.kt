@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
@@ -10,6 +11,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.PaginationRequestV2Consistency
 import dk.sdu.cloud.service.TYPE_PROPERTY
@@ -70,7 +72,7 @@ much bigger and more machines. In a simplified view, a `Job` describes the follo
   includes a reference to the _provider_
 - The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
 
-A `Job` is started by a user request containing the `parameters` of a `Job`. This information is verified by the UCloud
+A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
 orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
 information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
 compute environment and how to launch the software
@@ -98,10 +100,10 @@ data class Job(
         "Unique identifier for this job.\n\n" +
             "UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier."
     )
-    val id: String,
+    override val id: String,
 
     @UCloudApiDoc("A reference to the owner of this job")
-    val owner: JobOwner,
+    override val owner: JobOwner,
 
     @UCloudApiDoc(
         "A list of status updates from the compute backend.\n\n" +
@@ -110,22 +112,29 @@ data class Job(
             "The current state of the job will always be the last element. " +
             "`updates` is guaranteed to always contain at least one element."
     )
-    val updates: List<JobUpdate>,
+    override val updates: List<JobUpdate>,
 
-    val billing: JobBilling,
+    override val billing: JobBilling,
 
     @UCloudApiDoc(
-        "The parameters used to launch this job.\n\n" +
+        "The specification used to launch this job.\n\n" +
             "This property is always available but must be explicitly requested."
     )
-    val parameters: JobParameters,
+    override val specification: JobSpecification,
 
     @UCloudApiDoc("A summary of the `Job`'s current status")
-    val status: JobStatus,
+    override val status: JobStatus,
+
+    override val createdAt: Long,
 
     @UCloudApiDoc("Information regarding the output of this job.")
     val output: JobOutput? = null,
-)
+
+    override val acl: List<ResourceAclEntry<Nothing?>>? = null,
+) : Resource<Nothing?> {
+    @get:JsonIgnore @Deprecated("Renamed to specification", ReplaceWith("specification"))
+    val parameters = specification
+}
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class JobStatus(
@@ -149,41 +158,44 @@ data class JobStatus(
             "equal to the initial `RUNNING` state + `timeAllocation`."
     )
     val expiresAt: Long? = null,
-)
+) : ResourceStatus
 
 data class JobBilling(
     @UCloudApiDoc("The amount of credits charged to the `owner` of this job")
-    val creditsCharged: Long,
+    override val creditsCharged: Long,
 
     @UCloudApiDoc("The unit price of this job")
-    val pricePerUnit: Long,
-)
+    override val pricePerUnit: Long,
+) : ResourceBilling
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class JobOwner(
     @UCloudApiDoc("The username of the user which started the job")
-    val launchedBy: String,
+    override val createdBy: String,
 
     @UCloudApiDoc(
         "The project ID of the project which owns this job\n\n" +
             "This value can be null and this signifies that the job belongs to the personal workspace of the user."
     )
-    val project: String? = null,
-)
+    override val project: String? = null,
+) : ResourceOwner {
+    @get:JsonIgnore @Deprecated("Renamed to createdBy", ReplaceWith("createdBy"))
+    val launchedBy = createdBy
+}
 
 data class JobUpdate(
-    val timestamp: Long,
+    override val timestamp: Long,
     val state: JobState? = null,
-    val status: String? = null,
-)
+    override val status: String? = null,
+) : ResourceUpdate
 
-data class JobParameters(
+data class JobSpecification(
     @UCloudApiDoc("A reference to the application which this job should execute")
     @JsonDeserialize(`as` = NameAndVersionImpl::class)
     val application: NameAndVersion,
 
     @UCloudApiDoc("A reference to the product that this job will be executed on")
-    val product: ComputeProductReference,
+    override val product: ComputeProductReference,
 
     @UCloudApiDoc(
         "A name for this job assigned by the user.\n\n" +
@@ -246,7 +258,7 @@ data class JobParameters(
             "This attribute is not included by default unless `includeApplication` is specified."
     )
     val resolvedApplication: Application? = null,
-) {
+) : ResourceSpecification {
     init {
         if (name != null && !name.matches(nameRegex)) {
             throw RPCException(
@@ -309,7 +321,7 @@ data class JobDataIncludeFlagsImpl(
     override val includeProduct: Boolean? = null,
 ) : JobDataIncludeFlags
 
-typealias JobsCreateRequest = BulkRequest<JobParameters>
+typealias JobsCreateRequest = BulkRequest<JobSpecification>
 
 data class JobsCreateResponse(val ids: List<String>)
 

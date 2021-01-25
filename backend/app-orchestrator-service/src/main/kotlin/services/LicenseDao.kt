@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -40,14 +41,14 @@ class LicenseDao(
 ) {
     suspend fun create(
         ctx: DBContext,
-        license: License
+        license: License,
     ) {
         ctx.withSession { session ->
             session.insert(LicenseTable) {
                 set(LicenseTable.id, license.id)
-                set(LicenseTable.productId, license.product.id)
-                set(LicenseTable.productCategory, license.product.category)
-                set(LicenseTable.productProvider, license.product.provider)
+                set(LicenseTable.productId, license.specification.product.id)
+                set(LicenseTable.productCategory, license.specification.product.category)
+                set(LicenseTable.productProvider, license.specification.product.provider)
                 set(LicenseTable.productPricePerUnit, license.billing.pricePerUnit)
                 set(LicenseTable.creditsCharged, license.billing.creditsCharged)
                 set(LicenseTable.ownerUsername, license.owner.username)
@@ -70,7 +71,7 @@ class LicenseDao(
     suspend fun insertUpdate(
         ctx: DBContext,
         id: LicenseId,
-        update: LicenseUpdate
+        update: LicenseUpdate,
     ) {
         ctx.withSession { session ->
             session.insert(LicenseUpdatesTable) {
@@ -84,7 +85,7 @@ class LicenseDao(
     suspend fun chargeCredits(
         ctx: DBContext,
         id: LicenseId,
-        creditsCharged: Long
+        creditsCharged: Long,
     ) {
         ctx.withSession { session ->
             val success = session
@@ -107,7 +108,7 @@ class LicenseDao(
 
     suspend fun delete(
         ctx: DBContext,
-        ids: List<String>
+        ids: List<String>,
     ): List<License> {
         return ctx.withSession { session ->
             val params: EnhancedPreparedStatement.() -> Unit = {
@@ -131,7 +132,7 @@ class LicenseDao(
     suspend fun retrieve(
         ctx: DBContext,
         id: LicenseId,
-        flags: LicenseDataIncludeFlags
+        flags: LicenseDataIncludeFlags,
     ): License? {
         return ctx.withSession { session ->
             session
@@ -152,7 +153,7 @@ class LicenseDao(
     suspend fun updateAcl(
         ctx: DBContext,
         id: LicenseId,
-        acl: List<LicenseAclEntry>
+        acl: List<ResourceAclEntry<LicensePermission>>,
     ): License {
         return ctx.withSession { session ->
             session
@@ -215,7 +216,7 @@ class LicenseDao(
         session: AsyncDBConnection,
         rows: ResultSet,
         filters: LicenseFilters?,
-        flags: LicenseDataIncludeFlags
+        flags: LicenseDataIncludeFlags,
     ): List<License> {
         val ids = rows
             .map { it.getField(LicenseTable.id) }
@@ -225,10 +226,12 @@ class LicenseDao(
         var licenses = rows.map {
             License(
                 it.getField(LicenseTable.id),
-                ProductReference(
-                    it.getField(LicenseTable.productId),
-                    it.getField(LicenseTable.productCategory),
-                    it.getField(LicenseTable.productProvider),
+                LicenseSpecification(
+                    ProductReference(
+                        it.getField(LicenseTable.productId),
+                        it.getField(LicenseTable.productCategory),
+                        it.getField(LicenseTable.productProvider),
+                    )
                 ),
                 LicenseOwner(it.getField(LicenseTable.ownerUsername), it.getField(LicenseTable.ownerProject)),
                 it.getField(LicenseTable.createdAt).toDateTime().millis,
@@ -282,12 +285,20 @@ class LicenseDao(
                 .map { Pair(it.id, it.category.provider) }
                 .toSet()
 
-            licenses = licenses.filter { Pair(it.product.id, it.product.provider) in viableProducts }
+            licenses = licenses.filter {
+                Pair(it.specification.product.id, it.specification.product.provider) in viableProducts
+            }
         }
 
         if (flags.includeProduct == true) {
             licenses = licenses.map {
-                it.copy(resolvedProduct = products.find(it.product.provider, it.product.id, it.product.category))
+                it.copy(
+                    resolvedProduct = products.find(
+                        it.specification.product.provider,
+                        it.specification.product.id,
+                        it.specification.product.category
+                    )
+                )
             }
         }
 

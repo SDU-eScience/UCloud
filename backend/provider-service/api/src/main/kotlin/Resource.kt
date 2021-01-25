@@ -16,6 +16,14 @@ interface ResourceOwner {
     val project: String?
 }
 
+interface ResourceSpecification {
+    @UCloudApiDoc("""A reference to the product which backs this `Resource`
+
+All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
+consume the backing `Product` should simply have a `pricePerUnit` of 0.""")
+    val product: ProductReference
+
+}
 
 @UCloudApiDoc("""Describes an update to the `Resource`
 
@@ -91,6 +99,8 @@ interface Resource<Permission> {
 This ID is assigned by UCloud and is globally unique across all providers.""")
     val id: String
 
+    val specification: ResourceSpecification
+
     // ---
 
     @UCloudApiDoc("Timestamp referencing when the request for creation was received by UCloud")
@@ -106,13 +116,6 @@ resource.""")
     val updates: List<ResourceUpdate>
 
     // ---
-
-    @UCloudApiDoc("""A reference to the product which backs this `Resource`
-
-All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
-consume the backing `Product` should simply have a `pricePerUnit` of 0.""")
-    val product: ProductReference
-
     @UCloudApiDoc("Contains information related to billing information for this `Resource`")
     val billing: ResourceBilling
 

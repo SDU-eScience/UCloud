@@ -1,7 +1,6 @@
 package dk.sdu.cloud.provider.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.call
@@ -13,7 +12,7 @@ data class ResourceDoc(
     override val createdAt: Long,
     override val status: ResourceStatus,
     override val updates: List<ResourceUpdate>,
-    override val product: ProductReference,
+    override val specification: ResourceSpecification,
     override val billing: ResourceBilling,
     override val owner: ResourceOwner,
     override val acl: List<ResourceAclEntry<Nothing?>>?

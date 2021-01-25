@@ -16,7 +16,7 @@ A `Resource` is the core data model used to synchronize tasks between UCloud and
 | `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
 | `status` | `ResourceStatus` | Holds the current status of the `Resource` |
 | `updates` | `Array<ResourceUpdate>` | Contains a list of updates from the provider as well as UCloud |
-| `product` | `ProductReference` | A reference to the product which backs this `Resource` |
+| `specification` | `ResourceSpecification` | No documentation |
 | `billing` | `ResourceBilling` | Contains information related to billing information for this `Resource` |
 | `owner` | `ResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
 | `acl` | `Array<ResourceAclEntry>` | An ACL for this `Resource` |

@@ -53,28 +53,28 @@ class IngressService(
                             throw RPCException("Invalid ingress: ${ingress.id}", HttpStatusCode.BadRequest)
                         }
 
-                        if (jobProject == null && jobLauncher != retrievedIngress.owner.username) {
+                        if (jobProject == null && jobLauncher != retrievedIngress.owner.createdBy) {
                             throw RPCException("Invalid ingress: ${ingress.id}", HttpStatusCode.BadRequest)
                         }
 
-                        if (retrievedIngress.product.provider != computeProvider) {
+                        if (retrievedIngress.specification.product.provider != computeProvider) {
                             throw RPCException(
                                 "Cannot use ingress provided by " +
-                                    "${retrievedIngress.product.provider} in job provided by $computeProvider",
+                                    "${retrievedIngress.specification.product.provider} in job provided by $computeProvider",
                                 HttpStatusCode.BadRequest
                             )
                         }
 
                         if (retrievedIngress.status.state != IngressState.READY) {
                             throw RPCException(
-                                "Ingress ${retrievedIngress.domain} is not ready",
+                                "Ingress ${retrievedIngress.specification.domain} is not ready",
                                 HttpStatusCode.BadRequest
                             )
                         }
 
                         if (retrievedIngress.status.boundTo != null) {
                             throw RPCException(
-                                "Ingress ${retrievedIngress.domain} is already in use",
+                                "Ingress ${retrievedIngress.specification.domain} is already in use",
                                 HttpStatusCode.BadRequest
                             )
                         }
@@ -148,7 +148,7 @@ class IngressService(
 
         val (username, project) = result.owner
         if (actor is Actor.User && actor.principal.role == Role.PROVIDER) {
-            providers.verifyProvider(result.product.provider, actor)
+            providers.verifyProvider(result.specification.product.provider, actor)
         } else {
             if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
                 throw RPCException(notFoundMessage, HttpStatusCode.NotFound)
@@ -171,7 +171,7 @@ class IngressService(
         db.withSession { session ->
             val ids = deletionRequest.items.map { it.id }
             val deletedItems = dao.delete(session, ids)
-            val byProvider = deletedItems.groupBy { it.product.provider }
+            val byProvider = deletedItems.groupBy { it.specification.product.provider }
 
             // Verify that the items were found
             if (ids.toSet().size != deletedItems.size) {
@@ -186,7 +186,7 @@ class IngressService(
                         throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
                     }
 
-                    if (project == null && item.owner.username != actor.safeUsername()) {
+                    if (project == null && item.owner.createdBy != actor.safeUsername()) {
                         throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
                     }
                 }
@@ -278,8 +278,10 @@ class IngressService(
                     val id = UUID.randomUUID().toString()
                     val ingress = Ingress(
                         id,
-                        spec.domain,
-                        spec.product,
+                        IngressSpecification(
+                            spec.domain,
+                            spec.product,
+                        ),
                         IngressOwner(actor.safeUsername(), project),
                         Time.now(),
                         IngressStatus(null, IngressState.PREPARING),
@@ -316,7 +318,7 @@ class IngressService(
                 val ingress = dao.retrieve(session, IngressId(id), IngressDataIncludeFlags())
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-                providers.verifyProvider(ingress.product.provider, actor)
+                providers.verifyProvider(ingress.specification.product.provider, actor)
 
                 requests.forEach { request ->
                     dao.insertUpdate(
@@ -359,7 +361,7 @@ class IngressService(
                 val ingress = dao.retrieve(session, IngressId(id), IngressDataIncludeFlags())
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-                providers.verifyProvider(ingress.product.provider, actor)
+                providers.verifyProvider(ingress.specification.product.provider, actor)
 
                 requests.forEach { request ->
                     val chargeResult = paymentService.charge(

@@ -105,7 +105,7 @@ class Ingress : IntegrationTest() {
             user.client
         ).orThrow()
 
-        assertThatInstance(browseWithDomain, "found the ingress") { it.items.single().domain == domain }
+        assertThatInstance(browseWithDomain, "found the ingress") { it.items.single().specification.domain == domain }
 
         val browseWithBadDomain = Ingresses.browse.call(
             IngressesBrowseRequest(domain = "somethingelseentirely"),

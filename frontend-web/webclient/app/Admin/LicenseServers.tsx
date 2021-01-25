@@ -233,6 +233,7 @@ const LicenseServers: React.FunctionComponent = () => {
 
         if (!error) {
             if (loading) return;
+            /*
             const request: KubernetesLicense = {
                 id: name,
                 port,
@@ -243,6 +244,7 @@ const LicenseServers: React.FunctionComponent = () => {
             await invokeCommand(licenseApi.create(request));
             snackbarStore.addSuccess(`License server '${name}' successfully added`, true);
             reload();
+             */
         }
     }
 

@@ -1,9 +1,11 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.PaginationRequestV2Consistency
 import dk.sdu.cloud.service.WithPaginationRequestV2
@@ -45,45 +47,45 @@ fun IngressDataIncludeFlags(
     includeProduct: Boolean? = null,
 ): IngressDataIncludeFlags = IngressDataIncludeFlagsImpl(includeUpdates, includeProduct)
 
-interface IngressSpecification {
+data class IngressSpecification(
     @UCloudApiDoc("The domain used for L7 load-balancing for use with this `Ingress`")
-    val domain: String
+    val domain: String,
 
     @UCloudApiDoc("The product used for the `Ingress`")
-    val product: ProductReference
-}
+    override val product: ProductReference
+) : ResourceSpecification
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("An L7 ingress-point (HTTP)")
 data class Ingress(
     override val id: String,
 
-    override val domain: String,
-
-    override val product: ProductReference,
+    override val specification: IngressSpecification,
 
     @UCloudApiDoc("Information about the owner of this resource")
-    val owner: IngressOwner,
+    override val owner: IngressOwner,
 
     @UCloudApiDoc("Information about when this resource was created")
-    val createdAt: Long,
+    override val createdAt: Long,
 
     @UCloudApiDoc("The current status of this resource")
-    val status: IngressStatus,
+    override val status: IngressStatus,
 
     @UCloudApiDoc("Billing information associated with this `Ingress`")
-    val billing: IngressBilling,
+    override val billing: IngressBilling,
 
     @UCloudApiDoc("A list of updates for this `Ingress`")
-    val updates: List<IngressUpdate> = emptyList(),
+    override val updates: List<IngressUpdate> = emptyList(),
 
-    val resolvedProduct: Product.Ingress? = null
-) : IngressSpecification, IngressId
+    val resolvedProduct: Product.Ingress? = null,
+
+    override val acl: List<ResourceAclEntry<Nothing?>>? = null
+) : IngressId, Resource<Nothing?>
 
 data class IngressBilling(
-    val pricePerUnit: Long,
-    val creditsCharged: Long
-)
+    override val pricePerUnit: Long,
+    override val creditsCharged: Long
+) : ResourceBilling
 
 @UCloudApiDoc("The status of an `Ingress`")
 data class IngressStatus(
@@ -91,7 +93,7 @@ data class IngressStatus(
     val boundTo: String?,
 
     val state: IngressState
-)
+) : ResourceStatus
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 enum class IngressState {
@@ -113,18 +115,18 @@ enum class IngressState {
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 data class IngressUpdate(
     @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
-    val timestamp: Long,
+    override val timestamp: Long,
 
     @UCloudApiDoc("The new state that the `Ingress` transitioned to (if any)")
     val state: IngressState? = null,
 
     @UCloudApiDoc("A new status message for the `Ingress` (if any)")
-    val status: String? = null,
+    override val status: String? = null,
 
     val didBind: Boolean = false,
 
     val newBinding: String? = null,
-)
+) : ResourceUpdate
 
 data class IngressOwner(
     @UCloudApiDoc(
@@ -132,11 +134,14 @@ data class IngressOwner(
             "In cases where this user is removed from the project the ownership will be transferred to the current " +
             "PI of the project."
     )
-    val username: String,
+    override val createdBy: String,
 
     @UCloudApiDoc("The project which owns the resource")
-    val project: String? = null
-)
+    override val project: String? = null
+) : ResourceOwner {
+    @get:JsonIgnore @Deprecated("Renamed", ReplaceWith("createdBy"))
+    val username = createdBy
+}
 
 interface IngressFilters {
     val domain: String?
@@ -158,10 +163,7 @@ typealias IngressesBrowseResponse = PageV2<Ingress>
 
 typealias IngressesCreateRequest = BulkRequest<IngressCreateRequestItem>
 
-data class IngressCreateRequestItem(
-    override val domain: String,
-    override val product: ProductReference
-) : IngressSpecification
+typealias IngressCreateRequestItem = IngressSpecification
 data class IngressesCreateResponse(val ids: List<String>)
 
 typealias IngressesDeleteRequest = BulkRequest<IngressRetrieve>

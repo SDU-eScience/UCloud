@@ -29,6 +29,7 @@ object JobsTable : SQLTable("jobs") {
     val lastUpdate = timestamp("last_update")
     val startedAt = timestamp("started_at")
     val initialStartedAt = timestamp("initial_started_at")
+    val createdAt = timestamp("created_at")
 }
 
 object JobUpdatesTable : SQLTable("job_updates") {

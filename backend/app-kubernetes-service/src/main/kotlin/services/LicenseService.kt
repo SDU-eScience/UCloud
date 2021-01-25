@@ -154,7 +154,7 @@ class LicenseService(
             request.items.forEach { license ->
                 session.insert(LicenseInstancesTable) {
                     set(LicenseInstancesTable.orchestratorId, license.id)
-                    set(LicenseInstancesTable.serverId, license.product.id)
+                    set(LicenseInstancesTable.serverId, license.specification.product.id)
                 }
             }
 
