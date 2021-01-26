@@ -43,12 +43,6 @@ fun <Feature : MicroFeature, Config> Micro.install(
 
         feature.init(this, serviceDescription, commandLineArguments)
     }
-
-    /*
-    if (time.inMilliseconds > 500) {
-        println("Installing feature: ${featureFactory.key.name}. Took: ${time}")
-    }
-     */
 }
 
 fun <T : Any> delegate(key: String): ReadWriteProperty<Micro, T> {

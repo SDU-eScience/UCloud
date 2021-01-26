@@ -622,7 +622,7 @@ function ListSelector({type, onSelect, selectedProject}: ListSelectorProps): JSX
     const mappedGroups: Record<string, string> = {};
     groups.data.items.forEach(g => mappedGroups[g.groupId] = g.groupTitle);
     const mappedProjectPaths: Record<string, string> = {};
-    projects.data.items.forEach(p => mappedProjectPaths[p.id] = p.fullPath!!)
+    projects.data.items.forEach(p => mappedProjectPaths[p.id] = p.fullPath!)
 
     const content = type === "GROUP" ? mappedGroups : mappedProjectPaths;
 
