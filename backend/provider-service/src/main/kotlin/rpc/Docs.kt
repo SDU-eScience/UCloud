@@ -11,6 +11,9 @@ class Docs : Controller {
         implement(ResourcesDoc.create) {
             throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
+        implement(ResourcesDoc.browse) {
+            throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
         return@with
     }
 }

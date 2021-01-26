@@ -54,7 +54,7 @@ A reference to a UCloud file
 |----------|------|-------------|
 | `path` | `String` | The absolute path to the file or directory in UCloud |
 | `readOnly` | `Boolean?` | Indicates if this file or directory should be mounted as read-only |
-| `type` | `"file"` | No documentation |
+| `type` | `("file")` | No documentation |
 
     
 - __Compatible with:__ `ApplicationParameter.InputFile` and `ApplicationParameter.InputDirectory`
@@ -78,7 +78,7 @@ A boolean value (true or false)
 | Property | Type | Description |
 |----------|------|-------------|
 | `value` | `Boolean` | No documentation |
-| `type` | `"boolean"` | No documentation |
+| `type` | `("boolean")` | No documentation |
 
     
 - __Compatible with:__ `ApplicationParameter.Bool`
@@ -100,7 +100,7 @@ A textual value
 | Property | Type | Description |
 |----------|------|-------------|
 | `value` | `String` | No documentation |
-| `type` | `"text"` | No documentation |
+| `type` | `("text")` | No documentation |
 
     
 - __Compatible with:__ `ApplicationParameter.Text` and `ApplicationParameter.Enumeration`
@@ -124,7 +124,7 @@ An integral value
 | Property | Type | Description |
 |----------|------|-------------|
 | `value` | `Long` | No documentation |
-| `type` | `"integer"` | No documentation |
+| `type` | `("integer")` | No documentation |
 
 
 - __Compatible with:__ `ApplicationParameter.Integer`
@@ -148,7 +148,7 @@ A floating point value
 | Property | Type | Description |
 |----------|------|-------------|
 | `value` | `Float` | No documentation |
-| `type` | `"floating_point"` | No documentation |
+| `type` | `("floating_point")` | No documentation |
 
     
 - __Compatible with:__ `ApplicationParameter.FloatingPoint`
@@ -173,7 +173,7 @@ A reference to a separate UCloud `Job`
 |----------|------|-------------|
 | `hostname` | `String` | No documentation |
 | `jobId` | `String` | No documentation |
-| `type` | `"peer"` | No documentation |
+| `type` | `("peer")` | No documentation |
 
     
 - __Compatible with:__ `ApplicationParameter.Peer`
@@ -196,7 +196,7 @@ A reference to a software license, registered locally at the provider
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | `String` | No documentation |
-| `type` | `"license_server"` | No documentation |
+| `type` | `("license_server")` | No documentation |
 
     
 - __Compatible with:__ `ApplicationParameter.LicenseServer`
@@ -219,7 +219,7 @@ A reference to block storage (Not yet implemented)
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | `String` | No documentation |
-| `type` | `"block_storage"` | No documentation |
+| `type` | `("block_storage")` | No documentation |
 
 
 
@@ -236,7 +236,7 @@ A reference to block storage (Not yet implemented)
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | `String` | No documentation |
-| `type` | `"network"` | No documentation |
+| `type` | `("network")` | No documentation |
 
 
 
@@ -253,7 +253,7 @@ A reference to an HTTP ingress, registered locally at the provider
 | Property | Type | Description |
 |----------|------|-------------|
 | `id` | `String` | No documentation |
-| `type` | `"ingress"` | No documentation |
+| `type` | `("ingress")` | No documentation |
 
     
 - __Compatible with:__ `ApplicationParameter.Ingress`

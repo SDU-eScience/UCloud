@@ -123,10 +123,17 @@ __`ResourceBilling`__
 
 <!-- typedoc:dk.sdu.cloud.provider.api.ResourceBilling:includeOwnDoc=true:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
+Contains information related to the accounting/billing of a `Resource`
+
 | Property | Type | Description |
 |----------|------|-------------|
-| `creditsCharged` | `Long` | No documentation |
-| `pricePerUnit` | `Long` | No documentation |
+| `creditsCharged` | `Long` | Amount of credits charged in total for this `Resource` |
+| `pricePerUnit` | `Long` | The price per unit. This can differ from current price of `Product` |
+
+
+Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+to be charged a different price than newly launched products.
 
 
 <!--</editor-fold>-->
@@ -138,10 +145,14 @@ __`ResourceOwner`__
 
 <!-- typedoc:dk.sdu.cloud.provider.api.ResourceOwner:includeOwnDoc=true:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
+The owner of a `Resource`
+
 | Property | Type | Description |
 |----------|------|-------------|
 | `createdBy` | `String` | No documentation |
 | `project` | `String` | No documentation |
+
+
 
 
 <!--</editor-fold>-->
@@ -172,7 +183,7 @@ __`AclEntity.ProjectGroup`__
 |----------|------|-------------|
 | `projectId` | `String` | No documentation |
 | `group` | `String` | No documentation |
-| `type` | `"project_group"` | No documentation |
+| `type` | `("project_group")` | No documentation |
 
 
 <!--</editor-fold>-->

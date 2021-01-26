@@ -6,11 +6,19 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.service.TYPE_PROPERTY
 
+@UCloudApiDoc("""Contains information related to the accounting/billing of a `Resource`
+
+Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+to be charged a different price than newly launched products.""")
 interface ResourceBilling {
+    @UCloudApiDoc("The price per unit. This can differ from current price of `Product`")
     val pricePerUnit: Long
+    @UCloudApiDoc("Amount of credits charged in total for this `Resource`")
     val creditsCharged: Long
 }
 
+@UCloudApiDoc("The owner of a `Resource`")
 interface ResourceOwner {
     val createdBy: String
     val project: String?

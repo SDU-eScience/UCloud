@@ -1,10 +1,9 @@
 package dk.sdu.cloud.provider.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.httpCreate
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.PaginationRequestV2
 
 @Deprecated("Used for documentation purposes only", level = DeprecationLevel.WARNING)
 data class ResourceDoc(
@@ -28,5 +27,9 @@ object ResourcesDoc : CallDescriptionContainer("doc.provider.resources") {
 
     val create = call<BulkRequest<ResourceDoc>, Unit, CommonErrorMessage>("create") {
         httpCreate(baseContext)
+    }
+
+    val browse = call<PaginationRequestV2, PageV2<ResourceDoc>, CommonErrorMessage>("browse") {
+        httpBrowse(baseContext)
     }
 }

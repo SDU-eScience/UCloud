@@ -173,7 +173,7 @@ UCloud's [accounting](/backend/accounting-service/README.md) module.
 | `memoryInGigs` | `Int?` | No documentation |
 | `gpu` | `Int?` | No documentation |
 | `balance` | `Long` | Included only with certain endpoints which support `includeBalance` |
-| `type` | `"compute"` | No documentation |
+| `type` | `("compute")` | No documentation |
 
 
 <!--</editor-fold>-->

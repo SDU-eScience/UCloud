@@ -62,7 +62,7 @@ private sealed class MarkdownReference {
             is ComputedType.Generic -> "Any"
             is ComputedType.Struct -> typename(type.asRef())
             is ComputedType.StructRef -> type.qualifiedName.substringAfterLast('.')
-            is ComputedType.Enum -> type.options.joinToString(" | ") { "\"$it\"" }
+            is ComputedType.Enum -> "(" + type.options.joinToString(" or ") { "\"$it\"" } + ")"
             is ComputedType.CustomSchema -> "Any"
         }
 
@@ -168,14 +168,7 @@ private sealed class MarkdownReference {
 
                 if (documentationOnly) {
                     val docText = interfaceFunction.docComment?.text ?: "No documentation"
-                    val docLines = docText.removePrefix("/**").removeSuffix("*/").lines()
-                    return docLines.filterIndexed { index, line ->
-                        when {
-                            index == 0 && line.isBlank() -> false
-                            index == docLines.lastIndex && line.isBlank() -> false
-                            else -> true
-                        }
-                    }.joinToString("\n") { it.trim().removePrefix("*").trim() }
+                    return unwrapDocComment(docText)
                 }
                 return "```kotlin\n${interfaceFunction?.text ?: continue}\n```"
             }
@@ -193,6 +186,7 @@ private sealed class MarkdownReference {
         val functionPath: String,
         val includeDocs: Boolean,
         val includeSignature: Boolean,
+        val includeBody: Boolean,
         override val lineStart: Int,
         override var lineEnd: Int,
     ) : MarkdownReference() {
@@ -230,7 +224,16 @@ private sealed class MarkdownReference {
                     null
                 }
 
-                return topLevelFunction?.signatureToString() ?: interfaceFunction?.signatureToString() ?: continue
+                if (includeSignature) {
+                    return topLevelFunction?.signatureToString(includeBody)
+                        ?: interfaceFunction?.signatureToString(includeBody) ?: continue
+                } else {
+                    if (topLevelFunction == null && interfaceFunction == null) continue
+                    val rawDocComment = topLevelFunction?.docComment?.text ?: interfaceFunction?.docComment?.text
+                        ?: ""
+
+                    return unwrapDocComment(rawDocComment)
+                }
             }
 
             error("Could not find function: '$path/$functionPath'")
@@ -255,10 +258,26 @@ private sealed class MarkdownReference {
         }
     }
 
-    fun KtNamedFunction.signatureToString(): String {
+    fun unwrapDocComment(docText: String): String {
+        val docLines = docText.removePrefix("/**").removeSuffix("*/").lines()
+        return docLines.filterIndexed { index, line ->
+            when {
+                index == 0 && line.isBlank() -> false
+                index == docLines.lastIndex && line.isBlank() -> false
+                line.trim().removePrefix("*").trim().startsWith("@") -> false
+                else -> true
+            }
+        }.joinToString("\n") { it.trim().removePrefix("*").trim() }
+    }
+
+    fun KtNamedFunction.signatureToString(includeBody: Boolean): String {
         return buildString {
             appendLine("```kotlin")
-            appendLine(text.replace(children.find { it is KtExpression }?.text ?: "", ""))
+            if (!includeBody) {
+                appendLine(text.replace(children.find { it is KtExpression }?.text ?: "", ""))
+            } else {
+                appendLine(text)
+            }
             appendLine("````")
         }
     }
@@ -314,6 +333,7 @@ private data class MarkdownDocument(
                                     fnName,
                                     includeDocs = (args["includeDocs"] ?: "true") == "true",
                                     includeSignature = (args["includeSignature"] ?: "true") == "true",
+                                    includeBody = (args["includeBody"] ?: "true") == "true",
                                     lineStart = index,
                                     lineEnd = -1,
                                 )
@@ -366,7 +386,7 @@ fun injectMarkdownDocs(
     documents.add(MarkdownDocument.fromFile(File("./README.md")))
 
     (File(".").listFiles() ?: emptyArray())
-        .filter { it.isDirectory && it.name.endsWith("-service") }
+        .filter { it.isDirectory && (it.name.endsWith("-service") || it.name == "service-common") }
         .forEach { serviceDir ->
             documents.add(MarkdownDocument.fromFile(File(serviceDir, "README.md")))
             val wiki = File(serviceDir, "wiki").takeIf { it.exists() } ?: return@forEach

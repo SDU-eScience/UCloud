@@ -377,7 +377,7 @@ object UCloudLauncher : Loggable {
     suspend fun wipeDatabases() {
         File(cephfsHome, "home").apply {
             require(deleteRecursively())
-            require(mkdirs())
+            require(mkdirs()) { "Unable to create directories: ${this}" }
         }
         File(cephfsHome, "projects").apply {
             require(deleteRecursively())
