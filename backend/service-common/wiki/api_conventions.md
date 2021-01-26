@@ -772,3 +772,8 @@ Examples:
 - Incorrect: `JobDescriptions.kt` containing `Jobs`
 
 ---
+
+## Suggested Reading
+
+- [API Stability and Maturity in UCloud](/backend/service-common/wiki/api_stability.md)
+- [Providers and Resources](/backend/app-orchestrator-service/wiki/provider_api.md)
