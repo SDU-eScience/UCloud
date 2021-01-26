@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.lang.ref.WeakReference
@@ -44,6 +45,10 @@ class SimpleCache<K, V : Any>(
         mutex.withLock {
             internalMap[key] = CacheEntry(Time.now(), value)
         }
+    }
+
+    fun getBlocking(key: K): V? {
+        return runBlocking { get(key) }
     }
 
     override suspend fun get(key: K): V? {

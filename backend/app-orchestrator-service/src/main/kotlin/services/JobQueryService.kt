@@ -156,13 +156,13 @@ class JobQueryService(
                 .groupBy { it.jobId }
 
             jobs = jobs.map { job ->
-                val newParams = job.parameters.copy(
+                val newParams = job.specification.copy(
                     parameters = params[job.id]?.asSequence()?.map { it.name to it.value }?.toMap()
                         ?: emptyMap(),
                     resources = resources[job.id]?.map { it.resource } ?: emptyList()
                 )
 
-                job.copy(parameters = newParams)
+                job.copy(specification = newParams)
             }
         }
 
@@ -192,7 +192,7 @@ class JobQueryService(
 
             jobs = jobs.map { job ->
                 job.copy(
-                    parameters = job.parameters
+                    specification = job.parameters
                         .copy(resolvedApplication = uniqueApplications[job.parameters.application])
                 )
             }
@@ -209,7 +209,7 @@ class JobQueryService(
 
             jobs = jobs.map { job ->
                 job.copy(
-                    parameters = job.parameters.copy(resolvedProduct = uniqueMachines[job.parameters.product])
+                    specification = job.specification.copy(resolvedProduct = uniqueMachines[job.parameters.product])
                 )
             }
         }
@@ -307,7 +307,7 @@ fun RowData.toJob(): Job {
             getField(JobsTable.creditsCharged),
             getField(JobsTable.pricePerUnit)
         ),
-        JobParameters(
+        JobSpecification(
             NameAndVersion(getField(JobsTable.applicationName), getField(JobsTable.applicationVersion)),
             ComputeProductReference(
                 getField(JobsTable.productId),
@@ -333,6 +333,7 @@ fun RowData.toJob(): Job {
                 }
             }
         ),
+        createdAt = getField(JobsTable.createdAt).toDateTime().millis
     )
 }
 

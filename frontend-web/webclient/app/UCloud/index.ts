@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Jan 14 07:20:57 CET 2021 */
+/* Generated at: Mon Jan 25 11:36:14 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -18,7 +18,7 @@ export interface CommonErrorMessage {
     errorCode?: string,
 }
 
-export interface Page<T> {
+export interface Page<T = unknown> {
     itemsInTotal: number /* int32 */
     ,
     itemsPerPage: number /* int32 */
@@ -30,7 +30,7 @@ export interface Page<T> {
     ,
 }
 
-export interface PageV2<T> {
+export interface PageV2<T = unknown> {
     itemsPerPage: number /* int32 */
     ,
     items: T[],
@@ -113,6 +113,156 @@ export namespace mail {
 
     export interface SendBulkRequest {
         messages: SendRequest[],
+    }
+}
+export namespace provider {
+    export interface ResourceAclEntry<Permission = unknown> {
+        entity: AclEntity,
+        permissions: Permission[],
+    }
+
+    export type AclEntity = AclEntityNS.ProjectGroup
+
+    /**
+     * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+     *
+     * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
+     * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
+     * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
+     * the provider APIs for communicating the status of the `Job`.
+     *
+     * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
+     * with metadata, such as: ownership, billing and status.
+     *
+     * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
+     *  It is then up to the provider to implement the functionality of the `Resource`.
+     *
+     * ![](/backend/provider-service/wiki/resource_create.svg)
+     *
+     * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
+     *
+     */
+    export interface ResourceDoc {
+        /**
+         * A unique identifier referencing the `Resource`
+         *
+         * This ID is assigned by UCloud and is globally unique across all providers.
+         */
+        id: string,
+        /**
+         * Timestamp referencing when the request for creation was received by UCloud
+         */
+        createdAt: number /* int64 */
+        ,
+        /**
+         * Holds the current status of the `Resource`
+         */
+        status: ResourceStatus,
+        /**
+         * Contains a list of updates from the provider as well as UCloud
+         *
+         * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+         * resource.
+         */
+        updates: ResourceUpdate[],
+        specification: ResourceSpecification,
+        /**
+         * Contains information related to billing information for this `Resource`
+         */
+        billing: ResourceBilling,
+        /**
+         * Contains information about the original creator of the `Resource` along with project association
+         */
+        owner: ResourceOwner,
+        /**
+         * An ACL for this `Resource`
+         */
+        acl?: ResourceAclEntry[],
+    }
+
+    /**
+     * Describes the current state of the `Resource`
+     *
+     * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+     * this will contain information such as:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`
+     * - Key metrics about the resource.
+     * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+     *   should be listed in the `status` section.
+     *
+     */
+    export interface ResourceStatus {
+    }
+
+    /**
+     * Describes an update to the `Resource`
+     *
+     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+     * use the full update history if you only wish to know the _current_ state of a `Resource`.
+     *
+     * An update will typically contain information similar to the `status` field, for example:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`.
+     * - Change in key metrics.
+     * - Bindings to related `Resource`s.
+     *
+     */
+    export interface ResourceUpdate {
+        /**
+         * A generic text message describing the current status of the `Resource`
+         */
+        status?: string,
+        /**
+         * A timestamp referencing when UCloud received this update
+         */
+        timestamp: number /* int64 */
+        ,
+    }
+
+    export interface ResourceSpecification {
+        /**
+         * A reference to the product which backs this `Resource`
+         *
+         * All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
+         * consume the backing `Product` should simply have a `pricePerUnit` of 0.
+         */
+        product: accounting.ProductReference,
+    }
+
+    export interface ResourceBilling {
+        creditsCharged: number /* int64 */
+        ,
+        pricePerUnit: number /* int64 */
+        ,
+    }
+
+    export interface ResourceOwner {
+        createdBy: string,
+        project?: string,
+    }
+
+    export namespace resources {
+        export function create(
+            request: BulkRequest<ResourceDoc>
+        ): APICallParameters<BulkRequest<ResourceDoc>, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/doc/resources",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+    }
+    export namespace AclEntityNS {
+        export interface ProjectGroup {
+            projectId: string,
+            group: string,
+            type: "project_group",
+        }
     }
 }
 export namespace auth {
@@ -703,6 +853,42 @@ export namespace filesearch {
     }
 }
 export namespace compute {
+    /**
+     * A `Job` in UCloud is the core abstraction used to describe a unit of computation.
+     *
+     * They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
+     * much bigger and more machines. In a simplified view, a `Job` describes the following information:
+     *
+     * - The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
+     * - The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
+     *   [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
+     * - A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
+     *   includes a reference to the _provider_
+     * - The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
+     *
+     * A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
+     * orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
+     * information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
+     * compute environment and how to launch the software
+     * correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
+     *
+     * At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
+     * a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
+     * the `Job`
+     * is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
+     * can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
+     * are available.
+     *
+     * Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
+     * terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
+     * software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
+     * in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
+     * state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
+     *
+     * At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
+     * delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
+     * any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
+     */
     export interface Job {
         /**
          * Unique identifier for this job.
@@ -720,28 +906,40 @@ export namespace compute {
          * The status updates tell a story of what happened with the job. This list is ordered by the timestamp in ascending order. The current state of the job will always be the last element. `updates` is guaranteed to always contain at least one element.
          */
         updates: JobUpdate[],
+        /**
+         * Contains information related to billing information for this `Resource`
+         */
         billing: JobBilling,
         /**
-         * The parameters used to launch this job.
+         * The specification used to launch this job.
          *
          * This property is always available but must be explicitly requested.
          */
-        parameters: JobParameters,
+        specification: JobSpecification,
         /**
          * A summary of the `Job`'s current status
          */
         status: JobStatus,
         /**
+         * Timestamp referencing when the request for creation was received by UCloud
+         */
+        createdAt: number /* int64 */
+        ,
+        /**
          * Information regarding the output of this job.
          */
         output?: JobOutput,
+        /**
+         * An ACL for this `Resource`
+         */
+        acl?: provider.ResourceAclEntry[],
     }
 
     export interface JobOwner {
         /**
          * The username of the user which started the job
          */
-        launchedBy: string,
+        createdBy: string,
         /**
          * The project ID of the project which owns this job
          *
@@ -750,10 +948,30 @@ export namespace compute {
         project?: string,
     }
 
+    /**
+     * Describes an update to the `Resource`
+     *
+     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+     * use the full update history if you only wish to know the _current_ state of a `Resource`.
+     *
+     * An update will typically contain information similar to the `status` field, for example:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`.
+     * - Change in key metrics.
+     * - Bindings to related `Resource`s.
+     *
+     */
     export interface JobUpdate {
+        /**
+         * A timestamp referencing when UCloud received this update
+         */
         timestamp: number /* int64 */
         ,
         state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+        /**
+         * A generic text message describing the current status of the `Resource`
+         */
         status?: string,
     }
 
@@ -770,7 +988,7 @@ export namespace compute {
         ,
     }
 
-    export interface JobParameters {
+    export interface JobSpecification {
         /**
          * A reference to the application which this job should execute
          */
@@ -843,7 +1061,19 @@ export namespace compute {
     }
 
     /**
-     * A parameter supplied to a compute job
+     * An `AppParameterValue` is value which is supplied to a parameter of an `Application`.
+
+     * Each value type can is type-compatible with one or more `ApplicationParameter`s. The effect of a specific value depends
+     * on its use-site, and the type of its associated parameter.
+     *
+     * `ApplicationParameter`s have the following usage sites (see [here](/backend/app-store-service/wiki/apps.md) for a
+     * comprehensive guide):
+     *
+     * - Invocation: This affects the command line arguments passed to the software.
+     * - Environment variables: This affects the environment variables passed to the software.
+     * - Resources: This only affects the resources which are imported into the software environment. Not all values can be
+     *   used as a resource.
+     *
      */
     export type AppParameterValue =
         AppParameterValueNS.File
@@ -991,6 +1221,18 @@ export namespace compute {
         runAsRealUser: boolean,
     }
 
+    /**
+     * Describes the current state of the `Resource`
+     *
+     * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+     * this will contain information such as:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`
+     * - Key metrics about the resource.
+     * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+     *   should be listed in the `status` section.
+     *
+     */
     export interface JobStatus {
         /**
          * The current of state of the `Job`.
@@ -1036,11 +1278,27 @@ export namespace compute {
         sessionType: "WEB" | "VNC" | "SHELL",
     }
 
+    /**
+     * The `ProviderManifest` contains general metadata about the provider.
+     *
+     * The manifest, for example, includes information about which `features` are supported by a provider.
+     */
     export interface ProviderManifest {
+        /**
+         * Contains information about the features supported by this provider
+         */
         features: ManifestFeatureSupport,
     }
 
+    /**
+     * Contains information about the features supported by this provider
+
+     * Features are by-default always disabled. There is _no_ minimum set of features a provider needs to support.
+     */
     export interface ManifestFeatureSupport {
+        /**
+         * Determines which compute related features are supported by this provider
+         */
         compute: ManifestFeatureSupportNS.Compute,
     }
 
@@ -1069,8 +1327,7 @@ export namespace compute {
      */
     export interface Ingress {
         id: string,
-        domain: string,
-        product: accounting.ProductReference,
+        specification: IngressSpecification,
         /**
          * Information about the owner of this resource
          */
@@ -1093,6 +1350,21 @@ export namespace compute {
          */
         updates: IngressUpdate[],
         resolvedProduct?: accounting.ProductNS.Ingress,
+        /**
+         * An ACL for this `Resource`
+         */
+        acl?: provider.ResourceAclEntry[],
+    }
+
+    export interface IngressSpecification {
+        /**
+         * The domain used for L7 load-balancing for use with this `Ingress`
+         */
+        domain: string,
+        /**
+         * The product used for the `Ingress`
+         */
+        product: accounting.ProductReference,
     }
 
     export interface IngressOwner {
@@ -1101,7 +1373,7 @@ export namespace compute {
          *
          * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
          */
-        username: string,
+        createdBy: string,
         /**
          * The project which owns the resource
          */
@@ -1126,6 +1398,20 @@ export namespace compute {
         ,
     }
 
+    /**
+     * Describes an update to the `Resource`
+     *
+     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+     * use the full update history if you only wish to know the _current_ state of a `Resource`.
+     *
+     * An update will typically contain information similar to the `status` field, for example:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`.
+     * - Change in key metrics.
+     * - Bindings to related `Resource`s.
+     *
+     */
     export interface IngressUpdate {
         /**
          * A timestamp for when this update was registered by UCloud
@@ -1153,8 +1439,13 @@ export namespace compute {
      * A `License` for use in `Job`s
      */
     export interface License {
+        /**
+         * A unique identifier referencing the `Resource`
+         *
+         * This ID is assigned by UCloud and is globally unique across all providers.
+         */
         id: string,
-        product: accounting.ProductReference,
+        specification: LicenseSpecification,
         /**
          * Information about the owner of this resource
          */
@@ -1177,7 +1468,17 @@ export namespace compute {
          */
         updates: LicenseUpdate[],
         resolvedProduct?: accounting.ProductNS.License,
-        acl?: LicenseAclEntry[],
+        /**
+         * An ACL for this `Resource`
+         */
+        acl?: provider.ResourceAclEntry<"USE">[],
+    }
+
+    export interface LicenseSpecification {
+        /**
+         * The product used for the `License`
+         */
+        product: accounting.ProductReference,
     }
 
     export interface LicenseOwner {
@@ -1186,7 +1487,7 @@ export namespace compute {
          *
          * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
          */
-        username: string,
+        createdBy: string,
         /**
          * The project which owns the resource
          */
@@ -1207,6 +1508,20 @@ export namespace compute {
         ,
     }
 
+    /**
+     * Describes an update to the `Resource`
+     *
+     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+     * use the full update history if you only wish to know the _current_ state of a `Resource`.
+     *
+     * An update will typically contain information similar to the `status` field, for example:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`.
+     * - Change in key metrics.
+     * - Bindings to related `Resource`s.
+     *
+     */
     export interface LicenseUpdate {
         /**
          * A timestamp for when this update was registered by UCloud
@@ -1223,20 +1538,27 @@ export namespace compute {
         status?: string,
     }
 
-    export interface LicenseAclEntry {
-        entity: LicenseAclEntryNS.Entity,
-        permissions: "USE"[],
-    }
-
     export interface JobsCreateResponse {
         ids: string[],
     }
 
     export interface JobsRetrieveRequest {
         id: string,
+        /**
+         * Includes `parameters.parameters` and `parameters.resources`
+         */
         includeParameters?: boolean,
+        /**
+         * Includes `updates`
+         */
         includeUpdates?: boolean,
+        /**
+         * Includes `parameters.resolvedApplication`
+         */
         includeApplication?: boolean,
+        /**
+         * Includes `parameters.resolvedProduct`
+         */
         includeProduct?: boolean,
     }
 
@@ -1258,9 +1580,21 @@ export namespace compute {
         consistency?: "PREFER" | "REQUIRE",
         itemsToSkip?: number /* int64 */
         ,
+        /**
+         * Includes `parameters.parameters` and `parameters.resources`
+         */
         includeParameters?: boolean,
+        /**
+         * Includes `updates`
+         */
         includeUpdates?: boolean,
+        /**
+         * Includes `parameters.resolvedApplication`
+         */
         includeApplication?: boolean,
+        /**
+         * Includes `parameters.resolvedProduct`
+         */
         includeProduct?: boolean,
         sortBy?: "CREATED_AT" | "STATE" | "APPLICATION",
         filterApplication?: string,
@@ -1299,6 +1633,14 @@ export namespace compute {
         jobId: string,
         state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
         status?: string,
+        /**
+         * Indicates that this request should be ignored if the current state does not match the expected state
+         */
+        expectedState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+        /**
+         * Indicates that this request should be ignored if the current state equals `state`
+         */
+        expectedDifferentState?: boolean,
     }
 
     export interface JobsControlChargeCreditsResponse {
@@ -1333,9 +1675,21 @@ export namespace compute {
 
     export interface JobsControlRetrieveRequest {
         id: string,
+        /**
+         * Includes `parameters.parameters` and `parameters.resources`
+         */
         includeParameters?: boolean,
+        /**
+         * Includes `updates`
+         */
         includeUpdates?: boolean,
+        /**
+         * Includes `parameters.resolvedApplication`
+         */
         includeApplication?: boolean,
+        /**
+         * Includes `parameters.resolvedProduct`
+         */
         includeProduct?: boolean,
     }
 
@@ -1345,7 +1699,13 @@ export namespace compute {
     }
 
     export interface IngressesBrowseRequest {
+        /**
+         * Includes `updates`
+         */
         includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
         includeProduct?: boolean,
         itemsPerPage?: number /* int32 */
         ,
@@ -1361,18 +1721,19 @@ export namespace compute {
         ids: string[],
     }
 
-    export interface IngressCreateRequestItem {
-        domain: string,
-        product: accounting.ProductReference,
-    }
-
     export interface IngressRetrieve {
         id: string,
     }
 
     export interface IngressRetrieveWithFlags {
         id: string,
+        /**
+         * Includes `updates`
+         */
         includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
         includeProduct?: boolean,
     }
 
@@ -1417,8 +1778,17 @@ export namespace compute {
     }
 
     export interface LicensesBrowseRequest {
+        /**
+         * Includes `updates`
+         */
         includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
         includeProduct?: boolean,
+        /**
+         * Includes `acl`
+         */
         includeAcl?: boolean,
         itemsPerPage?: number /* int32 */
         ,
@@ -1434,24 +1804,29 @@ export namespace compute {
         ids: string[],
     }
 
-    export interface LicenseCreateRequestItem {
-        product: accounting.ProductReference,
-    }
-
     export interface LicenseRetrieve {
         id: string,
     }
 
     export interface LicenseRetrieveWithFlags {
         id: string,
+        /**
+         * Includes `updates`
+         */
         includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
         includeProduct?: boolean,
+        /**
+         * Includes `acl`
+         */
         includeAcl?: boolean,
     }
 
     export interface LicensesUpdateAclRequestItem {
         id: string,
-        acl: LicenseAclEntry[],
+        acl: provider.ResourceAclEntry<"USE">[],
     }
 
     export interface LicenseControlUpdateRequestItem {
@@ -1656,17 +2031,38 @@ export namespace compute {
     export namespace AppParameterValueNS {
         /**
          * A reference to a UCloud file
+
+         * - __Compatible with:__ `ApplicationParameter.InputFile` and `ApplicationParameter.InputDirectory`
+         * - __Mountable as a resource:__ ✅ Yes
+         * - __Expands to:__ The absolute path to the file or directory in the software's environment
+         * - __Side effects:__ Includes the file or directory in the `Job`'s temporary work directory
+
+         * The path of the file must be absolute and refers to either a UCloud directory or file.
          *
-         * The path to the file most always be absolute an refers to either a UCloud directory or file.
          */
         export interface File {
+            /**
+             * The absolute path to the file or directory in UCloud
+             */
             path: string,
+            /**
+             * Indicates if this file or directory should be mounted as read-only
+             *
+             * A provider must reject the request if it does not support read-only mounts when `readOnly = true`.
+             *
+             */
             readOnly: boolean,
             type: "file",
         }
 
         /**
-         * A boolean value
+         * A boolean value (true or false)
+
+         * - __Compatible with:__ `ApplicationParameter.Bool`
+         * - __Mountable as a resource:__ ❌ No
+         * - __Expands to:__ `trueValue` of `ApplicationParameter.Bool` if value is `true` otherwise `falseValue`
+         * - __Side effects:__ None
+         *
          */
         export interface Bool {
             value: boolean,
@@ -1675,6 +2071,14 @@ export namespace compute {
 
         /**
          * A textual value
+
+         * - __Compatible with:__ `ApplicationParameter.Text` and `ApplicationParameter.Enumeration`
+         * - __Mountable as a resource:__ ❌ No
+         * - __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
+         * - __Side effects:__ None
+         *
+         * When this is used with an `Enumeration` it must match the value of one of the associated `options`.
+         *
          */
         export interface Text {
             value: string,
@@ -1684,7 +2088,13 @@ export namespace compute {
         /**
          * An integral value
          *
+         * - __Compatible with:__ `ApplicationParameter.Integer`
+         * - __Mountable as a resource:__ ❌ No
+         * - __Expands to:__ The number
+         * - __Side effects:__ None
+         *
          * Internally this uses a big integer type and there are no defined limits.
+         *
          */
         export interface Integer {
             value: number /* int64 */
@@ -1694,8 +2104,14 @@ export namespace compute {
 
         /**
          * A floating point value
+
+         * - __Compatible with:__ `ApplicationParameter.FloatingPoint`
+         * - __Mountable as a resource:__ ❌ No
+         * - __Expands to:__ The number
+         * - __Side effects:__ None
          *
          * Internally this uses a big decimal type and there are no defined limits.
+         *
          */
         export interface FloatingPoint {
             value: number /* float32 */
@@ -1704,9 +2120,14 @@ export namespace compute {
         }
 
         /**
-         * A reference to a separate UCloud job
+         * A reference to a separate UCloud `Job`
+
+         * - __Compatible with:__ `ApplicationParameter.Peer`
+         * - __Mountable as a resource:__ ✅ Yes
+         * - __Expands to:__ The `hostname`
+         * - __Side effects:__ Configures the firewall to allow bidirectional communication between this `Job` and the peering
+         *   `Job`
          *
-         * The compute provider should use this information to make sure that the two jobs can communicate with each other.
          */
         export interface Peer {
             hostname: string,
@@ -1715,7 +2136,14 @@ export namespace compute {
         }
 
         /**
-         * A reference to a license
+         * A reference to a software license, registered locally at the provider
+
+         * - __Compatible with:__ `ApplicationParameter.LicenseServer`
+         * - __Mountable as a resource:__ ❌ No
+         * - __Expands to:__ `${license.address}:${license.port}/${license.key}` or
+         *   `${license.address}:${license.port}` if no key is provided
+         * - __Side effects:__ None
+         *
          */
         export interface License {
             id: string,
@@ -1723,7 +2151,7 @@ export namespace compute {
         }
 
         /**
-         * A reference to block storage
+         * A reference to block storage (Not yet implemented)
          */
         export interface Network {
             id: string,
@@ -1731,7 +2159,7 @@ export namespace compute {
         }
 
         /**
-         * A reference to block storage
+         * A reference to block storage (Not yet implemented)
          */
         export interface BlockStorage {
             id: string,
@@ -1739,7 +2167,14 @@ export namespace compute {
         }
 
         /**
-         * HTTP Ingress
+         * A reference to an HTTP ingress, registered locally at the provider
+
+         * - __Compatible with:__ `ApplicationParameter.Ingress`
+         * - __Mountable as a resource:__ ❌ No
+         * - __Expands to:__ `${id}`
+         * - __Side effects:__ Configures an HTTP ingress for the application's interactive web interface. This interface should
+         *   not perform any validation, that is, the application should be publicly accessible.
+         *
          */
         export interface Ingress {
             id: string,
@@ -2134,7 +2569,7 @@ export namespace compute {
          * Push state changes to UCloud (update)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: SERVICE](https://img.shields.io/static/v1?label=Auth&message=SERVICE&color=informational&style=flat-square)
+         * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
          *
          * Pushes one or more state changes to UCloud. UCloud will always treat all updates as a single
          * transaction. UCloud may reject the status updates if it deems them to be invalid. For example, an
@@ -2158,7 +2593,7 @@ export namespace compute {
          * Charge the user for the job (chargeCredits)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: SERVICE](https://img.shields.io/static/v1?label=Auth&message=SERVICE&color=informational&style=flat-square)
+         * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
          *
          *
          */
@@ -2179,7 +2614,7 @@ export namespace compute {
          * Retrieve job information (retrieve)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: SERVICE](https://img.shields.io/static/v1?label=Auth&message=SERVICE&color=informational&style=flat-square)
+         * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
          *
          * Allows the compute backend to query the UCloud database for a job owned by the compute provider.
          */
@@ -2205,7 +2640,7 @@ export namespace compute {
          * Submit output file to UCloud (submitFile)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: SERVICE](https://img.shields.io/static/v1?label=Auth&message=SERVICE&color=informational&style=flat-square)
+         * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
          *
          * Submits an output file to UCloud which is not available to be put directly into the storage resources
          * mounted by the compute provider.
@@ -2249,6 +2684,14 @@ export namespace compute {
             ,
             tags: string[],
             license?: string,
+            category: accounting.ProductCategoryId,
+            pricePerUnit: number /* int64 */
+            ,
+            description: string,
+            availability: accounting.ProductAvailability,
+            priority: number /* int32 */
+            ,
+            paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
         }
 
         export interface KubernetesLicenseBrowseRequest {
@@ -2643,8 +3086,8 @@ export namespace compute {
         }
 
         export function create(
-            request: BulkRequest<LicenseCreateRequestItem>
-        ): APICallParameters<BulkRequest<LicenseCreateRequestItem>, LicensesCreateResponse> {
+            request: BulkRequest<LicenseSpecification>
+        ): APICallParameters<BulkRequest<LicenseSpecification>, LicensesCreateResponse> {
             return {
                 context: "",
                 method: "POST",
@@ -2766,8 +3209,8 @@ export namespace compute {
         }
 
         export function create(
-            request: BulkRequest<IngressCreateRequestItem>
-        ): APICallParameters<BulkRequest<IngressCreateRequestItem>, IngressesCreateResponse> {
+            request: BulkRequest<IngressSpecification>
+        ): APICallParameters<BulkRequest<IngressSpecification>, IngressesCreateResponse> {
             return {
                 context: "",
                 method: "POST",
@@ -2867,37 +3310,70 @@ export namespace compute {
             }
         }
     }
-    export namespace LicenseAclEntryNS {
-        export type Entity = EntityNS.ProjectGroup
-        export namespace EntityNS {
-            export interface ProjectGroup {
-                projectId: string,
-                group: string,
-                type: "project_group",
-            }
-        }
-    }
     export namespace ManifestFeatureSupportNS {
         export interface Compute {
+            /**
+             * Support for `Tool`s using the `DOCKER` backend
+             */
             docker: ComputeNS.Docker,
+            /**
+             * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
+             */
             virtualMachine: ComputeNS.VirtualMachine,
         }
 
         export namespace ComputeNS {
             export interface Docker {
+                /**
+                 * Flag to enable/disable this feature
+                 *
+                 * All other flags are ignored if this is `false`.
+                 */
                 enabled: boolean,
+                /**
+                 * Flag to enable/disable the interactive interface of `WEB` `Application`s
+                 */
                 web: boolean,
+                /**
+                 * Flag to enable/disable the interactive interface of `VNC` `Application`s
+                 */
                 vnc: boolean,
+                /**
+                 * Flag to enable/disable `BATCH` `Application`s
+                 */
                 batch: boolean,
+                /**
+                 * Flag to enable/disable the log API
+                 */
                 logs: boolean,
+                /**
+                 * Flag to enable/disable the interactive terminal API
+                 */
                 terminal: boolean,
+                /**
+                 * Flag to enable/disable connection between peering `Job`s
+                 */
                 peers: boolean,
             }
 
             export interface VirtualMachine {
+                /**
+                 * Flag to enable/disable this feature
+                 *
+                 * All other flags are ignored if this is `false`.
+                 */
                 enabled: boolean,
+                /**
+                 * Flag to enable/disable the log API
+                 */
                 logs: boolean,
+                /**
+                 * Flag to enable/disable the VNC API
+                 */
                 vnc: boolean,
+                /**
+                 * Flag to enable/disable the interactive terminal API
+                 */
                 terminal: boolean,
             }
         }
@@ -2912,8 +3388,8 @@ export namespace compute {
          *
          */
         export function create(
-            request: BulkRequest<JobParameters>
-        ): APICallParameters<BulkRequest<JobParameters>, JobsCreateResponse> {
+            request: BulkRequest<JobSpecification>
+        ): APICallParameters<BulkRequest<JobSpecification>, JobsCreateResponse> {
             return {
                 context: "",
                 method: "POST",
@@ -4513,9 +4989,21 @@ export namespace accounting {
         ,
     }
 
+    /**
+     * Contains a unique reference to a [Product](/backend/accounting-service/README.md)
+     */
     export interface ProductReference {
+        /**
+         * The `Product` ID
+         */
         id: string,
+        /**
+         * The ID of the `Product`'s category
+         */
         category: string,
+        /**
+         * The provider of the `Product`
+         */
         provider: string,
     }
 
@@ -6997,7 +7485,7 @@ export namespace indexing {
         negate?: boolean,
     }
 
-    export interface Comparison<Value> {
+    export interface Comparison<Value = unknown> {
         value: Value,
         operator: "GREATER_THAN" | "GREATER_THAN_EQUALS" | "LESS_THAN" | "LESS_THAN_EQUALS" | "EQUALS",
     }
@@ -7050,7 +7538,7 @@ export namespace indexing {
     }
 }
 export namespace kotlin {
-    export interface Pair<A, B> {
+    export interface Pair<A = unknown, B = unknown> {
         first: A,
         second: B,
     }

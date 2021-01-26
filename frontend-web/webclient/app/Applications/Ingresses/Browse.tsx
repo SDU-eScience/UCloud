@@ -18,7 +18,7 @@ import {StickyBox} from "ui-components/StickyBox";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import Create from "Applications/Ingresses/Create";
 
-const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (selection: { id: string; domain: string }) => void }> = props => {
+const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (selection: Ingress) => void }> = props => {
     const projectId = useProjectId();
     const [infScrollId, setInfScrollId] = useState(0);
     const [ingresses, fetchIngresses] = useCloudAPI({noop: true}, emptyPageV2);
@@ -46,7 +46,7 @@ const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (se
     const callbacks: IngressCallbacks = useMemo(() => ({
         invokeCommand, reload, setIsCreating,
         onSelect: ingress => {
-            props.onSelect?.({id: ingress.id, domain: ingress.domain});
+            props.onSelect?.(ingress);
         }
     }), [props.onSelect]);
 
@@ -55,12 +55,14 @@ const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (se
             {items.map(it =>
                 <ListRow
                     key={it.id}
-                    left={it.domain}
+                    left={it.specification.domain}
                     isSelected={toggleSet.checked.has(it)}
                     select={() => toggleSet.toggle(it)}
                     leftSub={
                         <ListStatContainer>
-                            <ListRowStat>{it.product.category} ({it.product.provider})</ListRowStat>
+                            <ListRowStat>
+                                {it.specification.product.category} ({it.specification.product.provider})
+                            </ListRowStat>
                             <ListRowStat>{prettierString(it.status.state)}</ListRowStat>
                             {!it.status.boundTo ? null :
                                 <ListRowStat>Bound to {shortUUID(it.status.boundTo)}</ListRowStat>}

@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import * as UCloud from "UCloud";
-import {accounting, compute, PageV2} from "UCloud";
+import {accounting, compute, PageV2, provider} from "UCloud";
 import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {groupSummaryRequest, useProjectId} from "Project";
 import {emptyPage, emptyPageV2} from "DefaultObjects";
@@ -35,11 +35,11 @@ import {GroupWithSummary} from "Project/GroupList";
 import * as Pagination from "Pagination";
 import {AclPermission} from "Applications/Licenses/index";
 import {TextSpan} from "ui-components/Text";
-import LicenseAclEntry = compute.LicenseAclEntry;
 import LicensesCreateResponse = compute.LicensesCreateResponse;
 import {PaymentModelExplainer} from "Accounting/PaymentModelExplainer";
 import {StickyBox} from "ui-components/StickyBox";
 import {useScrollStatus} from "Utilities/ScrollStatus";
+import ResourceAclEntry = provider.ResourceAclEntry;
 
 interface LicenseGroup {
     product: ProductNS.License;
@@ -80,7 +80,7 @@ export const Browse: React.FunctionComponent<{
 
     const selectInstance = useCallback((instance: License) => {
         const shouldClear = selected.instances.items
-            .some(it => !equal(it.product, instance.product));
+            .some(it => !equal(it.specification.product, instance.specification.product));
         if (shouldClear) selected.instances.clear();
 
         selected.instances.toggle(instance);
@@ -100,9 +100,9 @@ export const Browse: React.FunctionComponent<{
 
     const inspect = useCallback((license: License) => {
         const product = products.find(it =>
-            it.category.id === license.product.category &&
-            it.category.provider === license.product.provider &&
-            it.id === license.product.id
+            it.category.id === license.specification.product.category &&
+            it.category.provider === license.specification.product.provider &&
+            it.id === license.specification.product.id
         );
 
         if (!product) {
@@ -169,9 +169,9 @@ export const Browse: React.FunctionComponent<{
     const groups: LicenseGroup[] = products.map(product => ({product, instances: []}));
     for (const license of licenses.data.items) {
         const group = groups.find(it =>
-            it.product.id === license.product.id &&
-            it.product.category.id === license.product.category &&
-            license.product.provider === it.product.category.provider
+            it.product.id === license.specification.product.id &&
+            it.product.category.id === license.specification.product.category &&
+            license.specification.product.provider === it.product.category.provider
         );
         if (group) {
             group.instances.push(license);
@@ -423,7 +423,7 @@ async function licenseOpActivate(selected: LicenseGroup[], cb: LicenseOpCallback
 }
 
 function hasPermissionsToUseLicense(projectStatus: ProjectStatus, instance: License): OperationEnabled {
-    if (instance.owner.project === null && instance.owner.username === Client.username) return true;
+    if (instance.owner.project === null && instance.owner.createdBy === Client.username) return true;
     const status = projectStatus.fetch();
     const isAdmin = status.membership.some(membership => membership.projectId === instance.owner.project &&
         isAdminOrPI(membership.whoami.role))
@@ -594,7 +594,7 @@ const LicensePermissions: React.FunctionComponent<{ license: License, reload: ()
 
     const [commandLoading, invokeCommand] = useCloudCommand();
 
-    const [acl, setAcl] = useState<LicenseAclEntry[]>(license.acl ?? []);
+    const [acl, setAcl] = useState<ResourceAclEntry<AclPermission>[]>(license.acl ?? []);
 
     useEffect(() => {
         fetchProjectGroups(UCloud.project.group.listGroupsWithSummary({itemsPerPage: 50, page: 0}));

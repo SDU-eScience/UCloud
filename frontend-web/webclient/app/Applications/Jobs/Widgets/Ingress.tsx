@@ -47,7 +47,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
                 const ingress = await callAPI<Ingress>(UCloud.compute.ingresses.retrieve({id: ingressId}));
                 const visual = visualInput();
                 if (visual) {
-                    visual.value = ingress.domain;
+                    visual.value = ingress.specification.domain;
                 }
             }
         };

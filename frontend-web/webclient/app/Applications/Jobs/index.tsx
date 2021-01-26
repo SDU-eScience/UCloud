@@ -55,13 +55,13 @@ export const stateToTitle = (state: JobState): string => {
 };
 
 export function jobTitle(job: Job): string {
-    return job.parameters.name ?? shortUUID(job.id)
+    return job.specification.name ?? shortUUID(job.id)
 }
 
 export function jobAppTitle(job: Job): string {
-    return job.parameters.resolvedApplication?.metadata?.title ?? job.parameters.application.name;
+    return job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name;
 }
 
 export function jobAppVersion(job: Job): string {
-    return job.parameters.application.version;
+    return job.specification.application.version;
 }

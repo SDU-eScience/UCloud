@@ -62,10 +62,10 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                 <Box width="calc(50% - 10px)">
                     <Label>
                         {canChangeProvider ? <>1. Select Provider</> : <>Provider</>}
-                        {canChangeProvider ? <Select placeholder="Provider...">
-                            <option onClick={() => setSelectedProvider(undefined)}/>
+                        {canChangeProvider ? <Select placeholder="Provider..." onChange={e => setSelectedProvider(e.target.value ? e.target.value : undefined)}>
+                            <option />
                             {viableProviders.map(provider =>
-                                <option key={provider} onClick={() => setSelectedProvider(provider)}>
+                                <option key={provider}>
                                     {provider}
                                 </option>
                             )}
@@ -76,10 +76,13 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
             right={<Box width="calc(50% - 10px)">
                 <Label>
                     {!canChangeProvider ? "1" : "2"}. Select Product
-                    <Select placeholder="Product...">
-                        <option onClick={() => setSelectedProduct(null)}/>
+                    <Select placeholder="Product..." onChange={e => {
+                        console.log(allProducts.data.items.find(it => it.id === e.target.value) as ProductNS.Ingress ?? null);
+                        setSelectedProduct(allProducts.data.items.find(it => it.id === e.target.value) as ProductNS.Ingress ?? null);
+                    }}>
+                        <option onClick={() => setSelectedProduct(null)} />
                         {allProducts.data.items.map(product =>
-                            <option key={product.id} onClick={() => setSelectedProduct(product as ProductNS.Ingress)}>
+                            <option key={product.id} value={product.id}>
                                 {product.id}
                             </option>
                         )}

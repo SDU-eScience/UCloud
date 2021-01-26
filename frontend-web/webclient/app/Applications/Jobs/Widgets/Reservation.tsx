@@ -102,7 +102,7 @@ export const ReservationParameter: React.FunctionComponent<{
     </Box>
 };
 
-export type ReservationValues = Pick<UCloud.compute.JobParameters, "name" | "timeAllocation" | "replicas" | "product">;
+export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "timeAllocation" | "replicas" | "product">;
 
 interface ValidationAnswer {
     options?: ReservationValues;

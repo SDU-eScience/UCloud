@@ -20,7 +20,7 @@ import java.math.BigInteger
 import java.util.*
 
 data class UnverifiedJob(
-    val request: JobParameters,
+    val request: JobSpecification,
     val username: String,
     val project: String?,
 )
@@ -201,7 +201,8 @@ class JobVerificationService(
                     parameters = verifiedParameters,
                     timeAllocation = unverifiedJob.request.timeAllocation ?: tool.description.defaultTimeAllocation
                 ),
-                JobStatus(JobState.IN_QUEUE)
+                JobStatus(JobState.IN_QUEUE),
+                System.currentTimeMillis()
             ),
             "REPLACED_LATER"
         )

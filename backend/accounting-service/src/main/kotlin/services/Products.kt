@@ -501,7 +501,7 @@ class ProductService(
                     getField(ProductTable.priority),
                     getFieldNullable(ProductTable.licenseTags)?.let { defaultMapper.readValue(it) } ?: emptyList(),
                     getFieldNullable(ProductTable.paymentModel)?.let { PaymentModel.valueOf(it) }
-                        ?: PaymentModel.PER_ACTIVATION
+                        ?: PaymentModel.PER_ACTIVATION,
                 )
             }
         }
