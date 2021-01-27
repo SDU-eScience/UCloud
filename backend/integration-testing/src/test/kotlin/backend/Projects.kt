@@ -8,10 +8,8 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.GiB
 import dk.sdu.cloud.file.api.PiB
-import dk.sdu.cloud.file.api.TiB
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
@@ -22,7 +20,6 @@ import dk.sdu.cloud.project.favorite.api.ToggleFavoriteRequest
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
-import org.junit.Ignore
 import org.junit.Test
 import kotlin.random.Random
 import kotlin.test.assertEquals
