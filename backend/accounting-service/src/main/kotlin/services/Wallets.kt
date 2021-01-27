@@ -537,7 +537,12 @@ class BalanceService(
                     reserveCredits(
                         session,
                         initiatedBy,
-                        request.copy(account = ancestor, discardAfterLimitCheck = false, skipIfExists = false),
+                        request.copy(
+                            account = ancestor,
+                            discardAfterLimitCheck = false,
+                            skipIfExists = false,
+                            chargeImmediately = false,
+                        ),
                         reserveForAncestors = false,
                         origWallet = wallet,
                     )
