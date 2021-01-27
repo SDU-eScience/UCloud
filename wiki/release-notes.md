@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 27-01-21
+
+Bug fix to accounting.
+
+```
+✅  Deployment(accounting, 1.4.16): (UP-TO-DATE)
+```
+
 ## 07-01-21
 
 Bug fix to app-store.
