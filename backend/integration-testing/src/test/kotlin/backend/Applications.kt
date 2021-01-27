@@ -1,5 +1,6 @@
 package dk.sdu.cloud.integration.backend
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.*
@@ -352,5 +353,35 @@ class ApplicationTest : IntegrationTest() {
             ),
             "fails with payment required"
         ) { it.statusCode == HttpStatusCode.PaymentRequired }
+    }
+
+    @Test
+    fun `test cancelling job`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+
+        val user = createUser()
+        val rootProject = initializeRootProject()
+        initializeAllPersonalFunds(user.username, rootProject)
+
+        addFundsToPersonalProject(rootProject, user.username, sampleCompute.category, 10_000.DKK)
+        setPersonalQuota(rootProject, user.username, 10.GiB)
+        val jobId = Jobs.create.call(
+            bulkRequestOf(
+                JobSpecification(
+                    SampleApplications.figlet,
+                    sampleCompute.reference(),
+                    parameters = SampleApplications.figletParams("Hello"),
+                    resources = emptyList(),
+                )
+            ),
+            user.client
+        ).orThrow().ids.single()
+
+        assert(Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items.isNotEmpty())
+        Jobs.delete.call(bulkRequestOf(FindByStringId(jobId)), user.client)
+        waitForJob(jobId, user.client)
+        val result = Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items
+        assert(result.isNotEmpty() && result.first().status.state == JobState.FAILURE)
     }
 }
