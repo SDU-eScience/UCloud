@@ -17,6 +17,7 @@ import {useToggleSet} from "Utilities/ToggleSet";
 import {StickyBox} from "ui-components/StickyBox";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import Create from "Applications/Ingresses/Create";
+import Page from "Activity/Page";
 
 const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (selection: Ingress) => void }> = props => {
     const projectId = useProjectId();
@@ -101,6 +102,7 @@ const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (se
                 infiniteScrollGeneration={infScrollId}
                 loading={ingresses.loading}
                 pageRenderer={pageRenderer}
+                customEmptyPage={"No public links available. Click \"Create link\" to create a new one for use."}
             />
         </Box>
     </Box>;
