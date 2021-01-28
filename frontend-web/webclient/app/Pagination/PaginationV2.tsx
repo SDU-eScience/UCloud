@@ -37,7 +37,7 @@ export const ListV2: ListV2Type = props => {
         return <HexSpin/>;
     }
 
-    if (props.page.items.length === 0 && allItems.length === 1) {
+    if (props.page.items.length === 0 && allItems.length === 0) {
         if (!props.customEmptyPage) {
             return <div><Heading.h4>No results.</Heading.h4></div>;
         } else {
