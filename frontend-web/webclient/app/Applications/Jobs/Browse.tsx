@@ -103,8 +103,6 @@ export const Browse: React.FunctionComponent = () => {
     const [allJobs, setAllJobs] = useState<UCloud.compute.Job[]>([]);
     const toggleSet = useToggleSet(allJobs);
 
-    console.log(toggleSet.checked.items);
-
     const pageRenderer = useCallback((items: UCloud.compute.Job[]): React.ReactNode => {
         setAllJobs(items);
         return <>
