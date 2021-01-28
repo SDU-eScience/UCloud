@@ -7,14 +7,14 @@ export class ToggleSet<T> {
         return this.privateItems;
     }
 
-    toggle(item: T): void {
+    public toggle(item: T): void {
         const wasInSet = this.remove(item);
         if (wasInSet) return;
 
         this.fastAdd(item);
     }
 
-    has(item: T): boolean {
+    public has(item: T): boolean {
         return this.privateItems.some(it => equal(it, item))
     }
 
@@ -24,7 +24,7 @@ export class ToggleSet<T> {
      * @param item The item to remove
      * @return true if the set contains the item
      */
-    remove(item: T): boolean {
+    public remove(item: T): boolean {
         const length = this.privateItems.length;
         for (let i = 0; i < length; i++) {
             const current = this.privateItems[i];
@@ -44,15 +44,15 @@ export class ToggleSet<T> {
      *
      * @param item The item to add
      */
-    fastAdd(item: T) {
+    public fastAdd(item: T): void {
         this.privateItems.push(item);
     }
 
-    clear() {
+    public clear(): void {
         this.privateItems = [];
     }
 
-    activateAll(items: T[]) {
+    public activateAll(items: T[]): void {
         for (const item of items) {
             if (!this.has(item)) {
                 this.fastAdd(item);
@@ -70,7 +70,7 @@ interface ToggleSetHook<T> {
 }
 
 export function useToggleSet<T>(items: T[]): ToggleSetHook<T> {
-    const [checked, setChecked] = useState<{ set: ToggleSet<T> }>({set: new ToggleSet()});
+    const [checked, setChecked] = useState<{set: ToggleSet<T>}>({set: new ToggleSet()});
     const allChecked = checked.set.items.length > 0 && checked.set.items.length === items.length;
     const toggle = useCallback((job: T) => {
         checked.set.toggle(job);

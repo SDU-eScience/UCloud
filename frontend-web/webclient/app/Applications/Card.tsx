@@ -79,7 +79,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     return (
         <AppCardBase to={props.linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <Box mr={16}>
-                <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"}/>
+                <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
             </Box>
             <strong>{metadata.title} v{metadata.version}</strong>
             <EllipsedText>
@@ -110,7 +110,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                     unwrapDisallowed
                 />
             </EllipsedText>
-            <Flex><Icon name="chevronDown" size={"18px"} rotation={-90}/></Flex>
+            <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
         </AppCardBase>
     );
 };
@@ -172,7 +172,7 @@ export const AppCard = styled(Link)`
     }
 `;
 
-export const Tag = ({label, bg = "darkGray"}: { label: string; bg?: string }): JSX.Element => (
+export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX.Element => (
     <RatingBadge mr="3px" bg={bg}><Heading.h6>{label}</Heading.h6></RatingBadge>
 );
 
@@ -213,38 +213,38 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLog
             clipRule="evenodd"
         >
             <defs>
-                <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${s32 * r1}H-${0.5 * r1}Z`}/>
-                <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fillOpacity=".55"/>
+                <path id="hex_to___" d={`M-${r1} 0H-1L-0.5 ${s32}H0.5L${(0.5 * r1)} ${s32 * r1}H-${0.5 * r1}Z`} />
+                <path id="hex_ti___" d={`M0 0H${r2}L${0.5 * r2} -${s32 * r2}H-${0.5 * r2}Z`} fillOpacity=".55" />
                 <path
                     id="hex_th___"
                     d={`M-${r3} 0L-${0.5 * r3} ${s32 * r3}H${0.5 * r3}L${r3} 0L${0.5 * r3} -${s32 * r3}H-${0.5 * r3}Z`}
                 />
             </defs>
             <g transform={`rotate(${rot} 0 0)`}>
-                <use xlinkHref="#hex_th___" fill="#fff"/>
-                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[0]]}/>
-                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[1]]} transform={rot120}/>
-                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[2]]} transform={rot240}/>
-                <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[0]]}/>
-                <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[1]]} transform={rot120}/>
-                <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[2]]} transform={rot240}/>
+                <use xlinkHref="#hex_th___" fill="#fff" />
+                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[0]]} />
+                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[1]]} transform={rot120} />
+                <use xlinkHref="#hex_to___" fill={appColors[appC][c1[2]]} transform={rot240} />
+                <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[0]]} />
+                <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[1]]} transform={rot120} />
+                <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[2]]} transform={rot240} />
             </g>
         </svg>
     );
 };
 
-export const AppLogo = ({size, hash}: { size: string, hash: number }): JSX.Element => {
+export const AppLogo = ({size, hash}: {size: string, hash: number}): JSX.Element => {
     const i1 = (hash >>> 30) & 3;
     const i2 = (hash >>> 20) & 3;
     const rot = [0, 15, 30];
     const i3 = (hash >>> 10) % rot.length;
     const appC = appColor(hash);
 
-    return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size}/>;
+    return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />;
 };
 
 
-const AppRibbonContainer = styled(Absolute) <{ favorite?: boolean }>`
+const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
     ${({favorite}) => favorite ? null : css`transform: translate(0,-30px)`};
     transition: transform ease 0.1s;
     will-change: transform;
@@ -280,22 +280,22 @@ const AbsoluteNoPointerEvents = styled(Absolute)`
 `;
 
 export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
-                                                                                   app,
-                                                                                   onFavorite,
-                                                                                   isFavorite,
-                                                                                   colorBySpecificTag,
-                                                                                   linkToRun
-                                                                               }: ApplicationCardProps) => {
+    app,
+    onFavorite,
+    isFavorite,
+    colorBySpecificTag,
+    linkToRun
+}: ApplicationCardProps) => {
     const hash = hashF(colorBySpecificTag ?? app.tags[0] ?? "fallback");
     const {metadata} = app;
     const appC = appColor(hash);
     return (
         <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <AbsoluteNoPointerEvents right={0} top={0}
-                                     cursor="inherit"
-                                     height="100%"
-                                     width="10px"
-                                     background={bgGradients[appC]}/>
+                cursor="inherit"
+                height="100%"
+                width="10px"
+                background={bgGradients[appC]} />
             {(!onFavorite && !isFavorite) ? null : (
                 <AppRibbonContainer
                     cursor="inherit"
@@ -304,11 +304,11 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                     favorite={isFavorite}
                     onClick={onFavoriteClick}
                 >
-                    <Icon name="starRibbon" color="red" size={48}/>
+                    <Icon name="starRibbon" color="red" size={48} />
                 </AppRibbonContainer>
             )}
             <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
-                <AppToolLogo name={app.metadata.name} type="APPLICATION" size="48px"/>
+                <AppToolLogo name={app.metadata.name} type="APPLICATION" size="48px" />
                 <Flex flexDirection="column" ml="10px">
                     <Flex>
                         <EllipsedText fontSize="20px" maxWidth="220px">{metadata.title}</EllipsedText>
@@ -319,9 +319,9 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                     </EllipsedText>
                 </Flex>
             </Flex>
-            <Box mt="auto"/>
+            <Box mt="auto" />
             <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
-                {buildTags(app.tags).map((tag, idx) => <Tag label={tag} key={idx}/>)}
+                {buildTags(app.tags).map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </AppCard>
     );
@@ -341,7 +341,7 @@ export const CardToolContainer = styled(Box)`
     width: 100%;
 `;
 
-export const SmallCard = styled(Link) <{ color1: string; color2: string; color3: string }>`
+export const SmallCard = styled(Link) <{color1: string; color2: string; color3: string}>`
     display: flex;
     padding: 10px;
     width: 150px;
