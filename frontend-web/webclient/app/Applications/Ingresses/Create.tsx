@@ -77,7 +77,6 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                 <Label>
                     {!canChangeProvider ? "1" : "2"}. Select Product
                     <Select placeholder="Product..." onChange={e => {
-                        console.log(allProducts.data.items.find(it => it.id === e.target.value) as ProductNS.Ingress ?? null);
                         setSelectedProduct(allProducts.data.items.find(it => it.id === e.target.value) as ProductNS.Ingress ?? null);
                     }}>
                         <option onClick={() => setSelectedProduct(null)} />
@@ -94,7 +93,7 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
             {!canChangeProvider ? "2" : "3"}. Select domain
             <Flex>
                 <Text mt="7px">
-                    {ingressSettings.data.domainPrefix}</Text><Input placeholder="Enter domain..." ref={domainRef} type="text" />
+                    {ingressSettings.data.domainPrefix}</Text><Input maxLength={1024} placeholder="Enter domain..." ref={domainRef} type="text" />
                 <Text mt="7px">
                     {ingressSettings.data.domainSuffix}
                 </Text>
