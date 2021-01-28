@@ -1,6 +1,6 @@
 # UCloud: Compute Orchestrator
 
-UCloud has applications. The applications are defined by the app-store. UCloud is, at its core, an orchestrator of
+UCloud is, at its core, an orchestrator of
 resources. This means that UCloud sends all the hard work to a provider. UCloud has its own
 provider, [UCloud/Compute](/backend/app-kubernetes-service/README.md).
 

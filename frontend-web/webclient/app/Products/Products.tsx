@@ -80,7 +80,7 @@ function MachineView({area}: {area: ProductArea}): JSX.Element {
         >
             <Box style={{borderTop: `5px solid var(--blue, #f00)`}} />
             <Box px={3} py={3} height={"100%"}>
-                <Heading.h3 mb={"16px"}>{capitalized(area)}</Heading.h3>
+                <Heading.h3 mb={"16px"}>{capitalized(area === "INGRESS" ? "public links" : area)}</Heading.h3>
 
                 <Flex alignItems="center">
                     <List
@@ -197,7 +197,7 @@ function MachineView({area}: {area: ProductArea}): JSX.Element {
 function Description(): JSX.Element {
     return (<>
         Below is the available SKUs on the {CONF.PRODUCT_NAME} platform.
-        They are divided into different product areas, i.e. storage SKUs, compute SKUs, Ingress SKUs and License SKUs.
+        They are divided into different product areas, i.e. storage SKUs, compute SKUs, public link SKUs and license SKUs.
         The prices for compute will be visible when starting a job.
     </>);
 }

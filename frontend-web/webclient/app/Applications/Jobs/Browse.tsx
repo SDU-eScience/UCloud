@@ -29,7 +29,7 @@ import {useToggleSet} from "Utilities/ToggleSet";
 import {compute} from "UCloud";
 import JobsBrowseRequest = compute.JobsBrowseRequest;
 import {Operation, Operations} from "ui-components/Operation";
-import { creditFormatter } from "Project/ProjectUsage";
+import {creditFormatter} from "Project/ProjectUsage";
 
 const itemsPerPage = 50;
 
@@ -37,6 +37,7 @@ const entityName = "Run";
 
 interface JobOperationCallbacks {
     invokeCommand: InvokeCommand;
+    onFinish(): void
 }
 
 const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
@@ -50,6 +51,7 @@ const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
                 type: "bulk",
                 items: selected.map(it => ({id: it.id}))
             }));
+            extra.onFinish();
         },
         enabled: selected => {
             if (selected.some(it => inCancelableState(it.status.state))) {
@@ -102,17 +104,17 @@ export const Browse: React.FunctionComponent = () => {
     const toggleSet = useToggleSet(allJobs);
 
     const pageRenderer = useCallback((items: UCloud.compute.Job[]): React.ReactNode => {
+        setAllJobs(items);
         return <>
             <List bordered={false} childPadding={"8px"}>
                 {items.map(job => {
-                    setAllJobs(items);
                     const isExpired = isRunExpired(job);
                     return (
                         <ListRow
                             key={job.id}
                             navigate={() => history.push(`/applications/jobs/${job.id}`)}
                             icon={
-                                <AppToolLogo size="36px" type="APPLICATION" name={job.specification.application.name}/>
+                                <AppToolLogo size="36px" type="APPLICATION" name={job.specification.application.name} />
                             }
                             isSelected={toggleSet.checked.has(job)}
                             select={() => toggleSet.toggle(job)}
@@ -128,7 +130,7 @@ export const Browse: React.FunctionComponent = () => {
                                         </ListRowStat>
                                     }
 
-                                    <ListRowStat icon={"grant"}>
+                                    <ListRowStat icon="grant">
                                         Price: {creditFormatter(job.billing.creditsCharged)}
                                     </ListRowStat>
                                 </ListStatContainer>
@@ -140,7 +142,7 @@ export const Browse: React.FunctionComponent = () => {
                                     </Text>
                                 )}
                                 <Flex width="110px">
-                                    <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px"/>
+                                    <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px" />
                                     <Flex mt="-3px">{stateToTitle(job.status.state)}</Flex>
                                 </Flex>
                                 <Operations
@@ -149,7 +151,13 @@ export const Browse: React.FunctionComponent = () => {
                                     entityNameSingular={entityName}
                                     operations={jobOperations}
                                     row={job}
-                                    extra={{invokeCommand}}
+                                    extra={{
+                                        invokeCommand, onFinish: () => {
+                                            const toRemove = toggleSet.checked.items.filter(it => !isJobStateTerminal(it.status.state));
+                                            for (const job of toRemove) toggleSet.toggle(job);
+                                            refresh();
+                                        }
+                                    }}
                                 />
                             </>}
                         />
@@ -195,26 +203,32 @@ export const Browse: React.FunctionComponent = () => {
             <FilterOptions onUpdateFilter={f => {
                 console.log("Updating filters");
                 setFilters(f)
-            }}/>
+            }} />
             <Operations
                 selected={toggleSet.checked.items}
                 location="SIDEBAR"
                 entityNameSingular={entityName}
                 operations={jobOperations}
-                extra={{invokeCommand}}
+                extra={{
+                    invokeCommand, onFinish: () => {
+                        const toRemove = toggleSet.checked.items.filter(it => !isJobStateTerminal(it.status.state));
+                        for (const job of toRemove) toggleSet.toggle(job);
+                        refresh();
+                    }
+                }}
             />
         </>}
     />;
 };
 
-type SortBy = { text: string, value: JobSortBy };
+type SortBy = {text: string, value: JobSortBy};
 const sortBys: SortBy[] = [
     {text: "Created at", value: "CREATED_AT"},
     {text: "State", value: "STATE"},
     {text: "Application", value: "APPLICATION"},
 ];
 
-type Filter = { text: string; value: JobState | "null" };
+type Filter = {text: string; value: JobState | "null"};
 const dayInMillis = 24 * 60 * 60 * 1000;
 const appStates: Filter[] =
     (["IN_QUEUE", "RUNNING", "CANCELING", "SUCCESS", "FAILURE", "EXPIRED"] as JobState[])
