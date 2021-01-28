@@ -100,7 +100,7 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
                 </Text>
             </Flex>
         </Label>}
-        <Button onClick={register} fullWidth>Register ingress</Button>
+        <Button onClick={register} fullWidth>Register public link</Button>
     </div>
 
     async function register() {
@@ -130,7 +130,7 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
 
 
         if (ids?.length) {
-            snackbarStore.addSuccess(`Created ${ids.length} ingresse(s).`, false);
+            snackbarStore.addSuccess(`Created ${ids.length} public link(s).`, false);
             props.onCreateFinished?.();
         }
     }
