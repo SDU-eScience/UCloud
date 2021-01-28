@@ -45,7 +45,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         val productCache = ProductCache(serviceClient)
         val paymentService = PaymentService(db, serviceClient)
-        val parameterExportService = ParameterExportService()
+        val parameterExportService = ParameterExportService(productCache)
         val jobFileService = JobFileService(userClientFactory, serviceClient, appStoreCache)
         val projectCache = ProjectCache(serviceClient)
 
