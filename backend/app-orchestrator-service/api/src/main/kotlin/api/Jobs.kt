@@ -266,6 +266,10 @@ data class JobSpecification(
                 HttpStatusCode.BadRequest
             )
         }
+
+        if (name != null && name.length > 200) {
+            throw RPCException("Provided job name is too long", HttpStatusCode.BadRequest)
+        }
     }
 
     companion object {
