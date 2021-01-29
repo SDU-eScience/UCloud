@@ -2,6 +2,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
 import {inSuccessRange} from "UtilityFunctions";
+import {appLogoCache, toolLogoCache} from "Applications/AppToolLogo";
 
 export type AppOrTool = "APPLICATION" | "TOOL";
 
@@ -36,6 +37,8 @@ export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
                     snackbarStore.addFailure(message, false);
                     resolve(false);
                 } else {
+                    if (props.type === "APPLICATION") appLogoCache.forget(props.name);
+                    else toolLogoCache.forget(props.name);
                     resolve(true);
                 }
             }

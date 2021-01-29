@@ -8,9 +8,6 @@ import {usePromiseKeeper} from "PromiseKeeper";
 import * as UCloud from "UCloud";
 import {JobState} from "Applications/Jobs";
 
-export const toolImageQuery = (toolName: string, cacheBust?: string): string =>
-    `/hpc/tools/logo/${toolName}?cacheBust=${cacheBust}`;
-
 export const advancedSearchQuery = "/hpc/apps/advancedSearch";
 
 export function isRunExpired(run: UCloud.compute.Job): boolean {

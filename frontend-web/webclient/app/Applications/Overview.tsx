@@ -1,4 +1,3 @@
-import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
@@ -10,7 +9,6 @@ import * as Heading from "ui-components/Heading";
 import {Spacer} from "ui-components/Spacer";
 import {EllipsedText} from "ui-components/Text";
 import theme from "ui-components/theme";
-import {toolImageQuery} from "Utilities/ApplicationUtilities";
 import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import * as Pages from "./Pages";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
@@ -20,6 +18,7 @@ import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as UCloud from "UCloud";
 import {compute} from "UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
+import {AppToolLogo} from "Applications/AppToolLogo";
 
 export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
     <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
@@ -146,15 +145,17 @@ const ToolImageWrapper = styled(Box)`
     margin-right: 10px;
 `;
 
-const ToolImage = styled.img`
-    max-width: 200px;
-    max-height: 190px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: auto;
-    margin-bottom: auto;
-    height: auto;
-    width: 100%;
+const ToolImage = styled.div`
+    & > * {
+      max-width: 200px;
+      max-height: 190px;
+      margin-left: auto;
+      margin-right: auto;
+      margin-top: auto;
+      margin-bottom: auto;
+      height: auto;
+      width: 100%;
+    }
 `;
 
 // NOTE(Dan): We don't allow new lines in tags normally. As a result, we can be pretty confident that no application
@@ -280,16 +281,13 @@ const ToolGroup: React.FunctionComponent<{tag: string; cacheBust?: string}> = ({
     const allTags = page.items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
-    const url = Client.computeURL("/api", toolImageQuery(tag.toLowerCase().replace(/\s+/g, ""), cacheBust));
-    const [, setLoadedImage] = useState(true);
 
-    useEffect(() => setLoadedImage(true));
     return (
         <ToolGroupWrapper>
             <ToolImageWrapper>
-                <div>
-                    <ToolImage src={url} />
-                </div>
+                <ToolImage>
+                    <AppToolLogo name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
+                </ToolImage>
             </ToolImageWrapper>
             <CardToolContainer>
                 <Spacer
