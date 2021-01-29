@@ -389,7 +389,10 @@ class RpcServer {
             log.debug("   Responding [$jobIdForDebug]: ${call.fullName} ($responseResult)")
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
-            val isEarlyClose = ex is ClosedSendChannelException || ex.javaClass.simpleName == "JobCancellationException"
+            val isEarlyClose = ex is ClosedSendChannelException ||
+                ex.javaClass.simpleName == "JobCancellationException" ||
+                ex.javaClass.simpleName == "CancellationException"
+
             if (ex !is RPCException && !isEarlyClose) {
                 log.info("Uncaught exception in handler for $call")
                 log.info(ex.stackTraceToString())
