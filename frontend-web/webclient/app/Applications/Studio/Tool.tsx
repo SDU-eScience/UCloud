@@ -68,8 +68,8 @@ export const Tool: React.FunctionComponent<RouteComponentProps<{name: string}>> 
                                 if (target.files) {
                                     const file = target.files[0];
                                     target.value = "";
-                                    if (file.size > 1024 * 512) {
-                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                    if (file.size > 1024 * 1024 * 5) {
+                                        snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
                                     } else {
                                         if (await uploadLogo({name, file, type: "TOOL"})) {
                                             setLogoCacheBust("" + Date.now());

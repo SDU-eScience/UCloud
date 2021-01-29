@@ -58,8 +58,8 @@ export const Studio: React.FunctionComponent = () => {
                                 if (target.files) {
                                     const file = target.files[0];
                                     target.value = "";
-                                    if (file.size > 1024 * 512) {
-                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                    if (file.size > 1024 * 1024 * 5) {
+                                        snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
                                     } else {
                                         await uploadDocument({document: file, type: "APPLICATION"});
                                         refresh();
