@@ -137,6 +137,10 @@ Internally this uses a big decimal type and there are no defined limits.
             if (!hostname.matches(hostNameRegex)) {
                 throw RPCException("Invalid hostname: $hostname", HttpStatusCode.BadRequest)
             }
+
+            if (hostname.length > 250) {
+                throw RPCException("Hostname is too long", HttpStatusCode.BadRequest)
+            }
         }
 
         val type = "peer"
