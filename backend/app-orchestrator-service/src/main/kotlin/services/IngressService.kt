@@ -42,19 +42,21 @@ class IngressService(
 
                 ctx.withSession { session ->
                     ingressPoints.forEach { ingress ->
+                        val errorMessage = "Cannot use your public link: ${ingress.id}. " +
+                            "It does not exist or is not usable from your current project."
                         val retrievedIngress = dao.retrieve(
                             session,
                             IngressId(ingress.id),
                             IngressDataIncludeFlags(includeProduct = true)
-                        ) ?: throw RPCException("Invalid ingress: ${ingress.id}", HttpStatusCode.BadRequest)
+                        ) ?: throw RPCException(errorMessage, HttpStatusCode.BadRequest)
                         val product = retrievedIngress.resolvedProduct!!
 
                         if (jobProject != retrievedIngress.owner.project) {
-                            throw RPCException("Invalid ingress: ${ingress.id}", HttpStatusCode.BadRequest)
+                            throw RPCException(errorMessage, HttpStatusCode.BadRequest)
                         }
 
                         if (jobProject == null && jobLauncher != retrievedIngress.owner.createdBy) {
-                            throw RPCException("Invalid ingress: ${ingress.id}", HttpStatusCode.BadRequest)
+                            throw RPCException(errorMessage, HttpStatusCode.BadRequest)
                         }
 
                         if (retrievedIngress.specification.product.provider != computeProvider) {
