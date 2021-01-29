@@ -157,6 +157,18 @@ class Server(override val micro: Micro) : CommonServer {
                 exitProcess(1)
             }
         }
+
+        if (micro.commandLineArguments.contains("--resize-logos")) {
+            runBlocking {
+                try {
+                    logoService.resizeAll()
+                    exitProcess(0)
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                    exitProcess(1)
+                }
+            }
+        }
         startServices()
     }
 }

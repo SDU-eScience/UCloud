@@ -17,4 +17,5 @@ bundle {
     withPostgresMigration(deployment)
     withAdHocJob(deployment, "app-to-elastic", { listOf("--run-script", "--migrate-apps-to-elastic") })
     withAdHocJob(deployment, "move-tags", { listOf("--move") })
+    withAdHocJob(deployment, "resize-logos", { listOf("--resize-logos")}) {}
 }
