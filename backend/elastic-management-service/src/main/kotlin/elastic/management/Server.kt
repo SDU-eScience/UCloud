@@ -2,14 +2,12 @@ package dk.sdu.cloud.elastic.management
 
 import dk.sdu.cloud.elastic.management.services.AutoSettingsService
 import dk.sdu.cloud.elastic.management.services.BackupService
-import dk.sdu.cloud.elastic.management.services.CustomScripts
 import dk.sdu.cloud.elastic.management.services.ExpiredEntriesDeleteService
 import dk.sdu.cloud.elastic.management.services.ReindexService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
 import dk.sdu.cloud.elastic.management.services.deleteIndex
 import dk.sdu.cloud.elastic.management.services.getAllEmptyIndices
 import dk.sdu.cloud.elastic.management.services.getListOfIndices
-import dk.sdu.cloud.elastic.management.services.getShardCount
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.commandLineArguments
 import dk.sdu.cloud.micro.elasticHighLevelClient
@@ -34,6 +32,17 @@ class Server(
         val elasticLowLevelClient = micro.elasticLowLevelClient
 
         startServices(wait = false)
+
+        if (micro.commandLineArguments.contains("--reindex")) {
+            try {
+                val reindexService = ReindexService(elasticHighLevelClient)
+                reindexService.reindexToMonthly("http_logs", elasticLowLevelClient)
+                exitProcess(0)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                exitProcess(1)
+            }
+        }
 
         if (micro.commandLineArguments.contains("--grafanaAliases")) {
             @Suppress("TooGenericExceptionCaught")
@@ -101,18 +110,6 @@ class Server(
             }
         }
 
-        if (micro.commandLineArguments.contains("--reindex")) {
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                val reindexService = ReindexService(elasticHighLevelClient)
-                reindexService.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", elasticLowLevelClient)
-                exitProcess(0)
-            } catch (ex: Exception) {
-                log.warn(ex.stackTraceToString())
-                exitProcess(1)
-            }
-        }
-
         if (micro.commandLineArguments.contains("--reindexSpecific")) {
             @Suppress("TooGenericExceptionCaught")
             try {
@@ -124,30 +121,6 @@ class Server(
                 println(toIndices)
 
                 reindexService.reindexSpecificIndices(fromIndices, toIndices, elasticLowLevelClient)
-                exitProcess(0)
-            } catch (ex: Exception) {
-                log.warn(ex.stackTraceToString())
-                exitProcess(1)
-            }
-        }
-
-        if (micro.commandLineArguments.contains("--monthlyReduce")) {
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                val reindexService = ReindexService(elasticHighLevelClient)
-                reindexService.reduceLastMonth("http_logs", lowLevelClient = elasticLowLevelClient)
-                exitProcess(0)
-            } catch (ex: Exception) {
-                log.warn(ex.stackTraceToString())
-                exitProcess(1)
-            }
-        }
-
-        if (micro.commandLineArguments.contains("--reduceLastQuarter")) {
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                val reindexService = ReindexService(elasticHighLevelClient)
-                reindexService.reduceLastQuarter("http_logs", lowLevelClient = elasticLowLevelClient)
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "audit-ingestion"
-    version = "0.2.2"
+    version = "0.2.3"
 
     val secret: String = config("secret", "Secret name for elasticsearch credentials", "elasticsearch-credentials")
 
