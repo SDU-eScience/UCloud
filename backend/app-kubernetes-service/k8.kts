@@ -1,7 +1,5 @@
 package dk.sdu.cloud.k8
 
-//DEPS dk.sdu.cloud:k8-resources:0.1.2
-
 bundle { ctx ->
     name = "app-kubernetes"
     version = "0.20.0-rc11"
@@ -65,57 +63,57 @@ bundle { ctx ->
 
     withPostgresMigration(deployment)
 
-    listOf("", "-dev").forEach { suffix ->
-        withNetworkPolicy("app-policy$suffix", version = "4") {
-            policy.metadata.namespace = "app-kubernetes"
+    withNetworkPolicy("app-policy", version = "5") {
+        policy.metadata.namespace = "app-kubernetes"
 
-            policy.spec = NetworkPolicySpec().apply {
-                podSelector = LabelSelector().apply {
-                    matchExpressions = listOf(LabelSelectorRequirement("volcano.sh/job-name", "Exists", null))
-                }
+        policy.spec = NetworkPolicySpec().apply {
+            podSelector = LabelSelector().apply {
+                matchExpressions = listOf(LabelSelectorRequirement("volcano.sh/job-name", "Exists", null))
+            }
 
-                ingress = emptyList()
-                egress = listOf(
-                    allowPortEgress(
-                        listOf(
-                            PortAndProtocol(53, NetworkProtocol.TCP),
-                            PortAndProtocol(53, NetworkProtocol.UDP)
-                        )
-                    ),
+            ingress = emptyList()
+            egress = listOf(
+                allowPortEgress(
+                    listOf(
+                        PortAndProtocol(53, NetworkProtocol.TCP),
+                        PortAndProtocol(53, NetworkProtocol.UDP)
+                    )
+                ),
 
-                    allowEgressTo(
-                        listOf(
-                            EgressToPolicy(
-                                "0.0.0.0/0",
-                                listOf(
-                                    "10.0.0.0/8",
-                                    "172.16.0.0/12",
-                                    "192.168.0.0/16",
-                                    // smtp.sdu.dk
-                                    "130.225.156.18/32",
-                                    "130.225.156.19/32"
-                                )
+                allowEgressTo(
+                    listOf(
+                        EgressToPolicy(
+                            "0.0.0.0/0",
+                            listOf(
+                                "10.0.0.0/8",
+                                "172.16.0.0/12",
+                                "192.168.0.0/16",
+                                // smtp.sdu.dk
+                                "130.225.156.18/32",
+                                "130.225.156.19/32"
                             )
                         )
                     )
-                ) + internalEgressWhiteList.map {
-                    allowEgressTo(listOf(EgressToPolicy(it)))
-                }
+                ),
+
+                allowEgressToPods("volcano.sh/job-name", "Exists")
+            ) + internalEgressWhiteList.map {
+                allowEgressTo(listOf(EgressToPolicy(it)))
             }
         }
+    }
 
-        withNetworkPolicy("app-allow-proxy$suffix", version = "4") {
-            policy.metadata.namespace = "app-kubernetes"
+    withNetworkPolicy("app-allow-proxy", version = "4") {
+        policy.metadata.namespace = "app-kubernetes"
 
-            policy.spec = NetworkPolicySpec().apply {
-                podSelector = LabelSelector().apply {
-                    matchExpressions = listOf(LabelSelectorRequirement("volcano.sh/job-name", "Exists", null))
-                }
-
-                ingress = listOf(
-                    allowFromPods(mapOf("app" to "app-kubernetes"), null)
-                )
+        policy.spec = NetworkPolicySpec().apply {
+            podSelector = LabelSelector().apply {
+                matchExpressions = listOf(LabelSelectorRequirement("volcano.sh/job-name", "Exists", null))
             }
+
+            ingress = listOf(
+                allowFromPods(mapOf("app" to "app-kubernetes"), null)
+            )
         }
     }
 
@@ -172,7 +170,7 @@ bundle { ctx ->
 
     withIngress("apps") {
         resource.metadata.annotations = resource.metadata.annotations +
-                mapOf("nginx.ingress.kubernetes.io/proxy-body-size" to "0")
+            mapOf("nginx.ingress.kubernetes.io/proxy-body-size" to "0")
         addRule("*.$domain", service = "app-kubernetes", port = 80)
     }
 
@@ -897,7 +895,7 @@ bundle { ctx ->
                           image: ${registry}volcanosh/vc-webhook-manager:$version
                           imagePullPolicy: IfNotPresent
                           command: ["./gen-admission-secret.sh", "--service", "volcano-admission-service", "--namespace",
-                                    "volcano-system", "--secret", "volcano-admission-secret"] 
+                                    "volcano-system", "--secret", "volcano-admission-secret"]
             """.trimIndent().split("---").filter { it.isNotBlank() }
 
             override fun DeploymentContext.create() {

@@ -94,7 +94,10 @@ class Server(
             configuration.disableMasterElection && micro.developmentModeEnabled,
             configuration.fullScanFrequency
         ).apply {
-            register(TaskPlugin(configuration.toleration))
+            register(TaskPlugin(
+                configuration.toleration,
+                configuration.useSmallReservation && micro.developmentModeEnabled
+            ))
             register(ParameterPlugin(licenseService))
             register(FileMountPlugin(cephConfig))
             register(MultiNodePlugin)

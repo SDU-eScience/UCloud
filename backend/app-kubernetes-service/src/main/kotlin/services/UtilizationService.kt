@@ -12,14 +12,15 @@ import dk.sdu.cloud.service.k8.*
  * A service responsible for fetching utilization information
  */
 class UtilizationService(
-    private val k8: K8Dependencies
+    private val k8: K8Dependencies,
 ) {
     suspend fun retrieveCapacity(): CpuAndMemory {
-         val namespace = k8.client.getResource<Namespace>(
-                KubernetesResources.namespaces.withName(NameAllocator.namespace)
-            )
+        val namespace = k8.client.getResource<Namespace>(
+            KubernetesResources.namespaces.withName(NameAllocator.namespace)
+        )
 
-        val computeAnnotation = namespace.metadata?.annotations?.get("scheduler.alpha.kubernetes.io/node-selector")?.toString()
+        val computeAnnotation =
+            namespace.metadata?.annotations?.get("scheduler.alpha.kubernetes.io/node-selector")?.toString()
 
         val nodes = k8.client.listResources<Node>(KubernetesResources.node.withNamespace(NAMESPACE_ANY))
             .items
@@ -57,7 +58,8 @@ class UtilizationService(
         val memoryUsage = jobs.sumOf { job ->
             job.spec?.tasks?.sumOf { task ->
                 task.template?.spec?.containers?.sumOf { container ->
-                    memoryStringToBytes(container.resources?.limits?.get("memory")?.toString()) * (job?.status?.running ?: 0)
+                    memoryStringToBytes(container.resources?.limits?.get("memory")?.toString()) * (job?.status?.running
+                        ?: 0)
                 } ?: 0
             } ?: 0
         }
@@ -65,7 +67,7 @@ class UtilizationService(
         return CpuAndMemory(cpuUsage, memoryUsage)
     }
 
-    suspend fun retrieveQueueStatus(): QueueStatus{
+    suspend fun retrieveQueueStatus(): QueueStatus {
         val jobs = k8.client.listResources<VolcanoJob>(
             KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         )

@@ -556,16 +556,3 @@ class JobManagement(
         override val log = logger()
     }
 }
-
-/**
- * woof
- *
- * :fie: Woof
- *
- * @param a Blah blah
- * @param b B param
- */
-fun fie(
-    a: Int,
-    b: Int? = null
-): Int = 42

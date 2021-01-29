@@ -63,24 +63,6 @@ data class ComputeFollowResponse(
     val stderr: String?,
 )
 
-data class ComputeRetrieveApiRequest(
-    val job: Job,
-
-    @UCloudApiDoc(
-        "If both the provider and UCloud is running in development mode, then normal protocols and security " +
-            "can be skipped.\n\nIf the provider and UCloud agree on this then the provider should return a result" +
-            "which goes directly to the backend. In all other circumstances the provider should reject the request " +
-            "if `development` is `true` with a status code of 400."
-    )
-    val development: Boolean = false,
-)
-
-data class ComputeRetrieveApiResponse(
-    val domain: String,
-    val https: Boolean,
-    val port: Int,
-)
-
 typealias ComputeOpenInteractiveSessionRequest = BulkRequest<ComputeOpenInteractiveSessionRequestItem>
 data class ComputeOpenInteractiveSessionRequestItem(
     val job: Job,

@@ -14,7 +14,10 @@ import dk.sdu.cloud.service.k8.Pod
  *
  * Most other plugins depend on this plugin having run.
  */
-class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagementPlugin {
+class TaskPlugin(
+    private val toleration: TolerationKeyAndValue?,
+    private val useSmallReservation: Boolean,
+) : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val jobResources = resources.findResources(job)
         val app = jobResources.application.invocation
@@ -55,11 +58,19 @@ class TaskPlugin(private val toleration: TolerationKeyAndValue?) : JobManagement
                         val reservation = jobResources.product
 
                         if (reservation.cpu != null) {
-                            resources += "cpu" to "${reservation.cpu!! * 1000}m"
+                            resources += if (useSmallReservation) {
+                                "cpu" to "${reservation.cpu!! * 100}m"
+                            } else {
+                                "cpu" to "${reservation.cpu!! * 1000}m"
+                            }
                         }
 
                         if (reservation.memoryInGigs != null) {
-                            resources += "memory" to "${reservation.memoryInGigs!!}Gi"
+                            resources += if (useSmallReservation) {
+                                "memory" to "${reservation.memoryInGigs!!}Mi"
+                            } else {
+                                "memory" to "${reservation.memoryInGigs!!}Gi"
+                            }
                         }
 
                         if (reservation.gpu != null) {
