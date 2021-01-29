@@ -889,7 +889,7 @@ const RunningJobRank: React.FunctionComponent<{
 
                         window.open(
                             ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                            `shell-${job.id}-${rank}`,
+                            undefined,
                             "width=800,height=600,status=no"
                         );
                     }}>
