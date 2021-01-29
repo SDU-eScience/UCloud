@@ -9,6 +9,7 @@ import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.PaginationRequestV2Consistency
 import dk.sdu.cloud.service.WithPaginationRequestV2
+import io.ktor.http.*
 
 // Data model
 interface IngressId {
@@ -53,7 +54,13 @@ data class IngressSpecification(
 
     @UCloudApiDoc("The product used for the `Ingress`")
     override val product: ProductReference
-) : ResourceSpecification
+) : ResourceSpecification {
+    init {
+        if (domain.length > 2000) {
+            throw RPCException("domain size cannot exceed 2000 characters", HttpStatusCode.BadRequest)
+        }
+    }
+}
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("An L7 ingress-point (HTTP)")
