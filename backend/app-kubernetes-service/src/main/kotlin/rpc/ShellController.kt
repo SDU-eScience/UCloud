@@ -99,7 +99,8 @@ class ShellController(
                     }
                 }
             } catch (ex: Throwable) {
-                if (ex.javaClass.canonicalName == "kotlinx.coroutines.JobCancellationException") {
+                if (ex.javaClass.canonicalName == "kotlinx.coroutines.JobCancellationException" ||
+                    ex.message?.contains("404 Not Found") == true) {
                     ok(ShellResponse.Acknowledged())
                     runCatching {
                         withContext<WSCall> { ctx.session.close() }
