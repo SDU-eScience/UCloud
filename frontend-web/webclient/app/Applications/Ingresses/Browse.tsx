@@ -17,9 +17,8 @@ import {useToggleSet} from "Utilities/ToggleSet";
 import {StickyBox} from "ui-components/StickyBox";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import Create from "Applications/Ingresses/Create";
-import Page from "Activity/Page";
 
-const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (selection: Ingress) => void }> = props => {
+const Browse: React.FunctionComponent<{computeProvider?: string; onSelect?: (selection: Ingress) => void}> = props => {
     const projectId = useProjectId();
     const [infScrollId, setInfScrollId] = useState(0);
     const [ingresses, fetchIngresses] = useCloudAPI({noop: true}, emptyPageV2);
@@ -73,9 +72,14 @@ const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (se
                         </ListStatContainer>
                     }
                     right={
-                        <Operations selected={toggleSet.checked.items} location={"IN_ROW"}
-                                    entityNameSingular={entityName}
-                                    extra={callbacks} operations={operations} row={it}/>
+                        <Operations
+                            selected={toggleSet.checked.items}
+                            location={"IN_ROW"}
+                            entityNameSingular={entityName}
+                            extra={callbacks}
+                            operations={operations}
+                            row={it}
+                        />
                     }
                 />
             )}
@@ -85,14 +89,14 @@ const Browse: React.FunctionComponent<{ computeProvider?: string; onSelect?: (se
     return <Box ref={scrollingContainerRef}>
         <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
             <Operations selected={toggleSet.checked.items} location={"TOPBAR"} entityNameSingular={entityName}
-                        extra={callbacks} operations={operations}/>
+                extra={callbacks} operations={operations} />
         </StickyBox>
 
         {!isCreating ? null :
             <Create computeProvider={props.computeProvider} onCreateFinished={() => {
                 setIsCreating(false);
                 reload();
-            }}/>
+            }} />
         }
 
         <Box style={{display: isCreating ? "none" : undefined}}>

@@ -34,7 +34,7 @@ export const ListV2: ListV2Type = props => {
     }, [props.page]);
 
     if (props.loading && props.page.items.length === 0) {
-        return <HexSpin/>;
+        return <HexSpin />;
     }
 
     if (props.page.items.length === 0) {
