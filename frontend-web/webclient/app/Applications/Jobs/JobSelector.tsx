@@ -8,6 +8,9 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {ListV2} from "Pagination";
 import {dateToString} from "Utilities/DateUtilities";
 import {jobTitle} from "Applications/Jobs";
+import * as Heading from "ui-components/Heading";
+import {Spacer} from "ui-components/Spacer";
+import {Refresh} from "Navigation/Header";
 
 interface JobSelectorProps {
     isShown: boolean;
@@ -32,6 +35,8 @@ export function JobSelector({
         {noop: true}, emptyPageV2
     );
 
+    const [infScroll, setInfScroll] = React.useState(0);
+
     React.useEffect(() => {
         fetchJobs(UCloud.compute.jobs.browse({
             filterApplication: suggestedApplication?.name,
@@ -42,8 +47,7 @@ export function JobSelector({
             includeProduct: false,
             includeUpdates: false
         }));
-    }, [suggestedApplication])
-
+    }, [suggestedApplication]);
 
     React.useEffect(() => {
         if (!hasSelectedJob && jobs.data.items.length > 0 && allowAutoConfigure && suggestedApplication != null) {
@@ -78,15 +82,31 @@ export function JobSelector({
             onRequestClose={() => setShown(false)}
             style={defaultModalStyle}
         >
+            <Spacer
+                left={<Heading.h3>Active Runs</Heading.h3>}
+                right={
+                    <Refresh spin={jobs.loading} onClick={() => {
+                        fetchJobs(UCloud.compute.jobs.browse({
+                            itemsPerPage: 25,
+                            filterState: "RUNNING",
+                            includeApplication: true,
+                            includeParameters: false,
+                            includeProduct: false,
+                            includeUpdates: false,
+                        }));
+                        setInfScroll(s => s + 1);
+                    }} />
+                } />
             <ListV2
                 customEmptyPage={
                     <Box width={500}>
                         You don&#39;t currently have any running jobs. You can start a new job by selecting an
                         application
                         (in &quot;Apps&quot;) and submitting it to be run.
-                            </Box>
+                    </Box>
                 }
                 page={jobs.data}
+                infiniteScrollGeneration={infScroll}
                 loading={jobs.loading}
                 onLoadMore={loadMore}
                 pageRenderer={pageRenderer}
