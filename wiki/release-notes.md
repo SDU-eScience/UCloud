@@ -7,6 +7,19 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 01-02-21
+Exclude healthcheck from audit stream update to audit-ingestion-service
+Enhancements to Elastic Management Service (monthly)
+
+```
+✅  CronJob(elastic-entry-cleaner, 1.1.6): (UP-TO-DATE)
+✅  CronJob(elastic-cleanup, 1.1.6): (UP-TO-DATE)
+✅  CronJob(elastic-reindex, 1.1.6): (UP-TO-DATE)
+✅  CronJob(manage-grafana-alias, 1.1.6): (UP-TO-DATE)
+
+✅  Deployment(audit-ingestion, 0.2.3): (UP-TO-DATE)
+```
+
 ## 27-01-21
 
 Bug fix to accounting.
