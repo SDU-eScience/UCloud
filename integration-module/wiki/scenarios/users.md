@@ -4,15 +4,14 @@ In this document we will describe various scenarios limited to the subject of us
 users at the provider.
 
 You can about communication between UCloud and the provider
-[here](/backend/app-orchestrator-service/wiki/provider.md#communication).
-A summary is presented below:
+[here](/backend/app-orchestrator-service/wiki/provider.md#communication). A summary is presented below:
 
 - UCloud communicates with the provider through the integration module (using the UCloud provider API)
 - The UCloud provider API is HTTP based
-  - TLS is required in both directions for production use
+    - TLS is required in both directions for production use
 - All requests, in both directions, are verified using short-lived [JWTs](https://jwt.io)
 - JWTs are verified using asymmetrical cryptography
-  - JWT algorithm: `RS256` (`RSASSA-PKCS1-v1_5` with `SHA-256`)
+    - JWT algorithm: `RS256` (`RSASSA-PKCS1-v1_5` with `SHA-256`)
 
 ## Terminology
 
@@ -24,8 +23,6 @@ A summary is presented below:
 | Integration module | A server which implements the UCloud provider API |
 | Integration DB | The database(s) used by the integration module |
 | HPC | The existing provider system. This is used as a catch-all for the storage and compute system |
-| IdP | Identity provider used by the provider |
-| Web-portal | An existing web-portal used by the provider for accessing the system |
 | Existing components | The software and hardware components which already exist in the provider's system |
 | New components | New software components which are introduced into the provider's system |
 
@@ -38,34 +35,24 @@ associated with them at the provider.
 All one-to-one approaches assume that the system assigns a single UID to every user (along with any potential groups).
 As a result, these share the same structure for command execution which is shown later.
 
-### With Existing Users and Web-portal
+### Existing Users
 
 In this scenario, we show how a provider can choose to map every unique UCloud user to a single user at the provider.
-This depends on an existing web-portal and IdP which is already in use by the provider. This assumes that this
-web-portal is actively used by users of the provider already. We assume that the _current_ workflow at the provider is:
+The integration module will in this scenario provide instructions on how to authenticate with the provider. We could
+provide multiple ways for users to authenticate, in this case we show how it could be done by establishing a
+connection to the HPC using SSH. If a UCloud user isn't already a user at the provider, then the instruction set can
+describe how to apply for resources at the provider. This would follow existing procedures at the provider and would
+occur entirely out-of-band.
 
-1. A user wishes to use the provider's services
-2. They open the _existing_ web-portal and login through their IdP (e.g. WAYF)
-3. The first time a user logs in, they are also registered as a 'local' user on the HPC system
-    - Local refers to any kind of user on the system. For example, this might use yellow pages, LDAP or some other means
-      of authenticating. The important part is that this user can now use the system with their user.
-4. User requests resources in the system (e.g. email, online application or any other existing procedure)
-5. Resources are assigned to this user
+![](one_to_one_existing.svg)
 
-In this scenario, UCloud expands and use this web-portal to allow _existing_ users of the provider's system to use
-UCloud. Specifically, the web-portal needs to be expanded to send a callback to the UCloud integration module after a
-connection attempt has completed successfully.
+### Automatic Creation of New Users (Optional)
 
-![](one_to_one_with_portal.svg)
+In this scenario, we show how a provider can deal with new users of the system. This would be an optional feature that
+providers are not forced to use. This will simplify the overhead at the provider site by allowing UCloud to
+automatically create a user on their system.
 
-### With No Portal
-
-In this scenario, we show how a provider can choose to map every unique UCloud user to a single user but without
-depending on an existing workflow. This has the drawback that existing users _cannot_ connect their UCloud user with
-their existing user. Rather, they will need to have two separate users at the provider. This can be a significant
-annoyance for the users of the system.
-
-![](one_to_one_no_portal.svg)
+![](one_to_one_new.svg)
 
 ### Command Execution
 
@@ -77,8 +64,8 @@ authentication and switch context to an authenticated user.
 
 ---
 
-__📝 NOTE:__ The integration module only needs enough permissions to create the sandboxes. An effort will be made
-to ensure that all other privileges are dropped. Details around sandbox creation will be described later.
+__📝 NOTE:__ The integration module only needs enough permissions to create the sandboxes. An effort will be made to
+ensure that all other privileges are dropped. Details around sandbox creation will be described later.
 
 ---
 
@@ -87,11 +74,36 @@ to ensure that all other privileges are dropped. Details around sandbox creation
 ## Many-to-One Mapping
 
 In this scenario, we show how a provider can choose to map _all_ UCloud users to a single, non-privileged, local user.
-This approach has some security benefits, in that the integration module does not need to run with any special
-privileges. However, it is important to note that this pushes _all_ security and auditing onto the UCloud integration
-module and away from the operating system. The one-to-one approach has the benefits of mostly relying on the operating
-system's security, which can be managed by the provider through ordinary means. UCloud only needs privileged access for
-the very small window in which it needs to change context. In the many-to-one approach, UCloud is responsible for
-performing all authentication, authorization and auditing which needs to be managed through UCloud specific methods.
+Note that UCloud still needs privileged access, see below, for short durations of time to create a jail for
+compute-jobs.
+
+### Limitations of the Many-to-One Scenario
+
+Pushing the security of your system to UCloud produces a number of limitations to your system. We highly recommend that
+we avoid this scenario. UCloud will, at least, need to deal with the following issues:
+
+1. UCloud must perform all file-permission checks
+2. UCloud must perform all auditing of operations
+3. UCloud must perform all checks related to starting compute jobs
+4. UCloud must perform all accounting of operations
+
+This will, at least, result in the following limitations on your UCloud partition:
+
+- No users can access their files directly via SSH
+  - This would compromise the security of all three points
+- Users cannot submit Slurm scripts directly
+  - This would circumvent all permission checks and not enforce auditing
+  - Accounting would not be possible since UCloud won't know who performed this action
+- UCloud must be able to create file mounts directly on the compute-nodes
+  - UCloud will need to create a jail for the compute-jobs. Only the folders which have passed the permission check
+    should be available inside the job's environment.
+  - __NOTE:__ This would require parts of UCloud to run with __privileged access__! (will require, at least, 
+    `CAP_SYS_ADMIN` and `CAP_SYS_CHROOT` for `mount(2)` and `chroot(2)`)
+- System administrators will have limited control over access by specific UCloud users
+
+__In summary, UCloud takes over _all_ aspects of your platform for the UCloud partition.__
+
+### Many-to-One Scenario
 
 ![](many_to_one.svg)
+
