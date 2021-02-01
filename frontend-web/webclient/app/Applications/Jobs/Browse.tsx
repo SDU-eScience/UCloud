@@ -100,11 +100,14 @@ export const Browse: React.FunctionComponent = () => {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage, next: jobs.data.next, ...flags, ...filters, sortBy}));
     }, [jobs.data, filters, sortBy]);
 
+    useEffect(() => {
+        setAllJobs(jobs.data.items);
+    }, [jobs.data]);
+
     const [allJobs, setAllJobs] = useState<UCloud.compute.Job[]>([]);
     const toggleSet = useToggleSet(allJobs);
 
     const pageRenderer = useCallback((items: UCloud.compute.Job[]): React.ReactNode => {
-        setAllJobs(items);
         return <>
             <List bordered={false} childPadding={"8px"}>
                 {items.map(job => {
