@@ -111,11 +111,11 @@ internal fun getShardCount(index: String, elastic: RestHighLevelClient): Int {
         .toInt()
 }
 
-internal fun getAllEmptyIndices(elastic: RestHighLevelClient, lowClient: RestClient): List<String> {
-    val allIndices = elastic.indices().get(GetIndexRequest("*"), RequestOptions.DEFAULT).indices.toList()
+internal fun getAllEmptyIndicesWithRegex(elastic: RestHighLevelClient, lowClient: RestClient, regex: String): List<String> {
+    val allLogIndices = elastic.indices().get(GetIndexRequest(regex), RequestOptions.DEFAULT).indices.toList()
     val emptyIndices = mutableListOf<String>()
     try {
-        allIndices.forEach {
+        allLogIndices.forEach {
             val response = lowClient.performRequest(Request("GET", "/_cat/count/$it"))
             val responseInfo = EntityUtils.toString(response.entity).split(" ").filter { it != "" }
             val size = responseInfo[2].trim().toInt()

@@ -1,8 +1,13 @@
 package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.slack.api.SendAlertRequest
+import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.runBlocking
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
@@ -55,6 +60,9 @@ class ReindexService(
                         if (ex.message == "Unable to parse response body") {
                             log.info("status exception")
                             log.info(ex.toString())
+                            reindexErrors.add(fromIndex)
+                            log.info("Does not delete due to mapping issue - investigate")
+                            return@forEachIndexed
                         }
                         else {
                             throw ex
@@ -110,19 +118,18 @@ class ReindexService(
             when (ex) {
                 is IOException -> {
                     //Did not finish reindexing in 2 min (timeout)
-                    val fromCount = getDocumentCountSum(fromIndices, lowLevelClient)
-                    var toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
-                    while (fromCount != toCount) {
-                        log.info("Waiting for target index to reach count: $fromCount. Currently doc count is: $toCount")
-                        Thread.sleep(10000)
-                        toCount = getDocumentCountSum(listOf(toIndex), lowLevelClient)
-                    }
+                    log.info("Did not finish in time (2 min adding to errors)")
+                    reindexErrors.add(fromIndices.joinToString())
+                    log.info("Does not delete due to mapping issue - investigate")
                 }
                 is ElasticsearchStatusException -> {
                     //This is most likely due to API changes resulting in not same mapping
                     if (ex.message == "Unable to parse response body") {
                         log.info("status exception")
                         log.info(ex.toString())
+                        reindexErrors.add(fromIndices.joinToString())
+                        log.info("Does not delete due to mapping issue - investigate")
+                        return
                     }
                     else {
                         throw ex
@@ -140,15 +147,30 @@ class ReindexService(
         }
     }
 
-    fun reindexToMonthly (prefix: String, lowLevelClient: RestClient) {
-        val minusDays = 8L
+    val reindexErrors = mutableListOf<String>()
+
+    fun reindexToMonthly (prefix: String, lowLevelClient: RestClient, serviceClient: AuthenticatedClient) {
+        val minusDays = 11L
         val date = LocalDate.now().minusDays(minusDays).toString().replace("-",".")
+        getAllEmptyIndicesWithRegex(elastic, lowLevelClient, "http_logs_*$date").forEach {
+            log.info("deleting $it since no docs")
+            deleteIndex(it, elastic)
+        }
         val logs = getAllLogNamesWithPrefixForDate(elastic, prefix, date)
         logs.forEach { logIndex ->
             val fromIndex = logIndex
             val toIndex = logIndex.substring(0, logIndex.indexOf("-")+1) +
                 LocalDate.now().minusDays(minusDays).toString().dropLast(3).replace("-",".")
             reindex(listOf(fromIndex), toIndex, lowLevelClient)
+        }
+        runBlocking {
+            SlackDescriptions.sendAlert.call(
+                SendAlertRequest(
+                    "Following indices have been attempted merged, but due to issues have stopped. " +
+                        "Original indices have been left intact for follow up."
+                ),
+                serviceClient
+            )
         }
     }
 

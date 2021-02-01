@@ -1,12 +1,9 @@
 package dk.sdu.cloud.elastic.management
 
-import dk.sdu.cloud.elastic.management.services.AutoSettingsService
-import dk.sdu.cloud.elastic.management.services.BackupService
-import dk.sdu.cloud.elastic.management.services.ExpiredEntriesDeleteService
-import dk.sdu.cloud.elastic.management.services.ReindexService
-import dk.sdu.cloud.elastic.management.services.ShrinkService
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.elastic.management.services.*
 import dk.sdu.cloud.elastic.management.services.deleteIndex
-import dk.sdu.cloud.elastic.management.services.getAllEmptyIndices
 import dk.sdu.cloud.elastic.management.services.getListOfIndices
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.commandLineArguments
@@ -30,13 +27,13 @@ class Server(
     override fun start() {
         val elasticHighLevelClient = micro.elasticHighLevelClient
         val elasticLowLevelClient = micro.elasticLowLevelClient
-
+        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         startServices(wait = false)
 
         if (micro.commandLineArguments.contains("--reindex")) {
             try {
                 val reindexService = ReindexService(elasticHighLevelClient)
-                reindexService.reindexToMonthly("http_logs", elasticLowLevelClient)
+                reindexService.reindexToMonthly("http_logs", elasticLowLevelClient, serviceClient)
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
@@ -131,7 +128,7 @@ class Server(
         if (micro.commandLineArguments.contains("--deleteEmptyIndices")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                getAllEmptyIndices(elasticHighLevelClient, elasticLowLevelClient).forEach {
+                getAllEmptyIndicesWithRegex(elasticHighLevelClient, elasticLowLevelClient, "*").forEach {
                     deleteIndex(it, elasticHighLevelClient)
                 }
                 exitProcess(0)
