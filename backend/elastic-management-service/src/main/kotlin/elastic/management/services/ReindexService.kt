@@ -152,9 +152,19 @@ class ReindexService(
     fun reindexToMonthly (prefix: String, lowLevelClient: RestClient, serviceClient: AuthenticatedClient) {
         val minusDays = 8L
         val date = LocalDate.now().minusDays(minusDays).toString().replace("-",".")
-        getAllEmptyIndicesWithRegex(elastic, lowLevelClient, "http_logs_*$date").forEach {
-            log.info("deleting $it since no docs")
-            deleteIndex(it, elastic)
+        try {
+            getAllEmptyIndicesWithRegex(elastic, lowLevelClient, "http_logs_*$date*").forEach {
+                log.info("deleting $it since no docs")
+                deleteIndex(it, elastic)
+            }
+        } catch (ex: ElasticsearchStatusException) {
+            if (ex.toString().contains("index_not_found")) {
+                // no indices we can finish
+                return
+            }
+            else {
+                throw ex
+            }
         }
         val logs = getAllLogNamesWithPrefixForDate(elastic, prefix, date)
         logs.forEach { logIndex ->
@@ -167,7 +177,8 @@ class ReindexService(
             SlackDescriptions.sendAlert.call(
                 SendAlertRequest(
                     "Following indices have been attempted merged, but due to issues have stopped. " +
-                        "Original indices have been left intact for follow up."
+                        "Original indices have been left intact for follow up." +
+                        "${reindexErrors.joinToString()}"
                 ),
                 serviceClient
             )
