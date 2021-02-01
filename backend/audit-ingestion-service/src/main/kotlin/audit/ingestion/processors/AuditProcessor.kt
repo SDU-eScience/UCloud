@@ -40,6 +40,9 @@ class AuditProcessor(
                     runCatching {
                         val tree = defaultMapper.readTree(document)
                         val requestName = tree["requestName"].textValue()!!
+                        if (requestName == "healthcheck.status") {
+                            return@runCatching null
+                        }
                         (tree as ObjectNode).put("@timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
 
                         Pair(requestName, defaultMapper.writeValueAsString(tree))
