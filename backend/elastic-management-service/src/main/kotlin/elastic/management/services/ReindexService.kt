@@ -150,7 +150,7 @@ class ReindexService(
     val reindexErrors = mutableListOf<String>()
 
     fun reindexToMonthly (prefix: String, lowLevelClient: RestClient, serviceClient: AuthenticatedClient) {
-        val minusDays = 11L
+        val minusDays = 8L
         val date = LocalDate.now().minusDays(minusDays).toString().replace("-",".")
         getAllEmptyIndicesWithRegex(elastic, lowLevelClient, "http_logs_*$date").forEach {
             log.info("deleting $it since no docs")
