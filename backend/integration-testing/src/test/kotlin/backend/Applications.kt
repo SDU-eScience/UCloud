@@ -18,8 +18,8 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.HttpStatusCode
-import io.ktor.util.toByteArray
+import io.ktor.http.*
+import io.ktor.util.*
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -394,15 +394,15 @@ class ApplicationTest : IntegrationTest() {
         setProjectQuota(project.projectId, 10.GiB)
 
         Jobs.create.call(
-                bulkRequestOf(
-                        JobSpecification(
-                                SampleApplications.figlet,
-                                sampleCompute.reference(),
-                                parameters = SampleApplications.figletParams("Hello"),
-                                resources = emptyList(),
-                        )
-                ),
-                project.piClient.withProject(project.projectId)
+            bulkRequestOf(
+                JobSpecification(
+                    SampleApplications.figlet,
+                    sampleCompute.reference(),
+                    parameters = SampleApplications.figletParams("Hello"),
+                    resources = emptyList(),
+                )
+            ),
+            project.piClient.withProject(project.projectId)
         ).orThrow().ids.single()
 
         assert(Jobs.browse.call(JobsBrowseRequest(10), project.piClient.withProject(project.projectId)).orThrow().items.isNotEmpty())
@@ -419,15 +419,15 @@ class ApplicationTest : IntegrationTest() {
         initializeAllPersonalFunds(user.username, rootProject)
 
         Jobs.create.call(
-                bulkRequestOf(
-                        JobSpecification(
-                                SampleApplications.figlet,
-                                sampleCompute.reference(),
-                                parameters = SampleApplications.figletParams("Hello"),
-                                resources = emptyList(),
-                        )
-                ),
-                user.client
+            bulkRequestOf(
+                JobSpecification(
+                    SampleApplications.figlet,
+                    sampleCompute.reference(),
+                    parameters = SampleApplications.figletParams("Hello"),
+                    resources = emptyList(),
+                )
+            ),
+            user.client
         ).orThrow().ids.single()
 
         assert(Jobs.browse.call(JobsBrowseRequest(10), user.client.withProject(rootProject)).orThrow().items.isEmpty())
@@ -436,11 +436,56 @@ class ApplicationTest : IntegrationTest() {
 
     @Test
     fun `test job by project not cancelable by non-associated user`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val rootProject = initializeRootProject()
+        val project = initializeNormalProject(rootProject)
+        val userB = createUser()
+        setProjectQuota(project.projectId, 10.GiB)
 
+        val id = Jobs.create.call(
+            bulkRequestOf(
+                JobSpecification(
+                    SampleApplications.figlet,
+                    sampleCompute.reference(),
+                    parameters = SampleApplications.figletParams("Hello"),
+                    resources = emptyList(),
+                )
+            ),
+            project.piClient.withProject(project.projectId)
+        ).orThrow().ids.single()
+
+        val status = Jobs.delete.call(bulkRequestOf(FindByStringId(id)), userB.client)
+        assert(!status.statusCode.isSuccess())
     }
 
     @Test
     fun `test job by user not cancelable by non-associated project`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val rootProject = initializeRootProject()
+        val project = initializeNormalProject(rootProject)
+        val user = createUser()
 
+        initializeAllPersonalFunds(user.username, rootProject)
+
+        val jobId = Jobs.create.call(
+            bulkRequestOf(
+                JobSpecification(
+                    SampleApplications.figlet,
+                    sampleCompute.reference(),
+                    parameters = SampleApplications.figletParams("Hello"),
+                    resources = emptyList(),
+                )
+            ),
+            user.client
+        ).orThrow().ids.single()
+
+        assert(Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items.isNotEmpty())
+
+        val result = Jobs.delete.call(bulkRequestOf(FindByStringId(jobId)), project.piClient)
+        assert(!result.statusCode.isSuccess())
+
+        assert(Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items.isNotEmpty())
     }
 }
