@@ -62,7 +62,12 @@ class ProductController(
         }
 
         implement(Products.browse) {
-            ok(products.browse(db, ctx.securityPrincipal.toActor(), ctx.project, request))
+            val prod = products.browse(db, ctx.securityPrincipal.toActor(), ctx.project, request)
+            prod.items.forEach { p ->
+                println(p.area)
+                println(p)
+            }
+            ok(prod)
         }
 
         return@with

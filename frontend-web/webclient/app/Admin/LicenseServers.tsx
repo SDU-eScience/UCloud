@@ -5,7 +5,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip, Card, Grid, TextArea, Select} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip, Card, Grid, TextArea, Select, Checkbox} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
@@ -26,7 +26,7 @@ import {useProjectId} from "Project";
 import {UCLOUD_PROVIDER} from "Accounting";
 import Wallet = accounting.Wallet;
 import {PaymentModel} from "Accounting";
-import {errorMessageOrDefault, prettierString} from "UtilityFunctions";
+import {errorMessageOrDefault, prettierString, stopPropagation} from "UtilityFunctions";
 import {InputLabel} from "ui-components/Input";
 import {creditFormatter} from "Project/ProjectUsage";
 
@@ -218,6 +218,7 @@ const LicenseServers: React.FunctionComponent = () => {
     const pricePerUnitInput = useInput();
     const priorityInput = useInput();
     const reasonInput = useInput();
+    const [hiddenInGrantApplicationsInput, setHiddenInGrantApplicationsInput] = useState(false);
 
     useTitle("UCloud/Compute: License servers");
     useSidebarPage(SidebarPages.Admin);
@@ -233,6 +234,7 @@ const LicenseServers: React.FunctionComponent = () => {
         const priority = parseInt(priorityInput.ref.current!.value, 10);
         const pricePerUnit = parseInt(pricePerUnitInput.ref.current!.value, 10) * 1_000_000;
         const reason = reasonInput.ref.current?.value ?? "";
+        const hiddenInGrantApplications = hiddenInGrantApplicationsInput;
 
         let error = false;
 
@@ -276,6 +278,7 @@ const LicenseServers: React.FunctionComponent = () => {
                     provider: UCLOUD_PROVIDER
                 },
                 description,
+                hiddenInGrantApplications,
                 paymentModel,
                 pricePerUnit,
                 priority
@@ -386,6 +389,15 @@ const LicenseServers: React.FunctionComponent = () => {
 
                             <TextArea width={1} mb="1em" rows={4} ref={descriptionRef} placeholder="License description..." />
 
+                            <Label width="auto" mb="1em">
+                                <Checkbox
+                                    checked={hiddenInGrantApplicationsInput}
+                                    onClick={() => setHiddenInGrantApplicationsInput(!hiddenInGrantApplicationsInput)}
+                                    onChange={stopPropagation}
+                                />
+                                Hide License Server from grant applicants
+                            </Label>
+
                             <Button type="submit" color="green" disabled={loading}>Add License Server</Button>
                         </form>
 
@@ -473,6 +485,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
     const [isAvailable, setIsAvailable] = useState<boolean>(licenseServer.availability.type === "available");
     const unavailableReasonInput = React.useRef<HTMLInputElement>(null);
     const descriptionInput = React.useRef<HTMLTextAreaElement>(null);
+    const [hiddenInGrantApplications, setHiddenInGrantApplications] = useState<boolean>(licenseServer.hiddenInGrantApplications)
     const [paymentModelEdit, setPaymentModelEdit] = React.useState<PaymentModel>(licenseServer.paymentModel);
     const portInput = React.useRef<HTMLInputElement>(null);
     const pricePerUnitInput = React.useRef<HTMLInputElement>(null);
@@ -483,7 +496,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
     /* NOTE(Jonas): Lots of overlap in both branches, but the whole 'isEditing' for each field is cumbersome to  */
     if (isEditing) {
         return (
-            <ExpandingCard height={isAvailable ? "600px" : "670px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
+            <ExpandingCard height={isAvailable ? "650px" : "720px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
                 <Heading.h4 mb="1em">{licenseServer.id}</Heading.h4>
                 <Flex mb="1em">
                     <Input width="75%" ref={addressInput} defaultValue={licenseServer.address} />
@@ -523,6 +536,15 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
                 <Heading.h4>Description</Heading.h4>
                 <TextArea mb="1em" width={1} rows={4} ref={descriptionInput} defaultValue={licenseServer.description} />
 
+                <Label width="auto" mb="1em">
+                    <Checkbox
+                        checked={hiddenInGrantApplications}
+                        onClick={() => setHiddenInGrantApplications(!hiddenInGrantApplications)}
+                        onChange={stopPropagation}
+                    />
+                    Hide License Server from grant applicants
+                </Label>
+
                 <Flex mb="1em">
                     <Box width="42.5%">
                         <Heading.h4>Price per unit</Heading.h4>
@@ -552,7 +574,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
             </ExpandingCard >
         );
     } else {
-        return <ExpandingCard height={isSelected ? (licenseServer.availability.type === "available" ? "416px" : "456px") : "96px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
+        return <ExpandingCard height={isSelected ? (licenseServer.availability.type === "available" ? "466px" : "506px") : "96px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
             <Flex justifyContent="space-between">
                 <Box>
                     <Flex>
@@ -648,6 +670,15 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
             <Heading.h4>Description</Heading.h4>
             <Box height={"4.5ch"}>{licenseServer.description}</Box>
 
+            <Box mb="1em">
+                {licenseServer.hiddenInGrantApplications ?
+                    <><TextSpan italic>Hidden</TextSpan> from </>
+                :
+                    <><TextSpan italic>Visible</TextSpan> for </>
+                }
+                grant applicants
+            </Box>
+
             <Flex mb="1em">
                 <Box width="40%">
                     <Heading.h4>Price per unit</Heading.h4>
@@ -693,6 +724,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
                 availability: isAvailable ? {type: "available"} : {type: "unavailable", reason: reason!},
                 category: licenseServer.category,
                 description,
+                hiddenInGrantApplications,
                 license,
                 paymentModel: paymentModelEdit,
                 pricePerUnit,

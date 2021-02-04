@@ -2688,6 +2688,7 @@ export namespace compute {
             pricePerUnit: number /* int64 */
             ,
             description: string,
+            hiddenInGrantApplications: boolean,
             availability: accounting.ProductAvailability,
             priority: number /* int32 */
             ,

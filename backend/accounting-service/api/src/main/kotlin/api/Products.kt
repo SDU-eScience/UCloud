@@ -86,6 +86,7 @@ sealed class Product {
     abstract val pricePerUnit: Long
     abstract val id: String
     abstract val description: String
+    abstract val hiddenInGrantApplications: Boolean
     abstract val availability: ProductAvailability
     abstract val priority: Int
 
@@ -100,6 +101,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0
     ) : Product() {
@@ -118,6 +120,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val cpu: Int? = null,
@@ -143,6 +146,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
@@ -162,6 +166,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val tags: List<String> = emptyList(),
@@ -218,6 +223,7 @@ interface ProductFilters {
     val filterProvider: String?
     val filterUsable: Boolean?
     val filterCategory: String?
+    val filterVisibleForGrantApplications: Boolean?
 }
 
 interface ProductFlags {
@@ -234,6 +240,7 @@ data class ProductsBrowseRequest(
     override val filterArea: ProductArea? = null,
     override val filterUsable: Boolean? = null,
     override val filterCategory: String? = null,
+    override val filterVisibleForGrantApplications: Boolean? = null,
 
     override val includeBalance: Boolean? = null
 ) : WithPaginationRequestV2, ProductFilters, ProductFlags

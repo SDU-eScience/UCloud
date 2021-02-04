@@ -31,6 +31,7 @@ object LicenseServerTable : SQLTable("license_servers") {
     val category = jsonb("category")
     val pricePerUnit = long("price_per_unit")
     val description = text("description")
+    val hiddenInGrantApplications = bool("hidden_in_grant_applications")
     val availability = text("product_availability")
     val priority = int("priority")
     val paymentModel = text("payment_model")
@@ -154,6 +155,7 @@ class LicenseService(
             pricePerUnit,
             ProductCategoryId(id, UCLOUD_PROVIDER),
             description = "Software license",
+            hiddenInGrantApplications,
             tags = tags,
             availability = availability,
             paymentModel = paymentModel,
@@ -161,7 +163,7 @@ class LicenseService(
         )
     }
 
-    private fun mapRows(
+    private suspend fun mapRows(
         rows: ResultSet
     ): List<KubernetesLicense> {
         return rows.map {
@@ -174,6 +176,14 @@ class LicenseService(
                 ProductCategoryId(it.getField(LicenseServerTable.id), UCLOUD_PROVIDER),
                 it.getField(LicenseServerTable.pricePerUnit),
                 it.getField(LicenseServerTable.description),
+                Products.findProduct.call(
+                    FindProductRequest(
+                        UCLOUD_PROVIDER,
+                        it.getField(LicenseServerTable.id),
+                        it.getField(LicenseServerTable.id)
+                    ),
+                    serviceClient
+                ).orThrow().hiddenInGrantApplications,
                 when (val reason = it.getFieldNullable(LicenseServerTable.availability)) {
                     null -> ProductAvailability.Available()
                     else -> ProductAvailability.Unavailable(reason)
