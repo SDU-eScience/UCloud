@@ -384,4 +384,63 @@ class ApplicationTest : IntegrationTest() {
         val result = Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items
         assert(result.isNotEmpty() && result.first().status.state == JobState.FAILURE)
     }
+
+    @Test
+    fun `test job by project not visible in users personal workspace`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val rootProject = initializeRootProject()
+        val project = initializeNormalProject(rootProject)
+        setProjectQuota(project.projectId, 10.GiB)
+
+        Jobs.create.call(
+                bulkRequestOf(
+                        JobSpecification(
+                                SampleApplications.figlet,
+                                sampleCompute.reference(),
+                                parameters = SampleApplications.figletParams("Hello"),
+                                resources = emptyList(),
+                        )
+                ),
+                project.piClient.withProject(project.projectId)
+        ).orThrow().ids.single()
+
+        assert(Jobs.browse.call(JobsBrowseRequest(10), project.piClient.withProject(project.projectId)).orThrow().items.isNotEmpty())
+        assert(Jobs.browse.call(JobsBrowseRequest(10), project.piClient).orThrow().items.isEmpty())
+    }
+
+    @Test
+    fun `test job by user not visible by project they are part of`() = t {
+        UCloudLauncher.requireK8s()
+        SampleApplications.create()
+        val rootProject = initializeRootProject()
+        val user = createUser()
+
+        initializeAllPersonalFunds(user.username, rootProject)
+
+        Jobs.create.call(
+                bulkRequestOf(
+                        JobSpecification(
+                                SampleApplications.figlet,
+                                sampleCompute.reference(),
+                                parameters = SampleApplications.figletParams("Hello"),
+                                resources = emptyList(),
+                        )
+                ),
+                user.client
+        ).orThrow().ids.single()
+
+        assert(Jobs.browse.call(JobsBrowseRequest(10), user.client.withProject(rootProject)).orThrow().items.isEmpty())
+        assert(Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items.isNotEmpty())
+    }
+
+    @Test
+    fun `test job by project not cancelable by non-associated user`() = t {
+
+    }
+
+    @Test
+    fun `test job by user not cancelable by non-associated project`() = t {
+
+    }
 }
