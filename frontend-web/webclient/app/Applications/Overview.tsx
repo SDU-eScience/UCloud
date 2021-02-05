@@ -266,7 +266,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
 
 const TEN_MINUTES_IN_MILLIS = 1_000 * 60 * 10;
 
-const ToolGroup: React.FunctionComponent<{tag: string; cacheBust?: string}> = ({tag, cacheBust}) => {
+const ToolGroup: React.FunctionComponent<{tag: string}> = ({tag}) => {
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage,
@@ -286,7 +286,7 @@ const ToolGroup: React.FunctionComponent<{tag: string; cacheBust?: string}> = ({
         <ToolGroupWrapper>
             <ToolImageWrapper>
                 <ToolImage>
-                    <AppToolLogo name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
+                    <AppToolLogo size="148px" name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
                 </ToolImage>
             </ToolImageWrapper>
             <CardToolContainer>
