@@ -18,11 +18,7 @@ class DeicReportService(val postgresDataService: PostgresDataService, val elasti
         } else {
             0L
         }
-        val usedGPUHoursInPeriod = if (startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
-            postgresDataService.calculateProductUsage(startDate, endDate, ProductType.GPU)
-        } else {
-            0L
-        }
+        val usedGPUHoursInPeriod = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.GPU)
 
         val storageUsed = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.STORAGE)
 

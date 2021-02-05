@@ -21,7 +21,7 @@ const val TYPE_1_CPU_CORE_PRICE = 1.433
 const val TYPE_1_GPU_CORES = 0L
 const val TYPE_1_GPU_CORE_PRICE = 0.0
 
-const val TYPE_1_CEPH_MB_PRICE = 0.0
+const val TYPE_1_CEPH_GB_PRICE_PER_DAY = 0.001667
 
 enum class ProductType(val catagoryId: String) {
     CPU("u1-standard") {
@@ -31,7 +31,7 @@ enum class ProductType(val catagoryId: String) {
         override fun getPricing() = TYPE_1_GPU_CORE_PRICE
                   },
     STORAGE("u1-cephfs") {
-        override fun getPricing() = TYPE_1_CEPH_MB_PRICE
+        override fun getPricing() = TYPE_1_CEPH_GB_PRICE_PER_DAY
     };
 
     abstract fun getPricing(): Double
