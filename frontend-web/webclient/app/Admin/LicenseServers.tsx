@@ -176,14 +176,14 @@ const LicenseServerTagsPrompt: React.FunctionComponent<{
     );
 }
 
-interface InputHook {
-    ref: MutableRefObject<HTMLInputElement | null>;
+interface InputHook<T = HTMLInputElement> {
+    ref: MutableRefObject<T | null>;
     hasError: boolean;
     setHasError: (err: boolean) => void;
 }
 
-function useInput(): InputHook {
-    const ref = useRef(null);
+function useInput<T = HTMLInputElement>(): InputHook<T> {
+    const ref = useRef<T>(null);
     const [hasError, setHasError] = useState(false);
     return {ref, hasError, setHasError};
 }
@@ -196,7 +196,6 @@ const LicenseServers: React.FunctionComponent = () => {
     const [granting, setGranting] = useState<KubernetesLicense | null>(null);
 
     const [isAvailable, setAvailable] = React.useState(true);
-    const descriptionRef = React.useRef<HTMLTextAreaElement>(null);
     const [paymentModel, setPaymentModel] = React.useState<PaymentModel>("PER_ACTIVATION");
 
     const projectId = useProjectId();
@@ -219,6 +218,7 @@ const LicenseServers: React.FunctionComponent = () => {
     const priorityInput = useInput();
     const reasonInput = useInput();
     const [hiddenInGrantApplicationsInput, setHiddenInGrantApplicationsInput] = useState(false);
+    const descriptionTextArea = useInput<HTMLTextAreaElement>();
 
     useTitle("UCloud/Compute: License servers");
     useSidebarPage(SidebarPages.Admin);
@@ -235,6 +235,7 @@ const LicenseServers: React.FunctionComponent = () => {
         const pricePerUnit = parseInt(pricePerUnitInput.ref.current!.value, 10) * 1_000_000;
         const reason = reasonInput.ref.current?.value ?? "";
         const hiddenInGrantApplications = hiddenInGrantApplicationsInput;
+        const description = descriptionTextArea.ref.current?.value ?? "";
 
         let error = false;
 
@@ -246,6 +247,11 @@ const LicenseServers: React.FunctionComponent = () => {
             addressInput.setHasError(true);
             error = true;
         }
+        if (!description) {
+            descriptionTextArea.setHasError(true);
+            error = true;
+        }
+
         if (isNaN(port)) {
             portInput.setHasError(true);
             error = true;
@@ -261,7 +267,6 @@ const LicenseServers: React.FunctionComponent = () => {
             error = true;
         }
 
-        const description = descriptionRef.current?.value ?? "";
 
         if (!error) {
             if (loading) return;
@@ -283,9 +288,14 @@ const LicenseServers: React.FunctionComponent = () => {
                 pricePerUnit,
                 priority
             };
-            await invokeCommand(licenseApi.create(request));
-            snackbarStore.addSuccess(`License server '${name}' successfully added`, true);
-            reload();
+            try {
+                await invokeCommand(licenseApi.create(request), {defaultErrorHandler: false});
+                snackbarStore.addSuccess(`License server '${name}' successfully added`, true);
+                reload();
+            } catch (e) {
+                snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to add License Server"), false);
+            }
+
         }
     }
 
@@ -387,7 +397,7 @@ const LicenseServers: React.FunctionComponent = () => {
                                 </Flex>
                             </Label>
 
-                            <TextArea width={1} mb="1em" rows={4} ref={descriptionRef} placeholder="License description..." />
+                            <TextArea error={descriptionTextArea.hasError} width={1} mb="1em" rows={4} ref={descriptionTextArea.ref} placeholder="License description..." />
 
                             <Label width="auto" mb="1em">
                                 <Checkbox

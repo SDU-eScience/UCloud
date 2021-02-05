@@ -20,19 +20,17 @@ end
 end
 
 
-User->UCloud: Start job
+User->UCloud: Run operation\n\ne.g. start compute job, \nlist files, upload file
 UCloud->UCloudDB: Is mapping \ncomplete?
 UCloudDB-->UCloud: Yes
-UCloud->Provider: Start job for Alice#1234\nauthenticated with _UCloud\naccessToken
-note right of Provider: UCloud verifies the integration\nmodule using TLS
-Provider->Provider: Verify accessToken\nof _UCloud
-Provider-->Provider: OK
+UCloud->Provider: Start job for Alice#1234
+note over UCloud, Provider: This diagram assumes a secure and\ntrusted connection has already been\nestablished
 Provider->UserDB: UID of Alice#1234?
 UserDB-->Provider: Alice#1234 has UID 1100
 Provider->*U1100: Create sandbox for\nUID 1100
 U1100-->Provider: OK
-Provider->U1100: Start job
-U1100->HPC: Start job
+Provider->U1100: Run operation
+U1100->HPC: Run operation
 HPC-->U1100: OK
 U1100-->Provider: OK
 Provider-->U1100: terminate sandbox

@@ -6,7 +6,6 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {useParams} from "react-router";
 import {Box, Button} from "ui-components";
 import {isLightThemeStored, shortUUID, useEffectSkipMount, useNoFrame} from "UtilityFunctions";
-import styled from "styled-components";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {compute} from "UCloud";
 import jobs = compute.jobs;
@@ -15,7 +14,7 @@ import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
-    const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
+    const {jobId, rank} = useParams<{jobId: string, rank: string}>();
     const [sessionResp, openSession] = useCloudAPI(
         jobs.openInteractiveSession({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}),
         {sessions: []},
@@ -57,7 +56,7 @@ export const Shell: React.FunctionComponent = () => {
                         },
                         handler: message => {
                             if (message.type === "message") {
-                                const payload = message.payload as { data: string } | any;
+                                const payload = message.payload as {data: string} | any;
                                 if ("data" in payload) {
                                     terminal.write(payload.data);
                                 }
@@ -114,7 +113,7 @@ export const Shell: React.FunctionComponent = () => {
             </Box>
         )}
 
-        <div className={"contents"} ref={termRef}/>
+        <div className={"contents"} ref={termRef} />
     </TermAndShellWrapper>;
 };
 

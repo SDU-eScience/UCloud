@@ -3,7 +3,7 @@ import {margin, MarginProps, padding, PaddingProps, width} from "styled-system";
 import {borders} from "./Input";
 import theme from "./theme";
 
-export const TextArea = styled.textarea<{width?: string | number} & PaddingProps & MarginProps>`
+export const TextArea = styled.textarea<{width?: string | number; error?: boolean} & PaddingProps & MarginProps>`
     ${width}; ${borders};
     border-radius: 5px;
     border: ${theme.borderWidth} solid var(--borderGray, #f00);
@@ -14,6 +14,8 @@ export const TextArea = styled.textarea<{width?: string | number} & PaddingProps
     vertical-align: top;
 
     ${margin} ${padding}
+
+    ${p => p.error ? "border-color: var(--red, #f00);" : null}
 
     &:focus {
         outline: none;

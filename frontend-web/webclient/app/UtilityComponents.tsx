@@ -7,7 +7,7 @@ import List from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {keyframes, css} from "styled-components";
 import {
-    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, ButtonGroup, Card, Link, Text
+    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, ButtonGroup, Link, Text
 } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";

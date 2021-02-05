@@ -10,8 +10,9 @@ end
 
 participantgroup #lightblue **Provider\nNetwork**
 participantgroup #lightyellow **New components**
-participant "Integration Module" as Provider
+participant "Integration Module\nUID 'ucloud'" as Provider
 database "Integration DB" as UserDB
+participant "Integration module\n(Privileged)" as ProviderPriv
 end
 participantgroup #pink **Existing components**
 participant "                                 HPC                                 " as HPC
@@ -19,18 +20,20 @@ end
 end
 
 opt Can be skipped if explcit user initialization isn't required
+note over User,UCloud: This step is optional in certain edge-cases. \nHowever, it is almost certainly required\nfor a traditional HPC installation.
 User->UCloud: Connect with provider
 UCloud->Provider: Alice#1234 wishes to connect
 Provider->HPC: Initialize user\nAlice#1234
 HPC->HPC: Initialize storage
+note over HPC: This creates a virtual\nhome folder for the user.\nThis is placed inside the home\nfolder of the 'ucloud' user.
 HPC-->HPC: OK
-HPC->HPC: Additional config
+HPC->HPC: Additional config\n(if any)
 HPC-->HPC: OK
 HPC-->Provider: OK
 Provider->UserDB: Alice#1234 has connected
 UserDB-->Provider: OK
 Provider-->UCloud: Mapping for Alice#1234 complete
-UCloud->UCloudDB: Save mapping
+UCloud->UCloudDB: Mapping complete
 UCloudDB-->UCloud: OK
 UCloud-->User: Success
 end
@@ -40,16 +43,13 @@ end
 User->UCloud: Start job
 UCloud->UCloudDB: Is mapping \ncomplete?
 UCloudDB-->UCloud: Yes
-UCloud->Provider: Start job for Alice#1234\nauthenticated with _UCloud\naccessToken
-note right of Provider: UCloud verifies the integration\nmodule using TLS
-Provider->Provider: Verify accessToken\nof _UCloud
-Provider-->Provider: OK
-
-note over Provider: Actions are at this point\nguaranteed to be sandboxed\nto a single non-root user
-
+UCloud->Provider: Start job for Alice#1234
 Provider->Provider: Is Alice#1234 allowed to\nperform this action?
+note over Provider: This checks all permissions of this action.\nIncluding file permissions of files used in the\njob.
 Provider-->Provider: Yes
-Provider->HPC: Start job
-HPC-->Provider: OK
+Provider->*ProviderPriv: Create jail and start job
+ProviderPriv->HPC: Start jailed job
+HPC-->ProviderPriv: OK
+ProviderPriv-->Provider: OK
 Provider-->UCloud: OK
 UCloud-->User: OK

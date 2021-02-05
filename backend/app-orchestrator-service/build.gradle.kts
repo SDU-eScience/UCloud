@@ -1,4 +1,4 @@
-version = "2.4.0-rc11"
+version = "2.4.0-rc12"
 
 application {
     mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"

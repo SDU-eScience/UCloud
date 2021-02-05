@@ -29,7 +29,7 @@ interface ResourceSpecification {
 
 All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
 consume the backing `Product` should simply have a `pricePerUnit` of 0.""")
-    val product: ProductReference
+    val product: ProductReference?
 
 }
 

@@ -1,10 +1,9 @@
 import {AppOrTool} from "Applications/api";
-import localForage from "localforage";
+import * as localForage from "localforage";
 import {AppLogo, hashF} from "Applications/Card";
 import {Client} from "Authentication/HttpClientInstance";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import {timestampUnixMs} from "UtilityFunctions";
 
 interface AppToolLogoProps {
     name: string;
@@ -35,12 +34,12 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
     }, [props.name]);
 
     return dataUrl === "loading" ?
-        <div style={{width: size, height: size}}/> :
+        <div style={{width: size, height: size}} /> :
         dataUrl === null ?
-        <AppLogo size={size} hash={hashF(props.name)}/> :
-        <img src={dataUrl} alt={props.name}
-             style={{width: size, height: size, objectFit: "contain"}}
-        />;
+            <AppLogo size={size} hash={hashF(props.name)} /> :
+            <img src={dataUrl} alt={props.name}
+                style={{width: size, height: size, objectFit: "contain"}}
+            />;
 };
 
 class LogoCache {
@@ -49,7 +48,11 @@ class LogoCache {
     constructor(context: string) {
         this.context = context;
         (async () => {
-            const now = timestampUnixMs()
+            const now = window.performance &&
+                window.performance.now &&
+                window.performance.timing &&
+                window.performance.timing.navigationStart ?
+                window.performance.now() + window.performance.timing.navigationStart : Date.now();
             const expiry = await localForage.getItem<number>("logoCacheExpiry");
             if (expiry !== null && expiry >= now) {
                 this.clear();
