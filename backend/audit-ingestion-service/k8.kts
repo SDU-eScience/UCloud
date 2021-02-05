@@ -5,7 +5,7 @@ bundle { ctx ->
     name = "audit-ingestion"
     version = "0.2.3"
 
-    val secret: String = config("secret", "Secret name for elasticsearch credentials", "elasticsearch-credentials")
+    val secret: String = config("secret", "Secret name for elasticsearch credentials", "elasticsearch-logging-cluster-credentials")
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1

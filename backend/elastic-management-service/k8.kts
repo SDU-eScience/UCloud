@@ -14,7 +14,7 @@ bundle {
 
     withCronJob(deployment, "*/10 * * * *", listOf("--entryDelete"), name="elastic-entry-cleaner") {}
     withCronJob(deployment, "0 1 * * *", listOf("--cleanup"), name="elastic-cleanup") {}
-    withCronJob(deployment, "0 3 * * 0", listOf("--reindex"), name="elastic-reindex") {}
+    withCronJob(deployment, "0 3 * * *", listOf("--reindex"), name="elastic-reindex") {}
     withCronJob(deployment, "0 */3 * * *", listOf("--grafanaAliases"), name="manage-grafana-alias") {}
 
 
