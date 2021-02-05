@@ -273,7 +273,7 @@ class ProductService(
                     },
                     """
                         from products
-                        where provider = :provider AND area = :area
+                        where provider = :provider and area = :area and hidden_in_grant_applications is false
                     """,
                     "order by priority, id"
                 )
