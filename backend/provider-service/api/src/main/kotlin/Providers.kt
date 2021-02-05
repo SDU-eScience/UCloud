@@ -1,14 +1,19 @@
 package dk.sdu.cloud.provider.api
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.PaginationRequestV2Consistency
+import dk.sdu.cloud.service.WithPaginationRequestV2
 
 data class Provider(
     override val id: String,
     override val specification: ProviderSpecification,
     val refreshToken: String,
+    val publicKey: String,
     override val createdAt: Long,
     override val status: ProviderStatus,
     override val updates: List<ProviderUpdate>,
@@ -25,7 +30,7 @@ class ProviderSpecification(
     val id: String,
     val domain: String,
     val https: Boolean,
-    val port: Int?,
+    val port: Int? = null,
     val manifest: ProviderManifest = ProviderManifest(),
 ) : ResourceSpecification {
     override val product: ProductReference? = null
@@ -114,10 +119,22 @@ data class ProvidersUpdateAclRequestItem(
 data class ProvidersRenewRefreshTokenRequestItem(val id: String)
 typealias ProvidersRenewRefreshTokenResponse = Unit
 
+typealias ProvidersRetrieveRequest = FindByStringId
+typealias ProvidersRetrieveResponse = Provider
+
+data class ProvidersBrowseRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null
+) : WithPaginationRequestV2
+
+typealias ProvidersBrowseResponse = PageV2<Provider>
+
 object Providers : CallDescriptionContainer("providers") {
     const val baseContext = "/api/providers"
 
-    val create = call<BulkRequest<ProviderSpecification>, Unit, CommonErrorMessage>("create") {
+    val create = call<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>, CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = Roles.PRIVILEGED)
     }
 
@@ -134,5 +151,13 @@ object Providers : CallDescriptionContainer("providers") {
     val renewToken = call<BulkRequest<ProvidersRenewRefreshTokenRequestItem>,
         ProvidersRenewRefreshTokenResponse, CommonErrorMessage>("renewToken") {
         httpUpdate(baseContext, "renewToken")
+    }
+
+    val retrieve = call<ProvidersRetrieveRequest, ProvidersRetrieveResponse, CommonErrorMessage>("retrieve") {
+        httpRetrieve(baseContext)
+    }
+
+    val browse = call<ProvidersBrowseRequest, ProvidersBrowseResponse, CommonErrorMessage>("browse") {
+        httpBrowse(baseContext)
     }
 }

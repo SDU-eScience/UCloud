@@ -23,7 +23,7 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
     val groupMembers: Cache<ProjectAndGroup, List<String>> = SimpleCache<ProjectAndGroup, List<String>> { (project, group) ->
         ProjectGroups.listAllGroupMembers.call(
             ListAllGroupMembersRequest(project, group),
-            serviceClient
+            serviceClient.withProject(project)
         ).orThrow()
     }
 

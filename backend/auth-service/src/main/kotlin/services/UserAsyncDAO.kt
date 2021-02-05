@@ -1,7 +1,6 @@
 package dk.sdu.cloud.auth.services
 
 import com.github.jasync.sql.db.RowData
-import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
@@ -66,8 +65,7 @@ fun RowData.toPrincipal(totpStatus: Boolean): Principal {
         getField(PrincipalTable.type).contains(USERTYPE.SERVICE.name) -> {
             return ServicePrincipal(
                 getField(PrincipalTable.id),
-                Role.valueOf(getField(PrincipalTable.role)),
-                getField(PrincipalTable.uid)
+                Role.valueOf(getField(PrincipalTable.role))
             )
         }
         getField(PrincipalTable.type).contains(USERTYPE.WAYF.name) -> {

@@ -1,11 +1,17 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Mon Jan 25 11:36:14 CET 2021 */
+/* Generated at: Fri Feb 05 09:04:38 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
 /**
- * Generic error message
+ * A generic error message
+ *
+ * UCloud uses HTTP status code for all error messages In addition and if possible, UCloud will include a message using a
+ * common format Note that this is not guaranteed to be included in case of a failure somewhere else in the network stack
+ * For example, UCloud's load balancer might not be able to contact the backend at all In such a case UCloud will
+ * _not_ include a more detailed error message
+ *
  */
 export interface CommonErrorMessage {
     /**
@@ -30,12 +36,63 @@ export interface Page<T = unknown> {
     ,
 }
 
+/**
+ * Represents a single 'page' of results
+
+ * Every page contains the items from the current result set, along with information which allows the client to fetch
+ * additional information
+ */
 export interface PageV2<T = unknown> {
+    /**
+     * The expected items per page, this is extracted directly from the request
+     */
     itemsPerPage: number /* int32 */
     ,
+    /**
+     * The items returned in this page
+     *
+     * NOTE: The amount of items might differ from `itemsPerPage`, even if there are more results The only reliable way to
+     * check if the end of results has been reached is by checking i `next == null`
+     */
     items: T[],
+    /**
+     * The token used to fetch additional items from this result set
+     */
     next?: string,
 }
+
+/**
+ * A base type for requesting a bulk operation
+
+ * The bulk operations allow for a client to send a bulk operation in one of two ways:
+ *
+ * 1 Single item request
+ * 2 Multiple item request
+ *
+ * Both approaches should be treated by a server as a bulk request, one of them simply only has one item in it The
+ * serialization for single item request is special, in that it allows the request item to be unwrapped and send by itself
+ * Servers can recognize the difference by looking for the `type` property in the request, if it is not equal to `"bulk"`
+ * (or doesn't exist) then it should be treated as a single item request
+ *
+ * ---
+ *
+ * __⚠ WARNING:__ All request items listed in the bulk request must be treated as a _single_ transaction This means
+ * that either the entire request succeeds, or the entire request fails
+ *
+ * There are two exceptions to this rule:
+ *
+ * 1 Certain calls may choose to only guarantee this at the provider level That is if a single call contain request
+ * for multiple providers, then in rare occasions (ie crash) changes might not be rolled back immediately on all
+ * providers A service _MUST_ attempt to rollback already committed changes at other providers
+ *
+ * 2 The underlying system does not provide such guarantees In this case the service/provider _MUST_ support the
+ * verification API to cleanup these resources later
+ *
+ * ---
+
+ *
+ *
+ */
 
 export type BulkRequest<T> = T | { type: "bulk", items: T[] }
 
@@ -53,8 +110,67 @@ export interface PaginationRequest {
 export interface BinaryStream {
 }
 
+export interface BulkResponse<T = unknown> {
+    responses: T[],
+}
+
 export interface FindByLongId {
     id: number /* int64 */
+    ,
+}
+
+/**
+ * The base type for requesting paginated content
+ *
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ *
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required An inconsistent snapshot might be returned |
+ * | `REQUIRE` | Consistency is required A request will fail if consistency is no longer guaranteed |
+ *
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_ We consider the
+ * results to be consistent if it contains a complete view at some point in time In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates
+ *
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items UCloud will still attempt to serve a snapshot which appears mostly consistent This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent
+ *
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results UCloud attempts to keep each `next` token alive for at least one minute before invalidating it
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page If this is not feasible and consistency is not required then `PREFER` should be used
+ *
+ * ---
+ *
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied This is
+ * needed in order to provide a consistent view of the results Clients _should_ provide the same criterion as they
+ * paginate through the results
+ *
+ * ---
+ *
+ */
+export interface PaginationRequestV2 {
+    /**
+     * Requested number of items per page Supported values: 10, 25, 50, 100, 250
+     */
+    itemsPerPage: number /* int32 */
+    ,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: "PREFER" | "REQUIRE",
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */
     ,
 }
 
@@ -122,6 +238,30 @@ export namespace provider {
     }
 
     export type AclEntity = AclEntityNS.ProjectGroup
+
+    /**
+     * The `ProviderManifest` contains general metadata about the
+     *
+     * The manifest, for example, includes information about which `features` are supported by a
+     */
+    export interface ProviderManifest {
+        /**
+         * Contains information about the features supported by this provider
+         */
+        features: ManifestFeatureSupport,
+    }
+
+    /**
+     * Contains information about the features supported by this provider
+
+     * Features are by-default always disabled. There is _no_ minimum set of features a provider needs to support.
+     */
+    export interface ManifestFeatureSupport {
+        /**
+         * Determines which compute related features are supported by this provider
+         */
+        compute: ManifestFeatureSupportNS.Compute,
+    }
 
     /**
      * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
@@ -228,16 +368,32 @@ export namespace provider {
          * All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
          * consume the backing `Product` should simply have a `pricePerUnit` of 0.
          */
-        product: accounting.ProductReference,
+        product?: accounting.ProductReference,
     }
 
+    /**
+     * Contains information related to the accounting/billing of a `Resource`
+     *
+     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+     * to be charged a different price than newly launched products.
+     */
     export interface ResourceBilling {
+        /**
+         * Amount of credits charged in total for this `Resource`
+         */
         creditsCharged: number /* int64 */
         ,
+        /**
+         * The price per unit. This can differ from current price of `Product`
+         */
         pricePerUnit: number /* int64 */
         ,
     }
 
+    /**
+     * The owner of a `Resource`
+     */
     export interface ResourceOwner {
         createdBy: string,
         project?: string,
@@ -256,12 +412,97 @@ export namespace provider {
                 payload: request,
             };
         }
+
+        export function browse(
+            request: PaginationRequestV2
+        ): APICallParameters<PaginationRequestV2, PageV2<ResourceDoc>> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/doc/resources" + "/browse", {
+                    consistency: request.consistency,
+                    itemsPerPage: request.itemsPerPage,
+                    itemsToSkip: request.itemsToSkip,
+                    next: request.next
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
     }
     export namespace AclEntityNS {
         export interface ProjectGroup {
             projectId: string,
             group: string,
             type: "project_group",
+        }
+    }
+    export namespace ManifestFeatureSupportNS {
+        export interface Compute {
+            /**
+             * Support for `Tool`s using the `DOCKER` backend
+             */
+            docker: ComputeNS.Docker,
+            /**
+             * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
+             */
+            virtualMachine: ComputeNS.VirtualMachine,
+        }
+
+        export namespace ComputeNS {
+            export interface Docker {
+                /**
+                 * Flag to enable/disable this feature
+                 *
+                 * All other flags are ignored if this is `false`.
+                 */
+                enabled: boolean,
+                /**
+                 * Flag to enable/disable the interactive interface of `WEB` `Application`s
+                 */
+                web: boolean,
+                /**
+                 * Flag to enable/disable the interactive interface of `VNC` `Application`s
+                 */
+                vnc: boolean,
+                /**
+                 * Flag to enable/disable `BATCH` `Application`s
+                 */
+                batch: boolean,
+                /**
+                 * Flag to enable/disable the log API
+                 */
+                logs: boolean,
+                /**
+                 * Flag to enable/disable the interactive terminal API
+                 */
+                terminal: boolean,
+                /**
+                 * Flag to enable/disable connection between peering `Job`s
+                 */
+                peers: boolean,
+            }
+
+            export interface VirtualMachine {
+                /**
+                 * Flag to enable/disable this feature
+                 *
+                 * All other flags are ignored if this is `false`.
+                 */
+                enabled: boolean,
+                /**
+                 * Flag to enable/disable the log API
+                 */
+                logs: boolean,
+                /**
+                 * Flag to enable/disable the VNC API
+                 */
+                vnc: boolean,
+                /**
+                 * Flag to enable/disable the interactive terminal API
+                 */
+                terminal: boolean,
+            }
         }
     }
 }
@@ -555,6 +796,31 @@ export namespace auth {
         ,
     }
 
+    export interface PublicKeyAndRefreshToken {
+        publicKey: string,
+        refreshToken: string,
+    }
+
+    export interface AuthProvidersRegisterResponseItem {
+        claimToken: string,
+    }
+
+    export interface RefreshToken {
+        refreshToken: string,
+    }
+
+    export interface AuthProvidersRefreshAsProviderRequestItem {
+        providerId: string,
+    }
+
+    export interface AuthProvidersRegisterRequestItem {
+        id: string,
+    }
+
+    export interface AuthProvidersRetrievePublicKeyResponse {
+        publicKey: string,
+    }
+
     export namespace users {
         export function createNewUser(
             request: CreateSingleUserRequest[]
@@ -749,6 +1015,93 @@ export namespace auth {
             };
         }
     }
+    export namespace providers {
+        export function claim(
+            request: BulkRequest<AuthProvidersRegisterResponseItem>
+        ): APICallParameters<BulkRequest<AuthProvidersRegisterResponseItem>, BulkResponse<PublicKeyAndRefreshToken>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers" + "/claim",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function refresh(
+            request: BulkRequest<RefreshToken>
+        ): APICallParameters<BulkRequest<RefreshToken>, BulkResponse<AccessToken>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers" + "/refresh",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        /**
+         * Signs an access-token to be used by a UCloud service (refreshAsProvider)
+         *
+         * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+         * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+         *
+         * This RPC signs an access-token which will be used by authorized UCloud services to act as an
+         * orchestrator of resources.
+         */
+        export function refreshAsProvider(
+            request: BulkRequest<AuthProvidersRefreshAsProviderRequestItem>
+        ): APICallParameters<BulkRequest<AuthProvidersRefreshAsProviderRequestItem>, BulkResponse<AccessToken>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers" + "/ refreshAsProvider",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function register(
+            request: BulkRequest<AuthProvidersRegisterRequestItem>
+        ): APICallParameters<BulkRequest<AuthProvidersRegisterRequestItem>, BulkResponse<AuthProvidersRegisterResponseItem>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function renew(
+            request: BulkRequest<FindByStringId>
+        ): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<PublicKeyAndRefreshToken>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers" + "/renew",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function retrievePublicKey(
+            request: FindByStringId
+        ): APICallParameters<FindByStringId, AuthProvidersRetrievePublicKeyResponse> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/auth/providers" + "/retrieveKey", {id: request.id}),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+    }
     export namespace twofactor {
         export function createCredentials(): APICallParameters<{}, Create2FACredentialsResponse> {
             return {
@@ -935,6 +1288,9 @@ export namespace compute {
         acl?: provider.ResourceAclEntry[],
     }
 
+    /**
+     * The owner of a `Resource`
+     */
     export interface JobOwner {
         /**
          * The username of the user which started the job
@@ -975,6 +1331,13 @@ export namespace compute {
         status?: string,
     }
 
+    /**
+     * Contains information related to the accounting/billing of a `Resource`
+     *
+     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+     * to be charged a different price than newly launched products.
+     */
     export interface JobBilling {
         /**
          * The amount of credits charged to the `owner` of this job
@@ -1278,30 +1641,6 @@ export namespace compute {
         sessionType: "WEB" | "VNC" | "SHELL",
     }
 
-    /**
-     * The `ProviderManifest` contains general metadata about the provider.
-     *
-     * The manifest, for example, includes information about which `features` are supported by a provider.
-     */
-    export interface ProviderManifest {
-        /**
-         * Contains information about the features supported by this provider
-         */
-        features: ManifestFeatureSupport,
-    }
-
-    /**
-     * Contains information about the features supported by this provider
-
-     * Features are by-default always disabled. There is _no_ minimum set of features a provider needs to support.
-     */
-    export interface ManifestFeatureSupport {
-        /**
-         * Determines which compute related features are supported by this provider
-         */
-        compute: ManifestFeatureSupportNS.Compute,
-    }
-
     export interface ComputeUtilizationResponse {
         capacity: CpuAndMemory,
         usedCapacity: CpuAndMemory,
@@ -1367,6 +1706,9 @@ export namespace compute {
         product: accounting.ProductReference,
     }
 
+    /**
+     * The owner of a `Resource`
+     */
     export interface IngressOwner {
         /**
          * The username of the user which created this resource.
@@ -1391,9 +1733,22 @@ export namespace compute {
         state: "PREPARING" | "READY" | "UNAVAILABLE",
     }
 
+    /**
+     * Contains information related to the accounting/billing of a `Resource`
+     *
+     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+     * to be charged a different price than newly launched products.
+     */
     export interface IngressBilling {
+        /**
+         * The price per unit. This can differ from current price of `Product`
+         */
         pricePerUnit: number /* int64 */
         ,
+        /**
+         * Amount of credits charged in total for this `Resource`
+         */
         creditsCharged: number /* int64 */
         ,
     }
@@ -1481,6 +1836,9 @@ export namespace compute {
         product: accounting.ProductReference,
     }
 
+    /**
+     * The owner of a `Resource`
+     */
     export interface LicenseOwner {
         /**
          * The username of the user which created this resource.
@@ -1501,9 +1859,22 @@ export namespace compute {
         state: "PREPARING" | "READY" | "UNAVAILABLE",
     }
 
+    /**
+     * Contains information related to the accounting/billing of a `Resource`
+     *
+     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+     * to be charged a different price than newly launched products.
+     */
     export interface LicenseBilling {
+        /**
+         * The price per unit. This can differ from current price of `Product`
+         */
         pricePerUnit: number /* int64 */
         ,
+        /**
+         * Amount of credits charged in total for this `Resource`
+         */
         creditsCharged: number /* int64 */
         ,
     }
@@ -1573,11 +1944,57 @@ export namespace compute {
         jobId?: string,
     }
 
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
     export interface JobsBrowseRequest {
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
         itemsPerPage: number /* int32 */
         ,
+        /**
+         * A token requesting the next page of items
+         */
         next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
         consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
         itemsToSkip?: number /* int64 */
         ,
         /**
@@ -1698,6 +2115,40 @@ export namespace compute {
         filePath: string,
     }
 
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
     export interface IngressesBrowseRequest {
         /**
          * Includes `updates`
@@ -1707,10 +2158,22 @@ export namespace compute {
          * Includes `resolvedProduct`
          */
         includeProduct?: boolean,
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
         itemsPerPage?: number /* int32 */
         ,
+        /**
+         * A token requesting the next page of items
+         */
         next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
         consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
         itemsToSkip?: number /* int64 */
         ,
         domain?: string,
@@ -1777,6 +2240,40 @@ export namespace compute {
         ,
     }
 
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
     export interface LicensesBrowseRequest {
         /**
          * Includes `updates`
@@ -1790,10 +2287,22 @@ export namespace compute {
          * Includes `acl`
          */
         includeAcl?: boolean,
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
         itemsPerPage?: number /* int32 */
         ,
+        /**
+         * A token requesting the next page of items
+         */
         next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
         consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
         itemsToSkip?: number /* int64 */
         ,
         provider?: string,
@@ -2694,12 +3203,58 @@ export namespace compute {
             paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
         }
 
+        /**
+         * The base type for requesting paginated content.
+         *
+         * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+         * semantics of the call:
+         *
+         * | Consistency | Description |
+         * |-------------|-------------|
+         * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+         * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+         *
+         * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+         * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+         * must contain all the items, in the correct order and without duplicates.
+         *
+         * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+         * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+         * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+         * consistent.
+         *
+         * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+         * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+         * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+         * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+         *
+         * ---
+         *
+         * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+         * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+         * paginate through the results.
+         *
+         * ---
+         *
+         */
         export interface KubernetesLicenseBrowseRequest {
             tag?: string,
+            /**
+             * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+             */
             itemsPerPage?: number /* int32 */
             ,
+            /**
+             * A token requesting the next page of items
+             */
             next?: string,
+            /**
+             * Controls the consistency guarantees provided by the backend
+             */
             consistency?: "PREFER" | "REQUIRE",
+            /**
+             * Items to skip ahead
+             */
             itemsToSkip?: number /* int64 */
             ,
         }
@@ -2987,7 +3542,7 @@ export namespace compute {
              *
              *
              */
-            export function retrieveManifest(): APICallParameters<{}, ProviderManifest> {
+            export function retrieveManifest(): APICallParameters<{}, provider.ProviderManifest> {
                 return {
                     context: "",
                     method: "GET",
@@ -3307,74 +3862,6 @@ export namespace compute {
                     reloadId: Math.random(),
                     payload: request,
                 };
-            }
-        }
-    }
-    export namespace ManifestFeatureSupportNS {
-        export interface Compute {
-            /**
-             * Support for `Tool`s using the `DOCKER` backend
-             */
-            docker: ComputeNS.Docker,
-            /**
-             * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
-             */
-            virtualMachine: ComputeNS.VirtualMachine,
-        }
-
-        export namespace ComputeNS {
-            export interface Docker {
-                /**
-                 * Flag to enable/disable this feature
-                 *
-                 * All other flags are ignored if this is `false`.
-                 */
-                enabled: boolean,
-                /**
-                 * Flag to enable/disable the interactive interface of `WEB` `Application`s
-                 */
-                web: boolean,
-                /**
-                 * Flag to enable/disable the interactive interface of `VNC` `Application`s
-                 */
-                vnc: boolean,
-                /**
-                 * Flag to enable/disable `BATCH` `Application`s
-                 */
-                batch: boolean,
-                /**
-                 * Flag to enable/disable the log API
-                 */
-                logs: boolean,
-                /**
-                 * Flag to enable/disable the interactive terminal API
-                 */
-                terminal: boolean,
-                /**
-                 * Flag to enable/disable connection between peering `Job`s
-                 */
-                peers: boolean,
-            }
-
-            export interface VirtualMachine {
-                /**
-                 * Flag to enable/disable this feature
-                 *
-                 * All other flags are ignored if this is `false`.
-                 */
-                enabled: boolean,
-                /**
-                 * Flag to enable/disable the log API
-                 */
-                logs: boolean,
-                /**
-                 * Flag to enable/disable the VNC API
-                 */
-                vnc: boolean,
-                /**
-                 * Flag to enable/disable the interactive terminal API
-                 */
-                terminal: boolean,
             }
         }
     }
@@ -4942,11 +5429,57 @@ export namespace accounting {
         provider: string,
     }
 
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
     export interface ProductsBrowseRequest {
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
         itemsPerPage?: number /* int32 */
         ,
+        /**
+         * A token requesting the next page of items
+         */
         next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
         consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
         itemsToSkip?: number /* int64 */
         ,
         filterProvider?: string,
@@ -7604,7 +8137,38 @@ export namespace avatar {
     }
 }
 export namespace BulkRequestNS {
+    /**
+     * A base type for requesting a bulk operation.
 
+     * The bulk operations allow for a client to send a bulk operation in one of two ways:
+     *
+     * 1. Single item request
+     * 2. Multiple item request
+     *
+     * Both approaches should be treated by a server as a bulk request, one of them simply only has one item in it. The
+     * serialization for single item request is special, in that it allows the request item to be unwrapped and send by itself.
+     * Servers can recognize the difference by looking for the `type` property in the request, if it is not equal to `"bulk"`
+     * (or doesn't exist) then it should be treated as a single item request.
+     *
+     * ---
+     *
+     * __⚠ WARNING:__ All request items listed in the bulk request must be treated as a _single_ transaction. This means
+     * that either the entire request succeeds, or the entire request fails.
+     *
+     * There are two exceptions to this rule:
+     *
+     * 1. Certain calls may choose to only guarantee this at the provider level. That is if a single call contain request
+     * for multiple providers, then in rare occasions (i.e. crash) changes might not be rolled back immediately on all
+     * providers. A service _MUST_ attempt to rollback already committed changes at other providers.
+     *
+     * 2. The underlying system does not provide such guarantees. In this case the service/provider _MUST_ support the
+     * verification API to cleanup these resources later.
+     *
+     * ---
+
+     *
+     *
+     */
 }
 export namespace contactbook {
     export function queryUserContacts(

@@ -1,35 +1,75 @@
 package dk.sdu.cloud.auth.api
 
+import com.auth0.jwt.JWT
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.IngoingCallResponse
-import dk.sdu.cloud.calls.client.OutgoingCall
-import dk.sdu.cloud.calls.client.OutgoingCallCompanion
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.RpcClient
-import dk.sdu.cloud.calls.client.outgoingAuthToken
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidation
-import io.ktor.client.request.header
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
+import io.ktor.client.request.*
+import io.ktor.http.*
 import kotlinx.coroutines.delay
 import java.net.ConnectException
 import java.time.temporal.ChronoUnit
 import java.util.*
 
+sealed class JwtRefresher {
+    abstract suspend fun fetchToken(client: RpcClient): String
+
+    class Normal(private val refreshToken: String) : JwtRefresher() {
+        override suspend fun fetchToken(client: RpcClient): String {
+            return client.call(AuthDescriptions.refresh, Unit, OutgoingHttpCall) {
+                it.builder.header(HttpHeaders.Authorization, "Bearer $refreshToken")
+            }.orThrow().accessToken
+        }
+    }
+
+    class Provider(private val refreshToken: String) : JwtRefresher() {
+        override suspend fun fetchToken(client: RpcClient): String {
+            return client
+                .call(
+                    AuthProviders.refresh,
+                    bulkRequestOf(RefreshToken(refreshToken)),
+                    OutgoingHttpCall
+                )
+                .orThrow().responses
+                .single().accessToken
+        }
+    }
+
+    class ProviderOrchestrator(
+        private val authenticatedClient: AuthenticatedClient,
+        private val providerId: String,
+    ) : JwtRefresher() {
+        override suspend fun fetchToken(client: RpcClient): String {
+            return AuthProviders.refreshAsProvider
+                .call(
+                    bulkRequestOf(AuthProvidersRefreshAsProviderRequestItem(providerId)),
+                    authenticatedClient
+                ).orThrow().responses
+                .single().accessToken
+        }
+    }
+}
+
 class RefreshingJWTAuthenticator(
     private val client: RpcClient,
-    private val refreshToken: String,
-    private val tokenValidation: TokenValidation<DecodedJWT>
+    private val refresher: JwtRefresher
 ) {
+    // Stays here for backwards compatibility
+    @Suppress("UNUSED_PARAMETER")
+    @Deprecated("Should be replaced with RefreshingJwtAuthenticator(client, JwtRefresher.Normal(refreshToken))")
+    constructor(client: RpcClient, refreshToken: String, tokenValidation: TokenValidation<DecodedJWT>) :
+        this(client, JwtRefresher.Normal(refreshToken))
+
     private var currentAccessToken = "~~token will not validate~~"
+    private val jwtDecoder = JWT()
 
     suspend fun retrieveTokenRefreshIfNeeded(): String {
         val currentToken = currentAccessToken
-        return if (tokenValidation.validateOrNull(currentToken).isExpiringSoon()) {
+        return if (runCatching { jwtDecoder.decodeJwt(currentToken).isExpiringSoon() }.getOrDefault(true)) {
             refresh()
         } else {
             currentToken
@@ -43,34 +83,31 @@ class RefreshingJWTAuthenticator(
 
     private suspend fun refresh(attempts: Int = 0): String {
         log.trace("Refreshing token")
-        val validatedToken = tokenValidation.validateOrNull(currentAccessToken)
+        val validatedToken = runCatching { jwtDecoder.decodeJwt(currentAccessToken) }.getOrNull()
         if (validatedToken.isExpiringSoon()) {
-            val result = client.call(AuthDescriptions.refresh, Unit, OutgoingHttpCall) {
-                it.builder.header(HttpHeaders.Authorization, "Bearer $refreshToken")
-            }
-
-            if (result is IngoingCallResponse.Ok) {
-                currentAccessToken = result.result.accessToken
+            try {
+                currentAccessToken = refresher.fetchToken(client)
                 return currentAccessToken
-            } else {
+            } catch (ex: RPCException) {
+                val statusCode = ex.httpStatusCode
                 if (
-                    result.statusCode == HttpStatusCode.BadGateway ||
-                    result.statusCode == HttpStatusCode.GatewayTimeout
+                    statusCode == HttpStatusCode.BadGateway ||
+                    statusCode == HttpStatusCode.GatewayTimeout
                 ) {
                     throw ConnectException(
                         "Unable to connect to authentication service while trying " +
-                                "to refresh access token"
+                            "to refresh access token"
                     )
                 }
 
                 if (
-                    result.statusCode == HttpStatusCode.Unauthorized ||
-                    result.statusCode == HttpStatusCode.Forbidden
+                    statusCode == HttpStatusCode.Unauthorized ||
+                    statusCode == HttpStatusCode.Forbidden
                 ) {
-                    throw RPCException("We are not authorized to refresh the token", result.statusCode)
+                    throw RPCException("We are not authorized to refresh the token", statusCode)
                 }
 
-                if (result.statusCode == HttpStatusCode.NotFound && attempts < 5) {
+                if (statusCode == HttpStatusCode.NotFound && attempts < 5) {
                     // Deals with a bug when running this in dev mode via Launcher
                     // Some times we request an authorization token before the auth service is actually responding
 
@@ -78,14 +115,14 @@ class RefreshingJWTAuthenticator(
                     return refresh(attempts + 1)
                 }
 
-                throw ConnectException("Unexpected status code from auth service while refreshing: $result")
+                throw ConnectException("Unexpected status code from auth service while refreshing: $statusCode")
             }
         }
         return currentAccessToken
     }
 
     fun authenticateClient(
-        backend: OutgoingCallCompanion<*>
+        backend: OutgoingCallCompanion<*>,
     ): AuthenticatedClient {
         return AuthenticatedClient(client, backend) { authenticateCall(it) }
     }

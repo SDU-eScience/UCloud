@@ -57,16 +57,7 @@ TODO
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ProviderManifest:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-The `ProviderManifest` contains general metadata about the provider.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `features` | `ManifestFeatureSupport?` | Contains information about the features supported by this provider |
-
-
-The manifest, for example, includes information about which `features` are supported by a provider. 
-
-
+UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ProviderManifest
 <!--</editor-fold>-->
 <!-- /typedoc -->
 
@@ -76,16 +67,7 @@ The manifest, for example, includes information about which `features` are suppo
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-Contains information about the features supported by this provider
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `compute` | `Compute?` | Determines which compute related features are supported by this provider |
-
-    
-Features are by-default always disabled. There is _no_ minimum set of features a provider needs to support.
-
-
+UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport
 <!--</editor-fold>-->
 <!-- /typedoc -->
 
@@ -95,12 +77,7 @@ Features are by-default always disabled. There is _no_ minimum set of features a
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-| Property | Type | Description |
-|----------|------|-------------|
-| `docker` | `Docker?` | Support for `Tool`s using the `DOCKER` backend |
-| `virtualMachine` | `VirtualMachine?` | Support for `Tool`s using the `VIRTUAL_MACHINE` backend |
-
-
+UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute
 <!--</editor-fold>-->
 <!-- /typedoc -->
 
@@ -110,17 +87,7 @@ Features are by-default always disabled. There is _no_ minimum set of features a
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.Docker:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `Boolean?` | Flag to enable/disable this feature |
-| `web` | `Boolean?` | Flag to enable/disable the interactive interface of `WEB` `Application`s |
-| `vnc` | `Boolean?` | Flag to enable/disable the interactive interface of `VNC` `Application`s |
-| `batch` | `Boolean?` | Flag to enable/disable `BATCH` `Application`s |
-| `logs` | `Boolean?` | Flag to enable/disable the log API |
-| `terminal` | `Boolean?` | Flag to enable/disable the interactive terminal API |
-| `peers` | `Boolean?` | Flag to enable/disable connection between peering `Job`s |
-
-
+UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.Docker
 <!--</editor-fold>-->
 <!-- /typedoc -->
 
@@ -130,14 +97,7 @@ Features are by-default always disabled. There is _no_ minimum set of features a
 
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.VirtualMachine:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `Boolean?` | Flag to enable/disable this feature |
-| `logs` | `Boolean?` | Flag to enable/disable the log API |
-| `vnc` | `Boolean?` | Flag to enable/disable the VNC API |
-| `terminal` | `Boolean?` | Flag to enable/disable the interactive terminal API |
-
-
+UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.VirtualMachine
 <!--</editor-fold>-->
 <!-- /typedoc -->
 

@@ -23,6 +23,7 @@ import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
@@ -113,7 +114,7 @@ class CoreAuthTest {
         val uniqueUsernameService = UniqueUsernameService(db, userDao)
         val personService = PersonService(passwordHashingService, uniqueUsernameService)
         val config = mockk<AuthConfiguration>()
-        val jwtFactory = JWTFactory(validation.algorithm)
+        val jwtFactory = JWTFactory((validation as InternalTokenValidationJWT).algorithm)
         val tokenService = TokenService(
             db,
             personService,

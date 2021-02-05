@@ -2,6 +2,10 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.project
+import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityPrincipalOrNull
 
 // Note(Dan): Trying out an abstraction for who is performing an action within the system.
 sealed class Actor {
@@ -45,3 +49,7 @@ fun SecurityPrincipal.toActor(): Actor.User = Actor.User(this)
 
 fun SecurityPrincipal?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
 fun SecurityPrincipalToken?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
+
+data class ActorAndProject(val actor: Actor, val project: String?)
+val CallHandler<*, *, *>.actorAndProject: ActorAndProject
+    get() = ActorAndProject(ctx.securityPrincipalOrNull.toActorOrGuest(), ctx.project)

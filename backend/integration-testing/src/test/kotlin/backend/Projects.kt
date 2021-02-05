@@ -1,5 +1,6 @@
 package dk.sdu.cloud.integration.backend
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.SetBalanceRequest
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
@@ -112,9 +113,10 @@ data class NormalProjectInitialization(
 suspend fun initializeNormalProject(
     rootProject: String,
     initializeWallet: Boolean = true,
-    amount: Long = 10_000_000.DKK
+    amount: Long = 10_000_000.DKK,
+    userRole: Role = Role.USER
 ): NormalProjectInitialization {
-    val (piClient, piUsername) = createUser()
+    val (piClient, piUsername) = createUser(role = userRole)
 
     Projects.invite.call(
         InviteRequest(rootProject, setOf(piUsername)),

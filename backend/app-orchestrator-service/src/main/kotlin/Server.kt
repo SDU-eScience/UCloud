@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
 import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
@@ -35,11 +36,11 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val appStoreCache = AppStoreCache(serviceClient)
         val jobDao = JobDao()
-        val userClientFactory: UserClientFactory = { refreshToken ->
+        @Suppress("UNCHECKED_CAST") val userClientFactory: UserClientFactory = { refreshToken ->
             RefreshingJWTAuthenticator(
                 micro.client,
                 refreshToken,
-                micro.tokenValidation as TokenValidationJWT
+                micro.tokenValidation as TokenValidation<DecodedJWT>
             ).authenticateClient(OutgoingHttpCall)
         }
 

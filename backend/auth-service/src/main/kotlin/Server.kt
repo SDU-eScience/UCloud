@@ -1,28 +1,21 @@
 package dk.sdu.cloud.auth
 
 import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.interfaces.DecodedJWT
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.ServiceAgreementText
 import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.auth.http.CoreAuthController
-import dk.sdu.cloud.auth.http.LoginResponder
-import dk.sdu.cloud.auth.http.PasswordController
-import dk.sdu.cloud.auth.http.SAMLController
-import dk.sdu.cloud.auth.http.SLAController
-import dk.sdu.cloud.auth.http.SessionsController
-import dk.sdu.cloud.auth.http.TwoFactorAuthController
-import dk.sdu.cloud.auth.http.UserController
+import dk.sdu.cloud.auth.http.*
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.routing.route
-import io.ktor.routing.routing
+import io.ktor.routing.*
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
@@ -37,7 +30,7 @@ class Server(
     private val jwtAlg: Algorithm,
     private val config: AuthConfiguration,
     private val authSettings: Saml2Settings,
-    override val micro: Micro
+    override val micro: Micro,
 ) : CommonServer {
     override val log: Logger = logger()
 
@@ -45,7 +38,7 @@ class Server(
 
     override fun start() {
         val db = AsyncDBSessionFactory(micro.databaseConfig)
-        val tokenValidation = micro.tokenValidation as TokenValidationJWT
+        val tokenValidation = micro.tokenValidation as TokenValidation<DecodedJWT>
         val streams = micro.eventStreamService
 
         val passwordHashingService = PasswordHashingService()
@@ -74,7 +67,6 @@ class Server(
         )
 
         userIterator.start()
-
 
         val twoFactorChallengeService = TwoFactorChallengeService(
             db,
@@ -106,6 +98,9 @@ class Server(
 
         val sessionService = SessionService(db, refreshTokenDao)
         val slaService = SLAService(config.serviceLicenseAgreement ?: ServiceAgreementText(0, ""), db, userDao)
+
+        val providerDao = ProviderDao()
+        val providerService = ProviderService(db, providerDao)
 
         if (micro.commandLineArguments.contains("--tokenScan")) {
             log.info("Scanning for expired refresh tokens.")
@@ -199,7 +194,9 @@ class Server(
 
                     SessionsController(sessionService),
 
-                    SLAController(slaService)
+                    SLAController(slaService),
+
+                    ProviderController(providerService)
                 )
             }
         }
@@ -213,7 +210,7 @@ class Server(
         tokenService: TokenService,
 
         username: String,
-        role: Role
+        role: Role,
     ) {
         log.info("Creating a dummy admin")
         val random = SecureRandom()

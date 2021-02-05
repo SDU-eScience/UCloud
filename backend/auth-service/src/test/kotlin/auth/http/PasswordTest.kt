@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -74,7 +75,7 @@ class PasswordTest {
         val userDao = UserAsyncDAO(passwordHashingService, twoFactorDao)
         val refreshTokenDao = RefreshTokenAsyncDAO()
 
-        val tokenValidation = micro.tokenValidation as TokenValidationJWT
+        val tokenValidation = micro.tokenValidation as InternalTokenValidationJWT
         val jwtFactory = JWTFactory(tokenValidation.algorithm)
 
         val tokenService = TokenService(

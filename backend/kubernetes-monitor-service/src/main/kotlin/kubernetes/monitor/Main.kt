@@ -1,6 +1,6 @@
 package dk.sdu.cloud.kubernetes.monitor
 
-import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.kubernetes.monitor.api.KubernetesMonitorServiceDescription
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
@@ -16,7 +16,7 @@ object KubernetesMonitorService : Service {
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(KubernetesMonitorServiceDescription, args)
-        install(RefreshingJWTCloudFeature)
+        install(AuthenticatorFeature)
         install(HealthCheckFeature)
     }
 
