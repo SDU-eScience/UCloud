@@ -194,13 +194,14 @@ If the messages from the alerting/monitoring services contains alerts/notificati
 project leaders and the rest of the support team by the user of the Security Slack Channel.  In the case that this is
 unknown behavior and a potential risk is seen, an issue is created.
 
-.. figure:: /infrastructure/wiki/securityFlow.png
-   :width: 90%
-   :align: center
+![](securityFlow.png)
 
 Our GitHub issue tracker is not used for security incidents, given that it is public. Instead our Jira incident service
 desk is used for this purpose.
 
 ## Internal Audits
 
-Each month https://cloud.sdu.dk is scanned and penetration tested by the security department at SDU.
+The production site, https://cloud.sdu.dk, is scanned and penetration tested periodically by the security department at
+SDU. This test is performed automatically by tools.
+
+We also perform internal audits at SDU. These are performed periodically and at least once a year.
