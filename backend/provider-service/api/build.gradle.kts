@@ -1,3 +1,3 @@
 dependencies {
-    implementation(project(":accounting-service:api"))
+    api(project(":accounting-service:api"))
 }

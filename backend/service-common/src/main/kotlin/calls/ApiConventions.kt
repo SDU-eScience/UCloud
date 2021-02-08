@@ -48,6 +48,7 @@ object UCloudApi {
  */
 inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(
     baseContext: String,
+    subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
 ) {
     auth {
@@ -57,7 +58,10 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(
 
     http {
         method = HttpMethod.Post
-        path { using(baseContext) }
+        path {
+            using(baseContext)
+            if (subResource != null) +(subResource)
+        }
         body { bindEntireRequestFromBody() }
     }
 }
