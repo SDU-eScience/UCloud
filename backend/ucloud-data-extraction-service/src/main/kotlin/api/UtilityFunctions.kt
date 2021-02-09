@@ -27,7 +27,9 @@ data class PrometheusQueryResponse(
 fun networkUsage(startDate: LocalDateTime, endDate: LocalDateTime): Double {
     val days = Days.daysBetween(startDate, endDate).days
     val endTime = endDate.toDateTime(DateTimeZone.UTC).millis / 1000
+    println(endTime)
     val url = URL("http://172.16.2.1:9090/api/v1/query?query=sum%28increase%28node_network_transmit_bytes_total%7Bdevice%3D%22bond0.200%22%7D%5B${days}d%5D%29%2Bincrease%28node_network_receive_bytes_total%7Bdevice%3D%22bond0.200%22%7D%5B${days}d%5D%29%29+%2F+1000&time=${endTime}")
+    println(url)
     return with(url.openConnection() as HttpURLConnection) {
         requestMethod = "GET"  // optional default is GET
 

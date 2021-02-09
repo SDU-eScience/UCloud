@@ -6,6 +6,12 @@ import org.joda.time.Days
 import org.joda.time.LocalDateTime
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.math.ceil
+
+const val MINUTES_PER_HOUR = 60L
+
+const val SDU_CLOUD_PROJECT_ID = "3196deee-c3c2-464b-b328-4d3c5d02b953"
+const val SDU_TYPE_1_CLOUD_PROJECT_ID = "624b33a1-876b-4f57-977e-c4b2f8cc3989"
 
 const val TYPE_1_HPC_CENTER_ID = "f0679faa-242e-11eb-3aba-b187bcbee6d4"
 const val TYPE_1_HPC_SUB_CENTER_ID_SDU ="0534ca5e-242f-11eb-2dca-2fe365de2d94"
@@ -15,24 +21,34 @@ const val TYPE_3_HPC_CENTER_ID = "a498f984-e864-43ec-95b0-e46ab0b13e33"
 const val TYPE_3_HPC_SUB_CENTER_ID_SDU = "849c4cfb-b6b7-4766-a48d-281e8276b399"
 
 const val TYPE_1_CPU_CORES = 2048L
-const val TYPE_1_CPU_CORE_PRICE = 1.433
+const val TYPE_1_CPU_CORE_PRICE_PER_MINUTE = 1433.0
 
 
 const val TYPE_1_GPU_CORES = 0L
-const val TYPE_1_GPU_CORE_PRICE = 0.0
+const val TYPE_1_GPU_CORE_PRICE_PER_MINUTE = 0.0
 
 const val TYPE_1_CEPH_GB_PRICE_PER_DAY = 0.001667
 
 enum class ProductType(val catagoryId: String) {
     CPU("u1-standard") {
-        override fun getPricing() = TYPE_1_CPU_CORE_PRICE
+        override fun getPricing() = TYPE_1_CPU_CORE_PRICE_PER_MINUTE
                        },
     GPU("u1-gpu") {
-        override fun getPricing() = TYPE_1_GPU_CORE_PRICE
+        override fun getPricing() = TYPE_1_CPU_CORE_PRICE_PER_MINUTE
                   },
     STORAGE("u1-cephfs") {
         override fun getPricing() = TYPE_1_CEPH_GB_PRICE_PER_DAY
     };
 
-    abstract fun getPricing(): Double
+    abstract fun getPricing():Double
+    companion object {
+        fun createFromCatagory(catagoryId: String): ProductType{
+            return when {
+                catagoryId == CPU.catagoryId -> CPU;
+                catagoryId == GPU.catagoryId -> GPU;
+                catagoryId == STORAGE.catagoryId -> STORAGE
+                else -> throw Exception("No type for :$catagoryId")
+            }
+        }
+    }
 }

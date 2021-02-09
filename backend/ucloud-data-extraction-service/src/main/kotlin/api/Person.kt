@@ -22,19 +22,19 @@ data class Person (
     /*
      * Each university is defined as a constant. New will be added if needed.
      */
-    val universityId: UniversityID,
+    val universityId: Int,
     /*
      * Each access type is defined as a constand.
      */
-    val accessType: AccessType,
+    val accessType: Int,
     /*
      * Access start time in ISO 8601 format.
      */
-    val accessStartDate: LocalDateTime,
+    val accessStartDate: String,
     /*
      * Access end time in ISO 8601 format.
      */
-    val accessEndDate: LocalDateTime,
+    val accessEndDate: String?,
     /*
      * Assigned CPU core time in hours
      */
@@ -62,9 +62,9 @@ data class Person (
     /*
      * Assigned node time. For Type 4 only as they do not have CPU/GPU core times.
      */
-    val nodeTimeAssigned: Long,
+    val nodeTimeAssigned: Long? = null,
     /*
      * Used node time. For Type 4 only as they do not have CPU/GPU core times.
      */
-    val nodeTimeUsed: Long
+    val nodeTimeUsed: Long? = null
 )

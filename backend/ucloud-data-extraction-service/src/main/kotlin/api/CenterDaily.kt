@@ -15,7 +15,7 @@ data class CenterDaily(
     /*
      * Date for the entry in ISO 8601 format.
      */
-    val date: LocalDateTime,
+    val date: String,
     /*
      * User must have a ORCID. This needs to be collected when loging in.
      */

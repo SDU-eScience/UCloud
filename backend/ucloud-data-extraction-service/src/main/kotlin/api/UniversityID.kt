@@ -1,6 +1,6 @@
 package dk.sdu.cloud.ucloud.data.extraction.api
 
-enum class UniversityID(value: Int) {
+enum class UniversityID(val value: Int) {
     UNKNOWN(0),
     KU(1),
     AU(2),
@@ -12,6 +12,19 @@ enum class UniversityID(value: Int) {
     CBS(8);
 
     companion object {
-        fun fromInt(value: Int) = AccessType.values().first { it.value == value }
+        fun fromOrgId(orgId: String): UniversityID {
+            return when {
+                orgId.contains("sdu.dk") -> SDU
+                orgId.contains("aau.dk") -> AAU
+                orgId.contains("au.dk") -> AU
+                orgId.contains("ku.dk") -> KU
+                orgId.contains("dtu.dk") -> DTU
+                orgId.contains("ruc.dk") -> RUC
+                orgId.contains("itu.dk") -> ITU
+                orgId.contains("cbs.dk") -> CBS
+                else -> UNKNOWN
+            }
+        }
+        fun fromInt(value: Int) = UniversityID.values().first { it.value == value }
     }
 }
