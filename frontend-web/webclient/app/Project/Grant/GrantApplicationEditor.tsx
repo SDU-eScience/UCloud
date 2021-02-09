@@ -324,7 +324,8 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                     recipientId:
                         recipient.type === "existing_project" ? recipient.projectId :
                             recipient.type === "new_project" ? recipient.projectTitle :
-                                recipient.type === "personal" ? recipient.username : ""
+                                recipient.type === "personal" ? recipient.username : "",
+                    showHidden: false
                 }));
             }
         }, [targetProject, recipient.type]);

@@ -92,7 +92,8 @@ class AccountingController(
                         ctx.securityPrincipal.toActor(),
                         accountId,
                         accountType,
-                        request.includeChildren ?: false
+                        request.includeChildren ?: false,
+                        request.showHidden ?: true
                     )
                 )
             )

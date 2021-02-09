@@ -24,7 +24,8 @@ export const Machines: React.FunctionComponent<{
             itemsPerPage: 100,
             page: 0,
             provider: UCLOUD_PROVIDER,
-            area: "COMPUTE"
+            area: "COMPUTE",
+            showHidden: true
         }),
         emptyPage,
     );

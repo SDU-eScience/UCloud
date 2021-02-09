@@ -42,7 +42,7 @@ export const Balance: React.FunctionComponent<{
 export function useStoragePrice(): number {
     const [storageProducts] = useGlobalCloudAPI<Page<Product>>(
         "storageProducts",
-        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER}),
+        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER, showHidden: true}),
         emptyPage
     );
 
@@ -59,12 +59,12 @@ export const BalanceExplainer: React.FunctionComponent<{
 }> = props => {
     const [computeProducts, fetchCompute, computeParams] = useGlobalCloudAPI<Page<Product>>(
         "computeProducts",
-        listByProductArea({itemsPerPage: 100, page: 0, area: "COMPUTE", provider: UCLOUD_PROVIDER}),
+        listByProductArea({itemsPerPage: 100, page: 0, area: "COMPUTE", provider: UCLOUD_PROVIDER, showHidden: true}),
         emptyPage
     );
     const [storageProducts, fetchStorage, storageParams] = useGlobalCloudAPI<Page<Product>>(
         "storageProducts",
-        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER}),
+        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER, showHidden: true}),
         emptyPage
     );
 

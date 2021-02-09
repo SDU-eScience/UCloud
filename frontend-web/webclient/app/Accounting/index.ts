@@ -142,7 +142,8 @@ export interface ListProductsRequest extends PaginationRequest {
 
 export interface ListProductsByAreaRequest extends PaginationRequest {
     provider: string;
-    area: string
+    area: string;
+    showHidden: boolean
 }
 
 export type ListProductsResponse = Product[];

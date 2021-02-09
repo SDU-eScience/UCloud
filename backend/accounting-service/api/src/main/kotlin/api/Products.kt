@@ -210,12 +210,13 @@ typealias ListProductsResponse = Page<Product>
 data class ListProductsByAreaRequest(
     val provider: String,
     val area: ProductArea,
+    val showHidden: Boolean = true,
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
 ) : WithPaginationRequest
 typealias ListProductsByAreaResponse = Page<Product>
 
-data class RetrieveAllFromProviderRequest(val provider: String)
+data class RetrieveAllFromProviderRequest(val provider: String, val showHidden: Boolean = true)
 typealias RetrieveAllFromProviderResponse = List<Product>
 
 interface ProductFilters {
@@ -328,6 +329,7 @@ object Products : CallDescriptionContainer("products") {
                     +boundTo(ListProductsByAreaRequest::area)
                     +boundTo(ListProductsByAreaRequest::itemsPerPage)
                     +boundTo(ListProductsByAreaRequest::page)
+                    +boundTo(ListProductsByAreaRequest::showHidden)
                 }
             }
         }
@@ -375,6 +377,7 @@ object Products : CallDescriptionContainer("products") {
 
                 params {
                     +boundTo(RetrieveAllFromProviderRequest::provider)
+                    +boundTo(RetrieveAllFromProviderRequest::showHidden)
                 }
             }
         }

@@ -61,11 +61,12 @@ class ApplicationService(
         actor: Actor.User,
         resourcesOwnedBy: String,
         grantRecipient: GrantRecipient,
+        showHidden: Boolean
     ): List<Product> {
         verifyCanApplyTo(ctx, resourcesOwnedBy, actor, grantRecipient, false)
 
         val balance = Wallets.retrieveBalance.call(
-            RetrieveBalanceRequest(resourcesOwnedBy, WalletOwnerType.PROJECT, false),
+            RetrieveBalanceRequest(resourcesOwnedBy, WalletOwnerType.PROJECT, false, showHidden),
             serviceClient
         ).orThrow()
 

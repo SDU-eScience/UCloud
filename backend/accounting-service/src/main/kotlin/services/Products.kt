@@ -212,7 +212,8 @@ class ProductService(
     suspend fun listAllByProvider(
         ctx: DBContext,
         actor: Actor,
-        provider: String
+        provider: String,
+        showHidden: Boolean
     ): List<Product> {
         return ctx.withSession { session ->
             requirePermission(session, actor, readOnly = true)
@@ -221,8 +222,14 @@ class ProductService(
                 .sendPreparedStatement(
                     {
                         setParameter("provider", provider)
+                        setParameter("showHidden", showHidden)
                     },
-                    "select * from products where provider = :provider and hidden_in_grant_applications is false order by priority, id"
+                    """
+                        select * from products
+                        where provider = :provider and
+                            (hidden_in_grant_applications is false or :showHidden is true)
+                        order by priority, id
+                    """
                 )
                 .rows
                 .map { it.toProduct() }
@@ -259,7 +266,8 @@ class ProductService(
         actor: Actor,
         area: ProductArea,
         provider: String,
-        paging: NormalizedPaginationRequest
+        paging: NormalizedPaginationRequest,
+        showHidden: Boolean
     ): Page<Product> {
         return ctx.withSession { session ->
             requirePermission(session, actor, readOnly = true)
@@ -270,10 +278,12 @@ class ProductService(
                     {
                         setParameter("provider", provider)
                         setParameter("area", area.name)
+                        setParameter("showHidden", showHidden)
                     },
                     """
                         from products
-                        where provider = :provider and area = :area and hidden_in_grant_applications is false
+                        where provider = :provider and area = :area and
+                            (hidden_in_grant_applications is false or :showHidden is true)
                     """,
                     "order by priority, id"
                 )
@@ -443,7 +453,7 @@ class ProductService(
                         getField(ProductTable.provider)
                     ),
                     getField(ProductTable.description),
-                    false,
+                    getField(ProductTable.hiddenInGrantApplications),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
                         null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)
@@ -464,7 +474,7 @@ class ProductService(
                         getField(ProductTable.provider)
                     ),
                     getField(ProductTable.description),
-                    false,
+                    getField(ProductTable.hiddenInGrantApplications),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
                         null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)
@@ -481,7 +491,7 @@ class ProductService(
                         getField(ProductTable.provider)
                     ),
                     getField(ProductTable.description),
-                    false,
+                    getField(ProductTable.hiddenInGrantApplications),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
                         null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)

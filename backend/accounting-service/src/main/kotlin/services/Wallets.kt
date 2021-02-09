@@ -155,7 +155,8 @@ class BalanceService(
         initiatedBy: Actor,
         accountId: String,
         accountOwnerType: WalletOwnerType,
-        includeChildren: Boolean
+        includeChildren: Boolean,
+        showHidden: Boolean
     ): List<WalletBalance> {
         return ctx.withSession { session ->
             requirePermissionToReadBalance(initiatedBy, accountId, accountOwnerType)
@@ -173,6 +174,7 @@ class BalanceService(
                     {
                         setParameter("accountIds", accountIds)
                         setParameter("accountType", accountOwnerType.name)
+                        setParameter("showHidden", showHidden)
                     },
                     """
                         select w.*, pc.area
@@ -181,7 +183,13 @@ class BalanceService(
                             w.account_id in (select unnest(:accountIds::text[])) and 
                             w.account_type = :accountType and
                             pc.category = w.product_category and
-                            pc.provider = w.product_provider
+                            pc.provider = w.product_provider and (
+                                select count(*)
+                                from products p
+                                where
+                                    pc.category = p.category and
+                                    (p.hidden_in_grant_applications is false or :showHidden is true)
+                            ) > 0
                     """
                 )
                 .rows

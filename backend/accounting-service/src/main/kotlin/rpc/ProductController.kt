@@ -49,7 +49,8 @@ class ProductController(
                     ctx.securityPrincipalOrNull.toActorOrGuest(),
                     request.area,
                     request.provider,
-                    request.normalize()
+                    request.normalize(),
+                    request.showHidden
                 )
             )
         }
@@ -57,7 +58,7 @@ class ProductController(
         @Suppress("DEPRECATION")
         implement(Products.retrieveAllFromProvider) {
             ok(
-                products.listAllByProvider(db, ctx.securityPrincipal.toActor(), request.provider)
+                products.listAllByProvider(db, ctx.securityPrincipal.toActor(), request.provider, request.showHidden)
             )
         }
 
