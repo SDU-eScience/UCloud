@@ -192,7 +192,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
 
-    const [productArea, setProductArea] = useState("COMPUTE");
+    const [productArea, setProductArea] = useState<ProductArea>("COMPUTE");
     const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3]);
 
     const currentTime = new Date();
@@ -262,23 +262,13 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
             sidebar={null}
             main={
                 <Box mt="8px">
-                    {productArea === "COMPUTE" ?
-                        <VisualizationForArea
-                            area={"COMPUTE"}
-                            projectId={projectId}
-                            usageResponse={usageResponse}
-                            durationOption={durationOption}
-                            balance={balance}
-                        />
-                        :
-                        <VisualizationForArea
-                            area={"STORAGE"}
-                            projectId={projectId}
-                            usageResponse={usageResponse}
-                            durationOption={durationOption}
-                            balance={balance}
-                        />
-                    }
+                    <VisualizationForArea
+                        area={productArea}
+                        projectId={projectId}
+                        usageResponse={usageResponse}
+                        durationOption={durationOption}
+                        balance={balance}
+                    />
                 </Box>
             }
         />
@@ -329,8 +319,6 @@ const VisualizationForArea: React.FunctionComponent<{
         .data
         .charts
         .map(it => transformUsageChartForTable(projectId, it, area, balance.data.wallets, expanded));
-
-    const [, forceUpdate] = useState(false);
 
     return (
         <Box>

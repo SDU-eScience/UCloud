@@ -32,7 +32,7 @@ export function productAreaTitle(area: ProductArea): string {
         case "STORAGE":
             return "Storage";
         case "INGRESS":
-            return "Ingress";
+            return "Public link";
         case "LICENSE":
             return "Application license";
     }
