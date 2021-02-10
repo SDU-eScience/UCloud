@@ -194,6 +194,14 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 setParameter("type", productType.catagoryId)
                                 setParameter("sdu", SDU_CLOUD_PROJECT_ID)
                                 setParameter("sdutype1", SDU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("aautype1", AAU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("autype1", AU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("cbstype1", CBS_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("dtutype1", DTU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("itutype1", ITU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("kutype1", KU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("ructype1", RUC_TYPE_1_CLOUD_PROJECT_ID)
+
                             },
                             """
                                 SELECT MAX(sum)::bigint
@@ -206,7 +214,16 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                             AND completed_at >= :startDate :: timestamp
                                             AND product_category = :type
                                             AND initiated_by = '_storage'
-                                            AND (account_id = :sdu OR account_id = :sdutype1)
+                                            AND (account_id = :sdu 
+                                                OR account_id = :sdutype1
+                                                OR account_id = :aautype1
+                                                OR account_id = :autype1
+                                                OR account_id = :cbstype1
+                                                OR account_id = :dtutype1
+                                                OR account_id = :itutype1
+                                                OR account_id = :kutype1
+                                                OR account_id = :ructype1
+                                            )
                                         GROUP BY time, units
                                         ORDER BY time
                                     ) AS amount
@@ -231,6 +248,13 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 setParameter("type", productType.catagoryId)
                                 setParameter("sdu", SDU_CLOUD_PROJECT_ID)
                                 setParameter("sdutype1", SDU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("aautype1", AAU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("autype1", AU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("cbstype1", CBS_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("dtutype1", DTU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("itutype1", ITU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("kutype1", KU_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("ructype1", RUC_TYPE_1_CLOUD_PROJECT_ID)
                             },
                             """
                             SELECT sum(amount)::bigint
@@ -239,7 +263,16 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 AND completed_at <= :endDate::timestamp
                                 AND product_category = :type 
                                 AND initiated_by NOT LIKE '\_%'
-                                AND (account_id = :sdu OR account_id = :sdutype1)
+                                AND (account_id = :sdu 
+                                    OR account_id = :sdutype1
+                                    OR account_id = :aautype1
+                                    OR account_id = :autype1
+                                    OR account_id = :cbstype1
+                                    OR account_id = :dtutype1
+                                    OR account_id = :itutype1
+                                    OR account_id = :kutype1
+                                    OR account_id = :ructype1
+                                )
                         """
                         ).rows
                         .firstOrNull()

@@ -1,4 +1,4 @@
-version = "0.1.6-16"
+version = "0.1.6-17"
 
 application {
     mainClassName = "dk.sdu.cloud.ucloud.data.extraction.MainKt"

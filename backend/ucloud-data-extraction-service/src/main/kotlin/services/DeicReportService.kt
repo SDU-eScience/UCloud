@@ -34,7 +34,7 @@ class DeicReportService(val postgresDataService: PostgresDataService, val elasti
             usedGPUHoursInPeriod,
             storageUsed,
             networkUsed.toLong(),
-            networkUsed/daysInPeriod
+            ((networkUsed*8)/daysInPeriod/24/3600)
         )
         val json = defaultMapper.writerWithDefaultPrettyPrinter().writeValueAsString(centerReport)
         println("$json,")

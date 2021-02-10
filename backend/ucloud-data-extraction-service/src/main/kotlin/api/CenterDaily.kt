@@ -23,7 +23,7 @@ data class CenterDaily(
     /*
      * Each project that are assigned usage time have a generated project id. The format of the ID is GUID.
      */
-    val deicProjectIdval : String,
+    val deicProjectId : String,
     /*
      * Each university is defined as a constant. New will be added if needed.
      */
