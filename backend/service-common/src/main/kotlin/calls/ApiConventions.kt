@@ -575,3 +575,5 @@ fun <T : Any> bulkRequestOf(items: Collection<T>): BulkRequest<T> {
     return if (items.size == 1) BulkRequest.Single<T>().apply { item = items.single() }
     else BulkRequest.Bulk(items.toList())
 }
+
+data class BulkResponse<T>(val responses: List<T>)

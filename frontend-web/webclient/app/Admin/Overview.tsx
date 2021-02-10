@@ -13,7 +13,8 @@ const linkInfo: LinkInfo[] = [
     {to: "/applications/studio", text: "Application Studio", icon: "appStore", color: "white", color2: "blue"},
     {to: "/admin/licenseServers", text: "License Servers", icon: "license", color: "white", color2: "white"},
     {to: "/admin/news", text: "News", icon: "warning", color: "white", color2: "black"},
-    {to: "/admin/appk8", text: "Compute Maintenance", icon: "calendar", color: "white", color2: "black"}
+    {to: "/admin/appk8", text: "Compute Maintenance", icon: "calendar", color: "white", color2: "black"},
+    {to: "/admin/providers", text: "Providers", icon: "cloudTryingItsBest", color: "white", color2: "white"}
 ];
 
 interface LinkInfo {

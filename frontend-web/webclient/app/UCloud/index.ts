@@ -96,6 +96,9 @@ export interface PaginationRequest {
 }
 export interface BinaryStream {
 }
+export interface BulkResponse<T = unknown> {
+    responses: T[],
+}
 export interface FindByLongId {
     id: number /* int64 */,
 }
@@ -357,6 +360,200 @@ export interface ResourceOwner {
     createdBy: string,
     project?: string,
 }
+export interface ProviderSpecification {
+    id: string,
+    domain: string,
+    https: boolean,
+    port?: number /* int32 */,
+    manifest: ProviderManifest,
+    product?: accounting.ProductReference,
+}
+export interface ManifestAndId {
+    id: string,
+    manifest: ProviderManifest,
+}
+export interface ProvidersUpdateAclRequestItem {
+    id: string,
+    acl: ProviderAclEntry[],
+}
+export interface ProviderAclEntry {
+    entity: AclEntity,
+    permissions: "EDIT"[],
+}
+export interface ProvidersRenewRefreshTokenRequestItem {
+    id: string,
+}
+/**
+ * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+ * 
+ * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
+ * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
+ * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
+ * the provider APIs for communicating the status of the `Job`.
+ * 
+ * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
+ * with metadata, such as: ownership, billing and status.
+ * 
+ * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
+ *  It is then up to the provider to implement the functionality of the `Resource`.
+ * 
+ * ![](/backend/provider-service/wiki/resource_create.svg)
+ * 
+ * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
+ * 
+ */
+export interface Provider {
+    /**
+     * A unique identifier referencing the `Resource`
+     * 
+     * This ID is assigned by UCloud and is globally unique across all providers.
+     */
+    id: string,
+    specification: ProviderSpecification,
+    refreshToken: string,
+    publicKey: string,
+    /**
+     * Timestamp referencing when the request for creation was received by UCloud
+     */
+    createdAt: number /* int64 */,
+    /**
+     * Holds the current status of the `Resource`
+     */
+    status: ProviderStatus,
+    /**
+     * Contains a list of updates from the provider as well as UCloud
+     * 
+     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+     * resource.
+     */
+    updates: ProviderUpdate[],
+    /**
+     * Contains information related to billing information for this `Resource`
+     */
+    billing: ProviderBilling,
+    /**
+     * Contains information about the original creator of the `Resource` along with project association
+     */
+    owner: ProviderOwner,
+    /**
+     * An ACL for this `Resource`
+     */
+    acl: ProviderAclEntry[],
+}
+/**
+ * Describes the current state of the `Resource`
+ * 
+ * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+ * this will contain information such as:
+ * 
+ * - A state value. For example, a compute `Job` might be `RUNNING`
+ * - Key metrics about the resource.
+ * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+ *   should be listed in the `status` section.
+ * 
+ */
+export interface ProviderStatus {
+}
+/**
+ * Describes an update to the `Resource`
+ * 
+ * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+ * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+ * use the full update history if you only wish to know the _current_ state of a `Resource`.
+ * 
+ * An update will typically contain information similar to the `status` field, for example:
+ * 
+ * - A state value. For example, a compute `Job` might be `RUNNING`.
+ * - Change in key metrics.
+ * - Bindings to related `Resource`s.
+ * 
+ */
+export interface ProviderUpdate {
+    /**
+     * A timestamp referencing when UCloud received this update
+     */
+    timestamp: number /* int64 */,
+    /**
+     * A generic text message describing the current status of the `Resource`
+     */
+    status?: string,
+}
+/**
+ * Contains information related to the accounting/billing of a `Resource`
+ * 
+ * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+ * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+ * to be charged a different price than newly launched products.
+ */
+export interface ProviderBilling {
+    /**
+     * The price per unit. This can differ from current price of `Product`
+     */
+    pricePerUnit: number /* int64 */,
+    /**
+     * Amount of credits charged in total for this `Resource`
+     */
+    creditsCharged: number /* int64 */,
+}
+/**
+ * The owner of a `Resource`
+ */
+export interface ProviderOwner {
+    createdBy: string,
+    project?: string,
+}
+/**
+ * The base type for requesting paginated content.
+ * 
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ * 
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ * 
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ * 
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ * 
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ * 
+ * ---
+ * 
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ * 
+ * ---
+ * 
+ */
+export interface ProvidersBrowseRequest {
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: "PREFER" | "REQUIRE",
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+}
 export namespace resources {
 export function create(
     request: BulkRequest<ResourceDoc>
@@ -377,6 +574,78 @@ export function browse(
         context: "",
         method: "GET",
         path: buildQueryString("/doc/resources" + "/browse", {consistency: request.consistency, itemsPerPage: request.itemsPerPage, itemsToSkip: request.itemsToSkip, next: request.next}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+}
+export namespace providers {
+export function create(
+    request: BulkRequest<ProviderSpecification>
+): APICallParameters<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function updateManifest(
+    request: BulkRequest<ManifestAndId>
+): APICallParameters<BulkRequest<ManifestAndId>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/updateManifest",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function updateAcl(
+    request: BulkRequest<ProvidersUpdateAclRequestItem>
+): APICallParameters<BulkRequest<ProvidersUpdateAclRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/updateAcl",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function renewToken(
+    request: BulkRequest<ProvidersRenewRefreshTokenRequestItem>
+): APICallParameters<BulkRequest<ProvidersRenewRefreshTokenRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/renewToken",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function retrieve(
+    request: FindByStringId
+): APICallParameters<FindByStringId, Provider> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/providers" + "/retrieve", {id: request.id}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function browse(
+    request: ProvidersBrowseRequest
+): APICallParameters<ProvidersBrowseRequest, PageV2<Provider>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/providers" + "/browse", {consistency: request.consistency, itemsPerPage: request.itemsPerPage, itemsToSkip: request.itemsToSkip, next: request.next}),
         parameters: request,
         reloadId: Math.random(),
     };
@@ -693,6 +962,26 @@ export interface ServiceAgreementText {
 export interface AcceptSLARequest {
     version: number /* int32 */,
 }
+export interface PublicKeyAndRefreshToken {
+    providerId: string,
+    publicKey: string,
+    refreshToken: string,
+}
+export interface AuthProvidersRegisterResponseItem {
+    claimToken: string,
+}
+export interface RefreshToken {
+    refreshToken: string,
+}
+export interface AuthProvidersRefreshAsProviderRequestItem {
+    providerId: string,
+}
+export interface AuthProvidersRegisterRequestItem {
+    id: string,
+}
+export interface AuthProvidersRetrievePublicKeyResponse {
+    publicKey: string,
+}
 export namespace users {
 export function createNewUser(
     request: CreateSingleUserRequest[]
@@ -870,6 +1159,88 @@ export function accept(
         parameters: request,
         reloadId: Math.random(),
         payload: request,
+    };
+}
+}
+export namespace providers {
+export function claim(
+    request: BulkRequest<AuthProvidersRegisterResponseItem>
+): APICallParameters<BulkRequest<AuthProvidersRegisterResponseItem>, BulkResponse<PublicKeyAndRefreshToken>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/auth/providers" + "/claim",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function refresh(
+    request: BulkRequest<RefreshToken>
+): APICallParameters<BulkRequest<RefreshToken>, BulkResponse<AccessToken>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/auth/providers" + "/refresh",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+/**
+ * Signs an access-token to be used by a UCloud service (refreshAsProvider)
+ *
+ * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+ * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+ * 
+ * This RPC signs an access-token which will be used by authorized UCloud services to act as an
+ * orchestrator of resources.
+ */
+export function refreshAsProvider(
+    request: BulkRequest<AuthProvidersRefreshAsProviderRequestItem>
+): APICallParameters<BulkRequest<AuthProvidersRefreshAsProviderRequestItem>, BulkResponse<AccessToken>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/auth/providers" + "/ refreshAsProvider",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function register(
+    request: BulkRequest<AuthProvidersRegisterRequestItem>
+): APICallParameters<BulkRequest<AuthProvidersRegisterRequestItem>, BulkResponse<AuthProvidersRegisterResponseItem>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/auth/providers",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function renew(
+    request: BulkRequest<FindByStringId>
+): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<PublicKeyAndRefreshToken>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/auth/providers" + "/renew",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function retrievePublicKey(
+    request: FindByStringId
+): APICallParameters<FindByStringId, AuthProvidersRetrievePublicKeyResponse> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/auth/providers" + "/retrieveKey", {id: request.id}),
+        parameters: request,
+        reloadId: Math.random(),
     };
 }
 }
@@ -4068,6 +4439,10 @@ export interface UpdateGroupNameRequest {
     groupId: string,
     newGroupName: string,
 }
+export interface ListAllGroupMembersRequest {
+    project: string,
+    group: string,
+}
 export interface IsMemberResponse {
     responses: boolean[],
 }
@@ -4397,12 +4772,16 @@ export function updateGroupName(
         payload: request,
     };
 }
-export function listAllGroupMembers(): APICallParameters<{}, string[]> {
+export function listAllGroupMembers(
+    request: ListAllGroupMembersRequest
+): APICallParameters<ListAllGroupMembersRequest, string[]> {
     return {
         context: "",
         method: "POST",
         path: "/api/projects/groups" + "/list-all-group-members",
+        parameters: request,
         reloadId: Math.random(),
+        payload: request,
     };
 }
 export function isMember(

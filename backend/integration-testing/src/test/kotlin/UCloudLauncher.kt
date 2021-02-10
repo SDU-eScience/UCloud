@@ -10,7 +10,7 @@ import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
-import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -35,6 +35,7 @@ import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.ProjectService
 import dk.sdu.cloud.project.repository.ProjectRepositoryService
+import dk.sdu.cloud.provider.ProviderService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
@@ -485,7 +486,7 @@ object UCloudLauncher : Loggable {
             wipeDatabases()
 
             val m = micro.createScope()
-            m.install(RefreshingJWTCloudFeature)
+            m.install(AuthenticatorFeature)
             serviceClient = m.authenticator.authenticateClient(OutgoingHttpCall)
 
             val blacklist = setOf(
@@ -526,7 +527,8 @@ object UCloudLauncher : Loggable {
                 ShareService,
                 StorageService,
                 SupportService,
-                TaskService
+                TaskService,
+                ProviderService
             )
 
             // Reflection is _way_ too slow

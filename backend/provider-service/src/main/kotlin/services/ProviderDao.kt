@@ -1,7 +1,6 @@
 package dk.sdu.cloud.provider.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.calls.RPCException
@@ -10,12 +9,14 @@ import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.paginateV2
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.*
+
+data class InternalProvider(
+    val provider: Provider,
+    val claimToken: String?,
+)
 
 class ProviderDao(
     private val projects: ProjectCache,
@@ -25,6 +26,7 @@ class ProviderDao(
         actor: Actor,
         project: String?,
         spec: ProviderSpecification,
+        claimToken: String,
     ) {
         if (project == null) {
             throw RPCException(
@@ -48,13 +50,13 @@ class ProviderDao(
                         setParameter("manifest", defaultMapper.writeValueAsString(spec.manifest))
                         setParameter("created_by", actor.safeUsername())
                         setParameter("project", project)
-                        setParameter("refresh_token", "not-yet-initialised")
+                        setParameter("claim_token", claimToken)
                     },
                     """
                         insert into provider.providers
-                        (id, domain, https, port, manifest, created_by, project, refresh_token) 
+                        (id, domain, https, port, manifest, created_by, project, refresh_token, claim_token, public_key)
                         values
-                        (:id, :domain, :https, :port, :manifest, :created_by, :project, :refresh_token) 
+                        (:id, :domain, :https, :port, :manifest, :created_by, :project, null, :claim_token, null)
                     """
                 )
         }
@@ -66,7 +68,7 @@ class ProviderDao(
         id: String,
     ): Provider {
         return ctx.withSession { session ->
-            val provider = session
+            val (provider) = session
                 .sendPreparedStatement(
                     { setParameter("id", id) },
                     """
@@ -91,7 +93,7 @@ class ProviderDao(
         ctx: DBContext,
         actor: Actor,
         project: String?,
-        pagination: NormalizedPaginationRequestV2
+        pagination: NormalizedPaginationRequestV2,
     ): PageV2<Provider> {
         val isPrivileged = actor == Actor.System || (actor is Actor.User && actor.principal.role == Role.ADMIN)
         return ctx.paginateV2(
@@ -107,12 +109,13 @@ class ProviderDao(
                             declare c cursor for
                             select *
                             from provider.providers p
+                            where p.claim_token is null and p.refresh_token is not null
                         """
                     )
             },
             mapper = { _, rows ->
                 rows.mapNotNull {
-                    val provider = rowToProvider(it)
+                    val (provider) = rowToProvider(it)
                     val hasPermission = hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)
                     if (!isPrivileged && !hasPermission) {
                         null
@@ -129,17 +132,22 @@ class ProviderDao(
         actor: Actor,
         id: String,
         newToken: String,
+        publicKey: String,
     ) {
         ctx.withSession { session ->
-            val provider = session
+            val (provider) = session
                 .sendPreparedStatement(
                     {
                         setParameter("id", id)
                         setParameter("newToken", newToken)
+                        setParameter("publicKey", publicKey)
                     },
                     """
                         update provider.providers
-                        set refresh_token = :newToken::jsonb
+                        set 
+                            refresh_token = :newToken,
+                            claim_token = null,
+                            public_key = :publicKey
                         where id = :id
                         returning *
                     """
@@ -161,7 +169,7 @@ class ProviderDao(
         newAcl: List<ProviderAclEntry>,
     ) {
         ctx.withSession { session ->
-            val provider = session
+            val (provider) = session
                 .sendPreparedStatement(
                     {
                         setParameter("id", id)
@@ -170,7 +178,7 @@ class ProviderDao(
                     """
                         update provider.providers
                         set acl = :newAcl::jsonb
-                        where id = :id
+                        where id = :id and claim_token is null
                         returning *
                     """
                 )
@@ -191,7 +199,7 @@ class ProviderDao(
         newManifest: ProviderManifest,
     ) {
         ctx.withSession { session ->
-            val provider = session
+            val (provider) = session
                 .sendPreparedStatement(
                     {
                         setParameter("id", id)
@@ -200,7 +208,7 @@ class ProviderDao(
                     """
                         update provider.providers
                         set manifest = :newManifest::jsonb
-                        where id = :id
+                        where id = :id and claim_token is null
                         returning *
                     """
                 )
@@ -216,32 +224,36 @@ class ProviderDao(
 
     private fun rowToProvider(
         result: RowData,
-    ): Provider = Provider(
-        result.getString("id")!!,
-        ProviderSpecification(
+    ): InternalProvider = InternalProvider(
+        Provider(
             result.getString("id")!!,
-            result.getString("domain")!!,
-            result.getBoolean("https")!!,
-            result.getInt("port")!!,
-            defaultMapper.readValue(result.getString("manifest")!!),
+            ProviderSpecification(
+                result.getString("id")!!,
+                result.getString("domain")!!,
+                result.getBoolean("https")!!,
+                result.getInt("port")!!,
+                defaultMapper.readValue(result.getString("manifest")!!),
+            ),
+            result.getString("refresh_token") ?: "",
+            result.getString("public_key") ?: "",
+            result.getDate("created_at")!!.toDateTime().millis,
+            ProviderStatus(),
+            emptyList(),
+            ProviderBilling(0, 0),
+            ProviderOwner(
+                result.getString("created_by")!!,
+                result.getString("project")!!
+            ),
+            defaultMapper.readValue(result.getString("acl")!!)
         ),
-        result.getString("refresh_token")!!,
-        result.getDate("created_at")!!.toDateTime().millis,
-        ProviderStatus(),
-        emptyList(),
-        ProviderBilling(0, 0),
-        ProviderOwner(
-            result.getString("created_by")!!,
-            result.getString("project")!!
-        ),
-        defaultMapper.readValue(result.getString("acl")!!)
+        result.getString("claim_token")
     )
 
     suspend fun hasPermission(
         ctx: DBContext,
         actor: Actor,
         providerId: String,
-        permission: ProviderAclPermission
+        permission: ProviderAclPermission,
     ): Boolean {
         return ctx.withSession { session ->
             val provider = retrieveProvider(session, actor, providerId)
@@ -272,5 +284,23 @@ class ProviderDao(
         }
 
         return false
+    }
+
+    suspend fun findUnclaimed(ctx: DBContext): List<InternalProvider> {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {},
+                    """
+                        select * 
+                        from provider.providers
+                        where
+                            created_at < now() - '5 minutes' and
+                            claim_token is not null
+                    """
+                )
+                .rows
+                .map { rowToProvider(it) }
+        }
     }
 }

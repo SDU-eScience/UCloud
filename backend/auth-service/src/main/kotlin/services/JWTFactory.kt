@@ -2,10 +2,7 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
-import dk.sdu.cloud.auth.api.Person
-import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.ServiceAgreementText
-import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.auth.api.*
 import java.util.*
 
 class JWTFactory(
@@ -52,7 +49,7 @@ class JWTFactory(
                 )
             }
 
-            is ServicePrincipal -> {
+            is ProviderPrincipal, is ServicePrincipal -> {
                 // Do nothing
             }
         }
@@ -61,6 +58,7 @@ class JWTFactory(
             is Person.ByWAYF -> "wayf"
             is Person.ByPassword -> "password"
             is ServicePrincipal -> "service"
+            is ProviderPrincipal -> "provider"
         }
         withClaim("principalType", type)
     }

@@ -1,7 +1,7 @@
 package dk.sdu.cloud.slack
 
+import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.slack.api.SlackServiceDescription
 
@@ -22,7 +22,7 @@ object SlackService : Service {
     override val description = SlackServiceDescription
     
     override fun initializeServer(micro: Micro): CommonServer {
-        micro.install(RefreshingJWTCloudFeature)
+        micro.install(AuthenticatorFeature)
         val alertConfiguration = micro.configuration.requestChunkAt<Configuration>("alerting")
         val supportConfiguration = micro.configuration.requestChunkAt<Configuration>("ticket")
         return Server(micro, alertConfiguration, supportConfiguration)

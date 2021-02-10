@@ -7,6 +7,7 @@ import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.ServiceAgreementText
+import dk.sdu.cloud.auth.api.TokenValidationWithProviderSupport
 import dk.sdu.cloud.auth.api.installAuth
 import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
@@ -15,7 +16,7 @@ import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.TokenValidationJWT
+import dk.sdu.cloud.service.InternalTokenValidationJWT
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
@@ -120,14 +121,16 @@ object AuthService : dk.sdu.cloud.micro.Service {
             authSettings.validateOrThrow()
         }
 
-        val tokenValidation = micro.tokenValidation as TokenValidationJWT
+        val tokenValidation = (micro.tokenValidation as? TokenValidationWithProviderSupport)?.delegate
+            ?: (micro.tokenValidation as InternalTokenValidationJWT)
 
-        val algorithm = if (tokenValidation.algorithm.javaClass.canonicalName == "com.auth0.jwt.algorithms.HMACAlgorithm") {
-            tokenValidation.algorithm
-        } else {
-            val jwtCerts = loadKeys(configuration.certsLocation)
-            Algorithm.RSA256(null, jwtCerts.privateKey)
-        }
+        val algorithm =
+            if (tokenValidation.algorithm.javaClass.canonicalName == "com.auth0.jwt.algorithms.HMACAlgorithm") {
+                tokenValidation.algorithm
+            } else {
+                val jwtCerts = loadKeys(configuration.certsLocation)
+                Algorithm.RSA256(null, jwtCerts.privateKey)
+            }
 
         return Server(
             jwtAlg = algorithm,

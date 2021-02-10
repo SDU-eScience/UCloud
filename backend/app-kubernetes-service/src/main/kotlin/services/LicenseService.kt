@@ -48,6 +48,19 @@ class LicenseService(
 ) {
     suspend fun createServer(request: BulkRequest<KubernetesLicense>) {
         db.withSession { session ->
+            val anyExists = session.sendPreparedStatement(
+                {
+                    setParameter("ids", request.items.map { it.id })
+                },
+                """
+                SELECT *
+                FROM app_kubernetes.license_servers
+                WHERE id IN (select unnest(:ids::text[]))
+                """
+            ).rows.size > 0
+
+            if (anyExists) throw RPCException("License already exists", HttpStatusCode.Conflict)
+
             request.items.forEach { license ->
                 session.insert(LicenseServerTable) {
                     set(LicenseServerTable.id, license.id)

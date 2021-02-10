@@ -51,7 +51,8 @@ fun <T> TokenValidation<T>.validateAndDecodeOrNull(token: String): SecurityPrinc
 
 private const val CERT_CHUNK_SIZE = 64
 
-class TokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
+typealias TokenValidationJWT = TokenValidation<DecodedJWT>
+class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
     override val tokenType = DecodedJWT::class.java
 
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
@@ -123,13 +124,13 @@ class TokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT>
         }
 
         fun withPublicCertificate(publicCertificate: String): TokenValidationJWT {
-            return TokenValidationJWT(
+            return InternalTokenValidationJWT(
                 Algorithm.RSA256(loadCert(publicCertificate)!!.publicKey as RSAPublicKey, null)
             )
         }
 
         fun withSharedSecret(sharedSecret: String): TokenValidationJWT {
-            return TokenValidationJWT(Algorithm.HMAC512(sharedSecret))
+            return InternalTokenValidationJWT(Algorithm.HMAC512(sharedSecret))
         }
     }
 }

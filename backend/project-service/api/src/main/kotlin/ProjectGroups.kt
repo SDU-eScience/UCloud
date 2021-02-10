@@ -161,6 +161,8 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
                 using(baseContext)
                 +"list-all-group-members"
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 
