@@ -41,7 +41,7 @@ class JobVerificationService(
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
         userClient: AuthenticatedClient,
-        listeners: List<JobListener> = emptyList()
+        listeners: List<JobListener> = emptyList(),
     ): VerifiedJobWithAccessToken {
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
@@ -236,6 +236,7 @@ class JobVerificationService(
         for (param in app.invocation.parameters) {
             var providedValue = userParameters[param.name]
             if (!param.optional && param.defaultValue == null && providedValue == null) {
+                log.debug("Missing value: param=${param} providedValue=${providedValue}")
                 throw RPCException("Missing value for '${param.name}'", HttpStatusCode.BadRequest)
             }
 
@@ -249,19 +250,33 @@ class JobVerificationService(
                     is ApplicationParameter.InputDirectory,
                     is ApplicationParameter.Peer,
                     is ApplicationParameter.LicenseServer,
-                    is ApplicationParameter.Ingress
+                    is ApplicationParameter.Ingress,
                     -> null // Not supported and application should not have been validated. Silently fail.
 
-                    is ApplicationParameter.Text -> (param.defaultValue as? String)?.let { AppParameterValue.Text(it) }
+                    is ApplicationParameter.Text -> {
+                        ((param.defaultValue as? Map<*, *>)?.get("value") as? String)?.let {
+                            AppParameterValue.Text(it)
+                        } ?: (param.defaultValue as? String)?.let { AppParameterValue.Text(it) }
+                    }
                     is ApplicationParameter.Integer -> {
-                        (param.defaultValue as? Number)?.let { AppParameterValue.Integer(BigInteger(it.toString())) }
+                        ((param.defaultValue as? Map<*, *>)?.get("value") as? Number)?.let {
+                            AppParameterValue.Integer(BigInteger(it.toString()))
+                        } ?: (param.defaultValue as? Number)?.let {
+                            AppParameterValue.Integer(BigInteger(it.toString()))
+                        }
                     }
                     is ApplicationParameter.FloatingPoint -> {
-                        (param.defaultValue as? Number)?.let {
+                        ((param.defaultValue as? Map<*, *>)?.get("value") as? Number)?.let {
+                            AppParameterValue.FloatingPoint(BigDecimal(it.toString()))
+                        } ?: (param.defaultValue as? Number)?.let {
                             AppParameterValue.FloatingPoint(BigDecimal(it.toString()))
                         }
                     }
-                    is ApplicationParameter.Bool -> (param.defaultValue as? Boolean)?.let { AppParameterValue.Bool(it) }
+                    is ApplicationParameter.Bool -> {
+                        ((param.defaultValue as? Map<*, *>)?.get("value") as? Boolean)?.let {
+                            AppParameterValue.Bool(it)
+                        } ?: (param.defaultValue as? Boolean)?.let { AppParameterValue.Bool(it) }
+                    }
                     is ApplicationParameter.Enumeration -> {
                         (param.defaultValue as? Map<*, *>)?.let { map ->
                             val value = (map["value"] as? String)
@@ -276,6 +291,9 @@ class JobVerificationService(
                 }
 
                 if (providedValue == null) {
+                    log.warn("This shouldn't happen!")
+                    log.warn("Param: ${param}")
+                    log.warn("Default value: ${param.defaultValue} ${param.defaultValue?.javaClass}")
                     throw RPCException("Missing value for '${param.name}'", HttpStatusCode.BadRequest)
                 }
             }

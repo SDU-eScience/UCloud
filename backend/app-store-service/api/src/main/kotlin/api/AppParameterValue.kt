@@ -139,7 +139,7 @@ Internally this uses a big decimal type and there are no defined limits.
             }
 
             if (hostname.length > 250) {
-                throw RPCException("Hostname is too long", HttpStatusCode.BadRequest)
+                throw RPCException("Hostname is too long: ${hostname.take(250)}...", HttpStatusCode.BadRequest)
             }
         }
 
