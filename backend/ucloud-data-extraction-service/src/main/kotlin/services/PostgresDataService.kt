@@ -26,9 +26,79 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                         """
                     ).rows
                     .singleOrNull()
-                    ?.getString(0) ?: throw Exception("Not found")
+                    ?.getString(0) ?: "PASSWORD"
             }
             UniversityID.fromOrgId(orgId)
+        }
+    }
+
+    fun calculateProductUsageForUserInProjectForDate(
+        startDate: LocalDateTime,
+        productType: ProductType,
+        username: String,
+        projectId: String
+    ): Long {
+        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
+            return 0
+        }
+        if (productType == ProductType.STORAGE) {
+            //Uses the day with highest storage usage
+            val storageInGB = runBlocking {
+                db.withSession { session ->
+                    session
+                        .sendPreparedStatement(
+                            {
+                                setParameter("startDate", startDate.toLocalDate().toString())
+                                setParameter("type", productType.catagoryId)
+                                setParameter("projectid", projectId)
+                            },
+                            """
+                                SELECT units::bigint, DATE(completed_at) as time
+                                FROM "accounting"."transactions"
+                                WHERE account_id = :projectid
+                                  AND completed_at >= :startDate :: timestamp
+                                  AND product_category = :type
+                                  AND initiated_by = '_storage'
+                                GROUP BY time, units
+                                ORDER BY time
+                            """
+                        ).rows
+                        .firstOrNull()
+                        ?.getLong(0) ?: 0L
+                }
+            }
+            return storageInGB * 1000
+        } else {
+            return runBlocking {
+                val amount = db.withSession { session ->
+                    session
+                        .sendPreparedStatement(
+                            {
+                                setParameter("startDate", startDate.toString().substringBefore("T"))
+                                setParameter("type", productType.catagoryId)
+                                setParameter("username", username)
+                                setParameter("projectid", projectId)
+                            },
+                            """
+                            SELECT SUM(amount)::bigint
+                            FROM (
+                                SELECT amount::bigint, DATE(completed_at) as time
+                                FROM  "accounting"."transactions"
+                                WHERE account_id = :projectid
+                                    AND product_category = :type
+                                    AND initiated_by = :username
+                                    AND DATE(completed_at) = :startDate::timestamp
+                                GROUP BY time, amount
+                                ORDER BY time
+                            ) as amounts;
+                        """
+                        ).rows
+                        .firstOrNull()
+                        ?.getLong(0) ?: 0L
+                }
+                //Get Corehours by dividing amount with pricing and then with 60 to get in hours
+                ((amount / productType.getPricing()) / 60).toLong()
+            }
         }
     }
 
@@ -77,7 +147,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
             return storageInGB * 1000
         } else {
             return runBlocking {
-                db.withSession { session ->
+                val amount = db.withSession { session ->
                     session
                         .sendPreparedStatement(
                             {
@@ -98,6 +168,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                         .firstOrNull()
                         ?.getLong(0) ?: 0L
                 }
+                //Get Corehours by dividing amount with pricing and then with 60 to get in hours
+                ((amount / productType.getPricing()) / 60).toLong()
             }
         }
     }
@@ -120,6 +192,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 setParameter("startDate", startDate.toLocalDate().toString())
                                 setParameter("endDate", endDate.toLocalDate().toString())
                                 setParameter("type", productType.catagoryId)
+                                setParameter("sdu", SDU_CLOUD_PROJECT_ID)
+                                setParameter("sdutype1", SDU_TYPE_1_CLOUD_PROJECT_ID)
                             },
                             """
                                 SELECT MAX(sum)::bigint
@@ -132,6 +206,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                             AND completed_at >= :startDate :: timestamp
                                             AND product_category = :type
                                             AND initiated_by = '_storage'
+                                            AND (account_id = :sdu OR account_id = :sdutype1)
                                         GROUP BY time, units
                                         ORDER BY time
                                     ) AS amount
@@ -257,7 +332,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                 val project = session
                     .sendPreparedStatement(
                         { setParameter("id", id) },
-                        "select id, title, parent, archived from projects where id = :id"
+                        "select id, title, parent, archived from project.projects where id = :id"
                     )
                     .rows
                     .singleOrNull()

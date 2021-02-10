@@ -4,6 +4,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ucloud.data.extraction.api.*
 import org.joda.time.Days
 import org.joda.time.LocalDateTime
+import kotlin.math.min
 
 class DeicReportService(val postgresDataService: PostgresDataService, val elasticDataService: ElasticDataService) {
 
@@ -36,22 +37,89 @@ class DeicReportService(val postgresDataService: PostgresDataService, val elasti
             networkUsed/daysInPeriod
         )
         val json = defaultMapper.writerWithDefaultPrettyPrinter().writeValueAsString(centerReport)
-        println(json)
+        println("$json,")
     }
 
     fun reportCenterDaily(startDate: LocalDateTime, endDate: LocalDateTime) {
-        //TODO() NOT correct format - currently a center report for each day. Should perhaps be user specific
         val daysInPeriod = Days.daysBetween(startDate, endDate).days
+        println("[")
         for (day in 0..daysInPeriod) {
             val start = startDate.plusDays(day)
             val end = startDate.plusDays(day+1)
-            println(start)
-            println(end)
             reportCenter(start, end)
         }
+        println("]")
+    }
+
+    fun reportCenterDailyDeic(startDate: LocalDateTime, endDate: LocalDateTime) {
+        //TODO() NOT correct format - currently a center report for each day. Should perhaps be user specific
+        val daysInPeriod = Days.daysBetween(startDate, endDate).days
+        println("[")
+        for (day in 0..daysInPeriod) {
+            val start = startDate.plusDays(day)
+            val numberOfGPUCores = if (startDate.isBefore(LocalDateTime.parse("2021-03-01"))) {
+                TYPE_1_GPU_CORES
+            } else {
+                0L
+            }
+            postgresDataService.findProjects().forEach { project ->
+                val ancestors = postgresDataService.viewAncestors(project.id)
+                //Skips subsub(etc.) projects of the UCloud root-project
+                if (ancestors.first().title == "UCloud") return@forEach
+
+                val deicProject = project.id
+
+                postgresDataService.findProjectMembers(deicProject).forEach members@ { projectMember ->
+                    if (projectMember.addedToProjectAt.isAfter(start)) return@members
+                    val universityId = postgresDataService.getUniversity(projectMember.username)
+                    val accessType = AccessType.LOCAL.value
+
+                    val cpuUsed = postgresDataService.calculateProductUsageForUserInProjectForDate(
+                        startDate,
+                        ProductType.CPU,
+                        projectMember.username,
+                        deicProject
+                    )
+                    val gpuUsed = postgresDataService.calculateProductUsageForUserInProjectForDate(
+                        startDate,
+                        ProductType.GPU,
+                        projectMember.username,
+                        deicProject
+                    )
+                    val storageUsed = postgresDataService.calculateProductUsageForUserInProjectForDate(
+                        startDate,
+                        ProductType.STORAGE,
+                        projectMember.username,
+                        deicProject
+                    )
+
+                    val centerDaily = CenterDaily(
+                        TYPE_1_HPC_CENTER_ID,
+                        TYPE_1_HPC_SUB_CENTER_ID_SDU,
+                        start.toString().substringBefore("T"),
+                        null,
+                        deicProject,
+                        universityId.value,
+                        accessType,
+                        TYPE_1_CPU_CORES * 24,
+                        cpuUsed,
+                        numberOfGPUCores * 24,
+                        gpuUsed,
+                        storageUsed,
+                        null,
+                        null
+                    )
+
+                    val json = defaultMapper.writerWithDefaultPrettyPrinter().writeValueAsString(centerDaily)
+                    println("$json,")
+                }
+            }
+        }
+        println("]")
     }
 
     fun reportPerson() {
+        println("[")
         postgresDataService.findProjects().forEach { project ->
             val ancestors = postgresDataService.viewAncestors(project.id)
             //Skips subsub(etc.) projects of the UCloud root-project
@@ -68,7 +136,7 @@ class DeicReportService(val postgresDataService: PostgresDataService, val elasti
             val gpuAssigned =
                 if (gpuAssignedAmount !=  null) { (gpuAssignedAmount / ProductType.GPU.getPricing()).toLong() } else { 0L }
 
-            val storageAssignedInMB = postgresDataService.getStorageQuotaInBytes(deicProject)/1000
+            val storageAssignedInMB = postgresDataService.getStorageQuotaInBytes(deicProject)/1000/1000
 
             postgresDataService.findProjectMembers(deicProject).forEach { projectMember ->
                 val universityId = postgresDataService.getUniversity(projectMember.username)
@@ -107,15 +175,18 @@ class DeicReportService(val postgresDataService: PostgresDataService, val elasti
                     userEnd,
                     cpuAssigned,
                     cpuUsed,
-                    gpuAssigned,
+                    if (projectMember.addedToProjectAt.isBefore(LocalDateTime.parse("2021-03-01"))) 0L else gpuAssigned,
                     gpuUsed,
                     storageAssignedInMB,
-                    storageUsed
+                    // This is due to allocations might change during the course of a project
+                    // but max usage over time for storage might have been over this new allocation limit
+                    min(storageUsed, storageAssignedInMB)
                 )
 
                 val json = defaultMapper.writerWithDefaultPrettyPrinter().writeValueAsString(personReport)
-                println(json)
+                println("$json,")
             }
         }
+        println("]")
     }
 }
