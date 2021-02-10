@@ -295,7 +295,7 @@ class ProviderDao(
                         select * 
                         from provider.providers
                         where
-                            created_at < now() - '5 minutes' and
+                            created_at < now() - '5 minutes'::interval and
                             claim_token is not null
                     """
                 )
