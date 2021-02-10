@@ -52,10 +52,7 @@ interface ResourceUpdate {
     val status: String?
 }
 
-interface ResourceAclEntry<Permission> {
-    val entity: AclEntity
-    val permissions: List<Permission>
-}
+open class ResourceAclEntry<Permission>(val entity: AclEntity, val permissions: List<Permission>)
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,

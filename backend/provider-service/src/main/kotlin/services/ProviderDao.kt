@@ -166,7 +166,7 @@ class ProviderDao(
         ctx: DBContext,
         actor: Actor,
         id: String,
-        newAcl: List<ProviderAclEntry>,
+        newAcl: List<ResourceAclEntry<ProviderAclPermission>>,
     ) {
         ctx.withSession { session ->
             val (provider) = session
@@ -264,7 +264,7 @@ class ProviderDao(
     private suspend fun hasPermission(
         actor: Actor,
         owner: ProviderOwner,
-        aclToVerifyAgainst: List<ProviderAclEntry>,
+        aclToVerifyAgainst: List<ResourceAclEntry<ProviderAclPermission>>,
         permission: ProviderAclPermission,
     ): Boolean {
         val project = owner.project ?: return false

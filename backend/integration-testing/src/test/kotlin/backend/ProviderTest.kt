@@ -191,7 +191,7 @@ class ProviderTest : IntegrationTest() {
                 ProvidersUpdateAclRequestItem(
                     provider.spec.id,
                     listOf(
-                        ProviderAclEntry(
+                        ResourceAclEntry(
                             AclEntity.ProjectGroup(provider.project, group.groupId),
                             listOf(ProviderAclPermission.EDIT)
                         )

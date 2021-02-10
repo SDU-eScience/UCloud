@@ -19,7 +19,7 @@ data class Provider(
     override val updates: List<ProviderUpdate>,
     override val billing: ProviderBilling,
     override val owner: ProviderOwner,
-    override val acl: List<ProviderAclEntry>
+    override val acl: List<ResourceAclEntry<ProviderAclPermission>>
 ) : Resource<ProviderAclPermission>
 
 enum class ProviderAclPermission {
@@ -48,11 +48,6 @@ data class ProviderOwner(
     override val createdBy: String,
     override val project: String?,
 ) : ResourceOwner
-
-data class ProviderAclEntry(
-    override val entity: AclEntity,
-    override val permissions: List<ProviderAclPermission>,
-) : ResourceAclEntry<ProviderAclPermission>
 
 @UCloudApiDoc("""The `ProviderManifest` contains general metadata about the provider.
 
@@ -113,7 +108,7 @@ data class ManifestFeatureSupport(
 
 data class ProvidersUpdateAclRequestItem(
     val id: String,
-    val acl: List<ProviderAclEntry>
+    val acl: List<ResourceAclEntry<ProviderAclPermission>>
 )
 
 data class ProvidersRenewRefreshTokenRequestItem(val id: String)
