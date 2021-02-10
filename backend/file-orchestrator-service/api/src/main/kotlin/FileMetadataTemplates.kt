@@ -1,7 +1,7 @@
 package dk.sdu.cloud.file.orchestrator
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.databind.JsonNode
+import com.github.fge.jsonschema.main.JsonSchemaFactory
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.CallDescriptionContainer
@@ -10,88 +10,67 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.PaginationRequestV2Consistency
 import dk.sdu.cloud.service.WithPaginationRequestV2
+import io.ktor.http.*
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = "type"
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = FileMetadataFieldType.Integer::class, name = "int"),
-    JsonSubTypes.Type(value = FileMetadataFieldType.FloatingPoint::class, name = "floating_point"),
-    JsonSubTypes.Type(value = FileMetadataFieldType.Boolean::class, name = "boolean"),
-    JsonSubTypes.Type(value = FileMetadataFieldType.Enum::class, name = "enum"),
-    JsonSubTypes.Type(value = FileMetadataFieldType.Text::class, name = "text"),
-    JsonSubTypes.Type(value = FileMetadataFieldType.Document::class, name = "document"),
-)
-sealed class FileMetadataFieldType {
-    class Integer(
-        val min: Long? = null,
-        val max: Long? = null,
-        val step: Long? = null,
-    ) : FileMetadataFieldType()
+// TODO Most metadata formats are probably XSD which is also annoying. It is probably doable to do a conversion to
+//  json-schema, however, this still leads to annoying cases where we cannot reliably export to valid XML (maybe?)
+//  Useful links:
+//    - https://github.com/ginkgobioworks/react-json-schema-form-builder
+//    - https://github.com/rjsf-team/react-jsonschema-form
+//    - https://github.com/highsource/jsonix
+// TODO Searchable fields
 
-    class FloatingPoint(
-        val min: Double? = null,
-        val max: Double? = null,
-        val step: Double? = null,
-    ) : FileMetadataFieldType()
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("""A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`""")
+data class FileMetadataTemplate(
+    override val id: String,
+    override val specification: Spec,
+    override val status: Status,
+    override val updates: List<Update>,
+    override val owner: SimpleResourceOwner,
+    override val acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>?,
+    override val createdAt: Long,
+) : Resource<FileMetadataTemplatePermission> {
+    override val billing: ResourceBilling = ResourceBilling.Free
 
-    class Boolean() : FileMetadataFieldType()
+    data class Spec(
+        @UCloudApiDoc("The title of this template. It does not have to be unique.")
+        val title: String,
+        @UCloudApiDoc("Version identifier for this version. It must be unique within a single template group.")
+        val version: String,
+        @UCloudApiDoc("JSON-Schema for this document")
+        val schema: JsonNode,
+        @UCloudApiDoc("Makes this template inheritable by descendants of the file that the template is attached to")
+        val inheritable: Boolean,
+        @UCloudApiDoc("If `true` then a user with `ADMINISTRATOR` rights must approve all changes to metadata")
+        val requireApproval: Boolean,
+        @UCloudApiDoc("Description of this template. Markdown is supported.")
+        val description: String,
+        @UCloudApiDoc("A description of the change since last version. Markdown is supported.")
+        val changeLog: String,
+    ) : ResourceSpecification {
+        override val product: Nothing? = null
 
-    class Enum(
-        val options: List<String>,
-    ) : FileMetadataFieldType() {
         init {
-            require(options.isNotEmpty())
-        }
-    }
-
-    class Text(
-        val minimumLength: Int? = null,
-        val maximumLength: Int? = null,
-    ) : FileMetadataFieldType() {
-        init {
-            require(minimumLength == null || minimumLength in 0..(1024 * 1024 * 2))
-            require(maximumLength == null || maximumLength in 0..(1024 * 1024 * 2))
-            if (minimumLength != null && maximumLength != null) {
-                require(maximumLength <= minimumLength)
+            if (!JsonSchemaFactory.byDefault().syntaxValidator.schemaIsValid(schema)) {
+                throw RPCException("Schema is not a valid JSON-schema", HttpStatusCode.BadRequest)
             }
         }
     }
 
-    class Document(val reference: String) : FileMetadataFieldType()
+    class Status(
+        val oldVersions: List<Spec>,
+    ) : ResourceStatus
+
+    data class Update(
+        override val timestamp: Long,
+        override val status: String?,
+    ) : ResourceUpdate
 }
 
-data class FileMetadataField(
-    val name: String,
-    val type: FileMetadataFieldType,
-    val minimumEntries: Int,
-    val maximumEntries: Int,
-    val searchable: Boolean,
-)
-
-data class FileMetadataTemplate(
-    override val id: String,
-    override val specification: Spec,
-    override val status: ResourceStatus,
-    override val updates: List<ResourceUpdate>,
-    override val billing: ResourceBilling,
-    override val owner: ResourceOwner,
-    override val acl: List<ResourceAclEntry<Nothing?>>?,
-    override val createdAt: Long,
-) : Resource<Nothing?> {
-    data class Spec(
-        val title: String,
-        val version: String,
-        val documents: Map<String, List<FileMetadataField>>,
-        val rootDocument: String,
-        val inheritable: Boolean,
-        val description: String,
-        val changeLog: String,
-    ) : ResourceSpecification {
-        override val product: Nothing? = null
-    }
+enum class FileMetadataTemplatePermission {
+    READ,
+    WRITE
 }
 
 // ---

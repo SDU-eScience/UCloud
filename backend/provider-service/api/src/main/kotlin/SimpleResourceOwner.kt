@@ -16,6 +16,11 @@ interface ResourceBilling {
     val pricePerUnit: Long
     @UCloudApiDoc("Amount of credits charged in total for this `Resource`")
     val creditsCharged: Long
+
+    object Free : ResourceBilling {
+        override val creditsCharged: Long = 0L
+        override val pricePerUnit: Long = 0L
+    }
 }
 
 @UCloudApiDoc("The owner of a `Resource`")
@@ -23,6 +28,11 @@ interface ResourceOwner {
     val createdBy: String
     val project: String?
 }
+
+data class SimpleResourceOwner(
+    override val createdBy: String,
+    override val project: String?,
+) : ResourceOwner
 
 interface ResourceSpecification {
     @UCloudApiDoc("""A reference to the product which backs this `Resource`
