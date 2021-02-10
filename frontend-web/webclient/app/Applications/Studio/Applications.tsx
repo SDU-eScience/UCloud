@@ -83,7 +83,7 @@ export const App: React.FunctionComponent = () => {
     );
 
     const [apps, setAppParameters] = useCloudAPI<Page<ApplicationSummaryWithFavorite>>(
-        {noop: true},
+        UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}),
         emptyPage
     );
     const [versions, setVersions] = useState<AppVersion[]>([]);
@@ -120,7 +120,7 @@ export const App: React.FunctionComponent = () => {
     useLoading(commandLoading || apps.loading);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
-    const tags = apps.data.items.length > 0 ? apps.data.items[0].tags : [];
+    const tags = apps.data.items[0]?.tags ?? [];
     const newTagField = useRef<HTMLInputElement>(null);
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
@@ -131,7 +131,7 @@ export const App: React.FunctionComponent = () => {
         <MainContainer
             header={(
                 <Heading.h1>
-                    <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} cacheBust={logoCacheBust}/>
+                    <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} cacheBust={logoCacheBust} />
                     {" "}
                     {appTitle}
                 </Heading.h1>
@@ -183,7 +183,7 @@ export const App: React.FunctionComponent = () => {
                             {tags.map(tag => (
                                 <Flex key={tag} mb={16}>
                                     <Box flexGrow={1}>
-                                        <Tag key={tag} label={tag}/>
+                                        <Tag key={tag} label={tag} />
                                     </Box>
                                     <Box>
                                         <Button
@@ -199,7 +199,7 @@ export const App: React.FunctionComponent = () => {
                                                 refresh();
                                             }}
                                         >
-                                            <Icon size={16} name="trash"/>
+                                            <Icon size={16} name="trash" />
                                         </Button>
                                     </Box>
                                 </Flex>
@@ -227,9 +227,9 @@ export const App: React.FunctionComponent = () => {
                                 <Flex>
                                     <Box flexGrow={1}>
                                         <Input type="text"
-                                               ref={newTagField}
-                                               rightLabel
-                                               height={35}/>
+                                            ref={newTagField}
+                                            rightLabel
+                                            height={35} />
                                     </Box>
                                     <Button disabled={commandLoading} type="submit" width={100} attached>
                                         Add tag
@@ -316,34 +316,34 @@ export const App: React.FunctionComponent = () => {
                                             placeholder="Username"
                                         />
                                     ) : (
-                                        <>
-                                            <Input
-                                                leftLabel
-                                                rightLabel
-                                                required
-                                                width={180}
-                                                type="text"
-                                                ref={projectEntityField}
-                                                placeholder="Project name"
-                                            />
-                                            <Input
-                                                leftLabel
-                                                rightLabel
-                                                required
-                                                width={180}
-                                                type="text"
-                                                ref={groupEntityField}
-                                                placeholder="Group name"
-                                            />
-                                        </>
-                                    )}
+                                            <>
+                                                <Input
+                                                    leftLabel
+                                                    rightLabel
+                                                    required
+                                                    width={180}
+                                                    type="text"
+                                                    ref={projectEntityField}
+                                                    placeholder="Project name"
+                                                />
+                                                <Input
+                                                    leftLabel
+                                                    rightLabel
+                                                    required
+                                                    width={180}
+                                                    type="text"
+                                                    ref={groupEntityField}
+                                                    placeholder="Group name"
+                                                />
+                                            </>
+                                        )}
                                     <InputLabel width={300} rightLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
                                             onChange={(val: ApplicationAccessRight) => setAccess(val)}
                                             trigger={<Box as="span"
-                                                          minWidth="250px">{prettifyAccessRight(access)}</Box>}
+                                                minWidth="250px">{prettifyAccessRight(access)}</Box>}
                                             options={permissionLevels}
                                         />
                                     </InputLabel>
@@ -364,62 +364,62 @@ export const App: React.FunctionComponent = () => {
                                             </TableRow>
                                         </LeftAlignedTableHeader>
                                         <tbody>
-                                        {permissionEntries.data.map((permissionEntry, index) => (
-                                            <TableRow key={index}>
-                                                <TableCell>
-                                                    {(permissionEntry.entity.user) ? (
-                                                        permissionEntry.entity.user
-                                                    ) : (
-                                                        `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                    )}</TableCell>
-                                                <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
-                                                <TableCell textAlign="right">
-                                                    <Button
-                                                        color={"red"}
-                                                        type={"button"}
-                                                        onClick={() => addStandardDialog({
-                                                            title: `Are you sure?`,
-                                                            message: (
-                                                                <Box>
-                                                                    <Text>
-                                                                        Remove permission
+                                            {permissionEntries.data.map((permissionEntry, index) => (
+                                                <TableRow key={index}>
+                                                    <TableCell>
+                                                        {(permissionEntry.entity.user) ? (
+                                                            permissionEntry.entity.user
+                                                        ) : (
+                                                                `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                            )}</TableCell>
+                                                    <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
+                                                    <TableCell textAlign="right">
+                                                        <Button
+                                                            color={"red"}
+                                                            type={"button"}
+                                                            onClick={() => addStandardDialog({
+                                                                title: `Are you sure?`,
+                                                                message: (
+                                                                    <Box>
+                                                                        <Text>
+                                                                            Remove permission
                                                                         for {(permissionEntry.entity.user) ? (
-                                                                        permissionEntry.entity.user
-                                                                    ) : (
-                                                                        `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                                    )}
-                                                                    </Text>
-                                                                </Box>
-                                                            ),
-                                                            onConfirm: async () => {
-                                                                await invokeCommand(UCloud.compute.apps.updateAcl({
-                                                                    applicationName: name,
-                                                                    changes: [
-                                                                        {
-                                                                            entity: {
-                                                                                user: permissionEntry.entity.user,
-                                                                                project: permissionEntry.entity.project?.id,
-                                                                                group: permissionEntry.entity.group?.id
-                                                                            },
-                                                                            rights: permissionEntry.permission,
-                                                                            revoke: true
-                                                                        }
-                                                                    ]
-                                                                }));
-                                                                fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
-                                                            }
-                                                        })}
-                                                    >
-                                                        <Icon size={16} name="trash"/>
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                                                                permissionEntry.entity.user
+                                                                            ) : (
+                                                                                    `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
+                                                                                )}
+                                                                        </Text>
+                                                                    </Box>
+                                                                ),
+                                                                onConfirm: async () => {
+                                                                    await invokeCommand(UCloud.compute.apps.updateAcl({
+                                                                        applicationName: name,
+                                                                        changes: [
+                                                                            {
+                                                                                entity: {
+                                                                                    user: permissionEntry.entity.user,
+                                                                                    project: permissionEntry.entity.project?.id,
+                                                                                    group: permissionEntry.entity.group?.id
+                                                                                },
+                                                                                rights: permissionEntry.permission,
+                                                                                revoke: true
+                                                                            }
+                                                                        ]
+                                                                    }));
+                                                                    fetchPermissionEntries(UCloud.compute.apps.listAcl({appName: name}));
+                                                                }
+                                                            })}
+                                                        >
+                                                            <Icon size={16} name="trash" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
                                         </tbody>
                                     </Table>
                                 ) : (
-                                    <Text textAlign="center">No explicit permissions set for this application</Text>
-                                )}
+                                        <Text textAlign="center">No explicit permissions set for this application</Text>
+                                    )}
                             </Box>
                         </Flex>
                     </Box>
@@ -431,80 +431,53 @@ export const App: React.FunctionComponent = () => {
                                     <TableRow>
                                         <TableHeaderCell width={100}>Version</TableHeaderCell>
                                         <TableHeaderCell>Settings</TableHeaderCell>
-                                        <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                     </TableRow>
                                 </LeftAlignedTableHeader>
                                 <tbody>
-                                {versions.map(version => (
-                                    <TableRow key={version.version}>
-                                        <TableCell>
-                                            <WordBreakBox>
-                                                {version.version}
-                                            </WordBreakBox>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Box mb={26} mt={16}>
-                                                <Label fontSize={2}>
-                                                    <Flex>
-                                                        <Checkbox
-                                                            checked={version.isPublic}
-                                                            onChange={stopPropagation}
-                                                            onClick={() => {
-                                                                Client.post(`/hpc/apps/setPublic`, {
-                                                                    appName: name,
-                                                                    appVersion: version.version,
-                                                                    public: !version.isPublic
-                                                                });
+                                    {versions.map(version => (
+                                        <TableRow key={version.version}>
+                                            <TableCell>
+                                                <WordBreakBox>
+                                                    {version.version}
+                                                </WordBreakBox>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Box mb={26} mt={16}>
+                                                    <Label fontSize={2}>
+                                                        <Flex>
+                                                            <Checkbox
+                                                                checked={version.isPublic}
+                                                                onChange={stopPropagation}
+                                                                onClick={() => {
+                                                                    Client.post(`/hpc/apps/setPublic`, {
+                                                                        appName: name,
+                                                                        appVersion: version.version,
+                                                                        public: !version.isPublic
+                                                                    });
 
-                                                                setVersions(versions.map(v =>
-                                                                    (v.version === version.version) ?
-                                                                        {
-                                                                            version: v.version,
-                                                                            isPublic: !v.isPublic
-                                                                        } : v
-                                                                ));
-                                                            }}
-                                                        />
-                                                        <Box ml={8} mt="2px">Public</Box>
-                                                    </Flex>
-                                                </Label>
-                                                {version.isPublic ? (
-                                                    <Box ml={28}>Everyone can see and launch this version
+                                                                    setVersions(versions.map(v =>
+                                                                        (v.version === version.version) ?
+                                                                            {
+                                                                                version: v.version,
+                                                                                isPublic: !v.isPublic
+                                                                            } : v
+                                                                    ));
+                                                                }}
+                                                            />
+                                                            <Box ml={8} mt="2px">Public</Box>
+                                                        </Flex>
+                                                    </Label>
+                                                    {version.isPublic ? (
+                                                        <Box ml={28}>Everyone can see and launch this version
                                                         of {appTitle}.</Box>
-                                                ) : (
-                                                    <Box ml={28}>Access to this version is restricted as defined in
+                                                    ) : (
+                                                            <Box ml={28}>Access to this version is restricted as defined in
                                                         Permissions.</Box>
-                                                )}
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell textAlign="right">
-                                            <Button
-                                                color="red"
-                                                type="button"
-                                                onClick={() => addStandardDialog({
-                                                    title: `Delete ${name} version ${version.version}`,
-                                                    message: (
-                                                        <Box>
-                                                            <Text>
-                                                                Are you sure?
-                                                            </Text>
-                                                        </Box>
-                                                    ),
-                                                    onConfirm: async () => {
-                                                        await Client.delete("/hpc/apps", {
-                                                            appName: name,
-                                                            appVersion: version.version
-                                                        });
-                                                        refresh();
-                                                    },
-                                                    confirmText: "Delete"
-                                                })}
-                                            >
-                                                <Icon size={16} name="trash"/>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                                        )}
+                                                </Box>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
                                 </tbody>
                             </Table>
                         </Box>

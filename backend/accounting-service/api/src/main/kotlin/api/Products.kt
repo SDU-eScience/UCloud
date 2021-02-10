@@ -274,6 +274,7 @@ object Products : CallDescriptionContainer("products") {
     val updateProduct = call<UpdateProductRequest, UpdateProductResponse, CommonErrorMessage>("updateProduct") {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.AUTHENTICATED
         }
 
         http {

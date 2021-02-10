@@ -122,17 +122,21 @@ class ProviderService(
 
     suspend fun claimTheUnclaimed() {
         db.withSession { session ->
-            val claimed = AuthProviders.claim.call(
-                bulkRequestOf(
-                    dao.findUnclaimed(session).mapNotNull {
-                        AuthProvidersRegisterResponseItem(it.claimToken ?: return@mapNotNull null)
-                    }
-                ),
-                serviceClient
-            ).orThrow()
+            val items = dao.findUnclaimed(session).mapNotNull {
+                AuthProvidersRegisterResponseItem(it.claimToken ?: return@mapNotNull null)
+            }
 
-            claimed.responses.forEach {
-                dao.updateToken(session, Actor.System, it.providerId, it.refreshToken, it.publicKey)
+            if (items.isNotEmpty()) {
+                val claimed = AuthProviders.claim.call(
+                    bulkRequestOf(
+                        items
+                    ),
+                    serviceClient
+                ).orThrow()
+
+                claimed.responses.forEach {
+                    dao.updateToken(session, Actor.System, it.providerId, it.refreshToken, it.publicKey)
+                }
             }
         }
     }
