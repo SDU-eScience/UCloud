@@ -25,6 +25,7 @@ data class KubernetesLicense(
     val category: ProductCategoryId = ProductCategoryId(id, UCLOUD_PROVIDER),
     val pricePerUnit: Long = 1_000_000,
     val description: String = "",
+    val hiddenInGrantApplications: Boolean = false,
     val availability: ProductAvailability = ProductAvailability.Available(),
     val priority: Int = 0,
     val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,

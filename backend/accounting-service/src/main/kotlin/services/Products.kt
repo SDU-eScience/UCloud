@@ -27,6 +27,7 @@ object ProductTable : SQLTable("products") {
     val description = text("description", notNull = true)
     val availability = text("availability", notNull = false)
     val priority = int("priority", notNull = true)
+    val hiddenInGrantApplications = bool("hidden_in_grant_applications", notNull = true)
 
     val cpu = int("cpu", notNull = false)
     val gpu = int("gpu", notNull = false)
@@ -121,6 +122,7 @@ class ProductService(
                         setParameter("pricePerUnit", product.pricePerUnit)
                         setParameter("id", product.id)
                         setParameter("description", product.description)
+                        setParameter("hiddenInGrantApplications", product.hiddenInGrantApplications)
                         setParameter(
                             "availability", when (val availability = product.availability) {
                                 is ProductAvailability.Available -> null
@@ -158,6 +160,7 @@ class ProductService(
                         set
                             price_per_unit = :pricePerUnit,
                             description = :description,
+                            hidden_in_grant_applications = :hiddenInGrantApplications,
                             availability = :availability,
                             cpu = :cpu,
                             gpu = :gpu,
@@ -209,7 +212,8 @@ class ProductService(
     suspend fun listAllByProvider(
         ctx: DBContext,
         actor: Actor,
-        provider: String
+        provider: String,
+        showHidden: Boolean
     ): List<Product> {
         return ctx.withSession { session ->
             requirePermission(session, actor, readOnly = true)
@@ -218,8 +222,14 @@ class ProductService(
                 .sendPreparedStatement(
                     {
                         setParameter("provider", provider)
+                        setParameter("showHidden", showHidden)
                     },
-                    "select * from products where provider = :provider order by priority, id"
+                    """
+                        select * from products
+                        where provider = :provider and
+                            (hidden_in_grant_applications is false or :showHidden is true)
+                        order by priority, id
+                    """
                 )
                 .rows
                 .map { it.toProduct() }
@@ -256,7 +266,8 @@ class ProductService(
         actor: Actor,
         area: ProductArea,
         provider: String,
-        paging: NormalizedPaginationRequest
+        paging: NormalizedPaginationRequest,
+        showHidden: Boolean
     ): Page<Product> {
         return ctx.withSession { session ->
             requirePermission(session, actor, readOnly = true)
@@ -267,10 +278,12 @@ class ProductService(
                     {
                         setParameter("provider", provider)
                         setParameter("area", area.name)
+                        setParameter("showHidden", showHidden)
                     },
                     """
                         from products
-                        where provider = :provider AND area = :area
+                        where provider = :provider and area = :area and
+                            (hidden_in_grant_applications is false or :showHidden is true)
                     """,
                     "order by priority, id"
                 )
@@ -440,6 +453,7 @@ class ProductService(
                         getField(ProductTable.provider)
                     ),
                     getField(ProductTable.description),
+                    getField(ProductTable.hiddenInGrantApplications),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
                         null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)
@@ -460,6 +474,7 @@ class ProductService(
                         getField(ProductTable.provider)
                     ),
                     getField(ProductTable.description),
+                    getField(ProductTable.hiddenInGrantApplications),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
                         null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)
@@ -476,6 +491,7 @@ class ProductService(
                         getField(ProductTable.provider)
                     ),
                     getField(ProductTable.description),
+                    getField(ProductTable.hiddenInGrantApplications),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
                         null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)
@@ -494,6 +510,7 @@ class ProductService(
                         getField(ProductTable.provider)
                     ),
                     getField(ProductTable.description),
+                    getField(ProductTable.hiddenInGrantApplications),
                     when (val reason = getFieldNullable(ProductTable.availability)) {
                         null -> ProductAvailability.Available()
                         else -> ProductAvailability.Unavailable(reason)

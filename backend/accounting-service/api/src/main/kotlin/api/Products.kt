@@ -86,6 +86,7 @@ sealed class Product {
     abstract val pricePerUnit: Long
     abstract val id: String
     abstract val description: String
+    abstract val hiddenInGrantApplications: Boolean
     abstract val availability: ProductAvailability
     abstract val priority: Int
 
@@ -100,6 +101,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0
     ) : Product() {
@@ -118,6 +120,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val cpu: Int? = null,
@@ -143,6 +146,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
@@ -162,6 +166,7 @@ sealed class Product {
         override val pricePerUnit: Long,
         override val category: ProductCategoryId,
         override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
         override val availability: ProductAvailability = ProductAvailability.Available(),
         override val priority: Int = 0,
         val tags: List<String> = emptyList(),
@@ -205,12 +210,13 @@ typealias ListProductsResponse = Page<Product>
 data class ListProductsByAreaRequest(
     val provider: String,
     val area: ProductArea,
+    val showHidden: Boolean = true,
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
 ) : WithPaginationRequest
 typealias ListProductsByAreaResponse = Page<Product>
 
-data class RetrieveAllFromProviderRequest(val provider: String)
+data class RetrieveAllFromProviderRequest(val provider: String, val showHidden: Boolean = true)
 typealias RetrieveAllFromProviderResponse = List<Product>
 
 interface ProductFilters {
@@ -324,6 +330,7 @@ object Products : CallDescriptionContainer("products") {
                     +boundTo(ListProductsByAreaRequest::area)
                     +boundTo(ListProductsByAreaRequest::itemsPerPage)
                     +boundTo(ListProductsByAreaRequest::page)
+                    +boundTo(ListProductsByAreaRequest::showHidden)
                 }
             }
         }
@@ -371,6 +378,7 @@ object Products : CallDescriptionContainer("products") {
 
                 params {
                     +boundTo(RetrieveAllFromProviderRequest::provider)
+                    +boundTo(RetrieveAllFromProviderRequest::showHidden)
                 }
             }
         }

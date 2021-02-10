@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Feb 09 11:20:34 CET 2021 */
+/* Generated at: Tue Feb 09 13:23:21 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -3078,6 +3078,7 @@ export interface KubernetesLicense {
     category: accounting.ProductCategoryId,
     pricePerUnit: number /* int64 */,
     description: string,
+    hiddenInGrantApplications: boolean,
     availability: accounting.ProductAvailability,
     priority: number /* int32 */,
     paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
@@ -4912,6 +4913,7 @@ export interface RetrieveBalanceRequest {
     id?: string,
     type?: "USER" | "PROJECT",
     includeChildren?: boolean,
+    showHidden?: boolean,
 }
 export interface SetBalanceRequest {
     wallet: Wallet,
@@ -4933,11 +4935,13 @@ export interface ListProductsRequest {
 export interface ListProductsByAreaRequest {
     provider: string,
     area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
+    showHidden: boolean,
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
 }
 export interface RetrieveAllFromProviderRequest {
     provider: string,
+    showHidden: boolean,
 }
 /**
  * The base type for requesting paginated content.
@@ -5089,7 +5093,7 @@ export function listProductionsByType(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/products" + "/listByArea", {provider: request.provider, area: request.area, itemsPerPage: request.itemsPerPage, page: request.page}),
+        path: buildQueryString("/api/products" + "/listByArea", {provider: request.provider, area: request.area, itemsPerPage: request.itemsPerPage, page: request.page, showHidden: request.showHidden}),
         parameters: request,
         reloadId: Math.random(),
     };
@@ -5100,7 +5104,7 @@ export function retrieveAllFromProvider(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/products" + "/retrieve", {provider: request.provider}),
+        path: buildQueryString("/api/products" + "/retrieve", {provider: request.provider, showHidden: request.showHidden}),
         parameters: request,
         reloadId: Math.random(),
     };
@@ -5218,7 +5222,7 @@ export function retrieveBalance(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/accounting/wallets" + "/balance", {id: request.id, type: request.type, includeChildren: request.includeChildren}),
+        path: buildQueryString("/api/accounting/wallets" + "/balance", {id: request.id, type: request.type, includeChildren: request.includeChildren, showHidden: request.showHidden}),
         parameters: request,
         reloadId: Math.random(),
     };
@@ -5242,6 +5246,7 @@ export interface Storage {
     pricePerUnit: number /* int64 */,
     category: ProductCategoryId,
     description: string,
+    hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
     /**
@@ -5255,6 +5260,7 @@ export interface Compute {
     pricePerUnit: number /* int64 */,
     category: ProductCategoryId,
     description: string,
+    hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
     cpu?: number /* int32 */,
@@ -5271,6 +5277,7 @@ export interface Ingress {
     pricePerUnit: number /* int64 */,
     category: ProductCategoryId,
     description: string,
+    hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
     paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
@@ -5285,6 +5292,7 @@ export interface License {
     pricePerUnit: number /* int64 */,
     category: ProductCategoryId,
     description: string,
+    hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
     tags: string[],
@@ -6401,6 +6409,7 @@ export interface GrantsRetrieveProductsRequest {
     projectId: string,
     recipientType: string,
     recipientId: string,
+    showHidden: boolean,
 }
 export interface AvailableGiftsResponse {
     gifts: GiftWithId[],
@@ -6692,7 +6701,7 @@ export function retrieveProducts(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/grant" + "/retrieveProducts", {projectId: request.projectId, recipientId: request.recipientId, recipientType: request.recipientType}),
+        path: buildQueryString("/api/grant" + "/retrieveProducts", {projectId: request.projectId, recipientId: request.recipientId, recipientType: request.recipientType, showHidden: request.showHidden}),
         parameters: request,
         reloadId: Math.random(),
     };

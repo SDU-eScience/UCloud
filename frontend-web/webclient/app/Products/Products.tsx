@@ -60,7 +60,7 @@ const DetailedView = styled(Table)`
 
 function MachineView({area}: {area: ProductArea}): JSX.Element {
     const [machines, refetch] = useCloudAPI<Page<Product>>(
-        listByProductArea({itemsPerPage: 100, page: 0, provider: UCLOUD_PROVIDER, area}),
+        listByProductArea({itemsPerPage: 100, page: 0, provider: UCLOUD_PROVIDER, area, showHidden: false}),
         emptyPage
     );
 
@@ -87,7 +87,7 @@ function MachineView({area}: {area: ProductArea}): JSX.Element {
                         page={machines.data}
                         loading={machines.loading}
                         onPageChanged={(newPage) => refetch(listByProductArea({
-                            itemsPerPage: machines.data.itemsPerPage, page: newPage, provider: UCLOUD_PROVIDER, area
+                            itemsPerPage: machines.data.itemsPerPage, page: newPage, provider: UCLOUD_PROVIDER, area, showHidden: false
                         }))}
                         pageRenderer={() => (
                             <MachineTypesWrapper>
