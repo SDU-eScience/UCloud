@@ -83,7 +83,7 @@ export const App: React.FunctionComponent = () => {
     );
 
     const [apps, setAppParameters] = useCloudAPI<Page<ApplicationSummaryWithFavorite>>(
-        {noop: true},
+        UCloud.compute.apps.findByName({appName: name, itemsPerPage: 50, page: 0}),
         emptyPage
     );
     const [versions, setVersions] = useState<AppVersion[]>([]);
@@ -120,7 +120,7 @@ export const App: React.FunctionComponent = () => {
     useLoading(commandLoading || apps.loading);
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
-    const tags = apps.data.items.length > 0 ? apps.data.items[0].tags : [];
+    const tags = apps.data.items[0]?.tags ?? [];
     const newTagField = useRef<HTMLInputElement>(null);
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
@@ -437,7 +437,7 @@ export const App: React.FunctionComponent = () => {
                                     {versions.map(version => (
                                         <TableRow key={version.version}>
                                             <TableCell>
-                                                <WordBreakBox alignItems="center">
+                                                <WordBreakBox>
                                                     {version.version}
                                                 </WordBreakBox>
                                             </TableCell>
