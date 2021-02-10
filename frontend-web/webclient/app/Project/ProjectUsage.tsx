@@ -254,7 +254,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                 fontSize={3}
                                 onClick={() => setProductArea(area)}
                                 selected={productArea === area}
-                            >{capitalized(area)}</SelectableText>
+                            >{capitalized(area === "INGRESS" ? "public link" : area)}</SelectableText>
                         ))}
                     </SelectableTextWrapper>
                 </Box>
