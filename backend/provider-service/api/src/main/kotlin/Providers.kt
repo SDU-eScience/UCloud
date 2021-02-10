@@ -138,9 +138,7 @@ object Providers : CallDescriptionContainer("providers") {
         httpCreate(baseContext, roles = Roles.PRIVILEGED)
     }
 
-    val updateManifest = call<BulkRequest<ManifestAndId>, Unit, CommonErrorMessage>(
-        "updateManifest"
-    ) {
+    val updateManifest = call<BulkRequest<ManifestAndId>, Unit, CommonErrorMessage>("updateManifest") {
         httpUpdate(baseContext, "updateManifest")
     }
 

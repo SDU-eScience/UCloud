@@ -182,7 +182,7 @@ interface InputHook<T = HTMLInputElement> {
     setHasError: (err: boolean) => void;
 }
 
-function useInput<T = HTMLInputElement>(): InputHook<T> {
+export function useInput<T = HTMLInputElement>(): InputHook<T> {
     const ref = useRef<T>(null);
     const [hasError, setHasError] = useState(false);
     return {ref, hasError, setHasError};
