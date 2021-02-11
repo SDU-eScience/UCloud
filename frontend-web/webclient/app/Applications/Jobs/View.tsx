@@ -760,7 +760,7 @@ const RunningContent: React.FunctionComponent<{
                                 <b>Job expiry: </b> {dateToString(expiresAt)}
                             </Box>
                             <Box>
-                                <b>Time left: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
+                                <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
                                     :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
                                     :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
                             </Box>
