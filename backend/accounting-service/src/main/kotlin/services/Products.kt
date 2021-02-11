@@ -153,6 +153,11 @@ class ProductService(
                                 else -> null
                             }
                         )
+                        setParameter("paymentModel", when (product) {
+                            is Product.License -> product.paymentModel.name
+                            is Product.Ingress -> product.paymentModel.name
+                            else -> null
+                        })
                     },
 
                     """
@@ -165,7 +170,8 @@ class ProductService(
                             cpu = :cpu,
                             gpu = :gpu,
                             memory_in_gigs = :memoryInGigs,
-                            license_tags = :tags::jsonb
+                            license_tags = :tags::jsonb,
+                            payment_model = :paymentModel::text
                         where 
                             provider = :provider and 
                             category = :category and 
