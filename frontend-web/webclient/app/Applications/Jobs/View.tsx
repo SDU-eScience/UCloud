@@ -704,6 +704,36 @@ const RunningContent: React.FunctionComponent<{
 
     const projectNames = getProjectNames(useProjectStatus());
 
+    const calculateTimeLeft = (expiresAt: number | undefined) => {
+        if (!expiresAt) {
+            return {
+                hours: 0,
+                minutes: 0,
+                seconds: 0
+            }
+        }
+
+        const now = new Date().getTime();
+        const difference = expiresAt - now;
+
+        return {
+            hours: Math.floor(difference / 1000 / 60 / 60),
+            minutes: Math.floor((difference / 1000 / 60) % 60),
+            seconds: Math.floor((difference / 1000) % 60)
+
+        }
+
+    }
+
+    const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
+
+
+    useEffect(() => {
+        setTimeout(() => {
+            setTimeLeft(calculateTimeLeft(expiresAt));
+        }, 1000);
+    });
+
     return <>
         <RunningInfoWrapper>
             <DashboardCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
@@ -725,10 +755,18 @@ const RunningContent: React.FunctionComponent<{
                         <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
                     </Box>
                     {!expiresAt ? null :
-                        <Box>
-                            <b>Job expiry: </b> {dateToString(expiresAt)}
-                        </Box>
+                        <>
+                            <Box>
+                                <b>Job expiry: </b> {dateToString(expiresAt)}
+                            </Box>
+                            <Box>
+                                <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
+                                    :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
+                                    :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
+                            </Box>
+                        </>
                     }
+
 
                     <Box flexGrow={1} />
 
