@@ -28,6 +28,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import {compute} from "UCloud";
 import Application = compute.Application;
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 const View: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
@@ -45,6 +46,12 @@ const View: React.FunctionComponent = () => {
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
     }, [appName, appVersion]);
+
+
+    useTitle(applicationResp.data == null ?
+        `${appName}, ${appVersion}` :
+        `${applicationResp.data.metadata.title}, ${applicationResp.data.metadata.version}`);
+
 
     const application = applicationResp.data;
     const previous = previousResp.data;
