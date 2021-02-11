@@ -357,6 +357,13 @@ enum class WriteConflictPolicy {
 
     @UCloudApiDoc("UCloud should replace the existing file")
     REPLACE,
+
+    @UCloudApiDoc("Attempt to merge the results. This might not be supported for all operations.")
+    MERGE,
+}
+
+interface FileCollectionIncludeFlags {
+    val includeSupport: Boolean?
 }
 
 // This would also be able to replace the repository, since the ACL could replicate this
@@ -404,7 +411,10 @@ data class FileCollection(
         override val status: String?,
     ) : ResourceUpdate
 
-    data class Status(val quota: Quota) : ResourceStatus
+    data class Status(
+        val quota: Quota,
+        val support: FSSupport?,
+    ) : ResourceStatus
 
     data class Quota(
         val usedInBytes: Long? = null,

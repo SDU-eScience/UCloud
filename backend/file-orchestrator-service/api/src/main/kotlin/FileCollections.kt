@@ -11,11 +11,12 @@ import dk.sdu.cloud.service.WithPaginationRequestV2
 // ---
 
 data class FileCollectionsBrowseRequest(
+    override val includeSupport: Boolean? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2
+) : WithPaginationRequestV2, FileCollectionIncludeFlags
 typealias FileCollectionsBrowseResponse = PageV2<FileCollection>
 
 typealias FileCollectionsCreateRequest = BulkRequest<FileCollection.Spec>
@@ -40,7 +41,10 @@ data class FileCollectionsUpdateAclRequestItem(
 )
 typealias FileCollectionsUpdateAclResponse = Unit
 
-typealias FileCollectionsRetrieveRequest = FindByStringId
+data class FileCollectionsRetrieveRequest(
+    val id: String,
+    override val includeSupport: Boolean? = null,
+) : FileCollectionIncludeFlags
 typealias FileCollectionsRetrieveResponse = FileCollection
 
 // ---
