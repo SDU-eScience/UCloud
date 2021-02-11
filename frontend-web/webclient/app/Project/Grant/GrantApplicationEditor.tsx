@@ -1078,55 +1078,71 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
                         </Heading.h3>
 
-                        <Heading.h4 mt={32}><Flex>Storage <ProductLink/></Flex></Heading.h4>
-                        <ResourceContainer>
-                            {state.wallets.map((it, idx) => (
-                                it.area !== "STORAGE" ? null :
-                                    <StorageRequestCard
-                                        wb={it}
-                                        state={state}
-                                        grantFinalized={grantFinalized}
-                                        isLocked={isLocked}
-                                        storagePrice={storagePrice}
-                                        key={idx}
-                                    />
-                            ))}
-                        </ResourceContainer>
+                        {state.wallets.filter(wallet => wallet.area == "STORAGE").length < 1 ? null :
+                            <>
+                                <Heading.h4 mt={32}><Flex>Storage <ProductLink/></Flex></Heading.h4>
+                                <ResourceContainer>
+                                    {state.wallets.map((it, idx) => (
+                                        it.area !== "STORAGE" ? null :
+                                            <StorageRequestCard
+                                                wb={it}
+                                                state={state}
+                                                grantFinalized={grantFinalized}
+                                                isLocked={isLocked}
+                                                storagePrice={storagePrice}
+                                                key={idx}
+                                            />
+                                    ))}
+                                </ResourceContainer>
+                            </>
+                        }
 
-                        <Heading.h4 mt={32}><Flex>Compute <ProductLink/></Flex></Heading.h4>
-                        <ResourceContainer>
-                            {state.wallets.map((it, idx) => (
-                                it.area !== "COMPUTE" ? null :
-                                    <GenericRequestCard
-                                        key={idx}
-                                        wb={it}
-                                        state={state}
-                                        grantFinalized={grantFinalized}
-                                        isLocked={isLocked}
-                                        icon={"cpu"}
-                                    />
-                            ))}
-                        </ResourceContainer>
+                        {state.wallets.filter(wallet => wallet.area == "COMPUTE").length < 1 ? null :
+                            <>
+                                <Heading.h4 mt={32}><Flex>Compute <ProductLink/></Flex></Heading.h4>
+                                <ResourceContainer>
+                                    {state.wallets.map((it, idx) => (
+                                        it.area !== "COMPUTE" ? null :
+                                            <GenericRequestCard
+                                                key={idx}
+                                                wb={it}
+                                                state={state}
+                                                grantFinalized={grantFinalized}
+                                                isLocked={isLocked}
+                                                icon={"cpu"}
+                                            />
+                                    ))}
+                                </ResourceContainer>
+                            </>
+                        }
 
-                        <Heading.h4 mt={32}><Flex>Public Links <ProductLink/></Flex></Heading.h4>
-                        <ResourceContainer>
-                            {state.wallets.map((it, idx) => (
-                                it.area !== "INGRESS" ? null :
-                                    <GenericRequestCard key={idx} wb={it} state={state}
-                                                        grantFinalized={grantFinalized} isLocked={isLocked}
-                                                        icon={"favIcon"}/>
-                            ))}
-                        </ResourceContainer>
+                        {state.wallets.filter(wallet => wallet.area == "INGRESS").length < 1 ? null :
+                            <>
+                                <Heading.h4 mt={32}><Flex>Public Links <ProductLink/></Flex></Heading.h4>
+                                <ResourceContainer>
+                                    {state.wallets.map((it, idx) => (
+                                        it.area !== "INGRESS" ? null :
+                                            <GenericRequestCard key={idx} wb={it} state={state}
+                                                                grantFinalized={grantFinalized} isLocked={isLocked}
+                                                                icon={"favIcon"}/>
+                                    ))}
+                                </ResourceContainer>
+                            </>
+                        }
 
-                        <Heading.h4 mt={32}><Flex>Application Licenses <ProductLink/></Flex></Heading.h4>
-                        <ResourceContainer>
-                            {state.wallets.map((it, idx) => (
-                                it.area !== "LICENSE" ? null :
-                                    <GenericRequestCard key={idx} wb={it} state={state}
-                                                        grantFinalized={grantFinalized} isLocked={isLocked}
-                                                        icon={"license"}/>
-                            ))}
-                        </ResourceContainer>
+                        {state.wallets.filter(wallet => wallet.area == "LICENSE").length < 1 ? null :
+                            <>
+                                <Heading.h4 mt={32}><Flex>Application Licenses <ProductLink/></Flex></Heading.h4>
+                                <ResourceContainer>
+                                    {state.wallets.map((it, idx) => (
+                                        it.area !== "LICENSE" ? null :
+                                            <GenericRequestCard key={idx} wb={it} state={state}
+                                                                grantFinalized={grantFinalized} isLocked={isLocked}
+                                                                icon={"license"}/>
+                                    ))}
+                                </ResourceContainer>
+                            </>
+                        }
 
                         <CommentApplicationWrapper>
                             <RequestFormContainer>
