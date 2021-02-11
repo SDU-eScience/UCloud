@@ -66,7 +66,7 @@ const View: React.FunctionComponent = () => {
                 <ContainerForText left>
                     <Content
                         application={application!}
-                        previous={previous}
+                        previous={previous.items.filter(it => it.metadata.version !== application.metadata.version)}
                     />
                 </ContainerForText>
             )}
@@ -150,42 +150,40 @@ const AppSection = styled(Box)`
 
 const Content: React.FunctionComponent<{
     application: UCloud.compute.ApplicationWithFavoriteAndTags,
-    previous: UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>
-}> = props => {
-    return (
-        <>
-            <AppSection>
-                <Markdown
-                    unwrapDisallowed
-                    source={props.application.metadata.description}
-                    disallowedTypes={[
-                        "image",
-                        "heading"
-                    ]}
-                />
-            </AppSection>
+    previous: UCloud.compute.ApplicationSummaryWithFavorite[]
+}> = props => (
+    <>
+        <AppSection>
+            <Markdown
+                unwrapDisallowed
+                source={props.application.metadata.description}
+                disallowedTypes={[
+                    "image",
+                    "heading"
+                ]}
+            />
+        </AppSection>
 
-            <AppSection>
-                {!props.previous ? null :
-                    (!props.previous.items.length ? null : (
-                        <div>
-                            <Heading.h4>Other Versions</Heading.h4>
-                            <ApplicationCardContainer>
-                                {props.previous.items.map((it, idx) => (
-                                    <SlimApplicationCard app={it} key={idx} tags={it.tags} />
-                                ))}
-                            </ApplicationCardContainer>
-                        </div>
-                    ))
-                }
-            </AppSection>
+        <AppSection>
+            {!props.previous ? null :
+                (!props.previous.length ? null : (
+                    <div>
+                        <Heading.h4>Other Versions</Heading.h4>
+                        <ApplicationCardContainer>
+                            {props.previous.map((it, idx) => (
+                                <SlimApplicationCard app={it} key={idx} tags={it.tags} />
+                            ))}
+                        </ApplicationCardContainer>
+                    </div>
+                ))
+            }
+        </AppSection>
 
-            <AppSection>
-                <Information application={props.application} />
-            </AppSection>
-        </>
-    );
-}
+        <AppSection>
+            <Information application={props.application} />
+        </AppSection>
+    </>
+);
 
 function Tags({tags}: {tags: string[]}): JSX.Element | null {
     if (!tags) return null;
