@@ -468,7 +468,7 @@ function DashboardResources({products, loading, quota}: {
     });
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={"/project/grants-landing"}>
-        <Button fullWidth mt={8}>Apply for resources</Button>
+        <Button fullWidth>Apply for resources</Button>
     </Link>;
 
     return (
@@ -487,7 +487,7 @@ function DashboardResources({products, loading, quota}: {
                 </NoResultsCardBody>
             ) :
                 <>
-                    <Flex flexDirection={"column"} height={"calc(100% - 60px)"}>
+                    <Flex flexDirection="column" height={"calc(100% - 60px)"}>
                         <Box mx="8px" my="5px">
                             <Table>
                                 <tbody>
