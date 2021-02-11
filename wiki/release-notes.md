@@ -7,6 +7,12 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 11-02-21
+Changed to Apache Common Compress to fix extraction issues with tar and zip
+```
+✅  Deployment(storage, 4.2.21): (UP-TO-DATE)
+```
+
 ## 01-02-21
 Exclude healthcheck from audit stream update to audit-ingestion-service
 Enhancements to Elastic Management Service (monthly)
