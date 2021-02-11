@@ -946,7 +946,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         </Heading.h3>
         <AltButtonGroup minButtonWidth={"200px"}>
             <Link to={`/applications/${job.specification.application.name}/${job.specification.application.version}`}>
-                <Button>Restart application</Button>
+                <Button>Run application again</Button>
             </Link>
         </AltButtonGroup>
     </CompletedTextWrapper>;
