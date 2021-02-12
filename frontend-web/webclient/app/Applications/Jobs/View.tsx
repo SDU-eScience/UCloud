@@ -420,13 +420,11 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
         <Heading.h3>
             {job.specification.name ?
                 (<>
-                    We are about to
-                    launch <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    Starting <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
                     {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
-                    We are about to
-                    launch <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    Starting <i>{job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
                     {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
@@ -466,7 +464,7 @@ const Busy: React.FunctionComponent<{
             <Box mb={"16px"}>
                 {clusterUtilization > 80 ? (
                     <>
-                        Your reserved machine is currently quite popular.<br />
+                        Due to high resource utilization, it might take longer than normal to prepare the machine you requested.<br />
                         {utilization ? (
                             <>
                                 Cluster utilization is currently at {clusterUtilization}%
@@ -476,7 +474,7 @@ const Busy: React.FunctionComponent<{
                         ) : null}
                     </>
                 ) : (
-                        <>We are currently preparing the software required for your job. This step might take a few
+                        <>We are currently preparing your job. This step might take a few
                         minutes.</>
                     )}
             </Box>
@@ -613,14 +611,13 @@ const InfoCard: React.FunctionComponent<{
 const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
         <Heading.h2>
+            {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
+        </Heading.h2>
+        <Heading.h3>
             <i>
                 {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
                 {" "}v{job.specification.application.version}
-            </i> is now running
-        </Heading.h2>
-        <Heading.h3>
-            You can follow the progress below
-            {!job.specification.name ? null : (<> of <i>{job.specification.name}</i></>)}
+            </i>
         </Heading.h3>
     </>;
 };
@@ -970,15 +967,27 @@ const CompletedTextWrapper = styled.div`
   }
 `;
 
+function jobStateToText(state: JobState) {
+    switch (state) {
+        case "EXPIRED":
+            return "reached its time limit";
+        case "FAILURE":
+            return "failed"
+        case "SUCCESS":
+            return "completed";
+        default: 
+            return "";
+    }
+}
+
 const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     return <CompletedTextWrapper>
-        <Heading.h2>{PRODUCT_NAME} has processed your job</Heading.h2>
+        <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         <Heading.h3>
             <i>
                 {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
                 {" "}v{job.specification.application.version}
             </i>
-            {" "}{state === "SUCCESS" ? "succeeded" : state === "EXPIRED" ? "expired" : "failed"}{" "}
             {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
