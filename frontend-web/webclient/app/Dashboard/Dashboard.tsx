@@ -29,11 +29,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
 import {
-    retrieveBalance,
-    RetrieveBalanceResponse,
-    retrieveQuota,
-    RetrieveQuotaResponse, transformUsageChartForCharting, usage, UsageResponse,
-    WalletBalance
+    retrieveQuota, RetrieveQuotaResponse, transformUsageChartForCharting, usage, UsageResponse,
 } from "Accounting";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
@@ -53,7 +49,6 @@ import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 import {creditFormatter, durationOptions} from "Project/ProjectUsage";
 import {computeUsageInPeriod} from "Project/ProjectDashboard";
 import {useProjectManagementStatus} from "Project";
-import Warning from "ui-components/Warning";
 import * as UCloud from "UCloud";
 import {accounting, PageV2} from "UCloud";
 import Product = accounting.Product;
@@ -473,7 +468,7 @@ function DashboardResources({products, loading, quota}: {
     });
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={"/project/grants-landing"}>
-        <Button fullWidth mt={8}>Apply for resources</Button>
+        <Button fullWidth>Apply for resources</Button>
     </Link>;
 
     return (
@@ -492,7 +487,7 @@ function DashboardResources({products, loading, quota}: {
                 </NoResultsCardBody>
             ) :
                 <>
-                    <Flex flexDirection={"column"} height={"calc(100% - 60px)"}>
+                    <Flex flexDirection="column" height={"calc(100% - 60px)"}>
                         <Box mx="8px" my="5px">
                             <Table>
                                 <tbody>
@@ -554,6 +549,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
     return <DashboardCard
         title={title}
         color="green"
+        minWidth="450px"
         isLoading={outgoingApps.loading}
         icon="mail"
     >

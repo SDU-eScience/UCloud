@@ -566,9 +566,9 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
 
                     <Box width="42.5%">
                         <Heading.h4>Payment model</Heading.h4>
-                        <Select ml="6px" onChange={e => setPaymentModelEdit(e.target.value as PaymentModel)} defaultValue={prettierString(licenseServer.paymentModel)}>
+                        <Select ml="6px" onChange={e => setPaymentModelEdit(e.target.value as PaymentModel)}>
                             {PaymentModelOptions.map(it =>
-                                <option key={it} value={it}>{prettierString(it)}</option>
+                                <option key={it} selected={it === licenseServer.paymentModel} value={it}>{prettierString(it)}</option>
                             )}
                         </Select>
                     </Box>
@@ -683,7 +683,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
             <Box mb="1em">
                 {licenseServer.hiddenInGrantApplications ?
                     <><TextSpan italic>Hidden</TextSpan> from </>
-                :
+                    :
                     <><TextSpan italic>Visible</TextSpan> for </>
                 }
                 grant applicants
