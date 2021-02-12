@@ -57,6 +57,7 @@ class ProductService(
                     set(ProductTable.pricePerUnit, product.pricePerUnit)
                     set(ProductTable.id, product.id)
                     set(ProductTable.description, product.description)
+                    set(ProductTable.hiddenInGrantApplications, product.hiddenInGrantApplications)
                     set(ProductTable.priority, product.priority)
                     when (val availability = product.availability) {
                         is ProductAvailability.Available -> {
