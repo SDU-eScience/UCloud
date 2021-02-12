@@ -4,6 +4,8 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
+import dk.sdu.cloud.app.orchestrator.api.JobsRetrieveProductsTemporaryResponse
+import dk.sdu.cloud.app.orchestrator.api.providersAsList
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobQueryService
 import dk.sdu.cloud.calls.RPCException
@@ -85,6 +87,14 @@ class JobController(
         implement(Jobs.openInteractiveSession) {
             verifySlaFromPrincipal()
             ok(jobOrchestrator.openInteractiveSession(request, ctx.securityPrincipal.toActor()))
+        }
+
+        implement(Jobs.retrieveProductsTemporary) {
+            if (request.providersAsList.isEmpty()) {
+                ok(JobsRetrieveProductsTemporaryResponse(emptyMap()))
+            } else {
+                ok(jobOrchestrator.retrieveProductsTemporary(request.providersAsList))
+            }
         }
     }
 

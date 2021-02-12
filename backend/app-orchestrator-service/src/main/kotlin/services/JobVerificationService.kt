@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.*
@@ -181,6 +181,24 @@ class JobVerificationService(
             ).orNull() ?: throw RPCException("Unable to verify membership of project", HttpStatusCode.Forbidden)
         }
 
+        val (wallets) = Wallets.retrieveBalance.call(
+            RetrieveBalanceRequest(
+                unverifiedJob.project ?: unverifiedJob.username,
+                if (unverifiedJob.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
+                includeChildren = false,
+                showHidden = true
+            ),
+            serviceClient
+        ).orThrow()
+
+        val allocated = wallets
+            .find {
+                it.area == ProductArea.COMPUTE &&
+                    it.wallet.paysFor.provider == unverifiedJob.request.product.provider &&
+                    it.wallet.paysFor.id == unverifiedJob.request.product.category
+            }
+            ?.allocated ?: 0L
+
         val id = UUID.randomUUID().toString()
         val verified = VerifiedJobWithAccessToken(
             Job(
@@ -196,7 +214,11 @@ class JobVerificationService(
                         "UCloud has accepted your job into the queue"
                     )
                 ),
-                JobBilling(creditsCharged = 0L, pricePerUnit = machine.pricePerUnit),
+                JobBilling(
+                    creditsCharged = 0L,
+                    pricePerUnit = machine.pricePerUnit,
+                    __creditsAllocatedToWalletDoNotDependOn__ = allocated
+                ),
                 unverifiedJob.request.copy(
                     parameters = verifiedParameters,
                     timeAllocation = unverifiedJob.request.timeAllocation ?: tool.description.defaultTimeAllocation

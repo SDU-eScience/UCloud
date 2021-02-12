@@ -1,5 +1,9 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
@@ -15,10 +19,8 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.service.DistributedLock
-import dk.sdu.cloud.service.DistributedLockFactory
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.provider.api.ManifestFeatureSupport
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
@@ -550,6 +552,32 @@ class JobManagement(
                 sessions.createSession(session, job, InteractiveSessionType.SHELL)
             }
         }
+    }
+
+    private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
+        Products.retrieveAllFromProvider.call(
+            RetrieveAllFromProviderRequest(UCLOUD_PROVIDER),
+            k8.serviceClient
+        ).orThrow().filterIsInstance<Product.Compute>()
+    })
+
+    suspend fun retrieveProductsTemporary(): ComputeRetrieveProductsTemporaryResponse {
+        return ComputeRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
+            ComputeTemporaryProductSupport(
+                it,
+                ManifestFeatureSupport.Compute(
+                    ManifestFeatureSupport.Compute.Docker(
+                        enabled = true,
+                        web = true,
+                        vnc = true,
+                        batch = true,
+                        logs = true,
+                        terminal = true,
+                        peers = true,
+                    )
+                )
+            )
+        } ?: emptyList())
     }
 
     companion object : Loggable {

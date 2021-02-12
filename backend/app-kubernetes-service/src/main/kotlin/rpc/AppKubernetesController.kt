@@ -89,23 +89,8 @@ class AppKubernetesController(
             ))
         }
 
-        implement(KubernetesCompute.retrieveManifest) {
-            ok(
-                ProviderManifest().apply {
-                    with(features) {
-                        with(compute) {
-                            with(docker) {
-                                enabled = true
-                                web = true
-                                vnc = true
-                                batch = true
-                                logs = true
-                                terminal = true
-                            }
-                        }
-                    }
-                }
-            )
+        implement(KubernetesCompute.retrieveProductsTemporary) {
+            ok(jobManagement.retrieveProductsTemporary())
         }
 
         implement(KubernetesCompute.follow) {

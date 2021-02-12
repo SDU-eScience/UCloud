@@ -131,7 +131,7 @@ class WalletServiceTest {
                 onBehalfofUser,
                 user.username,
                 WalletOwnerType.USER,
-                false
+                false,
             )
             println(5)
             val gpuWallet = wallets.find { it.wallet.paysFor.id == "gpu" }

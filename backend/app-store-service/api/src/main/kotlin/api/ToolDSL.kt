@@ -11,7 +11,8 @@ private const val FIELD_MAX_LENGTH = 255
 
 enum class ToolBackend {
     SINGULARITY,
-    DOCKER
+    DOCKER,
+    VIRTUAL_MACHINE,
 }
 
 @JsonTypeInfo(
@@ -29,14 +30,16 @@ sealed class ToolDescription(val tool: String) {
         val name: String,
         val version: String,
         val title: String,
-        val container: String,
+        val container: String?,
         val backend: ToolBackend,
         val authors: List<String>,
         val defaultNumberOfNodes: Int = 1,
         val defaultTimeAllocation: SimpleDuration = SimpleDuration(1, 0, 0),
         val requiredModules: List<String> = emptyList(),
         val description: String = "",
-        val license: String = ""
+        val license: String = "",
+        val image: String? = null,
+        val supportedProviders: List<String>? = null,
     ) : ToolDescription("v1") {
         init {
             if (name.length > FIELD_MAX_LENGTH) {
@@ -67,6 +70,24 @@ sealed class ToolDescription(val tool: String) {
             if (badAuthorIndex != -1) {
                 throw ToolVerificationException.BadValue("author[$badAuthorIndex]", "Cannot contain new lines")
             }
+
+            if (container == null && backend in setOf(ToolBackend.DOCKER, ToolBackend.SINGULARITY)) {
+                throw ToolVerificationException.BadValue("container", "Missing container")
+            }
+
+            if (image == null && backend == ToolBackend.VIRTUAL_MACHINE) {
+                throw ToolVerificationException.BadValue(
+                    "image",
+                    "Image must be provided when using backend = VIRTUAL_MACHINE"
+                )
+            }
+
+            if (supportedProviders == null && backend == ToolBackend.VIRTUAL_MACHINE) {
+                throw ToolVerificationException.BadValue(
+                    "supportedProviders",
+                    "supportedProviders must be supplied when using backend = VIRTUAL_MACHINE"
+                )
+            }
         }
 
         override fun normalize(): NormalizedToolDescription {
@@ -80,7 +101,9 @@ sealed class ToolDescription(val tool: String) {
                 title,
                 description,
                 backend,
-                license
+                license,
+                image,
+                supportedProviders
             )
         }
     }

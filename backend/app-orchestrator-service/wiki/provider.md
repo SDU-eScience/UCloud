@@ -127,6 +127,7 @@ UCloud's [accounting](/backend/accounting-service/README.md) module.
 | `pricePerUnit` | `Long` | No documentation |
 | `category` | `ProductCategoryId` | No documentation |
 | `description` | `String?` | No documentation |
+| `hiddenInGrantApplications` | `Boolean?` | No documentation |
 | `availability` | `ProductAvailability?` | No documentation |
 | `priority` | `Int?` | No documentation |
 | `cpu` | `Int?` | No documentation |

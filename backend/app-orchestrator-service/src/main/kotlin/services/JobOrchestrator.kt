@@ -49,6 +49,7 @@ class JobOrchestrator(
     private val userClientFactory: UserClientFactory,
     private val parameterExportService: ParameterExportService,
     private val projectCache: ProjectCache,
+    private val developmentMode: Boolean = false,
 ) {
     private val listeners = ArrayList<JobListener>()
 
@@ -346,7 +347,7 @@ class JobOrchestrator(
         }
 
         val ownsAllJobs = loadedJobs.values.all { (it.job).parameters.product.provider == comm.provider.metadata.id }
-        if (!ownsAllJobs) {
+        if (!ownsAllJobs && !developmentMode) {
             throw RPCException("Provider is not authorized to perform these updates", HttpStatusCode.Forbidden)
         }
         return loadedJobs
@@ -652,8 +653,10 @@ class JobOrchestrator(
         if (jobId == null && provider == null) throw IllegalArgumentException("jobId and provider == null")
         if (jobId != null && provider != null) throw IllegalArgumentException("jobId and provider != null")
 
-        val providerId = provider ?:
-            jobQueryService.retrieve(actor, project, jobId!!, JobDataIncludeFlags()).job.parameters.product.provider
+        val providerId = provider ?: jobQueryService.retrieve(actor,
+            project,
+            jobId!!,
+            JobDataIncludeFlags()).job.parameters.product.provider
 
         val (api, client) = providers.prepareCommunication(providerId)
         val response = api.retrieveUtilization.call(Unit, client).orThrow()
@@ -662,6 +665,15 @@ class JobOrchestrator(
             response.capacity,
             response.usedCapacity,
             response.queueStatus
+        )
+    }
+
+    suspend fun retrieveProductsTemporary(providerIds: List<String>): JobsRetrieveProductsTemporaryResponse {
+        return JobsRetrieveProductsTemporaryResponse(
+            providerIds.map { provider ->
+                val comm = providers.prepareCommunication(provider)
+                provider to comm.api.retrieveProductsTemporary.call(Unit, comm.client).orThrow()
+            }.toMap()
         )
     }
 

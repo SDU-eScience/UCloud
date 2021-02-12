@@ -156,7 +156,7 @@ class BalanceService(
         accountId: String,
         accountOwnerType: WalletOwnerType,
         includeChildren: Boolean,
-        showHidden: Boolean
+        showHidden: Boolean = true
     ): List<WalletBalance> {
         return ctx.withSession { session ->
             requirePermissionToReadBalance(initiatedBy, accountId, accountOwnerType)

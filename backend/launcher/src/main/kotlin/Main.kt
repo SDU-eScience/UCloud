@@ -2,6 +2,7 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.activity.ActivityService
+import dk.sdu.cloud.app.aau.AppAauService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
@@ -66,7 +67,8 @@ val services = setOf(
     StorageService,
     SupportService,
     TaskService,
-    ProviderService
+    ProviderService,
+    AppAauService,
 )
 
 suspend fun main(args: Array<String>) {

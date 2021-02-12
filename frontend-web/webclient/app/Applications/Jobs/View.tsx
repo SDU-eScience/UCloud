@@ -553,14 +553,17 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             {machine?.cpu && machine.gpu ? <>&mdash;</> : null}
             {!machine?.gpu ? null : <>{" "}{machine?.gpu}x GPU</>}
         </InfoCard>
-        <InfoCard
-            stat={prettyTime}
-            statTitle={"Allocated"}
-            icon={"hourglass"}
-        >
-            {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
-            <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
-        </InfoCard>
+        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE" ?
+            null :
+            <InfoCard
+                stat={prettyTime}
+                statTitle={"Allocated"}
+                icon={"hourglass"}
+            >
+                {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br/></>}
+                <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+            </InfoCard>
+        }
         <InfoCard
             stat={Object.keys(jobFiles(job.specification)).length.toString()}
             statTitle={Object.keys(jobFiles(job.specification)).length === 1 ? "Input file" : "Input files"}
@@ -719,33 +722,36 @@ const RunningContent: React.FunctionComponent<{
                     </Box>
                 </Flex>
             </DashboardCard>
-            <DashboardCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
-                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                    <Box>
-                        <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
-                    </Box>
-                    {!expiresAt ? null :
+            {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE"
+                ? null :
+                <DashboardCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
+                    <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                         <Box>
-                            <b>Job expiry: </b> {dateToString(expiresAt)}
+                            <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
                         </Box>
-                    }
+                        {!expiresAt ? null :
+                            <Box>
+                                <b>Job expiry: </b> {dateToString(expiresAt)}
+                            </Box>
+                        }
 
-                    <Box flexGrow={1} />
+                        <Box flexGrow={1}/>
 
-                    {!expiresAt ? null :
-                        <Box>
-                            Extend allocation (hours):
-                            <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
-                                <Button data-duration={"1"} onClick={extendJob}>+1</Button>
-                                <Button data-duration={"6"} onClick={extendJob}>+6</Button>
-                                <Button data-duration={"12"} onClick={extendJob}>+12</Button>
-                                <Button data-duration={"24"} onClick={extendJob}>+24</Button>
-                                <Button data-duration={"48"} onClick={extendJob}>+48</Button>
-                            </AltButtonGroup>
-                        </Box>
-                    }
-                </Flex>
-            </DashboardCard>
+                        {!expiresAt ? null :
+                            <Box>
+                                Extend allocation (hours):
+                                <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
+                                    <Button data-duration={"1"} onClick={extendJob}>+1</Button>
+                                    <Button data-duration={"6"} onClick={extendJob}>+6</Button>
+                                    <Button data-duration={"12"} onClick={extendJob}>+12</Button>
+                                    <Button data-duration={"24"} onClick={extendJob}>+24</Button>
+                                    <Button data-duration={"48"} onClick={extendJob}>+48</Button>
+                                </AltButtonGroup>
+                            </Box>
+                        }
+                    </Flex>
+                </DashboardCard>
+            }
             <DashboardCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
                 <ProviderUpdates job={job} updateListeners={updateListeners} />
             </DashboardCard>
@@ -884,19 +890,22 @@ const RunningJobRank: React.FunctionComponent<{
                 <div className={"term"} ref={termRef} />
 
                 <div className="buttons">
-                    <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                        e.preventDefault();
+                    {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
+                        "VIRTUAL_MACHINE" ? null :
+                        <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
+                            e.preventDefault();
 
-                        window.open(
-                            ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                            undefined,
-                            "width=800,height=600,status=no"
-                        );
-                    }}>
-                        <Button type={"button"}>
-                            Open terminal
-                        </Button>
-                    </Link>
+                            window.open(
+                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                                undefined,
+                                "width=800,height=600,status=no"
+                            );
+                        }}>
+                            <Button type={"button"}>
+                                Open terminal
+                            </Button>
+                        </Link>
+                    }
                     {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
                         <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
                             <Button>Open interface</Button>

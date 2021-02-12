@@ -305,7 +305,8 @@ fun RowData.toJob(): Job {
         ),
         JobBilling(
             getField(JobsTable.creditsCharged),
-            getField(JobsTable.pricePerUnit)
+            getField(JobsTable.pricePerUnit),
+            0L
         ),
         JobSpecification(
             NameAndVersion(getField(JobsTable.applicationName), getField(JobsTable.applicationVersion)),

@@ -5,11 +5,14 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.calls.title
+import dk.sdu.cloud.provider.api.ManifestFeatureSupport
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import io.ktor.http.*
@@ -39,9 +42,6 @@ typealias ComputeVerifyRequest = BulkRequest<ComputeVerifyRequestItem>
 typealias ComputeVerifyResponse = Unit
 typealias ComputeVerifyRequestItem = Job
 
-typealias ComputeRetrieveManifestRequest = Unit
-typealias ComputeRetrieveManifestResponse = ProviderManifest
-
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
@@ -64,33 +64,49 @@ data class ComputeFollowResponse(
 )
 
 typealias ComputeOpenInteractiveSessionRequest = BulkRequest<ComputeOpenInteractiveSessionRequestItem>
+
 data class ComputeOpenInteractiveSessionRequestItem(
     val job: Job,
     val rank: Int,
     val sessionType: InteractiveSessionType,
 )
+
 data class ComputeOpenInteractiveSessionResponse(val sessions: List<OpenSession>)
 
 typealias ComputeUtilizationRequest = Unit
+
 data class ComputeUtilizationResponse(
     val capacity: CpuAndMemory,
     val usedCapacity: CpuAndMemory,
-    val queueStatus: QueueStatus
+    val queueStatus: QueueStatus,
 )
 
 data class CpuAndMemory(
     val cpu: Double,
-    val memory: Long
+    val memory: Long,
 )
 
 data class QueueStatus(
     val running: Int,
-    val pending: Int
+    val pending: Int,
+)
+
+typealias ComputeRetrieveProductsTemporaryRequest = Unit
+
+data class ComputeRetrieveProductsTemporaryResponse(
+    val products: List<ComputeTemporaryProductSupport>,
+)
+
+data class ComputeTemporaryProductSupport(
+    val product: Product.Compute,
+    val support: ManifestFeatureSupport.Compute,
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 open class Compute(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
     val baseContext = "/ucloud/$namespace/compute/jobs"
+
+    override fun toString() = "Compute($baseContext)"
 
     init {
         title = "Provider API: Compute"
@@ -123,8 +139,7 @@ open class Compute(namespace: String) : CallDescriptionContainer("jobs.compute.$
         //language=markdown
         description = """
 The calls described in this section covers the API that providers of compute must implement. Not all
-features of the compute API must be implemented, these can be configured by providing a different manifest
-see ${docCallRef(::retrieveManifest)}). The individual calls and types will describe how the manifest
+features of the compute API must be implemented. The individual calls and types will describe how the manifest
 affects them.
             
 Compute providers must answer to the calls listed below. Providers should take care to verify the bearer
@@ -274,16 +289,6 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
     }
 
-    val retrieveManifest = call<ComputeRetrieveManifestRequest, ComputeRetrieveManifestResponse, CommonErrorMessage>(
-        "retrieveManifest"
-    ) {
-        httpRetrieve(baseContext, "manifest", roles = Roles.PRIVILEGED)
-
-        documentation {
-            summary = "Retrieves the compute provider manifest"
-        }
-    }
-
     val follow = call<ComputeFollowRequest, ComputeFollowResponse, CommonErrorMessage>("follow") {
         auth {
             access = AccessRight.READ
@@ -294,12 +299,26 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
     }
 
     val openInteractiveSession = call<ComputeOpenInteractiveSessionRequest, ComputeOpenInteractiveSessionResponse,
-            CommonErrorMessage>("openInteractiveSession") {
+        CommonErrorMessage>("openInteractiveSession") {
         httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
     }
 
-    val retrieveUtilization = call<ComputeUtilizationRequest, ComputeUtilizationResponse, CommonErrorMessage>("retrieveUtilization") {
+    val retrieveUtilization = call<ComputeUtilizationRequest, ComputeUtilizationResponse,
+        CommonErrorMessage>("retrieveUtilization") {
         httpRetrieve(baseContext, "utilization", roles = Roles.PRIVILEGED)
     }
 
+    @UCloudApiInternal(InternalLevel.BETA)
+    val retrieveProductsTemporary = call<ComputeRetrieveProductsTemporaryRequest,
+        ComputeRetrieveProductsTemporaryResponse, CommonErrorMessage>("retrieveProductsTemporary") {
+        httpRetrieve(baseContext, "productsTemporary", roles = Roles.PRIVILEGED)
+
+        documentation {
+            summary = "Retrieve products (Temporary API)"
+            description = "A temporary API for retrieving the products and the support from a provider. " +
+                "This API will be clarified later, for now this is needed for backwards-compatibility while " +
+                "we transform other parts of the UCloud API. This issue is tracked here: " +
+                "https://github.com/SDU-eScience/UCloud/issues/2222"
+        }
+    }
 }

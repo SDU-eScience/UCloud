@@ -11,6 +11,11 @@ import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "Authentication/DataHook";
 import {useProjectId} from "Project";
 import {MandatoryField} from "Applications/Jobs/Widgets/index";
+import {accounting} from "UCloud";
+import ProductNS = accounting.ProductNS;
+import {productCategoryEquals} from "Accounting";
+import {emptyPageV2} from "DefaultObjects";
+import {joinToString} from "UtilityFunctions";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -24,17 +29,53 @@ export const ReservationParameter: React.FunctionComponent<{
 }> = ({application, errors, onEstimatedCostChange}) => {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<UCloud.accounting.ProductNS.Compute | null>(null);
-    const [wallet, fetchWallet] = useCloudAPI<UCloud.accounting.RetrieveBalanceResponse>({noop: true}, {wallets: []});
-    const balance = wallet.data.wallets.find(it =>
-        it.area === "COMPUTE" &&
-        it.wallet.paysFor.id === selectedMachine?.category.id &&
-        it.wallet.paysFor.provider === selectedMachine.category.provider
-    )?.balance ?? 0;
+    const [wallet, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductNS.Compute>>({noop: true}, emptyPageV2);
+    const balance = !selectedMachine ?
+        0 :
+        wallet.data.items.find(it => productCategoryEquals(it.category, selectedMachine.category))?.balance ?? 0;
+
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsTemporaryResponse>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
 
     const projectId = useProjectId();
     useEffect(() => {
-        fetchWallet(UCloud.accounting.wallets.retrieveBalance({}));
+        fetchWallet(UCloud.accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250}));
     }, [projectId]);
+    useEffect(() => {
+        const s = new Set<string>();
+        wallet.data.items.forEach(it => s.add(it.category.provider));
+
+        fetchMachineSupport(UCloud.compute.jobs.retrieveProductsTemporary({
+            providers: joinToString(Array.from(s), ",")
+        }));
+    }, [wallet]);
+
+    const allMachines = ([] as ProductNS.Compute[]).concat.apply(
+        [],
+        Object.values(machineSupport.data.productsByProvider).map(it => {
+            return it.products
+                .filter(it => {
+                    const tool = application.invocation.tool.tool!;
+                    const backend = tool.description.backend;
+                    switch (backend) {
+                        case "DOCKER":
+                            return it.support.docker.enabled;
+                        case "SINGULARITY":
+                            return false;
+                        case "VIRTUAL_MACHINE":
+                            return it.support.virtualMachine.enabled &&
+                                (tool.description.supportedProviders ?? [])
+                                    .some(p => p === it.product.category.provider);
+                    }
+                })
+                .filter(product =>
+                    wallet.data.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
+                )
+                .map(it => it.product);
+        })
+    );
 
     const recalculateCost = useCallback(() => {
         const {options} = validateReservation();
@@ -42,7 +83,7 @@ export const ReservationParameter: React.FunctionComponent<{
             const pricePerUnit = selectedMachine?.pricePerUnit ?? 0;
             const estimatedCost =
                 (options.timeAllocation.hours * 60 * pricePerUnit +
-                (options.timeAllocation.minutes * pricePerUnit)) * options.replicas;
+                    (options.timeAllocation.minutes * pricePerUnit)) * options.replicas;
             if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance);
         }
     }, [selectedMachine, balance, onEstimatedCostChange]);
@@ -50,6 +91,8 @@ export const ReservationParameter: React.FunctionComponent<{
     useEffect(() => {
         recalculateCost();
     }, [selectedMachine]);
+
+    const toolBackend = application.invocation.tool.tool?.description?.backend ?? "DOCKER";
 
     return <Box>
         <Label mb={"4px"}>
@@ -61,25 +104,33 @@ export const ReservationParameter: React.FunctionComponent<{
             {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}
         </Label>
 
-        <Flex mb={"1em"}>
-            <Label>
-                Hours <MandatoryField/>
-                <Input
-                    id={reservationHours}
-                    onBlur={recalculateCost}
-                    defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1}
-                />
-            </Label>
-            <Box ml="4px"/>
-            <Label>
-                Minutes <MandatoryField/>
-                <Input
-                    id={reservationMinutes}
-                    onBlur={recalculateCost}
-                    defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.minutes ?? 0}
-                />
-            </Label>
-        </Flex>
+        {toolBackend === "DOCKER" ?
+            <Flex mb={"1em"}>
+                <Label>
+                    Hours <MandatoryField/>
+                    <Input
+                        id={reservationHours}
+                        onBlur={recalculateCost}
+                        defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1}
+                    />
+                </Label>
+                <Box ml="4px"/>
+                <Label>
+                    Minutes <MandatoryField/>
+                    <Input
+                        id={reservationMinutes}
+                        onBlur={recalculateCost}
+                        defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.minutes ?? 0}
+                    />
+                </Label>
+            </Flex>
+        : null}
+        {toolBackend === "VIRTUAL_MACHINE" ?
+            <>
+                <input type={"hidden"} id={reservationHours} value={"1"}/>
+                <input type={"hidden"} id={reservationMinutes} value={"0"}/>
+            </>
+        : null}
         {errors["timeAllocation"] ? <TextP color={"red"}>{errors["timeAllocation"]}</TextP> : null}
 
         {!application.invocation.allowMultiNode ? null : (
@@ -96,7 +147,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
         <div>
             <Label>Machine type <MandatoryField/></Label>
-            <Machines onMachineChange={setSelectedMachine}/>
+            <Machines machines={allMachines} onMachineChange={setSelectedMachine}/>
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
         </div>
     </Box>

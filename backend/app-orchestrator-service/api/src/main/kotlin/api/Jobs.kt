@@ -166,6 +166,10 @@ data class JobBilling(
 
     @UCloudApiDoc("The unit price of this job")
     override val pricePerUnit: Long,
+
+    @UCloudApiInternal(InternalLevel.BETA)
+    @Deprecated("Only used for a single quick and temporary hack")
+    val __creditsAllocatedToWalletDoNotDependOn__: Long,
 ) : ResourceBilling
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -501,6 +505,14 @@ sealed class OpenSession {
     ) : OpenSession()
 }
 
+data class JobsRetrieveProductsTemporaryRequest(val providers: String)
+val JobsRetrieveProductsTemporaryRequest.providersAsList: List<String>
+    get() = providers.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+data class JobsRetrieveProductsTemporaryResponse(
+    val productsByProvider: Map<String, ComputeRetrieveProductsTemporaryResponse>,
+)
+
+
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object Jobs : CallDescriptionContainer("jobs") {
     const val baseContext = "/api/jobs"
@@ -611,5 +623,19 @@ object Jobs : CallDescriptionContainer("jobs") {
     val openInteractiveSession = call<JobsOpenInteractiveSessionRequest, JobsOpenInteractiveSessionResponse,
         CommonErrorMessage>("openInteractiveSession") {
         httpUpdate(baseContext, "interactiveSession")
+    }
+
+    @UCloudApiInternal(InternalLevel.BETA)
+    val retrieveProductsTemporary = call<JobsRetrieveProductsTemporaryRequest, JobsRetrieveProductsTemporaryResponse,
+        CommonErrorMessage>("retrieveProductsTemporary") {
+        httpRetrieve(baseContext, "productsTemporary")
+
+        documentation {
+            summary = "Retrieve products (Temporary API)"
+            description = "A temporary API for retrieving the products and the support from a provider. " +
+                "This API will be clarified later, for now this is needed for backwards-compatibility while " +
+                "we transform other parts of the UCloud API. This issue is tracked here: " +
+                "https://github.com/SDU-eScience/UCloud/issues/2222"
+        }
     }
 }

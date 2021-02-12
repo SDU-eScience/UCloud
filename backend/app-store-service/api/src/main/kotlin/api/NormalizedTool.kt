@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 data class NormalizedToolDescription(
     @JsonDeserialize(`as` = NameAndVersionImpl::class)
     val info: NameAndVersion,
-    val container: String,
+    val container: String?,
     val defaultNumberOfNodes: Int,
     val defaultTimeAllocation: SimpleDuration,
     val requiredModules: List<String>,
@@ -13,7 +13,9 @@ data class NormalizedToolDescription(
     val title: String,
     val description: String,
     val backend: ToolBackend,
-    val license: String
+    val license: String,
+    val image: String? = null,
+    val supportedProviders: List<String>? = null,
 ) {
     override fun toString(): String {
         return "NormalizedToolDescription(info=$info, container='$container')"

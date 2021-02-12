@@ -18,7 +18,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 8,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -60,7 +61,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 0,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -98,7 +100,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 2,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -133,7 +136,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 0,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -168,7 +172,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 1,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -202,7 +207,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 0,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -236,7 +242,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 1,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -271,7 +278,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 1,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -306,7 +314,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 11,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -341,7 +350,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 1,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -376,7 +386,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 1,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -411,7 +422,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 1,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -446,7 +458,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 7,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -481,7 +494,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 0,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -516,7 +530,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 0,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -551,7 +566,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 12,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -586,7 +602,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 1,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -621,7 +638,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 24,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -656,7 +674,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 62,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -691,7 +710,8 @@ export const browsePage: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             "billing": {
                 "creditsCharged": 0,
-                "pricePerUnit": 1
+                "pricePerUnit": 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
