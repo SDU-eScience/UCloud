@@ -82,8 +82,8 @@ const OperationComponent: React.FunctionComponent<{
         extraProps["onAction"] = onClick;
         extraProps["asSquare"] = location === "IN_ROW" || location === "TOPBAR";
         extraProps["actionText"] = op.text;
-        extraProps["align"] = "left"
-        extraProps["fontSize"] = "large"
+        extraProps["align"] = "center"
+        extraProps["fontSize"] = "14px"
         extraProps["hoverColor"] = op.hoverColor;
         if (location === "IN_ROW" || location === "TOPBAR") {
             extraProps["ml"] = "-16px";

@@ -61,7 +61,7 @@ const jobOperations: Operation<UCloud.compute.Job, JobOperationCallbacks>[] = [
             } else {
                 return "No cancelable runs selected";
             }
-        },
+        }
     }
 ];
 
@@ -109,7 +109,7 @@ export const Browse: React.FunctionComponent = () => {
 
     const pageRenderer = useCallback((items: UCloud.compute.Job[]): React.ReactNode => {
         return <>
-            <List bordered={false} childPadding={"8px"}>
+            <List>
                 {items.map(job => {
                     const isExpired = isRunExpired(job);
                     return (
@@ -144,24 +144,26 @@ export const Browse: React.FunctionComponent = () => {
                                         Expires {formatRelative(job.status.expiresAt, new Date(), {locale: enGB})}
                                     </Text>
                                 )}
-                                <Flex width="110px">
+                                <Flex width="120px" height="27px">
                                     <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px" />
                                     <Flex mt="-3px">{stateToTitle(job.status.state)}</Flex>
                                 </Flex>
-                                <Operations
-                                    selected={toggleSet.checked.items}
-                                    location="IN_ROW"
-                                    entityNameSingular={entityName}
-                                    operations={jobOperations}
-                                    row={job}
-                                    extra={{
-                                        invokeCommand, onFinish: () => {
-                                            const toRemove = toggleSet.checked.items.filter(it => !isJobStateTerminal(it.status.state));
-                                            for (const job of toRemove) toggleSet.toggle(job);
-                                            refresh();
-                                        }
-                                    }}
-                                />
+                                <Box width="42px">
+                                    <Operations
+                                        selected={toggleSet.checked.items}
+                                        location="IN_ROW"
+                                        entityNameSingular={entityName}
+                                        operations={jobOperations}
+                                        row={job}
+                                        extra={{
+                                            invokeCommand, onFinish: () => {
+                                                const toRemove = toggleSet.checked.items.filter(it => !isJobStateTerminal(it.status.state));
+                                                for (const job of toRemove) toggleSet.toggle(job);
+                                                refresh();
+                                            }
+                                        }}
+                                    />
+                                </Box>
                             </>}
                         />
                     )
@@ -171,6 +173,9 @@ export const Browse: React.FunctionComponent = () => {
     }, [toggleSet]);
 
     return <MainContainer
+        header={
+            <Heading.h3>Runs</Heading.h3>
+        }
         main={
             <>
                 <StickyBox backgroundColor="white">
@@ -273,7 +278,7 @@ const FilterOptions: React.FunctionComponent<{
     const startOfWeek = getStartOfWeek(new Date()).getTime();
 
     return (
-        <Box pt={48}>
+        <Box pt={30}>
             <Heading.h3>
                 Quick Filters
             </Heading.h3>
@@ -350,8 +355,8 @@ const FilterOptions: React.FunctionComponent<{
 const StickyBox = styled(Box)`
   position: sticky;
   z-index: 50;
-  top: 48px;
-  height: 48px;
+  top: 144px;
+  height: 30px;
   display: flex;
   align-items: center;
 `;
