@@ -45,6 +45,7 @@ const UserCreation = React.lazy(() => import("Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("Login/Wayf"));
 const AppK8Admin = React.lazy(() => import("Admin/AppK8Admin"));
+const AppAauAdmin = React.lazy(() => import("Admin/AppAauAdmin"));
 const Demo = React.lazy(() => import("Playground/Demo"));
 const Providers = React.lazy(() => import("Admin/Providers/Providers"));
 const CreateProvider = React.lazy(() => import("Admin/Providers/Create"));
@@ -127,6 +128,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)} />
                     <Route exact path="/admin/news" component={requireAuth(NewsManagement)} />
                     <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)} />
+                    <Route exact path="/admin/appaau" component={requireAuth(AppAauAdmin)} />
                     <Route exact path="/admin/providers" component={requireAuth(Providers)} />
                     <Route exact path="/admin/providers/Create" component={requireAuth(CreateProvider)} />
 
