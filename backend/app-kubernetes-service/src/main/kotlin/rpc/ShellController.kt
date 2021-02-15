@@ -50,12 +50,12 @@ class ShellController(
                                     "sh", "-c",
                                     "TERM=xterm-256color; " +
                                             "export TERM; " +
-                                            "([ -x /bin/fish ] && exec /bin/fish) || " +
-                                            "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
-                                            "([ -x /bin/zsh ] && exec /bin/zsh) || " +
-                                            "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
                                             "([ -x /bin/bash ] && exec /bin/bash) || " +
                                             "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
+                                            "([ -x /bin/zsh ] && exec /bin/zsh) || " +
+                                            "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
+                                            "([ -x /bin/fish ] && exec /bin/fish) || " +
+                                            "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
                                             "exec /bin/sh"
                                 )
                             ) {
