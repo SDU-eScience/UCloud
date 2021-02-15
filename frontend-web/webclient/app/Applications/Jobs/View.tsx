@@ -664,15 +664,57 @@ const InfoCard: React.FunctionComponent<{
 
 const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
-        <Heading.h2>
-            {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
-        </Heading.h2>
-        <Heading.h3>
-            <i>
-                {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                {" "}v{job.specification.application.version}
-            </i>
-        </Heading.h3>
+        <Flex justifyContent={"space-between"}>
+            <Box>
+                <Heading.h2>
+                    {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
+                </Heading.h2>
+                <Heading.h3>
+                    <i>
+                        {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                        {" "}v{job.specification.application.version}
+                    </i>
+                </Heading.h3>
+            </Box>
+            {job.specification.replicas > 1 ? null : (
+                <div className="top-buttons">
+                    {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
+                        "VIRTUAL_MACHINE" ? null : (
+                        <Link to={`/applications/shell/${job.id}/0?hide-frame`} onClick={e => {
+                            e.preventDefault();
+
+                            window.open(
+                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                                undefined,
+                                "width=800,height=600,status=no"
+                            );
+                        }}>
+                            <Button type={"button"}>
+                                Open terminal
+                            </Button>
+                        </Link>
+                    )}
+                    {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+                        <Link ml="8px" to={`/applications/web/${job.id}/0?hide-frame`} target={"_blank"}>
+                            <Button>Open interface</Button>
+                        </Link>
+                    )}
+                    {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+                        <Link ml="8px" to={`/applications/vnc/${job.id}/0?hide-frame`} target={"_blank"} onClick={e => {
+                            e.preventDefault();
+
+                            window.open(
+                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                                `vnc-${job.id}-1`,
+                                "width=800,height=450,status=no"
+                            );
+                        }}>
+                            <Button>Open interface</Button>
+                        </Link>
+                    )}
+                </div>
+            )}
+        </Flex>
     </>;
 };
 
@@ -898,6 +940,11 @@ const RunningJobRankWrapper = styled.div`
     width: 100%;
   }
 
+  .top-buttons {
+      margin-left: auto;
+      display: flex;
+  }
+
   ${deviceBreakpoint({minWidth: "1001px"})} {
     &.expanded {
       height: 80vh;
@@ -964,8 +1011,11 @@ const RunningJobRank: React.FunctionComponent<{
                 }
             }
         });
-
         // NOTE(Dan): Clean up is performed by the parent object
+
+        if (job.specification.replicas === 1) {
+            toggleExpand()
+        }
     }, [job.id, rank]);
 
     return <>
@@ -973,50 +1023,52 @@ const RunningJobRank: React.FunctionComponent<{
             <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>
-                    <Heading.h3>Rank</Heading.h3>
+                    <Heading.h3>Node</Heading.h3>
                 </div>
 
                 <div className={"term"} ref={termRef} />
 
-                <div className="buttons">
-                    {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
-                        "VIRTUAL_MACHINE" ? null :
-                        <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                            e.preventDefault();
+                {job.specification.replicas === 1 ? null : (
+                    <div className="buttons">
+                        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
+                            "VIRTUAL_MACHINE" ? null : (
+                            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
+                                e.preventDefault();
 
-                            window.open(
-                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                undefined,
-                                "width=800,height=600,status=no"
-                            );
-                        }}>
-                            <Button type={"button"}>
-                                Open terminal
-                            </Button>
-                        </Link>
-                    }
-                    {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
-                        <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                            <Button>Open interface</Button>
-                        </Link>
-                    )}
-                    {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
-                        <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
-                            e.preventDefault();
+                                window.open(
+                                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                                    undefined,
+                                    "width=800,height=600,status=no"
+                                );
+                            }}>
+                                <Button type={"button"}>
+                                    Open terminal
+                                </Button>
+                            </Link>
+                        )}
+                        {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+                            <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
+                                <Button>Open interface</Button>
+                            </Link>
+                        )}
+                        {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+                            <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
+                                e.preventDefault();
 
-                            window.open(
-                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                `vnc-${job.id}-${rank}`,
-                                "width=800,height=450,status=no"
-                            );
-                        }}>
-                            <Button>Open interface</Button>
-                        </Link>
-                    )}
-                    <Button className={"expand-btn"} onClick={toggleExpand}>
-                        {expanded ? "Shrink" : "Expand"} output
-                    </Button>
-                </div>
+                                window.open(
+                                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                                    `vnc-${job.id}-${rank}`,
+                                    "width=800,height=450,status=no"
+                                );
+                            }}>
+                                <Button>Open interface</Button>
+                            </Link>
+                        )}
+                        <Button className={"expand-btn"} onClick={toggleExpand}>
+                            {expanded ? "Shrink" : "Expand"} output
+                        </Button>
+                    </div>
+                )}
             </RunningJobRankWrapper>
         </DashboardCard>
     </>;
