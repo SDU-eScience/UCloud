@@ -590,7 +590,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
     return <InfoCardsContainer>
         <InfoCard
             stat={job.specification.replicas.toString()}
-            statTitle={job.specification.replicas === 1 ? "Replica" : "Replicas"}
+            statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
             icon={"cpu"}
         >
             <b>{job.specification.product.provider} / {job.specification.product.id}</b><br />
