@@ -245,7 +245,7 @@ export const View: React.FunctionComponent = () => {
             }
 
             const expires = status.expiresAt + (3600 * 1000 * duration);
-            const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit);
+            const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
             const wallet = balance.wallets.find(it => it.wallet.paysFor.id === job.specification.resolvedProduct?.category.id);
 
             if (!wallet) {
