@@ -23,7 +23,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute, file} from "UCloud";
+import {compute, file, accounting} from "UCloud";
 import Job = compute.Job;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -38,6 +38,8 @@ import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import StorageFile = file.StorageFile;
 import {File} from "Files";
 import JobSpecification = compute.JobSpecification;
+import { retrieveBalance, RetrieveBalanceResponse} from "Accounting";
+import { addStandardDialog } from "UtilityComponents";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -210,6 +212,10 @@ export const View: React.FunctionComponent = () => {
 
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
+    const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
+        retrieveBalance({includeChildren: true}),
+        {wallets: []}
+    );
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -227,7 +233,47 @@ export const View: React.FunctionComponent = () => {
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
     const [logoAnimationAllowed, setLogoAnimationAllowed] = useState<boolean>(false);
+    const [showInsufficientFundsWarning, setShowInsufficientFundsWarning] = useState<boolean>(true);
     const [status, setStatus] = useState<JobStatus | null>(null);
+
+    async function confirmExtendAllocation(duration: number): Promise<boolean> {
+        if (showInsufficientFundsWarning) {
+            fetchBalance({...balanceParams, reloadId: Math.random()});
+            const balance = balanceFetcher.data;
+            if (!balance || !status?.expiresAt || !job) {
+                return true;
+            }
+
+            const expires = status.expiresAt + (3600 * 1000 * duration);
+            const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit);
+            const wallet = balance.wallets.find(it => it.wallet.paysFor.id === job.specification.resolvedProduct?.category.id);
+
+            if (!wallet) {
+                return true;
+            }
+
+            if (wallet.balance < needed) {
+                const extend = await new Promise(resolve => addStandardDialog({
+                    title: "Extend job beyond balance?",
+                    message: <>
+                        <Box mb="20px">You are trying to extend the allocation of the job beyond your current funds.</Box>
+                        <Box><b>Current balance:</b> {creditFormatter(wallet.balance)}</Box>
+                        <Box><b>New estimated cost for finishing the job:</b> {creditFormatter(needed)}</Box>
+                        <Box mt="20px">You are allowed to do so, but your job will be terminated without warning when your balance reaches 0 DKK.</Box>
+                    </>,
+                    confirmText: "Extend allocation",
+                    cancelText: "Cancel",
+                    onConfirm: () => { resolve(true) },
+                    onCancel: () => { resolve(false) }
+                }));
+
+                setShowInsufficientFundsWarning(false);
+
+                if (!extend) { return false }
+            }
+        }
+        return true;
+    }
 
     useEffect(() => {
         if (useFakeState) {
@@ -367,7 +413,12 @@ export const View: React.FunctionComponent = () => {
                                 </div>
                             </Flex>
 
-                            <RunningContent job={job} updateListeners={jobUpdateCallbackHandlers} status={status} />
+                            <RunningContent
+                                job={job}
+                                updateListeners={jobUpdateCallbackHandlers}
+                                status={status}
+                                confirmExtendAllocation={confirmExtendAllocation}
+                            />
                         </div>
                     </CSSTransition>
                 )}
@@ -678,7 +729,8 @@ const RunningContent: React.FunctionComponent<{
     job: Job;
     updateListeners: React.RefObject<JobUpdateListener[]>;
     status: JobStatus;
-}> = ({job, updateListeners, status}) => {
+    confirmExtendAllocation: (duration: number) => Promise<boolean>;
+}> = ({job, updateListeners, status, confirmExtendAllocation}) => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const projects = useProjectStatus();
@@ -686,14 +738,16 @@ const RunningContent: React.FunctionComponent<{
     const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
         const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
         if (!commandLoading && expiresAt) {
-            setExpiresAt(expiresAt + (3600 * 1000 * duration));
-            try {
-                await invokeCommand(compute.jobs.extend({
-                    jobId: job.id,
-                    requestedTime: {hours: duration, minutes: 0, seconds: 0}
-                }));
-            } catch (e) {
-                setExpiresAt(expiresAt);
+            if (await confirmExtendAllocation(duration)) {
+                setExpiresAt(expiresAt + (3600 * 1000 * duration));
+                try {
+                    await invokeCommand(compute.jobs.extend({
+                        jobId: job.id,
+                        requestedTime: {hours: duration, minutes: 0, seconds: 0}
+                    }));
+                } catch (e) {
+                    setExpiresAt(expiresAt);
+                }
             }
         }
     }, [job.id, commandLoading, expiresAt]);
