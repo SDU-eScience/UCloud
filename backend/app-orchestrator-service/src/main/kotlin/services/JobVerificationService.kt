@@ -304,10 +304,12 @@ class JobVerificationService(
                             val value = (map["value"] as? String)
                             val option = param.options.find { it.value == value }
                             if (option != null) {
-                                AppParameterValue.Text(value!!)
-                            } else {
-                                null
+                                // Note: We have some applications already in production where this is allowed. We need
+                                // to change this in the future
+                                log.info("Missing value in enumeration: $value")
                             }
+
+                            AppParameterValue.Text(value!!)
                         }
                     }
                 }
@@ -346,7 +348,8 @@ class JobVerificationService(
 
                 is ApplicationParameter.Enumeration -> {
                     if (providedValue !is AppParameterValue.Text) badValue(param)
-                    param.options.find { it.value == providedValue.value } ?: badValue(param)
+                    // We have apps in prod where this isn't true
+                    //param.options.find { it.value == providedValue.value } ?: badValue(param)
                 }
 
                 is ApplicationParameter.Peer -> {
