@@ -11,6 +11,27 @@ import org.joda.time.LocalDateTime
 
 class PostgresDataService(val db: AsyncDBSessionFactory) {
 
+    fun getUsernames(): List<UCloudUser> {
+        return runBlocking {
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        """
+                            SELECT id, created_at
+                            FROM auth.principals
+                        """
+                    ).rows
+                    .map {
+                        UCloudUser(
+                            it.getString(0)!!,
+                            it.getDate(1)!!
+                        )
+                    }
+                    .filter { !it.username.startsWith("_") }
+            }
+        }
+    }
+
     fun getUniversity(username: String): UniversityID {
         return runBlocking {
             val orgId = db.withSession { session ->
