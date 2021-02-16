@@ -415,16 +415,33 @@ class UserAsyncDAO(
      */
     suspend fun insert(db: DBContext, principal: Principal) {
         db.withSession { session ->
-            val found = session.sendPreparedStatement(
-                {
-                    setParameter("id", principal.id)
-                },
-                """
-                    SELECT *
-                    FROM principals
-                    WHERE id = :id
-                """
-            ).rows.singleOrNull()
+            val found =
+                when (principal) {
+                    is Person.ByWAYF -> {
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("id", principal.wayfId)
+                            },
+                            """
+                                SELECT *
+                                FROM principals
+                                WHERE wayf_id = :id
+                            """
+                        ).rows.singleOrNull()
+                    }
+                    else -> {
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("id", principal.id)
+                            },
+                            """
+                                SELECT *
+                                FROM principals
+                                WHERE id = :id
+                            """
+                        ).rows.singleOrNull()
+                    }
+                }
             if (found != null) {
                 throw UserException.AlreadyExists()
             } else {
