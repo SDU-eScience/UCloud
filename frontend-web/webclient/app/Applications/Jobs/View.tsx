@@ -946,7 +946,7 @@ const RunningJobRank: React.FunctionComponent<{
 }> = ({job, rank, updateListeners}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
     const [expanded, setExpanded] = useState(false);
-    const toggleExpand = useCallback(() => {
+    const toggleExpand = useCallback((autoScroll: boolean = true) => {
         setExpanded(!expanded);
         const targetView = termRef.current?.parentElement;
         if (targetView != null) {
@@ -955,9 +955,11 @@ const RunningJobRank: React.FunctionComponent<{
                 fitAddon.fit();
                 fitAddon.fit();
                 fitAddon.fit();
-                window.scrollTo({
-                    top: targetView.getBoundingClientRect().top - 100 + window.pageYOffset,
-                });
+                if (autoScroll) {
+                    window.scrollTo({
+                        top: targetView.getBoundingClientRect().top - 100 + window.pageYOffset,
+                    });
+                }
             }, 0);
         }
     }, [expanded, termRef]);
@@ -979,7 +981,7 @@ const RunningJobRank: React.FunctionComponent<{
         // NOTE(Dan): Clean up is performed by the parent object
 
         if (job.specification.replicas === 1) {
-            toggleExpand()
+            toggleExpand(false)
         }
     }, [job.id, rank]);
 
