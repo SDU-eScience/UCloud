@@ -41,7 +41,7 @@ export const ReservationParameter: React.FunctionComponent<{
 
     const projectId = useProjectId();
     useEffect(() => {
-        fetchWallet(UCloud.accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250}));
+        fetchWallet(UCloud.accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250, includeBalance: true}));
     }, [projectId]);
     useEffect(() => {
         const s = new Set<string>();
