@@ -164,6 +164,11 @@ const Container = styled.div`
   &.RUNNING {
     --logoScale: 0.5;
   }
+
+  .top-buttons {
+      display: flex;
+      gap: 8px;
+  }
 `;
 
 // TODO WS calls don't currently have their types generated
@@ -677,42 +682,7 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
                 </Heading.h3>
             </Box>
             {job.specification.replicas > 1 ? null : (
-                <div className="top-buttons">
-                    {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
-                        "VIRTUAL_MACHINE" ? null : (
-                        <Link to={`/applications/shell/${job.id}/0?hide-frame`} onClick={e => {
-                            e.preventDefault();
-
-                            window.open(
-                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                undefined,
-                                "width=800,height=600,status=no"
-                            );
-                        }}>
-                            <Button type={"button"}>
-                                Open terminal
-                            </Button>
-                        </Link>
-                    )}
-                    {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
-                        <Link ml="8px" to={`/applications/web/${job.id}/0?hide-frame`} target={"_blank"}>
-                            <Button>Open interface</Button>
-                        </Link>
-                    )}
-                    {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
-                        <Link ml="8px" to={`/applications/vnc/${job.id}/0?hide-frame`} target={"_blank"} onClick={e => {
-                            e.preventDefault();
-
-                            window.open(
-                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                `vnc-${job.id}-1`,
-                                "width=800,height=450,status=no"
-                            );
-                        }}>
-                            <Button>Open interface</Button>
-                        </Link>
-                    )}
-                </div>
+                <RunningButtonGroup job={job} rank={0} />
             )}
         </Flex>
     </>;
@@ -940,11 +910,6 @@ const RunningJobRankWrapper = styled.div`
     width: 100%;
   }
 
-  .top-buttons {
-      margin-left: auto;
-      display: flex;
-  }
-
   ${deviceBreakpoint({minWidth: "1001px"})} {
     &.expanded {
       height: 80vh;
@@ -1029,45 +994,7 @@ const RunningJobRank: React.FunctionComponent<{
                 <div className={"term"} ref={termRef} />
 
                 {job.specification.replicas === 1 ? null : (
-                    <div className="buttons">
-                        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
-                            "VIRTUAL_MACHINE" ? null : (
-                            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                                e.preventDefault();
-
-                                window.open(
-                                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                    undefined,
-                                    "width=800,height=600,status=no"
-                                );
-                            }}>
-                                <Button type={"button"}>
-                                    Open terminal
-                                </Button>
-                            </Link>
-                        )}
-                        {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
-                            <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                                <Button>Open interface</Button>
-                            </Link>
-                        )}
-                        {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
-                            <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
-                                e.preventDefault();
-
-                                window.open(
-                                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                    `vnc-${job.id}-${rank}`,
-                                    "width=800,height=450,status=no"
-                                );
-                            }}>
-                                <Button>Open interface</Button>
-                            </Link>
-                        )}
-                        <Button className={"expand-btn"} onClick={toggleExpand}>
-                            {expanded ? "Shrink" : "Expand"} output
-                        </Button>
-                    </div>
+                    <RunningButtonGroup job={job} rank={rank} expanded={expanded} toggleExpand={toggleExpand}></RunningButtonGroup>
                 )}
             </RunningJobRankWrapper>
         </DashboardCard>
@@ -1154,6 +1081,56 @@ const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
         />
     </OutputFilesWrapper>;
 };
+
+const RunningButtonGroup: React.FunctionComponent<{
+    job: Job,
+    rank: number,
+    expanded?: boolean | false,
+    toggleExpand?: () => void | undefined
+}> = ({job, rank, expanded, toggleExpand}) => {
+    return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
+        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
+            "VIRTUAL_MACHINE" ? null : (
+            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
+                e.preventDefault();
+
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    undefined,
+                    "width=800,height=600,status=no"
+                );
+            }}>
+                <Button type={"button"}>
+                    Open terminal
+                </Button>
+            </Link>
+        )}
+        {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+            <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
+                <Button>Open interface</Button>
+            </Link>
+        )}
+        {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+            <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
+                e.preventDefault();
+
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    `vnc-${job.id}-${rank}`,
+                    "width=800,height=450,status=no"
+                );
+            }}>
+                <Button>Open interface</Button>
+            </Link>
+        )}
+        {job.specification.replicas === 1 ? null :
+            <Button className={"expand-btn"} onClick={toggleExpand}>
+                {expanded ? "Shrink" : "Expand"} output
+            </Button>
+        }
+    </div>
+};
+
 
 const CancelButton: React.FunctionComponent<{
     job: Job,
