@@ -164,6 +164,11 @@ const Container = styled.div`
   &.RUNNING {
     --logoScale: 0.5;
   }
+
+  .top-buttons {
+      display: flex;
+      gap: 8px;
+  }
 `;
 
 // TODO WS calls don't currently have their types generated
@@ -590,7 +595,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
     return <InfoCardsContainer>
         <InfoCard
             stat={job.specification.replicas.toString()}
-            statTitle={job.specification.replicas === 1 ? "Replica" : "Replicas"}
+            statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
             icon={"cpu"}
         >
             <b>{job.specification.product.provider} / {job.specification.product.id}</b><br />
@@ -664,15 +669,22 @@ const InfoCard: React.FunctionComponent<{
 
 const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
-        <Heading.h2>
-            {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
-        </Heading.h2>
-        <Heading.h3>
-            <i>
-                {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                {" "}v{job.specification.application.version}
-            </i>
-        </Heading.h3>
+        <Flex justifyContent={"space-between"}>
+            <Box>
+                <Heading.h2>
+                    {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
+                </Heading.h2>
+                <Heading.h3>
+                    <i>
+                        {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                        {" "}v{job.specification.application.version}
+                    </i>
+                </Heading.h3>
+            </Box>
+            {job.specification.replicas > 1 ? null : (
+                <RunningButtonGroup job={job} rank={0} />
+            )}
+        </Flex>
     </>;
 };
 
@@ -964,8 +976,11 @@ const RunningJobRank: React.FunctionComponent<{
                 }
             }
         });
-
         // NOTE(Dan): Clean up is performed by the parent object
+
+        if (job.specification.replicas === 1) {
+            toggleExpand()
+        }
     }, [job.id, rank]);
 
     return <>
@@ -973,50 +988,14 @@ const RunningJobRank: React.FunctionComponent<{
             <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>
-                    <Heading.h3>Rank</Heading.h3>
+                    <Heading.h3>Node</Heading.h3>
                 </div>
 
                 <div className={"term"} ref={termRef} />
 
-                <div className="buttons">
-                    {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
-                        "VIRTUAL_MACHINE" ? null :
-                        <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                            e.preventDefault();
-
-                            window.open(
-                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                undefined,
-                                "width=800,height=600,status=no"
-                            );
-                        }}>
-                            <Button type={"button"}>
-                                Open terminal
-                            </Button>
-                        </Link>
-                    }
-                    {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
-                        <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                            <Button>Open interface</Button>
-                        </Link>
-                    )}
-                    {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
-                        <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
-                            e.preventDefault();
-
-                            window.open(
-                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                `vnc-${job.id}-${rank}`,
-                                "width=800,height=450,status=no"
-                            );
-                        }}>
-                            <Button>Open interface</Button>
-                        </Link>
-                    )}
-                    <Button className={"expand-btn"} onClick={toggleExpand}>
-                        {expanded ? "Shrink" : "Expand"} output
-                    </Button>
-                </div>
+                {job.specification.replicas === 1 ? null : (
+                    <RunningButtonGroup job={job} rank={rank} expanded={expanded} toggleExpand={toggleExpand}></RunningButtonGroup>
+                )}
             </RunningJobRankWrapper>
         </DashboardCard>
     </>;
@@ -1102,6 +1081,56 @@ const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
         />
     </OutputFilesWrapper>;
 };
+
+const RunningButtonGroup: React.FunctionComponent<{
+    job: Job,
+    rank: number,
+    expanded?: boolean | false,
+    toggleExpand?: () => void | undefined
+}> = ({job, rank, expanded, toggleExpand}) => {
+    return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
+        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
+            "VIRTUAL_MACHINE" ? null : (
+            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
+                e.preventDefault();
+
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    undefined,
+                    "width=800,height=600,status=no"
+                );
+            }}>
+                <Button type={"button"}>
+                    Open terminal
+                </Button>
+            </Link>
+        )}
+        {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+            <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
+                <Button>Open interface</Button>
+            </Link>
+        )}
+        {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+            <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
+                e.preventDefault();
+
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    `vnc-${job.id}-${rank}`,
+                    "width=800,height=450,status=no"
+                );
+            }}>
+                <Button>Open interface</Button>
+            </Link>
+        )}
+        {job.specification.replicas === 1 ? null :
+            <Button className={"expand-btn"} onClick={toggleExpand}>
+                {expanded ? "Shrink" : "Expand"} output
+            </Button>
+        }
+    </div>
+};
+
 
 const CancelButton: React.FunctionComponent<{
     job: Job,

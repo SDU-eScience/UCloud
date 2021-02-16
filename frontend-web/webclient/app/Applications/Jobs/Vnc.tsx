@@ -28,7 +28,7 @@ export const Vnc: React.FunctionComponent = () => {
     );
 
     const [connectionDetails, setConnectionDetails] = useState<ConnectionDetails | null>(null);
-    useTitle(`Remote Desktop: ${shortUUID(jobId)} [Rank: ${parseInt(rank, 10) + 1}]`);
+    useTitle(`Remote Desktop: ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
     useNoFrame();
 
     useEffect(() => {

@@ -23,7 +23,7 @@ export const Shell: React.FunctionComponent = () => {
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnect, setReconnect] = useState<number>(0);
     useNoFrame();
-    useTitle(`Job ${shortUUID(jobId)} [Rank: ${parseInt(rank, 10) + 1}]`);
+    useTitle(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
 
     useEffectSkipMount(() => {
         openSession(jobs.openInteractiveSession({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}));
