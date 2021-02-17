@@ -6,7 +6,7 @@ import org.joda.time.Days
 import org.joda.time.LocalDateTime
 import kotlin.math.min
 
-class DeicReportService(val postgresDataService: PostgresDataService, val elasticDataService: ElasticDataService) {
+class DeicReportService(val postgresDataService: PostgresDataService) {
 
     fun reportCenter(startDate: LocalDateTime, endDate: LocalDateTime) {
         val daysInPeriod = Days.daysBetween(startDate, endDate).days

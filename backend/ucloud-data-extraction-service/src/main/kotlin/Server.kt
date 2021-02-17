@@ -12,6 +12,7 @@ import dk.sdu.cloud.ucloud.data.extraction.api.UniversityID
 import dk.sdu.cloud.ucloud.data.extraction.services.DeicReportService
 import dk.sdu.cloud.ucloud.data.extraction.services.ElasticDataService
 import dk.sdu.cloud.ucloud.data.extraction.services.PostgresDataService
+import dk.sdu.cloud.ucloud.data.extraction.services.UserActivityReport
 import org.apache.http.util.Args
 import org.joda.time.LocalDateTime
 import org.joda.time.format.DateTimeFormatter
@@ -56,11 +57,11 @@ class Server(override val micro: Micro) : CommonServer {
         startServices(wait = false)
 
         val args = micro.commandLineArguments
-        println(args)
 
         val postgresDataService = PostgresDataService(db)
         val elasticDataService = ElasticDataService(elasticHighLevelClient, elasticLowLevelClient)
-        val deicReportService = DeicReportService(postgresDataService, elasticDataService)
+        val deicReportService = DeicReportService(postgresDataService)
+        val userActivityReport = UserActivityReport(elasticDataService, postgresDataService)
         try {
             when {
                 args.contains("--center") -> {
@@ -80,6 +81,15 @@ class Server(override val micro: Micro) : CommonServer {
                 }
                 args.contains("--person") -> {
                     deicReportService.reportPerson()
+                    exitProcess(0)
+                }
+                args.contains("--sameTimeUser") -> {
+                    getDates(args)
+                    userActivityReport.maxSimultaneousUsers(start, end)
+                    exitProcess(0)
+                }
+                args.contains("--activityPeriod") -> {
+                    userActivityReport.activityPeriod()
                     exitProcess(0)
                 }
                 else -> {
