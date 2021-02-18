@@ -111,7 +111,7 @@ class IngressService(
         val ingressPoints = job.ingressPoints
         if (ingressPoints.isEmpty()) return
 
-        if (job.parameters.replicas > 1) {
+        if (job.specification.replicas > 1) {
             // TODO(Dan): This should probably be solved at the orchestrator level
             throw RPCException(
                 "UCloud/compute does not currently support ingress with multiple replicas",

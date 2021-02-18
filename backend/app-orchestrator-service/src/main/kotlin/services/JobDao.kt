@@ -57,7 +57,7 @@ class JobDao {
     ) {
         ctx.withSession { session ->
             val (job, refreshToken) = jobWithToken
-            val parameters = job.parameters ?: error("no parameters")
+            val parameters = job.specification ?: error("no parameters")
 
             session.insert(JobsTable) {
                 set(JobsTable.id, job.id)

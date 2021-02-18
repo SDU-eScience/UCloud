@@ -415,32 +415,32 @@ typealias JobsSuspendRequestItem = FindByStringId
 
 val Job.files: List<AppParameterValue.File>
     get() {
-        return (parameters.resources?.filterIsInstance<AppParameterValue.File>() ?: emptyList()) +
-            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.File>() ?: emptyList())
+        return (specification.resources?.filterIsInstance<AppParameterValue.File>() ?: emptyList()) +
+            (specification.parameters?.values?.filterIsInstance<AppParameterValue.File>() ?: emptyList())
     }
 
 val Job.peers: List<AppParameterValue.Peer>
     get() {
-        return (parameters.resources?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList()) +
-            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList())
+        return (specification.resources?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList()) +
+            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList())
     }
 
 val Job.ingressPoints: List<AppParameterValue.Ingress>
     get() {
-        return (parameters.resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
-            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
+        return (specification.resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
+            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
     }
 
 val Job.networks: List<AppParameterValue.Network>
     get() {
-        return (parameters.resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
-            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
+        return (specification.resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
+            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
     }
 
 val Job.blockStorage: List<AppParameterValue.BlockStorage>
     get() {
-        return (parameters.resources?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList()) +
-            (parameters.parameters?.values?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList())
+        return (specification.resources?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList()) +
+            (specification.parameters?.values?.filterIsInstance<AppParameterValue.BlockStorage>() ?: emptyList())
     }
 
 val Job.currentState: JobState

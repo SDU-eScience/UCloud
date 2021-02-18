@@ -184,7 +184,7 @@ class JobFileService(
         }
 
         if (cachedPath != null) return cachedPath
-        val parameters = jobWithToken.job.parameters ?: error("missing job parameters")
+        val parameters = jobWithToken.job.specification ?: error("missing job parameters")
         val application = appStoreCache.apps.get(parameters.application)
             ?: throw RPCException("Unknown application", HttpStatusCode.InternalServerError)
         val (job, refreshToken) = jobWithToken
@@ -205,10 +205,10 @@ class JobFileService(
                 while (folderNameLength < job.id.length) {
                     shortJobId = job.id.take(folderNameLength)
 
-                    folderName = if (job.parameters?.name.isNullOrBlank()) {
+                    folderName = if (job.specification?.name.isNullOrBlank()) {
                         shortJobId
                     } else {
-                        job.parameters?.name + "-" + shortJobId
+                        job.specification?.name + "-" + shortJobId
                     }
 
                     val statStatusCode = FileDescriptions.stat.call(

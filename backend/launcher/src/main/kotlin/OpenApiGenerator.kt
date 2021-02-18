@@ -117,6 +117,8 @@ fun main() {
         subtitle = "Public API"
     )
 
+
+    log.info("UCloud has ${knownCalls.size} number of calls in total")
     writeSpecification(
         knownCalls,
         File("/tmp/swagger/combined"),
@@ -395,6 +397,7 @@ private fun writeSpecification(
         }.toMap()
     }
 
+    println("UCloud has ${typeRegistry.size} number of types")
     output.mkdirs()
     generateTypeScriptCode(output, doc, typeRegistry)
     if (writeMarkdown) injectMarkdownDocs(doc, typeRegistry)

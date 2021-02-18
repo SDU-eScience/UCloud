@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Fri Feb 12 13:39:25 CET 2021 */
+/* Generated at: Thu Feb 18 09:39:48 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -2212,6 +2212,151 @@ export namespace compute {
         status?: string,
     }
 
+    /**
+     * A `NetworkIP` for use in `Job`s
+     */
+    export interface NetworkIP {
+        /**
+         * A unique identifier referencing the `Resource`
+         *
+         * This ID is assigned by UCloud and is globally unique across all providers.
+         */
+        id: string,
+        specification: NetworkIPSpecification,
+        /**
+         * Information about the owner of this resource
+         */
+        owner: NetworkIPOwner,
+        /**
+         * Information about when this resource was created
+         */
+        createdAt: number /* int64 */
+        ,
+        /**
+         * The current status of this resource
+         */
+        status: NetworkIPStatus,
+        /**
+         * Billing information associated with this `NetworkIP`
+         */
+        billing: NetworkIPBilling,
+        /**
+         * A list of updates for this `NetworkIP`
+         */
+        updates: NetworkIPUpdate[],
+        resolvedProduct?: accounting.ProductNS.NetworkIP,
+        /**
+         * An ACL for this `Resource`
+         */
+        acl?: provider.ResourceAclEntry<"USE">[],
+    }
+
+    export interface NetworkIPSpecification {
+        /**
+         * The product used for the `NetworkIP`
+         */
+        product: accounting.ProductReference,
+        firewall?: NetworkIPSpecificationNS.Firewall,
+    }
+
+    export interface PortRangeAndProto {
+        start: number /* int32 */
+        ,
+        end: number /* int32 */
+        ,
+        protocol: "TCP" | "UDP",
+    }
+
+    /**
+     * The owner of a `Resource`
+     */
+    export interface NetworkIPOwner {
+        /**
+         * The username of the user which created this resource.
+         *
+         * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
+         */
+        createdBy: string,
+        /**
+         * The project which owns the resource
+         */
+        project?: string,
+    }
+
+    /**
+     * The status of an `NetworkIP`
+     */
+    export interface NetworkIPStatus {
+        state: "PREPARING" | "READY" | "UNAVAILABLE",
+        /**
+         * The ID of the `Job` that this `NetworkIP` is currently bound to
+         */
+        boundTo?: string,
+        /**
+         * The externally accessible IP address allocated to this `NetworkIP`
+         */
+        ipAddress?: string,
+    }
+
+    /**
+     * Contains information related to the accounting/billing of a `Resource`
+     *
+     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+     * to be charged a different price than newly launched products.
+     */
+    export interface NetworkIPBilling {
+        /**
+         * The price per unit. This can differ from current price of `Product`
+         */
+        pricePerUnit: number /* int64 */
+        ,
+        /**
+         * Amount of credits charged in total for this `Resource`
+         */
+        creditsCharged: number /* int64 */
+        ,
+    }
+
+    /**
+     * Describes an update to the `Resource`
+     *
+     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+     * use the full update history if you only wish to know the _current_ state of a `Resource`.
+     *
+     * An update will typically contain information similar to the `status` field, for example:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`.
+     * - Change in key metrics.
+     * - Bindings to related `Resource`s.
+     *
+     */
+    export interface NetworkIPUpdate {
+        /**
+         * A timestamp for when this update was registered by UCloud
+         */
+        timestamp: number /* int64 */
+        ,
+        /**
+         * The new state that the `NetworkIP` transitioned to (if any)
+         */
+        state?: "PREPARING" | "READY" | "UNAVAILABLE",
+        /**
+         * A new status message for the `NetworkIP` (if any)
+         */
+        status?: string,
+        didBind: boolean,
+        newBinding?: string,
+        changeIpAddress?: boolean,
+        newIpAddress?: string,
+    }
+
+    export interface FirewallAndId {
+        id: string,
+        firewall: NetworkIPSpecificationNS.Firewall,
+    }
+
     export interface JobsCreateResponse {
         ids: string[],
     }
@@ -2688,6 +2833,145 @@ export namespace compute {
         ,
     }
 
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
+    export interface NetworkIPsBrowseRequest {
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
+        includeProduct?: boolean,
+        /**
+         * Includes `acl`
+         */
+        includeAcl?: boolean,
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
+        itemsPerPage?: number /* int32 */
+        ,
+        /**
+         * A token requesting the next page of items
+         */
+        next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
+        consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
+        itemsToSkip?: number /* int64 */
+        ,
+        provider?: string,
+    }
+
+    export interface NetworkIPsCreateResponse {
+        ids: string[],
+    }
+
+    export interface NetworkIPRetrieve {
+        id: string,
+    }
+
+    export interface NetworkIPRetrieveWithFlags {
+        id: string,
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
+        includeProduct?: boolean,
+        /**
+         * Includes `acl`
+         */
+        includeAcl?: boolean,
+    }
+
+    export interface NetworkIPsUpdateAclRequestItem {
+        id: string,
+        acl: provider.ResourceAclEntry<"USE">[],
+    }
+
+    export interface NetworkIPControlUpdateRequestItem {
+        id: string,
+        state?: "PREPARING" | "READY" | "UNAVAILABLE",
+        status?: string,
+        clearBindingToJob?: boolean,
+        changeIpAddress?: boolean,
+        newIpAddress?: string,
+    }
+
+    export interface NetworkIPControlChargeCreditsResponse {
+        /**
+         * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
+         */
+        insufficientFunds: NetworkIPId[],
+        /**
+         * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
+         */
+        duplicateCharges: NetworkIPId[],
+    }
+
+    export interface NetworkIPId {
+        id: string,
+    }
+
+    export interface NetworkIPControlChargeCreditsRequestItem {
+        /**
+         * The ID of the `NetworkIP`
+         */
+        id: string,
+        /**
+         * The ID of the charge
+         *
+         * This charge ID must be unique for the `NetworkIP`, UCloud will reject charges which are not unique.
+         */
+        chargeId: string,
+        /**
+         * Amount of units to charge the user
+         */
+        units: number /* int64 */
+        ,
+    }
+
     export interface ApplicationWithFavoriteAndTags {
         metadata: ApplicationMetadata,
         invocation: ApplicationInvocationDescription,
@@ -3089,6 +3373,11 @@ export namespace compute {
                 parameters: request,
                 reloadId: Math.random(),
             };
+        }
+    }
+    export namespace NetworkIPSpecificationNS {
+        export interface Firewall {
+            openPorts: PortRangeAndProto[],
         }
     }
     export namespace apps {
@@ -3571,6 +3860,72 @@ export namespace compute {
             ,
         }
 
+        export interface K8Subnet {
+            cidr: string,
+        }
+
+        /**
+         * The base type for requesting paginated content.
+         *
+         * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+         * semantics of the call:
+         *
+         * | Consistency | Description |
+         * |-------------|-------------|
+         * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+         * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+         *
+         * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+         * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+         * must contain all the items, in the correct order and without duplicates.
+         *
+         * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+         * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+         * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+         * consistent.
+         *
+         * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+         * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+         * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+         * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+         *
+         * ---
+         *
+         * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+         * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+         * paginate through the results.
+         *
+         * ---
+         *
+         */
+        export interface KubernetesIPMaintenanceBrowseRequest {
+            /**
+             * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+             */
+            itemsPerPage?: number /* int32 */
+            ,
+            /**
+             * A token requesting the next page of items
+             */
+            next?: string,
+            /**
+             * Controls the consistency guarantees provided by the backend
+             */
+            consistency?: "PREFER" | "REQUIRE",
+            /**
+             * Items to skip ahead
+             */
+            itemsToSkip?: number /* int64 */
+            ,
+        }
+
+        export interface K8NetworkStatus {
+            capacity: number /* int64 */
+            ,
+            used: number /* int64 */
+            ,
+        }
+
         export interface AauComputeSendUpdateRequest {
             id: string,
             update: string,
@@ -3723,6 +4078,100 @@ export namespace compute {
                     reloadId: Math.random(),
                     payload: request,
                 };
+            }
+        }
+        export namespace networkip {
+            export function create(
+                request: BulkRequest<NetworkIP>
+            ): APICallParameters<BulkRequest<NetworkIP>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/networkips",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function remove(
+                request: BulkRequest<NetworkIP>
+            ): APICallParameters<BulkRequest<NetworkIP>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "DELETE",
+                    path: "/ucloud/ucloud/networkips",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function verify(
+                request: BulkRequest<NetworkIP>
+            ): APICallParameters<BulkRequest<NetworkIP>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/networkips" + "/verify",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function updateFirewall(
+                request: BulkRequest<FirewallAndId>
+            ): APICallParameters<BulkRequest<FirewallAndId>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/ucloud/ucloud/networkips" + "/firewall",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export namespace maintenance {
+                export function create(
+                    request: BulkRequest<K8Subnet>
+                ): APICallParameters<BulkRequest<K8Subnet>, any /* unknown */> {
+                    return {
+                        context: "",
+                        method: "POST",
+                        path: "/ucloud/ucloud/networkips/maintenance",
+                        parameters: request,
+                        reloadId: Math.random(),
+                        payload: request,
+                    };
+                }
+
+                export function browse(
+                    request: KubernetesIPMaintenanceBrowseRequest
+                ): APICallParameters<KubernetesIPMaintenanceBrowseRequest, PageV2<K8Subnet>> {
+                    return {
+                        context: "",
+                        method: "GET",
+                        path: buildQueryString("/ucloud/ucloud/networkips/maintenance" + "/browse", {
+                            consistency: request.consistency,
+                            itemsPerPage: request.itemsPerPage,
+                            itemsToSkip: request.itemsToSkip,
+                            next: request.next
+                        }),
+                        parameters: request,
+                        reloadId: Math.random(),
+                    };
+                }
+
+                export function retrieveStatus(): APICallParameters<{}, K8NetworkStatus> {
+                    return {
+                        context: "",
+                        method: "GET",
+                        path: "/ucloud/ucloud/networkips/maintenance" + "/retrieve",
+                        reloadId: Math.random(),
+                    };
+                }
             }
         }
         export namespace jobs {
@@ -4180,6 +4629,142 @@ export namespace compute {
                     context: "",
                     method: "POST",
                     path: "/api/ingresses/control" + "/chargeCredits",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+        }
+    }
+    export namespace networkips {
+        export function browse(
+            request: NetworkIPsBrowseRequest
+        ): APICallParameters<NetworkIPsBrowseRequest, PageV2<NetworkIP>> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/networkips" + "/browse", {
+                    consistency: request.consistency,
+                    includeAcl: request.includeAcl,
+                    includeProduct: request.includeProduct,
+                    includeUpdates: request.includeUpdates,
+                    itemsPerPage: request.itemsPerPage,
+                    itemsToSkip: request.itemsToSkip,
+                    next: request.next,
+                    provider: request.provider
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export function create(
+            request: BulkRequest<NetworkIPSpecification>
+        ): APICallParameters<BulkRequest<NetworkIPSpecification>, NetworkIPsCreateResponse> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/networkips",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function remove(
+            request: BulkRequest<NetworkIPRetrieve>
+        ): APICallParameters<BulkRequest<NetworkIPRetrieve>, any /* unknown */> {
+            return {
+                context: "",
+                method: "DELETE",
+                path: "/api/networkips",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function retrieve(
+            request: NetworkIPRetrieveWithFlags
+        ): APICallParameters<NetworkIPRetrieveWithFlags, NetworkIP> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/networkips" + "/retrieve", {
+                    id: request.id,
+                    includeAcl: request.includeAcl,
+                    includeProduct: request.includeProduct,
+                    includeUpdates: request.includeUpdates
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export function updateAcl(
+            request: BulkRequest<NetworkIPsUpdateAclRequestItem>
+        ): APICallParameters<BulkRequest<NetworkIPsUpdateAclRequestItem>, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/networkips" + "/acl",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function updateFirewall(
+            request: BulkRequest<FirewallAndId>
+        ): APICallParameters<BulkRequest<FirewallAndId>, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/networkips" + "/firewall",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export namespace control {
+            export function update(
+                request: BulkRequest<NetworkIPControlUpdateRequestItem>
+            ): APICallParameters<BulkRequest<NetworkIPControlUpdateRequestItem>, any /* unknown */> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/api/networkips/control" + "/update",
+                    parameters: request,
+                    reloadId: Math.random(),
+                    payload: request,
+                };
+            }
+
+            export function retrieve(
+                request: NetworkIPRetrieveWithFlags
+            ): APICallParameters<NetworkIPRetrieveWithFlags, NetworkIP> {
+                return {
+                    context: "",
+                    method: "GET",
+                    path: buildQueryString("/api/networkips/control" + "/retrieve", {
+                        id: request.id,
+                        includeAcl: request.includeAcl,
+                        includeProduct: request.includeProduct,
+                        includeUpdates: request.includeUpdates
+                    }),
+                    parameters: request,
+                    reloadId: Math.random(),
+                };
+            }
+
+            export function chargeCredits(
+                request: BulkRequest<NetworkIPControlChargeCreditsRequestItem>
+            ): APICallParameters<BulkRequest<NetworkIPControlChargeCreditsRequestItem>, NetworkIPControlChargeCreditsResponse> {
+                return {
+                    context: "",
+                    method: "POST",
+                    path: "/api/networkips/control" + "/chargeCredits",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -5919,7 +6504,7 @@ export namespace accounting {
         ,
         used: number /* int64 */
         ,
-        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
+        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
     }
 
     export interface RetrieveBalanceRequest {
@@ -5937,7 +6522,12 @@ export namespace accounting {
         ,
     }
 
-    export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License
+    export type Product =
+        ProductNS.Storage
+        | ProductNS.Compute
+        | ProductNS.Ingress
+        | ProductNS.License
+        | ProductNS.NetworkIP
     export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
 
     export interface FindProductRequest {
@@ -5956,7 +6546,7 @@ export namespace accounting {
 
     export interface ListProductsByAreaRequest {
         provider: string,
-        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
+        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
         showHidden: boolean,
         itemsPerPage?: number /* int32 */
         ,
@@ -6023,7 +6613,7 @@ export namespace accounting {
         itemsToSkip?: number /* int64 */
         ,
         filterProvider?: string,
-        filterArea?: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
+        filterArea?: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
         filterUsable?: boolean,
         filterCategory?: string,
         includeBalance?: boolean,
@@ -6039,7 +6629,7 @@ export namespace accounting {
     }
 
     export interface UsageLine {
-        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE",
+        area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
         category: string,
         projectPath?: string,
         projectId?: string,
@@ -6410,6 +7000,25 @@ export namespace accounting {
             balance?: number /* int64 */
             ,
             type: "license",
+        }
+
+        export interface NetworkIP {
+            id: string,
+            pricePerUnit: number /* int64 */
+            ,
+            category: ProductCategoryId,
+            description: string,
+            hiddenInGrantApplications: boolean,
+            availability: ProductAvailability,
+            priority: number /* int32 */
+            ,
+            paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+            /**
+             * Included only with certain endpoints which support `includeBalance`
+             */
+            balance?: number /* int64 */
+            ,
+            type: "network_ip",
         }
     }
 }

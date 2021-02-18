@@ -28,20 +28,20 @@ class ResourceCache(private val serviceClient: AuthenticatedClient) {
     )
 
     private suspend fun cache(job: Job) {
-        val resolvedProduct = job.parameters.resolvedProduct
+        val resolvedProduct = job.specification.resolvedProduct
         if (resolvedProduct != null) {
-            products.insert(key(job.parameters.product), resolvedProduct)
+            products.insert(key(job.specification.product), resolvedProduct)
         }
 
-        val resolvedApplication = job.parameters.resolvedApplication
+        val resolvedApplication = job.specification.resolvedApplication
         if (resolvedApplication != null) {
-            applications.insert(key(job.parameters.application), resolvedApplication)
+            applications.insert(key(job.specification.application), resolvedApplication)
         }
     }
 
     suspend fun findResources(job: Job): ResolvedJobResources {
-        val product = products.get(key(job.parameters.product))
-        val application = applications.get(key(job.parameters.application))
+        val product = products.get(key(job.specification.product))
+        val application = applications.get(key(job.specification.application))
 
         if (product != null && application != null) {
             return ResolvedJobResources(product, application)
@@ -55,8 +55,8 @@ class ResourceCache(private val serviceClient: AuthenticatedClient) {
         cache(retrievedJob)
 
         return ResolvedJobResources(
-            retrievedJob.parameters.resolvedProduct ?: error("No product returned"),
-            retrievedJob.parameters.resolvedApplication ?: error("No application returned")
+            retrievedJob.specification.resolvedProduct ?: error("No product returned"),
+            retrievedJob.specification.resolvedApplication ?: error("No application returned")
         )
     }
 

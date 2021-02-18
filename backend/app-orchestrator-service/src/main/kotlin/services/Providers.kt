@@ -16,6 +16,7 @@ data class ProviderCommunication(
     val provider: ComputeProviderManifest,
     val ingressApi: IngressProvider?,
     val licenseApi: LicenseProvider?,
+    val networkApi: NetworkIPProvider?,
 )
 
 class Providers(
@@ -51,7 +52,8 @@ class Providers(
                 wsServiceClient,
                 aauManifest,
                 null,
-                null
+                null,
+                null,
             )
         }
 
@@ -63,6 +65,7 @@ class Providers(
                 hardcodedProvider,
                 IngressProvider(UCLOUD_PROVIDER),
                 LicenseProvider(UCLOUD_PROVIDER),
+                NetworkIPProvider(UCLOUD_PROVIDER),
             )
         }
 
@@ -74,6 +77,7 @@ class Providers(
                 hardcodedProvider,
                 IngressProvider(UCLOUD_PROVIDER),
                 LicenseProvider(UCLOUD_PROVIDER),
+                NetworkIPProvider(UCLOUD_PROVIDER),
             )
         }
 

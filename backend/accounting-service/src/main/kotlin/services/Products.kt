@@ -88,6 +88,10 @@ class ProductService(
                         is Product.Ingress -> {
                             set(ProductTable.paymentModel, product.paymentModel.name)
                         }
+
+                        is Product.NetworkIP -> {
+                            set(ProductTable.paymentModel, product.paymentModel.name)
+                        }
                     }
                     set(ProductTable.pricePerUnit, product.pricePerUnit)
                 }
@@ -524,6 +528,26 @@ class ProductService(
                     },
                     getField(ProductTable.priority),
                     getFieldNullable(ProductTable.licenseTags)?.let { defaultMapper.readValue(it) } ?: emptyList(),
+                    getFieldNullable(ProductTable.paymentModel)?.let { PaymentModel.valueOf(it) }
+                        ?: PaymentModel.PER_ACTIVATION,
+                )
+            }
+
+            ProductArea.NETWORK_IP -> {
+                Product.NetworkIP(
+                    getField(ProductTable.id),
+                    getField(ProductTable.pricePerUnit),
+                    ProductCategoryId(
+                        getField(ProductTable.category),
+                        getField(ProductTable.provider)
+                    ),
+                    getField(ProductTable.description),
+                    getField(ProductTable.hiddenInGrantApplications),
+                    when (val reason = getFieldNullable(ProductTable.availability)) {
+                        null -> ProductAvailability.Available()
+                        else -> ProductAvailability.Unavailable(reason)
+                    },
+                    getField(ProductTable.priority),
                     getFieldNullable(ProductTable.paymentModel)?.let { PaymentModel.valueOf(it) }
                         ?: PaymentModel.PER_ACTIVATION,
                 )

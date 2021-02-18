@@ -24,7 +24,7 @@ class TaskPlugin(
         val tool = app.tool.tool!!.description
 
         val vSpec = builder.spec ?: error("no volcano job spec")
-        vSpec.minAvailable = job.parameters.replicas
+        vSpec.minAvailable = job.specification.replicas
         vSpec.queue = DEFAULT_QUEUE
         vSpec.policies = emptyList()
         vSpec.plugins = mapOf(
@@ -35,7 +35,7 @@ class TaskPlugin(
         (vSpec.tasks?.toMutableList() ?: ArrayList()).let { tasks ->
             tasks.add(VolcanoJob.TaskSpec().apply {
                 name = "job"
-                replicas = job.parameters.replicas
+                replicas = job.specification.replicas
                 policies = emptyList()
                 template = Pod.SpecTemplate().apply {
                     metadata = ObjectMeta(name = "job-${job.id}")

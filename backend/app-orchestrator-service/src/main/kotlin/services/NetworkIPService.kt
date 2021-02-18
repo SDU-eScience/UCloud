@@ -3,27 +3,25 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.PaymentModel
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwError
+import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import java.util.*
 
-class IngressService(
+class NetworkIPService(
     private val db: AsyncDBSessionFactory,
-    private val dao: IngressDao,
+    private val dao: NetworkIPDao,
     private val providers: Providers,
     private val projectCache: ProjectCache,
     private val productCache: ProductCache,
@@ -33,54 +31,73 @@ class IngressService(
     init {
         orchestrator.addListener(object : JobListener {
             override suspend fun onVerified(ctx: DBContext, job: Job) {
-                val ingressPoints = job.ingressPoints
-                if (ingressPoints.isEmpty()) return
+                val networks = job.networks
+                if (networks.isEmpty()) return
 
                 val computeProvider = job.specification.product.provider
                 val jobProject = job.owner.project
-                val jobLauncher = job.owner.launchedBy
+                val jobLauncher = job.owner.createdBy
 
                 ctx.withSession { session ->
-                    ingressPoints.forEach { ingress ->
-                        val errorMessage = "Cannot use your public link: ${ingress.id}. " +
+                    networks.forEach { network ->
+                        val errorMessage = "Cannot use your IP: ${network.id}. " +
                             "It does not exist or is not usable from your current project."
-                        val retrievedIngress = dao.retrieve(
+                        val retrievedNetwork = dao.retrieve(
                             session,
-                            IngressId(ingress.id),
-                            IngressDataIncludeFlags(includeProduct = true)
+                            NetworkIPId(network.id),
+                            NetworkIPDataIncludeFlags(includeProduct = true)
                         ) ?: throw RPCException(errorMessage, HttpStatusCode.BadRequest)
-                        val product = retrievedIngress.resolvedProduct!!
+                        val product = retrievedNetwork.resolvedProduct!!
 
-                        if (jobProject != retrievedIngress.owner.project) {
+                        if (jobProject != retrievedNetwork.owner.project) {
                             throw RPCException(errorMessage, HttpStatusCode.BadRequest)
                         }
 
-                        if (jobProject == null && jobLauncher != retrievedIngress.owner.createdBy) {
+                        if (jobProject == null && jobLauncher != retrievedNetwork.owner.createdBy) {
                             throw RPCException(errorMessage, HttpStatusCode.BadRequest)
                         }
 
-                        if (jobProject != null && projectCache.retrieveRole(jobLauncher, jobProject) == null) {
-                            throw RPCException(errorMessage, HttpStatusCode.BadRequest)
+                        if (jobProject != null &&
+                            projectCache.retrieveRole(jobLauncher, jobProject)?.isAdmin() != true
+                        ) {
+                            // We are not an admin. This means we must have an entry in the acl
+                            val projectStatus = projectCache.retrieveProjectStatus(jobLauncher)
+                            val groups = projectStatus.userStatus?.groups ?: emptyList()
+                            val hasAccess = retrievedNetwork.acl!!.any { entry ->
+                                val entity = entry.entity
+                                if (!entry.permissions.any { it == NetworkIPPermission.USE }) return@any false
+                                if (entity !is AclEntity.ProjectGroup) return@any false
+
+                                groups.any { it.group == entity.group && it.project == entity.projectId }
+                            }
+
+                            if (!hasAccess) {
+                                throw RPCException(
+                                    "You do not have permissions to use this network IP. " +
+                                        "Contact your PI to get access",
+                                    HttpStatusCode.Forbidden
+                                )
+                            }
                         }
 
-                        if (retrievedIngress.specification.product.provider != computeProvider) {
+                        if (retrievedNetwork.specification.product.provider != computeProvider) {
                             throw RPCException(
-                                "Cannot use ingress provided by " +
-                                    "${retrievedIngress.specification.product.provider} in job provided by $computeProvider",
+                                "Cannot use network provided by " +
+                                    "${retrievedNetwork.specification.product.provider} in job provided by $computeProvider",
                                 HttpStatusCode.BadRequest
                             )
                         }
 
-                        if (retrievedIngress.status.state != IngressState.READY) {
+                        if (retrievedNetwork.status.state != NetworkIPState.READY) {
                             throw RPCException(
-                                "Ingress ${retrievedIngress.specification.domain} is not ready",
+                                "Network ${retrievedNetwork.id} is not ready",
                                 HttpStatusCode.BadRequest
                             )
                         }
 
-                        if (retrievedIngress.status.boundTo != null) {
+                        if (retrievedNetwork.status.boundTo != null) {
                             throw RPCException(
-                                "Ingress ${retrievedIngress.specification.domain} is already in use",
+                                "Network ${retrievedNetwork.id} is already in use",
                                 HttpStatusCode.BadRequest
                             )
                         }
@@ -98,11 +115,11 @@ class IngressService(
 
             override suspend fun onCreate(ctx: DBContext, job: Job) {
                 ctx.withSession { session ->
-                    job.ingressPoints.forEach { ingress ->
+                    job.networks.forEach { network ->
                         dao.insertUpdate(
                             session,
-                            IngressId(ingress.id),
-                            IngressUpdate(
+                            NetworkIPId(network.id),
+                            NetworkIPUpdate(
                                 Time.now(),
                                 didBind = true,
                                 newBinding = job.id
@@ -114,11 +131,11 @@ class IngressService(
 
             override suspend fun onTermination(ctx: DBContext, job: Job) {
                 ctx.withSession { session ->
-                    job.ingressPoints.forEach { ingress ->
+                    job.networks.forEach { network ->
                         dao.insertUpdate(
                             session,
-                            IngressId(ingress.id),
-                            IngressUpdate(
+                            NetworkIPId(network.id),
+                            NetworkIPUpdate(
                                 Time.now(),
                                 didBind = true,
                                 newBinding = null
@@ -134,9 +151,9 @@ class IngressService(
         actor: Actor,
         project: String?,
         pagination: NormalizedPaginationRequestV2,
-        flags: IngressDataIncludeFlags,
-        filters: IngressFilters,
-    ): PageV2<Ingress> {
+        flags: NetworkIPDataIncludeFlags,
+        filters: NetworkIPFilters,
+    ): PageV2<NetworkIP> {
         if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
             throw RPCException("You are not a member of the supplied project", HttpStatusCode.Forbidden)
         }
@@ -146,10 +163,10 @@ class IngressService(
 
     suspend fun retrieve(
         actor: Actor,
-        id: IngressId,
-        flags: IngressDataIncludeFlags,
-    ): Ingress {
-        val notFoundMessage = "Permission denied or ingress does not exist"
+        id: NetworkIPId,
+        flags: NetworkIPDataIncludeFlags,
+    ): NetworkIP {
+        val notFoundMessage = "Permission denied or network does not exist"
         val result = dao.retrieve(db, id, flags) ?: throw RPCException(notFoundMessage, HttpStatusCode.NotFound)
 
         val (username, project) = result.owner
@@ -170,7 +187,7 @@ class IngressService(
 
     suspend fun delete(
         actor: Actor,
-        deletionRequest: BulkRequest<IngressRetrieve>
+        deletionRequest: BulkRequest<NetworkIPRetrieve>
     ) {
         val genericErrorMessage = "Not found or permission denied"
 
@@ -200,7 +217,7 @@ class IngressService(
                 if (item.status.boundTo != null) {
                     // TODO It would make sense to verify the ingress/job with the provider at this point
                     //  (in case something is stuck)
-                    throw RPCException("Refusing to delete ingress which is in active use", HttpStatusCode.BadRequest)
+                    throw RPCException("Refusing to delete network which is in active use", HttpStatusCode.BadRequest)
                 }
             }
 
@@ -208,10 +225,10 @@ class IngressService(
             // Verification will technically fix it up later, however.
 
             // All should be good now, time to call the providers
-            for ((provider, ingress) in byProvider) {
+            for ((provider, network) in byProvider) {
                 val comms = providers.prepareCommunication(provider)
-                val api = comms.ingressApi ?: continue // Provider no longer supports ingress. Silently skip.
-                api.delete.call(bulkRequestOf(ingress), comms.client)
+                val api = comms.networkApi ?: continue // Provider no longer supports ingress. Silently skip.
+                api.delete.call(bulkRequestOf(network), comms.client)
             }
         }
     }
@@ -219,7 +236,7 @@ class IngressService(
     suspend fun create(
         actor: Actor,
         project: String?,
-        request: BulkRequest<IngressSpecification>
+        request: BulkRequest<NetworkIPSpecification>
     ): List<String> {
         if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
             throw RPCException("You are not a member of the supplied project", HttpStatusCode.Forbidden)
@@ -227,170 +244,178 @@ class IngressService(
 
         return request.items.groupBy { it.product.provider }.flatMap { (provider, specs) ->
             val comms = providers.prepareCommunication(provider)
-            val api = comms.ingressApi
-                ?: throw RPCException("Ingress is not supported by this provider: $provider", HttpStatusCode.BadRequest)
-
-            val settingsByProduct = specs.groupBy { it.product }.map { (product, _) ->
-                product to api.retrieveSettings
-                    .call(product, comms.client)
-                    .orRethrowAs {
-                        if (it.statusCode == HttpStatusCode.NotFound) {
-                            throw RPCException("Invalid product", HttpStatusCode.NotFound)
-                        } else {
-                            throw RPCException(it.error?.why ?: it.statusCode.description, it.statusCode)
-                        }
-                    }
-            }.toMap()
+            val api = comms.networkApi
+                ?: throw RPCException("Network is not supported by this provider: $provider", HttpStatusCode.BadRequest)
 
             // NOTE(Dan): It is important that this is performed in a single transaction to allow the provider to
             // immediately start calling us back about these resources, even before it has successfully created the
             // resource. This allows the provider to, for example, perform a charge on the resource before it has
             // been marked as 'created'.
-            val ingress = db.withSession { session ->
+            val network = db.withSession { session ->
                 specs.map { spec ->
                     val product =
-                        productCache.find<Product.Ingress>(
+                        productCache.find<Product.NetworkIP>(
                             spec.product.provider,
                             spec.product.id,
                             spec.product.category
                         ) ?: throw RPCException("Invalid product", HttpStatusCode.BadRequest)
 
-                    val settings = settingsByProduct[spec.product]
-                        ?: throw RPCException("Invalid product", HttpStatusCode.BadRequest)
-
-                    val isValid = spec.domain.startsWith(settings.domainPrefix) &&
-                        spec.domain.endsWith(settings.domainSuffix)
-
-                    if (!isValid) {
-                        throw RPCException(
-                            "Invalid ingress supplied. Example: " +
-                                "${settings.domainPrefix}XXXX${settings.domainSuffix}", HttpStatusCode.BadRequest
-                        )
-                    }
-
-                    val requestedPart = spec.domain
-                        .removePrefix(settings.domainPrefix)
-                        .removeSuffix(settings.domainSuffix)
-
-                    // A few more sanity checks
-                    if (!requestedPart.matches(Regex("[A-Za-z0-9_-]+"))) {
-                        throw RPCException("Ingress contains invalid characters", HttpStatusCode.BadRequest)
-                    }
-
-                    if (requestedPart.length > 100) {
-                        throw RPCException("Supplied ingress is too long", HttpStatusCode.BadRequest)
-                    }
-
                     val id = UUID.randomUUID().toString()
-                    val ingress = Ingress(
+                    val network = NetworkIP(
                         id,
-                        IngressSpecification(
-                            spec.domain,
+                        NetworkIPSpecification(
                             spec.product,
+                            spec.firewall,
                         ),
-                        IngressOwner(actor.safeUsername(), project),
+                        NetworkIPOwner(actor.safeUsername(), project),
                         Time.now(),
-                        IngressStatus(null, IngressState.PREPARING),
-                        IngressBilling(product.pricePerUnit, 0L),
+                        NetworkIPStatus(NetworkIPState.PREPARING),
+                        NetworkIPBilling(product.pricePerUnit, 0L),
                         resolvedProduct = product
                     )
 
-                    dao.create(session, ingress)
-                    ingress
+                    dao.create(session, network)
+                    network
                 }
             }
 
             val createResp = api.create.call(
-                bulkRequestOf(ingress),
+                bulkRequestOf(network),
                 comms.client
             )
 
             if (!createResp.statusCode.isSuccess()) {
-                delete(Actor.System, bulkRequestOf(ingress.map { IngressRetrieve(it.id) }))
+                delete(Actor.System, bulkRequestOf(network.map { NetworkIPRetrieve(it.id) }))
                 createResp.throwError()
             }
 
-            ingress.map { it.id }
+            network.map { it.id }
         }
     }
 
     suspend fun update(
         actor: Actor,
-        request: IngressControlUpdateRequest
+        request: NetworkIPControlUpdateRequest
     ) {
         db.withSession { session ->
             val now = Time.now()
             for ((id, requests) in request.items.groupBy { it.id }) {
-                val ingress = dao.retrieve(session, IngressId(id), IngressDataIncludeFlags())
+                val network = dao.retrieve(session, NetworkIPId(id), NetworkIPDataIncludeFlags())
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-                providers.verifyProvider(ingress.specification.product.provider, actor)
+                providers.verifyProvider(network.specification.product.provider, actor)
 
                 requests.forEach { request ->
                     dao.insertUpdate(
                         session,
-                        IngressId(id),
-                        IngressUpdate(
+                        NetworkIPId(id),
+                        NetworkIPUpdate(
                             now,
                             request.state,
                             request.status,
                             request.clearBindingToJob == true,
-                            newBinding = null
-                        )
+                            newBinding = null,
+                            changeIpAddress = request.changeIpAddress,
+                            newIpAddress = request.newIpAddress,
+                        ),
                     )
                 }
             }
         }
     }
 
-    suspend fun retrieveSettings(
-        actor: Actor,
-        requestedProduct: ProductReference
-    ): IngressSettings {
-        val comms = providers.prepareCommunication(requestedProduct.provider)
-        val ingressApi = comms.ingressApi ?: throw RPCException("Ingress not supported", HttpStatusCode.BadRequest)
-        return ingressApi.retrieveSettings.call(
-            requestedProduct,
-            comms.client
-        ).orThrow()
-    }
-
     suspend fun charge(
         actor: Actor,
-        request: IngressControlChargeCreditsRequest
-    ): IngressControlChargeCreditsResponse {
-        val insufficient = ArrayList<IngressId>()
-        val duplicates = ArrayList<IngressId>()
+        request: NetworkIPControlChargeCreditsRequest
+    ): NetworkIPControlChargeCreditsResponse {
+        val insufficient = ArrayList<NetworkIPId>()
+        val duplicates = ArrayList<NetworkIPId>()
 
         db.withSession { session ->
             for ((id, requests) in request.items.groupBy { it.id }) {
-                val ingress = dao.retrieve(session, IngressId(id), IngressDataIncludeFlags())
+                val network = dao.retrieve(session, NetworkIPId(id), NetworkIPDataIncludeFlags())
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-                providers.verifyProvider(ingress.specification.product.provider, actor)
+                providers.verifyProvider(network.specification.product.provider, actor)
 
                 requests.forEach { request ->
                     val chargeResult = paymentService.charge(
-                        Payment.OfIngress(ingress, request.units, request.chargeId)
+                        Payment.OfNetworkIP(network, request.units, request.chargeId)
                     )
 
                     when (chargeResult) {
                         is PaymentService.ChargeResult.Charged -> {
-                            dao.chargeCredits(session, IngressId(id), chargeResult.amountCharged)
+                            dao.chargeCredits(session, NetworkIPId(id), chargeResult.amountCharged)
                         }
 
                         PaymentService.ChargeResult.InsufficientFunds -> {
-                            insufficient.add(IngressId(id))
+                            insufficient.add(NetworkIPId(id))
                         }
 
                         PaymentService.ChargeResult.Duplicate -> {
-                            duplicates.add(IngressId(id))
+                            duplicates.add(NetworkIPId(id))
                         }
                     }
                 }
             }
         }
 
-        return IngressControlChargeCreditsResponse(insufficient, duplicates)
+        return NetworkIPControlChargeCreditsResponse(insufficient, duplicates)
     }
+
+    suspend fun updateAcl(
+        actor: Actor,
+        request: BulkRequest<NetworkIPsUpdateAclRequestItem>,
+    ) {
+        db.withSession { session ->
+            request.items.forEach { update ->
+                val network = dao.updateAcl(session, update, update.acl)
+                checkWritePermission(actor, network)
+            }
+        }
+    }
+
+    suspend fun updateFirewall(
+        actor: Actor,
+        request: BulkRequest<FirewallAndId>,
+    ) {
+        db.withSession { session ->
+            val networks = request.items.map { update ->
+                val network = dao.updateFirewall(session, update, update.firewall)
+                checkWritePermission(actor, network)
+
+                network
+            }
+
+            networks.groupBy { it.specification.product.provider }.forEach { (provider, networks) ->
+                val comms = providers.prepareCommunication(provider)
+                comms.networkApi?.updateFirewall?.call(
+                    bulkRequestOf(
+                        networks.mapNotNull {
+                            FirewallAndId(it.id, it.specification.firewall ?: return@mapNotNull null)
+                        }
+                    ),
+                    comms.client
+                )?.orThrow()
+            }
+        }
+    }
+
+    private suspend fun checkWritePermission(
+        actor: Actor,
+        network: NetworkIP,
+    ) {
+        if (actor != Actor.System) {
+            val project = network.owner.project
+            if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
+                throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+            }
+
+            if (project == null && network.owner.createdBy != actor.safeUsername()) {
+                throw RPCException(genericErrorMessage, HttpStatusCode.NotFound)
+            }
+        }
+    }
+
+    private val genericErrorMessage = "Not found or permission denied"
 }

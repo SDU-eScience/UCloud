@@ -186,21 +186,21 @@ class JobQueryService(
         }
 
         if (flags.includeApplication == true) {
-            val uniqueApplications = jobs.map { it.parameters.application }.toSet().mapNotNull {
+            val uniqueApplications = jobs.map { it.specification.application }.toSet().mapNotNull {
                 appStoreCache.apps.get(it)
             }.associateBy { NameAndVersion(it.metadata.name, it.metadata.version) }
 
             jobs = jobs.map { job ->
                 job.copy(
-                    specification = job.parameters
-                        .copy(resolvedApplication = uniqueApplications[job.parameters.application])
+                    specification = job.specification
+                        .copy(resolvedApplication = uniqueApplications[job.specification.application])
                 )
             }
         }
 
         if (flags.includeProduct == true) {
             val uniqueMachines = jobs
-                .map { it.parameters.product }
+                .map { it.specification.product }
                 .toSet()
                 .map {
                     it to productCache.find<Product.Compute>(it.provider, it.id, it.category)
@@ -209,7 +209,7 @@ class JobQueryService(
 
             jobs = jobs.map { job ->
                 job.copy(
-                    specification = job.specification.copy(resolvedProduct = uniqueMachines[job.parameters.product])
+                    specification = job.specification.copy(resolvedProduct = uniqueMachines[job.specification.product])
                 )
             }
         }

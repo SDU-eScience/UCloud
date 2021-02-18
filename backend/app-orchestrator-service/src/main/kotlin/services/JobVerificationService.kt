@@ -483,8 +483,8 @@ class JobVerificationService(
         }
 
         val job = jobWithToken.job
-        val parameters = job.parameters.parameters ?: return HasPermissionForExistingMount(false, "/")
-        val resources = job.parameters.resources ?: return HasPermissionForExistingMount(false, "/")
+        val parameters = job.specification.parameters ?: return HasPermissionForExistingMount(false, "/")
+        val resources = job.specification.resources ?: return HasPermissionForExistingMount(false, "/")
         val allFiles =
             parameters.values.filterIsInstance<AppParameterValue.File>() +
                 resources.filterIsInstance<AppParameterValue.File>() +

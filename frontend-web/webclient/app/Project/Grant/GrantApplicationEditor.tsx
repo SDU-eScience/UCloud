@@ -1144,6 +1144,20 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </>
                         }
 
+                        {state.wallets.filter(wallet => wallet.area == "NETWORK_IP").length < 1 ? null :
+                            <>
+                                <Heading.h4 mt={32}><Flex>Public IPs <ProductLink/></Flex></Heading.h4>
+                                <ResourceContainer>
+                                    {state.wallets.map((it, idx) => (
+                                        it.area !== "NETWORK_IP" ? null :
+                                            <GenericRequestCard key={idx} wb={it} state={state}
+                                                                grantFinalized={grantFinalized} isLocked={isLocked}
+                                                                icon={"moon"}/>
+                                    ))}
+                                </ResourceContainer>
+                            </>
+                        }
+
                         <CommentApplicationWrapper>
                             <RequestFormContainer>
                                 <Heading.h4>Application</Heading.h4>

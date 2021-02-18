@@ -16,7 +16,8 @@ enum class ProductArea {
     STORAGE,
     COMPUTE,
     INGRESS,
-    LICENSE
+    LICENSE,
+    NETWORK_IP
 }
 
 data class ProductCategory(
@@ -80,6 +81,7 @@ sealed class ProductAvailability {
     JsonSubTypes.Type(value = Product.Compute::class, name = "compute"),
     JsonSubTypes.Type(value = Product.Ingress::class, name = "ingress"),
     JsonSubTypes.Type(value = Product.License::class, name = "license"),
+    JsonSubTypes.Type(value = Product.NetworkIP::class, name = "network_ip"),
 )
 sealed class Product {
     abstract val category: ProductCategoryId
@@ -174,6 +176,26 @@ sealed class Product {
     ) : Product() {
         @get:JsonIgnore
         override val area = ProductArea.LICENSE
+
+        init {
+            require(pricePerUnit >= 0)
+            require(id.isNotBlank())
+            require(description.count { it == '\n' } == 0)
+        }
+    }
+
+    data class NetworkIP(
+        override val id: String,
+        override val pricePerUnit: Long,
+        override val category: ProductCategoryId,
+        override val description: String = "",
+        override val hiddenInGrantApplications: Boolean = false,
+        override val availability: ProductAvailability = ProductAvailability.Available(),
+        override val priority: Int = 0,
+        val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
+    ) : Product() {
+        @get:JsonIgnore
+        override val area = ProductArea.NETWORK_IP
 
         init {
             require(pricePerUnit >= 0)
