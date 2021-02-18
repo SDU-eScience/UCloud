@@ -129,7 +129,7 @@ function statusToError(status: number): string {
 function formatFromFileName(type: string): string {
     if (type.endsWith(".zip"))
         return "zip";
-    else if (type.endsWith(".tar.gz"))
+    else if (type.endsWith(".tar.gz") || type.endsWith(".tgz"))
         return "tgz";
     return "";
 }

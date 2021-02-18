@@ -585,7 +585,7 @@ export const fileInfoPage = (path: string): string => `/files/info?path=${encode
 export const filePreviewPage = (path: string): string => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
-export const archiveExtensions: string[] = [".tar.gz", ".zip"];
+export const archiveExtensions: string[] = [".tgz", ".tar.gz", ".zip"];
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
 export function isTrashFolder(path: string): boolean {
