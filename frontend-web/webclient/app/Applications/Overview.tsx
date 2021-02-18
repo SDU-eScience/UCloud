@@ -119,7 +119,7 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
                 />
             )}
 
-            {defaultTools.map(tag => <ToolGroup key={tag} tag={tag} />)}
+            {defaultTools.map(tag => <ToolGroup refreshId={refreshId} key={tag} tag={tag} />)}
         </>
     );
     return (<MainContainer main={main} />);
@@ -269,18 +269,15 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     );
 };
 
-const TEN_MINUTES_IN_MILLIS = 1_000 * 60 * 10;
-
-const ToolGroup: React.FunctionComponent<{tag: string}> = ({tag}) => {
+const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({tag, refreshId}) => {
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
-        emptyPage,
-        {cacheKey: "ToolGroup" + tag, cacheTtlMs: TEN_MINUTES_IN_MILLIS}
+        emptyPage
     );
 
     useEffect(() => {
         fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
-    }, [tag]);
+    }, [tag, refreshId]);
 
     const page = appResp.data;
     const allTags = page.items.map(it => it.tags);
