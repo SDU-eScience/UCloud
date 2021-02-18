@@ -23,7 +23,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute, file} from "UCloud";
+import {compute, file, accounting} from "UCloud";
 import Job = compute.Job;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -38,6 +38,8 @@ import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import StorageFile = file.StorageFile;
 import {File} from "Files";
 import JobSpecification = compute.JobSpecification;
+import { retrieveBalance, RetrieveBalanceResponse} from "Accounting";
+import { addStandardDialog } from "UtilityComponents";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -162,6 +164,11 @@ const Container = styled.div`
   &.RUNNING {
     --logoScale: 0.5;
   }
+
+  .top-buttons {
+      display: flex;
+      gap: 8px;
+  }
 `;
 
 // TODO WS calls don't currently have their types generated
@@ -210,6 +217,10 @@ export const View: React.FunctionComponent = () => {
 
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
+    const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
+        retrieveBalance({includeChildren: true}),
+        {wallets: []}
+    );
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -227,7 +238,47 @@ export const View: React.FunctionComponent = () => {
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
     const [logoAnimationAllowed, setLogoAnimationAllowed] = useState<boolean>(false);
+    const [showInsufficientFundsWarning, setShowInsufficientFundsWarning] = useState<boolean>(true);
     const [status, setStatus] = useState<JobStatus | null>(null);
+
+    async function confirmExtendAllocation(duration: number): Promise<boolean> {
+        if (showInsufficientFundsWarning) {
+            fetchBalance({...balanceParams, reloadId: Math.random()});
+            const balance = balanceFetcher.data;
+            if (!balance || !status?.expiresAt || !job) {
+                return true;
+            }
+
+            const expires = status.expiresAt + (3600 * 1000 * duration);
+            const needed = Math.floor(((expires - new Date().getTime()) / 1000 / 60) * job.billing.pricePerUnit) * job.specification.replicas;
+            const wallet = balance.wallets.find(it => it.wallet.paysFor.id === job.specification.resolvedProduct?.category.id);
+
+            if (!wallet) {
+                return true;
+            }
+
+            if (wallet.balance < needed) {
+                const extend = await new Promise(resolve => addStandardDialog({
+                    title: "Extend job beyond balance?",
+                    message: <>
+                        <Box mb="20px">You are trying to extend the allocation of the job beyond your current funds.</Box>
+                        <Box><b>Current balance:</b> {creditFormatter(wallet.balance)}</Box>
+                        <Box><b>New estimated cost for finishing the job:</b> {creditFormatter(needed)}</Box>
+                        <Box mt="20px">You are allowed to do so, but your job will be terminated without warning when your balance reaches 0 DKK.</Box>
+                    </>,
+                    confirmText: "Extend allocation",
+                    cancelText: "Cancel",
+                    onConfirm: () => { resolve(true) },
+                    onCancel: () => { resolve(false) }
+                }));
+
+                setShowInsufficientFundsWarning(false);
+
+                if (!extend) { return false }
+            }
+        }
+        return true;
+    }
 
     useEffect(() => {
         if (useFakeState) {
@@ -367,7 +418,12 @@ export const View: React.FunctionComponent = () => {
                                 </div>
                             </Flex>
 
-                            <RunningContent job={job} updateListeners={jobUpdateCallbackHandlers} status={status} />
+                            <RunningContent
+                                job={job}
+                                updateListeners={jobUpdateCallbackHandlers}
+                                status={status}
+                                confirmExtendAllocation={confirmExtendAllocation}
+                            />
                         </div>
                     </CSSTransition>
                 )}
@@ -539,7 +595,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
     return <InfoCardsContainer>
         <InfoCard
             stat={job.specification.replicas.toString()}
-            statTitle={job.specification.replicas === 1 ? "Replica" : "Replicas"}
+            statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
             icon={"cpu"}
         >
             <b>{job.specification.product.provider} / {job.specification.product.id}</b><br />
@@ -613,15 +669,22 @@ const InfoCard: React.FunctionComponent<{
 
 const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
-        <Heading.h2>
-            {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
-        </Heading.h2>
-        <Heading.h3>
-            <i>
-                {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                {" "}v{job.specification.application.version}
-            </i>
-        </Heading.h3>
+        <Flex justifyContent={"space-between"}>
+            <Box>
+                <Heading.h2>
+                    {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
+                </Heading.h2>
+                <Heading.h3>
+                    <i>
+                        {job.specification.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                        {" "}v{job.specification.application.version}
+                    </i>
+                </Heading.h3>
+            </Box>
+            {job.specification.replicas > 1 ? null : (
+                <RunningButtonGroup job={job} rank={0} />
+            )}
+        </Flex>
     </>;
 };
 
@@ -678,7 +741,8 @@ const RunningContent: React.FunctionComponent<{
     job: Job;
     updateListeners: React.RefObject<JobUpdateListener[]>;
     status: JobStatus;
-}> = ({job, updateListeners, status}) => {
+    confirmExtendAllocation: (duration: number) => Promise<boolean>;
+}> = ({job, updateListeners, status, confirmExtendAllocation}) => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const projects = useProjectStatus();
@@ -686,14 +750,16 @@ const RunningContent: React.FunctionComponent<{
     const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
         const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
         if (!commandLoading && expiresAt) {
-            setExpiresAt(expiresAt + (3600 * 1000 * duration));
-            try {
-                await invokeCommand(compute.jobs.extend({
-                    jobId: job.id,
-                    requestedTime: {hours: duration, minutes: 0, seconds: 0}
-                }));
-            } catch (e) {
-                setExpiresAt(expiresAt);
+            if (await confirmExtendAllocation(duration)) {
+                setExpiresAt(expiresAt + (3600 * 1000 * duration));
+                try {
+                    await invokeCommand(compute.jobs.extend({
+                        jobId: job.id,
+                        requestedTime: {hours: duration, minutes: 0, seconds: 0}
+                    }));
+                } catch (e) {
+                    setExpiresAt(expiresAt);
+                }
             }
         }
     }, [job.id, commandLoading, expiresAt]);
@@ -880,7 +946,7 @@ const RunningJobRank: React.FunctionComponent<{
 }> = ({job, rank, updateListeners}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
     const [expanded, setExpanded] = useState(false);
-    const toggleExpand = useCallback(() => {
+    const toggleExpand = useCallback((autoScroll: boolean = true) => {
         setExpanded(!expanded);
         const targetView = termRef.current?.parentElement;
         if (targetView != null) {
@@ -889,9 +955,11 @@ const RunningJobRank: React.FunctionComponent<{
                 fitAddon.fit();
                 fitAddon.fit();
                 fitAddon.fit();
-                window.scrollTo({
-                    top: targetView.getBoundingClientRect().top - 100 + window.pageYOffset,
-                });
+                if (autoScroll) {
+                    window.scrollTo({
+                        top: targetView.getBoundingClientRect().top - 100 + window.pageYOffset,
+                    });
+                }
             }, 0);
         }
     }, [expanded, termRef]);
@@ -910,8 +978,11 @@ const RunningJobRank: React.FunctionComponent<{
                 }
             }
         });
-
         // NOTE(Dan): Clean up is performed by the parent object
+
+        if (job.specification.replicas === 1) {
+            toggleExpand(false)
+        }
     }, [job.id, rank]);
 
     return <>
@@ -919,50 +990,14 @@ const RunningJobRank: React.FunctionComponent<{
             <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
                 <div className="rank">
                     <Heading.h2>{rank + 1}</Heading.h2>
-                    <Heading.h3>Rank</Heading.h3>
+                    <Heading.h3>Node</Heading.h3>
                 </div>
 
                 <div className={"term"} ref={termRef} />
 
-                <div className="buttons">
-                    {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
-                        "VIRTUAL_MACHINE" ? null :
-                        <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                            e.preventDefault();
-
-                            window.open(
-                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                undefined,
-                                "width=800,height=600,status=no"
-                            );
-                        }}>
-                            <Button type={"button"}>
-                                Open terminal
-                            </Button>
-                        </Link>
-                    }
-                    {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
-                        <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                            <Button>Open interface</Button>
-                        </Link>
-                    )}
-                    {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
-                        <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
-                            e.preventDefault();
-
-                            window.open(
-                                ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                                `vnc-${job.id}-${rank}`,
-                                "width=800,height=450,status=no"
-                            );
-                        }}>
-                            <Button>Open interface</Button>
-                        </Link>
-                    )}
-                    <Button className={"expand-btn"} onClick={toggleExpand}>
-                        {expanded ? "Shrink" : "Expand"} output
-                    </Button>
-                </div>
+                {job.specification.replicas === 1 ? null : (
+                    <RunningButtonGroup job={job} rank={rank} expanded={expanded} toggleExpand={toggleExpand}></RunningButtonGroup>
+                )}
             </RunningJobRankWrapper>
         </DashboardCard>
     </>;
@@ -1048,6 +1083,56 @@ const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
         />
     </OutputFilesWrapper>;
 };
+
+const RunningButtonGroup: React.FunctionComponent<{
+    job: Job,
+    rank: number,
+    expanded?: boolean | false,
+    toggleExpand?: () => void | undefined
+}> = ({job, rank, expanded, toggleExpand}) => {
+    return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
+        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
+            "VIRTUAL_MACHINE" ? null : (
+            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
+                e.preventDefault();
+
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    undefined,
+                    "width=800,height=600,status=no"
+                );
+            }}>
+                <Button type={"button"}>
+                    Open terminal
+                </Button>
+            </Link>
+        )}
+        {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+            <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
+                <Button>Open interface</Button>
+            </Link>
+        )}
+        {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+            <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
+                e.preventDefault();
+
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    `vnc-${job.id}-${rank}`,
+                    "width=800,height=450,status=no"
+                );
+            }}>
+                <Button>Open interface</Button>
+            </Link>
+        )}
+        {job.specification.replicas === 1 ? null :
+            <Button className={"expand-btn"} onClick={toggleExpand}>
+                {expanded ? "Shrink" : "Expand"} output
+            </Button>
+        }
+    </div>
+};
+
 
 const CancelButton: React.FunctionComponent<{
     job: Job,

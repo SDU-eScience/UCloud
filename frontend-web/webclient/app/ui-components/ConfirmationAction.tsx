@@ -40,7 +40,7 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
 
   & > .icons {
     border-radius: 50%;
-    top: 12px;
+    top: 9px;
     left: 15px;
     position: absolute;
     background: var(--progress-border);
@@ -299,7 +299,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     return <Wrapper {...passedProps} onMouseDown={start} onTouchStart={start} onMouseUp={end} onTouchEnd={end}
                     onClick={doNothing} ref={buttonRef}>
         <div className={"ucloud-native-icons"}>
-            <Icon name={props.icon} size={"20"}/>
+            <Icon name={props.icon} size={"20"} mb="3px" />
         </div>
         <div className={"icons"}>
             <svg className="progress" viewBox="0 0 32 32">
