@@ -226,6 +226,7 @@ export const Browse: React.FunctionComponent = () => {
                 }}
             />
         </>}
+        sidebarSize={290}
     />;
 };
 
