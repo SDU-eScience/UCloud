@@ -632,27 +632,6 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
                             onClick={() => setEditing(licenseServer)}
                         />
                     </Box>
-
-                    <Box>
-                        <Button
-                            color={"red"}
-                            type={"button"}
-                            px={10}
-
-                            onClick={() => addStandardDialog({
-                                title: `Are you sure?`,
-                                message: `Mark license server '${licenseServer.id}' as inactive?`,
-                                onConfirm: async () => {
-                                    // TODO
-                                    reload();
-                                }
-                            })}
-                        >
-                            <Icon size={16} name="trash" />
-                        TODO
-                    </Button>
-                    </Box>
-
                     {!projectId ? null : (
                         <Box>
                             <Button onClick={() => setGranting(licenseServer)}>
