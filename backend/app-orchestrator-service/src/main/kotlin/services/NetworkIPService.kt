@@ -27,6 +27,7 @@ class NetworkIPService(
     private val productCache: ProductCache,
     orchestrator: JobOrchestrator,
     private val paymentService: PaymentService,
+    private val devMode: Boolean = false,
 ) {
     init {
         orchestrator.addListener(object : JobListener {
@@ -105,7 +106,7 @@ class NetworkIPService(
                         if (product.paymentModel == PaymentModel.FREE_BUT_REQUIRE_BALANCE) {
                             paymentService.creditCheck(
                                 product,
-                                job.owner.project ?: job.owner.launchedBy,
+                                job.owner.project ?: job.owner.createdBy,
                                 if (job.owner.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
                             )
                         }
@@ -170,14 +171,17 @@ class NetworkIPService(
         val result = dao.retrieve(db, id, flags) ?: throw RPCException(notFoundMessage, HttpStatusCode.NotFound)
 
         val (username, project) = result.owner
-        if (actor is Actor.User && actor.principal.role == Role.PROVIDER) {
+        if (actor is Actor.User &&
+            (actor.principal.role == Role.PROVIDER || (actor.principal.role == Role.SERVICE && devMode))) {
             providers.verifyProvider(result.specification.product.provider, actor)
         } else {
             if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {
+                log.debug("Actor is not a member of the project $actor $project")
                 throw RPCException(notFoundMessage, HttpStatusCode.NotFound)
             }
 
             if (project == null && username != actor.safeUsername()) {
+                log.debug("Actor is not owner of the personal workspace")
                 throw RPCException(notFoundMessage, HttpStatusCode.NotFound)
             }
         }
@@ -418,4 +422,8 @@ class NetworkIPService(
     }
 
     private val genericErrorMessage = "Not found or permission denied"
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }

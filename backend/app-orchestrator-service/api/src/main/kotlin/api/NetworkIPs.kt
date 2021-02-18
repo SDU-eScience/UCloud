@@ -74,6 +74,26 @@ data class FirewallAndId(
                 }
             }
         }
+
+        val numberOfOpenPorts = firewall.openPorts.sumBy { it.end - it.start + 1 }
+        if (numberOfOpenPorts > 15_000) {
+            // NOTE(Dan): UCloud/compute fails if too many ports are specified (Kubernetes rejects the request)
+            throw RPCException(
+                "UCloud does not allow for more than 15000 ports to be opened for a single IP address",
+                HttpStatusCode.BadRequest
+            )
+        }
+
+        firewall.openPorts.forEach { port ->
+            if (port.start !in MIN_PORT..MAX_PORT || port.end !in MIN_PORT..MAX_PORT) {
+                throw RPCException("Invalid port number: ${port.start}..${port.end}", HttpStatusCode.BadRequest)
+            }
+        }
+    }
+
+    companion object {
+        private const val MIN_PORT = 0
+        private const val MAX_PORT = 65535
     }
 }
 

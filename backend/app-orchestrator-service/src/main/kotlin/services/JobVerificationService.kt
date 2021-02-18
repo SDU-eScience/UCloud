@@ -273,6 +273,7 @@ class JobVerificationService(
                     is ApplicationParameter.Peer,
                     is ApplicationParameter.LicenseServer,
                     is ApplicationParameter.Ingress,
+                    is ApplicationParameter.NetworkIP,
                     -> null // Not supported and application should not have been validated. Silently fail.
 
                     is ApplicationParameter.Text -> {
@@ -362,6 +363,10 @@ class JobVerificationService(
 
                 is ApplicationParameter.Ingress -> {
                     if (providedValue !is AppParameterValue.Ingress) badValue(param)
+                }
+
+                is ApplicationParameter.NetworkIP -> {
+                    if (providedValue !is AppParameterValue.Network) badValue(param)
                 }
             }
         }

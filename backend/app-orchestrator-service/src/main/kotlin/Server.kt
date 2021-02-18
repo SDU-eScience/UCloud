@@ -132,7 +132,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         val networkDao = NetworkIPDao(productCache)
         val networkService = NetworkIPService(db, networkDao, providers, projectCache, productCache, jobOrchestrator,
-            paymentService)
+            paymentService, micro.developmentModeEnabled)
 
         with(micro.server) {
             configureControllers(

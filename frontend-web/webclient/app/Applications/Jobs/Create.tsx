@@ -30,6 +30,7 @@ import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import JobSpecification = compute.JobSpecification;
+import {NetworkIPResource} from "Applications/Jobs/Resources/NetworkIPs";
 
 interface InsufficientFunds {
     why?: string;
@@ -50,6 +51,8 @@ export const Create: React.FunctionComponent = () => {
 
     const provider = getProviderField();
 
+    const networks = useResource("network", provider,
+        (name) => ({type: "network_ip", description: "", title: "", optional: true, name}));
     const ingress = useResource("ingress", provider,
         (name) => ({type: "ingress", description: "", title: "", optional: true, name}));
     const folders = useResource("resourceFolder", provider,
@@ -102,6 +105,7 @@ export const Create: React.FunctionComponent = () => {
         if (createSpaceForLoadedResources(folders, resources, "file", jobBeingLoaded, importedJob)) return;
         if (createSpaceForLoadedResources(peers, resources, "peer", jobBeingLoaded, importedJob)) return;
         if (createSpaceForLoadedResources(ingress, resources, "ingress", jobBeingLoaded, importedJob)) return;
+        if (createSpaceForLoadedResources(networks, resources, "network", jobBeingLoaded, importedJob)) return;
 
         // Load reservation
         setReservation(importedJob);
@@ -118,6 +122,7 @@ export const Create: React.FunctionComponent = () => {
         injectResources(folders, resources, "file");
         injectResources(peers, resources, "peer");
         injectResources(ingress, resources, "ingress");
+        injectResources(networks, resources, "network");
     }, [application, activeOptParams, folders, peers]);
 
     useLayoutEffect(() => {
@@ -141,6 +146,9 @@ export const Create: React.FunctionComponent = () => {
         const peersValidation = validateWidgets(peers.params);
         peers.setErrors(peersValidation.errors);
 
+        const networkValidation = validateWidgets(networks.params);
+        networks.setErrors(networkValidation.errors);
+
         const ingressValidation = validateWidgets(ingress.params);
         ingress.setErrors(ingressValidation.errors);
 
@@ -155,7 +163,8 @@ export const Create: React.FunctionComponent = () => {
                 parameters: values,
                 resources: Object.values(foldersValidation.values)
                     .concat(Object.values(peersValidation.values))
-                    .concat(Object.values(ingressValidation.values)),
+                    .concat(Object.values(ingressValidation.values))
+                    .concat(Object.values(networkValidation.values)),
                 allowDuplicateJob
             };
 
@@ -193,7 +202,7 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers, ingress]);
+    }, [application, folders, peers, ingress, networks]);
 
     useSidebarPage(SidebarPages.Runs);
     useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
@@ -333,6 +342,11 @@ export const Create: React.FunctionComponent = () => {
 
                     <PeerResource
                         {...peers}
+                        application={application}
+                    />
+
+                    <NetworkIPResource
+                        {...networks}
                         application={application}
                     />
                 </Grid>

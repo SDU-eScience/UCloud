@@ -17,19 +17,25 @@ sealed class Actor {
     object System : Actor() {
         override val username: String
             get() = throw IllegalStateException("No username associated with system")
+
+        override fun toString(): String = "Actor.System"
     }
 
     /**
      * Performed by the system on behalf of a user.
      * This should use permission checks against the user.
      */
-    class SystemOnBehalfOfUser(override val username: String) : Actor()
+    class SystemOnBehalfOfUser(override val username: String) : Actor() {
+        override fun toString(): String = "Actor.SystemOnBehalfOfUser($username)"
+    }
 
     /**
      * Performed by the user. Should check permissions against the user.
      */
     class User(val principal: SecurityPrincipal) : Actor() {
         override val username = principal.username
+
+        override fun toString(): String = "Actor.User(${username}, ${principal.role})"
     }
 
     companion object {
@@ -51,5 +57,6 @@ fun SecurityPrincipal?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
 fun SecurityPrincipalToken?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
 
 data class ActorAndProject(val actor: Actor, val project: String?)
+
 val CallHandler<*, *, *>.actorAndProject: ActorAndProject
     get() = ActorAndProject(ctx.securityPrincipalOrNull.toActorOrGuest(), ctx.project)

@@ -175,7 +175,7 @@ class NetworkIPService(
                         containerPort = port,
                         hostPort = port,
                         hostIP = ip,
-                        name = "${idx}_${port}",
+                        name = "pf${idx}-${port}",
                         protocol = when (portRange.protocol) {
                             IPProtocol.TCP -> "TCP"
                             IPProtocol.UDP -> "UDP"

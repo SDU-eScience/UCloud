@@ -75,6 +75,10 @@ interface ArgumentBuilder {
                 is ApplicationParameter.Ingress -> {
                     return (value as AppParameterValue.Ingress).id
                 }
+
+                is ApplicationParameter.NetworkIP -> {
+                    return (value as AppParameterValue.Network).id
+                }
             }
         }
     }
