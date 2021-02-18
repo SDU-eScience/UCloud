@@ -19,7 +19,8 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 8,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -60,7 +61,8 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 0,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -98,7 +100,8 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 2,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -125,15 +128,16 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
             owner: {
                 createdBy: "user"
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606810527000,
-                    "state": "FAILURE"
+                    timestamp: 1606810527000,
+                    state: "FAILURE"
                 }
             ],
-            "billing": {
-                "creditsCharged": 0,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 0,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -142,11 +146,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true
+                replicas: 1,
+                allowDuplicateJob: true
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -157,18 +161,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068105910,
             id: "245cd7ba-ec9e-499f-8da0-a6d41c118387",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606810591000,
-                    "state": "SUCCESS",
+                    timestamp: 1606810591000,
+                    state: "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 1,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 1,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -177,11 +182,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true,
+                replicas: 1,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -191,18 +196,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068119160,
             id: "51ef3ada-6578-4e3f-aff2-c5591dfe5f36",
-            "owner": {
+            owner: {
                 createdBy: "user"
             },
-            "updates": [
+            updates: [
                 {
                     "timestamp": 1606811916000,
                     "state": "FAILURE"
                 }
             ],
-            "billing": {
-                "creditsCharged": 0,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 0,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -211,11 +217,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true
+                replicas: 1,
+                allowDuplicateJob: true
             },
             status: {
                 startedAt: new Date().getTime() - 10_000,
@@ -225,18 +231,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 1606811964000,
             id: "16f0b2bc-db9b-468e-aadf-d6657cfa2494",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606811964000,
-                    "state": "SUCCESS",
+                    timestamp: 1606811964000,
+                    state: "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 1,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 1,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -245,11 +252,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true,
+                replicas: 1,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -260,18 +267,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068120240,
             id: "bd562fdb-249a-43b9-909d-96279bf96d7b",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
                     "timestamp": 1606812024000,
                     "state": "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 1,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 1,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -280,11 +288,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true
+                replicas: 1,
+                allowDuplicateJob: true
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -295,18 +303,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 1606812666000,
             id: "11d45177-c2c0-4254-9068-03f8ad2cdfeb",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606812666000,
-                    "state": "SUCCESS",
+                    timestamp: 1606812666000,
+                    state: "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 11,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 11,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -315,11 +324,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true,
+                replicas: 1,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -330,18 +339,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068304700,
             id: "ad88b9f5-6bc9-40b4-b6be-bde7de38708e",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
                     "timestamp": 1606830470000,
                     "state": "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 1,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 1,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -350,11 +360,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true
+                replicas: 1,
+                allowDuplicateJob: true
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -365,18 +375,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068306350,
             id: "12a2717f-dd4c-4d24-a948-fe00cadc51e6",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606830635000,
-                    "state": "SUCCESS",
+                    timestamp: 1606830635000,
+                    state: "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 1,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 1,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -385,11 +396,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true,
+                replicas: 1,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -400,18 +411,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068328940,
             id: "c7dccff3-ebd6-4ce8-95c8-1a85ed8b56d2",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606832894000,
-                    "state": "SUCCESS",
+                    timestamp: 1606832894000,
+                    state: "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 1,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 1,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -420,11 +432,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true,
+                replicas: 1,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -435,18 +447,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068334080,
             id: "2b691748-9ad1-4ed3-bbe3-2f651245a041",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606833408000,
-                    "state": "SUCCESS",
+                    timestamp: 1606833408000,
+                    state: "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 7,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 7,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -455,11 +468,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true,
+                replicas: 1,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -470,18 +483,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068342270,
             id: "94606ccd-af7f-43ce-b3bf-95e8858f12a1",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606834227000,
-                    "state": "SUCCESS",
+                    timestamp: 1606834227000,
+                    state: "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 0,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 0,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -490,11 +504,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 3,
-                "allowDuplicateJob": true,
+                replicas: 3,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -505,18 +519,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16068347160,
             id: "aab92994-bed7-43f9-9ef4-cb9a7f60715b",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606834506000,
-                    "state": "SUCCESS",
+                    timestamp: 1606834506000,
+                    state: "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 0,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 0,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -525,11 +540,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 3,
-                "allowDuplicateJob": true,
+                replicas: 3,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -551,7 +566,8 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 12,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -560,8 +576,8 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
                 replicas: 1,
                 allowDuplicateJob: true,
@@ -586,7 +602,8 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 1,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -595,8 +612,8 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
                 replicas: 1,
                 allowDuplicateJob: true
@@ -621,7 +638,8 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
             ],
             billing: {
                 creditsCharged: 24,
-                pricePerUnit: 1
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -630,10 +648,10 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
+                replicas: 1,
                 "allowDuplicateJob": true
             },
             status: {
@@ -654,9 +672,10 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                     "state": "SUCCESS",
                 }
             ],
-            "billing": {
-                "creditsCharged": 62,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 62,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
@@ -665,11 +684,11 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
                 },
                 product: {
                     id: "u1-standard-1",
-                    "category": "u1-standard",
-                    "provider": "ucloud"
+                    category: "u1-standard",
+                    provider: "ucloud"
                 },
-                "replicas": 1,
-                "allowDuplicateJob": true,
+                replicas: 1,
+                allowDuplicateJob: true,
             },
             status: {
                 expiresAt: new Date().getTime() + 30_000,
@@ -680,18 +699,19 @@ export const runs: UCloud.PageV2<UCloud.compute.Job> = {
         {
             createdAt: 16069027640,
             id: "83fb8069-6a0e-4d7b-9910-a9e8c63624a5",
-            "owner": {
+            owner: {
                 createdBy: "user",
             },
-            "updates": [
+            updates: [
                 {
-                    "timestamp": 1606902764000,
-                    "state": "RUNNING",
+                    timestamp: 1606902764000,
+                    state: "RUNNING",
                 }
             ],
-            "billing": {
-                "creditsCharged": 0,
-                "pricePerUnit": 1
+            billing: {
+                creditsCharged: 0,
+                pricePerUnit: 1,
+                __creditsAllocatedToWalletDoNotDependOn__: 0
             },
             specification: {
                 application: {
