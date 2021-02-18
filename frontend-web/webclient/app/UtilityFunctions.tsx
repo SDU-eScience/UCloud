@@ -13,6 +13,7 @@ import {getStoredProject} from "Project/Redux";
 import {JWT} from "Authentication/lib";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
+import CONF from "../site.config.json";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -486,6 +487,7 @@ export function delay(ms: number): Promise<void> {
  * even if the code may be deployed on production.
  */
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
+export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE;
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
