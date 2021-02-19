@@ -6,7 +6,7 @@ import * as UCloud from "UCloud"
 import {emptyPageV2} from "DefaultObjects";
 import {ListV2} from "Pagination";
 import * as Heading from "ui-components/Heading";
-import {Button, List} from "ui-components";
+import {Button, Link, List} from "ui-components";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {useHistory} from "react-router";
 import {useTitle} from "Navigation/Redux/StatusActions";
@@ -28,7 +28,6 @@ function Providers(): JSX.Element | null {
     const history = useHistory();
     const toggleSet = useToggleSet(providers.data.items);
 
-    if (!Client.userIsAdmin) return null;
     return <MainContainer
         header={<Heading.h2>Providers</Heading.h2>}
         main={
@@ -67,7 +66,7 @@ function Providers(): JSX.Element | null {
                     return (
                         <ListRow
                             key={p.id}
-                            left={p.id}
+                            left={<Link to={`/admin/providers/${p.id}`}>{p.id}</Link>}
                             leftSub={
                                 <ListStatContainer>
                                     <ListRowStat icon={isHttps ? "check" : "close"}>
