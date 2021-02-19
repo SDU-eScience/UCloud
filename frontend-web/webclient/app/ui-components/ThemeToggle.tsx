@@ -39,7 +39,7 @@ export function ThemeToggler({
 
     const [active, setActive] = React.useState<boolean>(isLightTheme);
     return (
-        <Relative onClick={onClick} top="10px" left="82px">
+        <Relative onClick={onClick} marginLeft="auto" marginRight="auto">
             <Wrapper onClick={toggleActive} size={1} active={active}>
                 <Switch size={1} active={active}>
                     <Moon>
@@ -49,9 +49,6 @@ export function ThemeToggler({
                     </Moon>
                 </Switch>
                 <Clouds active={active}>
-                    <Cloud />
-                    <Cloud />
-                    <Cloud />
                     <Cloud />
                     <Cloud />
                     <Cloud />
@@ -75,7 +72,7 @@ const Moon = styled.div`
 
 
 const activeWrapper = ({active}: ThemeToggleProps) => active ? ({
-    background: "#09f"
+    background: "#3F97FF"
 }) : null;
 
 const Wrapper = styled.div<ThemeToggleProps>`
@@ -83,10 +80,7 @@ const Wrapper = styled.div<ThemeToggleProps>`
     width: ${p => p.size * 2.8}em;
     background: #3c4145;
     overflow: hidden;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%,-50%);
-    border-radius: ${p => p.size * 0.8}em;
+    border-radius: ${p => p.size * 0.4}em;
     transition: all 0.35s ease;
     &:hover {
         cursor: pointer;
@@ -95,7 +89,7 @@ const Wrapper = styled.div<ThemeToggleProps>`
 `;
 
 const activeSwitch = ({active, size}: ThemeToggleProps) => active ? ({
-    left: `${size * 1.6}em`,
+    left: `${size * 1.5}em`,
     background: "#ffdf6d",
     borderColor: "#e1c448"
 }) : null;
@@ -107,10 +101,10 @@ const Switch = styled.div<ThemeToggleProps>`
     margin: ${p => p.size * 0.1}em;
     height: ${p => p.size * 1}em;
     width: ${p => p.size * 1}em;
-    left: 0;
-    border-radius: ${p => p.size * 0.6}em;
+    left: ${p => p.size * 0.1}em;
+    border-radius: 50%;
     background: #ffffff;
-    border: ${p => p.size * 0.08}em solid #333;
+    border: ${p => p.size * 0.15}em solid #333;
     box-sizing: border-box;
     border-color: #e3e7c7;
     ${activeSwitch}
@@ -151,42 +145,37 @@ const StarsAndsCloudsBase = styled.div`
     transition: all 0.35s ease;
 `;
 
-
 const Cloud = styled.div`
     position: absolute;
-      background: #fff;
-      border-radius: 999px;
-      &:nth-child(1) {
+    background: #fff;
+    border-radius: 999px;
+    &:nth-child(1) {
         top: 45%;
         left: 25%;
         width: 50%;
-        height: 25%;
+        height: 30%;
         border-radius: 999px;
-      }
-      &:nth-child(2) {
+    }
+    &:nth-child(2) {
         top: 30%;
         left: 52%;
         width: 15%;
         padding-bottom: 15%;
         height: 0;
-      }
-      &:nth-child(3) {
+    }
+    &:nth-child(3) {
         top: 24%;
         left: 32%;
         width: 25%;
         padding-bottom: 25%;
         height: 0;
-      }
     }
 `;
 
 const Clouds = styled(StarsAndsCloudsBase) <{active: boolean}>`
-    left: ${props => props.active ? "-10%" : 0};
+    left: -5%;
     opacity: ${props => props.active ? 1 : 0};
 `;
-
-
-
 
 const activeStar = ({active}: {active: boolean}) => active ? ({
     transform: "scale(0) !important",
@@ -195,9 +184,8 @@ const activeStar = ({active}: {active: boolean}) => active ? ({
 
 const Star = styled.div`
     position: absolute;
-    height: 0;
-    width: 6%;
-    padding-bottom: 6%;
+    height: 3px;
+    width: 3px;
     border-radius: 50%;
     background: #fff;
 
@@ -241,8 +229,7 @@ const Star = styled.div`
     ${activeStar}
 `;
 
-
 const Stars = styled(StarsAndsCloudsBase) <{active: boolean}>`
-    right: ${props => props.active ? "-10%" : 0};
+    right: 0;
     opacity: ${props => props.active ? 0 : 1};
 `;
