@@ -135,7 +135,7 @@ export const AppCard = styled(Link)`
     &:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
         box-shadow: ${theme.shadows.md};
-        transform: scale(1.02);
+        transform: translateY(-2px);
     }
 
     // Background
