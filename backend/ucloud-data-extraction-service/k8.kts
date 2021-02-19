@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "ucloud-data-extraction"
-    version = "0.1.6-22"
+    version = "0.1.6-23"
     
     withAmbassador() {}
 
@@ -14,14 +14,14 @@ bundle {
     }
     
     withPostgresMigration(deployment)
-    withAdHocJob(deployment, "report-center", { listOf("--center", "--startDate", "2020-11-01", "--endDate", "2021-01-31")}) {}
-    withAdHocJob(deployment, "report-center-daily", { listOf("--center-daily", "--startDate", "2020-11-01", "--endDate", "2021-01-31")}) {}
-    withAdHocJob(deployment, "report-center-daily-deic1", { listOf("--center-daily-deic", "--startDate", "2020-11-01", "--endDate", "2020-11-30")}) {}
-    withAdHocJob(deployment, "report-center-daily-deic2", { listOf("--center-daily-deic", "--startDate", "2020-12-01", "--endDate", "2020-12-31")}) {}
-    withAdHocJob(deployment, "report-center-daily-deic3", { listOf("--center-daily-deic", "--startDate", "2021-01-01", "--endDate", "2021-01-31")}) {}
+    withAdHocJob(deployment, "report-center", { listOf("--data-collection" , "--center", "--startDate", "2020-11-01", "--endDate", "2021-01-31")}) {}
+    withAdHocJob(deployment, "report-center-daily", { listOf("--data-collection", "--center-daily", "--startDate", "2020-11-01", "--endDate", "2021-01-31")}) {}
+    withAdHocJob(deployment, "report-center-daily-deic1", { listOf("--data-collection", "--center-daily-deic", "--startDate", "2020-11-01", "--endDate", "2020-11-30")}) {}
+    withAdHocJob(deployment, "report-center-daily-deic2", { listOf("--data-collection", "--center-daily-deic", "--startDate", "2020-12-01", "--endDate", "2020-12-31")}) {}
+    withAdHocJob(deployment, "report-center-daily-deic3", { listOf("--data-collection", "--center-daily-deic", "--startDate", "2021-01-01", "--endDate", "2021-01-31")}) {}
 
-    withAdHocJob(deployment, "report-person", { listOf("--person")}) {}
+    withAdHocJob(deployment, "report-person", { listOf("--data-collection", "--person")}) {}
 
-    withAdHocJob(deployment, "activity-period", { listOf("--activityPeriod")})
+    withAdHocJob(deployment, "activity-period", { listOf("--data-collection", "--activityPeriod")})
 
 }

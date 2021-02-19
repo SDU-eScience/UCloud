@@ -62,47 +62,49 @@ class Server(override val micro: Micro) : CommonServer {
         val elasticDataService = ElasticDataService(elasticHighLevelClient, elasticLowLevelClient)
         val deicReportService = DeicReportService(postgresDataService)
         val userActivityReport = UserActivityReport(elasticDataService, postgresDataService)
-        try {
-            when {
-                args.contains("--center") -> {
-                    getDates(args)
-                    deicReportService.reportCenter(start, end)
-                    exitProcess(0)
+        if (args.contains("--data-collection")) {
+            try {
+                when {
+                    args.contains("--center") -> {
+                        getDates(args)
+                        deicReportService.reportCenter(start, end)
+                        exitProcess(0)
+                    }
+                    args.contains("--center-daily") -> {
+                        getDates(args)
+                        deicReportService.reportCenterDaily(start, end)
+                        exitProcess(0)
+                    }
+                    args.contains("--center-daily-deic") -> {
+                        getDates(args)
+                        deicReportService.reportCenterDailyDeic(start, end)
+                        exitProcess(0)
+                    }
+                    args.contains("--person") -> {
+                        deicReportService.reportPerson()
+                        exitProcess(0)
+                    }
+                    args.contains("--sameTimeUser") -> {
+                        getDates(args)
+                        userActivityReport.maxSimultaneousUsers(start, end)
+                        exitProcess(0)
+                    }
+                    args.contains("--activityPeriod") -> {
+                        userActivityReport.activityPeriod()
+                        exitProcess(0)
+                    }
+                    else -> {
+                        println("Missing argument (--center, --center-daily, --center-daily-deic or --person")
+                        exitProcess(1)
+                    }
                 }
-                args.contains("--center-daily") -> {
-                    getDates(args)
-                    deicReportService.reportCenterDaily(start, end)
-                    exitProcess(0)
-                }
-                args.contains("--center-daily-deic") -> {
-                    getDates(args)
-                    deicReportService.reportCenterDailyDeic(start, end)
-                    exitProcess(0)
-                }
-                args.contains("--person") -> {
-                    deicReportService.reportPerson()
-                    exitProcess(0)
-                }
-                args.contains("--sameTimeUser") -> {
-                    getDates(args)
-                    userActivityReport.maxSimultaneousUsers(start, end)
-                    exitProcess(0)
-                }
-                args.contains("--activityPeriod") -> {
-                    userActivityReport.activityPeriod()
-                    exitProcess(0)
-                }
-                else -> {
-                    println("Missing argument (--center, --center-daily, --center-daily-deic or --person")
-                    exitProcess(1)
-                }
-            }
-        } catch (ex: Exception) {
-            when (ex) {
-                else -> {
-                    println(ex.stackTraceToString())
-                    print("UNKNOWN ERROR")
-                    exitProcess(1)
+            } catch (ex: Exception) {
+                when (ex) {
+                    else -> {
+                        println(ex.stackTraceToString())
+                        print("UNKNOWN ERROR")
+                        exitProcess(1)
+                    }
                 }
             }
         }
