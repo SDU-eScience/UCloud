@@ -102,33 +102,28 @@ class AppStoreAsyncDao(
                         setParameter("exclude", excludeNormalized)
                     },
                     """
-                SELECT A.*
-                FROM applications as A
-                WHERE (A.created_at) IN (
-                    SELECT MAX(B.created_at)
-                    FROM applications as B
-                    WHERE (A.title = B.title)
-                    GROUP BY title
-                ) AND (A.name) IN (select unnest(:applications::text[])) AND (
-                    (
-                        A.is_public = TRUE
-                    ) or (
-                        cast(:project as text) is null and :user in (
-                            SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
-                        )
-                    ) or (
-                        cast(:project as text) is not null AND exists (
-                            SELECT P2.project_group FROM permissions AS P2 WHERE
-                                P2.application_name = A.name and
-                                P2.project = cast(:project as text) and
-                                P2.project_group in (select unnest(:groups::text[]))
-                        )
-                    ) or (
-                        :isAdmin
-                    )
-                ) AND (A.tool_name NOT IN (select unnest(:exclude::text[])))
-                ORDER BY A.name
-                """
+                        SELECT DISTINCT ON (A.name) A.*
+                        FROM applications as A
+                        WHERE (A.name) IN (select unnest(:applications::text[])) AND (
+                            (
+                                A.is_public = TRUE
+                            ) or (
+                                cast(:project as text) is null and :user in (
+                                    SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+                                )
+                            ) or (
+                                cast(:project as text) is not null AND exists (
+                                    SELECT P2.project_group FROM permissions AS P2 WHERE
+                                        P2.application_name = A.name and
+                                        P2.project = cast(:project as text) and
+                                        P2.project_group in (select unnest(:groups::text[]))
+                                )
+                            ) or (
+                                :isAdmin
+                            )
+                        ) AND (A.tool_name NOT IN (select unnest(:exclude::text[])))
+                        ORDER BY A.name, A.created_at DESC ;
+                    """
                 )
                 .rows
                 .toList()

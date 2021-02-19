@@ -11,6 +11,5 @@ dependencies {
     implementation(project(":project-service:api"))
     implementation(project(":accounting-service:api"))
     implementation("net.java.dev.jna:jna:5.2.0")
-    implementation("org.kamranzafar:jtar:2.3")
-    implementation("org.apache.commons:commons-compress:1.9")
+    implementation("org.apache.commons:commons-compress:1.20")
 }

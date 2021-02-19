@@ -1,5 +1,6 @@
 package dk.sdu.cloud.elastic.management
 
+import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.elastic.management.api.ElasticManagementServiceDescription
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
@@ -13,6 +14,7 @@ object ElasticManagementService : Service {
     override val description = ElasticManagementServiceDescription
 
     override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(RefreshingJWTCloudFeature)
         micro.install(ElasticFeature)
 
         val config = micro.configuration.requestChunkAtOrNull<Configuration>("elasticmanagement") ?:

@@ -203,4 +203,9 @@ desk is used for this purpose.
 
 ## Internal Audits
 
+The production site, https://cloud.sdu.dk, is scanned and penetration tested periodically by the security department at
+SDU. This test is performed automatically by tools.
+
 Each month https://cloud.sdu.dk is scanned and penetration tested by the security department at SDU.
+
+We also perform internal audits at SDU. These are performed periodically and at least once a year.

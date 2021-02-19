@@ -36,7 +36,7 @@ All logging/Auditing resides in a single Elasticsearch cluster that only contain
 1. All audit logs created when users are using the cloud service
 2. All system logs from each of the nodes connected to the cluster
 3. All StdErr/StdOut from each pod running in the kubernetes cluster
-![Logging overview](./wiki/LogOverview.png)
+![Logging overview](./wiki/LogFlow.png)
 ###Cloud Service Auditing Ingestion
 The audit logs are created by the users preforming actions on the cloud service and thereby creating events. These events
 are stored in Redis. The Audit Ingestion Service then collects these events and places in their respective index. 
@@ -56,13 +56,17 @@ By using our own [Elasticsearch Management Tool](../elastic-management) are we a
 consumption at a minimum. A daily scan is run to reduce the number of shards in the audit logs for the previous day
 to 1 primary shard and 1 replica shard per index. This would usually mean that indexing and search speed would decrease, 
 however since this is the logs for the previous day then the need of indexing is no more and search does not have to fast.
-On top of these daily scans are there weekly, monthly and quarterly reindexing. By doing this we reduce the former weeks
-daily indices into a single weekly index, and at the end of a month these weekly indices are reduced to a single monthly.
+On top of this shrinking process we also do a reindex to a monthly index of week old indices. By doing this we reduce the
+former weeks daily indices into a single monthly index continually.
 
 During the daily scan we also check old logs to see if any of them have expired according the predetermined retention
  period. If the entire index only contains expired logs, then the entire index is delete, otherwise it would only be the 
- specific logs logs that are delete. This gives us the ability to have a fine granularity if some logs needs to be kept
+ specific logs that are deleted. This gives us the ability to have a fine granularity if some logs needs to be kept
  longer than other logs.
+
+Last but not least we do an aliasing of the 7 last days of logs. All these indices will now be included
+in search when we search the "Grafana" index. This makes search and response time of Kibana much faster
+since it does not look in the last 180 days of logs but instead only the last 7 days.
 
 ##Upgrade Procedures
 The person responsible for Elasticsearch should be on the Elasticsearch e-mailing list. If a new version is released, 
