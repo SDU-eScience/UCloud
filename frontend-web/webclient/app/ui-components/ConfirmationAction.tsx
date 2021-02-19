@@ -17,8 +17,6 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
   --background: var(--${p => p.color}, #f00);
   --tick-stroke: var(--progress-active);
 
-  padding: 10px 34px 10px 2px;
-
   ${shakeAnimation};
   ${fontSize};
 
@@ -102,16 +100,11 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
 
   ul {
     padding: 0;
+    margin: 0;
     ${p => p.align !== "left" ? ({
-      margin: "0 0 0 40px",
       textAlign: "center",
-      position: "relative",
-      left: "8px"
     }) : ({
-      margin: "0",
       textAlign: "left",
-      position: "absolute",
-      left: "54px"
     })}
     pointer-events: none;
     list-style: none;
@@ -177,7 +170,7 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
 
   &:hover {
     ${p => !p.asSquare ? ({
-      transform: "scale(1.03)"
+      transform: "translateY(-2px)"
     }) : ({
       transform: "scale(1)"
     })}
@@ -211,6 +204,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText: string,
     doneText?: string,
     icon: IconName,
+    align?: "left" | "center",
     onAction?: () => void;
     hoverColor?: ThemeColor;
 }> = props => {

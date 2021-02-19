@@ -242,9 +242,9 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
             <Box pl="10px" style={showFavorites ? undefined : {overflowX: "scroll"}} pb="15px">
                 <Grid
                     pt="20px"
-                    gridTemplateRows={showFavorites ? undefined : `repeat(${rows} , 1fr)`}
-                    gridTemplateColumns="repeat(auto-fill, minmax(400px, 1fr))"
                     gridGap="15px"
+                    gridTemplateRows={showFavorites ? undefined : `repeat(${rows} , 1fr)`}
+                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)" }
                     style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
                     {filteredItems.map(app => (

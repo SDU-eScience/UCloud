@@ -43,22 +43,12 @@ import { addStandardDialog } from "UtilityComponents";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
+const zoomInAnim = keyframes`${anims.zoomIn}`;
 
 const Container = styled.div`
   --logoScale: 1;
   --logoBaseSize: 200px;
   --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
-
-  --logoPX: 50px;
-  --logoPY: 50px;
-
-  /* NOTE(Dan): 14px are added by MainContainer and sidebar */
-  --logoIndentX: calc(var(--sidebarWidth) + var(--logoPX) + 14px);
-  --logoIndentY: calc(var(--headerHeight) + var(--logoPY) + 14px);
-
-  /* center while accounting for the frame */
-  --logoCenterX: calc((100vw + var(--sidebarWidth) - var(--logoSize)) / 2);
-  --logoCenterY: calc((100vh + var(--headerHeight) - var(--logoSize)) / 2);
 
   margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
   max-width: 2200px;
@@ -71,29 +61,24 @@ const Container = styled.div`
   & {
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .logo-wrapper {
     position: absolute;
-
-    left: var(--logoCenterX);
-    top: var(--logoCenterY);
+    left: 0;
+    top: 0;
+    animation: 800ms ${zoomInAnim};
   }
 
   .logo-wrapper.active {
-    transition: all 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-    transform: translate3d(calc(-1 * var(--logoCenterX) + var(--logoIndentX)),
-    calc(-1 * var(--logoCenterY) + var(--logoIndentY)),
-    0);
+    transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
   .logo-wrapper.active .logo-scale {
     transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-    transform: scale3d(var(--logoScale),
-    var(--logoScale),
-    var(--logoScale)) translate3d(calc(var(--logoBaseSize) / (1 / var(--logoScale)) - var(--logoBaseSize)),
-    calc(var(--logoBaseSize) / (1 / var(--logoScale)) - var(--logoBaseSize)),
-    0);
+    transform: scale(var(--logoScale));
+    transform-origin: top left;
   }
 
   .fake-logo {
@@ -142,8 +127,8 @@ const Container = styled.div`
       width: 100%; /* force the header to wrap */
     }
 
-    & {
-      --logoIndentX: var(--logoCenterX);
+    .logo-wrapper {
+        left: calc(50% - var(--logoSize)/2);
     }
 
     .header {
