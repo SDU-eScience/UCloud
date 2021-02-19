@@ -25,7 +25,7 @@ class ParameterPlugin(private val licenseService: LicenseService) : JobManagemen
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val app = resources.findResources(job).application.invocation
         val givenParameters =
-            job.parameters.parameters!!.mapNotNull { (paramName, value) ->
+            job.specification.parameters!!.mapNotNull { (paramName, value) ->
                 app.parameters.find { it.name == paramName }!! to value
             }.toMap()
 

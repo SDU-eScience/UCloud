@@ -40,6 +40,7 @@ import {PaymentModelExplainer} from "Accounting/PaymentModelExplainer";
 import {StickyBox} from "ui-components/StickyBox";
 import {useScrollStatus} from "Utilities/ScrollStatus";
 import ResourceAclEntry = provider.ResourceAclEntry;
+import Table, {TableCell, TableRow} from "ui-components/Table";
 
 interface LicenseGroup {
     product: ProductNS.License;
@@ -260,7 +261,7 @@ export const Browse: React.FunctionComponent<{
         main = <>
             <Icon name={"arrowDown"} rotation={90} size={"32px"} cursor={"pointer"}
                   onClick={() => setInspecting(null)}/>
-            <Box width={"400px"} margin={"0 auto"} marginTop={"-32px"}>
+            <Box width={"500px"} margin={"0 auto"} marginTop={"-32px"}>
                 <Box textAlign={"center"}>
                     <AppToolLogo
                         name={product.tags.length > 1 ? product.tags[0] : product.id}
@@ -293,17 +294,25 @@ export const Browse: React.FunctionComponent<{
 
                 <Box mt={"32px"}>
                     <Heading.h4>Updates</Heading.h4>
-                    <ul>
-                        {license.updates.map((update, idx) => {
-                            return <li key={idx}>
-                                {dateToString(update.timestamp)}
-                                <br/>
-                                {update.status ? <TextSpan mr={"10px"}>{update.status}</TextSpan> : null}
-                                {!update.state ? null : <><Icon name={"hashtag"} size={"12px"}
-                                                                color={"gray"}/> {prettierString(update.state)}</>}
-                            </li>
+                    <Table>
+                        <tbody>
+                        {inspecting.license.updates.map((update, idx) => {
+                            return <TableRow key={idx}>
+                                <TableCell>{dateToString(update.timestamp)}</TableCell>
+                                <TableCell>
+                                    {!update.state ? null :
+                                        <>
+                                            {prettierString(update.state)}
+                                        </>
+                                    }
+                                </TableCell>
+                                <TableCell>
+                                    {update.status ? <TextSpan mr={"10px"}>{update.status}</TextSpan> : null}
+                                </TableCell>
+                            </TableRow>
                         })}
-                    </ul>
+                        </tbody>
+                    </Table>
                 </Box>
             </Box>
         </>;
@@ -369,7 +378,7 @@ const InstanceStats: React.FunctionComponent<{
         </ListRowStat>
         {(instance.acl?.length ?? 0) === 0 ?
             <ListRowStat icon={"warning"} color={"red"} textColor={"red"} cursor={"pointer"} onClick={onClick}>
-                Usable only be project admins
+                Usable only by project admins
             </ListRowStat> :
             null
         }

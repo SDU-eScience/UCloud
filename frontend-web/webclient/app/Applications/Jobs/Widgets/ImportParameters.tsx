@@ -431,7 +431,7 @@ async function cleanupImportResult(
     if (output.replicas !== undefined) {
         // noinspection SuspiciousTypeOfGuard
         if (typeof output.replicas !== "number") {
-            result.messages.push({type: "warning", message: "Corrupt number of replicas"});
+            result.messages.push({type: "warning", message: "Corrupt number of nodes"});
             output.replicas = undefined;
         }
     }

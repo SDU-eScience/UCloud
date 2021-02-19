@@ -15,6 +15,7 @@ private const val TYPE_FLOATING_POINT = "floating_point"
 private const val TYPE_PEER = "peer"
 private const val TYPE_LICENSE_SERVER = "license_server"
 private const val TYPE_INGRESS = "ingress"
+private const val TYPE_NETWORK_IP = "network_ip"
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -32,6 +33,7 @@ private const val TYPE_INGRESS = "ingress"
     JsonSubTypes.Type(value = ApplicationParameter.Enumeration::class, name = TYPE_ENUMERATION),
     JsonSubTypes.Type(value = ApplicationParameter.LicenseServer::class, name = TYPE_LICENSE_SERVER),
     JsonSubTypes.Type(value = ApplicationParameter.Ingress::class, name = TYPE_INGRESS),
+    JsonSubTypes.Type(value = ApplicationParameter.NetworkIP::class, name = TYPE_NETWORK_IP),
 )
 sealed class ApplicationParameter(val type: String) {
     abstract var name: String
@@ -154,5 +156,14 @@ sealed class ApplicationParameter(val type: String) {
         val tagged: List<String>
     ) : ApplicationParameter(TYPE_LICENSE_SERVER) {
         override val defaultValue: Any? = null
+    }
+
+    class NetworkIP(
+        override var name: String = "",
+        override val title: String,
+        override val description: String,
+    ) : ApplicationParameter(TYPE_NETWORK_IP) {
+        override val defaultValue: Any? = null
+        override val optional = false
     }
 }

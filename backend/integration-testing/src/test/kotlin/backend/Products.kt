@@ -33,7 +33,13 @@ val sampleStorage = Product.Storage(
     ProductCategoryId("cephfs", UCLOUD_PROVIDER)
 )
 
-val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress)
+val sampleNetworkIp = Product.NetworkIP(
+    "u1-public-ip",
+    1_000_000,
+    ProductCategoryId("public-ip", UCLOUD_PROVIDER)
+)
+
+val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleNetworkIp)
 
 /**
  * Creates a sample catalog of products
@@ -46,6 +52,8 @@ suspend fun createSampleProducts() {
         ).orThrow()
     }
 }
+
+fun Product.toReference(): ProductReference = ProductReference(id, category.id, category.provider)
 
 class ProductTest : IntegrationTest() {
     @Test

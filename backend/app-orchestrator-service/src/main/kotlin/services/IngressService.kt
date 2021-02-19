@@ -36,7 +36,7 @@ class IngressService(
                 val ingressPoints = job.ingressPoints
                 if (ingressPoints.isEmpty()) return
 
-                val computeProvider = job.parameters.product.provider
+                val computeProvider = job.specification.product.provider
                 val jobProject = job.owner.project
                 val jobLauncher = job.owner.launchedBy
 
@@ -56,6 +56,10 @@ class IngressService(
                         }
 
                         if (jobProject == null && jobLauncher != retrievedIngress.owner.createdBy) {
+                            throw RPCException(errorMessage, HttpStatusCode.BadRequest)
+                        }
+
+                        if (jobProject != null && projectCache.retrieveRole(jobLauncher, jobProject) == null) {
                             throw RPCException(errorMessage, HttpStatusCode.BadRequest)
                         }
 

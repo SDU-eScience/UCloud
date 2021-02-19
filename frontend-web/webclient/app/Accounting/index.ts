@@ -22,6 +22,7 @@ export function productToArea(product: UCloud.accounting.Product): ProductArea {
         case "ingress": return "INGRESS";
         case "license": return "LICENSE";
         case "storage": return "STORAGE";
+        case "network_ip": return "NETWORK_IP";
     }
 }
 
@@ -35,6 +36,8 @@ export function productAreaTitle(area: ProductArea): string {
             return "Public link";
         case "LICENSE":
             return "Application license";
+        case "NETWORK_IP":
+            return "Public IP";
     }
 }
 

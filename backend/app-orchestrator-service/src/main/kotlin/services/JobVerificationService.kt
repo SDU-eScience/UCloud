@@ -273,6 +273,7 @@ class JobVerificationService(
                     is ApplicationParameter.Peer,
                     is ApplicationParameter.LicenseServer,
                     is ApplicationParameter.Ingress,
+                    is ApplicationParameter.NetworkIP,
                     -> null // Not supported and application should not have been validated. Silently fail.
 
                     is ApplicationParameter.Text -> {
@@ -362,6 +363,10 @@ class JobVerificationService(
 
                 is ApplicationParameter.Ingress -> {
                     if (providedValue !is AppParameterValue.Ingress) badValue(param)
+                }
+
+                is ApplicationParameter.NetworkIP -> {
+                    if (providedValue !is AppParameterValue.Network) badValue(param)
                 }
             }
         }
@@ -483,8 +488,8 @@ class JobVerificationService(
         }
 
         val job = jobWithToken.job
-        val parameters = job.parameters.parameters ?: return HasPermissionForExistingMount(false, "/")
-        val resources = job.parameters.resources ?: return HasPermissionForExistingMount(false, "/")
+        val parameters = job.specification.parameters ?: return HasPermissionForExistingMount(false, "/")
+        val resources = job.specification.resources ?: return HasPermissionForExistingMount(false, "/")
         val allFiles =
             parameters.values.filterIsInstance<AppParameterValue.File>() +
                 resources.filterIsInstance<AppParameterValue.File>() +

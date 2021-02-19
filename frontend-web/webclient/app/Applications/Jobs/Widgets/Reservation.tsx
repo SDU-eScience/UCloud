@@ -137,7 +137,7 @@ export const ReservationParameter: React.FunctionComponent<{
             <>
                 <Flex mb={"1em"}>
                     <Label>
-                        Number of replicas
+                        Number of nodes
                         <Input id={reservationReplicas} onBlur={recalculateCost} defaultValue={"1"}/>
                     </Label>
                 </Flex>
@@ -199,7 +199,7 @@ export function validateReservation(): ValidationAnswer {
 
     if (replicas != null) {
         if (!/^\d+$/.test(replicas.value)) {
-            errors["replicas"] = "Invalid value supplied for replicas. Example: 1";
+            errors["replicas"] = "Invalid value supplied for nodes. Example: 1";
         }
 
         values["replicas"] = parseInt(replicas.value, 10);

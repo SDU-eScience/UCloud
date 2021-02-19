@@ -124,29 +124,6 @@ class ManagementTest {
 
     @Ignore
     @Test
-    fun `test reindex`() {
-        val micro = initializeMicro()
-        micro.install(ElasticFeature)
-        createDocuments("http_logs_mojn", 8, 500)
-        createDocuments("http_logs_mojn", 9, 500)
-        createDocuments("http_logs_mojn", 11, 500)
-        createDocuments("http_logs_mojn", 12, 500)
-        createDocuments("http_logs_mojn", 13, 500)
-
-        createDocuments("http_logs_activity", 8, 500)
-        createDocuments("http_logs_activity", 9, 500)
-        createDocuments("http_logs_activity", 11, 500)
-        createDocuments("http_logs_activity", 12, 500)
-        createDocuments("http_logs_activity", 13, 500)
-
-        elastic.indices().flush(FlushRequest("*"), RequestOptions.DEFAULT)
-
-        val service = ReindexService(elastic)
-        service.reindexLogsWithPrefixAWeekBackFrom(7, "http_logs", micro.elasticLowLevelClient)
-    }
-
-    @Ignore
-    @Test
     fun `getAllTest`() {
         println(getAllLogNamesWithPrefix(elastic, "http_logs"))
     }

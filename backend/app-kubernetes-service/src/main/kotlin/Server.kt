@@ -78,6 +78,7 @@ class Server(
             serviceClient
         )
         val licenseService = LicenseService(serviceClient, db)
+        val networkIpService = NetworkIPService(db, serviceClient, configuration.networkInterface ?: "")
 
         val jobManagement = JobManagement(
             k8Dependencies,
@@ -110,6 +111,7 @@ class Server(
             if (micro.developmentModeEnabled) register(MinikubePlugin)
             register(ConnectToJobPlugin)
             register(ingressService)
+            register(networkIpService)
             register(ProxyPlugin(broadcastingStream, ingressService))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers
@@ -175,6 +177,7 @@ class Server(
                 ShellController(k8Dependencies, db, sessions),
                 IngressController(ingressService),
                 LicenseController(licenseService),
+                NetworkIPController(networkIpService),
             )
         }
 

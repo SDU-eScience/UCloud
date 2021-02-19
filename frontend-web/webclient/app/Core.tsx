@@ -21,6 +21,7 @@ const JobShell = React.lazy(() => import("Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("Applications/Jobs/Vnc"));
 const ApplicationLicense = React.lazy(() => import("Applications/Licenses/Browse"));
+const NetworkIPs = React.lazy(() => import("Applications/NetworkIP/Browse"));
 const LandingPage = React.lazy(() => import("Project/Grant/LandingPage"));
 const LicenseServers = React.lazy(() => import("Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("Login/Login"));
@@ -114,6 +115,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/applications/web/:jobId/:rank" component={JobWeb} />
                     <Route exact path="/applications/vnc/:jobId/:rank" component={JobVnc} />
                     <Route exact path="/applications/licenses" component={ApplicationLicense} />
+                    <Route exact path="/applications/publicips" component={NetworkIPs} />
 
                     <Route exact path="/applications/studio" component={requireAuth(Studio)} />
                     <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />

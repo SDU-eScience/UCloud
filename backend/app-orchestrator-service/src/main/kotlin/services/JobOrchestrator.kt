@@ -122,7 +122,7 @@ class JobOrchestrator(
                 }
                 // Check for duplicates
                 .onEach { job ->
-                    if (!job.job.parameters.allowDuplicateJob) {
+                    if (!job.job.specification.allowDuplicateJob) {
                         if (checkForDuplicateJob(principal, project, job)) {
                             throw JobException.Duplicate()
                         }
@@ -143,7 +143,7 @@ class JobOrchestrator(
                 paymentService.reserve(
                     Payment.OfJob(
                         job.job,
-                        timeUsedInMillis = job.job.parameters.timeAllocation?.toMillis() ?: 1000L * 60 * 60,
+                        timeUsedInMillis = job.job.specification.timeAllocation?.toMillis() ?: 1000L * 60 * 60,
                         chargeId = ""
                     )
                 )
@@ -170,7 +170,7 @@ class JobOrchestrator(
             }
 
             // Notify compute providers
-            verifiedJobs.groupBy { it.job.parameters.product.provider }.forEach { (provider, jobs) ->
+            verifiedJobs.groupBy { it.job.specification.product.provider }.forEach { (provider, jobs) ->
                 val (api, client) = providers.prepareCommunication(provider)
 
                 api.create.call(bulkRequestOf(jobs.map { it.job }), client).orThrow()
@@ -346,7 +346,7 @@ class JobOrchestrator(
             throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
         }
 
-        val ownsAllJobs = loadedJobs.values.all { (it.job).parameters.product.provider == comm.provider.metadata.id }
+        val ownsAllJobs = loadedJobs.values.all { (it.job).specification.product.provider == comm.provider.metadata.id }
         if (!ownsAllJobs && !developmentMode) {
             throw RPCException("Provider is not authorized to perform these updates", HttpStatusCode.Forbidden)
         }
@@ -414,14 +414,14 @@ class JobOrchestrator(
         val extensions = request.items.groupBy { it.jobId }
         db.withSession { session ->
             val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor, Action.EXTEND)
-            val providers = jobs.values.map { it.job.parameters.product.provider }
+            val providers = jobs.values.map { it.job.specification.product.provider }
                 .map { providers.prepareCommunication(it) }
 
             for (comm in providers) {
                 comm.api.extend.call(
                     bulkRequestOf(request.items.mapNotNull { extensionRequest ->
                         val (job) = jobs.getValue(extensionRequest.jobId)
-                        if (job.parameters.product.provider != comm.provider.metadata.id) null
+                        if (job.specification.product.provider != comm.provider.metadata.id) null
                         else ComputeExtendRequestItem(job, extensionRequest.requestedTime)
                     }),
                     comm.client
@@ -430,7 +430,7 @@ class JobOrchestrator(
 
             request.items.groupBy { it.jobId }.forEach { (jobId, requests) ->
                 val existingJob = jobs.getValue(jobId)
-                val allocatedTime = existingJob.job.parameters.timeAllocation?.toMillis() ?: 0L
+                val allocatedTime = existingJob.job.specification.timeAllocation?.toMillis() ?: 0L
                 val requestedTime = requests.sumOf { it.requestedTime.toMillis() }
 
                 jobDao.updateMaxTime(session, jobId, SimpleDuration.fromMillis(allocatedTime + requestedTime))
@@ -443,7 +443,7 @@ class JobOrchestrator(
 
         db.withSession { session ->
             val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor, Action.CANCEL)
-            val jobsByProvider = jobs.values.groupBy { it.job.parameters.product.provider }
+            val jobsByProvider = jobs.values.groupBy { it.job.specification.product.provider }
             for ((provider, providerJobs) in jobsByProvider) {
                 val comm = providers.prepareCommunication(provider)
                 comm.api.delete.call(
@@ -483,7 +483,7 @@ class JobOrchestrator(
                 // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
                 // retrieve them by themselves.
                 var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
-                val (api, _, wsClient) = providers.prepareCommunication(initialJob.parameters.product.provider)
+                val (api, _, wsClient) = providers.prepareCommunication(initialJob.specification.product.provider)
                 var streamId: String? = null
                 val states = JobState.values()
                 val currentState = AtomicInteger(JobState.IN_QUEUE.ordinal)
@@ -593,7 +593,7 @@ class JobOrchestrator(
             val requestsByJobId = request.items.groupBy { it.id }
             val jobIds = request.items.map { it.id }.toSet()
             val jobs = loadAndVerifyUserJobs(session, jobIds, actor, Action.OPEN_INTERACTIVE_SESSION).values
-            val jobsByProvider = jobs.groupBy { it.job.parameters.product.provider }
+            val jobsByProvider = jobs.groupBy { it.job.specification.product.provider }
 
             if (jobs.size != jobIds.size) {
                 log.debug("Not all jobs were found")
@@ -654,9 +654,9 @@ class JobOrchestrator(
         if (jobId != null && provider != null) throw IllegalArgumentException("jobId and provider != null")
 
         val providerId = provider ?: jobQueryService.retrieve(actor,
-            project,
-            jobId!!,
-            JobDataIncludeFlags()).job.parameters.product.provider
+                project,
+                jobId!!,
+                JobDataIncludeFlags()).job.specification.product.provider
 
         val (api, client) = providers.prepareCommunication(providerId)
         val response = api.retrieveUtilization.call(Unit, client).orThrow()

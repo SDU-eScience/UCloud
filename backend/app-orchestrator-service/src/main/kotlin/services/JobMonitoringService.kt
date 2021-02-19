@@ -85,7 +85,7 @@ class JobMonitoringService(
                                 .values
                         }
 
-                    val jobsByProvider = jobs.map { it.job }.groupBy { it.parameters.product.provider }
+                    val jobsByProvider = jobs.map { it.job }.groupBy { it.specification.product.provider }
                     scope.launch {
                         jobsByProvider.forEach { (provider, jobs) ->
                             val comm = providers.prepareCommunication(provider)

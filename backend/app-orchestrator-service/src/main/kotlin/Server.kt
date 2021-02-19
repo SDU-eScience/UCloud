@@ -7,11 +7,8 @@ import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
 import dk.sdu.cloud.app.orchestrator.api.LicenseControl
 import dk.sdu.cloud.app.orchestrator.api.ProviderManifest
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
+import dk.sdu.cloud.app.orchestrator.rpc.*
 import dk.sdu.cloud.app.orchestrator.services.JobDao
-import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
-import dk.sdu.cloud.app.orchestrator.rpc.IngressController
-import dk.sdu.cloud.app.orchestrator.rpc.JobController
-import dk.sdu.cloud.app.orchestrator.rpc.LicenseController
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
@@ -133,6 +130,10 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val licenseService = LicenseService(db, licenseDao, providers, projectCache, productCache,
             jobOrchestrator, paymentService)
 
+        val networkDao = NetworkIPDao(productCache)
+        val networkService = NetworkIPService(db, networkDao, providers, projectCache, productCache, jobOrchestrator,
+            paymentService, micro.developmentModeEnabled)
+
         with(micro.server) {
             configureControllers(
                 JobController(
@@ -145,6 +146,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 IngressController(ingressService),
 
                 LicenseController(licenseService),
+
+                NetworkIPController(networkService),
             )
         }
 

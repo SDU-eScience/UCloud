@@ -16,6 +16,7 @@ import {EnumParameter, EnumSetter, EnumValidator} from "Applications/Jobs/Widget
 import {PeerParameter, PeerSetter, PeerValidator} from "Applications/Jobs/Widgets/Peer";
 import {LicenseParameter, LicenseSetter, LicenseValidator} from "Applications/Jobs/Widgets/License";
 import {IngressParameter, IngressSetter, IngressValidator} from "Applications/Jobs/Widgets/Ingress";
+import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "Applications/Jobs/Widgets/NetworkIP";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -40,6 +41,8 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
             return <LicenseParameter {...props} parameter={props.parameter} />;
         case "ingress":
             return <IngressParameter {...props} parameter={props.parameter} />;
+        case "network_ip":
+            return <NetworkIPParameter {...props} parameter={props.parameter} />;
     }
 };
 
@@ -51,6 +54,7 @@ const validators: WidgetValidator[] = [
     PeerValidator,
     LicenseValidator,
     IngressValidator,
+    NetworkIPValidator,
 ];
 
 const setters: WidgetSetter[] = [
@@ -60,7 +64,8 @@ const setters: WidgetSetter[] = [
     EnumSetter,
     PeerSetter,
     LicenseSetter,
-    IngressSetter
+    IngressSetter,
+    NetworkIPSetter,
 ];
 
 export interface WidgetProps {

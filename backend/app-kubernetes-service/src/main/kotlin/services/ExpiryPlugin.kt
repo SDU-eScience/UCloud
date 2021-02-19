@@ -18,7 +18,7 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
 
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         // TODO Some jobs might actually not have a time allocation
-        val maxTimeMillis = job.parameters.timeAllocation?.toMillis() ?: error("time allocation required")
+        val maxTimeMillis = job.specification.timeAllocation?.toMillis() ?: error("time allocation required")
         val jobMetadata = builder.metadata ?: error("no metadata")
         (jobMetadata.annotations?.toMutableMap() ?: HashMap()).let { annotations ->
             annotations[MAX_TIME_ANNOTATION] = "$maxTimeMillis"

@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.kubernetes.api.AppKubernetesServiceDescription
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.Loggable
 
 data class TolerationKeyAndValue(val key: String, val value: String)
 
@@ -17,6 +18,7 @@ data class Configuration(
     val disableMasterElection: Boolean = false,
     val fullScanFrequency: Long = 1000 * 60 * 15L,
     val useSmallReservation: Boolean = false,
+    val networkInterface: String? = null
 )
 
 data class CephConfiguration(
@@ -31,6 +33,11 @@ object AppKubernetesService : Service {
         micro.install(BackgroundScopeFeature)
         val configuration = micro.configuration.requestChunkAtOrNull("app", "kubernetes") ?: Configuration()
         val cephConfig = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
+
+        if (configuration.networkInterface == null) {
+            println("No 'networkInterface' has been configured. Public IPs will not work!")
+            println("Expected a string config at 'app/kubernetes/networkInterface'.")
+        }
 
         return Server(micro, configuration, cephConfig)
     }

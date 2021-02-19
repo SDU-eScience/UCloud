@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.orchestrator.api.Ingress
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.License
+import dk.sdu.cloud.app.orchestrator.api.NetworkIP
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
@@ -41,9 +42,9 @@ sealed class Payment {
         override val resourceId = job.id
 
         override val pricePerUnit = job.billing.pricePerUnit
-        override val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * job.parameters.replicas
+        override val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * job.specification.replicas
 
-        override val product = job.parameters.product
+        override val product = job.specification.product
         override val launchedBy: String = job.owner.launchedBy
         override val project: String? = job.owner.project
         override val productArea = ProductArea.COMPUTE
@@ -75,6 +76,22 @@ sealed class Payment {
         override val launchedBy: String = license.owner.username
         override val project: String? = license.owner.project
         override val productArea = ProductArea.LICENSE
+    }
+
+    data class OfNetworkIP(
+        val networkIp: NetworkIP,
+        override val units: Long,
+        override val chargeId: String,
+    ) : Payment() {
+        override val type = "network_ip"
+        override val resourceId = networkIp.id
+
+        override val pricePerUnit = networkIp.billing.pricePerUnit
+
+        override val product = networkIp.specification.product
+        override val launchedBy: String = networkIp.owner.createdBy
+        override val project: String? = networkIp.owner.project
+        override val productArea = ProductArea.NETWORK_IP
     }
 }
 
