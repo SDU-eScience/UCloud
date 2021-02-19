@@ -251,7 +251,6 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                         <ApplicationCard
                             key={`${app.metadata.name}-${app.metadata.version}`}
                             onFavorite={() => onFavorite(app)}
-                            colorBySpecificTag={tag}
                             app={app}
                             isFavorite={showFavorites}
                             tags={app.tags}

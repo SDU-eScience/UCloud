@@ -286,7 +286,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     colorBySpecificTag,
     linkToRun
 }: ApplicationCardProps) => {
-    const hash = hashF(colorBySpecificTag ?? app.tags[0] ?? "fallback");
+    const hash = hashF(colorBySpecificTag ?? app.metadata.title ?? "fallback");
     const {metadata} = app;
     const appC = appColor(hash);
     return (
