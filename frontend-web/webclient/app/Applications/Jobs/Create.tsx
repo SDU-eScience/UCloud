@@ -222,11 +222,9 @@ export const Create: React.FunctionComponent = () => {
     );
 
     return <MainContainer
-        headerSize={48}
+        headerSize={92}
         header={
-            <Flex mx={["0px", "0px", "0px", "0px", "0px", "50px"]}>
-                <AppHeader slim application={application} />
-            </Flex>
+            <AppHeader slim application={application} />
         }
         sidebar={
             <VerticalButtonGroup>
