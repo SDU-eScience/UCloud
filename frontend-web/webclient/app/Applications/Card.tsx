@@ -247,13 +247,13 @@ export const AppLogo = ({size, hash}: {size: string, hash: number}): JSX.Element
 const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
     ${({favorite}) => favorite ? null : 
         css`
-            transform: translate(0,-30px);
-            transition: transform ease 0.1s;
-            will-change: transform;
+            transition: opacity ease 0.1s;
+            opacity: 0;
 
-            &: hover {
-                transform: translate(0, 0);
-            }`
+            ${AppCard}: hover &{
+                opacity: 1;
+            }
+        `
     };
 `;
 
@@ -302,12 +302,12 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
             {(!onFavorite && !isFavorite) ? null : (
                 <AppRibbonContainer
                     cursor="inherit"
-                    right={"12px"}
-                    top={0}
+                    right={"20px"}
+                    top={"8px"}
                     favorite={isFavorite}
                     onClick={onFavoriteClick}
                 >
-                    <Icon name="starRibbon" color="red" size={48} />
+                    <Icon name={isFavorite ? "starFilled" : "starEmpty"} color="red" size={32} />
                 </AppRibbonContainer>
             )}
             <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
