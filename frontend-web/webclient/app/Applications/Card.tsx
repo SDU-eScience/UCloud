@@ -116,8 +116,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
 };
 
 export const AppCard = styled(Link)`
-
-    padding: 10px;
+    padding: 10px 20px 10px 10px;
     width: 100%;
     min-width: 400px;
     height: 128px;
@@ -128,6 +127,7 @@ export const AppCard = styled(Link)`
     position: relative;
     overflow: hidden;
     box-shadow: ${theme.shadows.sm};
+    background-color: var(--appCard, #f00);
 
     transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     will-change: transform;
@@ -149,7 +149,6 @@ export const AppCard = styled(Link)`
         top: 0;
         left: 0;
         z-index: -1;
-        background-color: var(--appCard, #f00);
         background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
     }
 
@@ -246,13 +245,16 @@ export const AppLogo = ({size, hash}: {size: string, hash: number}): JSX.Element
 
 
 const AppRibbonContainer = styled(Absolute) <{favorite?: boolean}>`
-    ${({favorite}) => favorite ? null : css`transform: translate(0,-30px)`};
-    transition: transform ease 0.1s;
-    will-change: transform;
+    ${({favorite}) => favorite ? null : 
+        css`
+            transform: translate(0,-30px);
+            transition: transform ease 0.1s;
+            will-change: transform;
 
-    &: hover {
-        transform: translate(0, 0);
-    }
+            &: hover {
+                transform: translate(0, 0);
+            }`
+    };
 `;
 
 
@@ -309,17 +311,16 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 </AppRibbonContainer>
             )}
             <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
-                <AppToolLogo name={app.metadata.name} type="APPLICATION" size="48px" />
+                <AppToolLogo name={app.metadata.name} type="APPLICATION" size="60px" />
                 <Flex flexDirection="column" ml="10px">
-                    <Flex>
-                        <EllipsedText fontSize="20px" maxWidth="220px">{metadata.title}</EllipsedText>
-                        <Text ml="0.4em" mt="3px" color="gray">v{metadata.version}</Text>
-                    </Flex>
-                    <EllipsedText width={200} title={`by ${metadata.authors.join(", ")} `} color="gray">
-                        by {app.metadata.authors.join(", ")}
-                    </EllipsedText>
+                    <EllipsedText fontSize="20px" maxWidth="220px">{metadata.title}</EllipsedText>
+                    <Text>v{metadata.version}</Text>
+
                 </Flex>
             </Flex>
+            <EllipsedText title={`by ${metadata.authors.join(", ")} `} color="gray" width={1} mt={"4px"}>
+                        by {app.metadata.authors.join(", ")}
+            </EllipsedText>
             <Box mt="auto" />
             <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
                 {buildTags(app.tags).map((tag, idx) => <Tag label={tag} key={idx} />)}
