@@ -1,6 +1,7 @@
 rootProject.name = "ucloud"
 
-include("service-common")
+include("service-lib")
+/*
 include("service-common-test")
 include("integration-testing")
 
@@ -18,3 +19,5 @@ include("integration-testing")
 }
 
 include("launcher")
+
+ */
