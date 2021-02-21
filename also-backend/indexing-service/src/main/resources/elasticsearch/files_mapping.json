@@ -1,0 +1,80 @@
+{
+  "settings": {
+    "number_of_shards": 5,
+    "number_of_replicas": 2,
+    "analysis": {
+      "analyzer": {
+        "path-analyzer": {
+          "type": "custom",
+          "tokenizer": "path-tokenizer"
+        },
+        "extension-analyzer": {
+          "type": "custom",
+          "tokenizer": "extension-tokenizer",
+          "filter": [
+            "lowercase"
+          ]
+        }
+      },
+      "tokenizer": {
+        "path-tokenizer": {
+          "type": "path_hierarchy",
+          "delimiter": "/"
+        },
+        "extension-tokenizer": {
+          "type": "path_hierarchy",
+          "delimiter": ".",
+          "reverse": "true"
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "path": {
+        "type": "text",
+        "analyzer": "path-analyzer",
+        "search_analyzer": "keyword",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "fileName": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          },
+          "extension": {
+            "type": "text",
+            "analyzer": "extension-analyzer",
+            "search_analyzer": "keyword"
+          }
+        }
+      },
+      "fileDepth": {
+        "type": "long"
+      },
+      "id": {
+        "type": "keyword"
+      },
+      "fileType": {
+        "type": "keyword"
+      },
+      "owner": {
+        "type": "keyword"
+      },
+      "size": {
+        "type": "long"
+      },
+      "fileTimestamps": {
+        "type": "object"
+      },
+      "sensitivity": {
+        "type": "keyword"
+      }
+    }
+  }
+}

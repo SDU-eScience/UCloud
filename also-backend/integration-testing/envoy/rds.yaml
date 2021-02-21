@@ -1,0 +1,58 @@
+---
+resources:
+- name: "local_route"
+  '@type': "type.googleapis.com/envoy.api.v2.RouteConfiguration"
+  virtual_hosts:
+  - name: "local_route"
+    domains:
+    - "app-5c293fe8-1197-4676-ae1c-5dae50f760a9-0.cloud.sdu.dk"
+    routes:
+    - match:
+        prefix: "/"
+      route:
+        cluster: "5c293fe8-1197-4676-ae1c-5dae50f760a9-0"
+        timeout:
+          seconds: 0
+        upgrade_configs:
+        - upgrade_type: "websocket"
+          enabled: true
+  - name: "local_route"
+    domains:
+    - "app-39965d2b-e59e-4c53-8145-124380790cf5-0.cloud.sdu.dk"
+    routes:
+    - match:
+        prefix: "/"
+      route:
+        cluster: "39965d2b-e59e-4c53-8145-124380790cf5-0"
+        timeout:
+          seconds: 0
+        upgrade_configs:
+        - upgrade_type: "websocket"
+          enabled: true
+  - name: "local_route"
+    domains:
+    - "app-bf192253-9151-4562-87bf-95020f054aac-0.cloud.sdu.dk"
+    routes:
+    - match:
+        prefix: "/"
+      route:
+        cluster: "bf192253-9151-4562-87bf-95020f054aac-0"
+        timeout:
+          seconds: 0
+        upgrade_configs:
+        - upgrade_type: "websocket"
+          enabled: true
+  - name: "local_route"
+    domains:
+    - "app-13eadb82-ec5e-4ead-aca0-c354e7fce35d-0.cloud.sdu.dk"
+    routes:
+    - match:
+        prefix: "/"
+      route:
+        cluster: "13eadb82-ec5e-4ead-aca0-c354e7fce35d-0"
+        timeout:
+          seconds: 0
+        upgrade_configs:
+        - upgrade_type: "websocket"
+          enabled: true
+version_info: "26d42289-3d3f-488b-8e14-7fb6f28b9c49"
