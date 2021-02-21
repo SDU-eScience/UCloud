@@ -229,9 +229,8 @@ const DashboardFavoriteFiles = ({files, isLoading, favorite, error}: {
             <NoResultsCardBody title="No favorite files">
                 <Text>
                     Click the <Icon name="starEmpty" /> next to one of your files to mark it as a favorite.
-                    All of your favorite files will appear here.
                     <Link to={fileTablePage(Client.activeHomeFolder)}>
-                        <Button fullWidth mt={8}>Explore files</Button>
+                        <Button fullWidth mt={16}>Explore files</Button>
                     </Link>
                 </Text>
             </NoResultsCardBody>
