@@ -129,7 +129,7 @@ const ScrollBox = styled(Box)`
     overflow-x: auto;
 `;
 
-const ToolGroupWrapper = styled(Flex)`
+const ToolGroupWrapper = styled(Box)`
     width: 100%;
     padding-bottom: 10px;
     padding-left: 10px;
@@ -166,6 +166,25 @@ const ToolImage = styled.div`
 // NOTE(Dan): We don't allow new lines in tags normally. As a result, we can be pretty confident that no application
 // will have this tag.
 const SPECIAL_FAVORITE_TAG = "\n\nFavorites\n\n";
+
+type TagGridBoxProps = {
+    isFavorite: boolean;
+}
+
+const TagGridTopBox = styled.div<TagGridBoxProps>`
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    background-color: var(${props => props.isFavorite ? "--appStoreFavBg" : "--lightGray"},#f00);
+`;
+
+const TagGridBottomBox = styled.div<TagGridBoxProps>`
+    padding: 0px 10px 15px 10px;
+    ${props => props.isFavorite ? null : "overflow-x: scroll;"}
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    background-color: var(${props => props.isFavorite ? "--appStoreFavBg" : "--lightGray"},#f00);
+`;
+
 
 interface TagGridProps {
     tag: string;
@@ -228,23 +247,24 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     }
 
     filteredItems = filteredItems.sort((a, b) => a.metadata.title.localeCompare(b.metadata.title));
+    if (filteredItems.length === 0 ) return (null);
 
     return (
         <>
-            {showFavorites && filteredItems.length === 0 ? null : <div>
+            <TagGridTopBox isFavorite={showFavorites}>
                 <Spacer
-                    pt="15px"
+                    mt="15px" px="10px" alignItems={"center"}
                     left={<Heading.h2>{showFavorites ? "Favorites" : tag}</Heading.h2>}
                     right={(
                         showFavorites ? null : (
                             <ShowAllTagItem tag={tag}>
-                                <Heading.h4 pt="15px"><strong>Show All</strong></Heading.h4>
+                                <Heading.h4>Show All</Heading.h4>
                             </ShowAllTagItem>
                         )
                     )}
                 />
-            </div>}
-            <Box pl="10px" style={showFavorites ? undefined : {overflowX: "scroll"}} pb="15px">
+            </TagGridTopBox>
+            <TagGridBottomBox isFavorite={showFavorites}>
                 <Grid
                     pt="20px"
                     gridGap="15px"
@@ -263,7 +283,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                         />
                     ))}
                 </Grid>
-            </Box>
+            </TagGridBottomBox>
         </>
     );
 };
@@ -285,56 +305,58 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
 
     return (
         <ToolGroupWrapper>
-            <ToolImageWrapper>
-                <ToolImage>
-                    <AppToolLogo size="148px" name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
-                </ToolImage>
-            </ToolImageWrapper>
-            <CardToolContainer>
-                <Spacer
-                    alignItems="center"
-                    left={<Heading.h3>{tag}</Heading.h3>}
-                    right={(
-                        <ShowAllTagItem tag={tag}>
-                            <Heading.h5><strong> Show All</strong></Heading.h5>
-                        </ShowAllTagItem>
-                    )}
-                />
-                <ScrollBox>
-                    <Grid
-                        py="10px"
-                        pl="10px"
-                        gridTemplateRows="repeat(2, 1fr)"
-                        gridTemplateColumns="repeat(9, 1fr)"
-                        gridGap="8px"
-                        gridAutoFlow="column"
-                    >
-                        {page.items.map(application => {
-                            const [first, second, third] = getColorFromName(application.metadata.name);
-                            const withoutTag = removeTagFromTitle(tag, application.metadata.title);
-                            return (
-                                <div key={application.metadata.name}>
-                                    <SmallCard
-                                        title={withoutTag}
-                                        color1={first}
-                                        color2={second}
-                                        color3={third}
-                                        to={Pages.viewApplication(application.metadata)}
-                                        color="white"
-                                    >
-                                        <EllipsedText>{withoutTag}</EllipsedText>
-                                    </SmallCard>
-                                </div>
-                            );
-                        })}
-                    </Grid>
-                </ScrollBox>
-                <Flex flexDirection="row" alignItems="flex-start">
-                    {[...tags].filter(it => it !== tag).map(tag => (
-                        <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
-                    ))}
-                </Flex>
-            </CardToolContainer>
+            <Spacer
+                alignItems="center"
+                left={<Heading.h3>{tag}</Heading.h3>}
+                right={(
+                    <ShowAllTagItem tag={tag}>
+                        <Heading.h5 bold={false} regular={true}>Show All</Heading.h5>
+                    </ShowAllTagItem>
+                )}
+            />
+            <Flex>
+                <ToolImageWrapper>
+                    <ToolImage>
+                        <AppToolLogo size="148px" name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
+                    </ToolImage>
+                </ToolImageWrapper>
+                <CardToolContainer>
+                    <ScrollBox>
+                        <Grid
+                            py="10px"
+                            pl="10px"
+                            gridTemplateRows="repeat(2, 1fr)"
+                            gridTemplateColumns="repeat(9, 1fr)"
+                            gridGap="8px"
+                            gridAutoFlow="column"
+                        >
+                            {page.items.map(application => {
+                                const [first, second, third] = getColorFromName(application.metadata.name);
+                                const withoutTag = removeTagFromTitle(tag, application.metadata.title);
+                                return (
+                                    <div key={application.metadata.name}>
+                                        <SmallCard
+                                            title={withoutTag}
+                                            color1={first}
+                                            color2={second}
+                                            color3={third}
+                                            to={Pages.viewApplication(application.metadata)}
+                                            color="white"
+                                        >
+                                            <EllipsedText>{withoutTag}</EllipsedText>
+                                        </SmallCard>
+                                    </div>
+                                );
+                            })}
+                        </Grid>
+                    </ScrollBox>
+                    <Flex flexDirection="row" alignItems="flex-start">
+                        {[...tags].filter(it => it !== tag).map(tag => (
+                            <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
+                        ))}
+                    </Flex>
+                </CardToolContainer>
+            </Flex>
         </ToolGroupWrapper>
     );
 };

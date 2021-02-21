@@ -348,22 +348,19 @@ export const SmallCard = styled(Link) <{color1: string; color2: string; color3: 
     padding: 10px;
     width: 150px;
     height: 50px;
-    border-radius: 5px;
-    font-size: ${theme.fontSizes[1]};
+    border-radius: 10px;
+    font-size: ${theme.fontSizes[2]}px;
     text-align: center;
     align-items: center;
     justify-content: center;
     background-color: ${p => p.color2};
-    border-radius: 5px
-
     box-shadow: ${theme.shadows.sm};
 
     transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-    will-change: transform;
 
     &:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        box-shadow: ${theme.shadows.md};
+        transform: translateY(-2px);
         color: var(--white, #f00);
     }
 `;

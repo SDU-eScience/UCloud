@@ -283,7 +283,8 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                         </LoginText>
                                     )}
                                 >
-                                    <LoginBox color="red" width="100%">
+                                    {/* add 17px to width to compensate for negative margin */}
+                                    <LoginBox color="red" width="calc(100% + 17px)">
                                         <form onSubmit={preventDefault}>
                                             <Login
                                                 enabled2fa={!!challengeId}

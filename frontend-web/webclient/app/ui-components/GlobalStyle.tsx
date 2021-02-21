@@ -75,6 +75,7 @@ html {
     --tableRowHighlight: var(--lightBlue, #f00);
     --appCard: #ebeff3;
     --wayfGreen: #66b340;
+    --appStoreFavBg: #e8f1fc
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
     
@@ -98,6 +99,7 @@ html.light {
     --borderGray: var(--midGray, #f00);
     --invertedThemeColor: #000;
     --projectHighlight: #dfffee;
+    --appStoreFavBg: #e8f1fc
 }
 
 html.dark {
@@ -110,10 +112,11 @@ html.dark {
     --midGray: #555;
     --paginationDisabled: #111;
     --paginationHoverColor: #444;
-    --appCard: #060707;
+    --appCard: #131616;
     --borderGray: #111;
     --invertedThemeColor: #fff;
     --projectHighlight: #00c05a;
+    --appStoreFavBg: #00204d
 }
 
 ${device("xxl")} {
