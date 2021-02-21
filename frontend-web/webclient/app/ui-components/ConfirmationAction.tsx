@@ -17,8 +17,6 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
   --background: var(--${p => p.color}, #f00);
   --tick-stroke: var(--progress-active);
 
-  padding: 10px 34px 10px 2px;
-
   ${shakeAnimation};
   ${fontSize};
 
@@ -33,9 +31,9 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
   
   &:hover {
     ${p => p.asSquare ? ({
-    "--progress-border": `var(--${p.hoverColor ?? selectHoverColor(p.color ?? "blue")}, #f00)`,
-    "--background": `var(--${p.hoverColor ?? selectHoverColor(p.color ?? "blue")}, #f00)`
-}) : ({})}
+        "--progress-border": `var(--${p.hoverColor ?? selectHoverColor(p.color ?? "blue")}, #f00)`,
+        "--background": `var(--${p.hoverColor ?? selectHoverColor(p.color ?? "blue")}, #f00)`
+    }) : ({})}
   }
 
   & > .icons {
@@ -102,26 +100,21 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
 
   ul {
     padding: 0;
+    margin: 0;
     ${p => p.align !== "left" ? ({
-    margin: "0 0 0 40px",
-    textAlign: "center",
-    position: "relative",
-    left: "8px"
-}) : ({
-    margin: "0",
-    textAlign: "left",
-    position: "absolute",
-    left: "54px"
-})}
+      textAlign: "center",
+    }) : ({
+      textAlign: "left",
+    })}
     pointer-events: none;
     list-style: none;
     min-width: 80%;
     backface-visibility: hidden;
     transition: transform .3s;
+    position: relative;
   }
 
   ul li {
-    top: var(--t, 0);
     backface-visibility: hidden;
     transform: translateY(var(--ul-y)) translateZ(0);
     transition: transform .3s ease .16s, opacity .2s ease .16s;
@@ -139,12 +132,12 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
   }
 
   ul li:nth-child(2) {
-    --t: 100%;
+    top: 100%;
     opacity: var(--ul-o-2, 0);
   }
 
   ul li:nth-child(3) {
-    --t: 200%;
+    top: 200%;
     opacity: var(--ul-o-3, 0);
   }
 
@@ -177,10 +170,10 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
 
   &:hover {
     ${p => !p.asSquare ? ({
-    transform: "scale(1.03)"
-}) : ({
-    transform: "scale(1)"
-})}
+      transform: "translateY(-2px)"
+    }) : ({
+      transform: "scale(1)"
+    })}
   }
 
   &.success {
@@ -211,6 +204,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText: string,
     doneText?: string,
     icon: IconName,
+    align?: "left" | "center",
     onAction?: () => void;
     hoverColor?: ThemeColor;
 }> = props => {
