@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.k8.KubernetesException
 import dk.sdu.cloud.service.k8.KubernetesResources
+import dk.sdu.cloud.service.k8.deleteResource
 import dk.sdu.cloud.service.k8.patchResource
 import io.ktor.http.*
 
@@ -64,7 +65,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
         if (timespent > 0L) {
-            JobsControl.chargeCredits.call(
+            val insufficientFunds = JobsControl.chargeCredits.call(
                 bulkRequestOf(
                     JobsControlChargeCreditsRequestItem(
                         jobId,
@@ -73,7 +74,11 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
                     )
                 ),
                 k8.serviceClient
-            ).orThrow()
+            ).orThrow().insufficientFunds.isNotEmpty()
+
+            if (insufficientFunds) {
+                k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+            }
         }
 
         try {

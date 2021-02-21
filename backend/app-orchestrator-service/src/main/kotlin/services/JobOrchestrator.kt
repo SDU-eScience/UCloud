@@ -654,9 +654,9 @@ class JobOrchestrator(
         if (jobId != null && provider != null) throw IllegalArgumentException("jobId and provider != null")
 
         val providerId = provider ?: jobQueryService.retrieve(actor,
-                project,
-                jobId!!,
-                JobDataIncludeFlags()).job.specification.product.provider
+            project,
+            jobId!!,
+            JobDataIncludeFlags()).job.specification.product.provider
 
         val (api, client) = providers.prepareCommunication(providerId)
         val response = api.retrieveUtilization.call(Unit, client).orThrow()
@@ -672,7 +672,10 @@ class JobOrchestrator(
         return JobsRetrieveProductsTemporaryResponse(
             providerIds.map { provider ->
                 val comm = providers.prepareCommunication(provider)
-                provider to comm.api.retrieveProductsTemporary.call(Unit, comm.client).orThrow()
+                provider to (
+                    comm.api.retrieveProductsTemporary.call(Unit, comm.client).orNull()
+                        ?: ComputeRetrieveProductsTemporaryResponse(emptyList())
+                    )
             }.toMap()
         )
     }
