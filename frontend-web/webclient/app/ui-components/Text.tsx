@@ -2,7 +2,7 @@ import * as React from "react";
 import styled from "styled-components";
 import {
   color,
-  ColorProps,
+  ColorProps, flexGrow, FlexGrowProps,
   fontSize,
   FontSizeProps,
   fontWeight,
@@ -31,17 +31,19 @@ export const bold = (props: {bold?: boolean, theme: Theme}) =>
 
 export const italic = (props: {italic?: boolean}) => (props.italic ? {fontStyle: "italic"} : null);
 
-export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps {
+export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps, WidthProps, FlexGrowProps {
   align?: "left" | "right";
   caps?: boolean;
   regular?: boolean;
   italic?: boolean;
   bold?: boolean;
   cursor?: Cursor;
+  selectable?: boolean;
 }
 
 const Text = styled.div<TextProps>`
   cursor: ${props => props.cursor};
+  ${p => p.selectable === false ? "user-select: none;" : null}
   ${width}
   ${textStyle}
   ${fontSize}
@@ -50,6 +52,7 @@ const Text = styled.div<TextProps>`
   ${lineHeight}
   ${space}
   ${color}
+  ${flexGrow}
   ${caps}
   ${regular}
   ${bold}

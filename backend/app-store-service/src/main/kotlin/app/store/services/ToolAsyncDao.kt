@@ -10,12 +10,7 @@ import dk.sdu.cloud.app.store.api.Tool
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.paginatedQuery
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -195,13 +190,13 @@ class ToolAsyncDao {
         byNameAndVersionCache.remove(NameAndVersion(name, version))
     }
 
-    suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
+    suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, name: String, imageBytes: ByteArray) {
         val tool =
             ctx.withSession { session ->
                 findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
 
-        if (tool != user.username && user.role != Role.ADMIN) {
+        if (user != null && tool != user.username && user.role != Role.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
@@ -248,8 +243,8 @@ class ToolAsyncDao {
                 },
                 """
                     DELETE FROM tool_logos
-                    WHERE application ?= ?appname
-                """.trimIndent()
+                    WHERE application = :appname
+                """
             )
         }
     }
@@ -268,6 +263,28 @@ class ToolAsyncDao {
             )
         }.rows.singleOrNull()?.getField(ToolLogoTable.data)
 
+    }
+
+    suspend fun browseAllLogos(ctx: DBContext, request: NormalizedPaginationRequestV2): PageV2<Pair<String, ByteArray>> {
+        return ctx.paginateV2(
+            Actor.System,
+            request,
+            create = { session ->
+                session.sendPreparedStatement(
+                    {},
+
+                    """
+                        declare c cursor for
+                            select * from tool_logos
+                    """
+                )
+            },
+            mapper = { session, rows ->
+                rows.map {
+                    Pair(it.getField(ToolLogoTable.application), it.getField(ToolLogoTable.data))
+                }
+            }
+        )
     }
 
     internal suspend fun internalByNameAndVersion(ctx: DBContext, name: String, version: String): RowData? {

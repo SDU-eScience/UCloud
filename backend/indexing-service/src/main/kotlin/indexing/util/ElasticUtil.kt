@@ -7,7 +7,6 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.stackTraceToString
 import mbuhot.eskotlin.query.QueryData
 import mbuhot.eskotlin.query.initQuery
 import org.elasticsearch.action.ActionListener

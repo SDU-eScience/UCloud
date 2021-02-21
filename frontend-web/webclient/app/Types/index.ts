@@ -17,7 +17,6 @@ export interface SidebarOption {
 
 
 declare global {
-
     export interface PaginationRequest {
         itemsPerPage: number;
         page: number;

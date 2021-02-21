@@ -10,7 +10,6 @@ import dk.sdu.cloud.indexing.services.FilesIndex
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.elasticsearch.client.RestHighLevelClient

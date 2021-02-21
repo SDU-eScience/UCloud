@@ -17,7 +17,6 @@ import org.openqa.selenium.By
 
 
 class ProjectTest : EndToEndTest() {
-
     @Test
     fun `Go to projects`() = e2e {
         val user = createUser()

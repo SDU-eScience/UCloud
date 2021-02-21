@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 
 export default class PromiseKeeper {
-    public canceledKeeper: boolean = false;
+    public canceledKeeper = false;
     private promises: Array<CancelablePromise<any>>;
 
     constructor() {

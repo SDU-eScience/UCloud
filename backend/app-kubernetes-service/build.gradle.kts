@@ -1,4 +1,4 @@
-version = "0.19.12"
+version = "0.20.0-rc15"
 
 application {
     mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"
@@ -7,6 +7,4 @@ application {
 dependencies {
     implementation(project(":auth-service:api"))
     implementation(project(":app-orchestrator-service:api"))
-    implementation(project(":app-kubernetes-watcher-service:api"))
-    implementation("io.fabric8:kubernetes-client:4.6.4")
 }

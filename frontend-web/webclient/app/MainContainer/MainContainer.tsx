@@ -1,4 +1,3 @@
-import {LoadableContent} from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as React from "react";
 import {useSelector} from "react-redux";
@@ -31,7 +30,6 @@ export const MainContainer = ({
 
     const mainYpad = header ? headerSize : pad;
     const mainXpad = sidebar && responsiveState!.greaterThan.md ? sidebarSize : pad;
-
 
     return (
         <React.StrictMode>
@@ -106,30 +104,6 @@ export const LoadingMainContainer: React.FunctionComponent<LoadingMainContainerP
         />
     );
 };
-
-export interface LoadableMainContainerProps<T = any> extends MainContainerProps {
-    loadable: LoadableContent<T>;
-    fallbackHeader?: JSX.Element;
-    fallbackSidebar?: JSX.Element;
-}
-
-export function LoadableMainContainer(props: LoadableMainContainerProps): JSX.Element {
-    if (!props.loadable.content) {
-        const main = !!props.loadable.error ?
-            <Heading.h2>{props.loadable.error.statusCode} - {props.loadable.error.errorMessage}</Heading.h2> :
-            <Spinner />;
-        return (
-            <MainContainer
-                header={props.fallbackHeader}
-                sidebar={props.fallbackSidebar}
-                main={main}
-            />
-        );
-    } else {
-        return <MainContainer {...props} />;
-    }
-}
-
 
 const HeaderContainer = styled(Absolute)`
     position: fixed;

@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.store.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+
 data class ApplicationMetadata(
     override val name: String,
     override val version: String,
@@ -9,8 +11,11 @@ data class ApplicationMetadata(
     val title: String,
     val description: String,
     val website: String?,
-    val isPublic: Boolean
-) : NameAndVersion
+    val public: Boolean
+) : NameAndVersion {
+    @Deprecated("Replaced with public") @JsonIgnore val isPublic = public
+}
+
 
 data class VncDescription(
     val password: String?,
@@ -39,7 +44,7 @@ data class ContainerDescription(
 data class ApplicationInvocationDescription(
     val tool: ToolReference,
     val invocation: List<InvocationParameter>,
-    val parameters: List<ApplicationParameter<*>>,
+    val parameters: List<ApplicationParameter>,
     val outputFileGlobs: List<String>,
     val applicationType: ApplicationType = ApplicationType.BATCH,
     val vnc: VncDescription? = null,
@@ -61,7 +66,7 @@ data class ApplicationInvocationDescription(
     val shouldAllowAdditionalPeers: Boolean
         get() {
             if (allowAdditionalPeers != null) return allowAdditionalPeers
-            return applicationType in setOf(ApplicationType.VNC, ApplicationType.WEB)
+            return applicationType in setOf(ApplicationType.VNC, ApplicationType.WEB, ApplicationType.BATCH)
         }
 }
 

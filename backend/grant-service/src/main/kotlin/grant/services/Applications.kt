@@ -49,21 +49,30 @@ class ApplicationService(
     private val notifications: NotificationService,
     private val serviceClient: AuthenticatedClient
 ) {
+    private val productCacheByProvider = SimpleCache<String, List<Product>> {
+        Products.retrieveAllFromProvider.call(
+            RetrieveAllFromProviderRequest(it),
+            serviceClient
+        ).orNull()
+    }
+
     suspend fun retrieveProducts(
         ctx: DBContext,
         actor: Actor.User,
         resourcesOwnedBy: String,
         grantRecipient: GrantRecipient,
-    ): List<ProductCategory> {
+        showHidden: Boolean
+    ): List<Product> {
         verifyCanApplyTo(ctx, resourcesOwnedBy, actor, grantRecipient, false)
 
         val balance = Wallets.retrieveBalance.call(
-            RetrieveBalanceRequest(resourcesOwnedBy, WalletOwnerType.PROJECT, false),
+            RetrieveBalanceRequest(resourcesOwnedBy, WalletOwnerType.PROJECT, false, showHidden),
             serviceClient
         ).orThrow()
 
-        return balance.wallets.map {
-            ProductCategory(it.wallet.paysFor, it.area)
+        return balance.wallets.flatMap{ wb ->
+            val allProducts = productCacheByProvider.get(wb.wallet.paysFor.provider) ?: emptyList()
+            allProducts.filter { it.category.id == wb.wallet.paysFor.id }
         }
     }
 
@@ -123,7 +132,7 @@ class ApplicationService(
                 )
                 .rows
                 .single()
-                .getLong("id")!!
+                .get("id")?.let { (it as Number).toLong() }!!
 
             insertResources(session, application.requestedResources, id)
 

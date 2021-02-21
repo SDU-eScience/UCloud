@@ -21,7 +21,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
                     context.jobId = readJobId
                 } else {
                     if (complainAboutMissingJobId) {
-                        log.warn("Missing Job ID (required)")
+                        log.debug("Missing Job ID (required)")
                     }
 
                     context.jobId = UUID.randomUUID().toString()
@@ -67,6 +67,9 @@ var IngoingCall.jobId: String
     set(value) {
         attributes[JobIdInterceptor.jobIdKey] = value
     }
+
+val IngoingCall.jobIdOrNull: String?
+    get() = attributes.getOrNull(JobIdInterceptor.jobIdKey)
 
 var IngoingCall.causedBy: String?
     get() = attributes.getOrNull(JobIdInterceptor.causedByKey)

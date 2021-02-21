@@ -11,6 +11,9 @@ import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
 import {JWT} from "Authentication/lib";
+import {useGlobal} from "Utilities/ReduxHooks";
+import {useEffect, useState} from "react";
+import CONF from "../site.config.json";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -327,6 +330,22 @@ export const downloadAllowed = (files: File[]): boolean => files.every(f => f.se
  */
 export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
+export function extractErrorCode(e: unknown): number {
+    if (typeof e === "object") {
+        if (e != null && "request" in e) {
+            const req = e["request"];
+            if ("status" in req) {
+                const status = req.status;
+                if (typeof status === "number") {
+                    return status;
+                }
+            }
+        }
+    }
+
+    return 500;
+}
+
 export function defaultErrorHandler(
     error: {request: XMLHttpRequest; response: any}
 ): number {
@@ -402,7 +421,7 @@ export function timestampUnixMs(): number {
 /**
  * Used to format numbers to a more human readable number by dividing it up by thousands and using custom delimiters.
  * @param value numerical value to be formatted.
- * @param sectionDelim used for deliminate every thousand. Default: , 
+ * @param sectionDelim used for deliminate every thousand. Default: ,
  * @param decimalDelim used to deliminate the decimals. Default: .
  * @param numDecimals number of decimals in the formatted number. Default: 2
  */
@@ -427,7 +446,7 @@ interface CopyToClipboard {
 
 /**
  * Copies a string to the users clipboard.
- * @param param contains the value to be copied and the message to show the user on success. 
+ * @param param contains the value to be copied and the message to show the user on success.
  */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
     const input = document.createElement("input");
@@ -468,6 +487,7 @@ export function delay(ms: number): Promise<void> {
  * even if the code may be deployed on production.
  */
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
+export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE;
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
@@ -502,7 +522,7 @@ export function doNothing(): void {
 }
 
 /**
- * Calls both stopProgation and preventDefault for 
+ * Calls both stopProgation and preventDefault for
  * @param e to stop propagation and preventdefault for.
  */
 export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}): void {
@@ -517,9 +537,24 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
 /**
  * Used to know to hide the header and sidebar in some cases.
  */
-export function shouldHideSidebarAndHeader(): boolean {
-    return ["/app/login", "/app/login/wayf", "/app/login/selection"]
-        .includes(window.location.pathname) || window.location.search === "?dav=true";
+export function useFrameHidden(): boolean {
+    const [frameHidden] = useGlobal("frameHidden", false);
+    const legacyHide =
+        ["/app/login", "/app/login/wayf", "/app/login/selection"].includes(window.location.pathname) ||
+        window.location.search === "?dav=true" ||
+        window.location.search === "?hide-frame";
+    return legacyHide || frameHidden;
+}
+
+export function useNoFrame(): void {
+    const [frameHidden, setFrameHidden] = useGlobal("frameHidden", false);
+    useEffect(() => {
+        const wasFrameHidden = frameHidden;
+        setFrameHidden(true);
+        return () => {
+            setFrameHidden(wasFrameHidden);
+        };
+    }, []);
 }
 
 /**
@@ -594,7 +629,7 @@ function b64DecodeUnicode(str) {
 
 
 /**
- * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as 
+ * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as
  * a an object.
  * @param encodedJWT The JWT sent from the backend, in the form of a string.
  */
@@ -616,4 +651,41 @@ export function parseJWT(encodedJWT: string): JWT | null {
     if (!isValid) return null;
 
     return parsed;
+}
+
+export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];
+export type GetElementType<T extends Array<any>> = T extends (infer U)[] ? U : never;
+export type GetArrayReturnType<T> = T extends () => (infer U)[] ? U : never;
+
+export function joinToString(elements: string[], separator = ","): string {
+    let result = "";
+    let first = true;
+    for (const tag of elements) {
+        if (!first) result += separator;
+        else first = false;
+        result += tag;
+    }
+    return result;
+}
+
+export function useDidMount(): boolean {
+    const [didMount, setDidMount] = useState(false);
+    useEffect(() => {
+        setDidMount(true);
+    });
+    return didMount;
+}
+
+export function useEffectSkipMount(fn: () => (void | (() => void | undefined)), deps: ReadonlyArray<any>): void {
+    const didMount = useDidMount();
+    useEffect(() => {
+        if (didMount) {
+            return fn();
+        }
+    }, deps);
+}
+
+export function isAbsoluteUrl(url: string): boolean {
+    return url.indexOf("http://") === 0 || url.indexOf("https://") === 0 ||
+        url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
 }

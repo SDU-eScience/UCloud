@@ -7,6 +7,7 @@ import {stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
 import {Icon, Text} from "ui-components/index";
 import {ThemeColor} from "./theme";
+import {Cursor} from "ui-components/Types";
 
 type StringOrNumber = string | number;
 
@@ -49,6 +50,7 @@ interface ListRowProps {
     icon?: React.ReactNode;
     bg?: string;
     right: React.ReactNode;
+    fontSize?: string | number;
 }
 
 export function ListRow(props: ListRowProps): JSX.Element {
@@ -58,10 +60,13 @@ export function ListRow(props: ListRowProps): JSX.Element {
         <Box maxWidth={`calc(100% - ${truncateWidth})`} width="auto">
             <Truncate
                 cursor={props.navigate ? "pointer" : "default"}
-                onClick={e => {props.navigate?.(); e.stopPropagation();}}
+                onClick={e => {
+                    (props.navigate ?? props.select)?.();
+                    e.stopPropagation();
+                }}
                 mb="-4px"
                 width={1}
-                fontSize={20}
+                fontSize={props.fontSize ?? 20}
             >{props.left}</Truncate>
             <Flex mt="4px">
                 {props.leftSub}
@@ -91,13 +96,26 @@ export function ListRow(props: ListRowProps): JSX.Element {
     );
 }
 
+export const ListStatContainer = styled(Flex)`
+    & > * {
+      margin-right: 16px;
+    }
+`;
 
-export const ListRowStat: React.FunctionComponent<{icon?: IconName; color?: ThemeColor; color2?: ThemeColor}> = props => {
+export const ListRowStat: React.FunctionComponent<{
+    icon?: IconName;
+    color?: ThemeColor;
+    color2?: ThemeColor;
+    textColor?: ThemeColor;
+    onClick?: () => void;
+    cursor?: Cursor;
+}> = props => {
     const color: ThemeColor = props.color ?? "gray";
     const color2: ThemeColor = props.color2 ?? "white";
     return (
         <>
-            <Text color="gray" fontSize={0} mr={"4px"}>
+            <Text color={props.textColor ?? "gray"} fontSize={0} mr={"4px"} cursor={props.cursor}
+                  onClick={props.onClick}>
                 {!props.icon ? null : (<>
                     <Icon size={"10"} color={color} color2={color2} name={props.icon} mt={"-2px"} />
                     {" "}

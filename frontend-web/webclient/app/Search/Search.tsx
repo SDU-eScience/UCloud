@@ -1,8 +1,3 @@
-import {AdvancedSearchRequest as AppSearchRequest, DetailedApplicationSearchReduxState} from "Applications";
-import {ApplicationCard} from "Applications/Card";
-import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
-import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage, HeaderSearchType} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, FileType} from "Files";
 import DetailedFileSearch from "Files/DetailedFileSearch";
@@ -17,16 +12,15 @@ import {connect} from "react-redux";
 import {useHistory, useLocation, useRouteMatch} from "react-router";
 import {Dispatch} from "redux";
 import {Box, SelectableText, SelectableTextWrapper} from "ui-components";
-import {GridCardGroup} from "ui-components/Grid";
 import Hide from "ui-components/Hide";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
-import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {prettierString} from "UtilityFunctions";
 import {SearchProps, SimpleSearchOperations, SimpleSearchStateProps} from ".";
 import * as SSActions from "./Redux/SearchActions";
+import * as Applications from "Applications";
 
 function Search(props: SearchProps): JSX.Element {
 
@@ -64,12 +58,6 @@ function Search(props: SearchProps): JSX.Element {
             itemsPerPage || props.files.itemsPerPage,
             props.files.pageNumber
         ));
-        props.searchApplications(applicationSearchBody(
-            props.applicationSearch,
-            props.search,
-            itemsPerPage || props.applications.itemsPerPage,
-            props.applications.pageNumber
-        ));
         history.push(searchPage(match.params.priority, props.search));
     }
 
@@ -80,7 +68,7 @@ function Search(props: SearchProps): JSX.Element {
         props.files.pageNumber
     ));
 
-    const {files, applications, applicationsLoading} = props;
+    const {files} = props;
 
     const Tab = ({searchType}: {searchType: HeaderSearchType}): JSX.Element => (
         <SelectableText
@@ -98,7 +86,7 @@ function Search(props: SearchProps): JSX.Element {
 
     let main: React.ReactNode = null;
     const {priority} = match.params;
-    const entriesPerPage = (
+    const entriesPerPage = priority === "files" ? (
         <Box my="8px">
             <Spacer
                 left={null}
@@ -107,14 +95,13 @@ function Search(props: SearchProps): JSX.Element {
                         onChange={itemsPerPage => fetchAll(itemsPerPage)}
                         content={`${prettierString(priority)} per page`}
                         entriesPerPage={
-                            priority === "files" ? props.files.itemsPerPage :
-                                props.applications.itemsPerPage
+                            props.files.itemsPerPage
                         }
                     />
                 )}
             />
         </Box>
-    );
+    ) : null;
     if (priority === "files") {
         main = (
             <>
@@ -134,45 +121,10 @@ function Search(props: SearchProps): JSX.Element {
             </>
         );
     } else if (priority === "applications") {
-        main = (
-            <>
-                <Hide xxl xl lg>
-                    <DetailedApplicationSearch />
-                    {entriesPerPage}
-                </Hide>
-                <Pagination.List
-                    loading={applicationsLoading}
-                    pageRenderer={({items}) => (
-                        <GridCardGroup>
-                            {items.map(app => (
-                                <ApplicationCard
-                                    onFavorite={async () => props.setApplicationsPage(
-                                        await favoriteApplicationFromPage({
-                                            name: app.metadata.name,
-                                            version: app.metadata.version,
-                                            page: props.applications,
-                                            client: Client
-                                        })
-                                    )}
-                                    key={`${app.metadata.name}${app.metadata.version}`}
-                                    app={app}
-                                    isFavorite={app.favorite}
-                                    tags={app.tags}
-                                />))}
-                        </GridCardGroup>
-                    )}
-                    page={applications}
-                    onPageChanged={pageNumber => props.searchApplications(
-                        applicationSearchBody(
-                            props.applicationSearch,
-                            props.search,
-                            props.applications.itemsPerPage,
-                            pageNumber
-                        ))
-                    }
-                />
-            </>
-        );
+        main = <>
+            <Applications.SearchWidget partOfResults/>
+            <Applications.SearchResults entriesPerPage={25}/>
+        </>
     }
 
     return (
@@ -194,20 +146,13 @@ function Search(props: SearchProps): JSX.Element {
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
-    setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
     clear: () => dispatch(SSActions.receiveFiles(emptyPage)),
     searchFiles: async body => {
         dispatch(SSActions.setFilesLoading(true));
         dispatch(await SSActions.searchFiles(body));
         dispatch(setFilename(body.fileName || ""));
     },
-    searchApplications: async body => {
-        dispatch(SSActions.setApplicationsLoading(true));
-        dispatch(await SSActions.searchApplications(body));
-        dispatch(setAppQuery(body.query || ""));
-    },
     setFilesPage: page => dispatch(SSActions.receiveFiles(page)),
-    setApplicationsPage: page => dispatch(SSActions.receiveApplications(page)),
     setSearch: search => dispatch(SSActions.setSearch(search)),
     setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden()),
@@ -218,11 +163,9 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
 const mapStateToProps = ({
     simpleSearch,
     detailedFileSearch,
-    detailedApplicationSearch
 }: ReduxObject): SimpleSearchStateProps => ({
     ...simpleSearch,
     fileSearch: detailedFileSearch,
-    applicationSearch: detailedApplicationSearch
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Search);
@@ -253,6 +196,7 @@ export function fileSearchBody(
     };
 }
 
+/*
 export function applicationSearchBody(
     body: DetailedApplicationSearchReduxState,
     appName: string,
@@ -268,6 +212,7 @@ export function applicationSearchBody(
         page
     };
 }
+ */
 
 function query(props: RouterLocationProps): string {
     return queryFromProps(props);

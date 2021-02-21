@@ -2,11 +2,7 @@ package dk.sdu.cloud.filesearch.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
@@ -32,6 +28,7 @@ typealias SearchResult = StorageFile
 /**
  * Contains REST calls for searching in files
  */
+@TSTopLevel
 object FileSearchDescriptions : CallDescriptionContainer("fileSearch") {
     const val baseContext: String = "/api/file-search"
 

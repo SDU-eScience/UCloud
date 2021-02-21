@@ -15,7 +15,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import org.junit.Ignore
 import org.junit.Test
-@Ignore
+
 class ProjectRepositories : IntegrationTest() {
     @Test
     fun `test that personal repository is automatically created and accessible`() =

@@ -40,14 +40,34 @@ class CallDescription<Request : Any, Success : Any, Error : Any> internal constr
     val attributes: AttributeContainer,
     val requestType: TypeReference<Request>,
     val successType: TypeReference<Success>,
-    val errorType: TypeReference<Error>
+    val errorType: TypeReference<Error>,
+    val containerRef: CallDescriptionContainer,
 ) {
     val fullName: String get() = "$namespace.$name"
 
     override fun toString(): String = "CallDescription($fullName)"
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as CallDescription<*, *, *>
+
+        if (name != other.name) return false
+        if (namespace != other.namespace) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + namespace.hashCode()
+        return result
+    }
+
 }
 
 abstract class CallDescriptionContainer(val namespace: String) {
+    val attributes = AttributeContainer()
     private val _callContainer = ArrayList<CallDescription<*, *, *>>()
     val callContainer: List<CallDescription<*, *, *>>
         get() = Collections.unmodifiableList(_callContainer)
@@ -60,7 +80,7 @@ abstract class CallDescriptionContainer(val namespace: String) {
         errorType: TypeReference<Error>
     ): CallDescription<Request, Success, Error> {
         val callDescription =
-            CallDescription(name, namespace, AttributeContainer(), requestType, successType, errorType)
+            CallDescription(name, namespace, AttributeContainer(), requestType, successType, errorType, this)
         callDescription.handler()
         _callContainer.add(callDescription)
         onBuildHandlers.forEach { it(callDescription) }

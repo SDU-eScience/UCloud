@@ -4,13 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.audit
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.websocket
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -33,6 +27,7 @@ typealias PostStatusResponse = Unit
 typealias MarkAsCompleteRequest = FindByStringId
 typealias MarkAsCompleteResponse = Unit
 
+@TSTopLevel
 object Tasks : CallDescriptionContainer("task") {
     private val baseContext = "/api/tasks"
 

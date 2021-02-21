@@ -3,6 +3,7 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.findValidHostname
+import java.util.concurrent.atomic.AtomicBoolean
 
 fun safeSchemaName(service: ServiceDescription): String = service.name.replace('-', '_')
 
@@ -26,10 +27,12 @@ class DatabaseConfigurationFeature : MicroFeature {
         fun invalidConfig(why: String): Nothing =
             throw IllegalStateException("$why. Please provide it in configuration at ${CONFIG_PATH.toList()}")
 
+        val shouldLog = didLog.compareAndSet(false, true)
+
         val configuration =
             ctx.configuration.requestChunkAtOrNull(*CONFIG_PATH)
                 ?: ctx.configuration.requestChunkAtOrNull(*OLD_CONFIG_PATH) ?: run {
-                    log.warn(
+                    if (shouldLog) log.warn(
                         "No database configuration provided at ${CONFIG_PATH.toList()}. " +
                                 "Will fall back to default test (non-persistent) database."
                     )
@@ -37,14 +40,13 @@ class DatabaseConfigurationFeature : MicroFeature {
                     Config()
                 }
 
-        log.info("Using ${configuration.profile} database configuration profile.")
         when (configuration.profile) {
             Profile.PERSISTENT_POSTGRES -> {
                 val credentials = configuration.credentials
                     ?: invalidConfig("Cannot connect to postgres without credentials")
 
                 val hostname = configuration.hostname ?: run {
-                    log.info(
+                    if (shouldLog) log.trace(
                         "No hostname given in configuration. Looking for valid hostname: " +
                                 "$postgresExpectedHostnames"
                     )
@@ -64,6 +66,11 @@ class DatabaseConfigurationFeature : MicroFeature {
                     safeSchemaName(ctx.serviceDescription),
                     recreateSchema = false
                 )
+
+                if (shouldLog) {
+                    log.info("Using postgresql database at $hostname. " +
+                        "Config is loaded from ${CONFIG_PATH.joinToString("/")}.")
+                }
             }
         }
     }
@@ -101,6 +108,7 @@ class DatabaseConfigurationFeature : MicroFeature {
         override val key: MicroAttributeKey<DatabaseConfigurationFeature> = MicroAttributeKey("database-config")
 
         override fun create(config: Unit): DatabaseConfigurationFeature = DatabaseConfigurationFeature()
+        private val didLog = AtomicBoolean(false)
     }
 }
 

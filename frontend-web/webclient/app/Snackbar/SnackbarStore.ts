@@ -6,7 +6,7 @@ type SnackbarSubscriber = (activeSnack?: Snack) => void;
 class SnackbarStore {
     private subscribers: SnackbarSubscriber[] = [];
     private snackQueue: Snack[] = [];
-    private activeExpiresAt: number = -1;
+    private activeExpiresAt = -1;
 
     public subscribe(subscriber: SnackbarSubscriber): void {
         this.subscribers.push(subscriber);

@@ -1,7 +1,7 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
-import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.file.api.NO_QUOTA
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
@@ -32,16 +32,18 @@ object StorageService : Service {
     override val description = StorageServiceDescription
 
     override fun initializeServer(micro: Micro): CommonServer {
-        micro.install(RefreshingJWTCloudFeature)
+        micro.install(AuthenticatorFeature)
         micro.install(BackgroundScopeFeature)
         val folder = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
         val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
 
+        /*
         micro.feature(LogFeature).configureLevels(
             mapOf(
                 "com.github.jasync.sql.db" to Level.INFO
             )
         )
+         */
 
         return Server(
             config,

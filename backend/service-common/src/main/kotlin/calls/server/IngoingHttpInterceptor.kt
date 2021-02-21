@@ -14,7 +14,6 @@ import dk.sdu.cloud.calls.httpOrNull
 import dk.sdu.cloud.calls.toKtorTemplate
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.content.TextContent
@@ -86,7 +85,8 @@ class IngoingHttpInterceptor(
             val receiveOrNull = ctx.call.receiveOrNull<String>()?.takeIf { it.isNotEmpty() } ?: return null
             return defaultMapper.readValue<R>(receiveOrNull, typeReference)
         } catch (ex: MismatchedInputException) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            log.debug(ex.stackTraceToString())
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Request does not use the correct schema")
         }
     }
 
@@ -98,6 +98,7 @@ class IngoingHttpInterceptor(
             val receiveOrNull = ctx.call.receiveOrNull<String>()?.takeIf { it.isNotEmpty() } ?: return null
             return defaultMapper.readValue<R>(receiveOrNull, typeReference)
         } catch (ex: MismatchedInputException) {
+            log.debug(ex.stackTraceToString())
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
     }
@@ -208,6 +209,7 @@ class IngoingHttpInterceptor(
             } else if (ex is RPCException) {
                 throw ex
             } else {
+                log.debug(ex.stackTraceToString())
                 throw RPCException("Bad request", HttpStatusCode.BadRequest)
             }
         }
@@ -342,7 +344,6 @@ class IngoingHttpInterceptor(
         call: CallDescription<R, S, E>,
         callResult: OutgoingCallResponse<S, E>
     ) {
-        log.debug("Producing response: $ctx, $call, $callResult")
         val (type, responseItem) = when (callResult) {
             is OutgoingCallResponse.Ok -> Pair(call.successType, callResult.result)
             is OutgoingCallResponse.Error -> Pair(call.errorType, callResult.error)

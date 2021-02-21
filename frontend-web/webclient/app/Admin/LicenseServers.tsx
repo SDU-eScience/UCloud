@@ -1,92 +1,104 @@
-import {
-    deleteLicenseServer,
-    LicenseServerAccessRight,
-    updateLicenseServerPermission,
-    UserEntityType,
-    addLicenseServerTag,
-    deleteLicenseServerTag,
-    DetailedAccessEntity
-} from "Applications/api";
-import {useAsyncCommand} from "Authentication/DataHook";
+import * as UCloud from "UCloud";
+import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
-import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
-import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
-import * as ReactModal from "react-modal";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip, Card} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip, Card, Grid, TextArea, Select, Checkbox} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import {InputLabel} from "ui-components/Input";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
-import {defaultErrorHandler} from "UtilityFunctions";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+import {MutableRefObject, useCallback, useEffect, useRef, useState} from "react";
+import {accounting, compute, PageV2} from "UCloud";
+import KubernetesLicense = compute.ucloud.KubernetesLicense;
+import licenseApi = compute.ucloud.licenses.maintenance;
+import {emptyPageV2} from "DefaultObjects";
+import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
+import * as Pagination from "Pagination";
+import ReactModal from "react-modal";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {useProjectStatus} from "Project/cache";
+import {useProjectId} from "Project";
+import {UCLOUD_PROVIDER} from "Accounting";
+import Wallet = accounting.Wallet;
+import {PaymentModel} from "Accounting";
+import {errorMessageOrDefault, prettierString, stopPropagation} from "UtilityFunctions";
+import {InputLabel} from "ui-components/Input";
+import {creditFormatter} from "Project/ProjectUsage";
+
+const PaymentModelOptions: PaymentModel[] = ["PER_ACTIVATION", "FREE_BUT_REQUIRE_BALANCE"];
 
 const LeftAlignedTableHeader = styled(TableHeader)`
-    text-align: left;
+  text-align: left;
 `;
 
-function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
-    const [tagList, setTagList] = React.useState<TagEntry[]>([]);
-    const [, invokeCommand] = useAsyncCommand();
+const GrantCopies: React.FunctionComponent<{licenseServer: KubernetesLicense, onGrant: () => void}> = props => {
+    const [loading, invokeCommand] = useCloudCommand();
+    const project = useProjectStatus();
+    const projectId = useProjectId();
+    const projectName = project.fetch().membership.find(it => it.projectId === projectId)?.title
 
-    const newTagField = React.useRef<HTMLInputElement>(null);
+    const grantCopies = useCallback(async () => {
+        if (loading || !projectId) return;
+        const wallet: Wallet = {
+            id: projectId,
+            type: "PROJECT",
+            paysFor: {
+                provider: UCLOUD_PROVIDER,
+                id: props.licenseServer.id
+            }
+        };
 
-    async function loadTags(serverId: string): Promise<TagEntry[]> {
-        const {response} = await Client.get<{tags: string[]}>(`/app/license/tag/list?serverId=${serverId}`);
-        return response.tags.map(item => ({
-            name: item
+        // NOTE(Dan): We must initialize the wallet first, this is quite likely to fail if we are adding additional
+        // copies.
+        try {
+            await invokeCommand(
+                UCloud.accounting.wallets.setBalance({wallet, newBalance: 0, lastKnownBalance: 0}),
+                {defaultErrorHandler: false}
+            );
+        } catch (ignored) {
+            // Ignored
+        }
+
+        await invokeCommand(UCloud.accounting.wallets.addToBalance({
+            credits: 1_000_000 * 1000,
+            wallet
         }));
-    }
+        props.onGrant();
+    }, [props.onGrant, loading]);
 
-    function promptDeleteTag(tag: TagEntry): Promise<string | null> {
-        return new Promise(resolve => addStandardDialog({
-            title: `Are you sure?`,
-            message: (
-                <Box>
-                    <Text>
-                        Delete tag {tag.name}?
-                    </Text>
-                </Box>
-            ),
-            onConfirm: async () => {
-                if (licenseServer === null) {
-                    resolve(null);
-                    return;
-                }
-                await invokeCommand(deleteLicenseServerTag(
-                    {
-                        serverId: licenseServer.id,
-                        tag: tag.name
-                    }
-                ));
-                resolve(licenseServer.id);
-            },
-            addToFront: true
-        }));
-    }
+    return <Grid gridTemplateColumns={"1fr"} gridGap={16}>
+        <Heading.h3>Grant copies?</Heading.h3>
+        <Box>
+            This will add 1000 copies to your currently active project ({projectName}). Users will be able to apply
+            from this project to receive access to the license.
+        </Box>
+        <Button onClick={grantCopies}>Grant copies</Button>
+    </Grid>;
+};
 
-    async function loadAndSetTagList(serverId: string): Promise<void> {
-        setTagList(await loadTags(serverId));
-    }
+const LicenseServerTagsPrompt: React.FunctionComponent<{
+    licenseServer: KubernetesLicense;
+    onUpdate?: () => void;
+}> = ({licenseServer, onUpdate}) => {
+    const [tagList, setTagList] = useState<string[]>(licenseServer.tags);
+    useEffect(() => {
+        setTagList(licenseServer.tags);
+    }, [licenseServer]);
 
-    React.useEffect(() => {
-        if (licenseServer === null) return;
-        loadAndSetTagList(licenseServer.id);
-    }, []);
+    const [, invokeCommand] = useCloudCommand();
+    const newTagField = useRef<HTMLInputElement>(null);
 
     return (
         <Box>
             <div>
                 <Flex alignItems={"center"}>
                     <Heading.h3>
-                        <TextSpan color="gray">Tags for</TextSpan> {licenseServer?.name}
+                        <TextSpan color="gray">Tags for</TextSpan> {licenseServer?.id}
                     </Heading.h3>
                 </Flex>
                 <Box mt={16} mb={30}>
@@ -94,29 +106,18 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                         onSubmit={async e => {
                             e.preventDefault();
 
-                            const tagField = newTagField.current;
-                            if (tagField === null) return;
-
-                            const tagValue = tagField.value;
-
-                            if (tagValue === "") return;
-
-                            if (licenseServer === null) return;
-                            await invokeCommand(addLicenseServerTag(
-                                {
-                                    serverId: licenseServer.id,
-                                    tag: tagValue
-                                }
-                            ));
-
-                            await loadAndSetTagList(licenseServer.id);
-                            tagField.value = "";
+                            const tagValue = newTagField.current?.value;
+                            if (tagValue === undefined || tagValue === "") return;
+                            const newTagList = [...tagList, tagValue]
+                            setTagList(newTagList);
+                            newTagField.current!.value = "";
+                            await invokeCommand(licenseApi.update({...licenseServer, tags: newTagList}));
+                            if (onUpdate) onUpdate();
                         }}
                     >
                         <Flex height={45}>
                             <Input
                                 rightLabel
-                                required
                                 type="text"
                                 ref={newTagField}
                                 placeholder="Name of tag"
@@ -142,8 +143,8 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                             </LeftAlignedTableHeader>
                             <tbody>
                                 {tagList.map(tagEntry => (
-                                    <TableRow key={tagEntry.name}>
-                                        <TableCell>{tagEntry.name}</TableCell>
+                                    <TableRow key={tagEntry}>
+                                        <TableCell>{tagEntry}</TableCell>
                                         <TableCell textAlign="right">
                                             <Button
                                                 color={"red"}
@@ -151,11 +152,12 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                                                 paddingLeft={10}
                                                 paddingRight={10}
                                                 onClick={async () => {
-                                                    const licenseServerId = await promptDeleteTag(tagEntry);
-
-                                                    if (licenseServerId !== null) {
-                                                        loadAndSetTagList(licenseServerId);
-                                                    }
+                                                    const newTagList = tagList.filter(it => it !== tagEntry);
+                                                    setTagList(newTagList);
+                                                    await invokeCommand(
+                                                        licenseApi.update({...licenseServer, tags: newTagList})
+                                                    );
+                                                    if (onUpdate) onUpdate();
                                                 }}
                                             >
                                                 <Icon size={16} name="trash" />
@@ -174,417 +176,133 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
     );
 }
 
-function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
-    const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
-    const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
-    const [selectedEntityType, setSelectedEntityType] = React.useState<UserEntityType>(UserEntityType.USER);
-    const [accessEntryToDelete, setAccessEntryToDelete] = React.useState<AclEntry | null>(null);
-    const [, invokeCommand] = useAsyncCommand();
-    const promises = usePromiseKeeper()
+interface InputHook<T = HTMLInputElement> {
+    ref: MutableRefObject<T | null>;
+    hasError: boolean;
+    setHasError: (err: boolean) => void;
+}
 
-    const userEntityField = React.useRef<HTMLInputElement>(null);
-    const projectEntityField = React.useRef<HTMLInputElement>(null);
-    const groupEntityField = React.useRef<HTMLInputElement>(null);
+export function useInput<T = HTMLInputElement>(): InputHook<T> {
+    const ref = useRef<T>(null);
+    const [hasError, setHasError] = useState(false);
+    return {ref, hasError, setHasError};
+}
 
-    async function loadAcl(serverId: string): Promise<void> {
-        try {
-            const {response} = await (
-                await promises.makeCancelable(
-                    Client.get<AclEntry[]>(`/app/license/listAcl?serverId=${serverId}`)
-                ).promise
-            );
-            setAccessList(response);
-        } catch (err) {
-            if (!promises.canceledKeeper) {
-                snackbarStore.addFailure("Failed to load License Server Permissions", false);
-            }
-        }
-    }
+const LicenseServers: React.FunctionComponent = () => {
+    const [licenses, fetchLicenses] = useCloudAPI<PageV2<KubernetesLicense>>({noop: true}, emptyPageV2);
+    const [loading, invokeCommand] = useCloudCommand();
+    const [infScroll, setInfScroll] = useState(0);
+    const [editing, setEditing] = useState<KubernetesLicense | null>(null);
+    const [granting, setGranting] = useState<KubernetesLicense | null>(null);
 
-    async function deleteAclEntry(): Promise<void> {
-        if (licenseServer == null) return;
-        if (accessEntryToDelete == null) return;
-        await invokeCommand(updateLicenseServerPermission({
-            serverId: licenseServer.id,
-            changes: [
-                {
-                    entity: {
-                        user: accessEntryToDelete.entity.user,
-                        project: accessEntryToDelete.entity.project ? accessEntryToDelete.entity.project.id : null,
-                        group: accessEntryToDelete.entity.group ? accessEntryToDelete.entity.group.id : null
-                    },
-                    rights: accessEntryToDelete.permission,
-                    revoke: true
-                }
-            ]
-        }));
-        setAccessEntryToDelete(null);
-        await loadAndSetAccessList(licenseServer.id)
-    }
+    const [isAvailable, setAvailable] = React.useState(true);
+    const [paymentModel, setPaymentModel] = React.useState<PaymentModel>("PER_ACTIVATION");
 
-    async function loadAndSetAccessList(serverId: string): Promise<void> {
-        await loadAcl(serverId);
-    }
+    const projectId = useProjectId();
 
-    React.useEffect(() => {
-        if (licenseServer === null) return;
-        loadAndSetAccessList(licenseServer.id);
+    const reload = useCallback(() => {
+        fetchLicenses(licenseApi.browse({}));
+        setInfScroll(s => s + 1);
     }, []);
+    useEffect(reload, [reload]);
 
-    return (
-        <Box overflow={"scroll"}>
-            <div>
-                <ReactModal
-                    ariaHideApp={false}
-                    shouldCloseOnEsc
-                    shouldCloseOnOverlayClick
-                    onAfterClose={() => setAccessEntryToDelete(null)}
-                    isOpen={accessEntryToDelete != null}
-                    style={defaultModalStyle}
-                >
-                    <Heading.h3>Delete entry</Heading.h3>
-                    <Box>
-                        <Text>
-                            Remove access for {accessEntryToDelete?.entity.user !== null ? (
-                                accessEntryToDelete?.entity.user
-                            ) : (
-                                    `${accessEntryToDelete?.entity.project?.title} / ${accessEntryToDelete?.entity.group?.title}`
-                            )}?
-                        </Text>
-                    </Box>
-                    <Box mt="6px" alignItems="center">
-                        <Button mr="4px" color="red" onClick={() => setAccessEntryToDelete(null)}>Cancel</Button>
-                        <Button color="green" onClick={deleteAclEntry}>Delete</Button>
-                    </Box>
-                </ReactModal>
-                <Flex alignItems="center">
-                    <Heading.h3>
-                        <TextSpan color="gray">Access control for</TextSpan> {licenseServer?.name}
-                    </Heading.h3>
-                </Flex>
-                <Box mt={16} mb={30}>
-                    <form
-                        onSubmit={async e => {
-                            e.preventDefault();
+    const loadMore = useCallback(() => {
+        fetchLicenses(licenseApi.browse({next: licenses.data.next}));
+    }, [licenses.data]);
 
-                            if (selectedEntityType == UserEntityType.USER) {
-                                const userField = userEntityField.current;
-                                if (userField === null) return;
+    const nameInput = useInput();
+    const portInput = useInput();
+    const addressInput = useInput();
+    const licenseInput = useInput();
+    const pricePerUnitInput = useInput();
+    const priorityInput = useInput();
+    const reasonInput = useInput();
+    const [hiddenInGrantApplicationsInput, setHiddenInGrantApplicationsInput] = useState(false);
+    const descriptionTextArea = useInput<HTMLTextAreaElement>();
 
-                                const userValue = userField.value;
-
-                                if (userValue === "") return;
-
-                                if (licenseServer === null) return;
-
-                                await invokeCommand(updateLicenseServerPermission(
-                                    {
-                                        serverId: licenseServer.id,
-                                        changes: [
-                                            {
-                                                entity: {user: userValue, project: null, group: null},
-                                                rights: selectedAccess,
-                                                revoke: false
-                                            }
-                                        ]
-                                    }
-                                ));
-
-                                await loadAndSetAccessList(licenseServer.id);
-                                userField.value = "";
-
-                            } else if (selectedEntityType === UserEntityType.PROJECT_GROUP) {
-                                const projectField = projectEntityField.current;
-                                if (projectField === null) return;
-
-                                const projectValue = projectField.value;
-
-                                if (projectValue === "") return;
-
-                                const groupField = groupEntityField.current;
-                                if (groupField === null) return;
-
-                                const groupValue = groupField.value;
-
-                                if (groupValue === "") return;
-
-                                if (licenseServer === null) return;
-
-                                await invokeCommand(updateLicenseServerPermission(
-                                    {
-                                        serverId: licenseServer.id,
-                                        changes: [
-                                            {
-                                                entity: {user: null, project: projectValue, group: groupValue},
-                                                rights: selectedAccess,
-                                                revoke: false
-                                            }
-                                        ]
-                                    }
-                                ));
-
-                                await loadAndSetAccessList(licenseServer.id);
-                                projectField.value = "";
-                                groupField.value = "";
-                            } else {
-                                return;
-                            }
-
-                        }}
-                    >
-                        <Flex height={45}>
-                            <InputLabel width={160} leftLabel>
-                                <ClickableDropdown
-                                    chevron
-                                    width="180px"
-                                    onChange={(val: UserEntityType) => setSelectedEntityType(val)}
-                                    trigger={
-                                        <Box as="span" minWidth="220px">{prettifyEntityType(selectedEntityType)}</Box>
-                                    }
-                                    options={entityTypes}
-                                />
-                            </InputLabel>
-                            {selectedEntityType === UserEntityType.USER ? (
-                                <Input
-                                    leftLabel
-                                    rightLabel
-                                    required
-                                    type="text"
-                                    ref={userEntityField}
-                                    placeholder="Username"
-                                />
-                            ) : (
-                                    <>
-                                        <Input
-                                            leftLabel
-                                            rightLabel
-                                            required
-                                            width={200}
-                                            type="text"
-                                            ref={projectEntityField}
-                                            placeholder="Project name"
-                                        />
-                                        <Input
-                                            leftLabel
-                                            rightLabel
-                                            required
-                                            width={200}
-                                            type="text"
-                                            ref={groupEntityField}
-                                            placeholder="Group name"
-                                        />
-                                    </>
-                                )}
-
-
-                            <InputLabel width={160} rightLabel>
-                                <ClickableDropdown
-                                    chevron
-                                    width="180px"
-                                    onChange={(val: LicenseServerAccessRight) => setSelectedAccess(val)}
-                                    trigger={
-                                        <Box as="span" minWidth="220px">{prettifyAccessRight(selectedAccess)}</Box>
-                                    }
-                                    options={permissionLevels}
-                                />
-                            </InputLabel>
-                            <Button
-                                attached
-                                width="200px"
-                                type={"submit"}
-                            >
-                                Grant access
-                            </Button>
-                        </Flex>
-                    </form>
-                </Box>
-                {accessList.length > 0 ? (
-                    <Box maxHeight="70vh" overflowY={"scroll"}>
-                        <Table width="700px">
-                            <LeftAlignedTableHeader>
-                                <TableRow>
-                                    <TableHeaderCell width={150}>Type</TableHeaderCell>
-                                    <TableHeaderCell width={500}>Name</TableHeaderCell>
-                                    <TableHeaderCell width={200}>Permission</TableHeaderCell>
-                                    <TableHeaderCell width={50}>Delete</TableHeaderCell>
-                                </TableRow>
-                            </LeftAlignedTableHeader>
-                            <tbody>
-                                {accessList.map((accessEntry, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>
-                                            {accessEntry.entity.user ? (
-                                                prettifyEntityType(UserEntityType.USER)
-                                            ) : (
-                                                    prettifyEntityType(UserEntityType.PROJECT_GROUP)
-                                                )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {accessEntry.entity.user ? (
-                                                accessEntry.entity.user
-                                            ) : (
-                                                    `${accessEntry.entity.project?.title} / ${accessEntry.entity.group?.title}`
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
-                                        <TableCell textAlign="right">
-                                            <Button
-                                                color="red"
-                                                type="button"
-                                                paddingLeft={10}
-                                                paddingRight={10}
-                                                onClick={() => setAccessEntryToDelete(accessEntry)}
-                                            >
-                                                <Icon size={16} name="trash" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </tbody>
-                        </Table>
-                    </Box>
-                ) : <Text textAlign="center">No access entries found</Text>}
-            </div>
-        </Box>
-    );
-}
-
-interface LicenseServer {
-    id: string;
-    name: string;
-    address: string;
-    port: number;
-    license: string | null;
-}
-
-function openAclDialog(licenseServer: LicenseServer): void {
-    dialogStore.addDialog(<LicenseServerAclPrompt licenseServer={licenseServer} />, () => undefined);
-}
-
-function openTagsDialog(licenseServer: LicenseServer): void {
-    dialogStore.addDialog(<LicenseServerTagsPrompt licenseServer={licenseServer} />, () => undefined)
-}
-
-const entityTypes = [
-    {text: prettifyEntityType(UserEntityType.USER), value: UserEntityType.USER},
-    {text: prettifyEntityType(UserEntityType.PROJECT_GROUP), value: UserEntityType.PROJECT_GROUP},
-];
-
-const permissionLevels = [
-    {text: prettifyAccessRight(LicenseServerAccessRight.READ), value: LicenseServerAccessRight.READ},
-    {text: prettifyAccessRight(LicenseServerAccessRight.READ_WRITE), value: LicenseServerAccessRight.READ_WRITE},
-];
-
-function prettifyAccessRight(accessRight: LicenseServerAccessRight): string {
-    switch (accessRight) {
-        case LicenseServerAccessRight.READ: {
-            return "Read";
-        }
-        case LicenseServerAccessRight.READ_WRITE: {
-            return "Read/Write";
-        }
-        default: {
-            return "Unknown";
-        }
-
-    }
-}
-
-function prettifyEntityType(entityType: UserEntityType): string {
-    switch (entityType) {
-        case UserEntityType.USER: {
-            return "User";
-        }
-        case UserEntityType.PROJECT_GROUP: {
-            return "Project group";
-        }
-        default: {
-            return "Unknown";
-        }
-
-    }
-}
-
-async function loadLicenseServers(): Promise<LicenseServer[]> {
-    const {response} = await Client.get<LicenseServer[]>(`/app/license/listAll`);
-    return response.map(item => ({
-        id: item.id,
-        name: item.name,
-        address: item.address,
-        port: item.port,
-        license: item.license
-    }));
-}
-
-interface AclEntry {
-    entity: DetailedAccessEntity;
-    permission: LicenseServerAccessRight;
-}
-
-interface TagEntry {
-    name: string;
-}
-
-export default function LicenseServers(): JSX.Element | null {
-    const [submitted, setSubmitted] = React.useState(false);
-    const [name, setName] = React.useState("");
-    const [address, setAddress] = React.useState("");
-    const [port, setPort] = React.useState(0);
-    const [license, setLicense] = React.useState("");
-    const [nameError, setNameError] = React.useState(false);
-    const [addressError, setAddressError] = React.useState(false);
-    const [portError, setPortError] = React.useState(false);
-    const [licenseServers, setLicenseServers] = React.useState<LicenseServer[]>([]);
-    const promiseKeeper = usePromiseKeeper();
-    const [, invokeCommand] = useAsyncCommand();
-
-    React.useEffect(() => {
-        loadAndSetLicenseServers();
-    }, []);
-
-    useTitle("License Servers");
+    useTitle("UCloud/Compute: License servers");
     useSidebarPage(SidebarPages.Admin);
-
-    async function loadAndSetLicenseServers(): Promise<void> {
-        setLicenseServers(await loadLicenseServers());
-    }
+    useRefreshFunction(reload);
 
     async function submit(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
 
-        let hasNameError = false;
-        let hasAddressError = false;
-        let hasPortError = false;
+        const name = nameInput.ref.current!.value;
+        const port = parseInt(portInput.ref.current!.value, 10);
+        const address = addressInput.ref.current!.value;
+        const license = licenseInput.ref.current!.value;
+        const priority = parseInt(priorityInput.ref.current!.value, 10);
+        const pricePerUnit = parseInt(pricePerUnitInput.ref.current!.value, 10) * 1_000_000;
+        const reason = reasonInput.ref.current?.value ?? "";
+        const hiddenInGrantApplications = hiddenInGrantApplicationsInput;
+        const description = descriptionTextArea.ref.current?.value ?? "";
 
-        if (!name) hasNameError = true;
-        if (!address) hasAddressError = true;
-        if (!port) hasPortError = true;
+        let error = false;
 
-        setNameError(hasNameError);
-        setAddressError(hasAddressError);
-        setPortError(hasPortError);
+        if (name === "") {
+            nameInput.setHasError(true);
+            error = true;
+        }
+        if (address === "") {
+            addressInput.setHasError(true);
+            error = true;
+        }
+        if (!description) {
+            descriptionTextArea.setHasError(true);
+            error = true;
+        }
 
-        if (!hasNameError && !hasAddressError && !hasPortError) {
+        if (isNaN(port)) {
+            portInput.setHasError(true);
+            error = true;
+        }
+
+        if (isNaN(priority)) {
+            priorityInput.setHasError(true);
+            error = true;
+        }
+
+        if (isNaN(pricePerUnit)) {
+            pricePerUnitInput.setHasError(true);
+            error = true;
+        }
+
+
+        if (!error) {
+            if (loading) return;
+            const request: KubernetesLicense = {
+                id: name,
+                port,
+                address,
+                license: license !== "" ? license : undefined,
+                tags: [],
+
+                availability: isAvailable ? {type: "available"} : {type: "unavailable", reason},
+                category: {
+                    id: name,
+                    provider: UCLOUD_PROVIDER
+                },
+                description,
+                hiddenInGrantApplications,
+                paymentModel,
+                pricePerUnit,
+                priority
+            };
             try {
-                setSubmitted(true);
-                await promiseKeeper.makeCancelable(
-                    Client.post("/api/app/license/new", {name, address, port, license}, "")
-                ).promise;
+                await invokeCommand(licenseApi.create(request), {defaultErrorHandler: false});
                 snackbarStore.addSuccess(`License server '${name}' successfully added`, true);
-                setName("");
-                setAddress("");
-                setPort(0);
-                setLicense("");
-            } catch (err) {
-                defaultErrorHandler(err);
-            } finally {
-                setSubmitted(false);
-                loadAndSetLicenseServers();
+                reload();
+            } catch (e) {
+                snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to add License Server"), false);
             }
+
         }
     }
 
+    const [openLicenses, setOpenLicenses] = useState<Set<string>>(new Set());
+
     if (!Client.userIsAdmin) return null;
+
 
     return (
         <MainContainer
@@ -597,10 +315,9 @@ export default function LicenseServers(): JSX.Element | null {
                             <Label mb="1em">
                                 Name
                                 <Input
-                                    value={name}
-                                    error={nameError}
-                                    onChange={e => setName(e.target.value)}
-                                    placeholder="Identifiable name for the license server"
+                                    ref={nameInput.ref}
+                                    error={nameInput.hasError}
+                                    placeholder={"Identifiable name for the license server"}
                                 />
                             </Label>
                             <Box marginBottom={30}>
@@ -608,25 +325,23 @@ export default function LicenseServers(): JSX.Element | null {
                                     <Label mb="1em">
                                         Address
                                         <Input
-                                            value={address}
+                                            ref={addressInput.ref}
+                                            error={addressInput.hasError}
                                             rightLabel
-                                            error={addressError}
-                                            onChange={e => setAddress(e.target.value)}
-                                            placeholder="IP address or URL"
+                                            placeholder={"IP address or URL"}
                                         />
                                     </Label>
                                     <Label mb="1em" width="30%">
                                         Port
                                         <Input
-                                            value={port !== 0 ? port : ""}
-                                            type="number"
+                                            ref={portInput.ref}
+                                            error={portInput.hasError}
+                                            type={"number"}
                                             min={0}
                                             max={65535}
                                             leftLabel
-                                            error={portError}
                                             maxLength={5}
-                                            onChange={e => setPort(parseInt(e.target.value, 10))}
-                                            placeholder="Port"
+                                            placeholder={"Port"}
                                         />
                                     </Label>
                                 </Flex>
@@ -634,119 +349,396 @@ export default function LicenseServers(): JSX.Element | null {
                             <Label mb="1em">
                                 Key
                                 <Input
-                                    value={license}
-                                    onChange={e => setLicense(e.target.value)}
+                                    ref={licenseInput.ref}
+                                    error={licenseInput.hasError}
                                     placeholder="License or key (if needed)"
                                 />
                             </Label>
-                            <Button
-                                type="submit"
-                                color="green"
-                                disabled={submitted}
-                            >
-                                Add License Server
-                            </Button>
+
+                            <Label>
+                                Priority
+                                <Input mb="1em" type="number" autoComplete="off" ref={priorityInput.ref} defaultValue={0} />
+                            </Label>
+
+                            <Label mb="1em">
+                                Availability
+                                <Select
+                                    onChange={e => setAvailable(e.target.value === "available")}
+                                    defaultValue={isAvailable ? "Available" : "Unavailable"}
+                                >
+                                    <option value={"available"}>Available</option>
+                                    <option value={"unavailable"}>Unavailable</option>
+                                </Select>
+                            </Label>
+
+                            {isAvailable ? null :
+                                <Label mb="1em">
+                                    Unvailability reason
+                                    <Input ref={reasonInput.ref} />
+                                </Label>
+                            }
+
+                            <Label>
+                                Payment Model
+                                <Flex mb="1em">
+                                    <Select onChange={e => setPaymentModel(e.target.value as PaymentModel)} defaultValue={paymentModel[0]}>
+                                        {PaymentModelOptions.map(it =>
+                                            <option key={it} value={it}>{prettierString(it)}</option>
+                                        )}
+                                    </Select>
+                                </Flex>
+                            </Label>
+
+                            <Label>
+                                Price per unit
+                                <Flex mb="1em">
+                                    <Input autoComplete="off" min={0} defaultValue={1} type="number" ref={pricePerUnitInput.ref} rightLabel />
+                                    <InputLabel width="60px" rightLabel>DKK</InputLabel>
+                                </Flex>
+                            </Label>
+
+                            <TextArea error={descriptionTextArea.hasError} width={1} mb="1em" rows={4} ref={descriptionTextArea.ref} placeholder="License description..." />
+
+                            <Label width="auto" mb="1em">
+                                <Checkbox
+                                    checked={hiddenInGrantApplicationsInput}
+                                    onClick={() => setHiddenInGrantApplicationsInput(!hiddenInGrantApplicationsInput)}
+                                    onChange={stopPropagation}
+                                />
+                                Hide License Server from grant applicants
+                            </Label>
+
+                            <Button type="submit" color="green" disabled={loading}>Add License Server</Button>
                         </form>
 
+                        {projectId == null ?
+                            <Text bold mt={8}>
+                                You must have an active project in order to grant copies of a license!
+                            </Text> : null
+                        }
+
+                        <ReactModal
+                            isOpen={editing != null}
+                            onRequestClose={() => setEditing(null)}
+                            shouldCloseOnEsc
+                            ariaHideApp={false}
+                            style={defaultModalStyle}
+                        >
+                            {!editing ? null : <LicenseServerTagsPrompt licenseServer={editing} onUpdate={reload} />}
+                        </ReactModal>
+
+                        <ReactModal
+                            isOpen={granting != null}
+                            onRequestClose={() => setGranting(null)}
+                            shouldCloseOnEsc
+                            ariaHideApp={false}
+                            style={defaultModalStyle}
+                        >
+                            {!granting ? null :
+                                <GrantCopies licenseServer={granting} onGrant={() => setGranting(null)} />}
+                        </ReactModal>
+
                         <Box mt={30}>
-                            {licenseServers.length > 0 ? (
-                                licenseServers.map(licenseServer => (
-                                    <Card key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
-                                        <Flex justifyContent="space-between">
-                                            <Box>
-                                                <Heading.h4>{licenseServer.name}</Heading.h4>
-                                                <Box>{licenseServer.address}:{licenseServer.port}</Box>
-                                            </Box>
-                                            <Flex>
-                                                <Box>
-                                                    {licenseServer.license !== null ? (
-                                                        <Tooltip
-                                                            tooltipContentWidth="300px"
-                                                            wrapperOffsetLeft="0"
-                                                            wrapperOffsetTop="4px"
-                                                            right="0"
-                                                            top="1"
-                                                            mb="50px"
-                                                            trigger={(
-                                                                <Icon
-                                                                    size="20px"
-                                                                    mt="8px"
-                                                                    mr="8px"
-                                                                    color="gray"
-                                                                    name="key"
-                                                                    ml="5px"
-                                                                />
-                                                            )}
-                                                        >
-                                                            {licenseServer.license}
-                                                        </Tooltip>
-                                                    ) : <Text />}
-                                                </Box>
-                                                <Box>
-                                                    <Icon
-                                                        cursor="pointer"
-                                                        size="20px"
-                                                        mt="6px"
-                                                        mr="8px"
-                                                        color="gray"
-                                                        color2="midGray"
-                                                        name="tags"
-                                                        onClick={() =>
-                                                            openTagsDialog(licenseServer)
-                                                        }
-                                                    />
-                                                </Box>
-                                                <Box>
-                                                    <Icon
-                                                        cursor="pointer"
-                                                        size="20px"
-                                                        mt="6px"
-                                                        mr="8px"
-                                                        color="gray"
-                                                        color2="midGray"
-                                                        name="projects"
-                                                        onClick={() =>
-                                                            openAclDialog(licenseServer)
-                                                        }
-                                                    />
-                                                </Box>
-
-                                                <Box>
-                                                    <Button
-                                                        color={"red"}
-                                                        type={"button"}
-                                                        paddingLeft={10}
-                                                        paddingRight={10}
-
-                                                        onClick={() => addStandardDialog({
-                                                            title: `Are you sure?`,
-                                                            message: (
-                                                                <Box>
-                                                                    <Text>
-                                                                        Remove license server {licenseServer.name}?
-                                                                    </Text>
-                                                                </Box>
-                                                            ),
-                                                            onConfirm: async () => {
-                                                                await invokeCommand(deleteLicenseServer({
-                                                                    id: licenseServer.id
-                                                                }));
-                                                                loadAndSetLicenseServers();
-                                                            }
-                                                        })}
-                                                    >
-                                                        <Icon size={16} name="trash" />
-                                                    </Button>
-                                                </Box>
-                                            </Flex>
-                                        </Flex>
-                                    </Card>
-                                ))
-                            ) : <Text textAlign="center">No license servers found</Text>}
+                            <Pagination.ListV2
+                                loading={licenses.loading}
+                                page={licenses.data}
+                                infiniteScrollGeneration={infScroll}
+                                onLoadMore={loadMore}
+                                pageRenderer={items => (
+                                    items.map(licenseServer =>
+                                        <LicenseServerCard
+                                            key={licenseServer.id}
+                                            reload={reload}
+                                            setGranting={setGranting}
+                                            setEditing={setEditing}
+                                            licenseServer={licenseServer}
+                                            openLicenses={openLicenses}
+                                            setOpenLicenses={license => {
+                                                const isSelected = openLicenses.has(license.id);
+                                                if (isSelected) {
+                                                    openLicenses.delete(license.id);
+                                                } else {
+                                                    openLicenses.add(license.id);
+                                                }
+                                                setOpenLicenses(new Set(openLicenses))
+                                            }}
+                                        />
+                                    )
+                                )}
+                            />
                         </Box>
                     </Box>
                 </>
             )}
         />
     );
+};
+
+interface LicenseServerCardProps {
+    openLicenses: Set<string>;
+    licenseServer: KubernetesLicense;
+    reload(): void;
+    setOpenLicenses(license: KubernetesLicense): void;
+    setEditing(license: KubernetesLicense): void;
+    setGranting(license: KubernetesLicense): void;
 }
+
+function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses, setEditing, setGranting}: LicenseServerCardProps) {
+    const isSelected = openLicenses.has(licenseServer.id);
+    const [isEditing, setIsEditing] = useState(false);
+    const projectId = useProjectId();
+
+    /* Editing */
+
+    const addressInput = React.useRef<HTMLInputElement>(null);
+    const priorityInput = React.useRef<HTMLInputElement>(null);
+    const [isAvailable, setIsAvailable] = useState<boolean>(licenseServer.availability.type === "available");
+    const unavailableReasonInput = React.useRef<HTMLInputElement>(null);
+    const descriptionInput = React.useRef<HTMLTextAreaElement>(null);
+    const [hiddenInGrantApplications, setHiddenInGrantApplications] = useState<boolean>(licenseServer.hiddenInGrantApplications)
+    const [paymentModelEdit, setPaymentModelEdit] = React.useState<PaymentModel>(licenseServer.paymentModel);
+    const portInput = React.useRef<HTMLInputElement>(null);
+    const pricePerUnitInput = React.useRef<HTMLInputElement>(null);
+    const licenseInput = React.useRef<HTMLInputElement>(null);
+
+    const [loading, invokeCommand] = useCloudCommand();
+
+    /* NOTE(Jonas): Lots of overlap in both branches, but the whole 'isEditing' for each field is cumbersome to  */
+    if (isEditing) {
+        return (
+            <ExpandingCard height={isAvailable ? "650px" : "720px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
+                <Heading.h4 mb="1em">{licenseServer.id}</Heading.h4>
+                <Flex mb="1em">
+                    <Input width="75%" ref={addressInput} defaultValue={licenseServer.address} />
+                    <Text mt="6px" mx="4px">:</Text>
+                    <Input
+                        width="25%"
+                        ref={portInput}
+                        type="number"
+                        min={0}
+                        max={65535}
+                        defaultValue={licenseServer.port}
+                    />
+                </Flex>
+
+                <>
+                    <Label mb="1em">
+                        Availability
+                        <Select onChange={e => setIsAvailable(e.target.value === "available")} defaultValue={prettierString(licenseServer.availability.type)}>
+                            <option value="available">Available</option>
+                            <option value="unavailable">Unavailable</option>
+                        </Select>
+                    </Label>
+
+                    {isAvailable ? null :
+                        <Label mb="1em">
+                            Unvailability reason
+                            <Input ref={unavailableReasonInput} defaultValue={licenseServer.availability.type === "unavailable" ? licenseServer.availability.reason : ""} />
+                        </Label>
+                    }
+                </>
+
+                <Label>
+                    License
+                    <Input mb="1em" ref={licenseInput} autoComplete="off" defaultValue={licenseServer.license} />
+                </Label>
+
+                <Heading.h4>Description</Heading.h4>
+                <TextArea mb="1em" width={1} rows={4} ref={descriptionInput} defaultValue={licenseServer.description} />
+
+                <Label width="auto" mb="1em">
+                    <Checkbox
+                        checked={hiddenInGrantApplications}
+                        onClick={() => setHiddenInGrantApplications(!hiddenInGrantApplications)}
+                        onChange={stopPropagation}
+                    />
+                    Hide License Server from grant applicants
+                </Label>
+
+                <Flex mb="1em">
+                    <Box width="42.5%">
+                        <Heading.h4>Price per unit</Heading.h4>
+                        <Flex mr="6px" mb="1em">
+                            <Input type="number" rightLabel ref={pricePerUnitInput} defaultValue={licenseServer.pricePerUnit / 1_000_000} />
+                            <InputLabel rightLabel>DKK</InputLabel>
+                        </Flex>
+                    </Box>
+
+                    <Box width="42.5%">
+                        <Heading.h4>Payment model</Heading.h4>
+                        <Select ml="6px" onChange={e => setPaymentModelEdit(e.target.value as PaymentModel)}>
+                            {PaymentModelOptions.map(it =>
+                                <option key={it} selected={it === licenseServer.paymentModel} value={it}>{prettierString(it)}</option>
+                            )}
+                        </Select>
+                    </Box>
+                    <Box width="15%">
+                        <Heading.h4>Priority</Heading.h4>
+                        <Input ml="6px" type="number" autoComplete="off" ref={priorityInput} rightLabel defaultValue={licenseServer.priority} />
+                    </Box>
+                </Flex>
+                <Flex mb="1em">
+                    <Button ml="6px" disabled={loading} color="red" width="50%" onClick={() => setIsEditing(false)}>Cancel</Button>
+                    <Button mr="6px" onClick={UpdateLicenseServer} disabled={loading} width="50%">Update</Button>
+                </Flex>
+            </ExpandingCard >
+        );
+    } else {
+        return <ExpandingCard height={isSelected ? (licenseServer.availability.type === "available" ? "466px" : "506px") : "96px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
+            <Flex justifyContent="space-between">
+                <Box>
+                    <Flex>
+                        <RotatingIcon
+                            onClick={() => setOpenLicenses(licenseServer)}
+                            size={14} name="close" rotation={isSelected ? 0 : 45} />
+                        <Heading.h4>{licenseServer.id}</Heading.h4>
+                    </Flex>
+                    <Box>{licenseServer.address}:{licenseServer.port}</Box>
+                </Box>
+                <Flex>
+                    <Box>
+                        {licenseServer.license !== null ? (
+                            <Tooltip
+                                tooltipContentWidth="300px"
+                                wrapperOffsetLeft="0"
+                                wrapperOffsetTop="4px"
+                                right="0"
+                                top="1"
+                                mb="50px"
+                                trigger={(
+                                    <Icon
+                                        size="20px"
+                                        mt="8px"
+                                        mr="8px"
+                                        color="gray"
+                                        name="key"
+                                        ml="5px"
+                                    />
+                                )}
+                            >
+                                {licenseServer.license}
+                            </Tooltip>
+                        ) : <Text />}
+                    </Box>
+                    <Box>
+                        <Icon
+                            cursor="pointer"
+                            size="20px"
+                            mt="6px"
+                            mr="8px"
+                            color="gray"
+                            color2="midGray"
+                            name="tags"
+                            onClick={() => setEditing(licenseServer)}
+                        />
+                    </Box>
+                    {!projectId ? null : (
+                        <Box>
+                            <Button onClick={() => setGranting(licenseServer)}>
+                                Grant copies
+                        </Button>
+                        </Box>
+                    )}
+                </Flex>
+            </Flex>
+            {/* HIDDEN ON NOT OPEN */}
+            <Box height="25px" />
+
+            <Heading.h4>License</Heading.h4>
+            <Text mb="1em">{licenseServer.license ?? "None provided"}</Text>
+
+            <Heading.h4>License state</Heading.h4>
+            {licenseServer.availability.type === "available" ?
+                <Text>Available</Text> :
+                <>
+                    <Heading.h5>Unvailable</Heading.h5>
+                    <Text mb="1em">{licenseServer.availability.reason}</Text>
+                </>
+            }
+
+            <Heading.h4>Description</Heading.h4>
+            <Box height={"4.5ch"}>{licenseServer.description}</Box>
+
+            <Box mb="1em">
+                {licenseServer.hiddenInGrantApplications ?
+                    <><TextSpan italic>Hidden</TextSpan> from </>
+                    :
+                    <><TextSpan italic>Visible</TextSpan> for </>
+                }
+                grant applicants
+            </Box>
+
+            <Flex mb="1em">
+                <Box width="40%">
+                    <Heading.h4>Price per unit</Heading.h4>
+                    {creditFormatter(licenseServer.pricePerUnit)}
+                </Box>
+
+                <Box width="40%">
+                    <Heading.h4>Payment model</Heading.h4>
+                    {prettierString(licenseServer.paymentModel)}
+                </Box>
+
+                <Box width="20%">
+                    <Heading.h4>Priority</Heading.h4>
+                    {licenseServer.priority}
+                </Box>
+            </Flex>
+            <Button mb="1em" onClick={() => setIsEditing(true)} width={1}>Edit</Button>
+        </ExpandingCard>
+    }
+
+    async function UpdateLicenseServer(): Promise<void> {
+        const address = addressInput.current?.value;
+        const priority = parseInt(priorityInput.current?.value ?? `${licenseServer.priority}`, 10);
+        const reason = unavailableReasonInput.current?.value;
+        const description = descriptionInput.current?.value;
+        const port = parseInt(portInput.current?.value ?? "", 10);
+        const pricePerUnit = parseInt(pricePerUnitInput.current?.value ?? "", 10) * 1_000_000;
+        const license = licenseInput.current?.value;
+
+        if (!address) return;
+        if (isNaN(priority)) return;
+        if (!isAvailable && !reason) return;
+        if (isNaN(port)) return;
+        if (!description) return;
+        if (isNaN(pricePerUnit)) return;
+
+        try {
+            await invokeCommand(licenseApi.update({
+                id: licenseServer.id,
+                address,
+                port,
+                priority,
+                availability: isAvailable ? {type: "available"} : {type: "unavailable", reason: reason!},
+                category: licenseServer.category,
+                description,
+                hiddenInGrantApplications,
+                license,
+                paymentModel: paymentModelEdit,
+                pricePerUnit,
+                tags: licenseServer.tags
+            }));
+
+            reload();
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to update."), false)
+        }
+    }
+}
+
+const ExpandingCard = styled(Card)`
+    transition: height 0.5s;
+    overflow: hidden;
+`;
+
+const RotatingIcon = styled(Icon)`
+    size: 14px;
+    margin-right: 8px;
+    margin-top: 9px;
+    cursor: pointer;
+    color: var(--blue, #f00);
+    transition: transform 0.2s;
+`;
+
+export default LicenseServers;

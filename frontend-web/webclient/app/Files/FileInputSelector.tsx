@@ -13,7 +13,6 @@ import {getProjectNames} from "Utilities/ProjectUtilities";
 interface FileInputSelectorProps {
     path: string; // selected file
     allowUpload?: boolean;
-    showError?: boolean;
     inputRef?: React.RefObject<HTMLInputElement>;
     defaultValue?: string;
     isRequired?: boolean;
@@ -56,7 +55,6 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
                 <Flex>
                     <FileSelectorInput
                         defaultValue={props.defaultValue}
-                        showError={props.showError && props.isRequired}
                         ref={props.inputRef}
                         required={props.isRequired}
                         placeholder="No file selected"

@@ -3,7 +3,7 @@ import {
     AlignItemsProps, color, ColorProps, height, HeightProps, maxHeight, MaxHeightProps, maxWidth, MaxWidthProps,
     minHeight, MinHeightProps, minWidth, MinWidthProps, overflow, OverflowProps, space, SpaceProps, textAlign,
     TextAlignProps, TopProps, width, WidthProps, zIndex, ZIndexProps, background, BackgroundProps, flexGrow,
-    flexShrink, JustifyContentProps, justifyContent, borderRadius, BorderRadiusProps
+    flexShrink, JustifyContentProps, justifyContent, borderRadius, BorderRadiusProps, top
 } from "styled-system";
 import {cursor} from "Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
@@ -55,6 +55,7 @@ const Box = styled.div<BoxProps>`
   ${textAlign}
   ${overflow}
   ${background}
+  ${top}
 `;
 
 Box.displayName = "Box";

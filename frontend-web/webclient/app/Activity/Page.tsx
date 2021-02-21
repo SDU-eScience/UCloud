@@ -177,7 +177,7 @@ function Activity(props: ActivityProps): JSX.Element {
             main={renderMain()}
             header={renderHeader()}
             sidebar={renderSidebar()}
-            sidebarSize={340}
+            sidebarSize={290}
         />
     );
 }

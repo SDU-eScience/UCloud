@@ -33,7 +33,7 @@ static_resources:
               - name: envoy.ext_authz
                 config:
                   http_service:
-                    path_prefix: /api/app/compute/kubernetes/app-authorization/
+                    path_prefix: /ucloud/ucloud/compute/jobs/app-authorization/
                     authorization_request:
                       allowed_headers:
                         patterns:

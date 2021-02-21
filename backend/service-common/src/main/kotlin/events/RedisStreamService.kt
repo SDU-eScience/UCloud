@@ -2,7 +2,6 @@ package dk.sdu.cloud.events
 
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.stackTraceToString
 import io.lettuce.core.Consumer
 import io.lettuce.core.Limit
 import io.lettuce.core.Range

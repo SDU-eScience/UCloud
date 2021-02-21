@@ -16,6 +16,7 @@ import dk.sdu.cloud.file.api.UpdateQuotaRequest
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.projectHomeDirectory
+import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.t
@@ -28,7 +29,6 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.*
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -56,7 +56,6 @@ suspend fun setProjectQuota(
     ).orThrow()
 }
 
-@Ignore
 class LimitCheckerTest : IntegrationTest() {
     @Test
     fun `test normal upload with quota and credits`() = t {
@@ -310,8 +309,9 @@ class LimitCheckerTest : IntegrationTest() {
 
     @Test
     fun `view quota as parent project`() = t {
+        val initialAmount = 10_000_000.DKK
         val root = initializeRootProject()
-        val project = initializeNormalProject(root)
+        val project = initializeNormalProject(root, amount = initialAmount)
         val user = createUser()
 
         val child = Projects.create.call(
@@ -319,10 +319,16 @@ class LimitCheckerTest : IntegrationTest() {
             project.piClient
         ).orThrow()
 
-        val quota = 1024 * 1024 * 1024L
+        val quota = 1024 * 1024 * 1024 * 1024L
         setProjectQuota(project.projectId, quota)
+
+        val usage = FileDescriptions.retrieveQuota.call(
+            RetrieveQuotaRequest(projectHomeDirectory(project.projectId), true),
+            project.piClient.withProject(project.projectId)
+        ).orThrow().quotaUsed ?: 0
+
         FileDescriptions.updateQuota.call(
-            UpdateQuotaRequest(projectHomeDirectory(child.id), quota),
+            UpdateQuotaRequest(projectHomeDirectory(child.id), quota - usage),
             project.piClient.withProject(child.id)
         ).orThrow()
 
@@ -339,7 +345,7 @@ class LimitCheckerTest : IntegrationTest() {
         ).orThrow()
 
         assertEquals(
-            quota,
+            quota - usage,
             FileDescriptions.retrieveQuota.call(
                 RetrieveQuotaRequest(projectHomeDirectory(child.id)),
                 project.piClient.withProject(project.projectId)

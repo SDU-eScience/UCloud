@@ -81,61 +81,13 @@ config("elasticsearch") { ctx ->
 }
 
 config("app-orchestrator") { ctx ->
-    fun MachineType(name: String, cpu: Int?, memoryInGigs: Int?, gpu: Int? = null) =
-        mapOf<String, Any?>("name" to name, "cpu" to cpu, "memoryInGigs" to memoryInGigs, "gpu" to gpu)
-
-    configure("gpuWhitelist", listOf(
-        "kln@cas.au.dk",
-        "marin@imada.sdu.dk",
-        "boegebjerg@imada.sdu.dk",
-        "tochr15@student.sdu.dk",
-        "alaks17@student.sdu.dk",
-        "hmoel15@student.sdu.dk",
-        "sejr@imada.sdu.dk",
-        "ruizhang@imada.sdu.dk",
-        "mehrooz@imada.sdu.dk",
-        "nomi@imada.sdu.dk",
-        "andrea.lekkas@outlook.com",
-        "alfal19@student.sdu.dk",
-        "fiorenza@imada.sdu.dk",
-        "veits@bmb.sdu.dk",
-        "petersk@imada.sdu.dk",
-        "roettger@imada.sdu.dk",
-        "pica@cp3.sdu.dk",
-        "konradk@bmb.sdu.dk",
-        "vasileios@bmb.sdu.dk",
-        "svensson@imada.sdu.dk",
-        "dthrane@imada.sdu.dk",
-        "jakoj17@student.sdu.dk",
-        "alfal19@student.sdu.dk",
-        "greisager@imada.sdu.dk"
-    ))
-
     when (ctx.environment) {
         "development", "test" -> {
-            configure("machines", listOf(
-                MachineType("Unspecified", null, null),
-                MachineType("Small (S)", 1, 4),
-                MachineType("Medium (M)", 4, 16),
-                MachineType("Large (L)", 16, 32)
-            ))
+            configure("domain", "dev.cloud.sdu.dk")
         }
 
         "production" -> {
-            configure("machines", listOf(
-                MachineType("Unspecified", null, null),
-                MachineType("u1-standard-1", 1, 6),
-                MachineType("u1-standard-2", 2, 12),
-                MachineType("u1-standard-4", 4, 24),
-                MachineType("u1-standard-8", 8, 48),
-                MachineType("u1-standard-16", 16, 96),
-                MachineType("u1-standard-32", 32, 192),
-                MachineType("u1-standard-64", 62, 370),
-                MachineType("u1-gpu-1", 16, 48, 1),
-                MachineType("u1-gpu-2", 32, 96, 2),
-                MachineType("u1-gpu-3", 48, 144, 3),
-                MachineType("u1-gpu-4", 78, 185, 4)
-            ))
+            configure("domain", "cloud.sdu.dk")
         }
     }
 }

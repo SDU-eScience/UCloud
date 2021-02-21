@@ -3,11 +3,7 @@ package dk.sdu.cloud.contact.book.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 
 enum class ServiceOrigin {
@@ -42,7 +38,7 @@ data class AllContactsForUserRequest(
 )
 typealias AllContactsForUserResponse = QueryContactsResponse
 
-
+@TSTopLevel
 object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
      const val baseContext = "/api/contactbook"
 

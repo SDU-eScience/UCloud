@@ -1,14 +1,12 @@
-import {AdvancedSearchRequest as AppSearchRequest, FullAppInfo} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {AdvancedSearchRequest, File} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {advancedSearchQuery} from "Utilities/ApplicationUtilities";
 import {advancedFileSearch} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import * as SSActionTypes from "./SearchReducer";
 
 export type SimpleSearchActions = SetFilesLoading | SetApplicationsLoading | SetProjectsLoading | ReceiveFiles |
-    ReceiveApplications | SetErrorMessage | SetSearchType;
+    SetErrorMessage | SetSearchType;
 
 type SetFilesLoading = PayloadAction<typeof SSActionTypes.SET_SIMPLE_FILES_LOADING, {filesLoading: boolean}>;
 export const setFilesLoading = (loading: boolean): SetFilesLoading => ({
@@ -40,29 +38,11 @@ export async function searchFiles(request: AdvancedSearchRequest): Promise<any> 
     }
 }
 
-export async function searchApplications(body: AppSearchRequest): Promise<any> {
-    try {
-        const {response} = await Client.post(advancedSearchQuery, body);
-        return receiveApplications(response);
-    } catch (e) {
-        snackbarStore.addFailure("An error occurred searching for applications", false);
-        return setErrorMessage({applicationsLoading: false});
-    }
-}
-
 type ReceiveFiles =
     PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE, {files: Page<File>, filesLoading: false}>;
 export const receiveFiles = (files: Page<File>): ReceiveFiles => ({
     type: SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE,
     payload: {files, filesLoading: false}
-});
-
-export type ReceiveApplications = PayloadAction<
-    typeof SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE, {applications: Page<FullAppInfo>, applicationsLoading: false}
->;
-export const receiveApplications = (applications: Page<FullAppInfo>): ReceiveApplications => ({
-    type: SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE,
-    payload: {applications, applicationsLoading: false}
 });
 
 type SetSearchType = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_SEARCH, {search: string}>;

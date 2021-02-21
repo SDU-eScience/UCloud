@@ -8,7 +8,7 @@ import {ThemeProvider} from "styled-components";
 import UserCreation from "../../app/Admin/UserCreation";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
-import {render, screen, fireEvent, getByDisplayValue, waitForElement} from "@testing-library/react";
+import {render, screen, fireEvent} from "@testing-library/react";
 
 configure({adapter: new Adapter()});
 

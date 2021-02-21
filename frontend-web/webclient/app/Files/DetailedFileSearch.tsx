@@ -27,6 +27,7 @@ import {
     DETAILED_FILES_REMOVE_SENSITIVITIES,
     DETAILED_FILES_REMOVE_TAGS
 } from "./Redux/DetailedFileSearchReducer";
+import {useEffect, useState} from "react";
 
 interface DetailedFileSearchGivenProps {
     defaultFilename?: string;
@@ -237,13 +238,13 @@ interface SearchStampsProps {
     clearAll: () => void;
 }
 
-export const SearchStamps = ({stamps, onStampRemove, clearAll}: SearchStampsProps): JSX.Element => (
-    <Box pb="5px">
+export const SearchStamps: React.FunctionComponent<SearchStampsProps> = ({stamps, onStampRemove, clearAll}) => {
+    return <Box pb="5px">
         {[...stamps].map(l => (
             <Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}
         {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="red" onClick={() => clearAll()} text="Clear all" />) : null}
-    </Box>
-);
+    </Box>;
+};
 
 const extensionPresets = [
     {text: "Text", value: ".txt .docx .rtf .csv .pdf"},

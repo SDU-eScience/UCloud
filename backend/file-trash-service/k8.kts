@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-trash"
-    version = "1.5.2"
+    version = "1.6.0-rc1"
 
     withAmbassador("/api/files/trash") {}
 

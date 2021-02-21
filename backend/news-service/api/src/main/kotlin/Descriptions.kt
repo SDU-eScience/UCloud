@@ -64,6 +64,7 @@ typealias UpdatePostResponse = Unit
 data class DeleteNewsPostRequest(val id: Long)
 typealias DeleteNewsPostResponse = Unit;
 
+@TSTopLevel
 object News : CallDescriptionContainer("news") {
     val baseContext = "/api/news"
 

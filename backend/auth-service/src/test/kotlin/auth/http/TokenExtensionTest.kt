@@ -22,6 +22,7 @@ import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.test.*
@@ -84,8 +85,8 @@ class TokenExtensionTest {
         extensionScopes: Map<String, Set<SecurityScope>>
     ): List<Controller> {
 
-        tokenValidationJWT = micro.tokenValidation as TokenValidationJWT
-        jwtFactory = JWTFactory(tokenValidationJWT.algorithm)
+        tokenValidationJWT = micro.tokenValidation as InternalTokenValidationJWT
+        jwtFactory = JWTFactory((tokenValidationJWT as InternalTokenValidationJWT).algorithm)
 
         passwordHashingService = PasswordHashingService()
 

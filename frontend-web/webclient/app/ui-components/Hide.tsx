@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import Box, {BoxProps} from "./Box";
-import {Theme} from "./theme";
+import theme, {Theme} from "./theme";
 
 const getMaxWidth = (px: string): string => (parseInt(px, 10) - 1) + "px";
 
@@ -15,7 +15,42 @@ const breakpoints = (props: {theme: Theme}) => ({
   xxl: `@media screen and (min-width: ${props.theme.breakpoints[4]})`
 });
 
-type Sizes = "xs" | "sm" | "md" | "lg" | "xl" | "xxl";
+export type Sizes = "xs" | "sm" | "md" | "lg" | "xl" | "xxl";
+
+export const device = (key: Sizes): string => {
+  return `${breakpoints({theme})[key]}`;
+};
+
+export function deviceBreakpoint(props: {
+  minWidth?: string,
+  maxWidth?: string,
+  minHeight?: string,
+  maxHeight?: string
+}): string {
+  let builder = "@media screen";
+
+  if (props.minWidth !== undefined) {
+    builder += " and ";
+    builder += `(min-width: ${props.minWidth})`;
+  }
+
+  if (props.maxWidth !== undefined) {
+    builder += " and ";
+    builder += `(max-width: ${props.maxWidth})`;
+  }
+
+  if (props.minHeight !== undefined) {
+    builder += " and ";
+    builder += `(min-height: ${props.minHeight})`;
+  }
+
+  if (props.maxHeight !== undefined) {
+    builder += " and ";
+    builder += `(max-height: ${props.maxHeight})`;
+  }
+
+  return builder;
+}
 
 export const hidden = (key: Sizes) => (props: any) =>
   props[key]

@@ -14,19 +14,19 @@ class ServerFeature : MicroFeature {
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         this.ctx = ctx
-        log.info("Installing server...")
+        log.debug("Installing server...")
 
         ClientInfoInterceptor().register(server)
         JobIdInterceptor(!ctx.developmentModeEnabled).register(server)
         AuditToEventStream(ctx.serviceInstance, ctx.eventStreamService, ctx.tokenValidation).register(server)
-        AuthInterceptor(ctx.tokenValidation).register(server)
+        AuthInterceptor(ctx.tokenValidation, ctx.developmentModeEnabled).register(server)
         ProjectInterceptor().register(server)
 
         val serverConfig = ctx.rpcConfiguration?.server
         val installHttp = serverConfig?.http != false
 
         if (installHttp) {
-            log.info("Installing HTTP server")
+            log.trace("Installing HTTP server")
             val engine = ctx.serverProvider {
                 installDefaultFeatures()
             }

@@ -42,7 +42,7 @@ export const Balance: React.FunctionComponent<{
 export function useStoragePrice(): number {
     const [storageProducts] = useGlobalCloudAPI<Page<Product>>(
         "storageProducts",
-        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER}),
+        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER, showHidden: true}),
         emptyPage
     );
 
@@ -59,12 +59,12 @@ export const BalanceExplainer: React.FunctionComponent<{
 }> = props => {
     const [computeProducts, fetchCompute, computeParams] = useGlobalCloudAPI<Page<Product>>(
         "computeProducts",
-        listByProductArea({itemsPerPage: 100, page: 0, area: "COMPUTE", provider: UCLOUD_PROVIDER}),
+        listByProductArea({itemsPerPage: 100, page: 0, area: "COMPUTE", provider: UCLOUD_PROVIDER, showHidden: true}),
         emptyPage
     );
     const [storageProducts, fetchStorage, storageParams] = useGlobalCloudAPI<Page<Product>>(
         "storageProducts",
-        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER}),
+        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER, showHidden: true}),
         emptyPage
     );
 
@@ -78,7 +78,7 @@ export const BalanceExplainer: React.FunctionComponent<{
 
     let pricePerUnit: number | null = null;
     let productName: string | null = null;
-    let productArea: "compute" | "storage" | null = null;
+    let productArea: "compute" | "storage" | "ingress" | "license" | "network_ip" | null = null;
     {
         for (const prod of computeProducts.data.items) {
             if (productCategoryEquals(prod.category, props.productCategory)) {
@@ -99,6 +99,8 @@ export const BalanceExplainer: React.FunctionComponent<{
             }
         }
     }
+
+    if (productArea === "ingress" || productArea === "license") return null;
 
     if (productName === null || pricePerUnit === null || productArea === null) {
         return <>{creditFormatter(props.amount)}</>;

@@ -41,7 +41,6 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -156,6 +155,18 @@ class Server(override val micro: Micro) : CommonServer {
             } catch (ex: Exception) {
                 ex.printStackTrace()
                 exitProcess(1)
+            }
+        }
+
+        if (micro.commandLineArguments.contains("--resize-logos")) {
+            runBlocking {
+                try {
+                    logoService.resizeAll()
+                    exitProcess(0)
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                    exitProcess(1)
+                }
             }
         }
         startServices()

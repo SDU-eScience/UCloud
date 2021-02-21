@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 dependencies {
     val ktorVersion = "1.4.0"
     val jacksonVersion = "2.10.0.pr3"
@@ -71,4 +73,8 @@ configurations.all {
     resolutionStrategy {
         force("net.java.dev.jna:jna:5.2.0")
     }
+}
+val compileKotlin: KotlinCompile by tasks
+compileKotlin.kotlinOptions {
+    freeCompilerArgs = listOf("-Xinline-classes")
 }

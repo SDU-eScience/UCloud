@@ -1,80 +1,75 @@
-# Compute Orchestrator
+# UCloud: Compute Orchestrator
 
-.. toctree::
-  :hidden:
-  
-  K8 backend <../app-kubernetes-service/README.md>
+UCloud is, at its core, an orchestrator of
+resources. This means that UCloud sends all the hard work to a provider. UCloud has its own
+provider, [UCloud/Compute](/backend/app-kubernetes-service/README.md).
 
-The application orchestrator uses the `app-store-service` to implement the
-execution of jobs (an application + user input). In many ways the application
-orchestrator acts as a meta scheduler.
+![](/backend/app-orchestrator-service/wiki/overview.png)
 
-This service doesn't actually implement any scheduling. Instead it forwards
-most of the requests it receives to an application backend. The application
-backend is responsible for actually running the job. The orchestrator
-receives requests directly from the user. One of the most important tasks of
-this service is to ensure that all user requests are validated before they
-are forwarded. This hugely simplifies backend implementation and makes it easier
-to create different implementations.
+In this section we will cover the specification and rules for which all compute providers of UCloud must follow. It all
+starts with the core abstraction used in UCloud's compute, the `Job`.
 
-![](./wiki/schedule.png)
+---
+<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.Job:includeOwnDoc=false:includeProps=true-->
+<!--<editor-fold desc="Generated documentation">-->
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | `String` | Unique identifier for this job. |
+| `owner` | `JobOwner` | A reference to the owner of this job |
+| `updates` | `Array<JobUpdate>` | A list of status updates from the compute backend. |
+| `billing` | `JobBilling` | Contains information related to billing information for this `Resource` |
+| `specification` | `JobSpecification` | The specification used to launch this job. |
+| `status` | `JobStatus` | A summary of the `Job`'s current status |
+| `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
+| `output` | `JobOutput?` | Information regarding the output of this job. |
+| `acl` | `Array<ResourceAclEntry>?` | An ACL for this `Resource` |
 
-**Figure:** The end-user sends commands to the `app-service`. Commands are
-validated and transformed into useful commands for the computation backend.
-The computation backend can implemented these requests in any way they see
-fit.
 
-## Scheduling Parameters
+<!--</editor-fold>-->
+<!-- /typedoc:dk.sdu.cloud.app.orchestrator.api.Job -->
 
-The user can provide a number of scheduling parameters. The most important of
-all are the input values required by the application.
+__Table:__ The data model for a `Job`
 
-| **Parameter**            | **Description**                                                                                              |
-|--------------------------|----------------------------------------------------------------------------------------------------------|
-| `parameters`             | A dictionary containing all input parameters for the job.                                                |
-| `numberOfNodes`          | The amount of nodes requested for this job. The backend must run `numberOfNodes` many copies of the job. |
-| `maxTime`                | Maximum time allocated for this job. The job should be terminated shortly after this deadline.           |
-| `backend`                | The requested backend for this job.                                                                      |
-| `mounts`                 | A list of UCloud mounts. See below.                                                                    |
-| `peers`                  | A list of networking peers. See below                                                                    |
+---
 
-## Container Environment
+<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.Job-->
+<!--<editor-fold desc="Generated documentation">-->
+A `Job` in UCloud is the core abstraction used to describe a unit of computation.
 
-See [app-kubernetes](../app-kubernetes-service/README.md) for more information.
 
-## Multi-Node Applications
+They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
+much bigger and more machines. In a simplified view, a `Job` describes the following information:
 
-A job can be scheduled on more than one node. The orchestrator requires that
-backends execute the exact same command on all the nodes. Information about
-other nodes will be mounted at `/etc/sducloud`. This information allows jobs
-to configure themselves accordingly.
+- The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
+- The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
+  [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
+- A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
+  includes a reference to the _provider_
+- The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
 
-Each node is given a rank. The rank is 0-indexed. By convention index 0
-should used as primary point of contact.
+A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
+orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
+information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
+compute environment and how to launch the software
+correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
 
-The table below summarizes the files mounted at `/etc/sducloud` and their
-contents:
+At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
+a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
+the `Job`
+is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
+can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
+are available.
 
-| **Name**              | **Description**                                               |
-|-----------------------|-----------------------------------------------------------|
-| `node-$rank.txt`      | Single line containing hostname/ip address of the 'node'. |
-| `rank.txt`            | Single line containing the rank of this node.             |
-| `cores.txt`           | Single line containing the amount of cores allocated.     |
-| `number_of_nodes.txt` | Single line containing the number of nodes allocated.     |
-| `job_id.txt`          | Single line containing the id of this job.                |
+Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
+terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
+software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
+in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
+state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
 
-## Mounting Files from UCloud
+At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
+delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
+any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
 
-A user can chose to mount files directly from UCloud. A mount is a simple
-tuple containing the UCloud path and container path. The files from the
-UCloud directory will be visible inside of the container.
 
-## Networking and Peering with Other Applications
-
-Jobs are, by default, only allowed to perform networking with other nodes in
-the same job. A user can override this by requesting, at job startup,
-networking with an existing job. This will configure the firewall accordingly
-and allow networking between the two jobs. This will also automatically
-provide user friendly hostnames for the job. The hostname is user specified
-and follows this format: `$hostname-$rank`. For `$rank = 0` we also provide
-an alias of `$hostname`.
+<!--</editor-fold>-->
+<!-- /typedoc:dk.sdu.cloud.app.orchestrator.api.Job -->

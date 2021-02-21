@@ -13,6 +13,12 @@ import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
+val sampleIngress = Product.Ingress(
+    "u1-ingress",
+    0,
+    ProductCategoryId("ingress", UCLOUD_PROVIDER)
+)
+
 val sampleCompute = Product.Compute(
     "u1-standard-1",
     100_000,
@@ -27,7 +33,13 @@ val sampleStorage = Product.Storage(
     ProductCategoryId("cephfs", UCLOUD_PROVIDER)
 )
 
-val sampleProducts = listOf(sampleCompute, sampleStorage)
+val sampleNetworkIp = Product.NetworkIP(
+    "u1-public-ip",
+    1_000_000,
+    ProductCategoryId("public-ip", UCLOUD_PROVIDER)
+)
+
+val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleNetworkIp)
 
 /**
  * Creates a sample catalog of products
@@ -40,7 +52,9 @@ suspend fun createSampleProducts() {
         ).orThrow()
     }
 }
-@Ignore
+
+fun Product.toReference(): ProductReference = ProductReference(id, category.id, category.provider)
+
 class ProductTest : IntegrationTest() {
     @Test
     fun `test product cru`() = t {

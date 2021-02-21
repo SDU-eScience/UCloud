@@ -4,6 +4,8 @@ import {
     ColorProps, margin, MarginProps, maxWidth, MaxWidthProps,
     minWidth,
     MinWidthProps,
+    padding,
+    PaddingProps,
     textAlign,
     TextAlignProps, verticalAlign, VerticalAlignProps,
     width,
@@ -27,10 +29,10 @@ Table.defaultProps = {
     minWidth: "15em"
 };
 
-export const TableCell = styled.td<TextAlignProps & VerticalAlignProps & MarginProps>`
+export const TableCell = styled.td<TextAlignProps & VerticalAlignProps & MarginProps & PaddingProps>`
     border: 0px;
     border-spacing: 0;
-    ${textAlign} ${verticalAlign} ${margin}
+    ${textAlign} ${verticalAlign} ${margin} ${padding}
 `;
 
 TableCell.displayName = "TableCell";
@@ -65,11 +67,11 @@ export const TableHeader = styled.thead`
 
 TableHeader.displayName = "TableHeader";
 
-export const TableHeaderCell = styled.th<TextAlignProps & WidthProps>`
+export const TableHeaderCell = styled.th<TextAlignProps & WidthProps & PaddingProps>`
     border-spacing: 0;
     border: 0px;
     ${textAlign};
-    ${width} ${minWidth}
+    ${width} ${minWidth} ${padding}
 `;
 
 TableHeaderCell.displayName = "TableHeaderCell";

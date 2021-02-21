@@ -2,8 +2,8 @@ package dk.sdu.cloud.micro
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.TokenValidationJWT
 
 class TokenValidationFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -27,10 +27,10 @@ class TokenValidationFeature : MicroFeature {
 
     private fun createJWTValidator(config: JWTTokenValidationConfig): TokenValidation<DecodedJWT> {
         return when {
-            config.publicCertificate != null -> TokenValidationJWT.withPublicCertificate(
+            config.publicCertificate != null -> InternalTokenValidationJWT.withPublicCertificate(
                 config.publicCertificate
             )
-            config.sharedSecret != null -> TokenValidationJWT.withSharedSecret(config.sharedSecret)
+            config.sharedSecret != null -> InternalTokenValidationJWT.withSharedSecret(config.sharedSecret)
             else -> throw IllegalArgumentException("No configuration for JWT found")
         }
     }
@@ -48,7 +48,7 @@ class TokenValidationFeature : MicroFeature {
 
 var Micro.tokenValidation: TokenValidation<Any>
     get() = attributes[TokenValidationFeature.tokenValidationKey]
-    private set (value) {
+    set (value) {
         attributes[TokenValidationFeature.tokenValidationKey] = value
     }
 

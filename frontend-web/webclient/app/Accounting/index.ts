@@ -1,29 +1,43 @@
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Client} from "Authentication/HttpClientInstance";
+import {PropType} from "UtilityFunctions";
+import * as UCloud from "UCloud";
+
+export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 1000 * 60 * 30};
 
 export type AccountType = "USER" | "PROJECT";
+export type PaymentModel = NonNullable<PropType<UCloud.accounting.ProductNS.License, "paymentModel">>;
+export type ProductArea = NonNullable<PropType<UCloud.accounting.ListProductsByAreaRequest, "area">>;
+export const productAreas: ProductArea[] = ["STORAGE", "COMPUTE", "INGRESS", "LICENSE"];
 
-export interface ProductCategory {
-    id: ProductCategoryId;
-    area: ProductArea;
-}
 export interface ProductCategoryId {
     id: string;
     provider: string;
     title?: string;
 }
 
-export enum ProductArea {
-    COMPUTE = "COMPUTE",
-    STORAGE = "STORAGE"
+export function productToArea(product: UCloud.accounting.Product): ProductArea {
+    switch (product.type) {
+        case "compute": return "COMPUTE";
+        case "ingress": return "INGRESS";
+        case "license": return "LICENSE";
+        case "storage": return "STORAGE";
+        case "network_ip": return "NETWORK_IP";
+    }
 }
 
 export function productAreaTitle(area: ProductArea): string {
     switch (area) {
-        case ProductArea.COMPUTE:
+        case "COMPUTE":
             return "Compute";
-        case ProductArea.STORAGE:
+        case "STORAGE":
             return "Storage";
+        case "INGRESS":
+            return "Public link";
+        case "LICENSE":
+            return "Application license";
+        case "NETWORK_IP":
+            return "Public IP";
     }
 }
 
@@ -123,18 +137,7 @@ export function retrieveCredits(request: RetrieveCreditsRequest): APICallParamet
 
 // Machines
 
-export interface Product {
-    id: string;
-    pricePerUnit: number;
-    category: ProductCategoryId;
-    description: string;
-    availability: {type: "available" | "unavailable"; reason?: string};
-    priority: number;
-    cpu?: number;
-    memoryInGigs?: number;
-    gpu?: number;
-    type: "compute" | "storage";
-}
+export type Product = UCloud.accounting.Product;
 
 export interface ListProductsRequest extends PaginationRequest {
     provider: string;
@@ -142,7 +145,8 @@ export interface ListProductsRequest extends PaginationRequest {
 
 export interface ListProductsByAreaRequest extends PaginationRequest {
     provider: string;
-    area: string
+    area: string;
+    showHidden: boolean
 }
 
 export type ListProductsResponse = Product[];
@@ -165,29 +169,12 @@ export function listByProductArea(request: ListProductsByAreaRequest): APICallPa
     };
 }
 
-export interface GrantsRetrieveProductsRequest {
-    projectId: string;
-    recipientType: string;
-    recipientId: string;
+export interface RetrieveFromProviderRequest {
+    provider: string;
 }
 
-export interface GrantsRetrieveProductsResponse {
-    availableProducts: ProductCategory[];
-}
-
-export function grantsRetrieveProducts(
-    request: GrantsRetrieveProductsRequest
-): APICallParameters<GrantsRetrieveProductsRequest, GrantsRetrieveProductsResponse> {
-    return {
-        method: "GET",
-        path: buildQueryString("/api/grant/retrieveProducts", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
-}
-
-export interface RetrieveFromProviderRequest {provider: string;}
 export type RetrieveFromProviderResponse = Product[];
+
 export function retrieveFromProvider(
     request: RetrieveFromProviderRequest
 ): APICallParameters<RetrieveFromProviderRequest> {
@@ -277,12 +264,12 @@ export function transformUsageChartForTable(
     type: ProductArea,
     wallets: WalletBalance[],
     expanded: Set<string>
-): {provider: string; projects: AccountingProject[]} {
+): { provider: string; projects: AccountingProject[] } {
     const projectMap: Record<string, AccountingProject> = {};
     const relevantWallets = wallets.filter(it =>
         it.area === type &&
         ((rootProject && it.wallet.type === "PROJECT") ||
-            (!rootProject  && it.wallet.type === "USER"))
+            (!rootProject && it.wallet.type === "USER"))
     );
 
     chart.lines.filter(it => it.area === type).forEach(line => {
@@ -429,4 +416,3 @@ export const UCLOUD_PROVIDER = "ucloud";
 export function isQuotaSupported(category: ProductCategoryId): boolean {
     return category.provider === UCLOUD_PROVIDER && category.id === "u1-cephfs";
 }
-

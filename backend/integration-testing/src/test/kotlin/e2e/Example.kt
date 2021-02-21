@@ -3,7 +3,7 @@ package dk.sdu.cloud.integration.e2e
 import dk.sdu.cloud.integration.backend.createUser
 import org.junit.Ignore
 import org.junit.Test
-@Ignore
+
 class ExampleE2ETest : EndToEndTest() {
     // Note: This requires an already running webpack dev server
 

@@ -1,9 +1,7 @@
 import {ActivityFilter, ActivityForFrontend} from "Activity";
-import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
-import * as ApplicationRedux from "Applications/Redux";
 import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
-import {DetailedFileSearchReduxState, SortOrder} from "Files";
+import {DetailedFileSearchReduxState} from "Files";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
@@ -24,6 +22,7 @@ import {
 } from "Project";
 import {GroupWithSummary} from "Project/GroupList";
 import {Product} from "Accounting";
+import * as UCloud from "UCloud";
 
 export enum KeyCode {
     ENTER = 13,
@@ -32,6 +31,9 @@ export enum KeyCode {
 
 export const emptyPage: Readonly<Page<any>> =
     {items: [], itemsInTotal: 0, itemsPerPage: 25, pageNumber: 0, pagesInTotal: 0};
+
+export const emptyPageV2: Readonly<UCloud.PageV2<any>> =
+    {items: [], itemsPerPage: 25};
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -74,11 +76,6 @@ export interface FileInfoReduxObject {
     error?: string;
     activity: Page<ActivityForFrontend>;
     loading: boolean;
-}
-
-export interface AnalysisReduxObject extends ComponentWithPage<Analysis> {
-    sortBy: RunsSortBy;
-    sortOrder: SortOrder;
 }
 
 export interface NotificationsReduxObject {
@@ -124,7 +121,6 @@ interface LegacyReducers {
     uploader?: Reducer<UploaderReduxObject>;
     status?: Reducer<StatusReduxObject>;
     notifications?: Reducer<NotificationsReduxObject>;
-    analyses?: Reducer<AnalysisReduxObject>;
     header?: Reducer<HeaderSearchReduxObject>;
     sidebar?: Reducer<SidebarReduxObject>;
     activity?: Reducer<ActivityReduxObject>;
@@ -154,23 +150,21 @@ interface LegacyReduxObject {
     uploader: UploaderReduxObject;
     status: StatusReduxObject;
     notifications: NotificationsReduxObject;
-    analyses: AnalysisReduxObject;
     header: HeaderSearchReduxObject;
     sidebar: SidebarReduxObject;
     activity: ActivityReduxObject;
     simpleSearch: SimpleSearchStateProps;
     detailedFileSearch: DetailedFileSearchReduxState;
-    detailedApplicationSearch: DetailedApplicationSearchReduxState;
     fileInfo: FileInfoReduxObject;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
     loading?: boolean;
 }
+
 declare global {
     export type ReduxObject =
         LegacyReduxObject &
-        ApplicationRedux.Objects &
         TaskReduxState;
 }
 
@@ -196,9 +190,7 @@ export const initStatus = (): StatusReduxObject => ({
 });
 
 export const initDashboard = (): DashboardStateProps => ({
-    recentAnalyses: [],
     notifications: [],
-    analysesLoading: false
 });
 
 export function initObject(): ReduxObject {
@@ -208,41 +200,27 @@ export function initObject(): ReduxObject {
         status: initStatus(),
         header: initHeader(),
         notifications: initNotifications(),
-        analyses: initAnalyses(),
         sidebar: initSidebar(),
         uploader: initUploads(),
         activity: initActivity(),
         simpleSearch: initSimpleSearch(),
-        detailedApplicationSearch: initApplicationsAdvancedSearch(),
         detailedFileSearch: initFilesDetailedSearch(),
         fileInfo: initFileInfo(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
-        ...ApplicationRedux.init(),
         responsive: undefined,
     };
 }
 
-export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
+export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
     files: emptyPage,
     filesLoading: false,
-    applications: emptyPage,
-    applicationsLoading: false,
     errors: [],
     search: "",
-    applicationSearch: initApplicationsAdvancedSearch(),
     fileSearch: initFilesDetailedSearch()
-});
-
-export const initAnalyses = (): AnalysisReduxObject => ({
-    page: emptyPage,
-    loading: false,
-    error: undefined,
-    sortBy: RunsSortBy.createdAt,
-    sortOrder: SortOrder.DESCENDING
 });
 
 export const initSidebar = (): SidebarReduxObject => ({
@@ -280,11 +258,3 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     loading: false
 });
 
-export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchReduxState => ({
-    error: undefined,
-    loading: false,
-    hidden: true,
-    appQuery: "",
-    tags: new Set(),
-    showAllVersions: false
-});

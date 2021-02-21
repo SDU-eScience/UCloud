@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.store.util
 
 import dk.sdu.cloud.app.store.api.*
-import dk.sdu.cloud.app.store.services.ApplicationHibernateDaoTest
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -119,7 +118,7 @@ fun Application.withInvocation(invocation: List<InvocationParameter>): Applicati
     )
 )
 
-fun Application.withParameters(parameters: List<ApplicationParameter<*>>): Application = copy(
+fun Application.withParameters(parameters: List<ApplicationParameter>): Application = copy(
     invocation = this.invocation.copy(
         parameters = parameters
     )

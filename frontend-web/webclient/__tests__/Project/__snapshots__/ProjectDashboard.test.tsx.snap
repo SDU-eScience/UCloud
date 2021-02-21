@@ -18,6 +18,7 @@ exports[`Mount ProjectDashboard 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
+  top: 48px;
 }
 
 .c9 {
@@ -320,7 +321,7 @@ exports[`Mount ProjectDashboard 1`] = `
         height="auto"
         onClick={[Function]}
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -436,7 +437,7 @@ exports[`Mount ProjectDashboard 1`] = `
         height="auto"
         onClick={[Function]}
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -515,7 +516,7 @@ exports[`Mount ProjectDashboard 1`] = `
         height="auto"
         onClick={[Function]}
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""

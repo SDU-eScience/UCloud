@@ -32,7 +32,7 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
         ).orThrow()
     }
 
-    val subprojects = SimpleCache<String, List<Project>> { project ->
+    val subprojects = SimpleCache<String, List<Project>>(maxAge = 15_000) { project ->
         Projects.listSubProjects.call(
             ListSubProjectsRequest(PaginationRequest.FULL_READ),
             serviceClient.withProject(project)

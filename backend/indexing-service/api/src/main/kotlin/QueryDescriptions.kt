@@ -3,11 +3,7 @@ package dk.sdu.cloud.indexing.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
@@ -22,6 +18,11 @@ typealias PredicateCollection<Pred> = AllOf<Pred>
 /**
  * A collection of predicates. This predicate will become true if all of the sub predicates are true.
  */
+@TSDefinition("""
+export interface AllOf<Pred> {
+    allOf: AnyOf<Pred>[]
+}
+""")
 data class AllOf<Pred : Any>(val allOf: List<AnyOf<Pred>>) {
     init {
         if (allOf.isEmpty()) throw IllegalArgumentException("allOf cannot be empty")
@@ -35,6 +36,12 @@ data class AllOf<Pred : Any>(val allOf: List<AnyOf<Pred>>) {
 /**
  * A collection of predicates. This predicate will become true if any of the sub predicates are true.
  */
+@TSDefinition("""
+export interface AnyOf<Pred> {
+    anyOf: Pred[],
+    negate?: boolean,
+}
+""")
 data class AnyOf<Pred : Any>(val anyOf: List<Pred>, val negate: Boolean = false) {
     init {
         if (anyOf.isEmpty()) throw IllegalArgumentException("anyOf cannot be empty")
@@ -236,6 +243,7 @@ data class SizeResponse(val size: Long)
  *
  * In general, this can only be accessed by [Roles.PRIVILEGED] users
  */
+@TSTopLevel
 object QueryDescriptions : CallDescriptionContainer("indexing") {
     const val baseContext = "/api/indexing/query"
 

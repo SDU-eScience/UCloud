@@ -361,8 +361,8 @@ export const getParentPath = (path: string): string => {
     for (let i = 0; i < splitPath.length - 1; i++) {
         parentPath += splitPath[i] + "/";
     }
-    /* TODO: Should be equivalent, let's test it for a while and replace if it works. */
-    /* They are not equivalent for the empty string. // and /, respectively. */
+    // TODO(Jonas): Should be equivalent, let's test it for a while and replace if it works. */
+    // TODO: They are not equivalent for the empty string. // and /, respectively.
     const parentP = UF.addTrailingSlash(`/${path.split("/").filter(it => it).slice(0, -1).join("/")}`);
     if (window.location.hostname === "localhost" && parentP !== parentPath) {
         throw Error("ParentP and path not equal");
@@ -585,7 +585,7 @@ export const fileInfoPage = (path: string): string => `/files/info?path=${encode
 export const filePreviewPage = (path: string): string => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
-export const archiveExtensions: string[] = [".tar.gz", ".zip"];
+export const archiveExtensions: string[] = [".tgz", ".tar.gz", ".zip"];
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
 export function isTrashFolder(path: string): boolean {

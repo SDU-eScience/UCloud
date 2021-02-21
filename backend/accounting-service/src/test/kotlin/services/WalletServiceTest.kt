@@ -131,7 +131,7 @@ class WalletServiceTest {
                 onBehalfofUser,
                 user.username,
                 WalletOwnerType.USER,
-                false
+                false,
             )
             println(5)
             val gpuWallet = wallets.find { it.wallet.paysFor.id == "gpu" }
@@ -273,7 +273,7 @@ class WalletServiceTest {
         runBlocking {
             walletService.reserveCredits(
                 db,
-                Actor.SystemOnBehalfOfUser(user.username),
+                user.username,
                 ReserveCreditsRequest(
                     "jobId",
                     25000,
@@ -303,7 +303,6 @@ class WalletServiceTest {
 
         runBlocking {
             walletService.requirePermissionToReadBalance(
-                db,
                 Actor.User(user),
                 walletUserStandard.id,
                 walletUserStandard.type

@@ -11,7 +11,7 @@ module.exports = {
         "^.+\\.jsx?$": "<rootDir>/node_modules/babel-jest",
     },
     moduleNameMapper: {
-        "^.+\\.(png|ttf|jpg)$": "file-loader",
+        "^.+\\.(png|ttf|jpg|woff2)$": "file-loader",
         "^.+\\.css$": "css-loader",
         "date-fns/esm": "date-fns",
         "date-fns/esm/locale": "date-fns/locale",

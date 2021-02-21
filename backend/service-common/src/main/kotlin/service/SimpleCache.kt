@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.lang.ref.WeakReference
@@ -10,11 +11,14 @@ interface Cache<K, V : Any> {
     suspend fun remove(key: K)
 
     suspend fun get(key: K): V?
+
+    suspend fun insert(key: K, value: V)
 }
 
 class SimpleCache<K, V : Any>(
     private val maxAge: Long = 60_000,
-    private val lookup: suspend (K) -> V?
+    private val onRemove: (suspend (K, V) -> Unit)? = null,
+    private val lookup: suspend (K) -> V?,
 ) : Cache<K, V> {
     private data class CacheEntry<V>(val timestamp: Long, val value: V)
 
@@ -31,7 +35,20 @@ class SimpleCache<K, V : Any>(
     }
 
     override suspend fun remove(key: K) {
-        mutex.withLock { internalMap.remove(key) }
+        mutex.withLock {
+            val removed = internalMap.remove(key)
+            if (removed != null) onRemove?.invoke(key, removed.value)
+        }
+    }
+
+    override suspend fun insert(key: K, value: V) {
+        mutex.withLock {
+            internalMap[key] = CacheEntry(Time.now(), value)
+        }
+    }
+
+    fun getBlocking(key: K): V? {
+        return runBlocking { get(key) }
     }
 
     override suspend fun get(key: K): V? {
@@ -57,7 +74,7 @@ class SimpleCache<K, V : Any>(
         return result
     }
 
-    private suspend fun cleanup() {
+    suspend fun cleanup() {
         if (maxAge == DONT_EXPIRE) return
         val now = Time.now()
 
@@ -68,6 +85,7 @@ class SimpleCache<K, V : Any>(
                 val entry = iterator.next()
                 if (now - entry.value.timestamp > maxAge) {
                     iterator.remove()
+                    onRemove?.invoke(entry.key, entry.value.value)
                 }
             }
         }

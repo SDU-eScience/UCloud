@@ -46,6 +46,7 @@ export const asSquare = (props: {asSquare?: boolean}) => props.asSquare ? {
 export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps, WidthProps {
     fullWidth?: boolean;
     textColor?: ThemeColor;
+    color?: string | ThemeColor;
     lineHeight?: number | string;
     title?: string;
     attached?: boolean;
@@ -80,7 +81,7 @@ const Button = styled.button<ButtonProps>`
   }
 
   &:hover {
-    transform: scale(1.03);
+    transform: translateY(-2px);
   }
 
   ${attached} ${asSquare} ${fullWidth} ${size} ${space} ${height} ${width};

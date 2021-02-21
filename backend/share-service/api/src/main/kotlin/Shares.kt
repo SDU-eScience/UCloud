@@ -11,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 
 private typealias AuthAccessRight = dk.sdu.cloud.AccessRight
 
+@TSTopLevel
 object Shares : CallDescriptionContainer("shares") {
     const val baseContext = "/api/shares"
 

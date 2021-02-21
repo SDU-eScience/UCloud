@@ -1,24 +1,33 @@
 import theme from "./theme";
+import {device} from "ui-components/Hide";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
+const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");
     styleTag.innerHTML = `
         /* Custom font */
         @font-face {
-          font-family: 'IBM Plex Sans';
-          src: url('${fontLight}');
-          font-display: swap;
+            font-family: 'IBM Plex Sans';
+            src: url('${fontLight}');
+            font-display: swap;
         }
 
         @font-face {
-          font-family: 'IBM Plex Sans';
-          src: url('${fontRegular}');
-          font-weight: 400;
-          font-display: swap;
-    }`;
+            font-family: 'IBM Plex Sans';
+            src: url('${fontRegular}');
+            font-weight: 400;
+            font-display: swap;
+        }
+        
+        @font-face {
+            font-family: "Jetbrains Mono";
+            src: url("${monoFont}");
+            font-display: swap;
+        }
+    `;
     document.head.appendChild(styleTag);
 }
 
@@ -68,6 +77,11 @@ html {
     --wayfGreen: #66b340;
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
+    
+    /* TODO This is not currently enforced in the header */
+    --headerHeight: 48px;
+    /* TODO This is not currently enforced in the sidebar */
+    --sidebarWidth: 68px;
 }
 
 html.light {
@@ -100,6 +114,13 @@ html.dark {
     --borderGray: #111;
     --invertedThemeColor: #fff;
     --projectHighlight: #00c05a;
+}
+
+${device("xxl")} {
+    html {
+        /* TODO This is not currently enforced in the sidebar */
+        --sidebarWidth: 190px;
+    }
 }
 
 

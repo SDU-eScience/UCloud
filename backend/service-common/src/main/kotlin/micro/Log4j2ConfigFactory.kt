@@ -55,7 +55,7 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
                                 "pattern",
                                 "%highlight{" +
                                         "%d{HH:mm:ss.SSS} " +
-                                        "[%t] " +
+                                        //"[%t] " +
                                         "(%X{request-id}) " +
                                         "%level{TRACE=T, DEBUG=D, INFO=I, WARN=WARNING, ERROR=ERROR, FATAL=FATAL} " +
                                         "%c{-2} - " +
@@ -78,6 +78,16 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("com.zaxxer.hikari", Level.INFO)
             configureLogLevelForPackage("io.mockk.impl", Level.INFO)
             configureLogLevelForPackage("com.github.jasync.sql.db.postgresql.codec.PostgreSQLConnectionHandler", Level.WARN)
+            configureLogLevelForPackage("io.lettuce.core.EpollProvider", Level.WARN)
+            configureLogLevelForPackage("io.lettuce.core.KqueueProvider", Level.WARN)
+            configureLogLevelForPackage("com.github.jasync.sql.db.util", Level.WARN)
+            configureLogLevelForPackage("com.github.jasync.sql.db.pool.ActorBasedObjectPool", Level.WARN)
+            configureLogLevelForPackage("com.github.jasync.sql.db.pool.ConnectionPool", Level.INFO)
+            configureLogLevelForPackage("com.github.jasync.sql.db.postgresql", Level.INFO)
+            configureLogLevelForPackage("org.apache.xml.security.Init", Level.INFO)
+            configureLogLevelForPackage("reactor.util.Loggers\$LoggerFactory", Level.INFO)
+            configureLogLevelForPackage("reactor.core.publisher.UnsafeSupport", Level.INFO)
+            configureLogLevelForPackage("ktor.application", Level.WARN)
         }.build().also {
             initializeFn?.invoke()
             initializeFn = null

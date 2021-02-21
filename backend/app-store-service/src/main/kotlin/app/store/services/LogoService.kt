@@ -3,11 +3,18 @@ package dk.sdu.cloud.app.store.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.service.NormalizedPaginationRequestV2
+import dk.sdu.cloud.service.PaginationRequestV2Consistency
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.jvm.javaio.*
+import org.imgscalr.Scalr
+import java.awt.image.BufferedImage
+import java.awt.image.BufferedImageOp
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import javax.imageio.ImageIO
 
 enum class LogoType {
     APPLICATION,
@@ -27,7 +34,7 @@ class LogoService(
 
         val imageBytesStream = ByteArrayOutputStream(streamLength.toInt())
         stream.channel.copyTo(imageBytesStream)
-        val imageBytes = imageBytesStream.toByteArray()
+        val imageBytes = resizeLogo(imageBytesStream.toByteArray())
 
         db.withSession { session ->
             when (type) {
@@ -53,5 +60,59 @@ class LogoService(
                 LogoType.TOOL -> toolDao.fetchLogo(session, name)
             }
         } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+    }
+
+    fun resizeLogo(logoBytes: ByteArray): ByteArray {
+        val parsedLogo = ByteArrayInputStream(logoBytes).use { ins ->
+            ImageIO.read(ins)
+        }
+
+        if (parsedLogo.width < DESIRED_LOGO_WIDTH) return logoBytes
+
+        // Using QUALITY since a lot of the input images we get are already quite small
+        val resizedImage = Scalr.resize(
+            parsedLogo,
+            Scalr.Method.QUALITY,
+            Scalr.Mode.FIT_TO_WIDTH,
+            DESIRED_LOGO_WIDTH,
+            DESIRED_LOGO_WIDTH
+        )
+
+        return ByteArrayOutputStream().use { outs ->
+            ImageIO.write(resizedImage, "PNG", outs)
+            outs.toByteArray()
+        }
+    }
+
+    suspend fun resizeAll() {
+        run {
+            var req = NormalizedPaginationRequestV2(250, null, PaginationRequestV2Consistency.REQUIRE, null)
+            while (true) {
+                val nextPage = appDao.browseAll(db, req)
+                nextPage.items.forEach { (tool, logoBytes) ->
+                    appDao.createLogo(db, null, tool, resizeLogo(logoBytes))
+                }
+
+                req = req.copy(next = nextPage.next)
+                if (req.next == null) break
+            }
+        }
+
+        run {
+            var req = NormalizedPaginationRequestV2(250, null, PaginationRequestV2Consistency.REQUIRE, null)
+            while (true) {
+                val nextPage = toolDao.browseAllLogos(db, req)
+                nextPage.items.forEach { (tool, logoBytes) ->
+                    toolDao.createLogo(db, null, tool, resizeLogo(logoBytes))
+                }
+
+                req = req.copy(next = nextPage.next)
+                if (req.next == null) break
+            }
+        }
+    }
+
+    companion object {
+        const val DESIRED_LOGO_WIDTH = 300
     }
 }

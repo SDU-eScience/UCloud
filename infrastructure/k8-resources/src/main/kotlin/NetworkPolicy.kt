@@ -75,6 +75,14 @@ fun allowEgressTo(toPolicies: List<EgressToPolicy>): NetworkPolicyEgressRule {
     }
 }
 
+fun allowEgressToPods(key: String, operator: String, values: List<String> = emptyList()): NetworkPolicyEgressRule {
+    return NetworkPolicyEgressRule().apply {
+        to = listOf(NetworkPolicyPeer().apply {
+            podSelector = LabelSelector(listOf(LabelSelectorRequirement(key, operator, values)), null)
+        })
+    }
+}
+
 fun allowFromPods(
     labelSelector: Map<String, String>,
     namespaceSelector: Map<String, String>?

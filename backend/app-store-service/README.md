@@ -5,7 +5,6 @@
   
   ./wiki/tools.md
   ./wiki/apps.md
-  Licenses <../app-license-service/README.md>
   Orchestration <../app-orchestrator-service/README.md>
 
 The application store manages the core abstractions of UCloud applications

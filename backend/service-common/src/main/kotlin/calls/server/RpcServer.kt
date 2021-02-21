@@ -5,9 +5,9 @@ import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.channels.ClosedSendChannelException
+import kotlin.random.Random
 import kotlin.reflect.KClass
 
 interface IngoingCall {
@@ -174,14 +174,14 @@ sealed class OutgoingCallResponse<S : Any, E : Any> {
         val result: S,
         override val statusCode: HttpStatusCode
     ) : OutgoingCallResponse<S, E>() {
-        override fun toString() = "OutgoingCallResponse.Ok($statusCode, ${result.toString().take(100)})"
+        override fun toString() = "$statusCode, ${result.toString().take(240)}"
     }
 
     class Error<S : Any, E : Any>(
         val error: E?,
         override val statusCode: HttpStatusCode
     ) : OutgoingCallResponse<S, E>() {
-        override fun toString() = "OutgoingCallResponse.Error($statusCode, ${error.toString().take(100)})"
+        override fun toString() = "$statusCode, ${error.toString().take(240)}"
     }
 
     /**
@@ -268,20 +268,20 @@ class RpcServer {
         private set
 
     fun attachFilter(serverFilter: IngoingCallFilter) {
-        log.debug("Attaching filter: $serverFilter")
+        log.trace("Attaching filter: $serverFilter")
         filters.add(serverFilter)
     }
 
     fun <Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> attachRequestInterceptor(
         interceptor: IngoingRequestInterceptor<Ctx, Companion>
     ) {
-        log.debug("Attaching interceptor for ${interceptor.companion}: $interceptor")
+        log.trace("Attaching interceptor for ${interceptor.companion}: $interceptor")
         requestInterceptors[interceptor.companion] = interceptor
     }
 
     private fun <R : Any, S : Any, E : Any> notifyInterceptors(delayedHandler: DelayedHandler<R, S, E>): Unit =
         with(delayedHandler) {
-            log.debug("Adding call handler for $call")
+            log.trace("Adding call handler for $call")
 
             val existingHandler = handlers[call]
             if (existingHandler != null) {
@@ -369,7 +369,9 @@ class RpcServer {
             val afterParsing = filters.filterIsInstance<IngoingCallFilter.AfterParsing>()
             afterParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call, capturedRequest) }
 
-            log.info("Incoming call: $call ($request)")
+            val jobIdForDebug = ctx.jobIdOrNull?.take(4) ?: Random.nextInt(10_000)
+
+            log.info("Incoming call [$jobIdForDebug]: ${call.fullName} ($request)")
             val callHandler = CallHandler(ctx, capturedRequest, call).also { handler(it) }
 
             val responseResult = callHandler.result
@@ -384,10 +386,13 @@ class RpcServer {
             beforeResponse
                 .filter { it.canUseContext(ctx) }
                 .forEach { it.run(ctx, call, capturedRequest, responseResult) }
-            log.debug("Result of $call is $responseResult")
+            log.debug("   Responding [$jobIdForDebug]: ${call.fullName} ($responseResult)")
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
-            val isEarlyClose = ex is ClosedSendChannelException
+            val isEarlyClose = ex is ClosedSendChannelException ||
+                ex.javaClass.simpleName == "JobCancellationException" ||
+                ex.javaClass.simpleName == "CancellationException"
+
             if (ex !is RPCException && !isEarlyClose) {
                 log.info("Uncaught exception in handler for $call")
                 log.info(ex.stackTraceToString())
@@ -408,6 +413,7 @@ class RpcServer {
             } else {
                 OutgoingCallResponse.Error<S, E>(null, statusCode)
             }
+            log.debug("   Responding [${ctx.jobIdOrNull?.take(4)}]: ${call.fullName} ($callResult)")
 
             if (!isEarlyClose) {
                 // Attempt to send a response (if possible). Silently discard any exception as it is likely a failure

@@ -5,7 +5,7 @@ provides new functionality to Micro. Many features of Micro are loaded by defaul
 in the `initializeServer` function of your `Service` (`Main.kt`):
 
 ```kotlin
-micro.install(RefreshingJWTCloudFeature)
+micro.install(AuthenticatorFeature)
 micro.install(BackgroundScopeFeature)
 ```
 
@@ -69,7 +69,7 @@ __Example:__ Reading a configuration file and passing it to `Server.kt`
 
 ```kotlin
 override fun initializeServer(micro: Micro): CommonServer {
-    micro.install(RefreshingJWTCloudFeature)
+    micro.install(AuthenticatorFeature)
     micro.install(BackgroundScopeFeature)
     val folder = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
     val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
@@ -398,7 +398,7 @@ tokenValidation:
     sharedSecret: notverysecret
 ```
 
-## RefreshingJWTCloudFeature
+## AuthenticatorFeature (formerly RefreshingJWTCloudFeature)
 
 - Default: No
 - Exported services:

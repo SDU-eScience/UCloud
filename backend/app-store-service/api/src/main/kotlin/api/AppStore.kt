@@ -3,12 +3,7 @@ package dk.sdu.cloud.app.store.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.bindToSubProperty
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
@@ -156,6 +151,7 @@ typealias FindLatestByToolResponse = Page<Application>
 data class DeleteAppRequest(val appName: String, val appVersion: String)
 typealias DeleteAppResponse = Unit
 
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object AppStore : CallDescriptionContainer("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
