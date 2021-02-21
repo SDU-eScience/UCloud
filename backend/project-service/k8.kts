@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "project"
-    version = "3.3.0-rc2"
+    version = "3.3.0"
 
     withAmbassador("/api/projects") {}
 

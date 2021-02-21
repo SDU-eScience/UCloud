@@ -125,7 +125,7 @@ class PaymentService(
                     product.id,
                     units,
                     chargeImmediately = true,
-                    skipIfExists = true,
+                    skipIfExists = false,
                     transactionType = TransactionType.PAYMENT,
                 ),
                 serviceClient

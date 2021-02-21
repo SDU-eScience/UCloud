@@ -1,4 +1,4 @@
-version = "0.2.0-rc0"
+version = "0.2.0"
 
 application {
     mainClassName = "dk.sdu.cloud.news.MainKt"

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.Utils.CREDITS_NOTIFY_LIMIT
 import dk.sdu.cloud.accounting.api.*
@@ -566,6 +567,12 @@ class BalanceService(
             }
         } catch (ignored: ReservationUserRequestedAbortException) {
             // Ignored
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            }
+
+            throw ex
         }
     }
 
