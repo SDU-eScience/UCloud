@@ -1,14 +1,15 @@
 import * as React from "react";
 import styled from "styled-components";
 import Icon, {IconName} from "./Icon";
-import {Flex} from "ui-components";
+import {Flex,Box} from "ui-components";
 import {FontSizeProps, fontSize} from "styled-system";
 
-const RadioTilesContainer = styled(Flex)`
-  flex-wrap: nowrap;
-  justify-content: center;
+const RadioTilesContainer = styled(Box)`
   align-items: center;
-  overflow: hidden;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto);
+  column-gap: 5px;
 `;
 
 const RadioTile = (props: RadioTileProps): JSX.Element => {
@@ -66,13 +67,12 @@ const RadioTileWrap = styled.div<RadioTileWrapProps>`
   position: relative;
   height:  ${props => props.height}px;
   width:  ${props => props.height}px;
-  margin: 5px;
   transition: transform 300ms ease;
 
   &:hover {
     ${props => props.checked || props.disabled ? null :
         `
-        transform: scale(1.2, 1.2);
+        transform: translateY(-2px);
       `
     }
 
@@ -100,7 +100,6 @@ const RadioTileInput = styled.input`
     background-color: var(--blue, #f00);
     border: 0px solid white;
     color: white;
-    transform: scale(1.2, 1.2);
   }
 `;
 
