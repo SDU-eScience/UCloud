@@ -194,7 +194,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   padding-right: 16px;
   padding-top: 4px;
   padding-bottom: 4px;
-  height: 100%;
+  height: calc(100% - 5px);
 }
 
 .c11 {
@@ -208,7 +208,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: #8393A7;
 }
 
-.c29 {
+.c30 {
   border-radius: 6px;
   width: 100%;
   min-width: 450px;
@@ -247,7 +247,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   width: 100%;
   font-size: 14px;
   padding: 9.5px 18px;
-  margin-top: 8px;
+  margin-top: 16px;
 }
 
 .c17:disabled {
@@ -259,9 +259,9 @@ exports[`Dashboard Dashboard mount 1`] = `
 }
 
 .c17:hover {
-  -webkit-transform: scale(1.03);
-  -ms-transform: scale(1.03);
-  transform: scale(1.03);
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .c22 {
@@ -295,6 +295,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   width: 100%;
   font-size: 14px;
   padding: 9.5px 18px;
+  margin-top: 8px;
 }
 
 .c22:disabled {
@@ -306,9 +307,57 @@ exports[`Dashboard Dashboard mount 1`] = `
 }
 
 .c22:hover {
-  -webkit-transform: scale(1.03);
-  -ms-transform: scale(1.03);
-  transform: scale(1.03);
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
+}
+
+.c23 {
+  font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: var(--blue,#f00);
+  color: var(--white,#f00);
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  width: 100%;
+  font-size: 14px;
+  padding: 9.5px 18px;
+  margin-bottom: 4px;
+}
+
+.c23:disabled {
+  opacity: 0.25;
+}
+
+.c23:focus {
+  outline: none;
+}
+
+.c23:hover {
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .c8 {
@@ -372,7 +421,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   cursor: inherit;
 }
 
-.c23 {
+.c24 {
   cursor: inherit;
   font-size: 14px;
   color: #53657d;
@@ -413,7 +462,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   border-bottom: 0px;
 }
 
-.c24 {
+.c25 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
@@ -423,22 +472,22 @@ exports[`Dashboard Dashboard mount 1`] = `
   background-color: #fff;
 }
 
-.c27 {
+.c28 {
   border: 0px;
   border-spacing: 0;
 }
 
-.c28 {
+.c29 {
   border: 0px;
   border-spacing: 0;
   text-align: right;
 }
 
-.c25 {
+.c26 {
   cursor: auto;
 }
 
-.c25 > .c26 {
+.c26 > .c27 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
@@ -491,8 +540,8 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6 dashboard-card-inner"
-          height="100%"
+          className="c6"
+          height="calc(100% - 5px)"
         >
           <div
             className="c7"
@@ -656,8 +705,8 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6 dashboard-card-inner"
-          height="100%"
+          className="c6"
+          height="calc(100% - 5px)"
         >
           <div
             className="c7"
@@ -729,7 +778,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                   fillRule="nonzero"
                 />
               </svg>
-               next to one of your files to mark it as a favorite. All of your favorite files will appear here.
+               next to one of your files to mark it as a favorite.
               <a
                 className="c9"
                 color="text"
@@ -766,8 +815,8 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6 dashboard-card-inner"
-          height="100%"
+          className="c6"
+          height="calc(100% - 5px)"
         >
           <div
             className="c7"
@@ -899,8 +948,8 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6 dashboard-card-inner"
-          height="100%"
+          className="c6"
+          height="calc(100% - 5px)"
         >
           <div
             className="c7"
@@ -993,7 +1042,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 onClick={[Function]}
               >
                 <button
-                  className="c17"
+                  className="c22"
                   color="blue"
                 >
                   Explore UCloud
@@ -1022,8 +1071,8 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6 dashboard-card-inner"
-          height="100%"
+          className="c6"
+          height="calc(100% - 5px)"
         >
           <div
             className="c7"
@@ -1093,7 +1142,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 onClick={[Function]}
               >
                 <button
-                  className="c22"
+                  className="c23"
                   color="blue"
                 >
                   Apply for resources
@@ -1118,8 +1167,8 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6 dashboard-card-inner"
-          height="100%"
+          className="c6"
+          height="calc(100% - 5px)"
         >
           <div
             className="c7"
@@ -1169,7 +1218,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c23"
+            className="c24"
             color="darkGray"
             cursor="inherit"
             fontSize={1}
@@ -1177,36 +1226,36 @@ exports[`Dashboard Dashboard mount 1`] = `
             Past 30 days
           </div>
           <table
-            className="c24"
+            className="c25"
             width="100%"
           >
             <tbody>
               <tr
-                className="c25"
+                className="c26"
                 cursor="auto"
               >
                 <td
-                  className="c26 c27"
+                  className="c27 c28"
                 >
                   Storage
                 </td>
                 <td
-                  className="c26 c28"
+                  className="c27 c29"
                 >
                   0 DKK
                 </td>
               </tr>
               <tr
-                className="c25"
+                className="c26"
                 cursor="auto"
               >
                 <td
-                  className="c26 c27"
+                  className="c27 c28"
                 >
                   Compute
                 </td>
                 <td
-                  className="c26 c28"
+                  className="c27 c29"
                 >
                   0 DKK
                 </td>
@@ -1216,7 +1265,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         </div>
       </div>
       <div
-        className="c29 c5"
+        className="c30 c5"
         height="auto"
         overflow="hidden"
         width="100%"
@@ -1230,8 +1279,8 @@ exports[`Dashboard Dashboard mount 1`] = `
           }
         />
         <div
-          className="c6 dashboard-card-inner"
-          height="100%"
+          className="c6"
+          height="calc(100% - 5px)"
         >
           <div
             className="c7"
@@ -1322,7 +1371,7 @@ exports[`Dashboard Dashboard mount 1`] = `
               onClick={[Function]}
             >
               <button
-                className="c17"
+                className="c22"
                 color="blue"
               >
                 Apply for resources

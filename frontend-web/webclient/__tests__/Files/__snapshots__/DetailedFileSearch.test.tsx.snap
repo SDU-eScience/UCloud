@@ -43,9 +43,9 @@ exports[`Detailed File Search Mount file search 1`] = `
 }
 
 .c0:hover {
-  -webkit-transform: scale(1.03);
-  -ms-transform: scale(1.03);
-  transform: scale(1.03);
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .c1 {
