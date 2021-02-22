@@ -129,11 +129,13 @@ config("app-kubernetes") { ctx ->
         "test" -> {
             configure("prefix", "apps-")
             configure("domain", "dev.cloud.sdu.dk")
+            configure("networkInterface", "eno49")
         }
 
         "development" -> {
             configure("prefix", "app-")
             configure("domain", "dev.cloud.sdu.dk")
+            configure("networkInterface", "eno49")
         }
 
         "production" -> {

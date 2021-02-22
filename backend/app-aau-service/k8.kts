@@ -3,9 +3,11 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-aau"
-    version = "0.1.0"
+    version = "0.1.2"
     
-    withAmbassador() {}
+    withAmbassador() {
+        addSimpleMapping("/ucloud/aau")
+    }
     
     val deployment = withDeployment {
         deployment.spec.replicas = 2

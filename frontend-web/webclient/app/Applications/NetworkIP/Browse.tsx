@@ -300,6 +300,8 @@ function isEnabled(projectStatus: ProjectStatus, entity: NetworkIP): OperationEn
     const hasPermission = canUse(projectStatus, entity);
     if (hasPermission !== true) return hasPermission;
 
+    if (entity.status.boundTo) return "This IP address is currently in use";
+
     switch (entity.status.state) {
         case "PREPARING":
             return `Your ${entityName} is currently being prepared. It should be available for use soon.`;
