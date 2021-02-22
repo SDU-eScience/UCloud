@@ -3,9 +3,11 @@ package dk.sdu.cloud
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.UCloudApiDoc
 import io.ktor.http.*
+import kotlinx.serialization.Serializable
 import kotlin.math.ceil
 import kotlin.math.min
 
+@Serializable
 data class Page<out T>(
     val itemsInTotal: Int,
     val itemsPerPage: Int,
@@ -43,6 +45,7 @@ fun WithPaginationRequest.normalizeWithFullReadEnabled(
     return normalize()
 }
 
+@Serializable
 data class PaginationRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null,
@@ -131,6 +134,7 @@ check if the end of results has been reached is by checking i `next == null`."""
     val next: String?,
 )
 
+@Serializable
 data class NormalizedPaginationRequestV2(
     val itemsPerPage: Int,
     val next: String?,
@@ -138,6 +142,7 @@ data class NormalizedPaginationRequestV2(
     val itemsToSkip: Long?,
 )
 
+@Serializable
 data class PaginationRequestV2(
     override val itemsPerPage: Int,
     override val next: String? = null,
@@ -205,6 +210,7 @@ interface WithPaginationRequestV2 {
     }
 }
 
+@Serializable
 enum class PaginationRequestV2Consistency {
     @UCloudApiDoc("Consistency is preferred but not required. An inconsistent snapshot might be returned.")
     PREFER,

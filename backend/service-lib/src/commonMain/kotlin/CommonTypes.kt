@@ -2,7 +2,9 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiStable
+import kotlinx.serialization.Serializable
 
+@Serializable
 @UCloudApiStable
 @UCloudApiDoc("""A generic error message
 
@@ -20,8 +22,14 @@ data class CommonErrorMessage(
     val errorCode: String? = null
 )
 
+@Serializable
 data class FindByStringId(val id: String)
 
+@Serializable
 data class FindByLongId(val id: Long)
+
+@Serializable
 data class FindByIntId(val id: Int)
+
+@Serializable
 data class FindByDoubleId(val id: Double)

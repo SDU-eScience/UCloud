@@ -84,7 +84,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             url(url)
             method = http.method
             body = http.serializeBody(request, call)
-            http.serializeHeaders(request, call).forEach { (name, value) ->
+            http.serializeHeaders(request).forEach { (name, value) ->
                 header(name, base64Encode(value.encodeToByteArray()))
             }
 
@@ -125,10 +125,8 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private suspend fun <S : Any> parseResponseToType(
         resp: HttpResponse,
-        call: CallDescription<*, *, *>,
         type: KSerializer<S>,
     ): S {
-        // TODO HttpClientConverters
         return defaultMapper.decodeFromString(type, resp.content.readRemaining().readText())
     }
 
@@ -138,11 +136,11 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         callId: Int,
     ): IngoingCallResponse<S, E> {
         return if (resp.status.isSuccess()) {
-            IngoingCallResponse.Ok(parseResponseToType(resp, call, call.successType), resp.status)
+            IngoingCallResponse.Ok(parseResponseToType(resp, call.successType), resp.status)
         } else {
             IngoingCallResponse.Error(
                 runCatching {
-                    parseResponseToType(resp, call, call.errorType)
+                    parseResponseToType(resp, call.errorType)
                 }.getOrElse {
                     log.trace("[$callId] Exception while de-serializing unsuccessful message")
                     log.trace(it.stackTraceToString())
@@ -157,6 +155,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         payload: Any,
         call: CallDescription<*, *, *>,
     ): OutgoingContent {
+        @Suppress("UNCHECKED_CAST")
         return TextContent(
             defaultMapper.encodeToString(call.requestType as KSerializer<Any>, payload),
             ContentType.Application.Json.withCharset(Charsets.UTF_8)
@@ -181,7 +180,6 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.serializeHeaders(
         request: R,
-        call: CallDescription<R, *, *>,
     ): List<Pair<String, String>> {
         if (headers == null) return emptyList()
 
@@ -206,7 +204,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         request: R,
         call: CallDescription<*, *, *>,
     ): String {
-        val primaryPath = serializePathSegments(request, call)
+        val primaryPath = serializePathSegments(request)
         val queryPathMap = serializeQueryParameters(request, call) ?: emptyMap()
         val queryPath = encodeQueryParamsToString(queryPathMap)
 
@@ -215,7 +213,6 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.serializePathSegments(
         request: R,
-        call: CallDescription<*, *, *>,
     ): String {
         return path.segments.asSequence().mapNotNull {
             when (it) {

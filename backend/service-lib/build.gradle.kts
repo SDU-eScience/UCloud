@@ -1,6 +1,6 @@
 plugins {
-    kotlin("multiplatform") version "1.4.30"
-    kotlin("plugin.serialization") version "1.4.30"
+    kotlin("multiplatform")
+    kotlin("plugin.serialization")
 }
 
 repositories {
@@ -33,7 +33,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("stdlib-common"))
                 api("io.ktor:ktor-client-core:$ktorVersion")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
             }
         }
 

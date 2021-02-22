@@ -337,7 +337,7 @@ class RpcServer {
         ctx: Ctx
     ) {
         var request: R? = null
-        var response: OutgoingCallResponse<S, E>? = null
+        var response: OutgoingCallResponse<S, E>?
 
         @Suppress("TooGenericExceptionCaught")
         try {

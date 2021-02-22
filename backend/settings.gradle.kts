@@ -4,6 +4,8 @@ include("service-lib")
 /*
 include("service-common-test")
 include("integration-testing")
+include("launcher")
+*/
 
 // Automatically pull in sub-projects
 (rootProject.projectDir.listFiles() ?: emptyArray()).forEach { file ->
@@ -17,7 +19,3 @@ include("integration-testing")
         }
     }
 }
-
-include("launcher")
-
- */

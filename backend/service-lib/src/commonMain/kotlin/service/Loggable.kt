@@ -5,6 +5,8 @@ interface Loggable {
     fun logger(): Logger = defaultLogger()
 }
 
+expect fun Logger(tag: String): Logger
+
 expect fun Loggable.defaultLogger(): Logger
 
 expect interface Logger {

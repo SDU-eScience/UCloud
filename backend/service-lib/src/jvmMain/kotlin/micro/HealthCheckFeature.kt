@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.client.RequestOptions
 import java.util.*
@@ -42,6 +43,7 @@ private object HealthCheckDescriptions : CallDescriptionContainer("healthcheck")
     }
 }
 
+@Serializable
 private data class RedisHealthMessage(val id: String, val timestamp: Long)
 
 private class RedisHealthStream(serviceName: String, id: Int) : EventStreamContainer() {
@@ -69,6 +71,7 @@ class HealthCheckFeature : MicroFeature {
                     val response: String
                     try {
                         val conn = ctx.redisConnectionManager.getConnection()
+                        @Suppress("BlockingMethodInNonBlockingContext")
                         response = conn.ping().get()
                     } catch (ex: Exception) {
                         log.error("Redis is not working: EX: ${ex.stackTraceToString()}")
@@ -105,7 +108,8 @@ class HealthCheckFeature : MicroFeature {
                     val client = ctx.elasticHighLevelClient
                     val request = ClusterHealthRequest()
                     try {
-                        val response = client.cluster().health(request, RequestOptions.DEFAULT)
+                        @Suppress("BlockingMethodInNonBlockingContext")
+                        client.cluster().health(request, RequestOptions.DEFAULT)
                     } catch (ex: Exception) {
                         log.error("Elastic is not working ${ex.stackTraceToString()}")
                         throw RPCException("Elastic is not working", HttpStatusCode.InternalServerError)

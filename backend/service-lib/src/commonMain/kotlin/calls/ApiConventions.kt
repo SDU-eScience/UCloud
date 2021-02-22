@@ -1,8 +1,11 @@
+@file:Suppress("unused", "UNUSED_VARIABLE")
+
 package dk.sdu.cloud.calls
 
 import dk.sdu.cloud.*
 import io.ktor.http.*
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.elementDescriptors
 import kotlinx.serialization.serializer
 
@@ -155,6 +158,7 @@ private fun CallDescriptionContainer.httpBrowseExample() {
  *
  * @example [httpRetrieveExample]
  */
+@OptIn(ExperimentalSerializationApi::class)
 inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
     baseContext: String,
     subResource: String? = null,
@@ -495,6 +499,7 @@ verification API to cleanup these resources later.
     
 
 """)
+@Serializable
 data class BulkRequest<out T : Any>(val items: List<T>)
 
 fun <T : Any> bulkRequestOf(vararg items: T): BulkRequest<T> {
@@ -507,4 +512,5 @@ fun <T : Any> bulkRequestOf(items: Collection<T>): BulkRequest<T> {
     return BulkRequest(items.toList())
 }
 
+@Serializable
 data class BulkResponse<T>(val responses: List<T>)
