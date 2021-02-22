@@ -173,9 +173,7 @@ export const Browse: React.FunctionComponent = () => {
     }, [toggleSet]);
 
     return <MainContainer
-        header={
-            <Heading.h3>Runs</Heading.h3>
-        }
+        header={<Heading.h3>Runs</Heading.h3>}
         main={
             <>
                 <StickyBox backgroundColor="white">
@@ -321,6 +319,7 @@ const FilterOptions: React.FunctionComponent<{
                         isClearable
                         selectsStart
                         showTimeInput
+                        locale={enGB}
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={firstDate}
@@ -338,6 +337,7 @@ const FilterOptions: React.FunctionComponent<{
                         isClearable
                         selectsEnd
                         showTimeInput
+                        locale={enGB}
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={secondDate}
@@ -354,12 +354,12 @@ const FilterOptions: React.FunctionComponent<{
 }
 
 const StickyBox = styled(Box)`
-  position: sticky;
-  z-index: 50;
-  top: 144px;
-  height: 30px;
-  display: flex;
-  align-items: center;
+    position: sticky;
+    z-index: 50;
+    top: 144px;
+    height: 30px;
+    display: flex;
+    align-items: center;
 `;
 
 export default Browse;

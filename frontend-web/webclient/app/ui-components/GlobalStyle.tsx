@@ -708,7 +708,7 @@ textarea,
  * inoperable elements in all browsers (opinionated).
  */
 
-[aria-disabled],
+[aria-disabled=true],
 [disabled] {
   cursor: not-allowed;
 }
