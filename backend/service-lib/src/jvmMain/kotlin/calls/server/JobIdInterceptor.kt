@@ -43,7 +43,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
     private fun readCausedBy(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.header(HttpHeaders.CausedBy)
-            is WSCall -> context.frameNode["causedBy"]?.takeIf { it.isNull && it.isTextual }?.textValue()
+            is WSCall -> context.request.causedBy
             else -> throw IllegalStateException("Unable to read caused by for context: $context")
         }
     }

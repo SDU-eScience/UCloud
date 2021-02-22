@@ -2,6 +2,7 @@ package dk.sdu.cloud.calls
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Serializer
 
 class WebSocketRequest<R : Any, S : Any, E : Any> internal constructor(
     val context: CallDescription<R, S, E>,
@@ -38,6 +39,7 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.websocket(
     attributes[WebSocketRequest.callKey] = WebSocketBuilder(this, path).also(handler).build()
 }
 
+@Serializable
 internal data class WSRequest<T>(
     val call: String,
     val streamId: String,

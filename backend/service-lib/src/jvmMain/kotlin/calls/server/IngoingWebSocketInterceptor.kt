@@ -1,7 +1,5 @@
 package dk.sdu.cloud.calls.server
 
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
@@ -10,7 +8,6 @@ import dk.sdu.cloud.calls.WSRequest
 import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.Time
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
@@ -30,11 +27,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonObject
 import java.util.*
 
 class WSCall internal constructor(
     val session: WSSession,
-    internal val frameNode: JsonNode,
+    internal val request: WSRequest<JsonObject>,
     val streamId: String
 ) : IngoingCall {
     override val attributes = AttributeContainer()
@@ -47,7 +48,7 @@ class WSCall internal constructor(
         }
     }
 
-    internal suspend fun sendMessage(message: Any, typeRef: TypeReference<*>) {
+    internal suspend fun sendMessage(message: Any, typeRef: KSerializer<*>) {
         mutex.withLock {
             check(!hasSentResponse) { "Cannot send messages after response!" }
 
@@ -78,21 +79,11 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
     internal suspend fun sendMessage(
         streamId: String,
         message: Any,
-        typeRef: TypeReference<*>
+        typeRef: KSerializer<*>
     ) {
-        val node = defaultMapper.readerFor(typeRef).readTree(
-            defaultMapper.writerFor(typeRef).writeValueAsString(message)
-        )
-
-        val payloadTree = defaultMapper.writeValueAsString(
-            mapOf<String, Any>(
-                TYPE_PROPERTY to WSMessage.MESSAGE_TYPE,
-                WSMessage.STREAM_ID_FIELD to streamId,
-                WSMessage.PAYLOAD_FIELD to node
-            )
-        )
-
-        rawSend(payloadTree)
+        @Suppress("UNCHECKED_CAST")
+        val serializer = WSMessage.Message.serializer(typeRef) as KSerializer<WSMessage.Message<*>>
+        rawSend(defaultMapper.encodeToString(serializer, WSMessage.Message(streamId, message)))
     }
 
     suspend fun close(reason: String? = null) {
@@ -151,6 +142,7 @@ class IngoingWebSocketInterceptor(
 
         engine.application.routing {
             handlers.forEach { (path, calls) ->
+                val requestSerializer = WSRequest.serializer(JsonObject.serializer())
                 webSocket(path) {
                     log.trace("New websocket connection at $path")
                     val session = WSSession(UUID.randomUUID().toString(), this)
@@ -180,27 +172,18 @@ class IngoingWebSocketInterceptor(
                                 val text = frame.readText()
                                 log.trace("Received frame: $text")
 
-                                @Suppress("BlockingMethodInNonBlockingContext")
-                                val parsedMessage = defaultMapper.readTree(text)
+                                // We silently discard messages that don't follow the correct format
+                                val parsedMessage = runCatching {
+                                    defaultMapper.decodeFromString(requestSerializer, text)
+                                }.getOrNull() ?: continue
 
                                 log.trace("Parsed message: $parsedMessage")
 
-                                // We silently discard messages that don't follow the correct format
-                                val requestedCall =
-                                    parsedMessage[WSRequest.CALL_FIELD]
-                                        ?.takeIf { !it.isNull && it.isTextual }
-                                        ?.textValue()
-                                        ?: continue
+                                val requestedCall = parsedMessage.call
 
                                 log.trace("RequestedCall: $requestedCall")
 
-                                if (parsedMessage[WSRequest.PAYLOAD_FIELD]?.isNull != false) continue
-
-                                val streamId =
-                                    parsedMessage[WSRequest.STREAM_ID_FIELD]
-                                        ?.takeIf { !it.isNull && it.isTextual }
-                                        ?.textValue()
-                                        ?: continue
+                                val streamId = parsedMessage.streamId
 
                                 log.trace("streamId: $streamId")
 
@@ -208,7 +191,7 @@ class IngoingWebSocketInterceptor(
                                 val call = callsByName[requestedCall]
                                 if (call == null) {
                                     send(
-                                        defaultMapper.writeValueAsString(
+                                        defaultMapper.encodeToString(
                                             WSMessage.Response(
                                                 streamId,
                                                 Unit,
@@ -267,10 +250,7 @@ class IngoingWebSocketInterceptor(
     }
 
     override suspend fun <R : Any> parseRequest(ctx: WSCall, call: CallDescription<R, *, *>): R {
-        val reader = defaultMapper.readerFor(call.requestType)
-
-        @Suppress("BlockingMethodInNonBlockingContext")
-        return reader.readValue<R>(ctx.frameNode[WSRequest.PAYLOAD_FIELD])
+        return defaultMapper.decodeFromJsonElement(call.requestType, ctx.request.payload)
     }
 
     override suspend fun <R : Any, S : Any, E : Any> produceResponse(
@@ -291,16 +271,13 @@ class IngoingWebSocketInterceptor(
         }
 
         if (payload != null && typeRef != null) {
-            val node = defaultMapper.readerFor(typeRef).readTree(
-                defaultMapper.writerFor(typeRef).writeValueAsString(payload)
-            )
-
-            val response = defaultMapper.writeValueAsString(
-                mapOf(
-                    WSMessage.STREAM_ID_FIELD to ctx.streamId,
-                    TYPE_PROPERTY to WSMessage.RESPONSE_TYPE,
-                    WSMessage.STATUS_FIELD to callResult.statusCode.value,
-                    WSMessage.PAYLOAD_FIELD to node
+            @Suppress("UNCHECKED_CAST")
+            val response = defaultMapper.encodeToString(
+                WSMessage.Response.serializer(typeRef.nullable) as KSerializer<WSMessage.Response<*>>,
+                WSMessage.Response<Any?>(
+                    ctx.streamId,
+                    payload,
+                    callResult.statusCode.value
                 )
             )
 

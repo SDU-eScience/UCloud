@@ -21,7 +21,7 @@ class ProjectInterceptor {
     private fun readProject(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.header("Project")
-            is WSCall -> context.frameNode[WSRequest.PROJECT_FIELD]?.takeIf { !it.isNull && it.isTextual }?.textValue()
+            is WSCall -> context.request.project
             else -> {
                 log.warn("Unable to extract project from call context: $context")
                 null
