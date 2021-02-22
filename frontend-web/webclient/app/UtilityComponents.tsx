@@ -795,13 +795,14 @@ export const shakeAnimation = css<{shaking?: boolean}>`
 
 export const shakingClassName = "shaking";
 
-export const ShakingBox = styled(Box)<{shaking?: boolean}>`
+export const ShakingBox = styled(Box) <{shaking?: boolean}>`
     ${shakeAnimation}
 `;
 
 const MISSING_COMPUTE_CREDITS = "NOT_ENOUGH_COMPUTE_CREDITS";
 const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
 const EXCEEDED_STORAGE_QUOTA = "NOT_ENOUGH_STORAGE_QUOTA";
+const NOT_ENOUGH_LICENSE_CREDITS = "NOT_ENOUGH_LICENSE_CREDITS";
 
 export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
     if (!props.errorCode) return null;
@@ -842,6 +843,17 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
                     />
                 </Box>
             );
+        }
+        case NOT_ENOUGH_LICENSE_CREDITS: {
+            return (
+                <Box mb="8px">
+                    <Heading.h4 mb="20px" color="#000">You do not have enough license credits.</Heading.h4>
+                    <Spacer
+                        left={<Text color="#000">You do not have enough credits to use this license. Even free licenses requires a non-zero positive balance.</Text>}
+                        right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
+                    />
+                </Box>
+            )
         }
         case EXCEEDED_STORAGE_QUOTA:
             return (
