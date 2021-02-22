@@ -2,6 +2,9 @@ package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.accounting.api.RetrieveWalletsForProjectsRequest
+import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.auth.api.GetPrincipalRequest
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.UserDescriptions
@@ -14,11 +17,9 @@ import dk.sdu.cloud.grant.services.ApplicationService
 import dk.sdu.cloud.grant.services.CommentService
 import dk.sdu.cloud.grant.services.SettingsService
 import dk.sdu.cloud.grant.services.TemplateService
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.toActor
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.*
@@ -187,7 +188,8 @@ class GrantController(
         }
 
         implement(Grants.retrieveAffiliations) {
-            val username = applications.viewApplicationById(db, ctx.securityPrincipal.toActor(), request.grantId).first.requestedBy
+            val application = applications.viewApplicationById(db, ctx.securityPrincipal.toActor(), request.grantId)
+            val username = application.first.requestedBy
             val principal = UserDescriptions.retrievePrincipal.call(
                 GetPrincipalRequest(username),
                 serviceClient
@@ -206,11 +208,39 @@ class GrantController(
                 }
                 else -> throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "user not found")
             }
+            val affiliatedProjects = settings.browse(
+                db,
+                user.toActor(),
+                PaginationRequest(request.itemsPerPage, request.page).normalize()
+            )
+            val affiliatedProjectsIds = affiliatedProjects.items.map { it.projectId }
+            //Seems pretty stupid, but works. If all required resources are available in other project -> list it.
+            var wallets = Wallets.retrieveWalletsFromProjects.call(
+                RetrieveWalletsForProjectsRequest(affiliatedProjectsIds),
+                serviceClient
+            ).orThrow()
+
+            val projectIdAndMatchingResources = mutableMapOf<String, Int>()
+            val resourcesAppliedFor = application.first.requestedResources
+            resourcesAppliedFor.forEach {
+                val productCategory = it.productCategory
+                val productProvider = it.productProvider
+                wallets.forEach { wallet ->
+                    if (wallet.paysFor.id==productCategory && wallet.paysFor.provider == productProvider) {
+                        val value = projectIdAndMatchingResources.getOrDefault(wallet.id, 0)
+                        projectIdAndMatchingResources[wallet.id] = value + 1
+                    }
+                }
+            }
+
+            val projectsIdWithRequestedResources = projectIdAndMatchingResources.filter { it.value == resourcesAppliedFor.count() }
+            val projectsAvailable = affiliatedProjects.items.filter { projectsIdWithRequestedResources.contains(it.projectId) }
             ok(
-                settings.browse(
-                    db,
-                    user.toActor(),
-                    PaginationRequest(request.itemsPerPage, request.page).normalize()
+                Page(
+                    projectsAvailable.size,
+                    request.itemsPerPage!!,
+                    request.page!!,
+                    projectsAvailable
                 )
             )
         }

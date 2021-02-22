@@ -517,20 +517,6 @@ class ApplicationService(
         if (!projects.isAdminOfProject(application.first.resourcesOwnedBy, actor)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
-        ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("transfer", transferToProjectId)
-                        setParameter("applicationId", applicationId)
-                    },
-                    """
-                        UPDATE "grant".applications
-                        SET resources_owned_by = :transfer
-                        WHERE id = :applicationId
-                    """
-                )
-        }
         val projectTitle = ctx.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -556,13 +542,27 @@ class ApplicationService(
                         """
                         SELECT title
                         FROM project.projects
-                        WHERE id = :receivingProject
+                        WHERE id = :sendingProject
                     """
                     ).rows
                     .singleOrNull()
                     ?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         } else "another project"
+        ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("transfer", transferToProjectId)
+                        setParameter("applicationId", applicationId)
+                    },
+                    """
+                        UPDATE "grant".applications
+                        SET resources_owned_by = :transfer
+                        WHERE id = :applicationId
+                    """
+                )
+        }
         val admins = projects.admins.get(transferToProjectId) ?: emptyList()
         MailDescriptions.sendBulk.call(
             SendBulkRequest(

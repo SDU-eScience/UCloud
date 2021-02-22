@@ -61,7 +61,7 @@ import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {AvatarHook, useAvatars} from "AvataaarLib/hook";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {setLoading, useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {Balance, BalanceExplainer, useStoragePrice} from "Accounting/Balance";
 import {useDispatch} from "react-redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -1125,6 +1125,8 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
             fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, grantId}))
         }
     }, [grantId]);
+    const dispatch = useDispatch()
+
 
     return (isConfirming ? null :
         <ReactModal
@@ -1147,7 +1149,10 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
                                 onConfirm: async () => {
                                     setIsConfirming(false);
                                     close();
+                                    //Show that we are transfering
+                                    dispatch(setLoading(true))
                                     await transfer(it.projectId);
+                                    dispatch(setLoading(false))
                                     history.push("/project/grants/ingoing");
                                 }
                             })
