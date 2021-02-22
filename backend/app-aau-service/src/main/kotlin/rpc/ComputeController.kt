@@ -55,24 +55,21 @@ class ComputeController(
                 sendMessage(
                     req.id,
                     buildString {
-                        appendLine("```")
-                        appendLine("VM creation request")
-                        appendLine("-------------------")
-                        appendLine()
-                        appendLine("Request ID: ${req.id}")
-                        appendLine("Owner (username): ${req.owner.createdBy}")
-                        appendLine("Owner (project): ${req.owner.project}")
-                        appendLine("Base image: ${tool.description.image}")
-                        appendLine("Machine template: " +
-                            defaultMapper.writer(DefaultPrettyPrinter()).writeValueAsString(resources.product))
-                        @Suppress("DEPRECATION")
-                        appendLine("Total grant allocation: " +
-                            "${req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000} DKK")
-                        appendLine("Request parameters:")
-                        req.specification.parameters?.forEach { (p, v) ->
-                            appendLine("\t$p: $v")
-                        }
-                        appendLine("```")
+                        appendLine("AAU VM creation request: ")
+                        appendLine(
+                            defaultMapper.writeValueAsString(
+                                mapOf(
+                                    "request" to "creation",
+                                    "job_id" to req.id,
+                                    "owner_username" to req.owner.createdBy,
+                                    "owner_project" to req.owner.project,
+                                    "base_image" to tool.description.image,
+                                    "machine_template" to resources.product.id,
+                                    "total_grant_allocation" to "${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK",
+                                    "request_parameters" to req.specification.parameters
+                                )
+                            )
+                        )
                     }
                 )
             }
@@ -103,17 +100,21 @@ class ComputeController(
                 sendMessage(
                     req.id,
                     buildString {
-                        appendLine("```")
-                        appendLine("VM deletion request")
-                        appendLine("-------------------")
-                        appendLine()
-                        appendLine("Request ID: ${req.id}")
-                        appendLine("Owner (username): ${req.owner.createdBy}")
-                        appendLine("Owner (project): ${req.owner.project}")
-                        appendLine("Base image: ${tool.description.image}")
-                        appendLine("Machine template: " +
-                            defaultMapper.writer(DefaultPrettyPrinter()).writeValueAsString(resources.product))
-                        appendLine("```")
+                        appendLine("AAU VM deletion request: ")
+                        appendLine(
+                            defaultMapper.writeValueAsString(
+                                mapOf(
+                                    "request" to "deletion",
+                                    "job_id" to req.id,
+                                    "owner_username" to req.owner.createdBy,
+                                    "owner_project" to req.owner.project,
+                                    "base_image" to tool.description.image,
+                                    "machine_template" to resources.product.id,
+                                    "total_grant_allocation" to "${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK",
+                                    "request_parameters" to req.specification.parameters
+                                )
+                            )
+                        )
                     }
                 )
             }
@@ -160,13 +161,13 @@ class ComputeController(
         }
 
         implement(AauCompute.follow) {
-                sendWSMessage(ComputeFollowResponse("id", -1, null, null))
-                sendWSMessage(ComputeFollowResponse(
-                    "id",
-                    0,
-                    "Please see the 'Messages' panel for how to access your machine",
-                    null
-                ))
+            sendWSMessage(ComputeFollowResponse("id", -1, null, null))
+            sendWSMessage(ComputeFollowResponse(
+                "id",
+                0,
+                "Please see the 'Messages' panel for how to access your machine",
+                null
+            ))
             while (currentCoroutineContext().isActive) {
                 delay(1000)
             }
