@@ -1,5 +1,7 @@
 package dk.sdu.cloud.project.services
 
+import com.github.jasync.sql.db.ResultSet
+import com.github.jasync.sql.db.RowData
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
@@ -21,9 +23,8 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
-import dk.sdu.cloud.project.api.ProjectEvent
-import dk.sdu.cloud.project.api.ProjectMember
-import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.api.Projects.viewAncestors
 import dk.sdu.cloud.project.utils.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -60,6 +61,16 @@ object ProjectInvite : SQLTable("invites") {
     val username = text("username", notNull = true)
     val invitedBy = text("invited_by", notNull = true)
     val createdAt = timestamp("created_at", notNull = true)
+}
+
+
+suspend fun RowData.toProject(): Project {
+    return Project(
+        id = getField(ProjectTable.id),
+        title = getField(ProjectTable.title),
+        parent = getField(ProjectTable.parent),
+        archived = getField(ProjectTable.archived)
+    )
 }
 
 class ProjectService(
