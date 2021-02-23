@@ -5,12 +5,14 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.audit
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
 
 data class LookupUsersRequest(val users: List<String>)
@@ -49,6 +51,11 @@ data class GetUserInfoResponse(
     val firstNames: String?,
     val lastName: String?
 )
+
+data class GetPrincipalRequest(
+    val username: String
+)
+typealias GetPrincipalResponse = Principal
 
 data class WantsEmailsRequest(
     val username: String?
@@ -119,6 +126,26 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             path {
                 using(baseContext)
                 +"userInfo"
+            }
+        }
+    }
+
+    val retrievePrincipal = call<GetPrincipalRequest, GetPrincipalResponse, CommonErrorMessage>("retrievePrincipal") {
+        auth {
+            roles = setOf(Role.SERVICE)
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"retrievePrincipal"
+            }
+
+            params {
+                +boundTo(GetPrincipalRequest::username)
             }
         }
     }

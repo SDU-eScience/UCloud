@@ -311,6 +311,17 @@ class ProjectController(
                 )
             )
         }
+
+        implement(Projects.search) {
+            ok(
+                queries.searchProjectPaths(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    request,
+                    request
+                )
+            )
+        }
     }
 
     companion object : Loggable {

@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Feb 18 10:21:02 CET 2021 */
+/* Generated at: Tue Feb 23 10:06:29 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -977,6 +977,22 @@ export namespace auth {
         lastName?: string,
     }
 
+    export type Principal = PersonNS.ByWAYF | PersonNS.ByPassword | ServicePrincipal
+
+    export interface ServicePrincipal {
+        id: string,
+        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+        uid: number /* int64 */
+        ,
+        emailAddresses: string[],
+        preferredEmailAddress?: string,
+        type: "service",
+    }
+
+    export interface GetPrincipalRequest {
+        username: string,
+    }
+
     export interface ChangePasswordRequest {
         currentPassword: string,
         newPassword: string,
@@ -1029,18 +1045,6 @@ export namespace auth {
 
     export interface LookupUIDRequest {
         uids: number /* int64 */[],
-    }
-
-    export type Principal = PersonNS.ByWAYF | PersonNS.ByPassword | ServicePrincipal
-
-    export interface ServicePrincipal {
-        id: string,
-        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
-        uid: number /* int64 */
-        ,
-        emailAddresses: string[],
-        preferredEmailAddress?: string,
-        type: "service",
     }
 
     export interface Create2FACredentialsResponse {
@@ -1143,6 +1147,18 @@ export namespace auth {
                 context: "",
                 method: "GET",
                 path: "/auth/users" + "/userInfo",
+                reloadId: Math.random(),
+            };
+        }
+
+        export function retrievePrincipal(
+            request: GetPrincipalRequest
+        ): APICallParameters<GetPrincipalRequest, Principal> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/auth/users" + "/retrievePrincipal", {username: request.username}),
+                parameters: request,
                 reloadId: Math.random(),
             };
         }
@@ -5715,6 +5731,19 @@ export namespace project {
         };
     }
 
+    export function search(
+        request: ProjectSearchByPathRequest
+    ): APICallParameters<ProjectSearchByPathRequest, PageV2<Project>> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/projects" + "/search",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
     export interface CreateProjectRequest {
         title: string,
         parent?: string,
@@ -5851,6 +5880,7 @@ export namespace project {
         title: string,
         parent?: string,
         archived: boolean,
+        fullPath?: string,
     }
 
     export interface ListSubProjectsRequest {
@@ -5900,6 +5930,63 @@ export namespace project {
 
     export interface FetchDataManagementPlanResponse {
         dmp?: string,
+    }
+
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
+    export interface ProjectSearchByPathRequest {
+        path: string,
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
+        itemsPerPage?: number /* int32 */
+        ,
+        /**
+         * A token requesting the next page of items
+         */
+        next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
+        consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
+        itemsToSkip?: number /* int64 */
+        ,
+        includeFullPath?: boolean,
     }
 
     export interface CreateGroupRequest {
@@ -6533,6 +6620,10 @@ export namespace accounting {
         ,
     }
 
+    export interface RetrieveWalletsForProjectsRequest {
+        projectIds: string[],
+    }
+
     export type Product =
         ProductNS.Storage
         | ProductNS.Compute
@@ -6925,6 +7016,19 @@ export namespace accounting {
                 context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/set-balance",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function retrieveWalletsFromProjects(
+            request: RetrieveWalletsForProjectsRequest
+        ): APICallParameters<RetrieveWalletsForProjectsRequest, Wallet[]> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/accounting/wallets" + "/retrieveWallets",
                 parameters: request,
                 reloadId: Math.random(),
                 payload: request,
@@ -8208,6 +8312,12 @@ export namespace grant {
         ,
     }
 
+    export interface TransferApplicationRequest {
+        applicationId: number /* int64 */
+        ,
+        transferToProjectId: string,
+    }
+
     export interface CommentOnApplicationRequest {
         requestId: number /* int64 */
         ,
@@ -8354,6 +8464,15 @@ export namespace grant {
         ,
     }
 
+    export interface GrantsRetrieveAffiliationsRequest {
+        grantId: number /* int64 */
+        ,
+        itemsPerPage?: number /* int32 */
+        ,
+        page?: number /* int32 */
+        ,
+    }
+
     export interface UploadLogoRequest {
         projectId: string,
         data: BinaryStream,
@@ -8473,6 +8592,19 @@ export namespace grant {
                 context: "",
                 method: "POST",
                 path: "/api/grant" + "/close",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function transferApplication(
+            request: TransferApplicationRequest
+        ): APICallParameters<TransferApplicationRequest, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/grant" + "/transfer",
                 parameters: request,
                 reloadId: Math.random(),
                 payload: request,
@@ -8657,6 +8789,22 @@ export namespace grant {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/grant" + "/browse-projects", {
+                    itemsPerPage: request.itemsPerPage,
+                    page: request.page
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export function retrieveAffiliations(
+            request: GrantsRetrieveAffiliationsRequest
+        ): APICallParameters<GrantsRetrieveAffiliationsRequest, Page<ProjectWithTitle>> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/grant" + "/retrieveAffiliations", {
+                    grantId: request.grantId,
                     itemsPerPage: request.itemsPerPage,
                     page: request.page
                 }),

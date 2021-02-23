@@ -24,6 +24,17 @@ fun newIngoingApplicationTemplate(receiver: String, sender: String, projectTitle
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
+const val FORWARD_SUBJECT = "Forwarded UCloud application"
+fun forwardApplicationTemplate(receiver: String, sender: String, projectTitle: String) =
+    """
+        <p>Dear ${escapeHtml(receiver)}</p>
+        <p>
+            You have been forwarded a new application from ${escapeHtml(sender)} to the project 
+            ${escapeHtml(projectTitle)}.
+        </p>
+        $NO_NOTIFICATIONS_DISCLAIMER
+    """.trimIndent()
+
 fun autoApproveTemplate(receiver: String, sender: String, projectTitle: String) =
     """
         <p>Dear ${escapeHtml(receiver)}</p>

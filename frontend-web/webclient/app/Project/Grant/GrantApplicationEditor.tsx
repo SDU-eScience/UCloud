@@ -8,12 +8,14 @@ import {
     Box,
     Button,
     ButtonGroup,
-    Card, Checkbox,
+    Card,
     ExternalLink,
     Flex,
     Icon,
     Input,
     Label,
+    List,
+    Checkbox,
     Text,
     TextArea,
     theme,
@@ -23,7 +25,8 @@ import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHoo
 import {
     ProductArea,
     productCategoryEquals,
-    ProductCategoryId, productToArea,
+    productToArea,
+    ProductCategoryId,
     retrieveBalance,
     RetrieveBalanceResponse,
     WalletBalance
@@ -37,15 +40,16 @@ import {
     commentOnGrantApplication,
     deleteGrantApplicationComment,
     editGrantApplication,
+    findAffiliations,
     GrantApplication,
     GrantApplicationStatus,
-    GrantRecipient,
+    GrantRecipient, GrantsRetrieveAffiliationsResponse,
     isGrantFinalized,
     readTemplates,
     ReadTemplatesResponse,
     rejectGrantApplication,
     ResourceRequest,
-    submitGrantApplication,
+    submitGrantApplication, transferApplication,
     viewGrantApplication,
     ViewGrantApplicationResponse
 } from "Project/Grant/index";
@@ -58,7 +62,7 @@ import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {AvatarHook, useAvatars} from "AvataaarLib/hook";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {setLoading, useLoading, useTitle} from "Navigation/Redux/StatusActions";
 import {Balance, BalanceExplainer, useStoragePrice} from "Accounting/Balance";
 import {useDispatch} from "react-redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -69,6 +73,10 @@ import {grant} from "UCloud";
 import GrantsRetrieveProductsResponse = grant.GrantsRetrieveProductsResponse;
 import {IconName} from "ui-components/Icon";
 import {AppToolLogo} from "Applications/AppToolLogo";
+import ReactModal from "react-modal";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {emptyPage} from "DefaultObjects";
+import {Spacer} from "ui-components/Spacer";
 
 export const RequestForSingleResourceWrapper = styled.div`
   ${Icon} {
@@ -172,7 +180,7 @@ interface ProductCategory {
 function useRequestInformation(target: RequestTarget): UseRequestInformation {
     let targetProject: string | undefined;
     let wallets: WalletBalance[] = [];
-    let reloadWallets: () => void = () => {
+    let reloadWallets = () => {
         /* empty */
     };
     let recipient: GrantRecipient;
@@ -820,6 +828,16 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }
     }, [state.editingApplication?.id]);
 
+    const transferRequest = useCallback(async (toProjectId: string) => {
+        if (state.editingApplication !== undefined) {
+            await runWork(transferApplication({
+                applicationId: state.editingApplication!.id,
+                transferToProjectId: toProjectId
+            }));
+            state.reload();
+        }
+    }, [state.editingApplication?.id]);
+
     const closeRequest = useCallback(async () => {
         if (state.editingApplication !== undefined) {
             addStandardDialog({
@@ -927,6 +945,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }
     }, [state.editingApplication, storagePrice]);
+
+    const [transferringApplication, setTransferringApplication] = useState(false);
 
     return (
         <MainContainer
@@ -1041,6 +1061,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     >
                                                                         Reject
                                                                     </Button>
+                                                                    {state.editingApplication?.grantRecipient!.type !== "existing_project" ?
+                                                                        <Button
+                                                                            color="blue"
+                                                                            onClick={() => setTransferringApplication(true)}
+                                                                            disabled={!isLocked}
+                                                                        >
+                                                                            Transfer to other project
+                                                                        </Button> : null
+                                                                    }
                                                                 </> : null
                                                             }
                                                             {!state.approver && !grantFinalized ?
@@ -1054,7 +1083,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     </Button>
                                                                 </> : null
                                                             }
-
                                                         </>
                                                     )}
                                                 </ButtonGroup>
@@ -1224,9 +1252,83 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     </Box>
                 </Flex>
             }
+            additional={
+                state.editingApplication != null && state.editingApplication.grantRecipientPi ?
+                    <TransferApplicationPrompt
+                        isActive={transferringApplication}
+                        close={() => setTransferringApplication(false)}
+                        transfer={transferRequest}
+                        grantId={state.editingApplication.id}
+                    /> : null
+            }
         />
     );
 };
+
+interface TransferApplicationPromptProps {
+    isActive: boolean;
+    grantId: number;
+
+    close(): void;
+
+    transfer(toProjectId: string): Promise<void>;
+}
+
+function TransferApplicationPrompt({isActive, close, transfer, grantId}: TransferApplicationPromptProps) {
+    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(findAffiliations({
+        page: 0,
+        itemsPerPage: 100,
+        grantId
+    }), emptyPage);
+
+    /* FIXME: Work-around for showing modal AND dialog. Change to hold-to-confirm button when merged with scheduling */
+    const [isConfirming, setIsConfirming] = useState(false);
+
+    const history = useHistory();
+
+    React.useEffect(() => {
+        if (grantId) {
+            fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, grantId}))
+        }
+    }, [grantId]);
+    const dispatch = useDispatch()
+
+
+    return (isConfirming ? null :
+            <ReactModal
+                style={defaultModalStyle}
+                isOpen={isActive}
+                onRequestClose={close}
+                shouldCloseOnEsc
+                shouldCloseOnOverlayClick
+            >
+                <List>
+                    {projects.data.items.map(it =>
+                        <Spacer
+                            key={it.projectId}
+                            left={<Box key={it.projectId}>{it.title}</Box>}
+                            right={<Button my="3px" width="115px" height="40px" onClick={() => {
+                                setIsConfirming(true);
+                                addStandardDialog({
+                                    title: "Transfer to project?",
+                                    message: `Transfer application to ${it.title}?`,
+                                    onConfirm: async () => {
+                                        setIsConfirming(false);
+                                        close();
+                                        //Show that we are transfering
+                                        dispatch(setLoading(true))
+                                        await transfer(it.projectId);
+                                        dispatch(setLoading(false))
+                                        history.push("/project/grants/ingoing");
+                                    }
+                                })
+                            }}>Transfer</Button>}
+                        />
+                    )}
+                </List>
+            </ReactModal>
+    );
+}
 
 const CommentApplicationWrapper = styled.div`
   display: grid;

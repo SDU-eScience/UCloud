@@ -151,6 +151,35 @@ class BalanceService(
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
+    suspend fun retrieveWalletsForProjects(
+        ctx: DBContext,
+        projectIds: List<String>
+    ): List<Wallet> {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectIds", projectIds)
+                    },
+                    """
+                        SELECT * 
+                        FROM wallets
+                        WHERE account_id IN (SELECT unnest(:projectIds::text[]))
+                    """
+                ).rows
+                .map {
+                    Wallet(
+                        it.getField(WalletTable.accountId),
+                        WalletOwnerType.valueOf(it.getField(WalletTable.accountType)),
+                        ProductCategoryId(
+                            it.getField(WalletTable.productCategory),
+                            it.getField(WalletTable.productProvider)
+                        )
+                    )
+                }
+        }
+    }
+
     suspend fun getWalletsForAccount(
         ctx: DBContext,
         initiatedBy: Actor,
