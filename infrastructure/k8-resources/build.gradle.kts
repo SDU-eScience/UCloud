@@ -24,7 +24,7 @@ dependencies {
     implementation(kotlin("compiler-embeddable"))
     implementation(kotlin("scripting-compiler-embeddable"))
     implementation("net.java.dev.jna:jna:5.5.0")
-    implementation("io.fabric8:kubernetes-client:4.6.4")
+    implementation("io.fabric8:kubernetes-client:4.12.0")
     implementation("org.slf4j:slf4j-simple:1.7.25")
 
     val jacksonVersion = "2.10.0.pr3"

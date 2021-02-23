@@ -1,7 +1,6 @@
 package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryRequest

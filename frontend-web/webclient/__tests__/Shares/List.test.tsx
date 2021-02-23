@@ -26,7 +26,7 @@ jest.mock("Utilities/ProjectUtilities", () => ({
 
 describe("Shares List", () => {
     test("Shares component", async () => {
-        await act(async () =>
+        await act(async () => {
             expect(await create(
                 <Provider store={store}>
                     <ThemeProvider theme={theme}>
@@ -35,7 +35,7 @@ describe("Shares List", () => {
                         </MemoryRouter>
                     </ThemeProvider>
                 </Provider>
-            )).toMatchSnapshot()
-        );
+            )).toMatchSnapshot();
+        });
     });
 });

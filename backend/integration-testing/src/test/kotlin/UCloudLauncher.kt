@@ -4,24 +4,20 @@ import com.sun.jna.Platform
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
-import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
-import dk.sdu.cloud.app.kubernetes.api.ReloadRequest
-import dk.sdu.cloud.app.kubernetes.watcher.AppKubernetesWatcherService
-import dk.sdu.cloud.app.kubernetes.watcher.api.AppKubernetesWatcher
-import dk.sdu.cloud.app.license.AppLicenseService
+import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
+import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.auth.AuthService
-import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.StorageService
 import dk.sdu.cloud.file.favorite.FileFavoriteService
@@ -33,27 +29,20 @@ import dk.sdu.cloud.indexing.IndexingService
 import dk.sdu.cloud.integration.backend.sampleStorage
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.mail.MailService
-import dk.sdu.cloud.micro.DatabaseConfig
-import dk.sdu.cloud.micro.ElasticFeature
-import dk.sdu.cloud.micro.Log4j2ConfigFactory
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.PlaceholderServiceDescription
-import dk.sdu.cloud.micro.ServiceRegistry
-import dk.sdu.cloud.micro.elasticHighLevelClient
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.migrateAll
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.ProjectService
 import dk.sdu.cloud.project.repository.ProjectRepositoryService
+import dk.sdu.cloud.provider.ProviderService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.share.ShareService
 import dk.sdu.cloud.support.SupportService
@@ -64,6 +53,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.elasticsearch.ElasticsearchContainer
@@ -388,7 +378,7 @@ object UCloudLauncher : Loggable {
     suspend fun wipeDatabases() {
         File(cephfsHome, "home").apply {
             require(deleteRecursively())
-            require(mkdirs())
+            require(mkdirs()) { "Unable to create directories: ${this}" }
         }
         File(cephfsHome, "projects").apply {
             require(deleteRecursively())
@@ -445,6 +435,7 @@ object UCloudLauncher : Loggable {
                 return@runBlocking
             }
 
+            integrationTestingIsKubernetesReady = false
             isRunning = true
             Runtime.getRuntime().addShutdownHook(Thread { shutdown() })
 
@@ -463,7 +454,6 @@ object UCloudLauncher : Loggable {
             )
 
             micro = reg.rootMicro
-
             migrateAll()
             run {
                 // TODO Deal with elasticsearch
@@ -496,7 +486,7 @@ object UCloudLauncher : Loggable {
             wipeDatabases()
 
             val m = micro.createScope()
-            m.install(RefreshingJWTCloudFeature)
+            m.install(AuthenticatorFeature)
             serviceClient = m.authenticator.authenticateClient(OutgoingHttpCall)
 
             val blacklist = setOf(
@@ -515,8 +505,6 @@ object UCloudLauncher : Loggable {
                 AccountingService,
                 ActivityService,
                 AppKubernetesService,
-                AppKubernetesWatcherService,
-                AppLicenseService,
                 AppOrchestratorService,
                 AppStoreService,
                 AuditIngestionService,
@@ -539,7 +527,8 @@ object UCloudLauncher : Loggable {
                 ShareService,
                 StorageService,
                 SupportService,
-                TaskService
+                TaskService,
+                ProviderService
             )
 
             // Reflection is _way_ too slow
@@ -564,6 +553,7 @@ object UCloudLauncher : Loggable {
         }
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     fun requireK8s() {
         if (isK8sRunning) return
         k3sContainer = K3sContainer()
@@ -580,19 +570,85 @@ object UCloudLauncher : Loggable {
         k3sContainer.copyFileFromContainer("/etc/rancher/k3s/k3s.yaml", target.absolutePath)
         val correctConfig = target.readText().replace("127.0.0.1:6443", "127.0.0.1:${k3sContainer.getMappedPort(6443)}")
         target.writeText(correctConfig)
-        isK8sRunning = true
+
+        val volcanoDeployment = File(tempDir, "volcano.yml")
+        volcanoDeployment.outputStream().use { outs ->
+            javaClass.classLoader.getResourceAsStream("volcano.yml")!!.use { ins -> ins.copyTo(outs) }
+        }
 
         runBlocking {
-            AppKubernetesDescriptions.reload.call(
-                ReloadRequest(cephfsHome),
-                serviceClient
-            ).orThrow()
+            ProcessBuilder(
+                *buildList {
+                    add("kubectl")
+                    add("create")
+                    add("--kubeconfig")
+                    add(target.absolutePath)
+                    add("namespace")
+                    add("app-kubernetes")
+                }.toTypedArray()
+            ).start().waitFor()
 
-            AppKubernetesWatcher.reload.call(
-                Unit,
-                serviceClient
-            ).orThrow()
+            ProcessBuilder(
+                *buildList {
+                    add("kubectl")
+                    add("create")
+                    add("--kubeconfig")
+                    add(target.absolutePath)
+                    add("namespace")
+                    add("volcano-system")
+                }.toTypedArray()
+            ).start().waitFor()
+
+
+            ProcessBuilder(
+                *buildList {
+                    add("kubectl")
+                    add("create")
+                    add("--kubeconfig")
+                    add(target.absolutePath)
+                    add("-f")
+                    add(volcanoDeployment.absolutePath)
+                }.toTypedArray()
+            ).start().waitFor()
+
+            // TODO Create persistent volume claim
+            val client = KubernetesClient(KubernetesConfigurationSource.KubeConfigFile(target.absolutePath, null))
+            client.createResource(
+                KubernetesResources.persistentVolumes,
+                defaultMapper.writeValueAsString(
+                    PersistentVolume(
+                        metadata = ObjectMeta("storage"),
+                        spec = PersistentVolume.Spec(
+                            capacity = mapOf("storage" to "1000Gi"),
+                            volumeMode = "Filesystem",
+                            accessModes = listOf("ReadWriteMany"),
+                            persistentVolumeReclaimPolicy = "Retain",
+                            storageClassName = "",
+                            hostPath = HostPathVolumeSource(cephfsHome)
+                        )
+                    )
+                )
+            )
+
+            client.createResource(
+                KubernetesResources.persistentVolumeClaims.withNamespace("app-kubernetes"),
+                defaultMapper.writeValueAsString(
+                    PersistentVolumeClaim(
+                        metadata = ObjectMeta("cephfs", namespace = "app-kubernetes"),
+                        spec = PersistentVolumeClaim.Spec(
+                            accessModes = listOf("ReadWriteMany"),
+                            storageClassName = "",
+                            volumeName = "storage",
+                            resources = Pod.Container.ResourceRequirements(requests = mapOf("storage" to "1000Gi"))
+                        )
+                    )
+                )
+            )
         }
+
+        isK8sRunning = true
+        integrationTestingKubernetesFilePath = target.absolutePath
+        integrationTestingIsKubernetesReady = true
     }
 }
 

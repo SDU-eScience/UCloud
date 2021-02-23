@@ -1,1 +1,0 @@
-drop table application_license_servers;

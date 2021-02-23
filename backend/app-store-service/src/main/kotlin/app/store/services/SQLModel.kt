@@ -75,4 +75,4 @@ data class EmbeddedNameAndVersion(
     var version: String = ""
 ) : Serializable
 
-const val LOGO_MAX_SIZE = 1024 * 512
+const val LOGO_MAX_SIZE = 1024 * 1024 * 5

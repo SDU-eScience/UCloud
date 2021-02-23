@@ -6,7 +6,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "auth"
-    version = "1.28.5"
+    version = "1.29.0"
 
     val tos = config<String>("tos", "Terms of Service")
     val tosVersion = config<Int>("tosVersion", "Terms of Service version")
@@ -26,6 +26,8 @@ bundle { ctx ->
         injectSecret("auth-wayf", "/etc/wayf-certs")
         injectSecret("auth-wayf-config")
         injectConfiguration("auth-config")
+        injectConfiguration("auth-sla")
+        println("NOTE: You must have a configmap called auth-sla")
     }
 
     withPostgresMigration(deployment) {

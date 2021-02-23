@@ -111,7 +111,7 @@ function onProjectUpdated(history: History, runThisFunction: () => void, refresh
 
 const HoverBox = styled.div`
     display: inline-flex;
-    flex-wrap: none;
+    flex-wrap: nowrap;
     color: white;
     padding: 6px 8px;
     cursor: pointer;

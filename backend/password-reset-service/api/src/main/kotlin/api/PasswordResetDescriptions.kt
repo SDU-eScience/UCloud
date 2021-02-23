@@ -3,16 +3,13 @@ package dk.sdu.cloud.password.reset.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 
 data class PasswordResetRequest(val email: String)
 data class NewPasswordRequest(val token: String, val newPassword: String)
 
+@TSTopLevel
 object PasswordResetDescriptions : CallDescriptionContainer("password.reset") {
     val baseContext = "/api/password/reset"
 

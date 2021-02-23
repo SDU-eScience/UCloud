@@ -1,18 +1,16 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.app.store.api.ACLEntryRequest
-import dk.sdu.cloud.app.store.api.AccessEntity
-import dk.sdu.cloud.app.store.api.AppStoreServiceDescription
-import dk.sdu.cloud.app.store.api.AppStoreStreams
-import dk.sdu.cloud.app.store.api.ApplicationAccessRight
-import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.*
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.micro.ElasticFeature
+import dk.sdu.cloud.micro.elasticHighLevelClient
+import dk.sdu.cloud.micro.eventStreamService
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -28,11 +26,7 @@ import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Ignore
 import org.junit.Test
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class AppStoreTest {
     companion object {
@@ -42,7 +36,7 @@ class AppStoreTest {
         @BeforeClass
         @JvmStatic
         fun before() {
-            val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+            val (db, embDB) = TestDB.from(AppStoreServiceDescription)
             this.db = db
             this.embDB = embDB
         }
@@ -606,7 +600,7 @@ class AppStoreTest {
                             TestUsers.user.username, TestUsers.user.uid, TestUsers.user.role
                         )
                     )
-            ))
+                ))
 
             val appStoreService = AppStoreService(
                 db,
@@ -635,17 +629,17 @@ class AppStoreTest {
             assertFalse(permission)
 
             appStoreService.updatePermissions(
-                    TestUsers.admin,
-            normAppDescNotPublic.metadata.name,
-            listOf(ACLEntryRequest(
-                AccessEntity(
-                    TestUsers.user.username,
-                    null,
-                    null
-                ),
-                ApplicationAccessRight.LAUNCH,
-                false
-            )))
+                TestUsers.admin,
+                normAppDescNotPublic.metadata.name,
+                listOf(ACLEntryRequest(
+                    AccessEntity(
+                        TestUsers.user.username,
+                        null,
+                        null
+                    ),
+                    ApplicationAccessRight.LAUNCH,
+                    false
+                )))
 
             val permissionAfter = appStoreService.hasPermission(
                 TestUsers.user,
@@ -712,8 +706,14 @@ class AppStoreTest {
                 appStoreService.create(TestUsers.user, normAppDescDiffVersion, "content")
             }
 
-            favoriteService.toggleFavorite(TestUsers.user, null, normAppDesc.metadata.name, normAppDesc.metadata.version)
-            favoriteService.toggleFavorite(TestUsers.user, null, normAppDescDiffVersion.metadata.name, normAppDescDiffVersion.metadata.version)
+            favoriteService.toggleFavorite(TestUsers.user,
+                null,
+                normAppDesc.metadata.name,
+                normAppDesc.metadata.version)
+            favoriteService.toggleFavorite(TestUsers.user,
+                null,
+                normAppDescDiffVersion.metadata.name,
+                normAppDescDiffVersion.metadata.version)
 
             val results = appStoreService.findBySupportedFileExtension(
                 TestUsers.user,

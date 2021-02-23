@@ -22,7 +22,8 @@ class RedisFeature : MicroFeature {
 
         val userConfig = ctx.configuration.requestChunkAtOrNull("redis") ?: RedisConfiguration()
         val hostname = userConfig.hostname?.takeIf { it.isNotEmpty() } ?: run {
-            if (shouldLog) log.trace("No available configuration found at 'redis/hostname'. Attempting to look for defaults.")
+            if (shouldLog) log.trace("No available configuration found at 'redis/hostname'.")
+            if (shouldLog) log.trace("Attempting to look for defaults.")
 
             val hostname = findValidHostname(defaultHostNames)
                 ?: throw IllegalStateException("Could not find a valid redis host")

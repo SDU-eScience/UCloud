@@ -98,6 +98,7 @@ class IngoingHttpInterceptor(
             val receiveOrNull = ctx.call.receiveOrNull<String>()?.takeIf { it.isNotEmpty() } ?: return null
             return defaultMapper.readValue<R>(receiveOrNull, typeReference)
         } catch (ex: MismatchedInputException) {
+            log.debug(ex.stackTraceToString())
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
     }
@@ -208,6 +209,7 @@ class IngoingHttpInterceptor(
             } else if (ex is RPCException) {
                 throw ex
             } else {
+                log.debug(ex.stackTraceToString())
                 throw RPCException("Bad request", HttpStatusCode.BadRequest)
             }
         }

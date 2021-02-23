@@ -296,7 +296,8 @@ class GrantController(
                         db,
                         ctx.securityPrincipal.toActor(),
                         request.projectId,
-                        recipient
+                        recipient,
+                        request.showHidden
                     )
                 )
             )

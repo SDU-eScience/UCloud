@@ -212,6 +212,7 @@ data class ProjectSearchByPathRequest(
 typealias ProjectSearchByPathResponse = PageV2<Project>
 
 
+@TSTopLevel
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
 

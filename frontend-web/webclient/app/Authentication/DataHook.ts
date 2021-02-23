@@ -38,7 +38,6 @@ declare global {
         path?: string;
         payload?: any;
         context?: string;
-        maxRetries?: number;
         parameters?: Parameters;
         reloadId?: number; // Can be used to force an ID by setting this to a random value
         noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
@@ -71,15 +70,14 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2
     };
 }
 
-export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
+export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
     const method = parameters.method !== undefined ? parameters.method : "GET";
     if (parameters.path === undefined) throw Error("Missing path");
     return (await Client.call({
         method,
-        path: parameters.path.replace("/api/", ""),
+        path: parameters.path,
         body: parameters.payload,
         context: parameters.context,
-        maxRetries: parameters.maxRetries,
         withCredentials: parameters.withCredentials,
         projectOverride: parameters.projectOverride
     })).response;
@@ -146,12 +144,14 @@ export function useGlobalCloudAPI<T, Parameters = any>(
     return [state.call, doFetch, state.parameters];
 }
 
-/**  @deprecated - Refer to `useCloudCommand` instead */
-export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
+/**
+ * @deprecated
+ */
+export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters<unknown, T>) => Promise<T | null>] {
     return useCloudCommand();
 }
 
-type InvokeCommand = <T = any>(
+export type InvokeCommand = <T = any>(
     call: APICallParameters,
     opts?: {defaultErrorHandler: boolean}
 ) => Promise<T | null>;
@@ -246,7 +246,8 @@ export function useAsyncWork(): AsyncWorker {
 
 export interface CloudCacheHook {
     cleanup: () => void;
-    removePrefix(pathPrefix: string);
+
+    removePrefix(pathPrefix: string): void;
 }
 
 export function useCloudCache(): CloudCacheHook {
@@ -292,11 +293,13 @@ export function useCloudCache(): CloudCacheHook {
     return {cleanup, removePrefix};
 }
 
+export type APIFetch<Parameters> = (params: APICallParameters<Parameters>, disableCache?: boolean) => void;
+
 export function useCloudAPI<T, Parameters = any>(
-    callParametersInitial: APICallParameters<Parameters>,
+    callParametersInitial: APICallParameters<Parameters, T>,
     dataInitial: T,
     cachingPolicy?: {cacheTtlMs: number, cacheKey: string}
-): [APICallState<T>, (params: APICallParameters<Parameters>, disableCache?: boolean) => void, APICallParameters<Parameters>] {
+): [APICallState<T>, APIFetch<Parameters>, APICallParameters<Parameters>] {
     const shouldLog = (cachingPolicy?.cacheKey === "avatar");
     const parameters = useRef(callParametersInitial);
     const initialCall = useRef(true);
@@ -364,7 +367,7 @@ export function useCloudAPI<T, Parameters = any>(
                             dispatch({type: "FETCH_SUCCESS", payload: result});
                             if (cachingPolicy !== undefined && cachingPolicy.cacheTtlMs > 0 && params.method === "GET") {
                                 const newEntry = {};
-                                newEntry[key!] = {expiresAt: now + cachingPolicy.cacheTtlMs, cached: result};
+                                newEntry[key!] = {expiresAt: now + cachingPolicy.cacheTtlMs, ...result};
                                 mergeCache(newEntry);
                             }
                         }

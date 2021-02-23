@@ -47,8 +47,10 @@ class AuthInterceptor(
                                     context.securityPrincipal.role in Roles.PRIVILEGED)
 
                             if (!developmentModeEnabled || !allowedInDevMode) {
-                                log.debug("Security principal is not authorized for this call")
+                                log.debug("Security principal is not authorized for this call: $call")
                                 log.debug("Principal is: ${context.securityPrincipal}")
+                                log.debug("Principal should be in ${auth.roles} but has role" +
+                                    " ${context.securityPrincipal.role}")
                                 throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                             }
                         }

@@ -1,7 +1,7 @@
 import styled from "styled-components";
 import Button from "./Button";
 import Flex from "./Flex";
-import {height, HeightProps} from "styled-system";
+import {height} from "styled-system";
 
 const ButtonGroup = styled(Flex)`
     ${height}
@@ -9,10 +9,9 @@ const ButtonGroup = styled(Flex)`
     & ${Button} {
         height: 100%;
         width: 100%;
-        padding: 0 0 0 0;
-        padding-left: 0px;
-        padding-right: 0px;
+        padding: 0 10px;
         border-radius: 0px;
+        white-space: nowrap;
     }
 
     & > ${Button}:last-child, .last {

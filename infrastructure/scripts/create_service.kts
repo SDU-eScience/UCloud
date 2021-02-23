@@ -39,7 +39,7 @@ File(serviceDir, "k8.kts").writeText(
             withAmbassador() {}
             
             val deployment = withDeployment {
-                deploy.spec.replicas = 2
+                deployment.spec.replicas = 2
             }
             
             withPostgresMigration(deployment)
@@ -49,7 +49,7 @@ File(serviceDir, "k8.kts").writeText(
 
 File(serviceDir, "Dockerfile").writeText(
     """
-        FROM registry.cloud.sdu.dk/sdu-cloud/base:0.1.0
+        FROM dreg.cloud.sdu.dk/ucloud/base:0.1.0
         COPY build/service /opt/service/
         CMD ["/opt/service/bin/service"]
     """.trimIndent()

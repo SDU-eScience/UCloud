@@ -1,5 +1,6 @@
 package dk.sdu.cloud.integration.backend
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.SetBalanceRequest
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
@@ -8,10 +9,8 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.GiB
 import dk.sdu.cloud.file.api.PiB
-import dk.sdu.cloud.file.api.TiB
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
@@ -22,7 +21,6 @@ import dk.sdu.cloud.project.favorite.api.ToggleFavoriteRequest
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
-import org.junit.Ignore
 import org.junit.Test
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -115,9 +113,10 @@ data class NormalProjectInitialization(
 suspend fun initializeNormalProject(
     rootProject: String,
     initializeWallet: Boolean = true,
-    amount: Long = 10_000_000.DKK
+    amount: Long = 10_000_000.DKK,
+    userRole: Role = Role.USER
 ): NormalProjectInitialization {
-    val (piClient, piUsername) = createUser()
+    val (piClient, piUsername) = createUser(role = userRole)
 
     Projects.invite.call(
         InviteRequest(rootProject, setOf(piUsername)),
@@ -168,7 +167,7 @@ suspend fun addMemberToProject(
     ).orThrow()
 
 }
-@Ignore
+
 class ProjectTests : IntegrationTest() {
     @Test
     fun `initialization of root project`() = t {

@@ -71,7 +71,7 @@ class ConfigurationFeature : MicroFeature {
         if (ctx.commandLineArguments.contains("--dev") && !ctx.commandLineArguments.contains("--no-implicit-config")) {
             val defaultConfigDir = File(System.getProperty("user.home"), "sducloud")
             if (defaultConfigDir.exists() && defaultConfigDir.isDirectory) {
-                log.info("Include files from default configuration directory: ${defaultConfigDir.absolutePath}")
+                log.info("Using files from default configuration directory: ${defaultConfigDir.absolutePath}")
                 allConfigFiles.addAll(addFilesFromDirectory(defaultConfigDir))
             }
         }

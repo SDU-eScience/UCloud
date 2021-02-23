@@ -7,6 +7,7 @@ export interface WebSocketOpenSettings {
     init?: (conn: WebSocketConnection) => void;
     reconnect?: boolean;
     onClose?: (conn: WebSocketConnection) => void;
+    includeAuthentication?: boolean;
 }
 
 export class WebSocketFactory {
@@ -42,6 +43,7 @@ interface WebsocketRequest<T = any> {
     streamId: string;
     bearer: string;
     payload: T | null;
+    project?: string;
 }
 
 interface SubscribeParameters<T = any> {
@@ -75,7 +77,7 @@ export class WebSocketConnection {
 
     public close(): void {
         this.internalClosed = true;
-        this.socket.close();
+        this.socket?.close();
         const closeScript = this.settings.onClose ?? (() => {
             // Empty
         });
@@ -91,11 +93,15 @@ export class WebSocketConnection {
             }
         });
 
+        const project = this.client.projectId;
+
         this.sendMessage({
             call,
             streamId,
             payload,
-            bearer: await this.client.receiveAccessTokenOrRefreshIt()
+            project,
+            bearer: this.settings.includeAuthentication !== false ?
+                await this.client.receiveAccessTokenOrRefreshIt() : undefined
         });
     }
 

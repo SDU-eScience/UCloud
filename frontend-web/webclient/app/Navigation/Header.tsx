@@ -1,10 +1,3 @@
-import {
-    AdvancedSearchRequest as AppSearchRequest,
-    DetailedApplicationSearchReduxState,
-    FullAppInfo
-} from "Applications";
-import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
-import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
 import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
@@ -21,7 +14,7 @@ import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
 import * as SearchActions from "Search/Redux/SearchActions";
-import {applicationSearchBody, fileSearchBody} from "Search/Search";
+import {fileSearchBody} from "Search/Search";
 import styled from "styled-components";
 import * as ui from "ui-components";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
@@ -38,7 +31,7 @@ import {
     inDevEnvironment,
     isLightThemeStored,
     prettierString,
-    shouldHideSidebarAndHeader,
+    useFrameHidden,
     stopPropagationAndPreventDefault
 } from "UtilityFunctions";
 import CONF from "../../site.config.json";
@@ -46,6 +39,7 @@ import {ContextSwitcher} from "Project/ContextSwitcher";
 import {NewsPost} from "Dashboard/Dashboard";
 import {AutomaticGiftClaim} from "Gifts/AutomaticGiftClaim";
 import {VersionManager} from "VersionManager/VersionManager";
+import * as Applications from "Applications"
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -81,10 +75,7 @@ function Header(props: HeaderProps): JSX.Element | null {
         return () => {if (intervalId !== -1) clearInterval(intervalId);};
     }, [Client.isLoggedIn]);
 
-    // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
-    // The following is only supposed to work for the initial load.
-    if (shouldHideSidebarAndHeader()) return null;
-
+    if (useFrameHidden()) return null;
     if (!Client.isLoggedIn) return null;
 
     function toSearch(): void {
@@ -298,16 +289,13 @@ const SearchInput = styled(ui.Flex)`
 interface SearchStateProps {
     prioritizedSearch: HeaderSearchType;
     fileSearch: DetailedFileSearchReduxState;
-    appSearch: DetailedApplicationSearchReduxState;
     files: Page<File>;
-    applications: Page<FullAppInfo>;
     search: string;
 }
 
 interface SearchOperations {
     setSearchType: (st: HeaderSearchType) => void;
     searchFiles: (body: AdvancedSearchRequest) => void;
-    searchApplications: (body: AppSearchRequest) => void;
     setSearch: (search: string) => void;
 }
 
@@ -374,11 +362,8 @@ const _Search = (props: SearchProps): JSX.Element => {
                         ))}
                         <ui.Box mr="auto" />
                     </ui.SelectableTextWrapper>
-                    {prioritizedSearch === "files" ? (
-                        <DetailedFileSearch cantHide />
-                    ) : prioritizedSearch === "applications" ? (
-                        <DetailedApplicationSearch defaultAppQuery={props.search} />
-                    ) : null}
+                    {prioritizedSearch !== "files" ? null : <DetailedFileSearch cantHide />}
+                    {prioritizedSearch !== "applications" ? null : <Applications.SearchWidget />}
                 </ClickableDropdown>
             </SearchInput>
         </ui.Relative>
@@ -393,14 +378,6 @@ const _Search = (props: SearchProps): JSX.Element => {
                 props.files.pageNumber
             ), fileName: props.search
         });
-        props.searchApplications(
-            applicationSearchBody(
-                props.appSearch,
-                props.search,
-                itemsPerPage ?? props.applications.itemsPerPage,
-                props.applications.pageNumber
-            )
-        );
         history.push(searchPage(prioritizedSearch, props.search));
     }
 };
@@ -408,15 +385,12 @@ const _Search = (props: SearchProps): JSX.Element => {
 const mapSearchStateToProps = ({
     header,
     detailedFileSearch,
-    detailedApplicationSearch,
     simpleSearch
 }: ReduxObject): SearchStateProps => ({
     prioritizedSearch: header.prioritizedSearch,
     fileSearch: detailedFileSearch,
-    appSearch: detailedApplicationSearch,
     files: simpleSearch.files,
     search: simpleSearch.search,
-    applications: simpleSearch.applications
 });
 
 const mapSearchDispatchToProps = (dispatch: Dispatch): SearchOperations => ({
@@ -425,11 +399,6 @@ const mapSearchDispatchToProps = (dispatch: Dispatch): SearchOperations => ({
         dispatch(SearchActions.setFilesLoading(true));
         dispatch(await SearchActions.searchFiles(body));
         dispatch(setFilename(body.fileName || ""));
-    },
-    searchApplications: async (body: AppSearchRequest) => {
-        dispatch(SearchActions.setApplicationsLoading(true));
-        dispatch(await SearchActions.searchApplications(body));
-        dispatch(setAppQuery(body.query || ""));
     },
     setSearch: search => dispatch(SearchActions.setSearch(search))
 });
@@ -456,9 +425,6 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 
 const isAnyLoading = (rO: ReduxObject): boolean =>
     rO.loading === true || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
-    || rO.simpleSearch.applicationsLoading || rO.activity.loading
-    || rO.analyses.loading || rO.dashboard.analysesLoading
-    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.loading
-    || rO.applicationsFavorite.applications.loading || /* rO.applicationsBrowse.applicationsPage.loading */ false;
+    || rO.activity.loading;
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(Header);

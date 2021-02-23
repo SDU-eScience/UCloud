@@ -20,4 +20,8 @@ class MockCache<K, V : Any> : Cache<K, V> {
     fun put(key: K, value: V) {
         backingMap[key] = value
     }
+
+    override suspend fun insert(key: K, value: V) {
+        put(key, value)
+    }
 }

@@ -6,6 +6,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidationJWT
 import java.util.*
@@ -15,7 +16,7 @@ import kotlin.random.Random
 object TokenValidationMock {
     internal const val sharedSecret = "shared-secret-for-testing"
     private val algorithm = Algorithm.HMAC512(sharedSecret)
-    private val validator = TokenValidationJWT(algorithm)
+    private val validator = InternalTokenValidationJWT(algorithm)
 
     fun create(): TokenValidationJWT = validator
 

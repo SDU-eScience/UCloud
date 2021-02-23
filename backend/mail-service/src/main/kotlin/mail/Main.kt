@@ -1,6 +1,6 @@
 package dk.sdu.cloud.mail
 
-import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.mail.api.MailServiceDescription
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
@@ -14,7 +14,7 @@ object MailService : Service {
     override val description = MailServiceDescription
 
     override fun initializeServer(micro: Micro): CommonServer {
-        micro.install(RefreshingJWTCloudFeature)
+        micro.install(AuthenticatorFeature)
         val configuration = micro.configuration.requestChunkAtOrNull("mail") ?: MailConfiguration()
 
         return Server(

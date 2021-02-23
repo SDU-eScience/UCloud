@@ -32,7 +32,6 @@ enum class E2EDrivers {
 }
 
 data class E2EConfig(val useLocalDriver: Boolean = false)
-@Ignore
 abstract class EndToEndTest : IntegrationTest() {
     val config = UCloudLauncher.micro.configuration.requestChunkAtOrNull("e2e") ?: E2EConfig()
 

@@ -7,7 +7,7 @@ import List from "Shares/List";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {keyframes, css} from "styled-components";
 import {
-    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, ButtonGroup, Card, Link, Text
+    Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, ButtonGroup, Link, Text
 } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
@@ -178,11 +178,11 @@ export const ConfirmCancelButtons = ({
     onCancel,
     height
 }: ConfirmCancelButtonsProps): JSX.Element => (
-        <ButtonGroup width="175px" height={height}>
-            <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
-            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
-        </ButtonGroup>
-    );
+    <ButtonGroup width="175px" height={height}>
+        <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+        <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
+    </ButtonGroup>
+);
 
 const SharePromptWrapper = styled(Box)`
     overflow-y: auto;
@@ -718,7 +718,7 @@ const loremText = `
 `.split(" ").map(it => it.trim());
 
 export const Lorem: React.FunctionComponent<{maxLength?: number}> = ({maxLength = 240}) => {
-    let builder: string = "";
+    let builder = "";
     let length = 0;
     let counter = 0;
 
@@ -782,22 +782,27 @@ const shakeKeyframes = keyframes`
     }
 `;
 
-export const shakeAnimation = css`
+export const shakeAnimation = css<{shaking?: boolean}>`
     &.shaking {
         transform: translate3d(0, 0, 0); 
         animation: ${shakeKeyframes} 0.82s cubic-bezier(.36,.07,.19,.97) both;
     }
+    ${p => p.shaking ? css`& {
+        transform: translate3d(0, 0, 0);
+        animation: ${shakeKeyframes} 0.82s cubic-bezier(.36,.07,.19,.97) both;
+    }` : null}
 `;
 
 export const shakingClassName = "shaking";
 
-export const ShakingBox = styled(Box)`
+export const ShakingBox = styled(Box) <{shaking?: boolean}>`
     ${shakeAnimation}
 `;
 
 const MISSING_COMPUTE_CREDITS = "NOT_ENOUGH_COMPUTE_CREDITS";
 const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
 const EXCEEDED_STORAGE_QUOTA = "NOT_ENOUGH_STORAGE_QUOTA";
+const NOT_ENOUGH_LICENSE_CREDITS = "NOT_ENOUGH_LICENSE_CREDITS";
 
 export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
     if (!props.errorCode) return null;
@@ -814,7 +819,7 @@ export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
 function WarningToOptions(props: {errorCode: string}): JSX.Element {
     const trashFolder = Client.hasActiveProject ?
         `${Client.currentProjectFolder}/Members' Files/${Client.username}/Trash` :
-        `${Client.homeFolder}/Trash`;
+        `${Client.homeFolder}Trash`;
 
     const workspacePath = Client.hasActiveProject ?
         `${Client.currentProjectFolder}/Members' Files/${Client.username}` : Client.homeFolder;
@@ -827,7 +832,7 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
 
     switch (props.errorCode) {
         case MISSING_COMPUTE_CREDITS:
-        case MISSING_STORAGE_CREDITS:
+        case MISSING_STORAGE_CREDITS: {
             const computeOrStorage = props.errorCode === MISSING_COMPUTE_CREDITS ? "compute" : "storage";
             return (
                 <Box mb="8px">
@@ -838,6 +843,18 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
                     />
                 </Box>
             );
+        }
+        case NOT_ENOUGH_LICENSE_CREDITS: {
+            return (
+                <Box mb="8px">
+                    <Heading.h4 mb="20px" color="#000">You do not have enough license credits.</Heading.h4>
+                    <Spacer
+                        left={<Text color="#000">You do not have enough credits to use this license. Even free licenses requires a non-zero positive balance.</Text>}
+                        right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
+                    />
+                </Box>
+            )
+        }
         case EXCEEDED_STORAGE_QUOTA:
             return (
                 <>

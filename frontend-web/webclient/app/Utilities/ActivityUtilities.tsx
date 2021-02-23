@@ -23,5 +23,5 @@ export const activityQuery = (scroll: ScrollRequest<number>, filter?: ActivityFi
     return buildQueryString("/activity/browse", params);
 };
 
-export const activityStreamByPath = (path: string) =>
+export const activityStreamByPath = (path: string): string =>
     `/activity/by-path?path=${encodeURIComponent(path)}`;

@@ -1,10 +1,8 @@
-import {ApplicationMetadata} from "Applications";
 import CONF from "../../site.config.json";
 import {Client} from "Authentication/HttpClientInstance";
 import {History} from "history";
 import {setLoading} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {hpcJobQueryPost} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -56,8 +54,11 @@ export async function quickLaunchCallback(
 
     try {
         setLoading(true);
+        /*
         const req = await Client.post(hpcJobQueryPost, job);
-        history.push(`/applications/results/${req.response.jobId}`);
+        history.push(`/applications/jobs/${req.response.jobId}?app=${encodeURIComponent(app.metadata.name)}`);
+
+         */
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred submitting the job."), false);
     } finally {
@@ -67,6 +68,6 @@ export async function quickLaunchCallback(
 
 export interface QuickLaunchApp {
     extensions: string[];
-    metadata: ApplicationMetadata;
+    metadata: any;
     onClick: (name: string, version: string) => Promise<any>;
 }

@@ -14,7 +14,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.paginate
-import dk.sdu.cloud.service.stackTraceToString
 
 data class FavoritePayload(
     @get:JsonProperty("isFavorite")

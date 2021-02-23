@@ -27,6 +27,5 @@ class Server(
 
         log.info("Service started!")
         startServices()
-
     }
 }

@@ -324,10 +324,11 @@ typealias GrantsRetrieveAffiliationsResponse = Page<ProjectWithTitle>
 data class GrantsRetrieveProductsRequest(
     val projectId: String,
     val recipientType: String,
-    val recipientId: String
+    val recipientId: String,
+    val showHidden: Boolean = true
 )
 data class GrantsRetrieveProductsResponse(
-    val availableProducts: List<ProductCategory>
+    val availableProducts: List<Product>
 )
 
 /**
@@ -897,6 +898,7 @@ object Grants : CallDescriptionContainer("grant") {
                 +boundTo(GrantsRetrieveProductsRequest::projectId)
                 +boundTo(GrantsRetrieveProductsRequest::recipientId)
                 +boundTo(GrantsRetrieveProductsRequest::recipientType)
+                +boundTo(GrantsRetrieveProductsRequest::showHidden)
             }
         }
     }

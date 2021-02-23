@@ -1,19 +1,13 @@
 package dk.sdu.cloud.notification.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.audit
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.HttpClientConverter
-import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.HttpServerConverter
-import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -24,7 +18,7 @@ data class ListNotificationRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest {
-    val pagination = normalize()
+    @JsonIgnore val pagination = normalize()
 }
 
 data class CreateNotification(val user: String, val notification: Notification)
@@ -62,6 +56,7 @@ typealias SubscriptionResponse = Notification
 data class InternalNotificationRequest(val user: String, val notification: Notification)
 typealias InternalNotificationResponse = Unit
 
+@TSTopLevel
 object NotificationDescriptions : CallDescriptionContainer("notifications") {
     const val baseContext = "/api/notifications"
 

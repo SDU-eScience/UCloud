@@ -5,7 +5,7 @@ import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.dsl.ExecListener
 import io.fabric8.kubernetes.client.dsl.ExecWatch
 import io.fabric8.kubernetes.client.dsl.PodResource
-import io.fabric8.kubernetes.client.dsl.internal.PodOperationsImpl
+import io.fabric8.kubernetes.client.dsl.internal.core.v1.PodOperationsImpl
 import okhttp3.Response
 import java.io.InputStream
 import java.io.OutputStream

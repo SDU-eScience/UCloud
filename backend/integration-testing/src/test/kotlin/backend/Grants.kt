@@ -129,7 +129,7 @@ suspend fun approveGrantApplication(
         assertThatInstance(wallet, "has enough credits") { it.balance >= request.creditsRequested!! }
     }
 }
-@Ignore
+
 class GrantTest : IntegrationTest() {
     @Test
     fun `test simple application and core assumptions`() = t {

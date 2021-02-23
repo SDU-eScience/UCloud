@@ -25,6 +25,7 @@ exports[`Search mount 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
+  top: 48px;
 }
 
 .c8 {
@@ -32,11 +33,6 @@ exports[`Search mount 1`] = `
 }
 
 .c9 {
-  margin-top: 8px;
-  margin-bottom: 8px;
-}
-
-.c14 {
   padding-top: 96px;
   padding-right: 14px;
 }
@@ -47,36 +43,10 @@ exports[`Search mount 1`] = `
   left: 0;
 }
 
-.c13 {
-  -webkit-flex: none;
-  -ms-flex: none;
-  flex: none;
-  vertical-align: middle;
-  cursor: inherit;
-  margin-left: .7em;
-}
-
 .c6 {
   cursor: pointer;
   font-size: 20px;
   margin-right: 1em;
-}
-
-.c11 {
-  cursor: pointer;
-}
-
-.c12 {
-  cursor: inherit;
-}
-
-.c10 {
-  position: relative;
-  display: inline-block;
-}
-
-.c10:hover > div {
-  display: block;
 }
 
 .c5 {
@@ -108,19 +78,19 @@ exports[`Search mount 1`] = `
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c15 {
+  .c10 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c15 {
+  .c10 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c15 {
+  .c10 {
     display: none;
   }
 }
@@ -164,59 +134,14 @@ exports[`Search mount 1`] = `
         <div
           className="c8"
         />
-        <div
-          className="c9"
-        >
-          <div
-            className="c4"
-          >
-            <div
-              className="c8"
-            />
-            <div
-              className="c10"
-              data-tag="dropdown"
-            >
-              <span
-                className="c11"
-                cursor="pointer"
-                onClick={[Function]}
-              >
-                <span
-                  className="c12"
-                  cursor="inherit"
-                >
-                   
-                  Files per page 25
-                </span>
-                <svg
-                  className="c13"
-                  clipRule="evenodd"
-                  cursor="inherit"
-                  fill="currentcolor"
-                  fillRule="evenodd"
-                  height=".7em"
-                  ml=".7em"
-                  viewBox="0 0 24 20"
-                  width=".7em"
-                >
-                  <path
-                    d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
-                    fillRule="nonzero"
-                  />
-                </svg>
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
   <div
-    className="c14"
+    className="c9"
   >
     <div
-      className="c15"
+      className="c10"
     />
   </div>
 </div>

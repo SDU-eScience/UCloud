@@ -4,11 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 
 data class SendRequest(
@@ -30,6 +26,7 @@ data class SendSupportEmailRequest(
 
 typealias SendSupportEmailResponse = Unit
 
+@TSTopLevel
 object MailDescriptions : CallDescriptionContainer("mail") {
     val baseContext = "/api/mail"
 

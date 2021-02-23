@@ -12,6 +12,7 @@ import kotlin.reflect.KProperty1
  *
  * To document a call please use [UCloudCallDoc] via [CallDescription.documentation].
  */
+@Retention
 @Target(AnnotationTarget.FIELD, AnnotationTarget.CLASS, AnnotationTarget.PROPERTY, AnnotationTarget.VALUE_PARAMETER)
 annotation class UCloudApiDoc(@Language("markdown") val documentation: String)
 

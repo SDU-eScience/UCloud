@@ -68,6 +68,7 @@ data class UpdatePermissionsRequest(
 
 typealias UpdatePermissionsResponse = Unit
 
+@TSTopLevel
 object ProjectRepository : CallDescriptionContainer("project.repositories") {
     private const val baseContext = "/api/projects/repositories"
 

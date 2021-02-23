@@ -1,4 +1,4 @@
-version = "0.2.7"
+version = "0.3.0"
 
 application {
     mainClassName = "dk.sdu.cloud.mail.MainKt"

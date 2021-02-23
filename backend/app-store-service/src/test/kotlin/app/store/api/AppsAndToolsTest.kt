@@ -41,12 +41,6 @@ class AppsAndToolsTest {
         //assertEquals(listOf(),v1.invocation)
         assertEquals("arg1", v1.parameters.keys.first())
         assertEquals("globs", v1.outputFileGlobs.first())
-        assertEquals(
-            "\"prefixG\" \"prefixV\" \"arg1\" \"suffixV\" \"suffixG\"",
-            v1.invocation.first().buildInvocationSnippet(
-                mapOf(ApplicationParameter.Text("arg1") to StringApplicationParameter("arg1"))
-            )
-        )
 
         val normalizedApplication = v1.normalize()
 

@@ -1,7 +1,5 @@
-import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
-import {formatDistanceToNow} from "date-fns/esm";
-import {emptyPage} from "DefaultObjects";
+import {emptyPage, emptyPageV2} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -23,9 +21,7 @@ import {fileTablePage, getFilenameFromPath, getParentPath, isDirectory, sizeToSt
 import {FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
-import {fetchRecentAnalyses, setAllLoading} from "./Redux/DashboardActions";
-import {JobStateIcon} from "Applications/JobStateIcon";
-import {isRunExpired} from "Utilities/ApplicationUtilities";
+import {setAllLoading} from "./Redux/DashboardActions";
 import {IconName} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
 import {APICallState, useCloudAPI} from "Authentication/DataHook";
@@ -33,12 +29,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
 import {
-    ProductArea,
-    retrieveBalance,
-    RetrieveBalanceResponse,
-    retrieveQuota,
-    RetrieveQuotaResponse, transformUsageChartForCharting, usage, UsageResponse,
-    WalletBalance
+    retrieveQuota, RetrieveQuotaResponse, transformUsageChartForCharting, usage, UsageResponse,
 } from "Accounting";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
@@ -58,29 +49,40 @@ import {GrantApplicationList} from "Project/Grant/IngoingApplications";
 import {creditFormatter, durationOptions} from "Project/ProjectUsage";
 import {computeUsageInPeriod} from "Project/ProjectDashboard";
 import {useProjectManagementStatus} from "Project";
+import * as UCloud from "UCloud";
+import {accounting, PageV2} from "UCloud";
+import Product = accounting.Product;
+import {groupBy} from "Utilities/CollectionUtilities";
+import {JobStateIcon} from "Applications/Jobs/JobStateIcon";
+import {isRunExpired} from "Utilities/ApplicationUtilities";
+import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import {jobAppTitle, jobTitle} from "Applications/Jobs";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: React.ReactNode;
     subtitle?: React.ReactNode;
     color: ThemeColor;
-    isLoading: boolean;
+    isLoading?: boolean;
     icon?: IconName,
     height?: string,
-    minHeight?: string
+    minHeight?: string,
+    width?: string,
+    minWidth?: string,
     onClick?: () => void;
-}> = ({title, subtitle, onClick, color, isLoading, icon = undefined, children, height = "auto", minHeight}) => (
+}> = ({title, subtitle, onClick, color, isLoading = false, icon = undefined, children, height = "auto", minHeight, width = "100%", minWidth}) => (
     <Card
         onClick={onClick}
         overflow="hidden"
         height={height}
-        width={1}
+        width={width}
+        minWidth={minWidth}
         boxShadow="sm"
         borderWidth={0}
         borderRadius={6}
         minHeight={minHeight}
     >
         <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
-        <Box px={3} py={1} height={"100%"} className={"dashboard-card-inner"}>
+        <Box px={3} py={1} height={"calc(100% - 5px)"} >
             <Flex alignItems="center">
                 {icon !== undefined ? (
                     <Icon
@@ -120,9 +122,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         {quotaInBytes: 0, quotaUsed: 0, quotaInTotal: 0}
     );
 
-    const [wallets, setWalletsParams] = useCloudAPI<RetrieveBalanceResponse>(
-        {noop: true}, {wallets: []}
-    );
+    const [products, fetchProducts] = useCloudAPI<PageV2<Product>>({noop: true}, emptyPageV2);
 
     const [outgoingApps, fetchOutgoingApps] = useCloudAPI<Page<GrantApplication>>(
         {noop: true},
@@ -133,6 +133,10 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         {noop: true},
         emptyPage
     );
+
+    const [jobs, fetchJobs] = useCloudAPI<PageV2<UCloud.compute.Job>>(UCloud.compute.jobs.browse({
+        itemsPerPage: 10,
+    }), emptyPage);
 
     React.useEffect(() => {
         props.onInit();
@@ -148,10 +152,10 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             includeUsage: true
         }));
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
-        setWalletsParams(retrieveBalance({
-            id: undefined,
-            type: undefined,
-            includeChildren: false
+        fetchProducts(UCloud.accounting.products.browse({
+            itemsPerPage: 250,
+            filterUsable: true,
+            includeBalance: true
         }));
         fetchOutgoingApps(listOutgoingApplications({
             itemsPerPage: 10,
@@ -163,7 +167,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             page: 0,
             filter: GrantApplicationFilter.ACTIVE
         }));
-        props.fetchRecentAnalyses();
+        fetchJobs(UCloud.compute.jobs.browse({itemsPerPage: 10, includeApplication: true}));
     }
 
     const favoriteOrUnfavorite = async (file: File): Promise<void> => {
@@ -172,10 +176,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     };
 
     const {
-        recentAnalyses,
         notifications,
-        analysesLoading,
-        recentJobsError
     } = props;
 
     const onNotificationAction = (notification: Notification): void =>
@@ -191,11 +192,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 favorite={favoriteOrUnfavorite}
             />
 
-            <DashboardAnalyses
-                error={recentJobsError}
-                analyses={recentAnalyses}
-                isLoading={analysesLoading}
-            />
+            <DashboardAnalyses runs={jobs} />
 
             <DashboardNotifications
                 onNotificationAction={onNotificationAction}
@@ -204,9 +201,9 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             />
 
             <DashboardResources
-                wallets={wallets.data.wallets}
+                products={products.data.items}
                 quota={quota.data}
-                loading={wallets.loading || quota.loading}
+                loading={products.loading || quota.loading}
             />
             <DashboardProjectUsage />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
@@ -222,41 +219,40 @@ const DashboardFavoriteFiles = ({files, isLoading, favorite, error}: {
     favorite: (file: File) => void;
     error?: string
 }): JSX.Element => (
-        <DashboardCard
-            title={<Link to={fileTablePage(Client.favoritesFolder)}><Heading.h3>Favorite Files</Heading.h3></Link>}
-            color="blue"
-            isLoading={isLoading}
-            icon={"starFilled"}
-        >
-            {files.length || error ? null : (
-                <NoResultsCardBody title="No favorite files">
-                    <Text>
-                        Click the <Icon name="starEmpty" /> next to one of your files to mark it as a favorite.
-                    All of your favorite files will appear here.
+    <DashboardCard
+        title={<Link to={fileTablePage(Client.favoritesFolder)}><Heading.h3>Favorite Files</Heading.h3></Link>}
+        color="blue"
+        isLoading={isLoading}
+        icon={"starFilled"}
+    >
+        {files.length || error ? null : (
+            <NoResultsCardBody title="No favorite files">
+                <Text>
+                    Click the <Icon name="starEmpty" /> next to one of your files to mark it as a favorite.
                     <Link to={fileTablePage(Client.activeHomeFolder)}>
-                            <Button fullWidth mt={8}>Explore files</Button>
-                        </Link>
-                    </Text>
-                </NoResultsCardBody>
-            )}
-            <Error error={error} />
-            <List>
-                {files.slice(0, 7).map(file => (
-                    <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
-                        <ListFileContent file={file} pixelsWide={200} />
-                        <Icon
-                            ml="auto"
-                            size="1em"
-                            name="starFilled"
-                            color="blue"
-                            cursor="pointer"
-                            onClick={() => favorite(file)}
-                        />
-                    </Flex>
-                ))}
-            </List>
-        </DashboardCard>
-    );
+                        <Button fullWidth mt={16}>Explore files</Button>
+                    </Link>
+                </Text>
+            </NoResultsCardBody>
+        )}
+        <Error error={error} />
+        <List>
+            {files.slice(0, 7).map(file => (
+                <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
+                    <ListFileContent file={file} pixelsWide={200} />
+                    <Icon
+                        ml="auto"
+                        size="1em"
+                        name="starFilled"
+                        color="blue"
+                        cursor="pointer"
+                        onClick={() => favorite(file)}
+                    />
+                </Flex>
+            ))}
+        </List>
+    </DashboardCard>
+);
 
 const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): JSX.Element => {
     const iconType = UF.iconFromFilePath(file.path, file.fileType);
@@ -273,53 +269,53 @@ const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): 
     );
 };
 
-const DashboardAnalyses = ({analyses, isLoading, error, }: {
-    analyses: JobWithStatus[];
-    isLoading: boolean;
-    error?: string
-}): JSX.Element => (
-        <DashboardCard
-            title={<Link to={"/applications/results"}><Heading.h3>Recent Runs</Heading.h3></Link>}
-            color="purple"
-            isLoading={isLoading}
-            icon={"apps"}
-        >
-            {analyses.length || error ? null : (
-                <NoResultsCardBody title={"No recent application runs"}>
-                    <Text>
-                        When you run an application on UCloud the results will appear here.
+const DashboardAnalyses: React.FunctionComponent<{runs: APICallState<PageV2<UCloud.compute.Job>>}> = ({runs}) => (
+    <DashboardCard
+        title={<Link to={"/applications/results"}><Heading.h3>Recent Runs</Heading.h3></Link>}
+        color="purple"
+        isLoading={runs.loading}
+        icon={"apps"}
+    >
+        {runs.data.items.length || runs.error ? null : (
+            <NoResultsCardBody title={"No recent application runs"}>
+                <Text>
+                    When you run an application on UCloud the results will appear here.
 
                     <Link to={"/applications/overview"} mt={8}>
-                            <Button fullWidth mt={8}>Explore applications</Button>
-                        </Link>
+                        <Button fullWidth mt={8}>Explore applications</Button>
+                    </Link>
+                </Text>
+            </NoResultsCardBody>
+        )}
+        <Error error={runs.error?.why} />
+        <List>
+            {runs.data.items.slice(0, 7).map((run: UCloud.compute.Job, index: number) => (
+                <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
+                    <JobStateIcon
+                        size="1.2em"
+                        pr="0.3em"
+                        state={run.status.state}
+                        isExpired={isRunExpired(run)}
+                        mr="8px"
+                    />
+                    <Link to={`/applications/jobs/${run.id}`}>
+                        <EllipsedText width={175} fontSize={3}>
+                            {jobTitle(run)} ({jobAppTitle(run)})
+                        </EllipsedText>
+                    </Link>
+                    <Box ml="auto" />
+                    <Text fontSize={1} color="grey">
+                        {formatDistanceToNow(
+                            new Date(
+                                run.updates[run.updates.length - 1]?.timestamp ?? run.status.startedAt
+                            ), {addSuffix: true}
+                        )}
                     </Text>
-                </NoResultsCardBody>
-            )}
-            <Error error={error} />
-            <List>
-                {analyses.slice(0, 7).map((analysis: JobWithStatus, index: number) => (
-                    <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
-                        <JobStateIcon
-                            size="1.2em"
-                            pr="0.3em"
-                            state={analysis.state}
-                            isExpired={isRunExpired(analysis)}
-                            mr="8px"
-                        />
-                        <Link to={`/applications/results/${analysis.jobId}`}>
-                            <EllipsedText width={130} fontSize={2}>
-                                {analysis.metadata.title}
-                            </EllipsedText>
-                        </Link>
-                        <Box ml="auto" />
-                        <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(analysis.modifiedAt!), {
-                            addSuffix: true
-                        })}</Text>
-                    </Flex>
-                ))}
-            </List>
-        </DashboardCard>
-    );
+                </Flex>
+            ))}
+        </List>
+    </DashboardCard>
+);
 
 interface DashboardNotificationProps {
     onNotificationAction: (notification: Notification) => void;
@@ -423,9 +419,9 @@ function DashboardProjectUsage(): JSX.Element | null {
         }));
     }, [projectId]);
 
-    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.COMPUTE));
+    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "COMPUTE"));
     const computeCreditsUsedInPeriod = computeUsageInPeriod(computeCharts);
-    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.STORAGE));
+    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "STORAGE"));
     const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     return (
@@ -452,14 +448,26 @@ function DashboardProjectUsage(): JSX.Element | null {
         </DashboardCard>
     );
 }
-function DashboardResources({wallets, loading, quota}: {
-    wallets: WalletBalance[];
+function DashboardResources({products, loading, quota}: {
+    products: Product[];
     quota: RetrieveQuotaResponse,
     loading: boolean
 }): JSX.Element | null {
+    const productsByCategory = groupBy(products, it => `${it.category.id}-${it.category.provider}`);
+    const wallets: {category: string, provider: string, balance: number, isFreeWithBalanceCheck: boolean}[] = [];
+    Object.values(productsByCategory).forEach(group => {
+        if (group.length === 0) return;
+        const category = group[0].category.id;
+        const provider = group[0].category.provider;
+        const balance = group[0].balance!;
+        const isFreeWithBalanceCheck = group
+            .every(it => "paymentModel" in it && it.paymentModel === "FREE_BUT_REQUIRE_BALANCE");
+
+        wallets.push({category, provider, balance, isFreeWithBalanceCheck});
+    });
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={"/project/grants-landing"}>
-        <Button fullWidth mt={8}>Apply for resources</Button>
+        <Button fullWidth mb={"4px"}>Apply for resources</Button>
     </Link>;
 
     return (
@@ -469,7 +477,7 @@ function DashboardResources({wallets, loading, quota}: {
             isLoading={loading}
             icon={"grant"}
         >
-            {wallets.length === 0 ? (
+            {products.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     <Text>
                         Apply for resources to use storage and compute on UCloud.
@@ -478,19 +486,24 @@ function DashboardResources({wallets, loading, quota}: {
                 </NoResultsCardBody>
             ) :
                 <>
-                    <Flex flexDirection={"column"} height={"calc(100% - 60px)"}>
+                    {/* height is 100% - height of Heading 36px  */}
+                    <Flex flexDirection="column" height={"calc(100% - 36px)"}>
                         <Box mx="8px" my="5px">
                             <Table>
                                 <tbody>
                                     {wallets.slice(0, 7).map((n, i) => (
                                         <TableRow key={i}>
-                                            <TableCell>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</TableCell>
-                                            <TableCell>
-                                                <Balance
-                                                    textAlign="right"
-                                                    amount={n.balance}
-                                                    productCategory={n.wallet.paysFor}
-                                                />
+                                            <TableCell>{n.provider} / {n.category}</TableCell>
+                                            <TableCell textAlign={"right"}>
+                                                {!n.isFreeWithBalanceCheck ? null :
+                                                    n.balance > 0 ? <Icon name={"check"} color={"green"} /> : null
+                                                }
+                                                {n.isFreeWithBalanceCheck ? null :
+                                                    <Balance
+                                                        amount={n.balance}
+                                                        productCategory={{id: n.category, provider: n.provider}}
+                                                    />
+                                                }
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -536,6 +549,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
     return <DashboardCard
         title={title}
         color="green"
+        minWidth="450px"
         isLoading={outgoingApps.loading}
         icon="mail"
     >
@@ -615,7 +629,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
     setAllLoading: loading => dispatch(setAllLoading(loading)),
-    fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))

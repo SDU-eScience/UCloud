@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.store.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.BashEscaper
-import dk.sdu.cloud.service.stackTraceToString
 import org.slf4j.LoggerFactory
 
 private val log = LoggerFactory.getLogger(InvocationParameter::class.java)
@@ -20,9 +19,10 @@ private val log = LoggerFactory.getLogger(InvocationParameter::class.java)
     JsonSubTypes.Type(value = EnvironmentVariableParameter::class, name = "env")
 )
 sealed class InvocationParameter {
-    abstract fun buildInvocationList(
+    abstract suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
-        context: InvocationParameterContext = InvocationParameterContext.COMMAND
+        context: InvocationParameterContext = InvocationParameterContext.COMMAND,
+        builder: ArgumentBuilder = ArgumentBuilder.Default,
     ): List<String>
 }
 
@@ -31,20 +31,82 @@ enum class InvocationParameterContext {
     ENVIRONMENT
 }
 
-fun InvocationParameter.buildInvocationSnippet(parameters: AppParametersWithValues): String? {
-    return buildInvocationList(parameters, InvocationParameterContext.COMMAND)
-        .takeIf { it.isNotEmpty() }?.joinToString(" ") { BashEscaper.safeBashArgument(it) }
+interface ArgumentBuilder {
+    suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String
+
+    companion object Default : ArgumentBuilder {
+        override suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
+            when (parameter) {
+                is ApplicationParameter.InputFile, is ApplicationParameter.InputDirectory -> {
+                    return (value as AppParameterValue.File).path
+                }
+
+                is ApplicationParameter.Text -> {
+                    return (value as AppParameterValue.Text).value
+                }
+
+                is ApplicationParameter.Integer -> {
+                    return (value as AppParameterValue.Integer).value.toString()
+                }
+
+                is ApplicationParameter.FloatingPoint -> {
+                    return (value as AppParameterValue.FloatingPoint).value.toString()
+                }
+
+                is ApplicationParameter.Bool -> {
+                    return (value as AppParameterValue.Bool).value.toString()
+                }
+
+                is ApplicationParameter.Enumeration -> {
+                    val inputValue = (value as AppParameterValue.Text).value
+                    val option = parameter.options.find { it.name == inputValue }
+                    return option?.value ?: inputValue
+                }
+
+                is ApplicationParameter.Peer -> {
+                    return (value as AppParameterValue.Peer).hostname
+                }
+
+                is ApplicationParameter.LicenseServer -> {
+                    val license = (value as AppParameterValue.License)
+                    return license.id
+                }
+
+                is ApplicationParameter.Ingress -> {
+                    return (value as AppParameterValue.Ingress).id
+                }
+
+                is ApplicationParameter.NetworkIP -> {
+                    return (value as AppParameterValue.Network).id
+                }
+            }
+        }
+    }
 }
 
-fun InvocationParameter.buildEnvironmentValue(parameters: AppParametersWithValues): String? {
-    return buildInvocationList(parameters, InvocationParameterContext.ENVIRONMENT).takeIf { it.isNotEmpty() }
+suspend fun InvocationParameter.buildInvocationSnippet(
+    parameters: AppParametersWithValues,
+    builder: ArgumentBuilder = ArgumentBuilder.Default,
+): String? {
+    return buildInvocationList(parameters, InvocationParameterContext.COMMAND, builder)
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString(" ") { BashEscaper.safeBashArgument(it) }
+}
+
+suspend fun InvocationParameter.buildEnvironmentValue(
+    parameters: AppParametersWithValues,
+    builder: ArgumentBuilder = ArgumentBuilder.Default,
+): String? {
+    return buildInvocationList(parameters, InvocationParameterContext.ENVIRONMENT, builder)
+        .takeIf { it.isNotEmpty() }
         ?.joinToString(" ")
 }
 
 data class EnvironmentVariableParameter(val variable: String) : InvocationParameter() {
-    override fun buildInvocationList(
+    override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
-        context: InvocationParameterContext
+        context: InvocationParameterContext,
+        builder: ArgumentBuilder,
     ): List<String> {
         if (context != InvocationParameterContext.ENVIRONMENT) return emptyList()
         return listOf("$($variable)")
@@ -52,15 +114,16 @@ data class EnvironmentVariableParameter(val variable: String) : InvocationParame
 }
 
 data class WordInvocationParameter(val word: String) : InvocationParameter() {
-    override fun buildInvocationList(
+    override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
-        context: InvocationParameterContext
+        context: InvocationParameterContext,
+        builder: ArgumentBuilder,
     ): List<String> {
         return listOf(word)
     }
 }
 
-typealias AppParametersWithValues = Map<ApplicationParameter<*>, ParsedApplicationParameter?>
+typealias AppParametersWithValues = Map<ApplicationParameter, AppParameterValue?>
 
 data class VariableInvocationParameter(
     val variableNames: List<String>,
@@ -69,11 +132,12 @@ data class VariableInvocationParameter(
     val prefixVariable: String = "",
     val suffixVariable: String = "",
     val isPrefixVariablePartOfArg: Boolean = false,
-    val isSuffixVariablePartOfArg: Boolean = false
+    val isSuffixVariablePartOfArg: Boolean = false,
 ) : InvocationParameter() {
-    override fun buildInvocationList(
+    override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
-        context: InvocationParameterContext
+        context: InvocationParameterContext,
+        builder: ArgumentBuilder,
     ): List<String> {
         val prefixGlobal = this.prefixGlobal.trim()
         val suffixGlobal = this.suffixGlobal.trim()
@@ -94,7 +158,7 @@ data class VariableInvocationParameter(
             val value = fieldAndValue.value ?: return@flatMap emptyList<String>()
 
             @Suppress("UNCHECKED_CAST")
-            val parameter = fieldAndValue.key as ApplicationParameter<ParsedApplicationParameter>
+            val parameter = fieldAndValue.key
 
             val args = ArrayList<String>()
             val mainArg = StringBuilder()
@@ -106,7 +170,7 @@ data class VariableInvocationParameter(
                 }
             }
 
-            mainArg.append(parameter.toInvocationArgument(value))
+            mainArg.append(builder.build(parameter, value))
 
             if (isSuffixVariablePartOfArg) {
                 mainArg.append(suffixVariable)
@@ -135,22 +199,22 @@ data class VariableInvocationParameter(
 
             result
         }
-
     }
 }
 
 data class BooleanFlagParameter(
     val variableName: String,
-    val flag: String
+    val flag: String,
 ) : InvocationParameter() {
-    override fun buildInvocationList(
+    override suspend fun buildInvocationList(
         parameters: AppParametersWithValues,
-        context: InvocationParameterContext
+        context: InvocationParameterContext,
+        builder: ArgumentBuilder,
     ): List<String> {
         val parameter = parameters.filterKeys { it.name == variableName }.keys.singleOrNull()
             ?: return emptyList()
 
-        val value = parameters[parameter] as? BooleanApplicationParameter ?: throw InvalidParamUsage(
+        val value = parameters[parameter] as? AppParameterValue.Bool ?: throw InvalidParamUsage(
             "Invalid type",
             this,
             parameters
@@ -160,20 +224,24 @@ data class BooleanFlagParameter(
     }
 }
 
+
 private data class InvalidParamUsage(
     val why: String,
     val param: InvocationParameter,
-    val parameters: Map<ApplicationParameter<*>, Any?>
+    val parameters: Map<ApplicationParameter, Any?>,
 ) : RuntimeException(why) {
     override fun toString(): String {
         return "InvalidParamUsage(why='$why', param=$param, parameters=$parameters)"
     }
 }
 
-fun Iterable<InvocationParameter>.buildSafeBashString(parameters: AppParametersWithValues): String =
+suspend fun Iterable<InvocationParameter>.buildSafeBashString(
+    parameters: AppParametersWithValues,
+    builder: ArgumentBuilder,
+): String =
     mapNotNull {
         try {
-            it.buildInvocationSnippet(parameters)
+            it.buildInvocationSnippet(parameters, builder)
         } catch (ex: InvalidParamUsage) {
             log.warn(ex.stackTraceToString())
             null

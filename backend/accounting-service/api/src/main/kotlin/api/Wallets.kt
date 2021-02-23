@@ -41,7 +41,8 @@ fun transactionComment(amount: Long, receiverId: String, transactionType: Transa
 data class RetrieveBalanceRequest(
     val id: String?,
     val type: WalletOwnerType?,
-    val includeChildren: Boolean? = null
+    val includeChildren: Boolean? = null,
+    val showHidden: Boolean? = true
 ) {
     init {
         if (id != null || type != null) {
@@ -214,6 +215,7 @@ object Wallets : CallDescriptionContainer("wallets") {
                 +boundTo(RetrieveBalanceRequest::id)
                 +boundTo(RetrieveBalanceRequest::type)
                 +boundTo(RetrieveBalanceRequest::includeChildren)
+                +boundTo(RetrieveBalanceRequest::showHidden)
             }
         }
     }

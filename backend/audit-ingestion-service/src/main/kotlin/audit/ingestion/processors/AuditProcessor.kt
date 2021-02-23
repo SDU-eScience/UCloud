@@ -32,7 +32,7 @@ class AuditProcessor(
 ) {
     fun init() {
         events.subscribe(HttpLogsStream, EventConsumer.Batched() { rawBatch ->
-            if (rawBatch.isNotEmpty()) log.debug("Accepting batch of size ${rawBatch.size}")
+            if (rawBatch.isNotEmpty()) log.trace("Accepting batch of size ${rawBatch.size}")
 
             rawBatch
                 .asSequence()
@@ -40,6 +40,9 @@ class AuditProcessor(
                     runCatching {
                         val tree = defaultMapper.readTree(document)
                         val requestName = tree["requestName"].textValue()!!
+                        if (requestName == "healthcheck.status") {
+                            return@runCatching null
+                        }
                         (tree as ObjectNode).put("@timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
 
                         Pair(requestName, defaultMapper.writeValueAsString(tree))
@@ -47,7 +50,7 @@ class AuditProcessor(
                 }
                 .groupBy { (requestName, _) -> requestName }
                 .flatMap { (requestName, batch) ->
-                    val dateSuffix = LocalDate.now().format(DateTimeFormatter.ofPattern("YYYY.MM.dd"))
+                    val dateSuffix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
                     val indexName = "http_logs_$requestName-$dateSuffix".toLowerCase()
 
                     log.trace("Inserting ${batch.size} elements into $indexName")

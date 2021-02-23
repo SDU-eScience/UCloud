@@ -170,9 +170,40 @@ subprojects {
         kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
     }
 
+    tasks.withType<org.gradle.api.tasks.JavaExec>().configureEach {
+        systemProperty("log4j2.configurationFactory", "dk.sdu.cloud.micro.Log4j2ConfigFactory")
+    }
+
     tasks.withType<Test>().configureEach {
         systemProperty("log4j2.configurationFactory", "dk.sdu.cloud.micro.Log4j2ConfigFactory")
         systemProperty("java.io.tmpdir", System.getProperty("java.io.tmpdir"))
+    }
+
+    tasks.test {
+        filter {
+            isFailOnNoMatchingTests = false
+            excludeTestsMatching("dk.sdu.cloud.integration.*")
+        }
+    }
+
+    task<Test>("integrationTest") {
+        description = "Runs integration test"
+        group = "verification"
+
+        filter {
+            isFailOnNoMatchingTests = false
+            includeTestsMatching("dk.sdu.cloud.integration.backend.*")
+        }
+    }
+
+    task<Test>("e2eTest") {
+        description = "Runs E2E tests"
+        group = "verification"
+
+        filter {
+            isFailOnNoMatchingTests = false
+            includeTestsMatching("dk.sdu.cloud.integration.backend.e2e.*")
+        }
     }
 
     val compileKotlin: KotlinCompile by tasks

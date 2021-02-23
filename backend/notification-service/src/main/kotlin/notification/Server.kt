@@ -25,7 +25,6 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun start() {
         val db = AsyncDBSessionFactory(micro.databaseConfig)
-        log.info("Creating core services")
         val notificationDao = NotificationDao()
         val localhost = run {
             val ip = micro.serviceInstance.ipAddress
@@ -38,8 +37,6 @@ class Server(override val micro: Micro) : CommonServer {
         val wsClient = micro.authenticator.authenticateClient(OutgoingWSCall)
         subscriptionService = SubscriptionService(localhost, wsClient, db, SubscriptionDao())
         notificationService = NotificationService(db, notificationDao, subscriptionService)
-
-        log.info("Core services constructed!")
 
 
         with(micro.server) {

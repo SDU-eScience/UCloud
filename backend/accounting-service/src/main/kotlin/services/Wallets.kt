@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.Utils.CREDITS_NOTIFY_LIMIT
 import dk.sdu.cloud.accounting.api.*
@@ -66,7 +67,6 @@ class BalanceService(
     private val client: AuthenticatedClient
 ) {
     suspend fun requirePermissionToReadBalance(
-        ctx: DBContext,
         initiatedBy: Actor,
         accountId: String,
         walletOwnerType: WalletOwnerType
@@ -185,10 +185,11 @@ class BalanceService(
         initiatedBy: Actor,
         accountId: String,
         accountOwnerType: WalletOwnerType,
-        includeChildren: Boolean
+        includeChildren: Boolean,
+        showHidden: Boolean = true
     ): List<WalletBalance> {
         return ctx.withSession { session ->
-            requirePermissionToReadBalance(session, initiatedBy, accountId, accountOwnerType)
+            requirePermissionToReadBalance(initiatedBy, accountId, accountOwnerType)
             verificationService.verify(accountId, accountOwnerType)
 
             val accountIds = if (accountOwnerType == WalletOwnerType.PROJECT && includeChildren) {
@@ -203,6 +204,7 @@ class BalanceService(
                     {
                         setParameter("accountIds", accountIds)
                         setParameter("accountType", accountOwnerType.name)
+                        setParameter("showHidden", showHidden)
                     },
                     """
                         select w.*, pc.area
@@ -211,7 +213,13 @@ class BalanceService(
                             w.account_id in (select unnest(:accountIds::text[])) and 
                             w.account_type = :accountType and
                             pc.category = w.product_category and
-                            pc.provider = w.product_provider
+                            pc.provider = w.product_provider and (
+                                select count(*)
+                                from products p
+                                where
+                                    pc.category = p.category and
+                                    (p.hidden_in_grant_applications is false or :showHidden is true)
+                            ) > 0
                     """
                 )
                 .rows
@@ -241,7 +249,7 @@ class BalanceService(
         verify: Boolean = true
     ): Pair<Long, Boolean> {
         return ctx.withSession { session ->
-            requirePermissionToReadBalance(session, initiatedBy, account.id, account.type)
+            requirePermissionToReadBalance(initiatedBy, account.id, account.type)
 
             session
                 .sendPreparedStatement(
@@ -478,12 +486,12 @@ class BalanceService(
 
     suspend fun reserveCredits(
         ctx: DBContext,
-        initiatedBy: Actor,
+        initiatedBy: String,
         request: ReserveCreditsRequest,
         reserveForAncestors: Boolean = true,
         origWallet: Wallet? = null,
-        initiatedByUsername: String? = null
     ): Unit = with(request) {
+        log.info("reserveCredits($initiatedBy, $request, $reserveForAncestors, $origWallet)")
         val wallet = request.account
         val originalWallet = origWallet ?: wallet
         require(originalWallet.paysFor == wallet.paysFor)
@@ -493,7 +501,7 @@ class BalanceService(
             ctx.withSession { session ->
                 val ancestorWallets = if (reserveForAncestors) wallet.ancestors() else emptyList()
 
-                val (balance, walletExists) = getBalance(ctx, initiatedBy, wallet, true)
+                val (balance, walletExists) = getBalance(ctx, Actor.System, wallet, true)
                 if (!walletExists) {
                     setBalance(session, Actor.System, request.account, 0L, 0L)
                 }
@@ -547,7 +555,7 @@ class BalanceService(
                         set(TransactionTable.productProvider, wallet.paysFor.provider)
                         set(TransactionTable.amount, amount)
                         set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
-                        set(TransactionTable.initiatedBy, initiatedByUsername ?: initiatedBy.safeUsername())
+                        set(TransactionTable.initiatedBy, initiatedBy)
                         set(TransactionTable.isReserved, true)
                         set(TransactionTable.productId, productId)
                         set(TransactionTable.units, productUnits)
@@ -566,11 +574,15 @@ class BalanceService(
                     // the parents should have it
                     reserveCredits(
                         session,
-                        Actor.System,
-                        request.copy(account = ancestor, discardAfterLimitCheck = false, skipIfExists = false),
+                        initiatedBy,
+                        request.copy(
+                            account = ancestor,
+                            discardAfterLimitCheck = false,
+                            skipIfExists = false,
+                            chargeImmediately = false,
+                        ),
                         reserveForAncestors = false,
                         origWallet = wallet,
-                        initiatedByUsername = initiatedByUsername ?: initiatedBy.safeUsername()
                     )
                 }
 
@@ -584,6 +596,12 @@ class BalanceService(
             }
         } catch (ignored: ReservationUserRequestedAbortException) {
             // Ignored
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            }
+
+            throw ex
         }
     }
 
@@ -663,7 +681,7 @@ class BalanceService(
             val id = UUID.randomUUID().toString()
             reserveCredits(
                 session,
-                actor,
+                actor.safeUsername(),
                 ReserveCreditsRequest(
                     jobId = id,
                     amount = request.amount,

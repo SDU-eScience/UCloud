@@ -204,8 +204,16 @@ exports[`Dashboard Dashboard mount 1`] = `
   flex-grow: 1;
 }
 
-.c20 {
+.c19 {
   color: #8393A7;
+}
+
+.c29 {
+  border-radius: 6px;
+  width: 100%;
+  min-width: 450px;
+  height: auto;
+  overflow: hidden;
 }
 
 .c17 {
@@ -256,6 +264,53 @@ exports[`Dashboard Dashboard mount 1`] = `
   transform: scale(1.03);
 }
 
+.c22 {
+  font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: var(--blue,#f00);
+  color: var(--white,#f00);
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  width: 100%;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c22:disabled {
+  opacity: 0.25;
+}
+
+.c22:focus {
+  outline: none;
+}
+
+.c22:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
 .c8 {
   -webkit-flex: none;
   -ms-flex: none;
@@ -275,7 +330,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   cursor: inherit;
 }
 
-.c21 {
+.c20 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -317,7 +372,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   cursor: inherit;
 }
 
-.c22 {
+.c23 {
   cursor: inherit;
   font-size: 14px;
   color: #53657d;
@@ -334,7 +389,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: var(--textHighlight);
 }
 
-.c19 {
+.c21 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
@@ -342,7 +397,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: #1e252e;
 }
 
-.c19:hover {
+.c21:hover {
   color: var(--textHighlight);
 }
 
@@ -358,7 +413,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   border-bottom: 0px;
 }
 
-.c23 {
+.c24 {
   background-color: #fff;
   border: 0px;
   border-spacing: 0;
@@ -368,22 +423,22 @@ exports[`Dashboard Dashboard mount 1`] = `
   background-color: #fff;
 }
 
-.c26 {
+.c27 {
   border: 0px;
   border-spacing: 0;
 }
 
-.c27 {
+.c28 {
   border: 0px;
   border-spacing: 0;
   text-align: right;
 }
 
-.c24 {
+.c25 {
   cursor: auto;
 }
 
-.c24 > .c25 {
+.c25 > .c26 {
   border-spacing: 0;
   border-top: 1px solid rgba(34,36,38,.1);
   padding-top: 8px;
@@ -425,7 +480,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -590,7 +645,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -700,7 +755,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -757,49 +812,83 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c13"
-            height="calc(100% - 60px)"
-            width="100%"
+            className="c12"
+            data-tag="loading-spinner"
+            height={32}
+            width={32}
           >
-            <h4
-              className="c14"
-              cursor="inherit"
-              fontSize={3}
+            <svg
+              height={32}
+              id="svg"
+              version="1.1"
+              viewBox="0 0 220 220"
+              width={32}
+              xmlns="http://www.w3.org/2000/svg"
+              xmlnsXlink="http://www.w3.org/1999/xlink"
             >
-              No recent application runs
-            </h4>
-            <div
-              className="c15"
-              cursor="inherit"
-            >
-              When you run an application on UCloud the results will appear here.
-              <a
-                className="c19"
-                color="text"
-                href="/applications/overview"
-                mt={8}
-                onClick={[Function]}
-              >
-                <button
-                  className="c17"
-                  color="blue"
-                >
-                  Explore applications
-                </button>
-              </a>
-            </div>
+              <path
+                d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"
+              />
+              <path
+                d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+              />
+              <path
+                d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"
+              />
+              <path
+                d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+              />
+              <path
+                d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"
+              />
+              <path
+                d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"
+              />
+              <path
+                d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"
+              />
+              <path
+                d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+              />
+              <path
+                d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"
+              />
+              <path
+                d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"
+              />
+              <path
+                d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"
+              />
+              <path
+                d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+              <path
+                d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+              />
+              <path
+                d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+              <path
+                d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+              />
+              <path
+                d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+              />
+            </svg>
           </div>
-          <div
-            className="c18"
-            fontSize="large"
-          />
         </div>
       </div>
       <div
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -850,11 +939,11 @@ exports[`Dashboard Dashboard mount 1`] = `
               className="c11"
             />
             <div
-              className="c20"
+              className="c19"
               color="#8393A7"
             >
               <svg
-                className="c21"
+                className="c20"
                 clipRule="evenodd"
                 color="iconColor"
                 color2="#8393A7"
@@ -897,7 +986,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             >
               As you as use UCloud notifications will appear here.
               <a
-                className="c19"
+                className="c21"
                 color="text"
                 href="/applications/overview"
                 mt={8}
@@ -922,7 +1011,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -1004,7 +1093,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 onClick={[Function]}
               >
                 <button
-                  className="c17"
+                  className="c22"
                   color="blue"
                 >
                   Apply for resources
@@ -1018,7 +1107,7 @@ exports[`Dashboard Dashboard mount 1`] = `
         className="c4 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""
@@ -1080,7 +1169,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
           </div>
           <div
-            className="c22"
+            className="c23"
             color="darkGray"
             cursor="inherit"
             fontSize={1}
@@ -1088,36 +1177,36 @@ exports[`Dashboard Dashboard mount 1`] = `
             Past 30 days
           </div>
           <table
-            className="c23"
+            className="c24"
             width="100%"
           >
             <tbody>
               <tr
-                className="c24"
+                className="c25"
                 cursor="auto"
               >
                 <td
-                  className="c25 c26"
+                  className="c26 c27"
                 >
                   Storage
                 </td>
                 <td
-                  className="c25 c27"
+                  className="c26 c28"
                 >
                   0 DKK
                 </td>
               </tr>
               <tr
-                className="c24"
+                className="c25"
                 cursor="auto"
               >
                 <td
-                  className="c25 c26"
+                  className="c26 c27"
                 >
                   Compute
                 </td>
                 <td
-                  className="c25 c27"
+                  className="c26 c28"
                 >
                   0 DKK
                 </td>
@@ -1127,10 +1216,10 @@ exports[`Dashboard Dashboard mount 1`] = `
         </div>
       </div>
       <div
-        className="c4 c5"
+        className="c29 c5"
         height="auto"
         overflow="hidden"
-        width={1}
+        width="100%"
       >
         <div
           className=""

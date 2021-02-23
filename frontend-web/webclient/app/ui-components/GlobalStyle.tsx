@@ -1,24 +1,33 @@
 import theme from "./theme";
+import {device} from "ui-components/Hide";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
+const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");
     styleTag.innerHTML = `
         /* Custom font */
         @font-face {
-          font-family: 'IBM Plex Sans';
-          src: url('${fontLight}');
-          font-display: swap;
+            font-family: 'IBM Plex Sans';
+            src: url('${fontLight}');
+            font-display: swap;
         }
 
         @font-face {
-          font-family: 'IBM Plex Sans';
-          src: url('${fontRegular}');
-          font-weight: 400;
-          font-display: swap;
-    }`;
+            font-family: 'IBM Plex Sans';
+            src: url('${fontRegular}');
+            font-weight: 400;
+            font-display: swap;
+        }
+        
+        @font-face {
+            font-family: "Jetbrains Mono";
+            src: url("${monoFont}");
+            font-display: swap;
+        }
+    `;
     document.head.appendChild(styleTag);
 }
 
@@ -66,8 +75,14 @@ html {
     --tableRowHighlight: var(--lightBlue, #f00);
     --appCard: #ebeff3;
     --wayfGreen: #66b340;
+    --appStoreFavBg: #e8f1fc
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
+    
+    /* TODO This is not currently enforced in the header */
+    --headerHeight: 48px;
+    /* TODO This is not currently enforced in the sidebar */
+    --sidebarWidth: 68px;
 }
 
 html.light {
@@ -84,6 +99,7 @@ html.light {
     --borderGray: var(--midGray, #f00);
     --invertedThemeColor: #000;
     --projectHighlight: #dfffee;
+    --appStoreFavBg: #e8f1fc
 }
 
 html.dark {
@@ -96,10 +112,18 @@ html.dark {
     --midGray: #555;
     --paginationDisabled: #111;
     --paginationHoverColor: #444;
-    --appCard: #060707;
+    --appCard: #131616;
     --borderGray: #111;
     --invertedThemeColor: #fff;
     --projectHighlight: #00c05a;
+    --appStoreFavBg: #00204d
+}
+
+${device("xxl")} {
+    html {
+        /* TODO This is not currently enforced in the sidebar */
+        --sidebarWidth: 190px;
+    }
 }
 
 
@@ -684,7 +708,7 @@ textarea,
  * inoperable elements in all browsers (opinionated).
  */
 
-[aria-disabled],
+[aria-disabled=true],
 [disabled] {
   cursor: not-allowed;
 }

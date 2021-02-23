@@ -4,7 +4,6 @@ import dk.sdu.cloud.integration.*
 import dk.sdu.cloud.integration.backend.*
 import org.junit.*
 
-@Ignore
 class FilesTest : EndToEndTest() {
 
     @Test

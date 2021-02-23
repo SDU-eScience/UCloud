@@ -1,3 +1,3 @@
 # Redis Cleaner
 
-Removes data from Redis which is older than two months.
+Removes data from Redis which is older than 5 days.

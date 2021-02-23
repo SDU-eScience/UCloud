@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.securityPrincipalOrNull
 import dk.sdu.cloud.service.Controller
@@ -28,6 +29,7 @@ class ProductController(
             ok(products.find(db, ctx.securityPrincipal.toActor(), request))
         }
 
+        @Suppress("DEPRECATION")
         implement(Products.listProducts) {
             ok(
                 products.list(
@@ -39,6 +41,7 @@ class ProductController(
             )
         }
 
+        @Suppress("DEPRECATION")
         implement(Products.listProductsByType) {
             ok(
                 products.listByArea(
@@ -46,15 +49,21 @@ class ProductController(
                     ctx.securityPrincipalOrNull.toActorOrGuest(),
                     request.area,
                     request.provider,
-                    request.normalize()
+                    request.normalize(),
+                    request.showHidden
                 )
             )
         }
 
+        @Suppress("DEPRECATION")
         implement(Products.retrieveAllFromProvider) {
             ok(
-                products.listAllByProvider(db, ctx.securityPrincipal.toActor(), request.provider)
+                products.listAllByProvider(db, ctx.securityPrincipal.toActor(), request.provider, request.showHidden)
             )
+        }
+
+        implement(Products.browse) {
+            ok(products.browse(db, ctx.securityPrincipal.toActor(), ctx.project, request))
         }
 
         return@with

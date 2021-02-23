@@ -22,11 +22,9 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val elasticClient = micro.elasticHighLevelClient
 
-        log.info("Creating core services")
         val activityElasticDao = ActivityEventElasticDao(elasticClient)
         val fileLookupService = FileLookupService(client)
         val activityService = ActivityService(activityElasticDao, fileLookupService, client)
-        log.info("Core services constructed")
 
         with(micro.server) {
             configureControllers(

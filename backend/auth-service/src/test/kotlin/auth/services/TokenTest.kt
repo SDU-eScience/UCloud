@@ -10,6 +10,7 @@ import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -82,7 +83,7 @@ class TokenTest {
 
     private fun createTokenService(): TestContext = runBlocking {
         val micro = initializeMicro()
-        val testJwtFactory = JWTFactory(testJwtVerifier.algorithm)
+        val testJwtFactory = JWTFactory((testJwtVerifier as InternalTokenValidationJWT).algorithm)
         val passwordHashingService = PasswordHashingService()
         val userDao = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
         val personService = PersonService(passwordHashingService, UniqueUsernameService(db, userDao))

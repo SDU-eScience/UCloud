@@ -38,6 +38,7 @@ sealed class Principal {
      * A unique numeric id for this principal. This is suitable for systems that require numeric identifiers.
      * Use of [id] is strongly preferred.
      */
+    @Deprecated("Will be removed in future release")
     abstract val uid: Long
 
     @Deprecated("No longer in use")
@@ -167,11 +168,28 @@ sealed class Person : Principal() {
 data class ServicePrincipal(
     override val id: String,
     override val role: Role,
-    override val uid: Long = 0
 ) : Principal() {
+    @Suppress("OverridingDeprecatedMember")
+    override val uid: Long = -1
     init {
         validate()
         require(id.startsWith("_")) { "A service's ID should start with a single underscore" }
+    }
+}
+
+data class ProviderPrincipal(
+    override val id: String,
+) : Principal() {
+    override val role: Role = Role.PROVIDER
+
+    @Suppress("OverridingDeprecatedMember")
+    override val uid: Long = -1
+
+    init {
+        validate()
+        require(id.startsWith(AuthProviders.PROVIDER_PREFIX)) {
+            "A provider must start with the provider prefix ('${AuthProviders.PROVIDER_PREFIX}')"
+        }
     }
 }
 
@@ -185,6 +203,10 @@ interface WithOptionalCsrfToken {
 
 interface WithOptionalRefreshToken {
     val refreshToken: String?
+}
+
+data class RefreshToken(override val refreshToken: String) : WithOptionalRefreshToken {
+    override fun toString(): String = "RefreshToken()"
 }
 
 data class AccessToken(override val accessToken: String) : WithAccessToken {

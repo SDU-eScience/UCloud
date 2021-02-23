@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.BasicUploader.log
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
@@ -12,19 +11,17 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import dk.sdu.cloud.task.api.runTask
-import kotlinx.coroutines.runBlocking
-import org.kamranzafar.jtar.TarEntry
-import org.kamranzafar.jtar.TarInputStream
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream
 import org.slf4j.Logger
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.GZIPInputStream
-import java.util.zip.ZipEntry
 import java.util.zip.ZipException
-import java.util.zip.ZipInputStream
 import kotlin.reflect.KClass
 
 sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: KClass<Ctx>) {
@@ -80,15 +77,16 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
             sequence {
                 yield(ArchiveEntry.Directory(path))
 
-                ZipInputStream(stream).use { zipStream ->
-                    var entry: ZipEntry? = zipStream.nextEntry
+                ZipArchiveInputStream(stream).use { zipStream ->
+                    var entry: ZipArchiveEntry? = zipStream.nextZipEntry
                     while (entry != null) {
                         val initialTargetPath = joinPath(path, entry.name)
+                        val cappedStream = CappedInputStream(zipStream, entry.size)
                         if (entry.name.contains("__MACOSX") ||
                             entry.name.contains(".DS_Store")
                         ) {
                             log.debug("Skipping Entry: " + entry.name)
-                            entry = zipStream.nextEntry
+                            entry = zipStream.nextZipEntry
                         } else {
                             yieldDirectoriesUntilTarget(initialTargetPath)
 
@@ -97,11 +95,11 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
                             } else {
                                 yield(ArchiveEntry.File(
                                     path = initialTargetPath,
-                                    stream = zipStream,
-                                    dispose = {zipStream.closeEntry()}
+                                    stream = cappedStream,
+                                    dispose = { cappedStream.skipRemaining() }
                                 ))
                             }
-                            entry = zipStream.nextEntry
+                            entry = zipStream.nextZipEntry
                         }
                     }
                 }
@@ -146,8 +144,8 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
             archiveName,
             backgroundScope,
             sequence {
-                TarInputStream(GZIPInputStream(stream)).use {
-                    var entry: TarEntry? = it.nextEntry
+                TarArchiveInputStream(GZIPInputStream(stream)).use {
+                    var entry: TarArchiveEntry? = it.nextTarEntry
                     while (entry != null) {
                         val initialTargetPath = joinPath(path, entry.name)
                         val cappedStream = CappedInputStream(it, entry.size)
@@ -174,7 +172,7 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
                             }
                         }
 
-                        entry = it.nextEntry
+                        entry = it.nextTarEntry
                     }
                 }
             }

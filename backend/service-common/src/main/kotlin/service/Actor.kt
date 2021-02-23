@@ -2,6 +2,10 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.project
+import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityPrincipalOrNull
 
 // Note(Dan): Trying out an abstraction for who is performing an action within the system.
 sealed class Actor {
@@ -13,19 +17,25 @@ sealed class Actor {
     object System : Actor() {
         override val username: String
             get() = throw IllegalStateException("No username associated with system")
+
+        override fun toString(): String = "Actor.System"
     }
 
     /**
      * Performed by the system on behalf of a user.
      * This should use permission checks against the user.
      */
-    class SystemOnBehalfOfUser(override val username: String) : Actor()
+    class SystemOnBehalfOfUser(override val username: String) : Actor() {
+        override fun toString(): String = "Actor.SystemOnBehalfOfUser($username)"
+    }
 
     /**
      * Performed by the user. Should check permissions against the user.
      */
     class User(val principal: SecurityPrincipal) : Actor() {
         override val username = principal.username
+
+        override fun toString(): String = "Actor.User(${username}, ${principal.role})"
     }
 
     companion object {
@@ -45,3 +55,8 @@ fun SecurityPrincipal.toActor(): Actor.User = Actor.User(this)
 
 fun SecurityPrincipal?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
 fun SecurityPrincipalToken?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
+
+data class ActorAndProject(val actor: Actor, val project: String?)
+
+val CallHandler<*, *, *>.actorAndProject: ActorAndProject
+    get() = ActorAndProject(ctx.securityPrincipalOrNull.toActorOrGuest(), ctx.project)

@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher.requireK8s
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.project.api.CreateProjectRequest
@@ -91,7 +92,7 @@ suspend fun reserveCredits(
     ).orThrow()
     return id
 }
-@Ignore
+
 class AccountingTest : IntegrationTest() {
     @Test
     fun `test simple case accounting`() = t {

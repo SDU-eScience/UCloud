@@ -2,16 +2,14 @@ package dk.sdu.cloud.activity.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.WithScrollRequest
 import dk.sdu.cloud.service.WithScrollResult
 import io.ktor.http.HttpMethod
 
 typealias ActivityDescriptions = Activity
 
+@TSTopLevel
 object Activity : CallDescriptionContainer("activity") {
     val baseContext = "/api/activity"
 

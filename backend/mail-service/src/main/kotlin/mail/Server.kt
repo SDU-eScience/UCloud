@@ -31,7 +31,7 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
             try {
                 val principal = SecurityPrincipal("_password-reset", Role.SERVICE, "", "", 0)
                 runBlocking {
-                    mailService.send(principal, "dthrane@imada.sdu.dk", "Test", "Testing...", true, true)
+                    mailService.send(principal, "support@imada.sdu.dk", "Test", "Testing...", true, true)
                 }
             } finally {
                 exitProcess(0)
