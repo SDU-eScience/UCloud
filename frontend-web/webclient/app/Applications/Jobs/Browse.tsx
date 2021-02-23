@@ -148,22 +148,24 @@ export const Browse: React.FunctionComponent = () => {
                                     <JobStateIcon state={job.status.state} isExpired={isExpired} mr="8px" />
                                     <Flex mt="-3px">{stateToTitle(job.status.state)}</Flex>
                                 </Flex>
-                                <Box width="42px">
-                                    <Operations
-                                        selected={toggleSet.checked.items}
-                                        location="IN_ROW"
-                                        entityNameSingular={entityName}
-                                        operations={jobOperations}
-                                        row={job}
-                                        extra={{
-                                            invokeCommand, onFinish: () => {
-                                                const toRemove = toggleSet.checked.items.filter(it => !isJobStateTerminal(it.status.state));
-                                                for (const job of toRemove) toggleSet.toggle(job);
-                                                refresh();
-                                            }
-                                        }}
-                                    />
-                                </Box>
+                                {jobOperations.length > 1 ?
+                                    <Box width="42px">
+                                        <Operations
+                                            selected={toggleSet.checked.items}
+                                            location="IN_ROW"
+                                            entityNameSingular={entityName}
+                                            operations={jobOperations}
+                                            row={job}
+                                            extra={{
+                                                invokeCommand, onFinish: () => {
+                                                    const toRemove = toggleSet.checked.items.filter(it => !isJobStateTerminal(it.status.state));
+                                                    for (const job of toRemove) toggleSet.toggle(job);
+                                                    refresh();
+                                                }
+                                            }}
+                                        />
+                                    </Box>
+                                    : null}
                             </>}
                         />
                     )
