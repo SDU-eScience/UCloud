@@ -21,12 +21,9 @@ import {
     theme,
     Tooltip
 } from "ui-components";
-import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {
-    grantsRetrieveProducts,
-    GrantsRetrieveProductsResponse,
     ProductArea,
-    ProductCategory,
     productCategoryEquals,
     productToArea,
     ProductCategoryId,
@@ -80,7 +77,6 @@ import ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {emptyPage} from "DefaultObjects";
 import {Spacer} from "ui-components/Spacer";
-import {buildQueryString} from "Utilities/URIUtilities";
 
 export const RequestForSingleResourceWrapper = styled.div`
   ${Icon} {
@@ -221,7 +217,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
 
         case RequestTarget.NEW_PROJECT:
         case RequestTarget.PERSONAL_PROJECT: {
-            const {projectId} = useParams<{projectId: string}>();
+            const {projectId} = useParams<{ projectId: string }>();
             targetProject = projectId;
             const [w, fetchWallets] = useCloudAPI<RetrieveBalanceResponse>(
                 {noop: true},
@@ -240,7 +236,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         }
 
         case RequestTarget.VIEW_APPLICATION: {
-            const {appId} = useParams<{appId: string}>();
+            const {appId} = useParams<{ appId: string }>();
 
             const [grantApplication, fetchGrantApplication] = useCloudAPI<ViewGrantApplicationResponse>(
                 {noop: true},
@@ -1006,95 +1002,95 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                             <TableCell verticalAlign="top">
                                                 Project Type
                                             </TableCell>
-                                                    <TableCell>
-                                                        <table>
-                                                            <tbody>
-                                                                <tr>
-                                                                    <td>Personal</td>
-                                                                    <td width="100%">
-                                                                        {state.recipient.type === "personal" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td width="100%">New Project</td>
-                                                                    <td>
-                                                                        {state.recipient.type === "new_project" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td width="100%">Existing Project</td>
-                                                                    <td>
-                                                                        {state.recipient.type === "existing_project" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
-                                                    <TableCell>
-                                                        {
-                                                            state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                                state.editingApplication!.status === GrantApplicationStatus.APPROVED ? (state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy) :
-                                                                    state.editingApplication!.status === GrantApplicationStatus.REJECTED ? (state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
-                                                                        (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
-                                                        }
-                                                        <ButtonGroup>
-                                                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                            <TableCell>
+                                                <table>
+                                                    <tbody>
+                                                    <tr>
+                                                        <td>Personal</td>
+                                                        <td width="100%">
+                                                            {state.recipient.type === "personal" ?
+                                                                <Icon name={"check"} color={"green"}/> :
+                                                                <Icon name={"close"} color={"red"}/>}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td width="100%">New Project</td>
+                                                        <td>
+                                                            {state.recipient.type === "new_project" ?
+                                                                <Icon name={"check"} color={"green"}/> :
+                                                                <Icon name={"close"} color={"red"}/>}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td width="100%">Existing Project</td>
+                                                        <td>
+                                                            {state.recipient.type === "existing_project" ?
+                                                                <Icon name={"check"} color={"green"}/> :
+                                                                <Icon name={"close"} color={"red"}/>}
+                                                        </td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
+                                            <TableCell>
+                                                {
+                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
+                                                        state.editingApplication!.status === GrantApplicationStatus.APPROVED ? (state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy) :
+                                                            state.editingApplication!.status === GrantApplicationStatus.REJECTED ? (state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
+                                                                (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
+                                                }
+                                                <ButtonGroup>
+                                                    {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                                        <>
+                                                            {state.approver && !grantFinalized ?
                                                                 <>
-                                                                    {state.approver && !grantFinalized ?
-                                                                        <>
-                                                                            <Button
-                                                                                color="green"
-                                                                                onClick={approveRequest}
-                                                                                disabled={!isLocked}
-                                                                            >
-                                                                                Approve
-                                                                            </Button>
-                                                                            <Button
-                                                                                color="red"
-                                                                                onClick={rejectRequest}
-                                                                                disabled={!isLocked}
-                                                                            >
-                                                                                Reject
-                                                                            </Button>
-                                                                            {state.editingApplication?.grantRecipient!.type !== "existing_project" ?
-                                                                                <Button
-                                                                                    color="blue"
-                                                                                    onClick={() => setTransferringApplication(true)}
-                                                                                    disabled={!isLocked}
-                                                                                >
-                                                                                    Transfer to other project
-                                                                                </Button> : null
-                                                                            }
-                                                                        </> : null
+                                                                    <Button
+                                                                        color="green"
+                                                                        onClick={approveRequest}
+                                                                        disabled={!isLocked}
+                                                                    >
+                                                                        Approve
+                                                                    </Button>
+                                                                    <Button
+                                                                        color="red"
+                                                                        onClick={rejectRequest}
+                                                                        disabled={!isLocked}
+                                                                    >
+                                                                        Reject
+                                                                    </Button>
+                                                                    {state.editingApplication?.grantRecipient!.type !== "existing_project" ?
+                                                                        <Button
+                                                                            color="blue"
+                                                                            onClick={() => setTransferringApplication(true)}
+                                                                            disabled={!isLocked}
+                                                                        >
+                                                                            Transfer to other project
+                                                                        </Button> : null
                                                                     }
-                                                                    {!state.approver && !grantFinalized ?
-                                                                        <>
-                                                                            <Button
-                                                                                color="red"
-                                                                                onClick={closeRequest}
-                                                                                disabled={!isLocked}
-                                                                            >
-                                                                                Withdraw
-                                                                            </Button>
-                                                                        </> : null
-                                                                    }
-                                                                </>
-                                                            )}
-                                                        </ButtonGroup>
-                                                        {target !== RequestTarget.VIEW_APPLICATION || isLocked ||
-                                                            grantFinalized ? null :
-                                                            <Text>
-                                                                You must finish making changes before you can
-                                                                change the status of this application
+                                                                </> : null
+                                                            }
+                                                            {!state.approver && !grantFinalized ?
+                                                                <>
+                                                                    <Button
+                                                                        color="red"
+                                                                        onClick={closeRequest}
+                                                                        disabled={!isLocked}
+                                                                    >
+                                                                        Withdraw
+                                                                    </Button>
+                                                                </> : null
+                                                            }
+                                                        </>
+                                                    )}
+                                                </ButtonGroup>
+                                                {target !== RequestTarget.VIEW_APPLICATION || isLocked ||
+                                                grantFinalized ? null :
+                                                    <Text>
+                                                        You must finish making changes before you can
+                                                        change the status of this application
                                                     </Text>
                                                 }
 
@@ -1272,12 +1268,18 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 interface TransferApplicationPromptProps {
     isActive: boolean;
     grantId: number;
+
     close(): void;
+
     transfer(toProjectId: string): Promise<void>;
 }
 
 function TransferApplicationPrompt({isActive, close, transfer, grantId}: TransferApplicationPromptProps) {
-    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(findAffiliations({page: 0, itemsPerPage: 100, grantId}), emptyPage);
+    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(findAffiliations({
+        page: 0,
+        itemsPerPage: 100,
+        grantId
+    }), emptyPage);
 
     /* FIXME: Work-around for showing modal AND dialog. Change to hold-to-confirm button when merged with scheduling */
     const [isConfirming, setIsConfirming] = useState(false);
@@ -1304,7 +1306,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
                     {projects.data.items.map(it =>
                         <Spacer
                             key={it.projectId}
-                            left={<Box key={it.projectId} >{it.title}</Box>}
+                            left={<Box key={it.projectId}>{it.title}</Box>}
                             right={<Button my="3px" width="115px" height="40px" onClick={() => {
                                 setIsConfirming(true);
                                 addStandardDialog({
