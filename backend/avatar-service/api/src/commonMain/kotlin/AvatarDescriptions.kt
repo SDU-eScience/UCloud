@@ -5,10 +5,12 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
+import kotlinx.serialization.Serializable
 
 /**
  * A serialized avatar. Should be used whenever going over the wire.
  */
+@Serializable
 data class SerializedAvatar(
     val top: String,
     val topAccessory: String,
@@ -33,10 +35,12 @@ typealias FindRequest = Unit
 
 typealias FindResponse = SerializedAvatar
 
+@Serializable
 data class FindBulkRequest(
     val usernames: List<String>
 )
 
+@Serializable
 data class FindBulkResponse(
     val avatars: Map<String, SerializedAvatar>
 )

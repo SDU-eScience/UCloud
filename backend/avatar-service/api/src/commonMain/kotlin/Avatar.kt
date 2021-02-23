@@ -1,5 +1,8 @@
 package dk.sdu.cloud.avatar.api
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Avatar(
     val top: Top,
     val topAccessory: TopAccessory,
@@ -16,6 +19,7 @@ data class Avatar(
     val hatColor: HatColor
 )
 
+@Serializable
 enum class Top(val string: String) {
     NO_HAIR("NoHair"),
     EYEPATCH("Eyepatch"), // Excludes accessories
@@ -60,6 +64,7 @@ enum class Top(val string: String) {
     }
 }
 
+@Serializable
 enum class TopAccessory(val string: String) {
     BLANK("Blank"),
     KURT("Kurt"),
@@ -76,6 +81,7 @@ enum class TopAccessory(val string: String) {
     }
 }
 
+@Serializable
 enum class HairColor(val string: String) {
     AUBURN("Auburn"),
     BLACK("Black"),
@@ -95,6 +101,7 @@ enum class HairColor(val string: String) {
     }
 }
 
+@Serializable
 enum class HatColor(val string: String) {
     BLACK("Black"),
     BLUE01("Blue01"),
@@ -119,6 +126,7 @@ enum class HatColor(val string: String) {
     }
 }
 
+@Serializable
 enum class FacialHair(val string: String) {
     BLANK("Blank"),
     BEARD_MEDIUM("BeardMedium"),
@@ -134,6 +142,7 @@ enum class FacialHair(val string: String) {
     }
 }
 
+@Serializable
 enum class FacialHairColor(val string: String) {
     AUBURN("Auburn"),
     BLACK("Black"),
@@ -151,6 +160,7 @@ enum class FacialHairColor(val string: String) {
     }
 }
 
+@Serializable
 enum class Clothes(val string: String) {
     BLAZER_SHIRT("BlazerShirt"),
     BLAZER_SWEATER("BlazerSweater"),
@@ -169,6 +179,7 @@ enum class Clothes(val string: String) {
     }
 }
 
+@Serializable
 enum class ColorFabric(val string: String) {
     BLACK("Black"),
     BLUE01("Blue01"),
@@ -193,6 +204,7 @@ enum class ColorFabric(val string: String) {
     }
 }
 
+@Serializable
 enum class Eyes(val string: String) {
     CLOSE("Close"),
     CRY("Cry"),
@@ -214,6 +226,7 @@ enum class Eyes(val string: String) {
     }
 }
 
+@Serializable
 enum class Eyebrows(val string: String) {
     ANGRY("Angry"),
     ANGRY_NATURAL("AngryNatural"),
@@ -235,6 +248,7 @@ enum class Eyebrows(val string: String) {
     }
 }
 
+@Serializable
 enum class MouthTypes(val string: String) {
     CONCERNED("Concerned"),
     DEFAULT("Default"),
@@ -256,6 +270,7 @@ enum class MouthTypes(val string: String) {
     }
 }
 
+@Serializable
 enum class SkinColors(val string: String) {
     TANNED("Tanned"),
     YELLOW("Yellow"),
@@ -272,6 +287,7 @@ enum class SkinColors(val string: String) {
     }
 }
 
+@Serializable
 enum class ClothesGraphic(val string: String) {
     BAT("Bat"),
     CUMBIA("Cumbia"),

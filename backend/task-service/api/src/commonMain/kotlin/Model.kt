@@ -1,9 +1,12 @@
 package dk.sdu.cloud.task.api
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class Task(
     val jobId: String,
     val owner: String,
@@ -15,6 +18,7 @@ data class Task(
     val modifiedAt: Long
 )
 
+@Serializable
 data class TaskUpdate(
     val jobId: String,
     val newTitle: String? = null,
@@ -30,9 +34,11 @@ interface Speed {
     val title: String
     val speed: Double
     val unit: String
-    val asText: String get() = "${String.format("%.3f", speed)} $unit"
+    val asText: String
+        get() = "${String.format("%.3f", speed)} $unit"
 }
 
+@Serializable
 data class SimpleSpeed(
     override val title: String,
     override var speed: Double,
@@ -49,6 +55,7 @@ class MeasuredSpeedInteger(
     private var counter: Long = 0
     private var isUpdating = false
     private var isFirstUpdate = true
+    private val mutex = Mutex()
 
     override var speed: Double = 0.0
         private set
@@ -60,8 +67,8 @@ class MeasuredSpeedInteger(
     override val asText: String
         get() = customFormatter?.invoke(speed) ?: super.asText
 
-    fun start() {
-        synchronized(this) {
+    suspend fun start() {
+        mutex.withLock {
             lastUpdate = Time.now()
             counter = 0
             isFirstUpdate = true
@@ -72,12 +79,12 @@ class MeasuredSpeedInteger(
         counter += count
     }
 
-    private fun update() {
+    private suspend fun update() {
         if (isUpdating) return
         val now = Time.now()
         if (now != -1L && now - lastUpdate < 1_000 && !isFirstUpdate) return
 
-        synchronized(this) {
+        mutex.withLock {
             if (!isUpdating) {
                 isUpdating = true
                 val delta = Time.now() - lastUpdate
@@ -96,6 +103,7 @@ class MeasuredSpeedInteger(
     }
 }
 
+@Serializable
 data class Progress(
     var title: String,
     var current: Int,

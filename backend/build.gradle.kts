@@ -46,6 +46,7 @@ subprojects {
 
     if (isService) {
         apply(plugin = "org.jetbrains.kotlin.multiplatform")
+        apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
         apply(plugin = "application")
 
         extensions.configure<KotlinMultiplatformExtension>("kotlin") {

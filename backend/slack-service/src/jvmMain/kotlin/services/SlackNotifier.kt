@@ -17,8 +17,10 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import io.ktor.util.KtorExperimentalAPI
-import org.slf4j.Logger
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 
+@Serializable
 private data class SlackMessage(val text: String)
 
 class SlackNotifier(
@@ -57,6 +59,7 @@ class SlackNotifier(
         attemptSend(message)
     }
 
+    @OptIn(KtorExperimentalAPI::class)
     private suspend fun attemptSend(message: String) {
         var retries = 0
         while (true) {
@@ -68,7 +71,7 @@ class SlackNotifier(
                 httpClient.request<HttpResponse>(hook) {
                     method = HttpMethod.Post
                     body = TextContent(
-                        defaultMapper.writeValueAsString(SlackMessage(message)),
+                        defaultMapper.encodeToString(SlackMessage(message)),
                         ContentType.Application.Json
                     )
                 }
@@ -95,6 +98,6 @@ class SlackNotifier(
     }
 
     companion object : Loggable {
-        override val log: Logger = logger()
+        override val log = logger()
     }
 }
