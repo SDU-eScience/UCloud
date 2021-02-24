@@ -1,6 +1,0 @@
----
-resources:
-- name: "local_route"
-  '@type': "type.googleapis.com/envoy.api.v2.RouteConfiguration"
-  virtual_hosts: []
-version_info: "e904c069-f0fd-4f19-99ed-7dabd4ea21e6"

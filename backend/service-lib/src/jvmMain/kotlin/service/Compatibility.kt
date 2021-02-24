@@ -10,7 +10,6 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequest
 import dk.sdu.cloud.WithPaginationRequestV2
 
-typealias Actor = Actor
 typealias PageV2<T> = PageV2<T>
 typealias WithPaginationRequestV2 = WithPaginationRequestV2
 typealias PaginationRequestV2Consistency = PaginationRequestV2Consistency

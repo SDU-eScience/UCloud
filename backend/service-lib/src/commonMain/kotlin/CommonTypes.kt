@@ -33,3 +33,6 @@ data class FindByIntId(val id: Int)
 
 @Serializable
 data class FindByDoubleId(val id: Double)
+
+@Serializable
+class BinaryStream

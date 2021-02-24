@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.ResultSet
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.safeUsername
