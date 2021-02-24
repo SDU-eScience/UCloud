@@ -11,7 +11,7 @@ import dk.sdu.cloud.grant.api.ListGiftsResponse
 import dk.sdu.cloud.grant.services.GiftService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.toActor
+import dk.sdu.cloud.toActor
 import io.ktor.http.HttpStatusCode
 
 class GiftController(

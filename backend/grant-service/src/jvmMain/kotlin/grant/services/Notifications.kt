@@ -9,6 +9,7 @@ import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
+import kotlinx.serialization.json.JsonObject
 
 data class GrantNotificationMessage(
     val subject: (projectTitle: String) -> String,
@@ -27,7 +28,7 @@ class NotificationService(
     private val serviceClient: AuthenticatedClient
 ) {
     @OptIn(ExperimentalStdlibApi::class)
-    suspend fun notify(notification: GrantNotification, invokedBy: String, meta: Map<String, Any?> = emptyMap()) {
+    suspend fun notify(notification: GrantNotification, invokedBy: String, meta: JsonObject = JsonObject(emptyMap())) {
         with(notification) {
             val title = projects.ancestors.get(application.resourcesOwnedBy)?.last()?.title ?: return
 

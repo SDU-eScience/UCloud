@@ -1,12 +1,12 @@
 package dk.sdu.cloud.grant.services
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.PaginationRequest
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Cache
-import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.HttpStatusCode
 

@@ -1,16 +1,19 @@
 package dk.sdu.cloud.grant.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.grant.api.*
+import dk.sdu.cloud.mapItemsNotNull
 import dk.sdu.cloud.project.api.LookupAdminsRequest
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
+import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import java.io.ByteArrayOutputStream
 
@@ -416,17 +419,22 @@ class SettingsService(
         }
     }
 
-    suspend fun uploadLogo(db: DBContext, user: Actor, projectId: String, stream: BinaryStream.Ingoing) {
+    suspend fun uploadLogo(
+        db: DBContext,
+        user: Actor,
+        projectId: String,
+        streamLength: Long?,
+        channel: ByteReadChannel,
+    ) {
         if (!projects.isAdminOfProject(projectId, user)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
         }
 
-        val streamLength = stream.length
         if (streamLength == null || streamLength > LOGO_MAX_SIZE) {
             throw RPCException("Logo is too large", HttpStatusCode.BadRequest)
         }
         val imageBytesStream = ByteArrayOutputStream(streamLength.toInt())
-        stream.channel.copyTo(imageBytesStream)
+        channel.copyTo(imageBytesStream)
         val imageBytes = imageBytesStream.toByteArray()
 
         db.withSession { session ->
@@ -470,6 +478,7 @@ fun UserCriteria.toSqlApplicantId(): String {
         is UserCriteria.Anyone -> ""
         is UserCriteria.EmailDomain -> domain
         is UserCriteria.WayfOrganization -> org
+        else -> error("unknown user criteria")
     }
 }
 
@@ -478,6 +487,7 @@ fun UserCriteria.toSqlType(): String {
         is UserCriteria.Anyone -> UserCriteria.ANYONE_TYPE
         is UserCriteria.EmailDomain -> UserCriteria.EMAIL_TYPE
         is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
+        else -> error("unknown user criteria")
     }
 }
 

@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.Serializable
 
 /**
  * @see Gifts
@@ -41,6 +42,7 @@ interface Gift {
  * @see Gift
  * @see Gifts
  */
+@Serializable
 data class GiftWithId(
     val id: Long,
     override val resourcesOwnedBy: String,
@@ -55,6 +57,7 @@ data class GiftWithId(
  * @see Gift
  * @see Gifts
  */
+@Serializable
 data class GiftWithCriteria(
     val id: Long,
     override val resourcesOwnedBy: String,
@@ -69,19 +72,23 @@ data class GiftWithCriteria(
     }
 }
 
+@Serializable
 data class ClaimGiftRequest(val giftId: Long)
 typealias ClaimGiftResponse = Unit
 
 typealias CreateGiftRequest = GiftWithCriteria
 typealias CreateGiftResponse = FindByLongId
 
+@Serializable
 data class DeleteGiftRequest(val giftId: Long)
 typealias DeleteGiftResponse = Unit
 
 typealias AvailableGiftsRequest = Unit
+@Serializable
 data class AvailableGiftsResponse(val gifts: List<GiftWithId>)
 
 typealias ListGiftsRequest = Unit
+@Serializable
 data class ListGiftsResponse(val gifts: List<GiftWithCriteria>)
 
 /**

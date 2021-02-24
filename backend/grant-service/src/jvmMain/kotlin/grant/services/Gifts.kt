@@ -1,14 +1,14 @@
 package dk.sdu.cloud.grant.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.TransactionType
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.grant.api.*
-import dk.sdu.cloud.service.Actor
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 
 object GiftTable : SQLTable("gifts") {

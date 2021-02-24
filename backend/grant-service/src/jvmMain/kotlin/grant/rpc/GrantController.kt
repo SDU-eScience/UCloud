@@ -4,7 +4,6 @@ import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.grant.services.ApplicationService
 import dk.sdu.cloud.grant.services.CommentService
@@ -13,10 +12,14 @@ import dk.sdu.cloud.grant.services.TemplateService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.toActor
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.toActor
+import io.ktor.application.*
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.request.*
+import io.ktor.response.*
 import io.ktor.util.cio.*
+import io.ktor.utils.io.*
 import java.io.ByteArrayInputStream
 
 class GrantController(
@@ -171,19 +174,30 @@ class GrantController(
         }
 
         implement(Grants.uploadLogo) {
-            ok(settings.uploadLogo(db, ctx.securityPrincipal.toActor(), request.projectId, request.data.asIngoing()))
+            ok(
+                settings.uploadLogo(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    request.projectId,
+                    (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull(),
+                    (ctx as HttpCall).call.request.receiveChannel()
+                )
+            )
         }
 
         implement(Grants.fetchLogo) {
             val logo = settings.fetchLogo(db, request.projectId)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            ok(
-                BinaryStream.outgoingFromChannel(
-                    ByteArrayInputStream(logo).toByteReadChannel(),
-                    logo.size.toLong(),
-                    ContentType.Image.Any
-                )
+
+            (ctx as HttpCall).call.respond(
+                object : OutgoingContent.ReadChannelContent() {
+                    override val contentLength = logo.size.toLong()
+                    override val contentType = ContentType.Image.Any
+                    override fun readFrom(): ByteReadChannel = ByteArrayInputStream(logo).toByteReadChannel()
+                }
             )
+
+            okContentAlreadyDelivered()
         }
 
         implement(Grants.uploadDescription) {

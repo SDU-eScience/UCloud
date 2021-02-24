@@ -1,12 +1,12 @@
 package dk.sdu.cloud.grant.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.ReadTemplatesResponse
 import dk.sdu.cloud.grant.api.UploadTemplatesRequest
 import dk.sdu.cloud.grant.api.UserCriteria
-import dk.sdu.cloud.service.Actor
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 
 object TemplateTable : SQLTable("templates") {

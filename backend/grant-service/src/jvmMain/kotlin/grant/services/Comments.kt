@@ -1,15 +1,16 @@
 package dk.sdu.cloud.grant.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationWithComments
 import dk.sdu.cloud.grant.api.Comment
 import dk.sdu.cloud.grant.utils.newCommentTemplate
-import dk.sdu.cloud.service.Actor
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
-import org.apache.http.HttpStatus
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
@@ -58,7 +59,7 @@ class CommentService(
                 )
             ),
             actor.safeUsername(),
-            mapOf("appId" to application.id)
+            JsonObject(mapOf("appId" to JsonPrimitive(application.id))),
         )
     }
 

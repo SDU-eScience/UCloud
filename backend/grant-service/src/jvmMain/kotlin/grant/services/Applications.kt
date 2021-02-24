@@ -1,9 +1,11 @@
 package dk.sdu.cloud.grant.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
@@ -16,10 +18,15 @@ import dk.sdu.cloud.grant.utils.autoApproveTemplate
 import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
 import dk.sdu.cloud.grant.utils.responseTemplate
 import dk.sdu.cloud.grant.utils.updatedTemplate
+import dk.sdu.cloud.offset
 import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 import java.util.*
 
 object ApplicationTable : SQLTable("applications") {
@@ -99,6 +106,7 @@ class ApplicationService(
                                     is GrantRecipient.PersonalProject -> grantRecipient.username
                                     is GrantRecipient.ExistingProject -> grantRecipient.projectId
                                     is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                                    else -> error("unknown grant recipient")
                                 }
                             )
 
@@ -107,6 +115,7 @@ class ApplicationService(
                                     is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
                                     is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
                                     is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
+                                    else -> error("unknown grant recipient")
                                 }
                             )
                         }
@@ -162,7 +171,10 @@ class ApplicationService(
                 userMessage = null
             ),
             actor.safeUsername(),
-            meta = mapOf("grantRecipient" to returnedApplication.grantRecipient, "appId" to returnedApplication.id)
+            meta = JsonObject(mapOf(
+                "grantRecipient" to defaultMapper.encodeToJsonElement(returnedApplication.grantRecipient),
+                "appId" to JsonPrimitive(returnedApplication.id),
+            ))
         )
 
         return returnedId
@@ -201,6 +213,7 @@ class ApplicationService(
                 is GrantRecipient.PersonalProject -> null
                 is GrantRecipient.ExistingProject -> recipient.projectId
                 is GrantRecipient.NewProject -> null
+                else -> error("unknown grant recipient")
             }
 
             if (recipientProjectId != null) {
@@ -325,7 +338,10 @@ class ApplicationService(
                 )
             ),
             "_ucloud",
-            mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
+            JsonObject(mapOf(
+                "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
+                "appId" to JsonPrimitive(application.id),
+            ))
         )
         return true
     }
@@ -425,7 +441,10 @@ class ApplicationService(
                 )
             ),
             actor.safeUsername(),
-            meta = mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
+            meta = JsonObject(mapOf(
+                "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
+                "appId" to JsonPrimitive(application.id),
+            ))
         )
     }
 
@@ -507,7 +526,10 @@ class ApplicationService(
                 )
             ),
             actor.safeUsername(),
-            mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
+            JsonObject(mapOf(
+                "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
+                "appId" to JsonPrimitive(application.id),
+            ))
         )
     }
 
@@ -770,12 +792,14 @@ class ApplicationService(
                     is GrantRecipient.ExistingProject ->
                         projects.principalInvestigators.get(grantRecipient.projectId) ?: requestedBy
                     is GrantRecipient.NewProject -> requestedBy
+                    else -> error("unknown grant recipient")
                 },
                 when (grantRecipient) {
                     is GrantRecipient.PersonalProject -> grantRecipient.username
                     is GrantRecipient.ExistingProject ->
                         projects.ancestors.get(grantRecipient.projectId)?.last()?.title ?: grantRecipient.projectId
                     is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                    else -> error("unknown grant recipient")
                 },
                 it.getField(ApplicationTable.createdAt).toDate().time,
                 it.getField(ApplicationTable.updatedAt).toDate().time,
