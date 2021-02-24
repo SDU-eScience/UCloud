@@ -5,8 +5,12 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class PasswordResetRequest(val email: String)
+
+@Serializable
 data class NewPasswordRequest(val token: String, val newPassword: String)
 
 @TSTopLevel
