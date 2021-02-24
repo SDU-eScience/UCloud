@@ -6,7 +6,7 @@ import dk.sdu.cloud.*
 import io.ktor.http.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.descriptors.elementDescriptors
+import kotlinx.serialization.descriptors.elementNames
 import kotlinx.serialization.serializer
 
 object UCloudApi {
@@ -59,6 +59,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(
 
 private fun CallDescriptionContainer.httpCreateExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     // NOTE: We use a separate data model which only contains the model specification (i.e. without additional
@@ -111,8 +112,8 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
 
         if (R::class != Unit::class) {
             params {
-                serializer<R>().descriptor.elementDescriptors.forEach {
-                    +boundTo(it.serialName)
+                serializer<R>().descriptor.elementNames.forEach {
+                    +boundTo(it)
                 }
             }
         }
@@ -121,6 +122,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
 
 private fun CallDescriptionContainer.httpBrowseExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     run {
@@ -179,8 +181,8 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
 
         if (R::class != Unit::class) {
             params {
-                serializer<R>().descriptor.elementDescriptors.forEach {
-                    +boundTo(it.serialName)
+                serializer<R>().descriptor.elementNames.forEach {
+                    +boundTo(it)
                 }
             }
         }
@@ -189,6 +191,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
 
 private fun CallDescriptionContainer.httpRetrieveExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     run {
@@ -204,7 +207,7 @@ private fun CallDescriptionContainer.httpRetrieveExample() {
         // Retrieve by one or more unique parameters
         data class ResourcesRetrieveRequest(
             val id: String? = null, // optional parameters should have a default value in Kotlin code
-            val number: Int? = null
+            val number: Int? = null,
         ) {
             init {
                 // In this case `number` also uniquely identifies the resource. The code must reject requests
@@ -278,6 +281,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
 
 private fun CallDescriptionContainer.httpSearchExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     run {
@@ -326,7 +330,7 @@ private fun CallDescriptionContainer.httpSearchExample() {
  *
  * __⚠ WARNING:__ All request items listed in the bulk request must be treated as a _single_ transaction. This means
  * that either the entire request succeeds, or the entire request fails.
-*
+ *
  * ---
  *
  * @example [httpUpdateExample]
@@ -355,6 +359,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpUpdate(
 
 private fun CallDescriptionContainer.httpUpdateExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     data class ResourcesIncrementRequestItem(val incrementStep: Int = 1)
@@ -414,6 +419,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpDelete(
 
 private fun CallDescriptionContainer.httpDeleteExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     val delete = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("delete") {
@@ -467,6 +473,7 @@ inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
 
 private fun CallDescriptionContainer.httpVerifyExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     // Note: We send the entire resource in the request to make sure both sides have enough information to verify
