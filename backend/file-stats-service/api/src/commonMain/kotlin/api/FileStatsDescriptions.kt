@@ -5,14 +5,19 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.api.StorageFile
 import io.ktor.http.HttpMethod
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class UsageRequest(val path: String? = null)
+@Serializable
 data class UsageResponse(val bytes: Long, val path: String)
 
+@Serializable
 data class DirectorySizesRequest(
     val paths: List<String>
 )
 
+@Serializable
 data class DirectorySizesResponse(
     val size: Long
 )
