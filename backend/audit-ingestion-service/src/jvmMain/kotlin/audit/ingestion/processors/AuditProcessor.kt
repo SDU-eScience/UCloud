@@ -6,6 +6,9 @@ import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.service.Loggable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.*
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.RequestOptions
@@ -38,11 +41,17 @@ class AuditProcessor(
                 .asSequence()
                 .mapNotNull { document ->
                     runCatching {
-                        val tree = defaultMapper.readTree(document)
-                        val requestName = tree["requestName"].textValue()!!
-                        (tree as ObjectNode).put("@timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
+                        val tree = defaultMapper.decodeFromString<JsonObject>(document)
+                        val requestName = (tree["requestName"] as JsonPrimitive).content
+                        val newTree = buildJsonObject {
+                            for (e in tree) {
+                                put(e.key, e.value)
+                            }
 
-                        Pair(requestName, defaultMapper.writeValueAsString(tree))
+                            put("@timestamp", DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
+                        }
+
+                        Pair(requestName, defaultMapper.encodeToJsonElement(newTree))
                     }.getOrNull()
                 }
                 .groupBy { (requestName, _) -> requestName }
@@ -55,7 +64,7 @@ class AuditProcessor(
                     batch
                         .map { (_, doc) ->
                             IndexRequest(indexName).apply {
-                                source(doc.toByteArray(Charsets.UTF_8), XContentType.JSON)
+                                source(defaultMapper.encodeToString(doc).encodeToByteArray(), XContentType.JSON)
                             }
                         }
                 }
