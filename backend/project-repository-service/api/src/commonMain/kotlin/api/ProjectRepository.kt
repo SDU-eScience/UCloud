@@ -1,14 +1,11 @@
 package dk.sdu.cloud.project.repository.api
 
-import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.Serializable
 
 typealias FileRights = dk.sdu.cloud.file.api.AccessRight
 
@@ -18,6 +15,7 @@ private fun verifyRepositoryName(name: String) {
     if (name.contains("\n")) throw RPCException("Name cannot contain line-breaks", HttpStatusCode.BadRequest)
 }
 
+@Serializable
 data class RepositoryCreateRequest(val name: String) {
     init {
         verifyRepositoryName(name)
@@ -26,6 +24,7 @@ data class RepositoryCreateRequest(val name: String) {
 
 typealias RepositoryCreateResponse = Unit
 
+@Serializable
 data class RepositoryUpdateRequest(val oldName: String, val newName: String) {
     init {
         verifyRepositoryName(oldName)
@@ -35,6 +34,7 @@ data class RepositoryUpdateRequest(val oldName: String, val newName: String) {
 
 typealias RepositoryUpdateResponse = Unit
 
+@Serializable
 data class RepositoryDeleteRequest(val name: String) {
     init {
         verifyRepositoryName(name)
@@ -43,8 +43,10 @@ data class RepositoryDeleteRequest(val name: String) {
 
 typealias RepositoryDeleteResponse = Unit
 
+@Serializable
 data class Repository(val name: String)
 
+@Serializable
 data class RepositoryListRequest(
     val user: String? = null,
     override val itemsPerPage: Int? = null,
@@ -55,8 +57,10 @@ typealias RepositoryListResponse = Page<Repository>
 typealias ListFilesRequest = RepositoryListRequest
 typealias ListFilesResponse = Page<StorageFile>
 
+@Serializable
 data class ProjectAclEntry(val group: String, val rights: Set<FileRights>)
 
+@Serializable
 data class UpdatePermissionsRequest(
     val repository: String,
     val newAcl: List<ProjectAclEntry>

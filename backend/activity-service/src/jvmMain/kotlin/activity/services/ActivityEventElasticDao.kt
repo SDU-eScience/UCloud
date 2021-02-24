@@ -1,7 +1,6 @@
 package dk.sdu.cloud.activity.services
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
@@ -21,24 +20,29 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.share.api.Shares
-import io.ktor.http.LinkHeader.Parameters.Type
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.serializer
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.BoolQueryBuilder
-import org.elasticsearch.index.query.MatchQueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.search.MatchQuery
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import java.util.*
 import kotlin.collections.ArrayList
 
+@Serializable
 data class AuditEntry<E>(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
+    @SerialName("@timestamp") val timestamp: String,
     val token: SecurityPrincipalToken,
-    val requestJson: E
+    val requestJson: E,
 )
 
 data class ActivityEventFilter(
@@ -46,13 +50,13 @@ data class ActivityEventFilter(
     val maxTimestamp: Long? = null,
     val type: ActivityEventType? = null,
     val user: String? = null,
-    val offset: Int? = null
+    val offset: Int? = null,
 )
 
 class ActivityEventElasticDao(private val client: RestHighLevelClient) {
     fun findByFilePath(
         pagination: NormalizedPaginationRequest,
-        filePath: String
+        filePath: String,
     ): Page<ActivityForFrontend> {
         val normalizedFilePath = filePath.normalize()
         val request = SearchRequest(*CallWithActivity.allIndices.toTypedArray())
@@ -140,7 +144,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
         scrollSize: Int,
         filter: ActivityEventFilter,
         projectID: String,
-        repos: List<Repository>
+        repos: List<Repository>,
     ): List<ActivityEvent> {
         val query = applyTimeFilter(filter)
         if (filter.user != null) {
@@ -236,7 +240,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
         searchResponse: SearchResponse,
         isFileSearch: Boolean = false,
         normalizedFilePath: String = "",
-        isUserSearch: Boolean = false
+        isUserSearch: Boolean = false,
     ): List<ActivityEvent> {
         val activityEventList = arrayListOf<ActivityEvent>()
         searchResponse.hits.hits.forEach { doc ->
@@ -245,7 +249,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
 
             if (responsibleMapper != null) {
                 try {
-                    val value = defaultMapper.readValue(doc.sourceAsString, responsibleMapper.typeRef)
+                    val value = defaultMapper.decodeFromString(responsibleMapper.typeRef, doc.sourceAsString)
                     activityEventList.addAll(
                         responsibleMapper.createActivityEvents(value, isUserSearch, isFileSearch, normalizedFilePath)
                     )
@@ -263,9 +267,9 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
         sealed class CallWithActivity<AuditEvent>(
             val eventType: ActivityEventType,
             call: CallDescription<*, *, *>,
-            val typeRef: TypeReference<AuditEntry<AuditEvent>>,
+            val typeRef: KSerializer<AuditEntry<AuditEvent>>,
             val jsonPathToAffectedFiles: List<String>,
-            val usesAllDescendants: Boolean = false
+            val usesAllDescendants: Boolean = false,
         ) {
             val index = "http_logs_${call.fullName.toLowerCase()}-*"
 
@@ -273,13 +277,13 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 doc: AuditEntry<AuditEvent>,
                 isUserSearch: Boolean,
                 isFileSearch: Boolean,
-                normalizedFilePath: String
+                normalizedFilePath: String,
             ): List<ActivityEvent>
 
             object FilesCopy : CallWithActivity<BulkFileAudit<CopyRequest>>(
                 ActivityEventType.copy,
                 FileDescriptions.copy,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "request.path"
                 )
@@ -288,12 +292,12 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<BulkFileAudit<CopyRequest>>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.Copy(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.request.path,
                             doc.requestJson.request.newPath
                         )
@@ -304,7 +308,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesCreateDirectory : CallWithActivity<CreateDirectoryRequest>(
                 ActivityEventType.directoryCreated,
                 FileDescriptions.createDirectory,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "path"
                 )
@@ -313,12 +317,12 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<CreateDirectoryRequest>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.DirectoryCreated(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.path
                         )
                     )
@@ -328,7 +332,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesDeleteFile : CallWithActivity<SingleFileAudit<DeleteFileRequest>>(
                 ActivityEventType.deleted,
                 FileDescriptions.deleteFile,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "request.request.path"
                 )
@@ -337,12 +341,12 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<SingleFileAudit<DeleteFileRequest>>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.Deleted(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.request.path
                         )
                     )
@@ -352,7 +356,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesDownload : CallWithActivity<BulkFileAudit<FindByPath>>(
                 ActivityEventType.download,
                 FileDescriptions.download,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "request.path"
                 )
@@ -361,12 +365,12 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<BulkFileAudit<FindByPath>>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.Download(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.request.path
                         )
                     )
@@ -376,7 +380,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesFavoriteToggle : CallWithActivity<ToggleFavoriteAudit>(
                 ActivityEventType.favorite,
                 FileFavoriteDescriptions.toggleFavorite,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "files.path"
                 )
@@ -385,13 +389,13 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<ToggleFavoriteAudit>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return doc.requestJson.files.filter { it.newStatus != null }.map {
                         ActivityEvent.Favorite(
                             doc.token.principal.username,
                             doc.requestJson.files.single().newStatus!!,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.files.single().path
                         )
                     }
@@ -401,7 +405,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesMoved : CallWithActivity<SingleFileAudit<MoveRequest>>(
                 ActivityEventType.moved,
                 FileDescriptions.move,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "request.path"
                 )
@@ -410,13 +414,13 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<SingleFileAudit<MoveRequest>>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.Moved(
                             doc.token.principal.username,
                             doc.requestJson.request.newPath,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.request.path
                         )
                     )
@@ -426,7 +430,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesReclassified : CallWithActivity<SingleFileAudit<ReclassifyRequest>>(
                 ActivityEventType.reclassify,
                 FileDescriptions.reclassify,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "request.path"
                 )
@@ -435,12 +439,12 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<SingleFileAudit<ReclassifyRequest>>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.Reclassify(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.request.path,
                             doc.requestJson.request.sensitivity?.name ?: "Inherit"
                         )
@@ -451,7 +455,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesUpdateAcl : CallWithActivity<BulkFileAudit<UpdateAclRequest>>(
                 ActivityEventType.updatedACL,
                 FileDescriptions.updateAcl,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "request.path"
                 )
@@ -460,7 +464,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<BulkFileAudit<UpdateAclRequest>>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     val changes = ArrayList<ActivityEvent.RightsAndUser>()
                     doc.requestJson.request.changes.forEach { update ->
@@ -470,7 +474,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     return listOf(
                         ActivityEvent.UpdatedAcl(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.request.path,
                             changes.toList()
                         )
@@ -481,18 +485,18 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesProjectAcl : CallWithActivity<UpdateProjectAclRequest>(
                 ActivityEventType.updatedACL,
                 FileDescriptions.updateProjectAcl,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf("path")
             ) {
                 override fun createActivityEvents(
                     doc: AuditEntry<UpdateProjectAclRequest>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(ActivityEvent.UpdateProjectAcl(
                         doc.token.principal.username,
-                        doc.timestamp.time,
+                        Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                         doc.requestJson.path,
                         doc.requestJson.project,
                         doc.requestJson.newAcl.map { ActivityEvent.ProjectAclEntry(it.group, it.rights) }
@@ -503,7 +507,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesBulkUpload : CallWithActivity<BulkUploadAudit>(
                 ActivityEventType.upload,
                 MultiPartUploadDescriptions.simpleBulkUpload,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "path"
                 )
@@ -512,12 +516,12 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<BulkUploadAudit>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.Uploaded(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.path
                         )
                     )
@@ -527,7 +531,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object FilesUpload : CallWithActivity<MultiPartUploadAudit>(
                 ActivityEventType.upload,
                 MultiPartUploadDescriptions.simpleUpload,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "path"
                 )
@@ -536,22 +540,22 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<MultiPartUploadAudit>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.Uploaded(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.request?.path!!
                         )
                     )
                 }
             }
 
-           object ApplicationStart : CallWithActivity<JobsCreateRequest>(
+            object ApplicationStart : CallWithActivity<JobsCreateRequest>(
                 ActivityEventType.usedInApp,
                 Jobs.create,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "resources.path",
                     "parameters.*.path"
@@ -561,7 +565,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 private fun checkSource(
                     element: AppParameterValue,
                     normalizedFilePath: String,
-                    inUserSearch: Boolean = false
+                    inUserSearch: Boolean = false,
                 ): String? {
                     if (element is AppParameterValue.File) {
                         if (inUserSearch) {
@@ -581,7 +585,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<JobsCreateRequest>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     val activityEventList = ArrayList<ActivityEvent>()
 
@@ -593,7 +597,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                                     activityEventList.add(
                                         ActivityEvent.SingleFileUsedByApplication(
                                             doc.token.principal.username,
-                                            doc.timestamp.time,
+                                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                                             path,
                                             item.application.name,
                                             item.application.version
@@ -607,7 +611,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                                     activityEventList.add(
                                         ActivityEvent.SingleFileUsedByApplication(
                                             doc.token.principal.username,
-                                            doc.timestamp.time,
+                                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                                             path,
                                             item.application.name,
                                             item.application.version
@@ -641,7 +645,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                                 activityEventList.add(
                                     ActivityEvent.AllFilesUsedByApplication(
                                         doc.token.principal.username,
-                                        doc.timestamp.time,
+                                        Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                                         fileUsed,
                                         item.application.name,
                                         item.application.version
@@ -658,7 +662,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
             object ShareCreated : CallWithActivity<Shares.Create.Request>(
                 ActivityEventType.sharedWith,
                 Shares.create,
-                jacksonTypeRef(),
+                AuditEntry.serializer(serializer()),
                 listOf(
                     "path"
                 )
@@ -667,12 +671,12 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     doc: AuditEntry<Shares.Create.Request>,
                     isUserSearch: Boolean,
                     isFileSearch: Boolean,
-                    normalizedFilePath: String
+                    normalizedFilePath: String,
                 ): List<ActivityEvent> {
                     return listOf(
                         ActivityEvent.SharedWith(
                             doc.token.principal.username,
-                            doc.timestamp.time,
+                            Instant.from(DateTimeFormatter.ISO_INSTANT.parse(doc.timestamp)).toEpochMilli(),
                             doc.requestJson.path,
                             doc.requestJson.sharedWith,
                             doc.requestJson.rights

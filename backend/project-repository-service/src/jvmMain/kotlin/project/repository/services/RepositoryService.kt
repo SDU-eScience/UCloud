@@ -1,6 +1,5 @@
 package dk.sdu.cloud.project.repository.services
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
@@ -12,7 +11,9 @@ import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
-import org.slf4j.Logger
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 
 class RepositoryService(private val serviceClient: AuthenticatedClient) {
     suspend fun create(principal: SecurityPrincipal, project: String, repository: String) {
@@ -54,7 +55,7 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
                         path,
                         METADATA_NAME,
                         null,
-                        defaultMapper.writeValueAsString(RepositoryMetadata())
+                        defaultMapper.encodeToString(RepositoryMetadata())
                     )
                 )
             ),
@@ -118,7 +119,8 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
             .metadata
             .mapNotNull {
                 val name = it.path.normalize().removePrefix(joinPath(PROJECT_DIR_PREFIX, project).normalize() + "/")
-                val metadata = runCatching { defaultMapper.readValue<RepositoryMetadata>(it.jsonPayload) }.getOrNull()
+                val metadata = runCatching { defaultMapper.decodeFromString<RepositoryMetadata>(it.jsonPayload) }
+                    .getOrNull()
                 if (metadata != null) {
                     name to metadata
                 } else {
@@ -256,10 +258,11 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
     }
 
     companion object : Loggable {
-        override val log: Logger = logger()
+        override val log = logger()
         const val PROJECT_DIR_PREFIX = "/projects/"
         const val METADATA_NAME = "project_repository"
 
+        @Serializable
         private class RepositoryMetadata
     }
 }
