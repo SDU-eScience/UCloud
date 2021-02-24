@@ -2,16 +2,18 @@ package dk.sdu.cloud.filesearch.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Page
+import dk.sdu.cloud.WithPaginationRequest
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+import kotlinx.serialization.Serializable
 
 /**
  * @see FileSearchDescriptions.advancedSearch
  */
+@Serializable
 data class AdvancedSearchRequest(
     val fileName: String?,
     val extensions: List<String>?,
