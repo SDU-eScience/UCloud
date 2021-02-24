@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class UserStatusRequest(
-    val username: String?
+    val username: String? = null
 )
 
 @Serializable
@@ -19,7 +19,7 @@ data class UserStatusInProject(
     val projectId: String,
     val title: String,
     val whoami: ProjectMember,
-    val parent: String?
+    val parent: String? = null
 )
 
 @Serializable
@@ -32,8 +32,8 @@ data class UserStatusResponse(
 data class SearchRequest(
     val query: String,
     val notInGroup: String?,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 typealias SearchResponse = Page<ProjectMember>
 

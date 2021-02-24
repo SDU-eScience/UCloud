@@ -1,14 +1,9 @@
 package dk.sdu.cloud.calls.server
 
-import com.fasterxml.jackson.core.JsonPointer
-import com.fasterxml.jackson.databind.JavaType
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.calls.AuditDescription
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auditOrNull
-import dk.sdu.cloud.calls.jvmClass
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.events.EventStream
@@ -21,13 +16,10 @@ import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.call
 import io.ktor.http.HttpHeaders
 import io.ktor.request.header
-import io.ktor.util.date.toGMTDate
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
-import java.time.ZonedDateTime
-import java.util.*
 
 private typealias HttpEventProducer = EventProducer<HttpCallLogEntry>
 private typealias AuditProducer = EventProducer<AuditEvent<*>>
@@ -38,7 +30,8 @@ private class AuditCallEventStream(call: CallDescription<*, *, *>) : EventStream
     override val desiredReplicas: Short? = null
     override val keySelector: (AuditEvent<*>) -> String = { it.http.jobId }
 
-    private val serializer = call.auditOrNull!!.auditType
+    @Suppress("UNCHECKED_CAST")
+    private val serializer: KSerializer<Any> = call.auditOrNull?.auditType ?: call.requestType as KSerializer<Any>
 
     override fun serialize(event: AuditEvent<*>): String {
         @Suppress("UNCHECKED_CAST")
@@ -99,8 +92,6 @@ class AuditToEventStream(
                 request: Any?,
                 result: OutgoingCallResponse<*, *>
             ) {
-                TODO()
-                /*
                 val auditDescription = call.auditOrNull
                 val auditData = context.audit
                 if (auditData.skipAuditing) return
@@ -133,29 +124,8 @@ class AuditToEventStream(
 
                 val auditPayload = auditData.requestToAudit ?: request
 
-                if (auditDescription != null) {
-                    if (auditPayload == null) {
-                        // We can, in this case, still produce a message. But only because the audit payload will be
-                        // null.
-                    } else {
-                        val expectedType = auditDescription.auditType.type.jvmClass
-                        if (expectedType != auditPayload.javaClass) {
-                            repeat(5) {
-                                log.warn(
-                                    "Audit payload does not match the expected type. " +
-                                            "We got ${auditPayload.javaClass} but expected $expectedType"
-                                )
-                                log.warn("No audit trace has been produced")
-                            }
-                            // We cannot create an audit track since it will mess up the resulting elastic
-                            // index (bad type)
-                            return
-                        }
-                    }
-                }
-
                 val expiresPeriod = auditDescription?.retentionPeriod ?: AuditDescription.DEFAULT_RETENTION_PERIOD
-                val expiry = ZonedDateTime.now().plus(expiresPeriod).toGMTDate().timestamp
+                val expiry = Time.now() + expiresPeriod
 
                 coroutineScope {
                     launch {
@@ -168,7 +138,6 @@ class AuditToEventStream(
                             remoteOrigin = remoteOrigin ?: throw IllegalStateException("Unknown remote origin"),
                             token = token,
                             requestSize = requestContentLength,
-                            requestJson = auditPayload,
                             responseCode = responseCode,
                             responseTime = responseTime,
                             expiry = expiry,
@@ -179,7 +148,6 @@ class AuditToEventStream(
                         auditProducer.produce(AuditEvent(entry, auditPayload))
                     }
                 }
-                 */
             }
         })
     }
@@ -190,9 +158,6 @@ class AuditToEventStream(
         private val httpLogsStream = JsonEventStream<HttpCallLogEntry>("http.logs", serializer(), { it.jobId })
     }
 }
-
-private val auditJavaTypeCache: MutableMap<String, JavaType> =
-    Collections.synchronizedMap(HashMap<String, JavaType>())
 
 val CallDescriptionContainer.auditStream: EventStream<String>
     get() = object : EventStream<String> {
@@ -209,40 +174,3 @@ val CallDescriptionContainer.auditStream: EventStream<String>
             return value
         }
     }
-
-private val requestNamePointer = JsonPointer.compile(
-    JsonPointer.SEPARATOR +
-            AuditEvent<*>::http.name +
-            JsonPointer.SEPARATOR +
-            HttpCallLogEntry::requestName.name
-)
-
-/**
- * Parses an audit message from [tree].
- *
- * If [acceptRequestsWithServerFailure] is true then all audit messages matching the description is accepted. Otherwise
- * only messages that do not have a status code of 5XX will be accepted.
- */
-fun <A : Any> CallDescription<*, *, *>.parseAuditMessageOrNull(
-    tree: JsonNode,
-    acceptRequestsWithServerFailure: Boolean = false
-): AuditEvent<A>? {
-    TODO()
-    /*
-    val incomingRequestName =
-        tree.at(requestNamePointer)?.takeIf { !it.isMissingNode && it.isTextual }?.textValue() ?: run {
-            return null
-        }
-
-    if (incomingRequestName == fullName) {
-        val type = auditJavaType
-        val reader = defaultMapper.readerFor(type)
-        @Suppress("UNCHECKED_CAST")
-        return reader.readValue<AuditEvent<Any>>(tree)
-            ?.takeIf { acceptRequestsWithServerFailure || it.http.responseCode !in 500..599 } as AuditEvent<A>?
-    }
-
-    return null
-     */
-}
-

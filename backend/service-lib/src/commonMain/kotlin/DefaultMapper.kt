@@ -8,6 +8,8 @@ val defaultMapper = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
     classDiscriminator = "type"
+    isLenient = true
+    coerceInputValues = true
 }.freeze()
 
 expect fun <T> T.freeze(): T
