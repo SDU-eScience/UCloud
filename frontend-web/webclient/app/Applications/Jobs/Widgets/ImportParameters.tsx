@@ -225,6 +225,7 @@ async function importVersion1(application: UCloud.compute.Application, json: any
     output.parameters = userInputValues;
     for (const param of application.invocation.parameters) {
         const valueFromFile = parameters[param.name];
+        if (!valueFromFile) continue;
         switch (param.type) {
             case "integer":
                 userInputValues[param.name] = {type: "integer", value: parseInt(valueFromFile.toString(), 10)};
