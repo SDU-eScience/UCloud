@@ -2,7 +2,6 @@ package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.auth.api.TwoFactorAuthDescriptions
 import dk.sdu.cloud.auth.api.TwoFactorStatusResponse
-import dk.sdu.cloud.auth.services.TwoFactorChallenge
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeType
 import dk.sdu.cloud.calls.RPCException
@@ -15,7 +14,6 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
-import org.slf4j.Logger
 
 class TwoFactorAuthController(
     private val twoFactorChallengeService: TwoFactorChallengeService,
@@ -83,6 +81,6 @@ class TwoFactorAuthController(
     }
 
     companion object : Loggable {
-        override val log: Logger = logger()
+        override val log = logger()
     }
 }

@@ -1,10 +1,10 @@
 rootProject.name = "ucloud"
 
 include("service-lib")
-/*
-include("service-common-test")
-include("integration-testing")
+include("service-lib-test")
 include("launcher")
+/*
+include("integration-testing")
 */
 
 // Automatically pull in sub-projects

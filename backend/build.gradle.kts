@@ -162,6 +162,12 @@ subprojects {
                         implementation(project(":service-lib"))
                     }
                 }
+
+                val jvmTest by getting {
+                    dependencies {
+                        implementation(project(":service-lib-test"))
+                    }
+                }
             }
         }
     }

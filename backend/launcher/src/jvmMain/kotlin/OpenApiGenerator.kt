@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.app.orchestrator.api.Compute
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.*
@@ -30,12 +29,15 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.servers.Server
 import io.swagger.v3.oas.models.tags.Tag
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.*
 import java.math.BigDecimal
 import java.math.BigInteger
 import kotlin.reflect.KClass
+import kotlin.reflect.KProperty1
 import kotlin.reflect.full.*
 import kotlin.reflect.javaType
 import kotlin.reflect.jvm.javaField
@@ -160,6 +162,7 @@ private fun apiMaturityBadge(level: UCloudApiMaturity): String {
         is UCloudApiMaturity.Internal -> badge(label, "Internal/${normalizeEnum(level.level)}", "red")
         is UCloudApiMaturity.Experimental -> badge(label, "Experimental/${normalizeEnum(level.level)}", "orange")
         UCloudApiMaturity.Stable -> badge(label, "Stable", "green")
+        else -> error("unknown level")
     }
 }
 
@@ -274,7 +277,7 @@ private fun writeSpecification(
                     }
                     op.tags = listOf(call.namespace)
                     op.responses = ApiResponses().apply {
-                        set("200", apiResponse(call.successType.type, typeRegistry).apply {
+                        set("200", apiResponse(call.successType.toType(), typeRegistry).apply {
                             if (doc != null) {
                                 val json = this.content[ContentType.Application.Json.toString()]
                                 if (json != null) {
@@ -293,7 +296,7 @@ private fun writeSpecification(
 
                         doc?.examples?.groupBy { it.statusCode }?.filterKeys { !it.isSuccess() }
                             ?.forEach { (code, examples) ->
-                                set(code.value.toString(), apiResponse(call.errorType.type, typeRegistry).apply {
+                                set(code.value.toString(), apiResponse(call.errorType.toType(), typeRegistry).apply {
                                     this.description = code.description
                                     val json = this.content[ContentType.Application.Json.toString()]
                                     if (json != null) {
@@ -313,26 +316,26 @@ private fun writeSpecification(
                         doc?.errors?.forEach { err ->
                             val description = computeIfAbsent(
                                 err.statusCode.value.toString(),
-                                { apiResponse(call.errorType.type, typeRegistry) }
+                                { apiResponse(call.errorType.toType(), typeRegistry) }
                             )
 
                             description.description = err.description
                         }
 
-                        default = apiResponse(call.errorType.type, typeRegistry)
+                        default = apiResponse(call.errorType.toType(), typeRegistry)
                     }
 
-                    if (call.successType.type != Unit::class) {
-                        callExtension.responseType = traverseType(call.successType.type, typeRegistry)
+                    if (call.successType.toType() != Unit::class) {
+                        callExtension.responseType = traverseType(call.successType.toType(), typeRegistry)
                     }
 
                     if (http.path.segments.any { it is HttpPathSegment.Property<*, *> }) {
-                        callExtension.requestType = traverseType(call.requestType.type, typeRegistry)
+                        callExtension.requestType = traverseType(call.requestType.toType(), typeRegistry)
                     }
 
                     val body = http.body
-                    if (body != null && body.ref.type != Unit::class.java) {
-                        val requestType = traverseType(call.requestType.type, typeRegistry)
+                    if (body != null && body.ref.toType() != Unit::class.java) {
+                        val requestType = traverseType(call.requestType.toType(), typeRegistry)
                         callExtension.requestType = requestType
                         op.requestBody = RequestBody()
                         op.requestBody.content = Content().apply {
@@ -355,19 +358,21 @@ private fun writeSpecification(
 
                     val params = http.params
                     if (params != null) {
-                        val requestType = traverseType(call.requestType.type, typeRegistry) as? ComputedType.Struct
+                        val requestType = traverseType(call.requestType.toType(), typeRegistry) as? ComputedType.Struct
                             ?: error("Query params bound to a non-class ${call.fullName}")
                         callExtension.requestType = requestType
 
                         op.parameters = params.parameters.map { p ->
                             when (p) {
-                                is HttpQueryParameter.Property<*, *> -> {
+                                is HttpQueryParameter.Property<*> -> {
                                     Parameter().apply {
-                                        name = p.property.name
+                                        name = p.property
                                         schema = requestType.properties[name]!!.toOpenApiSchema()
                                         `in` = "query"
                                     }
                                 }
+
+                                else -> error("unknown property")
                             }
                         }
                     }
@@ -875,4 +880,47 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
             error("Unknown thing: $type")
         }
     }
+}
+
+val CallDescription<*, *, *>.field: KProperty1<CallDescriptionContainer, *>?
+    get() {
+        val call = this
+        return call.containerRef.javaClass.kotlin.memberProperties.find {
+            runCatching {
+                val value = it.get(call.containerRef)
+                val maybeCall = value as? CallDescription<*, *, *>
+                maybeCall != null && maybeCall.name == call.name && maybeCall.namespace == call.namespace
+            }.getOrElse { false }
+        }
+    }
+
+val CallDescription<*, *, *>.apiMaturityOrNull: UCloudApiMaturity?
+    get() {
+        val callMaturity = findApiMaturity(field?.annotations ?: emptyList())
+        if (callMaturity != null)  return callMaturity
+        return findApiMaturity(containerRef.javaClass.kotlin.annotations)
+    }
+
+private fun findApiMaturity(annotations: List<Annotation>): UCloudApiMaturity? {
+    annotations
+        .singleOrNull {
+            it is UCloudApiInternal ||
+                it is UCloudApiExperimental ||
+                it is UCloudApiStable
+        }
+        ?.let {
+            return when (it) {
+                is UCloudApiInternal -> UCloudApiMaturity.Internal(it.level)
+                is UCloudApiExperimental -> UCloudApiMaturity.Experimental(it.level)
+                is UCloudApiStable -> UCloudApiMaturity.Stable
+                else -> null
+            }
+        }
+
+    return null
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+fun <T> KSerializer<T>.toType(): Type {
+    return javaClass.classLoader.loadClass(descriptor.serialName)
 }

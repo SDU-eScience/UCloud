@@ -204,10 +204,6 @@ private fun GenerationContext.generateOp(
                         append(" + \"/\"")
                         append(" + request.${segment.property.name}")
                     }
-
-                    is HttpPathSegment.Remaining -> {
-                        // Not supported
-                    }
                 }
             }
             if (usesParams) {
@@ -215,16 +211,16 @@ private fun GenerationContext.generateOp(
                 var isFirst = true
                 for (param in (info.call.http.params?.parameters ?: emptyList())) {
                     when (param) {
-                        is HttpQueryParameter.Property<*, *> -> {
+                        is HttpQueryParameter.Property<*> -> {
                             if (isFirst) {
                                 isFirst = false
                             } else {
                                 append(", ")
                             }
 
-                            append(param.property.name)
+                            append(param.property)
                             append(": ")
-                            append("request.${param.property.name}")
+                            append("request.${param.property}")
                         }
                     }
                 }
