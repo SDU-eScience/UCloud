@@ -6,16 +6,19 @@ import dk.sdu.cloud.app.orchestrator.api.Compute
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.Serializable
 
 @TSNamespace("compute.aau.jobs")
 object AauCompute : Compute("aau")
 
+@Serializable
 data class AauComputeSendUpdateRequest(
     val id: String,
     val update: String,
     val newState: JobState?,
 )
 
+@Serializable
 data class AauComputeRetrieveRequest(val id: String)
 typealias AauComputeRetrieveResponse = Job
 

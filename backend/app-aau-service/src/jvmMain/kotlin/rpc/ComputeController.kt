@@ -63,8 +63,10 @@ class ComputeController(
                         appendLine("Owner (username): ${req.owner.createdBy}")
                         appendLine("Owner (project): ${req.owner.project}")
                         appendLine("Base image: ${tool.description.image}")
+                        /*
                         appendLine("Machine template: " +
                             defaultMapper.writer(DefaultPrettyPrinter()).writeValueAsString(resources.product))
+                         */
                         @Suppress("DEPRECATION")
                         appendLine("Total grant allocation: " +
                             "${req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000} DKK")
@@ -111,8 +113,10 @@ class ComputeController(
                         appendLine("Owner (username): ${req.owner.createdBy}")
                         appendLine("Owner (project): ${req.owner.project}")
                         appendLine("Base image: ${tool.description.image}")
+                        /*
                         appendLine("Machine template: " +
                             defaultMapper.writer(DefaultPrettyPrinter()).writeValueAsString(resources.product))
+                         */
                         appendLine("```")
                     }
                 )
