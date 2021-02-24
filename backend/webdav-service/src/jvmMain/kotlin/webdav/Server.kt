@@ -250,6 +250,8 @@ class Server(override val micro: Micro) : CommonServer {
 
                 method(HttpMethod.Get) {
                     handle {
+                        TODO()
+                        /*
                         withDavHandler { (client, pathPrefix) ->
                             val file = FileDescriptions.stat.call(
                                 StatRequest(getRealPath(requestPath, pathPrefix)),
@@ -292,11 +294,14 @@ class Server(override val micro: Micro) : CommonServer {
                                 })
                             }
                         }
+                         */
                     }
                 }
 
                 method(HttpMethod.Put) {
                     handle {
+                        TODO()
+                        /*
                         withDavHandler { (client, pathPrefix) ->
                             if (isPathVirtual(requestPath)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
@@ -314,6 +319,7 @@ class Server(override val micro: Micro) : CommonServer {
 
                             call.respondText(status = HttpStatusCode.Created) { "" }
                         }
+                         */
                     }
                 }
 
