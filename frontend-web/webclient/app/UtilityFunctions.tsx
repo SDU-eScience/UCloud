@@ -411,7 +411,6 @@ export function requestFullScreen(el: Element, onFailure: () => void): void {
 
 export function timestampUnixMs(): number {
     return window.performance &&
-        window.performance.now &&
         window.performance.timing &&
         window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
