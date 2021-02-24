@@ -383,7 +383,7 @@ class LinuxFS(
                     null
                 }
 
-                StorageFileImpl(
+                StorageFile(
                     stat.fileType,
                     systemFile.absolutePath.toCloudPath(),
                     stat.modifiedAt,

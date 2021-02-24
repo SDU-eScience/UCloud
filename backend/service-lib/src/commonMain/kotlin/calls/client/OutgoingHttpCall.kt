@@ -202,10 +202,10 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.resolveEndpoint(
         request: R,
-        call: CallDescription<*, *, *>,
+        call: CallDescription<R, *, *>,
     ): String {
         val primaryPath = serializePathSegments(request)
-        val queryPathMap = serializeQueryParameters(request, call) ?: emptyMap()
+        val queryPathMap = serializeQueryParameters(request, call)
         val queryPath = encodeQueryParamsToString(queryPathMap)
 
         return path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
@@ -232,14 +232,18 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private fun <R : Any> HttpRequest<R, *, *>.serializeQueryParameters(
         request: R,
-        call: CallDescription<*, *, *>,
-    ): Map<String, String>? {
-        TODO("Needs to be replaced with kotlinx.serialization code")
+        call: CallDescription<R, *, *>,
+    ): Map<String, List<String>> {
+        return QueryParameterEncoder(call).also {
+            it.encodeSerializableValue(call.requestType, request)
+        }.builder
     }
 
-    private fun encodeQueryParamsToString(queryPathMap: Map<String, String>): String {
+    private fun encodeQueryParamsToString(queryPathMap: Map<String, List<String>>): String {
         return queryPathMap
-            .map { urlEncode(it.key) + "=" + urlEncode(it.value) }
+            .flatMap { param ->
+                param.value.map { v -> urlEncode(param.key) + "=" + urlEncode(v) }
+            }
             .joinToString("&")
             .takeIf { it.isNotEmpty() }
             ?.let { "?$it" } ?: ""

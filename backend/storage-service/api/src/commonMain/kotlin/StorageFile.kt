@@ -19,6 +19,7 @@ enum class FileType {
     DIRECTORY
 }
 
+/*
 interface StorageFile {
     val fileTypeOrNull: FileType?
 
@@ -49,6 +50,7 @@ interface StorageFile {
     val permissionAlert: Boolean
         get() = false
 }
+ */
 
 val StorageFile.fileType: FileType
     get() = fileTypeOrNull!!
@@ -78,31 +80,31 @@ val StorageFile.ownSensitivityLevel: SensitivityLevel?
     get() = ownSensitivityLevelOrNull
 
 @Serializable
-data class StorageFileImpl(
+open class StorageFile(
     @SerialName("fileType")
-    override val fileTypeOrNull: FileType?,
+    val fileTypeOrNull: FileType?,
     @SerialName("path")
-    override val pathOrNull: String?,
+    val pathOrNull: String?,
     @SerialName("createdAt")
-    override val createdAtOrNull: Long?,
+    val createdAtOrNull: Long?,
     @SerialName("modifiedAt")
-    override val modifiedAtOrNull: Long?,
+    val modifiedAtOrNull: Long?,
     @SerialName("ownerName")
-    override val ownerNameOrNull: String?,
+    val ownerNameOrNull: String?,
     @SerialName("size")
-    override val sizeOrNull: Long?,
+    val sizeOrNull: Long?,
     @SerialName("acl")
-    override val aclOrNull: List<AccessEntry>? = emptyList(),
+    val aclOrNull: List<AccessEntry>? = emptyList(),
     @SerialName("sensitivityLevel")
-    override val sensitivityLevelOrNull: SensitivityLevel? = SensitivityLevel.PRIVATE,
+    val sensitivityLevelOrNull: SensitivityLevel? = SensitivityLevel.PRIVATE,
     @SerialName("ownSensitivityLevel")
-    override val ownSensitivityLevelOrNull: SensitivityLevel?,
+    val ownSensitivityLevelOrNull: SensitivityLevel?,
     @SerialName("permissionAlert")
-    override val permissionAlert: Boolean = false
-) : StorageFile
+    val permissionAlert: Boolean = false
+)
 
 fun StorageFile.mergeWith(other: StorageFile): StorageFile {
-    return StorageFileImpl(
+    return StorageFile(
         fileTypeOrNull = fileTypeOrNull ?: other.fileTypeOrNull,
         pathOrNull = pathOrNull ?: other.pathOrNull,
         createdAtOrNull = createdAtOrNull ?: other.createdAtOrNull,
@@ -127,8 +129,8 @@ fun StorageFile(
     sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
     ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE,
     permissionAlert: Boolean = false
-): StorageFileImpl {
-    return StorageFileImpl(
+): StorageFile {
+    return StorageFile(
         fileTypeOrNull = fileType,
         pathOrNull = path,
         createdAtOrNull = createdAt,

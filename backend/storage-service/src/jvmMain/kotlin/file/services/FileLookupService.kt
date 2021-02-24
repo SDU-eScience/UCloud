@@ -142,7 +142,7 @@ class FileLookupService<Ctx : FSUserContext>(
             return null
         }
 
-        return StorageFileImpl(
+        return StorageFile(
             fileTypeOrNull = row.fileTypeOrNull,
             pathOrNull = row.pathOrNull,
             createdAtOrNull = row.createdAtOrNull,

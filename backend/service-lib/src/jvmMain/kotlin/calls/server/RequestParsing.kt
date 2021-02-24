@@ -56,7 +56,9 @@ class ParamsParsing(
     }
 
     override fun decodeEnum(enumDescriptor: SerialDescriptor): Int {
-        return enumDescriptor.elementNames.indexOf(value).takeIf { it != -1 }
+        val firstTry = enumDescriptor.elementNames.indexOf(value).takeIf { it != -1 }
+        if (firstTry != null) return firstTry
+        return enumDescriptor.elementNames.indexOfFirst { it.equals(value, ignoreCase = true) }.takeIf { it != -1 }
             ?: throw SerializationException("$value is not a valid enum")
     }
 
