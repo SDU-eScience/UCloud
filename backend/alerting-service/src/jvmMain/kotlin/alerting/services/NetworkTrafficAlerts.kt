@@ -11,6 +11,8 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import kotlinx.coroutines.delay
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
@@ -123,23 +125,28 @@ class NetworkTrafficAlerts(
         }
     }
 
+    @Serializable
     data class LogFileInfo(
         val path: String
     )
 
+    @Serializable
     data class Info(
         val offset: Long,
         val file: LogFileInfo
     )
 
+    @Serializable
     data class Fields(
         val index: String
     )
 
+    @Serializable
     data class Host(
         val name: String
     )
 
+    @Serializable
     data class Agent(
         val ephemeral_id: String,
         val id: String,
@@ -149,6 +156,7 @@ class NetworkTrafficAlerts(
         val hostname:String
     )
 
+    @Serializable
     data class LogEntry(
         val log: Info,
         val message: String,
@@ -194,7 +202,7 @@ class NetworkTrafficAlerts(
             val numberOfRequestsPerIP = hashMapOf<String, Int>()
             var numberOf5xx = 0
             results.hits.forEach {
-                val log = defaultMapper.readValue<LogEntry>(it.sourceAsString)
+                val log = defaultMapper.decodeFromString<LogEntry>(it.sourceAsString)
                 if (log.message.contains("ACCESS")) {
                     if (log.message.contains(
                             Regex(
