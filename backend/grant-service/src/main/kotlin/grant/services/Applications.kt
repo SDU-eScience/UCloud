@@ -438,6 +438,22 @@ class ApplicationService(
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
 
         ctx.withSession { session ->
+            val currentStatus = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                    },
+                    """
+                        SELECT *
+                        FROM "grant".applications
+                        WHERE id = :id
+                    """
+                ).rows
+                .singleOrNull()
+                ?.getField(ApplicationTable.status) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Not able to change status of finished application")
+            }
             val (updatedProjectId, requestedBy) = session
                 .sendPreparedStatement(
                     {
