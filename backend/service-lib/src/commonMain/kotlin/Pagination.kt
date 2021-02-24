@@ -121,6 +121,7 @@ val NormalizedPaginationRequest.offset: Int
     
 Every page contains the items from the current result set, along with information which allows the client to fetch
 additional information.""")
+@Serializable
 data class PageV2<out T>(
     @UCloudApiDoc("The expected items per page, this is extracted directly from the request")
     val itemsPerPage: Int,

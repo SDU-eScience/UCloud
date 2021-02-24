@@ -36,7 +36,7 @@ kotlin {
                 implementation(project(":service-lib-test"))
 
                 implementation("org.testcontainers:testcontainers-bom:1.15.1")
-                implementation("org.testcontainers:elasticsearch")
+                implementation("org.testcontainers:elasticsearch:1.15.1")
                 implementation("it.ozimov:embedded-redis:0.7.3")
                 implementation("org.testcontainers:selenium:1.15.1")
                 implementation("org.seleniumhq.selenium:selenium-remote-driver:3.141.59")

@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.WithScrollRequest
 import dk.sdu.cloud.service.WithScrollResult
 import io.ktor.http.HttpMethod
+import kotlinx.serialization.Serializable
 
 typealias ActivityDescriptions = Activity
 
@@ -57,6 +58,7 @@ object Activity : CallDescriptionContainer("activity") {
     }
 
     object BrowseByUser {
+        @Serializable
         data class Request(
             override val user: String?,
             override val type: ActivityEventType?,
@@ -66,6 +68,7 @@ object Activity : CallDescriptionContainer("activity") {
             override val scrollSize: Int?
         ) : WithScrollRequest<Int>, ActivityFilter
 
+        @Serializable
         data class Response(
             override val endOfScroll: Boolean,
             override val items: List<ActivityForFrontend>,

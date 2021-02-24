@@ -3,7 +3,9 @@ package dk.sdu.cloud.task.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class ListRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias ListResponse = Page<Task>
 
@@ -13,9 +15,11 @@ typealias ViewResponse = Task
 typealias ListenRequest = Unit
 typealias ListenResponse = TaskUpdate
 
+@Serializable
 data class CreateRequest(val title: String, val owner: String, val initialStatus: String? = null)
 typealias CreateResponse = Task
 
+@Serializable
 data class PostStatusRequest(val update: TaskUpdate)
 typealias PostStatusResponse = Unit
 

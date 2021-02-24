@@ -4,7 +4,11 @@ application {
     mainClassName = "dk.sdu.cloud.provider.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
-    implementation(project(":project-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+            implementation(project(":project-service:api"))
+        }
+    }
 }

@@ -4,6 +4,10 @@ application {
     mainClassName = "dk.sdu.cloud.elastic.management.MainKt"
 }
 
-dependencies {
-    implementation("mbuhot:eskotlin:0.4.0")
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation("mbuhot:eskotlin:0.4.0")
+        }
+    }
 }

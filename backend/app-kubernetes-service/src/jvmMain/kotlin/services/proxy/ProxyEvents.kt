@@ -1,7 +1,9 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
 import dk.sdu.cloud.events.EventStreamContainer
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class ProxyEvent(
     val id: String,
     val shouldCreate: Boolean,

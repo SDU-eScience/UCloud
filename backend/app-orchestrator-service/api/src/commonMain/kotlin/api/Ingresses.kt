@@ -185,6 +185,7 @@ typealias IngressesBrowseResponse = PageV2<Ingress>
 typealias IngressesCreateRequest = BulkRequest<IngressCreateRequestItem>
 
 typealias IngressCreateRequestItem = IngressSpecification
+@Serializable
 data class IngressesCreateResponse(val ids: List<String>)
 
 typealias IngressesDeleteRequest = BulkRequest<IngressRetrieve>
