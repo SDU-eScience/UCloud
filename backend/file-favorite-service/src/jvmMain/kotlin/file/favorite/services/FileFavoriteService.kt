@@ -1,7 +1,6 @@
 package dk.sdu.cloud.file.favorite.services
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -10,11 +9,15 @@ import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.paginate
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.paginate
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 
+@Serializable
 data class FavoritePayload(
     @get:JsonProperty("isFavorite")
     val isFavorite: Boolean
@@ -43,7 +46,7 @@ class FileFavoriteService(
                         serviceClient
                     ).orNull()?.metadata?.singleOrNull()?.jsonPayload ?: return@runCatching false
 
-                    defaultMapper.readValue<FavoritePayload>(payload).isFavorite
+                    defaultMapper.decodeFromString<FavoritePayload>(payload).isFavorite
                 }.getOrElse { ex ->
                     log.info(ex.stackTraceToString())
                     false
@@ -70,7 +73,7 @@ class FileFavoriteService(
                                     path,
                                     FAVORITE_METADATA_TYPE,
                                     user.principal.username,
-                                    defaultMapper.writeValueAsString(FavoritePayload(!isFavorite))
+                                    defaultMapper.encodeToString(FavoritePayload(!isFavorite))
                                 )
                             )
                         ),
@@ -101,7 +104,8 @@ class FileFavoriteService(
             .filter { it.path.normalize() in filesSet }
             .forEach {
                 val isFavorite =
-                    runCatching { defaultMapper.readValue<FavoritePayload>(it.jsonPayload) }.getOrNull()?.isFavorite
+                    runCatching { defaultMapper.decodeFromString<FavoritePayload>(it.jsonPayload) }
+                        .getOrNull()?.isFavorite
                 if (isFavorite != null) {
                     result[it.path.normalize()] = isFavorite
                 }

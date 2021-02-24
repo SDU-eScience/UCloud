@@ -2,30 +2,36 @@ package dk.sdu.cloud.file.favorite.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Page
+import dk.sdu.cloud.PaginationRequest
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class ToggleFavoriteRequest(
     val path: String
 )
 
+@Serializable
 data class ToggleFavoriteResponse(
     val failures: List<String>
 )
 
+@Serializable
 data class ToggleFavoriteAudit(
     val files: List<ToggleFavoriteFileAudit>
 )
 
+@Serializable
 data class ToggleFavoriteFileAudit(
     val path: String,
     var newStatus: Boolean? = null
 )
 
+@Serializable
 data class FavoriteStatusRequest(
     val files: List<String>
 )
@@ -33,6 +39,7 @@ data class FavoriteStatusRequest(
 /**
  * Contains a mapping between [StorageFile.pathOrNull] and their favorite status
  */
+@Serializable
 data class FavoriteStatusResponse(
     val favorited: Map<String, Boolean>
 )
