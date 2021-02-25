@@ -134,7 +134,6 @@ typealias DeleteTagsRequest = CreateTagsRequest
 @Serializable
 data class UploadApplicationLogoRequest(
     val name: String,
-    val data: BinaryStream
 )
 
 @Serializable

@@ -1,9 +1,12 @@
 package dk.sdu.cloud.calls.server
 
+import dk.sdu.cloud.base64Decode
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.HttpHeaderParameter
 import dk.sdu.cloud.calls.HttpQueryParameter
 import dk.sdu.cloud.calls.http
 import io.ktor.application.*
+import io.ktor.request.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -14,23 +17,26 @@ import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
 
 @OptIn(ExperimentalSerializationApi::class)
-class ParamsParsing(
+class HeaderParsing(
     private val applicationCall: ApplicationCall,
     private val call: CallDescription<*, *, *>,
 ) : AbstractDecoder() {
     private var lastReadIdx: Int = -1
     private var lastRead: String? = null
-    private val parameters = call.http.params?.parameters ?: emptyList()
+    private val parameters = call.http.headers?.parameters ?: emptyList()
     private var elementIndex = 0
     override val serializersModule: SerializersModule = EmptySerializersModule
     private val value: String?
         get() {
+            println("Decoding value")
             if (lastReadIdx == elementIndex) {
                 return lastRead
             } else {
                 when (val param = parameters[elementIndex - 1]) {
-                    is HttpQueryParameter.Property<*> -> {
-                        lastRead = applicationCall.request.queryParameters[param.property]
+                    is HttpHeaderParameter.Property<*, *> -> {
+                        lastRead = applicationCall.request.header(param.header)?.let {
+                            base64Decode(it).decodeToString()
+                        }
                         lastReadIdx = elementIndex
                     }
                 }
@@ -83,16 +89,18 @@ class ParamsParsing(
     }
 
     override fun decodeNotNullMark(): Boolean {
-        return value != null
+        println("Decoding not null mark")
+        return value.also { println("Value is $it") } != null
     }
 
     override fun decodeNull(): Nothing? = null
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
+        println("Decoding element index")
         if (elementIndex == parameters.size) return CompositeDecoder.DECODE_DONE
         return when (val param = parameters[elementIndex++]) {
-            is HttpQueryParameter.Property<*> -> descriptor.getElementIndex(param.property)
-            else -> TODO("?")
+            is HttpHeaderParameter.Property<*, *> -> descriptor.getElementIndex(param.property.name).also { println(param.property.name) }
+            else -> error("unknown type $param")
         }
     }
 }

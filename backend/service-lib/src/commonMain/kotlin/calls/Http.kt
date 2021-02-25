@@ -13,8 +13,13 @@ class HttpRequest<R : Any, S : Any, E : Any>(
     val headers: HttpHeaderDescription<R>?
 ) {
     init {
-        if (body != null && params != null) {
-            throw IllegalArgumentException("UCloud no longer supports binding from both parameters and body")
+        var bindingFrom = 0
+        if (body != null) bindingFrom++
+        if (params != null) bindingFrom++
+        if (headers != null) bindingFrom++
+        if (bindingFrom > 1) {
+            throw IllegalArgumentException("UCloud no longer supports binding from multiple sources " +
+                "(e.g. body, params, headers)")
         }
     }
 

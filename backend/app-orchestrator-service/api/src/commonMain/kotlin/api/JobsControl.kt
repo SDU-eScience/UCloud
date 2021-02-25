@@ -69,7 +69,6 @@ data class JobsControlChargeCreditsRequestItem(
 data class JobsControlSubmitFileRequest(
     val jobId: String,
     val filePath: String,
-    val fileData: BinaryStream
 )
 typealias JobsControlSubmitFileResponse = Unit
 

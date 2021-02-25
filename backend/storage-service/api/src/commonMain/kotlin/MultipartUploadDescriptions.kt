@@ -30,7 +30,6 @@ data class BulkUploadAudit(val path: String, val policy: WriteConflictPolicy, va
 @Serializable
 data class SimpleUploadRequest(
     val location: String,
-    val file: BinaryStream,
     val policy: WriteConflictPolicy? = null,
     val sensitivity: SensitivityLevel? = null
 )
@@ -39,7 +38,6 @@ data class SimpleUploadRequest(
 data class SimpleBulkUpload(
     val location: String,
     val format: String,
-    val file: BinaryStream,
     val name: String? = null,
     val policy: WriteConflictPolicy? = null,
     val sensitivity: SensitivityLevel? = null

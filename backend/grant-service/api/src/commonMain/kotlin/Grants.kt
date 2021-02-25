@@ -45,7 +45,6 @@ typealias UploadTemplatesResponse = Unit
 @Serializable
 data class UploadLogoRequest(
     val projectId: String,
-    val data: BinaryStream
 )
 
 typealias UploadLogoResponse = Unit

@@ -396,8 +396,12 @@ class RpcServer {
                 ex.javaClass.simpleName == "CancellationException"
 
             if (ex !is RPCException && !isEarlyClose) {
-                log.info("Uncaught exception in handler for $call")
-                log.info(ex.stackTraceToString())
+                if (ex is NullPointerException && ex.message?.contains("Parameter specified as non-null") == true) {
+                    // Ignore
+                } else {
+                    log.info("Uncaught exception in handler for $call")
+                    log.info(ex.stackTraceToString())
+                }
             }
 
             val statusCode = (ex as? RPCException)?.httpStatusCode ?: HttpStatusCode.InternalServerError
@@ -440,8 +444,12 @@ class RpcServer {
                 try {
                     it.run(ctx, call, request, responseOrDefault)
                 } catch (ex: Throwable) {
-                    log.info("Uncaught exception in AfterResponse handler for $call")
-                    log.info(ex.stackTraceToString())
+                    if (ex is NullPointerException && ex.message?.contains("Parameter specified as non-null") == true) {
+                        // Ignore
+                    } else {
+                        log.info("Uncaught exception in AfterResponse handler for $call")
+                        log.info(ex.stackTraceToString())
+                    }
                 }
             }
     }

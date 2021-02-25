@@ -74,6 +74,7 @@ class IngoingHttpInterceptor(
                     @Suppress("UNCHECKED_CAST")
                     return Unit as R
                 }
+
                 http.body is HttpBody.BoundToEntireRequest<*> -> {
                     @Suppress("UNCHECKED_CAST")
                     val receiveOrNull = ctx.call.receiveOrNull<String>()?.takeIf { it.isNotEmpty() }
@@ -83,9 +84,18 @@ class IngoingHttpInterceptor(
                         ) ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
 
-                else -> {
+                http.params != null -> {
                     return ParamsParsing(ctx.context, call).decodeSerializableValue(call.requestType)
                 }
+
+                http.headers != null -> {
+                    return HeaderParsing(ctx.context, call).decodeSerializableValue(call.requestType)
+                }
+
+                else -> throw RPCException(
+                    "Unable to deserialize request. No source of input!",
+                    HttpStatusCode.InternalServerError
+                )
             }
         } catch (ex: Throwable) {
             when {
