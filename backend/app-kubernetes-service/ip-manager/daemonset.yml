@@ -26,3 +26,8 @@ spec:
         - name: ipman-mount
           hostPath:
             path: /var/lib/kubelet/volumeplugins
+      tolerations:
+      - key: "sducloud"
+        operator: "Equal"
+        value: "apps"
+        effect: "NoSchedule"

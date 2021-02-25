@@ -856,6 +856,12 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                         propName = jsonPropAnnotation.value
                     }
 
+                    val serialNameAnnotation = annotations.filterIsInstance<SerialName>().firstOrNull()
+                    if (serialNameAnnotation != null) {
+                        propName = serialNameAnnotation.value
+                    }
+
+
                     propType.deprecated = annotations.any { it is Deprecated }
                     propType.nullable = prop.returnType.isMarkedNullable
 
