@@ -57,22 +57,22 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
         }
     }
 
-    suspend fun <S> withCtxAndTimeout(
-        callHandler: CallHandler<*, LongRunningResponse<S>, CommonErrorMessage>,
+    suspend fun withCtxAndTimeout(
+        callHandler: CallHandler<*, LongRunningResponse, CommonErrorMessage>,
         user: String = callHandler.ctx.securityPrincipal.username,
         principalToVerify: SecurityPrincipal = callHandler.ctx.securityPrincipal,
-        job: suspend (Ctx) -> CallResult<S, CommonErrorMessage>
+        job: suspend (Ctx) -> CallResult<Unit, CommonErrorMessage>
     ) {
         with(callHandler) {
             verifyPrincipal(principalToVerify)
 
             withContext<HttpCall> {
-                val result: Deferred<CallResult<S, CommonErrorMessage>> = GlobalScope.async {
+                val result: Deferred<CallResult<Unit, CommonErrorMessage>> = GlobalScope.async {
                     try {
                         underlyingFactory.withContext(user) { job(it) }
                     } catch (ex: Exception) {
                         val (msg, status) = handleFSException(ex)
-                        CallResult.Error<S, CommonErrorMessage>(msg, status)
+                        CallResult.Error<Unit, CommonErrorMessage>(msg, status)
                     }
                 }
 
@@ -102,11 +102,11 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
         return underlyingFactory(username)
     }
 
-    private fun <S> CallHandler<*, LongRunningResponse<S>, CommonErrorMessage>.handleCallResult(
-        it: CallResult<S, CommonErrorMessage>
+    private fun CallHandler<*, LongRunningResponse, CommonErrorMessage>.handleCallResult(
+        it: CallResult<Unit, CommonErrorMessage>
     ) {
         when (it) {
-            is CallResult.Success -> ok(LongRunningResponse.Result(it.item), it.status)
+            is CallResult.Success -> ok(LongRunningResponse.Ok(), it.status)
             is CallResult.Error -> error(it.item, it.status)
         }
     }

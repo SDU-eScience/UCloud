@@ -169,7 +169,7 @@ export interface LongRunningResponse<T> {
     type: string;
 }
 """)
-sealed class LongRunningResponse<T> {
+sealed class LongRunningResponse {
     @Serializable
     @SerialName("timeout")
     @TSDefinition("""
@@ -177,9 +177,9 @@ export interface Timeout<T> extends LongRunningResponse<T> {
     type: "timeout"
 }
 """)
-    data class Timeout<T>(
+    data class Timeout(
         val why: String = "The operation has timed out and will continue in the background"
-    ) : LongRunningResponse<T>()
+    ) : LongRunningResponse()
 
     @Serializable
     @SerialName("result")
@@ -188,9 +188,7 @@ export interface Result<T> extends LongRunningResponse<T> {
     type: "result"
 }
 """)
-    data class Result<T>(
-        val item: T
-    ) : LongRunningResponse<T>()
+    class Ok() : LongRunningResponse()
 }
 
 @Serializable
@@ -365,7 +363,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     }
 
     val createDirectory =
-        call<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>("createDirectory") {
+        call<CreateDirectoryRequest, LongRunningResponse, CommonErrorMessage>("createDirectory") {
             auth {
                 roles = Roles.AUTHENTICATED
                 access = AccessRight.READ_WRITE
@@ -387,7 +385,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             }
         }
 
-    val deleteFile = call<DeleteFileRequest, LongRunningResponse<Unit>, CommonErrorMessage>("deleteFile") {
+    val deleteFile = call<DeleteFileRequest, LongRunningResponse, CommonErrorMessage>("deleteFile") {
         audit<SingleFileAudit<DeleteFileRequest>>()
 
         auth {
@@ -429,7 +427,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val move = call<MoveRequest, LongRunningResponse<Unit>, CommonErrorMessage>("move") {
+    val move = call<MoveRequest, LongRunningResponse, CommonErrorMessage>("move") {
         audit<SingleFileAudit<MoveRequest>>()
 
         auth {
@@ -454,7 +452,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val copy = call<CopyRequest, LongRunningResponse<Unit>, CommonErrorMessage>("copy") {
+    val copy = call<CopyRequest, LongRunningResponse, CommonErrorMessage>("copy") {
         audit<SingleFileAudit<CopyRequest>>()
 
         auth {
