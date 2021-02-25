@@ -221,7 +221,8 @@ class GrantController(
             ).orThrow()
 
             val projectIdAndMatchingResources = mutableMapOf<String, Int>()
-            val resourcesAppliedFor = application.first.requestedResources
+            val resourcesAppliedFor = application.first.requestedResources.filter { it.creditsRequested!=0L }
+            println(resourcesAppliedFor)
             resourcesAppliedFor.forEach {
                 val productCategory = it.productCategory
                 val productProvider = it.productProvider
