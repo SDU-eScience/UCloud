@@ -80,18 +80,18 @@ internal sealed class WSMessage<T> {
     abstract val streamId: String
 
     @Serializable
-    @SerialName(RESPONSE_TYPE)
     internal data class Response<T>(
         override val streamId: String,
         override val payload: T,
-        val status: Int
+        val status: Int,
+        val type: String = RESPONSE_TYPE
     ) : WSMessage<T>()
 
     @Serializable
-    @SerialName(MESSAGE_TYPE)
     internal data class Message<T>(
         override val streamId: String,
-        override val payload: T
+        override val payload: T,
+        val type: String = MESSAGE_TYPE
     ) : WSMessage<T>()
 
     companion object {

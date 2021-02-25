@@ -1,7 +1,9 @@
 package dk.sdu.cloud.calls.client
 
 import io.ktor.client.*
+import io.ktor.client.engine.cio.*
 import io.ktor.client.engine.okhttp.*
+import io.ktor.client.features.websocket.*
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import java.net.ConnectException
@@ -23,6 +25,10 @@ internal actual val httpClient = HttpClient(OkHttp) {
             connectionPool(ConnectionPool(128, 30, TimeUnit.MINUTES))
         }
     }
+}
+
+actual val websocketClient: HttpClient = HttpClient(CIO) {
+    install(WebSockets)
 }
 
 internal actual fun urlEncode(value: String): String {

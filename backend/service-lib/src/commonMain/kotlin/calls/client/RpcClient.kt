@@ -3,6 +3,11 @@ package dk.sdu.cloud.calls.client
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.service.Loggable
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.util.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.core.*
 import kotlin.reflect.KClass
 
 interface OutgoingCall {
@@ -59,8 +64,8 @@ class RpcClient {
         callDescription: CallDescription<R, S, E>,
         request: R,
         backend: Companion,
-        beforeFilters: (suspend (Ctx) -> Unit)? = null,
-        afterFilters: (suspend (Ctx) -> Unit)? = null
+        beforeHook: (suspend (Ctx) -> Unit)? = null,
+        afterHook: (suspend (Ctx) -> Unit)? = null
     ): IngoingCallResponse<S, E> {
         val interceptor =
             requestInterceptors[backend] ?: throw IllegalStateException("No handler exists for this backend: $backend")
@@ -69,7 +74,7 @@ class RpcClient {
         interceptor as OutgoingRequestInterceptor<Ctx, Companion>
 
         val ctx = interceptor.prepareCall(callDescription, request)
-        beforeFilters?.invoke(ctx)
+        beforeHook?.invoke(ctx)
 
         callFilters.filterIsInstance<OutgoingCallFilter.BeforeCall>().forEach {
             if (it.canUseContext(ctx)) {
@@ -77,7 +82,7 @@ class RpcClient {
             }
         }
 
-        afterFilters?.invoke(ctx)
+        afterHook?.invoke(ctx)
 
         return interceptor.finalizeCall(callDescription, request, ctx)
     }
@@ -107,7 +112,7 @@ data class ClientAndBackend(
 data class AuthenticatedClient(
     val client: RpcClient,
     val backend: OutgoingCallCompanion<*>,
-    val afterFilters: (suspend (OutgoingCall) -> Unit)? = null,
+    val afterHook: (suspend (OutgoingCall) -> Unit)? = null,
     val authenticator: suspend (OutgoingCall) -> Unit
 ) {
     @Deprecated("replaced with backend", ReplaceWith("backend"))
@@ -118,7 +123,7 @@ data class AuthenticatedClient(
             client: RpcClient,
             companion: Companion,
             authenticator: suspend (Ctx) -> Unit,
-            afterFilters: (suspend (Ctx) -> Unit)? = null
+            afterHook: (suspend (Ctx) -> Unit)? = null
         ): AuthenticatedClient {
             return AuthenticatedClient(
                 client,
@@ -127,29 +132,47 @@ data class AuthenticatedClient(
                     @Suppress("UNCHECKED_CAST")
                     authenticator(it as Ctx)
                 },
-                afterFilters = {
+                afterHook = {
                     @Suppress("UNCHECKED_CAST")
-                    afterFilters?.invoke(it as Ctx)
+                    afterHook?.invoke(it as Ctx)
                 }
             )
         }
     }
 }
 
-fun AuthenticatedClient.withFilters(
-    authenticator: suspend (OutgoingCall) -> Unit = {},
-    afterFilters: suspend (OutgoingCall) -> Unit = {}
+fun AuthenticatedClient.withHooks(
+    beforeHook: suspend (OutgoingCall) -> Unit = {},
+    afterHooks: suspend (OutgoingCall) -> Unit = {}
 ): AuthenticatedClient {
     return AuthenticatedClient(
         client,
         backend,
         authenticator = {
             this.authenticator(it)
-            authenticator(it)
+            beforeHook(it)
         },
-        afterFilters = {
-            this.afterFilters?.invoke(it)
-            afterFilters(it)
+        afterHook = {
+            this.afterHook?.invoke(it)
+            afterHooks(it)
+        }
+    )
+}
+
+fun AuthenticatedClient.withHttpBody(
+    contentType: ContentType,
+    contentLength: Long?,
+    channel: ByteReadChannel
+): AuthenticatedClient {
+    return withHooks(
+        beforeHook = {
+            val call = (it as OutgoingHttpCall)
+            call.builder.body = object : OutgoingContent.ReadChannelContent() {
+                override val contentType: ContentType = contentType
+                override val contentLength: Long? = contentLength
+                @OptIn(ExperimentalIoApi::class, KtorExperimentalAPI::class)
+                override fun readFrom(): ByteReadChannel = channel
+            }
         }
     )
 }
@@ -161,7 +184,7 @@ fun AuthenticatedClient.withFixedHost(hostInfo: HostInfo): AuthenticatedClient {
         authenticator = {
             authenticator(it)
         },
-        afterFilters = {
+        afterHook = {
             it.attributes.outgoingTargetHost = hostInfo
         }
     )
@@ -175,8 +198,8 @@ fun AuthenticatedClient.withProject(project: String): AuthenticatedClient {
             authenticator(it)
             it.project = project
         },
-        afterFilters = {
-            afterFilters?.invoke(it)
+        afterHook = {
+            afterHook?.invoke(it)
         }
     )
 }
@@ -193,6 +216,6 @@ suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.call(
         request,
         authenticatedBackend.backend as OutgoingCallCompanion<OutgoingCall>,
         authenticatedBackend.authenticator,
-        authenticatedBackend.afterFilters
+        authenticatedBackend.afterHook
     )
 }

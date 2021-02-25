@@ -28,7 +28,6 @@ class HeaderParsing(
     override val serializersModule: SerializersModule = EmptySerializersModule
     private val value: String?
         get() {
-            println("Decoding value")
             if (lastReadIdx == elementIndex) {
                 return lastRead
             } else {
@@ -89,17 +88,15 @@ class HeaderParsing(
     }
 
     override fun decodeNotNullMark(): Boolean {
-        println("Decoding not null mark")
-        return value.also { println("Value is $it") } != null
+        return value != null
     }
 
     override fun decodeNull(): Nothing? = null
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
-        println("Decoding element index")
         if (elementIndex == parameters.size) return CompositeDecoder.DECODE_DONE
         return when (val param = parameters[elementIndex++]) {
-            is HttpHeaderParameter.Property<*, *> -> descriptor.getElementIndex(param.property.name).also { println(param.property.name) }
+            is HttpHeaderParameter.Property<*, *> -> descriptor.getElementIndex(param.property.name)
             else -> error("unknown type $param")
         }
     }

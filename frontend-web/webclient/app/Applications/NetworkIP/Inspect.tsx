@@ -9,7 +9,7 @@ import NetworkIP = compute.NetworkIP;
 import {groupSummaryRequest, useProjectId} from "Project";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {GroupWithSummary} from "Project/GroupList";
-import {emptyPage} from "DefaultObjects";
+import {bulkRequestOf, emptyPage} from "DefaultObjects";
 import {useCallback, useEffect, useRef, useState} from "react";
 import * as UCloud from "UCloud";
 import * as Pagination from "Pagination";
@@ -222,7 +222,7 @@ const Permissions: React.FunctionComponent<{ entity: NetworkIP, reload: () => vo
 
         setAcl(newAcl);
 
-        await invokeCommand(networkApi.updateAcl({acl: newAcl, id: entity.id}))
+        await invokeCommand(networkApi.updateAcl(bulkRequestOf({acl: newAcl, id: entity.id})))
         reload();
     }, [acl, projectId, commandLoading]);
 

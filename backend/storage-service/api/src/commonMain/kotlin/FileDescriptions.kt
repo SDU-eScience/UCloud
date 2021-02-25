@@ -165,7 +165,7 @@ data class DownloadByURI(
 
 @Serializable
 @TSDefinition("""
-export interface LongRunningResponse<T> {
+export interface LongRunningResponse {
     type: string;
 }
 """)
@@ -173,7 +173,7 @@ sealed class LongRunningResponse {
     @Serializable
     @SerialName("timeout")
     @TSDefinition("""
-export interface Timeout<T> extends LongRunningResponse<T> {
+export interface Timeout<T> extends LongRunningResponse {
     type: "timeout"
 }
 """)
@@ -184,7 +184,7 @@ export interface Timeout<T> extends LongRunningResponse<T> {
     @Serializable
     @SerialName("result")
     @TSDefinition("""
-export interface Result<T> extends LongRunningResponse<T> {
+export interface Ok extends LongRunningResponse {
     type: "result"
 }
 """)

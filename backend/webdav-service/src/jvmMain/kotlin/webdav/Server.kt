@@ -5,12 +5,7 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.ClientAndBackend
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
-import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.CopyRequest
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
@@ -300,26 +295,21 @@ class Server(override val micro: Micro) : CommonServer {
 
                 method(HttpMethod.Put) {
                     handle {
-                        TODO()
-                        /*
                         withDavHandler { (client, pathPrefix) ->
                             if (isPathVirtual(requestPath)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
                             val channel = call.receiveChannel()
                             MultiPartUploadDescriptions.simpleUpload.call(
-                                SimpleUploadRequest(
-                                    getRealPath(requestPath, pathPrefix),
-                                    BinaryStream.outgoingFromChannel(
-                                        channel,
-                                        call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
-                                    )
-                                ),
-                                client
+                                SimpleUploadRequest(getRealPath(requestPath, pathPrefix)),
+                                client.withHttpBody(
+                                    ContentType.Application.OctetStream,
+                                    call.request.header(HttpHeaders.ContentLength)?.toLongOrNull(),
+                                    channel
+                                )
                             ).orThrow()
 
                             call.respondText(status = HttpStatusCode.Created) { "" }
                         }
-                         */
                     }
                 }
 

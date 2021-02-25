@@ -6,15 +6,18 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.*
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 
+@Serializable
 data class ExportedParameters(
     val siteVersion: Int,
     val request: JsonObject,
 
     // Backwards compatible information
-    val machineType: Map<String, Any?>,
+    val machineType: JsonObject,
 )
 
 class ParameterExportService(
@@ -32,10 +35,10 @@ class ParameterExportService(
         return ExportedParameters(
             VERSION,
             exportedParams,
-            mapOf(
-                "cpu" to (resolvedProduct.cpu ?: 1),
-                "memoryInGigs" to (resolvedProduct.memoryInGigs ?: 1),
-            )
+            JsonObject(mapOf(
+                "cpu" to JsonPrimitive(resolvedProduct.cpu ?: 1),
+                "memoryInGigs" to JsonPrimitive(resolvedProduct.memoryInGigs ?: 1),
+            ))
         )
     }
 

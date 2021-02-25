@@ -4,7 +4,7 @@ import * as UCloud from "UCloud";
 import {accounting, compute, PageV2, provider} from "UCloud";
 import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {groupSummaryRequest, useProjectId} from "Project";
-import {emptyPage, emptyPageV2} from "DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "DefaultObjects";
 import List, {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {Box, Button, Flex, Icon, RadioTile, RadioTilesContainer, Text, Truncate} from "ui-components";
 import {doNothing, prettierString, shortUUID} from "UtilityFunctions";
@@ -623,7 +623,7 @@ const LicensePermissions: React.FunctionComponent<{ license: License, reload: ()
 
         setAcl(newAcl);
 
-        await invokeCommand(licenseApi.updateAcl({acl: newAcl, id: license.id}))
+        await invokeCommand(licenseApi.updateAcl(bulkRequestOf({acl: newAcl, id: license.id})));
         reload();
     }, [acl, projectId, commandLoading]);
 

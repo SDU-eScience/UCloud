@@ -17,6 +17,7 @@ import dk.sdu.cloud.service.k8.KubernetesResources
 import dk.sdu.cloud.service.k8.patchResource
 import io.ktor.http.*
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonPrimitive
 
 object AccountingPlugin : JobManagementPlugin, Loggable {
     override val log = logger()
@@ -108,10 +109,10 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
 
     private val VolcanoJob.lastAccountingTs: Long?
         get() {
-            return metadata?.annotations?.get(LAST_PERFORMED_AT_ANNOTATION)?.toString()?.toLongOrNull()
+            return (metadata?.annotations?.get(LAST_PERFORMED_AT_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
         }
     private val VolcanoJob.jobStartedAt: Long?
         get() {
-            return metadata?.annotations?.get(ExpiryPlugin.JOB_START)?.toString()?.toLongOrNull()
+            return (metadata?.annotations?.get(ExpiryPlugin.JOB_START) as? JsonPrimitive)?.content?.toLongOrNull()
         }
 }

@@ -7,6 +7,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as UCloud from "UCloud";
 import {Box, Button, Checkbox, Flex, Heading, Input, Label} from "ui-components";
 import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
+import {bulkRequestOf} from "DefaultObjects";
 
 
 
@@ -118,7 +119,7 @@ function Create(): JSX.Element | null {
         if (error) return;
 
         try {
-            await invokeCommand(UCloud.provider.providers.create({
+            await invokeCommand(UCloud.provider.providers.create(bulkRequestOf({
                 id,
                 domain,
                 https: isHttps,
@@ -134,7 +135,7 @@ function Create(): JSX.Element | null {
                 /* items,
                 type,
                 product */
-            }), {defaultErrorHandler: false});
+            })), {defaultErrorHandler: false});
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to create provider"), false);
         }

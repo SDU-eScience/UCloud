@@ -23,10 +23,15 @@ import {
 import {GroupWithSummary} from "Project/GroupList";
 import {Product} from "Accounting";
 import * as UCloud from "UCloud";
+import {BulkRequest} from "UCloud";
 
 export enum KeyCode {
     ENTER = 13,
     ESC = 27
+}
+
+export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
+    return {"type": "bulk", items};
 }
 
 export const emptyPage: Readonly<Page<any>> =

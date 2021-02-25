@@ -16,7 +16,7 @@ import {MutableRefObject, useCallback, useEffect, useRef, useState} from "react"
 import {accounting, compute, PageV2} from "UCloud";
 import KubernetesLicense = compute.ucloud.KubernetesLicense;
 import licenseApi = compute.ucloud.licenses.maintenance;
-import {emptyPageV2} from "DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import * as Pagination from "Pagination";
 import ReactModal from "react-modal";
@@ -111,7 +111,7 @@ const LicenseServerTagsPrompt: React.FunctionComponent<{
                             const newTagList = [...tagList, tagValue]
                             setTagList(newTagList);
                             newTagField.current!.value = "";
-                            await invokeCommand(licenseApi.update({...licenseServer, tags: newTagList}));
+                            await invokeCommand(licenseApi.update(bulkRequestOf({...licenseServer, tags: newTagList})));
                             if (onUpdate) onUpdate();
                         }}
                     >
@@ -155,7 +155,9 @@ const LicenseServerTagsPrompt: React.FunctionComponent<{
                                                     const newTagList = tagList.filter(it => it !== tagEntry);
                                                     setTagList(newTagList);
                                                     await invokeCommand(
-                                                        licenseApi.update({...licenseServer, tags: newTagList})
+                                                        licenseApi.update(
+                                                            bulkRequestOf({...licenseServer, tags: newTagList})
+                                                        )
                                                     );
                                                     if (onUpdate) onUpdate();
                                                 }}
@@ -289,7 +291,7 @@ const LicenseServers: React.FunctionComponent = () => {
                 priority
             };
             try {
-                await invokeCommand(licenseApi.create(request), {defaultErrorHandler: false});
+                await invokeCommand(licenseApi.create(bulkRequestOf(request)), {defaultErrorHandler: false});
                 snackbarStore.addSuccess(`License server '${name}' successfully added`, true);
                 reload();
             } catch (e) {
@@ -705,7 +707,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
         if (isNaN(pricePerUnit)) return;
 
         try {
-            await invokeCommand(licenseApi.update({
+            await invokeCommand(licenseApi.update(bulkRequestOf({
                 id: licenseServer.id,
                 address,
                 port,
@@ -718,7 +720,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
                 paymentModel: paymentModelEdit,
                 pricePerUnit,
                 tags: licenseServer.tags
-            }));
+            })));
 
             reload();
         } catch (e) {

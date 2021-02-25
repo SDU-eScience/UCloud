@@ -160,8 +160,8 @@ class UserIterationService(
                 UserDescriptions.fetchNextIterator,
                 FindByStringId(id),
                 OutgoingHttpCall,
-                beforeFilters = { authenticator.authenticateCall(it) },
-                afterFilters = { it.attributes.outgoingTargetHost = targetedCloud }
+                beforeHook = { authenticator.authenticateCall(it) },
+                afterHook = { it.attributes.outgoingTargetHost = targetedCloud }
             ).orThrow()
         }
     }
@@ -175,8 +175,8 @@ class UserIterationService(
                 UserDescriptions.closeIterator,
                 FindByStringId(id),
                 OutgoingHttpCall,
-                beforeFilters = { authenticator.authenticateCall(it) },
-                afterFilters = { it.attributes.outgoingTargetHost = targetedCloud }
+                beforeHook = { authenticator.authenticateCall(it) },
+                afterHook = { it.attributes.outgoingTargetHost = targetedCloud }
             )
         }
     }

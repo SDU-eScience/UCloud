@@ -83,7 +83,10 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
             url(url)
             method = http.method
-            body = http.serializeBody(request, call)
+            if (body == EmptyContent) {
+                // If a beforeHook has attached a body, don't change it
+                body = http.serializeBody(request, call)
+            }
             http.serializeHeaders(request).forEach { (name, value) ->
                 header(name, base64Encode(value.encodeToByteArray()))
             }

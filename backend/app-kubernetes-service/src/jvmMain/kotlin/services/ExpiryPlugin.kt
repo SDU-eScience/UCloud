@@ -70,7 +70,8 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
             val name = metadata.name ?: error("no name")
             val namespace = metadata.namespace ?: error("no namespace")
             log.debug("looking at $name")
-            val expiry = metadata.annotations?.get(EXPIRY_ANNOTATION)?.toString()?.toLongOrNull() ?: continue
+            val expiry = (metadata.annotations?.get(EXPIRY_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
+                ?: continue
             log.debug("expiry in ${expiry - now}")
             if (now >= expiry) {
                 k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
@@ -120,13 +121,13 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
 }
 
 val VolcanoJob.maxTime: Long? get() {
-    return metadata?.annotations?.get(ExpiryPlugin.MAX_TIME_ANNOTATION)?.toString()?.toLongOrNull()
+    return (metadata?.annotations?.get(ExpiryPlugin.MAX_TIME_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
 }
 
 val VolcanoJob.jobStart: Long? get() {
-    return metadata?.annotations?.get(ExpiryPlugin.JOB_START)?.toString()?.toLongOrNull()
+    return (metadata?.annotations?.get(ExpiryPlugin.JOB_START) as? JsonPrimitive)?.content?.toLongOrNull()
 }
 
 val VolcanoJob.expiry: Long? get() {
-    return metadata?.annotations?.get(ExpiryPlugin.EXPIRY_ANNOTATION)?.toString()?.toLongOrNull()
+    return (metadata?.annotations?.get(ExpiryPlugin.EXPIRY_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
 }

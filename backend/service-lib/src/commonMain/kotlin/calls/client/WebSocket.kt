@@ -1,34 +1,25 @@
 package dk.sdu.cloud.calls.client
 
-import dk.sdu.cloud.calls.AttributeContainer
-import dk.sdu.cloud.calls.AttributeKey
-import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.WSMessage
-import dk.sdu.cloud.calls.WSRequest
-import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import io.ktor.client.HttpClient
-import io.ktor.client.features.websocket.ClientWebSocketSession
-import io.ktor.client.features.websocket.WebSockets
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.URLBuilder
+import io.ktor.client.*
+import io.ktor.client.features.websocket.*
+import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
-import io.ktor.http.fullPath
 import io.ktor.util.KtorExperimentalAPI
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonObject
 import kotlin.random.Random
 
 class OutgoingWSCall : OutgoingCall {
@@ -67,8 +58,6 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         request: R,
         ctx: OutgoingWSCall
     ): IngoingCallResponse<S, E> {
-        TODO()
-        /*
         val callId = Random.nextInt(10000) // Non unique ID for logging
         val start = Time.now()
         val shortRequestMessage = request.toString().take(100)
@@ -101,17 +90,11 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             streamId,
             request,
             bearer = ctx.attributes.outgoingAuthToken,
-            causedBy = ctx.causedBy,
             project = ctx.project
         )
-        val writer = defaultMapper.writerFor(
-            defaultMapper.typeFactory.constructParametricType(
-                WSRequest::class.java,
-                defaultMapper.typeFactory.constructType(call.requestType)
-            )
-        )
+        val writer = WSRequest.serializer(call.requestType)
         val subscription = session.subscribe(streamId)
-        val text = writer.writeValueAsString(wsRequest)
+        val text = defaultMapper.encodeToString(writer, wsRequest)
         session.underlyingSession.outgoing.send(Frame.Text(text))
 
         val handler = ctx.attributes.getOrNull(OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY)
@@ -162,7 +145,6 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             in 100..399 -> IngoingCallResponse.Ok(response.payload as S, HttpStatusCode.fromValue(response.status))
             else -> IngoingCallResponse.Error(response.payload as E?, HttpStatusCode.fromValue(response.status))
         }
-         */
     }
 
     private fun CoroutineScope.processMessagesFromStream(
@@ -170,42 +152,37 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         channel: ReceiveChannel<WSRawMessage>,
         streamId: String
     ): ReceiveChannel<WSMessage<Any?>> = produce {
-        TODO()
-        /*
-        val successReader = defaultMapper.readerFor(call.successType)
-        val errorReader = defaultMapper.readerFor(call.errorType)
-
         for (message in channel) {
             @Suppress("BlockingMethodInNonBlockingContext")
             val result = when (message.type) {
-                WSMessage.MESSAGE_TYPE -> {
-                    val payload = successReader.readValue<Any>(message.payload)
+                null, WSMessage.MESSAGE_TYPE -> {
+                    val payload = defaultMapper.decodeFromJsonElement(call.successType, message.payload)
                     WSMessage.Message<Any>(streamId, payload)
                 }
 
                 WSMessage.RESPONSE_TYPE -> {
-                    val reader = when (message.status) {
-                        in 100..399 -> successReader
-                        else -> errorReader
+                    val serializer = when (message.status) {
+                        in 100..399 -> call.successType
+                        else -> call.errorType
                     }
 
                     val payload = try {
-                        reader.readValue<Any>(message.payload)
+                        defaultMapper.decodeFromJsonElement(serializer, message.payload)
                     } catch (ex: Throwable) {
                         if (message.status in 100..399) throw ex
                         null
                     }
 
-                    WSMessage.Response<Any?>(streamId, payload, message.status)
+                    WSMessage.Response(streamId, payload, message.status ?: 500)
                 }
                 else -> null
             }
 
             if (result != null) {
+                @Suppress("UNCHECKED_CAST")
                 send(result as WSMessage<Any?>)
             }
         }
-        */
     }
 
     companion object : Loggable {
@@ -215,7 +192,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
     }
 }
 
-@UseExperimental(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
+@OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 internal class WSClientSession constructor(
     val underlyingSession: ClientWebSocketSession
 ) {
@@ -238,8 +215,6 @@ internal class WSClientSession constructor(
 
     fun startProcessing(scope: CoroutineScope) {
         scope.launch {
-            TODO()
-            /*
             @Suppress("TooGenericExceptionCaught")
             try {
                 while (true) {
@@ -247,33 +222,20 @@ internal class WSClientSession constructor(
 
                     if (frame is Frame.Text) {
                         val text = frame.readText()
-
-                        @Suppress("BlockingMethodInNonBlockingContext") val frameNode = defaultMapper.readTree(text)
-                        val type = frameNode[TYPE_PROPERTY]
-                            ?.takeIf { !it.isNull && it.isTextual }
-                            ?.textValue() ?: continue
-
-                        val status = frameNode[WSMessage.STATUS_FIELD]
-                            ?.takeIf { !it.isNull && it.isIntegralNumber }
-                            ?.intValue() ?: -1
-
-                        val incomingStreamId = frameNode[WSMessage.STREAM_ID_FIELD]
-                            ?.takeIf { !it.isNull && it.isTextual }
-                            ?.textValue() ?: continue
-
-                        val payload = frameNode[WSMessage.PAYLOAD_FIELD]
+                        val frameNode = runCatching { defaultMapper.decodeFromString<WSRawMessage>(text) }.getOrNull()
+                            ?: continue
 
                         mutex.withLock {
-                            val channel = channels[incomingStreamId] ?: return@withLock
+                            val channel = channels[frameNode.streamId] ?: return@withLock
 
                             if (!channel.isClosedForSend) {
                                 try {
-                                    channel.send(WSRawMessage(type, status, incomingStreamId, payload))
+                                    channel.send(frameNode)
                                 } catch (ex: CancellationException) {
                                     // Ignored
                                 }
                             } else {
-                                unsubscribe(incomingStreamId)
+                                unsubscribe(frameNode.streamId)
                             }
                         }
                     }
@@ -281,7 +243,7 @@ internal class WSClientSession constructor(
             } catch (ex: Throwable) {
                 if (ex is ClosedReceiveChannelException || ex.cause is ClosedReceiveChannelException) {
                     mutex.withLock {
-                        val emptyTree = defaultMapper.readTree("{}")
+                        val emptyTree = JsonObject(emptyMap())
 
                         channels.forEach { (streamId, channel) ->
                             if (!channel.isClosedForSend) {
@@ -298,7 +260,6 @@ internal class WSClientSession constructor(
                     log.info(ex.stackTraceToString())
                 }
             }
-            */
         }
     }
 
@@ -307,28 +268,24 @@ internal class WSClientSession constructor(
     }
 }
 
+@Serializable
 internal data class WSRawMessage(
-    val type: String,
-    val status: Int,
+    val type: String? = null,
+    val status: Int? = null,
     val streamId: String,
-    val payload: Any? // JsonNOde
+    val payload: JsonObject
 )
+
+expect val websocketClient: HttpClient
 
 @OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 internal class WSConnectionPool {
-    /*
     private val connectionPool = HashMap<String, WSClientSession>()
     private val mutex = Mutex()
-    private val client = HttpClient(CIO) {
-        install(WebSockets)
-    }
-     */
 
     suspend fun retrieveConnection(
         location: String
     ): WSClientSession {
-        TODO()
-        /*
         val existing = connectionPool[location]
         if (existing != null) {
             if (existing.underlyingSession.outgoing.isClosedForSend ||
@@ -346,7 +303,7 @@ internal class WSConnectionPool {
 
             val url = URLBuilder(location).build()
             log.info("Building new websocket connection to $url")
-            val session = client.webSocketRawSession(
+            val session = websocketClient.webSocketSession(
                 host = url.host,
                 port = url.port,
                 path = url.fullPath
@@ -357,7 +314,6 @@ internal class WSConnectionPool {
             wrappedSession.startProcessing(GlobalScope)
             return wrappedSession
         }
-         */
     }
 
     companion object : Loggable {
@@ -370,8 +326,8 @@ suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.subscribe(
     authenticatedClient: AuthenticatedClient,
     handler: suspend (S) -> Unit
 ): IngoingCallResponse<S, E> {
-    require(authenticatedClient.companion == OutgoingWSCall) {
-        "subscribe call not supported for backend '${authenticatedClient.companion}'"
+    require(authenticatedClient.backend == OutgoingWSCall) {
+        "subscribe call not supported for backend '${authenticatedClient.backend}'"
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -379,7 +335,7 @@ suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.subscribe(
         this,
         request,
         authenticatedClient.backend as OutgoingCallCompanion<OutgoingCall>,
-        beforeFilters = { ctx ->
+        beforeHook = { ctx ->
             authenticatedClient.authenticator(ctx)
 
             ctx.attributes[OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY] = {

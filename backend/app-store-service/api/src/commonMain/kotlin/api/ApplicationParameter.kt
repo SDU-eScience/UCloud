@@ -17,7 +17,7 @@ private const val TYPE_INGRESS = "ingress"
 private const val TYPE_NETWORK_IP = "network_ip"
 
 @Serializable
-sealed class ApplicationParameter(val type: String) {
+sealed class ApplicationParameter {
     abstract var name: String
     abstract val optional: Boolean
     abstract val title: String?
@@ -32,7 +32,7 @@ sealed class ApplicationParameter(val type: String) {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter(TYPE_INPUT_FILE)
+    ) : ApplicationParameter()
 
     @Serializable
     @SerialName(TYPE_INPUT_DIRECTORY)
@@ -42,7 +42,7 @@ sealed class ApplicationParameter(val type: String) {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter(TYPE_INPUT_DIRECTORY)
+    ) : ApplicationParameter()
 
     @Serializable
     @SerialName(TYPE_TEXT)
@@ -52,7 +52,7 @@ sealed class ApplicationParameter(val type: String) {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter(TYPE_TEXT)
+    ) : ApplicationParameter()
 
     @Serializable
     @SerialName(TYPE_INTEGER)
@@ -66,7 +66,7 @@ sealed class ApplicationParameter(val type: String) {
         val max: Long? = null,
         val step: Long? = null,
         val unitName: String? = null
-    ) : ApplicationParameter(TYPE_INTEGER)
+    ) : ApplicationParameter()
 
     @Serializable
     @SerialName(TYPE_FLOATING_POINT)
@@ -80,7 +80,7 @@ sealed class ApplicationParameter(val type: String) {
         val max: Double? = null,
         val step: Double? = null,
         val unitName: String? = null
-    ) : ApplicationParameter(TYPE_FLOATING_POINT)
+    ) : ApplicationParameter()
 
     @Serializable
     @SerialName(TYPE_BOOLEAN)
@@ -92,7 +92,7 @@ sealed class ApplicationParameter(val type: String) {
         override val description: String = "",
         val trueValue: String = "true",
         val falseValue: String = "false"
-    ) : ApplicationParameter(TYPE_BOOLEAN)
+    ) : ApplicationParameter()
 
     @Serializable
     data class EnumOption(val name: String, val value: String)
@@ -106,7 +106,7 @@ sealed class ApplicationParameter(val type: String) {
         override val title: String = "",
         override val description: String = "",
         val options: List<EnumOption> = emptyList()
-    ) : ApplicationParameter(TYPE_ENUMERATION)
+    ) : ApplicationParameter()
 
     @Serializable
     @SerialName(TYPE_PEER)
@@ -115,7 +115,7 @@ sealed class ApplicationParameter(val type: String) {
         override val title: String = "",
         override val description: String,
         val suggestedApplication: String? = null
-    ) : ApplicationParameter(TYPE_PEER) {
+    ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
         override val optional = false
 
@@ -147,7 +147,7 @@ sealed class ApplicationParameter(val type: String) {
         override var name: String = "",
         override val title: String = "",
         override val description: String = "",
-    ) : ApplicationParameter(TYPE_INGRESS) {
+    ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
         override val optional = false
     }
@@ -160,7 +160,7 @@ sealed class ApplicationParameter(val type: String) {
         override val optional: Boolean = false,
         override val description: String = "",
         val tagged: List<String>
-    ) : ApplicationParameter(TYPE_LICENSE_SERVER) {
+    ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
     }
 
@@ -170,7 +170,7 @@ sealed class ApplicationParameter(val type: String) {
         override var name: String = "",
         override val title: String = "",
         override val description: String = "",
-    ) : ApplicationParameter(TYPE_NETWORK_IP) {
+    ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
         override val optional = false
     }

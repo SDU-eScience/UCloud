@@ -2,9 +2,7 @@ package dk.sdu.cloud.service.k8
 
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.JsonNodeType
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
@@ -26,6 +24,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
@@ -42,14 +41,14 @@ sealed class KubernetesConfigurationSource {
             val clusters: List<Cluster>,
             val contexts: List<Context>,
             val users: List<User>,
-            @JsonAlias("current-context") val currentContext: String?
+            @SerialName("current-context") @JsonAlias("current-context") val currentContext: String?
         )
 
         private data class User(val name: String, val user: UserData) {
             data class UserData(
                 val token: String?,
-                @JsonAlias("client-certificate") val clientCertificate: String?,
-                @JsonAlias("client-key") val clientKey: String?,
+                @SerialName("client-certificate") @JsonAlias("client-certificate") val clientCertificate: String?,
+                @SerialName("client-key") @JsonAlias("client-key") val clientKey: String?,
                 val username: String?,
                 val password: String?
             )
@@ -61,8 +60,12 @@ sealed class KubernetesConfigurationSource {
 
         private data class Cluster(val name: String, val cluster: Cluster) {
             data class Cluster(
-                @JsonAlias("certificate-authority-data") val certificateAuthorityData: String?,
-                @JsonAlias("certificate-authority") val certificateAuthority: String?,
+                @SerialName("certificate-authority-data")
+                @JsonAlias("certificate-authority-data")
+                val certificateAuthorityData: String?,
+                @SerialName("certificate-authority")
+                @JsonAlias("certificate-authority")
+                val certificateAuthority: String?,
                 val server: String
             )
         }
@@ -493,7 +496,7 @@ suspend inline fun KubernetesClient.deleteResource(
     locator: KubernetesResourceLocator,
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
-): JsonNode {
+): JsonObject {
     return parseResponse(sendRequest(HttpMethod.Delete, locator, queryParameters, operation))
 }
 
@@ -502,7 +505,7 @@ suspend inline fun KubernetesClient.replaceResource(
     replacementJson: String,
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
-): JsonNode {
+): JsonObject {
     return parseResponse(
         sendRequest(
             HttpMethod.Put,
@@ -520,7 +523,7 @@ suspend fun KubernetesClient.patchResource(
     contentType: ContentType = ContentType("application", "merge-patch+json"),
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
-): JsonNode {
+): JsonObject {
     return parseResponse(
         sendRequest(
             HttpMethod.Patch,
@@ -538,7 +541,7 @@ suspend fun KubernetesClient.createResource(
     contentType: ContentType = ContentType.Application.Json,
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
-): JsonNode {
+): JsonObject {
     return parseResponse(
         sendRequest(
             HttpMethod.Post,

@@ -17,6 +17,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withHttpBody
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ManifestFeatureSupport
@@ -156,6 +157,8 @@ class JobManagement(
         )
         builder.spec = VolcanoJob.Spec(schedulerName = "volcano")
         plugins.forEach { with(it) { with(k8) { onCreate(verifiedJob, builder) } } }
+
+        println(defaultMapper.encodeToString(builder))
 
         @Suppress("BlockingMethodInNonBlockingContext")
         k8.client.createResource(
@@ -499,23 +502,23 @@ class JobManagement(
         }
 
         val dir = logService.downloadLogsToDirectory(jobId)
-        TODO()
-        /*
         try {
             dir?.listFiles()?.forEach { file ->
                 JobsControl.submitFile.call(
                     JobsControlSubmitFileRequest(
                         jobId,
-                        file.name,
-                        BinaryStream.outgoingFromChannel(file.readChannel(), file.length())
+                        file.name
                     ),
-                    k8.serviceClient
+                    k8.serviceClient.withHttpBody(
+                        ContentType.Application.OctetStream,
+                        file.length(),
+                        file.readChannel()
+                    )
                 )
             }
         } finally {
             dir?.deleteRecursively()
         }
-         */
 
         return true
     }

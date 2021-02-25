@@ -19,7 +19,9 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
+import io.ktor.utils.io.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import java.util.concurrent.atomic.AtomicInteger
@@ -390,20 +392,21 @@ class JobOrchestrator(
         return loadedJobs
     }
 
-    suspend fun submitFile(request: JobsControlSubmitFileRequest, providerActor: Actor) {
+    suspend fun submitFile(
+        request: JobsControlSubmitFileRequest,
+        providerActor: Actor,
+        contentLength: Long?,
+        content: ByteReadChannel
+    ) {
         val comm = providers.prepareCommunication(providerActor)
         val jobWithToken = loadAndVerifyProviderJobs(db, setOf(request.jobId), comm).getValue(request.jobId)
 
-        TODO()
-        /*
-        val ingoing = request.fileData.asIngoing()
         jobFileService.acceptFile(
             jobWithToken,
             request.filePath,
-            ingoing.length ?: throw RPCException("Unknown length of payload", HttpStatusCode.BadRequest),
-            ingoing.channel
+            contentLength ?: throw RPCException("Unknown length of payload", HttpStatusCode.BadRequest),
+            content
         )
-         */
     }
 
     suspend fun retrieveAsProvider(

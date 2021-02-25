@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.defaultMapper
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -52,7 +53,7 @@ data class ObjectMeta(
 @Serializable
 data class WatchEvent<T>(
     val type: String,
-    @get:JsonAlias("object") val theObject: T
+    @get:JsonAlias("object") @SerialName("object") val theObject: T
 )
 
 @Serializable

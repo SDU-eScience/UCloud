@@ -273,7 +273,7 @@ class IngoingWebSocketInterceptor(
         if (payload != null && typeRef != null) {
             @Suppress("UNCHECKED_CAST")
             val response = defaultMapper.encodeToString(
-                WSMessage.Response.serializer(typeRef.nullable) as KSerializer<WSMessage.Response<*>>,
+                WSMessage.Response.serializer(typeRef.nullable) as KSerializer<WSMessage<*>>,
                 WSMessage.Response<Any?>(
                     ctx.streamId,
                     payload,

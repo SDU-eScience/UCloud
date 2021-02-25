@@ -31,6 +31,7 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import JobSpecification = compute.JobSpecification;
 import {NetworkIPResource} from "Applications/Jobs/Resources/NetworkIPs";
+import {bulkRequestOf} from "DefaultObjects";
 
 interface InsufficientFunds {
     why?: string;
@@ -170,7 +171,7 @@ export const Create: React.FunctionComponent = () => {
 
             try {
                 const response = await invokeCommand<UCloud.compute.JobsCreateResponse>(
-                    UCloud.compute.jobs.create(request),
+                    UCloud.compute.jobs.create(bulkRequestOf(request)),
                     {defaultErrorHandler: false}
                 );
 

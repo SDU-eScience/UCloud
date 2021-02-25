@@ -40,6 +40,7 @@ import {File} from "Files";
 import JobSpecification = compute.JobSpecification;
 import { retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import { addStandardDialog } from "UtilityComponents";
+import {bulkRequestOf} from "DefaultObjects";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
@@ -189,6 +190,7 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
                     call: "jobs.follow",
                     payload: {id: job.id},
                     handler: message => {
+                        console.log("Receiving new message", message);
                         const streamEntry = message.payload as JobsFollowResponse;
                         callback(streamEntry);
                     }
@@ -753,10 +755,10 @@ const RunningContent: React.FunctionComponent<{
             if (await confirmExtendAllocation(duration)) {
                 setExpiresAt(expiresAt + (3600 * 1000 * duration));
                 try {
-                    await invokeCommand(compute.jobs.extend({
+                    await invokeCommand(compute.jobs.extend(bulkRequestOf({
                         jobId: job.id,
                         requestedTime: {hours: duration, minutes: 0, seconds: 0}
-                    }));
+                    })));
                 } catch (e) {
                     setExpiresAt(expiresAt);
                 }
@@ -1142,7 +1144,7 @@ const CancelButton: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
-            await invokeCommand(compute.jobs.remove({id: job.id}));
+            await invokeCommand(compute.jobs.remove(bulkRequestOf({id: job.id})));
         }
     }, [loading]);
 

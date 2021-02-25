@@ -6,13 +6,11 @@ import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.defaultForFilePath
-import io.ktor.http.isSuccess
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.util.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
@@ -76,7 +74,7 @@ class JobFileService(
      * @param jobWithToken The job with access token
      * @param rawParameters The raw input parameters before parsing
      */
-    @OptIn(ExperimentalIoApi::class)
+    @OptIn(KtorExperimentalAPI::class)
     suspend fun exportParameterFile(
         jobFolder: String,
         jobWithToken: VerifiedJobWithAccessToken,
@@ -84,22 +82,18 @@ class JobFileService(
     ) {
         val userClient = userClientFactory(jobWithToken.refreshToken)
 
-        TODO()
-        /*
         MultiPartUploadDescriptions.simpleUpload.call(
             SimpleUploadRequest(
                 joinPath(jobFolder, "JobParameters.json"),
                 sensitivity = null,
-                file = BinaryStream.outgoingFromChannel(
-                    fileData.inputStream().toByteReadChannel(),
-                    fileData.size.toLong(),
-                    ContentType.Application.Json
-                ),
                 policy = WriteConflictPolicy.RENAME
             ),
-            userClient
+            userClient.withHttpBody(
+                ContentType.Application.Json,
+                fileData.size.toLong(),
+                fileData.inputStream().toByteReadChannel()
+            )
         ).orThrow()
-         */
     }
 
     suspend fun acceptFile(
@@ -131,19 +125,16 @@ class JobFileService(
         log.debug("The destination path is ${destPath.path}")
 
         try {
-            TODO()
-            /*
             val uploadResp = MultiPartUploadDescriptions.simpleUpload.call(
                 SimpleUploadRequest(
                     location = destPath.path,
                     sensitivity = null,
-                    file = BinaryStream.outgoingFromChannel(
-                        fileData,
-                        contentLength = length,
-                        contentType = ContentType.defaultForFilePath(filePath)
-                    )
                 ),
-                userClient
+                userClient.withHttpBody(
+                    ContentType.defaultForFilePath(filePath),
+                    length,
+                    fileData
+                )
             )
             if (uploadResp is IngoingCallResponse.Error) {
                 when (uploadResp.statusCode) {
@@ -154,7 +145,6 @@ class JobFileService(
                     else -> uploadResp.orThrow()
                 }
             }
-             */
         } catch (ex: RPCException) {
             if (ex.httpStatusCode == HttpStatusCode.Forbidden || ex.httpStatusCode == HttpStatusCode.Unauthorized) {
                 log.debug("Attempted to submit a file after token has been invalidated - Silently ignoring this error")

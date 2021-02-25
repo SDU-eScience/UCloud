@@ -2,8 +2,8 @@ package dk.sdu.cloud.file.util
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Logger
 import io.ktor.http.HttpStatusCode
-import org.slf4j.LoggerFactory
 import kotlin.math.absoluteValue
 
 private const val OPERATION_NOT_PERMITED = 1
@@ -110,4 +110,4 @@ fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
     }
 }
 
-val fsLog = LoggerFactory.getLogger("dk.sdu.cloud.file.services.FileSystemServiceKt")!!
+val fsLog = Logger("dk.sdu.cloud.file.services.FileSystemServiceKt")
