@@ -5,6 +5,7 @@ import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationWithComments
 import dk.sdu.cloud.grant.api.Comment
 import dk.sdu.cloud.grant.utils.newCommentTemplate
+import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
@@ -23,7 +24,8 @@ object CommentTable : SQLTable("comments") {
 
 class CommentService(
     private val applications: ApplicationService,
-    private val notifications: NotificationService
+    private val notifications: NotificationService,
+    private val projectCache: ProjectCache
 ) {
     suspend fun addComment(
         ctx: DBContext,
@@ -34,7 +36,6 @@ class CommentService(
         lateinit var application: Application
         ctx.withSession { session ->
             application = checkPermissions(session, id, actor).first
-
             session
                 .sendPreparedStatement(
                     {
@@ -46,20 +47,43 @@ class CommentService(
                 )
         }
 
-        notifications.notify(
-            GrantNotification(
-                application,
-                GrantNotificationMessage(
-                    subject = { "Comment on Application" },
-                    type = "COMMENT_GRANT_APPLICATION",
-                    message = { user, projectTitle ->
-                        newCommentTemplate(user, actor.safeUsername(), projectTitle)
-                    }
-                )
-            ),
-            actor.safeUsername(),
-            mapOf("appId" to application.id)
-        )
+        val admins = projectCache.admins.get(application.resourcesOwnedBy)
+        if (admins != null && (admins.find { it.username == actor.username } != null) ) {
+            //admin wrote comment
+            notifications.notify(
+                GrantNotification(
+                    application,
+                    adminMessage= null,
+                    userMessage =
+                    GrantNotificationMessage(
+                        subject = { "Comment on Application" },
+                        type = "COMMENT_GRANT_APPLICATION",
+                        message = { user, projectTitle ->
+                            newCommentTemplate(user, actor.safeUsername(), projectTitle, application.grantRecipientTitle)
+                        }
+                    )
+                ),
+                actor.safeUsername(),
+                mapOf("appId" to application.id)
+            )
+        }
+        else {
+            notifications.notify(
+                GrantNotification(
+                    application,
+                    GrantNotificationMessage(
+                        subject = { "Comment on Application" },
+                        type = "COMMENT_GRANT_APPLICATION",
+                        message = { user, projectTitle ->
+                            newCommentTemplate(user, actor.safeUsername(), projectTitle, application.grantRecipientTitle)
+                        }
+                    ),
+                    userMessage = null
+                ),
+                actor.safeUsername(),
+                mapOf("appId" to application.id)
+            )
+        }
     }
 
     suspend fun deleteComment(

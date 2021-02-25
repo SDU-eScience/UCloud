@@ -12,10 +12,7 @@ import dk.sdu.cloud.grant.api.GrantApplicationFilter
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.UserCriteria
-import dk.sdu.cloud.grant.utils.autoApproveTemplate
-import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
-import dk.sdu.cloud.grant.utils.responseTemplate
-import dk.sdu.cloud.grant.utils.updatedTemplate
+import dk.sdu.cloud.grant.utils.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -313,7 +310,7 @@ class ApplicationService(
                     { "Grant application for subproject automatically approved" },
                     GRANT_APP_RESPONSE,
                     message = { user, title ->
-                        autoApproveTemplate(user, application.requestedBy, title)
+                        approvedProjectToAdminsTemplate(user, application.requestedBy, title)
                     }
                 ),
                 userMessage = GrantNotificationMessage(
@@ -416,6 +413,15 @@ class ApplicationService(
         notifications.notify(
             GrantNotification(
                 application,
+                adminMessage =
+                GrantNotificationMessage(
+                    { "Grant application updated" },
+                    "GRANT_APPLICATION_UPDATED",
+                    message = { user, projectTitle ->
+                        updatedTemplateToAdmins(projectTitle, user, actor.safeUsername(), application.grantRecipientTitle)
+                    }
+                ),
+                userMessage =
                 GrantNotificationMessage(
                     { "Grant application updated" },
                     "GRANT_APPLICATION_UPDATED",
@@ -451,9 +457,11 @@ class ApplicationService(
                 ).rows
                 .singleOrNull()
                 ?.getField(ApplicationTable.status) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
             if (currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Not able to change status of finished application")
             }
+
             val (updatedProjectId, requestedBy) = session
                 .sendPreparedStatement(
                     {
@@ -509,6 +517,20 @@ class ApplicationService(
         notifications.notify(
             GrantNotification(
                 application,
+                adminMessage =
+                GrantNotificationMessage(
+                    { "Grant application updated ($statusTitle)" },
+                    GRANT_APP_RESPONSE,
+                    message = { user, projectTitle ->
+                        statusChangeTemplateToAdmins(
+                            newStatus,
+                            user,
+                            actor.safeUsername(),
+                            projectTitle
+                        )
+                    }
+                ),
+                userMessage =
                 GrantNotificationMessage(
                     { "Grant application updated ($statusTitle)" },
                     GRANT_APP_RESPONSE,

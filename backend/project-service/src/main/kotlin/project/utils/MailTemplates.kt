@@ -47,7 +47,7 @@ fun userRemovedToPersonRemovedTemplate(
     projectTitle: String
 ) = """
     <p>Dear ${escapeHtml(recipient)}</p>
-    <p>you have been removed from the project ${escapeHtml(projectTitle)}.</p>
+    <p>You have been removed from the project ${escapeHtml(projectTitle)}.</p>
     $NO_NOTIFICATIONS_DISCLAIMER
 """.trimIndent()
 
@@ -57,7 +57,7 @@ fun userInvitedToInviteeTemplate(
 ) = """
     <p>Dear ${escapeHtml(recipient)}</p>    
     <p>
-        you have been invited to join the project ${escapeHtml(projectTitle)} on UCloud.
+        You have been invited to join the project ${escapeHtml(projectTitle)} on UCloud.
     </p>
     $NO_NOTIFICATIONS_DISCLAIMER
 """.trimIndent()
