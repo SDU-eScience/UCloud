@@ -84,11 +84,11 @@ sealed class Person : Principal() {
     data class ByWAYF(
         override val id: String,
         override val role: Role,
-        override val title: String?,
+        override val title: String? = null,
         override val firstNames: String,
         override val lastName: String,
-        override val phoneNumber: String?,
-        override val orcId: String?,
+        override val phoneNumber: String? = null,
+        override val orcId: String? = null,
         override val email: String? = null,
         override val uid: Long = 0,
         override val serviceLicenseAgreement: Int,
@@ -126,11 +126,11 @@ sealed class Person : Principal() {
     data class ByPassword(
         override val id: String,
         override val role: Role,
-        override val title: String?,
+        override val title: String? = null,
         override val firstNames: String,
         override val lastName: String,
-        override val phoneNumber: String?,
-        override val orcId: String?,
+        override val phoneNumber: String? = null,
+        override val orcId: String? = null,
         override val email: String? = null,
         override val uid: Long = 0,
         override val twoFactorAuthentication: Boolean,
@@ -225,7 +225,7 @@ data class AccessTokenAndCsrf(
 @Serializable
 data class RefreshTokenAndCsrf(
     override val refreshToken: String,
-    override val csrfToken: String?
+    override val csrfToken: String? = null,
 ) : WithOptionalRefreshToken, WithOptionalCsrfToken {
     override fun toString(): String = "RefreshTokenAndCsrf()"
 }

@@ -14,9 +14,9 @@ typealias ProjectGroup = Project
 
 @Serializable
 data class AccessEntity(
-    val user: String?,
-    val project: String?,
-    val group: String?
+    val user: String? = null,
+    val project: String? = null,
+    val group: String? = null,
 ) {
     init {
         require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank())) { "No access entity defined" }
@@ -25,9 +25,9 @@ data class AccessEntity(
 
 @Serializable
 data class DetailedAccessEntity(
-    val user: String?,
-    val project: Project?,
-    val group: ProjectGroup?
+    val user: String? = null,
+    val project: Project? = null,
+    val group: ProjectGroup? = null,
 ) {
     init {
         require(!user.isNullOrBlank() || (project != null && group != null)) { "No access entity defined" }
@@ -110,8 +110,8 @@ data class SetPublicRequest(
 data class TagSearchRequest(
     val query: String,
     val excludeTools: String? = null,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 
 val TagSearchRequest.tags: List<String> get() = query.split(",")
@@ -119,8 +119,8 @@ val TagSearchRequest.tags: List<String> get() = query.split(",")
 @Serializable
 data class AppSearchRequest(
     val query: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 
 @Serializable
@@ -139,11 +139,11 @@ data class UploadApplicationLogoRequest(
 
 @Serializable
 data class AdvancedSearchRequest(
-    val query: String?,
-    val tags: List<String>?,
+    val query: String? = null,
+    val tags: List<String>? = null,
     val showAllVersions: Boolean,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 
 
@@ -160,8 +160,8 @@ typealias UploadApplicationLogoResponse = Unit
 @Serializable
 data class FindLatestByToolRequest(
     val tool: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 typealias FindLatestByToolResponse = Page<Application>
 
@@ -184,9 +184,9 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"favorites"
-                +boundTo(FavoriteRequest::appName)
-                +boundTo(FavoriteRequest::appVersion)
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 
@@ -266,10 +266,11 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             http {
                 path {
                     using(baseContext)
-                    +boundTo(FindByNameAndPagination::appName)
+                    +"byName"
                 }
 
                 params {
+                    +boundTo(FindByNameAndPagination::appName)
                     +boundTo(FindByNameAndPagination::itemsPerPage)
                     +boundTo(FindByNameAndPagination::page)
                 }
@@ -350,6 +351,10 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         http {
             path {
                 using(baseContext)
+                +"byNameAndVersion"
+            }
+
+            params {
                 +boundTo(FindApplicationAndOptionalDependencies::appName)
                 +boundTo(FindApplicationAndOptionalDependencies::appVersion)
             }
@@ -371,6 +376,9 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"permission"
+            }
+
+            params {
                 +boundTo(HasPermissionRequest::appName)
                 +boundTo(HasPermissionRequest::appVersion)
                 +boundTo(HasPermissionRequest::permission)
@@ -391,6 +399,9 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"list-acl"
+            }
+
+            params {
                 +boundTo(ListAclRequest::appName)
             }
         }
@@ -449,10 +460,10 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"byTool"
-                +boundTo(FindLatestByToolRequest::tool)
             }
 
             params {
+                +boundTo(FindLatestByToolRequest::tool)
                 +boundTo(FindLatestByToolRequest::itemsPerPage)
                 +boundTo(FindLatestByToolRequest::page)
             }
@@ -583,8 +594,9 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
                 path {
                     using(baseContext)
                     +"clearLogo"
-                    +boundTo(ClearLogoRequest::name)
                 }
+
+                body { bindEntireRequestFromBody() }
             }
         }
 
@@ -601,6 +613,9 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"logo"
+            }
+
+            params {
                 +boundTo(FetchLogoRequest::name)
             }
         }

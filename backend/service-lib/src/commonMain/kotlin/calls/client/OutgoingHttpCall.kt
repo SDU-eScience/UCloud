@@ -217,15 +217,6 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         return path.segments.asSequence().mapNotNull {
             when (it) {
                 is HttpPathSegment.Simple -> it.text
-                is HttpPathSegment.Property<R, *> -> {
-                    @Suppress("UNCHECKED_CAST")
-                    it as HttpPathSegment.Property<R, Any?>
-
-                    when (val value = it.property.get(request)) {
-                        null -> null
-                        else -> value.toString()
-                    }
-                }
             }
         }.joinToString("/")
     }

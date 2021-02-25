@@ -66,7 +66,7 @@ data class CreateDirectoryRequest(
 @Serializable
 data class ExtractRequest(
     val path: String,
-    val removeOriginalArchive: Boolean?
+    val removeOriginalArchive: Boolean? = null,
 )
 
 @Serializable
@@ -156,7 +156,10 @@ data class FindHomeFolderResponse(val path: String)
 val DOWNLOAD_FILE_SCOPE = FileDescriptions.download.authDescription.requiredScope
 
 @Serializable
-data class DownloadByURI(val path: String, val token: String?) {
+data class DownloadByURI(
+    val path: String,
+    val token: String? = null,
+) {
     override fun toString(): String = "DownloadByURI($path)"
 }
 

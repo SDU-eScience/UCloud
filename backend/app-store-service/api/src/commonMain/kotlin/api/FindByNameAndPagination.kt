@@ -6,6 +6,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class FindByNameAndPagination(
     val appName: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest

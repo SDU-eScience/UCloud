@@ -15,14 +15,14 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class AdvancedSearchRequest(
-    val fileName: String?,
-    val extensions: List<String>?,
-    val fileTypes: List<FileType>?,
+    val fileName: String? = null,
+    val extensions: List<String>? = null,
+    val fileTypes: List<FileType>? = null,
 
-    val includeShares: Boolean?,
+    val includeShares: Boolean? = null,
 
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 
 typealias SearchResult = StorageFile

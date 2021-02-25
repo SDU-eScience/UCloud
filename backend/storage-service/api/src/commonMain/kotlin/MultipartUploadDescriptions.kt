@@ -13,10 +13,14 @@ import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class UploadRequestAudit(val path: String, val sensitivityLevel: SensitivityLevel?, val owner: String)
+data class UploadRequestAudit(
+    val path: String,
+    val sensitivityLevel: SensitivityLevel? = null,
+    val owner: String,
+)
 
 @Serializable
-data class MultiPartUploadAudit(val request: UploadRequestAudit?)
+data class MultiPartUploadAudit(val request: UploadRequestAudit? = null)
 
 @Serializable
 data class BulkUploadErrorMessage(val message: String)

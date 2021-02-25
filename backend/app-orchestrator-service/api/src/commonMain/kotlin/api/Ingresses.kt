@@ -45,8 +45,8 @@ interface IngressDataIncludeFlags {
 
 @Serializable
 data class IngressDataIncludeFlagsImpl(
-    override val includeUpdates: Boolean?,
-    override val includeProduct: Boolean?
+    override val includeUpdates: Boolean? = null,
+    override val includeProduct: Boolean? = null,
 ) : IngressDataIncludeFlags
 
 fun IngressDataIncludeFlags(
@@ -107,7 +107,7 @@ data class IngressBilling(
 @Serializable
 data class IngressStatus(
     @UCloudApiDoc("The ID of the `Job` that this `Ingress` is currently bound to")
-    val boundTo: String?,
+    val boundTo: String? = null,
 
     val state: IngressState
 ) : ResourceStatus

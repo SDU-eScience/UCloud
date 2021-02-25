@@ -47,8 +47,8 @@ fun transactionComment(amount: Long, receiverId: String, transactionType: Transa
 
 @Serializable
 data class RetrieveBalanceRequest(
-    val id: String?,
-    val type: WalletOwnerType?,
+    val id: String? = null,
+    val type: WalletOwnerType? = null,
     val includeChildren: Boolean? = null,
     val showHidden: Boolean? = true
 ) {

@@ -9,8 +9,8 @@ import kotlinx.serialization.Serializable
 data class ListNotificationRequest(
     val type: String? = null,
     val since: Long? = null,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 
 @Serializable
@@ -81,8 +81,9 @@ object NotificationDescriptions : CallDescriptionContainer("notifications") {
             path {
                 using(baseContext)
                 +"read"
-                +boundTo(MarkAsReadRequest::bulkId)
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 
@@ -131,8 +132,9 @@ object NotificationDescriptions : CallDescriptionContainer("notifications") {
 
             path {
                 using(baseContext)
-                +boundTo(DeleteNotificationRequest::bulkId)
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 

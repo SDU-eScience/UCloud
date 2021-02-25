@@ -179,11 +179,11 @@ data class NumericStatisticsRequest(
  */
 @Serializable
 data class NumericStatistics(
-    val mean: Double?,
-    val minimum: Double?,
-    val maximum: Double?,
-    val sum: Double?,
-    val percentiles: List<Double>
+    val mean: Double? = null,
+    val minimum: Double? = null,
+    val maximum: Double? = null,
+    val sum: Double? = null,
+    val percentiles: List<Double> = emptyList()
 )
 
 /**
@@ -222,8 +222,8 @@ data class StatisticsRequest(
 @Serializable
 data class StatisticsResponse(
     val count: Long,
-    val size: NumericStatistics?,
-    val fileDepth: NumericStatistics?
+    val size: NumericStatistics? = null,
+    val fileDepth: NumericStatistics? = null
 )
 
 @Serializable

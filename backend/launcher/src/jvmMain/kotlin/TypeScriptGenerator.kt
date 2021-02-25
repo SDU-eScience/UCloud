@@ -199,11 +199,6 @@ private fun GenerationContext.generateOp(
                         append(segment.text)
                         append('"')
                     }
-
-                    is HttpPathSegment.Property<*, *> -> {
-                        append(" + \"/\"")
-                        append(" + request.${segment.property.name}")
-                    }
                 }
             }
             if (usesParams) {

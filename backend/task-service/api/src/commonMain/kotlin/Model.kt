@@ -7,8 +7,8 @@ data class Task(
     val jobId: String,
     val owner: String,
     val processor: String,
-    val title: String?,
-    val status: String?,
+    val title: String? = null,
+    val status: String? = null,
     val complete: Boolean,
     val startedAt: Long,
     val modifiedAt: Long

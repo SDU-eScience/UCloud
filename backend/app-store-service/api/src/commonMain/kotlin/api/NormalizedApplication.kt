@@ -12,16 +12,16 @@ data class ApplicationMetadata(
 
     val title: String,
     val description: String,
-    val website: String?,
+    val website: String? = null,
     val public: Boolean
-) : NameAndVersion {
+) : WithNameAndVersion {
     @Deprecated("Replaced with public") @Transient val isPublic = public
 }
 
 
 @Serializable
 data class VncDescription(
-    val password: String?,
+    val password: String? = null,
     val port: Int = 5900
 )
 

@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
 data class MetadataUpdate(
     val path: String,
     val type: String,
-    val username: String?,
+    val username: String? = null,
     val jsonPayload: String
 )
 
@@ -29,9 +29,9 @@ typealias CreateMetadataResponse = Unit
 
 @Serializable
 data class FindMetadataRequest(
-    val path: String?,
-    val type: String?,
-    val username: String?
+    val path: String? = null,
+    val type: String? = null,
+    val username: String? = null,
 ) {
     init {
         require(path != null || type != null || username != null) { "At least one argument must be non-null!" }
@@ -50,7 +50,11 @@ data class VerifyRequest(val paths: List<String>)
 typealias VerifyResponse = Unit
 
 @Serializable
-data class FindByPrefixRequest(val pathPrefix: String, val username: String?, val type: String?)
+data class FindByPrefixRequest(
+    val pathPrefix: String,
+    val username: String? = null,
+    val type: String? = null,
+)
 typealias FindByPrefixResponse = FindMetadataResponse
 
 object MetadataDescriptions : CallDescriptionContainer("files.metadata") {

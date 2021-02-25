@@ -17,7 +17,7 @@ data class ResourceDoc(
     override val specification: ResourceSpecification,
     override val billing: ResourceBilling,
     override val owner: ResourceOwner,
-    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>?
+    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null,
 ) : Resource<Nothing?> {
     init {
         error("Used only for documentation. Do not instantiate.")

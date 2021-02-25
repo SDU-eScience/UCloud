@@ -82,17 +82,17 @@ val StorageFile.ownSensitivityLevel: SensitivityLevel?
 @Serializable
 open class StorageFile(
     @SerialName("fileType")
-    val fileTypeOrNull: FileType?,
+    val fileTypeOrNull: FileType? = null,
     @SerialName("path")
-    val pathOrNull: String?,
+    val pathOrNull: String? = null,
     @SerialName("createdAt")
-    val createdAtOrNull: Long?,
+    val createdAtOrNull: Long? = null,
     @SerialName("modifiedAt")
-    val modifiedAtOrNull: Long?,
+    val modifiedAtOrNull: Long? = null,
     @SerialName("ownerName")
-    val ownerNameOrNull: String?,
+    val ownerNameOrNull: String? = null,
     @SerialName("size")
-    val sizeOrNull: Long?,
+    val sizeOrNull: Long? = null,
     @SerialName("acl")
     val aclOrNull: List<AccessEntry>? = emptyList(),
     @SerialName("sensitivityLevel")

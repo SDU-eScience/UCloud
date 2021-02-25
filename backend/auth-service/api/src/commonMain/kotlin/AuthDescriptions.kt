@@ -7,8 +7,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class LoginRequest(
-    val username: String?,
-    val service: String?
+    val username: String? = null,
+    val service: String? = null,
 )
 
 @Serializable
@@ -28,7 +28,10 @@ data class Session(
 )
 
 @Serializable
-data class ListUserSessionsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class ListUserSessionsRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
+) : WithPaginationRequest
 
 typealias ListUserSessionsResponse = Page<Session>
 
@@ -73,8 +76,8 @@ typealias TokenExtensionResponse = OptionalAuthenticationTokens
 @Serializable
 data class TokenExtensionAudit(
     val requestedBy: String,
-    val username: String?,
-    val role: Role?,
+    val username: String? = null,
+    val role: Role? = null,
     val requestedScopes: List<String>,
     val expiresIn: Long,
     val allowRefreshes: Boolean
@@ -185,6 +188,9 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             path {
                 using(baseContext)
                 +"claim"
+            }
+
+            params {
                 +boundTo(ClaimOneTimeToken::jti)
             }
         }

@@ -25,8 +25,8 @@ typealias CreateGroupResponse = FindByStringId
 
 @Serializable
 data class ListGroupsWithSummaryRequest(
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 typealias ListGroupsWithSummaryResponse = Page<GroupWithSummary>
 @Serializable
@@ -59,8 +59,8 @@ typealias UpdateGroupNameResponse = Unit
 @Serializable
 data class ListGroupMembersRequest(
     val group: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 
 typealias ListAllGroupIdsAndTitlesRequest = Unit

@@ -350,7 +350,7 @@ class RpcServer {
             val beforeParsing = filters.filterIsInstance<IngoingCallFilter.BeforeParsing>()
             beforeParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call) }
 
-            log.trace("Parsing call: $call")
+            log.debug("Parsing call: $call")
             @Suppress("TooGenericExceptionCaught")
             val capturedRequest = try {
                 val capturedRequest = source.parseRequest(ctx, call)

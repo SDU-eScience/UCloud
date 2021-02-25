@@ -201,6 +201,9 @@ object Shares : CallDescriptionContainer("shares") {
 
     object ListFiles {
         @Serializable
-        data class Request(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+        data class Request(
+            override val itemsPerPage: Int? = null,
+            override val page: Int? = null,
+        ) : WithPaginationRequest
     }
 }

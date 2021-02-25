@@ -2,15 +2,12 @@ package dk.sdu.cloud.app.store.api
 
 import kotlinx.serialization.Serializable
 
-interface NameAndVersion {
+interface WithNameAndVersion {
     val name: String
     val version: String
 }
 
 @Serializable
-data class NameAndVersionImpl(override val name: String, override val version: String) : NameAndVersion {
+data class NameAndVersion(override val name: String, override val version: String) : WithNameAndVersion {
     override fun toString() = "$name@$version"
 }
-
-@Suppress("FunctionNaming")
-fun NameAndVersion(name: String, version: String): NameAndVersion = NameAndVersionImpl(name, version)

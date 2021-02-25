@@ -40,10 +40,6 @@ sealed class HttpPathSegment<Request : Any> {
     data class Simple<Request : Any>(
         val text: String
     ) : HttpPathSegment<Request>()
-
-    data class Property<Request : Any, Property>(
-        val property: KProperty1<Request, Property>,
-    ) : HttpPathSegment<Request>()
 }
 
 fun HttpPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
@@ -57,13 +53,6 @@ fun HttpPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
 
 private fun <R : Any> HttpPathSegment<R>.toKtorTemplateString(): String = when (this) {
     is HttpPathSegment.Simple -> text
-
-    is HttpPathSegment.Property<R, *> -> StringBuilder().apply {
-        append('{')
-        append(property.name)
-        //if (property.returnType.isMarkedNullable) append('?')
-        append('}')
-    }.toString()
 }
 
 data class HttpParams<Request : Any>(val parameters: List<HttpQueryParameter<Request>>)

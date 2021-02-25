@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class NormalizedToolDescription(
     val info: NameAndVersion,
-    val container: String?,
+    val container: String? = null,
     val defaultNumberOfNodes: Int,
     val defaultTimeAllocation: SimpleDuration,
     val requiredModules: List<String>,
@@ -26,8 +26,8 @@ data class NormalizedToolDescription(
 data class ToolReference(
     override val name: String,
     override val version: String,
-    val tool: Tool?
-) : NameAndVersion
+    val tool: Tool? = null,
+) : WithNameAndVersion
 
 @Serializable
 data class Tool(

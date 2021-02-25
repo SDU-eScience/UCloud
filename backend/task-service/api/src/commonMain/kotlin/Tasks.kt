@@ -6,7 +6,10 @@ import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ListRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class ListRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
+) : WithPaginationRequest
 typealias ListResponse = Page<Task>
 
 typealias ViewRequest = FindByStringId
@@ -57,8 +60,10 @@ object Tasks : CallDescriptionContainer("task") {
         http {
             path {
                 using(baseContext)
-                +boundTo(ViewRequest::id)
+                +UCloudApi.RETRIEVE
             }
+
+            params { +boundTo(ViewRequest::id) }
         }
 
         websocket(baseContext)
@@ -125,8 +130,9 @@ object Tasks : CallDescriptionContainer("task") {
 
             path {
                 using(baseContext)
-                +boundTo(MarkAsCompleteRequest::id)
             }
+
+            body { bindEntireRequestFromBody() }
         }
 
         websocket(baseContext)

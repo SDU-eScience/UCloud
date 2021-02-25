@@ -13,7 +13,7 @@ data class NewsPost(
     val body: String,
     val postedBy: String,
     val showFrom: Long,
-    val hideFrom: Long?,
+    val hideFrom: Long? = null,
     val hidden: Boolean,
     val category: String
 )
@@ -25,7 +25,7 @@ data class NewPostRequest(
     val body: String,
     val showFrom: Long,
     val category: String,
-    val hideFrom: Long?
+    val hideFrom: Long? = null,
 )
 typealias NewPostResponse = Unit
 
@@ -34,7 +34,7 @@ typealias ListCategoriesResponse = List<String>
 
 @Serializable
 data class ListPostsRequest(
-    val filter: String?,
+    val filter: String? = null,
     val withHidden: Boolean,
     override val page: Int,
     override val itemsPerPage: Int
@@ -59,7 +59,7 @@ data class UpdatePostRequest(
     val subtitle: String,
     val body: String,
     val showFrom: Long,
-    val hideFrom: Long?,
+    val hideFrom: Long? = null,
     val category: String
 )
 typealias UpdatePostResponse = Unit

@@ -24,6 +24,10 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
         http {
             path {
                 using(baseContext)
+                +"byNameAndVersion"
+            }
+
+            params {
                 +boundTo(FindByNameAndVersion::name)
                 +boundTo(FindByNameAndVersion::version)
             }
@@ -39,10 +43,11 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
         http {
             path {
                 using(baseContext)
-                +boundTo(FindByNameAndPagination::appName)
+                +"byName"
             }
 
             params {
+                +boundTo(FindByNameAndPagination::appName)
                 +boundTo(FindByNameAndPagination::itemsPerPage)
                 +boundTo(FindByNameAndPagination::page)
             }
@@ -124,8 +129,9 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
                 path {
                     using(baseContext)
                     +"clearLogo"
-                    +boundTo(ClearLogoRequest::name)
                 }
+
+                body { bindEntireRequestFromBody() }
             }
         }
 
@@ -141,6 +147,9 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
             path {
                 using(baseContext)
                 +"logo"
+            }
+
+            params {
                 +boundTo(FetchLogoRequest::name)
             }
         }

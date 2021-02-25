@@ -51,58 +51,6 @@ class HttpCallPathBuilder<R : Any> internal constructor(private val parent: Http
     private val segments = ArrayList<HttpPathSegment<R>>()
 
     private fun addSegment(segment: HttpPathSegment<R>) {
-        if (segment is HttpPathSegment.Property<*, *>) {
-            val isLegal = parent.body !is HttpBody.BoundToEntireRequest<*>
-            if (!isLegal) {
-                throw HttpDSLException(
-                    """
-                    Cannot bind a property to the both, the entire request has already been to the body.
-
-                    In your code you have already bound the entire request object to the body, i.e.:
-
-                    body {
-                        bindEntireRequestFromBody()
-                    }
-
-                    If you intend to use bound properties from the path _and_ the body, then the body must be bound
-                    using bindToSubProperty. For example:
-
-                    data class Foo(val a: Int, val b: Int)
-                    data class MyRequest(val pathBound: String, val bodyBound: Foo)
-
-                    callDescription {
-                        path {
-                            +boundTo(MyRequest::pathBound)
-                        }
-
-                        body {
-                            bindToSubProperty(MyRequest::bodyBound)
-                        }
-                    }
-                    """.trimIndent()
-                )
-            }
-
-            val alreadyExists = segments.filterIsInstance<HttpPathSegment.Property<*, *>>().find {
-                it.property == segment.property
-            } != null
-            if (alreadyExists) {
-                throw HttpDSLException(
-                    """
-                    Cannot bind the same property twice!
-
-                    Somewhere in the code you have already bound this property, i.e.:
-
-                    path {
-                        +boundTo(MyRequest::${segment.property.name})
-                        // ...
-                        +boundTo(MyRequest::${segment.property.name}) // <-- Second call not OK
-                    }
-                    """.trimIndent()
-                )
-            }
-        }
-
         segments.add(segment)
     }
 
@@ -118,10 +66,6 @@ class HttpCallPathBuilder<R : Any> internal constructor(private val parent: Http
         if (basePath.isNotEmpty()) throw HttpDSLException("Cannot call using(path) twice!")
         basePath = path
     }
-
-    fun <T> boundTo(
-        property: KProperty1<R, T>
-    ): HttpPathSegment.Property<R, T> = HttpPathSegment.Property(property)
 
     internal fun build(): HttpPath<R> {
         return HttpPath(basePath, segments)
@@ -182,37 +126,6 @@ class HttpCallBodyBuilder<R : Any> internal constructor(private val parent: Http
 
     fun bindEntireRequestFromBody(ref: KSerializer<R>) {
         checkNotBound()
-
-        val isLegal = parent.path?.segments?.find { it is HttpPathSegment.Property<*, *> } == null
-        if (!isLegal) {
-            throw HttpDSLException(
-                """
-                Cannot bind the entire request from body, request body already contains bindings.
-
-                You have already supplied at least one path segment which is bound to a property, e.g.:
-
-                path {
-                    +boundTo(MyRequest::pathBound)
-                }
-
-                If you intend to use bound properties from the path _and_ the body, then the body must be bound using
-                bindToSubProperty. For example:
-
-                data class Foo(val a: Int, val b: Int)
-                data class MyRequest(val pathBound: String, val bodyBound: Foo)
-
-                callDescription {
-                    path {
-                        +boundTo(MyRequest::pathBound)
-                    }
-
-                    body {
-                        bindToSubProperty(MyRequest::bodyBound)
-                    }
-                }
-                """.trimIndent()
-            )
-        }
 
         body = HttpBody.BoundToEntireRequest(ref)
     }

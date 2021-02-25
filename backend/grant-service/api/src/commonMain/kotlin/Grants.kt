@@ -255,8 +255,8 @@ sealed class GrantRecipient {
 data class ResourceRequest(
     val productCategory: String,
     val productProvider: String,
-    val creditsRequested: Long?,
-    val quotaRequested: Long?
+    val creditsRequested: Long? = null,
+    val quotaRequested: Long? = null,
 ) {
     init {
         if (creditsRequested != null && creditsRequested < 0) {
@@ -306,7 +306,7 @@ data class Application(
     val grantRecipientTitle: String,
     val createdAt: Long,
     val updatedAt: Long,
-    val statusChangedBy: String?
+    val statusChangedBy: String? = null,
 )
 
 @Serializable
@@ -462,6 +462,9 @@ object Grants : CallDescriptionContainer("grant") {
             path {
                 using(baseContext)
                 +"logo"
+            }
+
+            params {
                 +boundTo(FetchLogoRequest::projectId)
             }
         }
@@ -888,6 +891,9 @@ object Grants : CallDescriptionContainer("grant") {
 
             path {
                 using(baseContext)
+            }
+
+            params {
                 +boundTo(ViewApplicationRequest::id)
             }
         }

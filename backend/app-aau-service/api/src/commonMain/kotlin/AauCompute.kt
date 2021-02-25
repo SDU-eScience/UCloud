@@ -15,7 +15,7 @@ object AauCompute : Compute("aau")
 data class AauComputeSendUpdateRequest(
     val id: String,
     val update: String,
-    val newState: JobState?,
+    val newState: JobState? = null,
 )
 
 @Serializable

@@ -43,13 +43,13 @@ class ProviderBilling(override val pricePerUnit: Long, override val creditsCharg
 @Serializable
 data class ProviderUpdate(
     override val timestamp: Long,
-    override val status: String?,
+    override val status: String? = null,
 ) : ResourceUpdate
 
 @Serializable
 data class ProviderOwner(
     override val createdBy: String,
-    override val project: String?,
+    override val project: String? = null,
 ) : ResourceOwner
 
 @UCloudApiDoc("""The `ProviderManifest` contains general metadata about the provider.

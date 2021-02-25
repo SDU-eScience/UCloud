@@ -50,8 +50,8 @@ data class UsagePoint(
 data class UsageLine(
     val area: ProductArea,
     val category: String,
-    val projectPath: String?,
-    val projectId: String?,
+    val projectPath: String? = null,
+    val projectId: String? = null,
     val points: List<UsagePoint>
 )
 

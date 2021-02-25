@@ -31,7 +31,7 @@ data class UserStatusResponse(
 @Serializable
 data class SearchRequest(
     val query: String,
-    val notInGroup: String?,
+    val notInGroup: String? = null,
     override val itemsPerPage: Int? = null,
     override val page: Int? = null,
 ) : WithPaginationRequest

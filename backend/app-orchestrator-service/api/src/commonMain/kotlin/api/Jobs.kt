@@ -349,8 +349,8 @@ typealias JobsRetrieveResponse = Job
 
 @Serializable
 data class JobsRetrieveUtilizationRequest(
-    val provider: String?,
-    val jobId: String?,
+    val provider: String? = null,
+    val jobId: String? = null,
 ) {
     init {
         if (jobId == null && provider == null) {
@@ -406,11 +406,11 @@ typealias JobsFollowRequest = FindByStringId
 data class JobsFollowResponse(
     val updates: List<JobUpdate>,
     val log: List<JobsLog>,
-    val newStatus: JobStatus?,
+    val newStatus: JobStatus? = null,
 )
 
 @Serializable
-data class JobsLog(val rank: Int, val stdout: String?, val stderr: String?)
+data class JobsLog(val rank: Int, val stdout: String? = null, val stderr: String? = null)
 
 typealias JobsExtendRequest = BulkRequest<JobsExtendRequestItem>
 typealias JobsExtendResponse = Unit

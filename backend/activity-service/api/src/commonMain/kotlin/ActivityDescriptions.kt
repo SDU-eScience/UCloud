@@ -60,12 +60,12 @@ object Activity : CallDescriptionContainer("activity") {
     object BrowseByUser {
         @Serializable
         data class Request(
-            override val user: String?,
-            override val type: ActivityEventType?,
-            override val minTimestamp: Long?,
-            override val maxTimestamp: Long?,
-            override val offset: Int?,
-            override val scrollSize: Int?
+            override val user: String? = null,
+            override val type: ActivityEventType? = null,
+            override val minTimestamp: Long? = null,
+            override val maxTimestamp: Long? = null,
+            override val offset: Int? = null,
+            override val scrollSize: Int? = null,
         ) : WithScrollRequest<Int>, ActivityFilter
 
         @Serializable

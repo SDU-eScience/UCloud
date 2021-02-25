@@ -329,10 +329,6 @@ private fun writeSpecification(
                         callExtension.responseType = traverseType(call.successType.toType(), typeRegistry)
                     }
 
-                    if (http.path.segments.any { it is HttpPathSegment.Property<*, *> }) {
-                        callExtension.requestType = traverseType(call.requestType.toType(), typeRegistry)
-                    }
-
                     val body = http.body
                     if (body != null && body.ref.toType() != Unit::class.java) {
                         val requestType = traverseType(call.requestType.toType(), typeRegistry)

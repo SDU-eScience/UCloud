@@ -56,8 +56,8 @@ sealed class ComputeFollowRequest {
 data class ComputeFollowResponse(
     val streamId: String,
     val rank: Int,
-    val stdout: String?,
-    val stderr: String?,
+    val stdout: String? = null,
+    val stderr: String? = null,
 )
 
 typealias ComputeOpenInteractiveSessionRequest = BulkRequest<ComputeOpenInteractiveSessionRequestItem>

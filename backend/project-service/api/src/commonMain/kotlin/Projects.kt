@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CreateProjectRequest(
     val title: String,
-    val parent: String?,
+    val parent: String? = null,
     val principalInvestigator: String? = null
 ) {
     init {
@@ -88,7 +88,7 @@ data class UserProjectSummary(
     val needsVerification: Boolean,
     val isFavorite: Boolean,
     val archived: Boolean,
-    val parent: String?,
+    val parent: String? = null,
     val ancestorPath: String? = null
 )
 
@@ -113,7 +113,7 @@ typealias ListProjectsResponse = Page<UserProjectSummary>
 
 @Serializable
 data class ListFavoriteProjectsRequest(
-    val user: String?,
+    val user: String? = null,
     override val itemsPerPage: Int,
     override val page: Int,
     val archived: Boolean,
@@ -145,7 +145,7 @@ data class AcceptInviteRequest(val projectId: String)
 typealias AcceptInviteResponse = Unit
 
 @Serializable
-data class RejectInviteRequest(val username: String?, val projectId: String)
+data class RejectInviteRequest(val username: String? = null, val projectId: String)
 typealias RejectInviteResponse = Unit
 
 typealias LeaveProjectRequest = Unit
@@ -218,12 +218,12 @@ data class AllowsRenamingResponse(
 )
 
 @Serializable
-data class UpdateDataManagementPlanRequest(val id: String, val dmp: String?)
+data class UpdateDataManagementPlanRequest(val id: String, val dmp: String? = null)
 typealias UpdateDataManagementPlanResponse = Unit
 
 typealias FetchDataManagementPlanRequest = Unit
 @Serializable
-data class FetchDataManagementPlanResponse(val dmp: String?)
+data class FetchDataManagementPlanResponse(val dmp: String? = null)
 
 @TSTopLevel
 object Projects : CallDescriptionContainer("project") {

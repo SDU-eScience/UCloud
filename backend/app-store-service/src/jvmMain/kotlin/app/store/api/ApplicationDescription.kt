@@ -21,7 +21,6 @@ sealed class ApplicationDescription(val application: String) {
         val name: String,
         val version: String,
 
-        @JsonDeserialize(`as` = NameAndVersionImpl::class)
         val tool: NameAndVersion,
         val authors: List<String>,
         val title: String,

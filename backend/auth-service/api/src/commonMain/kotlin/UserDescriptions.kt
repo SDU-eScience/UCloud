@@ -38,12 +38,17 @@ data class LookupUserWithEmailResponse(val userId: String, val firstNames: Strin
 typealias CreateUserAudit = List<CreateSingleUserAudit>
 
 @Serializable
-data class CreateSingleUserAudit(val username: String, val role: Role?)
+data class CreateSingleUserAudit(val username: String, val role: Role? = null)
 
 typealias CreateUserRequest = List<CreateSingleUserRequest>
 
 @Serializable
-data class CreateSingleUserRequest(val username: String, val password: String?, val email: String?, val role: Role?) {
+data class CreateSingleUserRequest(
+    val username: String,
+    val password: String? = null,
+    val email: String? = null,
+    val role: Role? = null,
+) {
     override fun toString() = "CreateUserRequest(username = $username, role = $role)"
 }
 
@@ -52,23 +57,23 @@ typealias CreateSingleUserResponse = AuthenticationTokens
 
 @Serializable
 data class UpdateUserInfoRequest(
-    val email: String?,
-    val firstNames: String?,
-    val lastName: String?
+    val email: String? = null,
+    val firstNames: String? = null,
+    val lastName: String? = null,
 )
 typealias UpdateUserInfoResponse = Unit
 
 typealias GetUserInfoRequest = Unit
 @Serializable
 data class GetUserInfoResponse(
-    val email: String?,
-    val firstNames: String?,
-    val lastName: String?
+    val email: String? = null,
+    val firstNames: String? = null,
+    val lastName: String? = null,
 )
 
 @Serializable
 data class WantsEmailsRequest(
-    val username: String?
+    val username: String? = null,
 )
 typealias WantsEmailsResponse = Boolean
 

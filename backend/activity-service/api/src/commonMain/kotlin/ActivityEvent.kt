@@ -191,7 +191,7 @@ data class ActivityForFrontend(
 @Serializable
 data class ListActivityByPathRequest(
     val path: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
 ) : WithPaginationRequest
 typealias ListActivityByPathResponse = Page<ActivityForFrontend>
