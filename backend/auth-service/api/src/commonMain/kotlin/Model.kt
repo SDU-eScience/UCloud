@@ -154,6 +154,46 @@ sealed class Person : Principal() {
                     "lastName='$lastName', phoneNumber=$phoneNumber, orcId=$orcId, " +
                     "email='$email', wantEmails='$wantsEmails')"
         }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other == null || this::class != other::class) return false
+
+            other as ByPassword
+
+            if (id != other.id) return false
+            if (role != other.role) return false
+            if (title != other.title) return false
+            if (firstNames != other.firstNames) return false
+            if (lastName != other.lastName) return false
+            if (phoneNumber != other.phoneNumber) return false
+            if (orcId != other.orcId) return false
+            if (email != other.email) return false
+            if (uid != other.uid) return false
+            if (twoFactorAuthentication != other.twoFactorAuthentication) return false
+            if (serviceLicenseAgreement != other.serviceLicenseAgreement) return false
+            if (wantsEmails != other.wantsEmails) return false
+            if (displayName != other.displayName) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = id.hashCode()
+            result = 31 * result + role.hashCode()
+            result = 31 * result + (title?.hashCode() ?: 0)
+            result = 31 * result + firstNames.hashCode()
+            result = 31 * result + lastName.hashCode()
+            result = 31 * result + (phoneNumber?.hashCode() ?: 0)
+            result = 31 * result + (orcId?.hashCode() ?: 0)
+            result = 31 * result + (email?.hashCode() ?: 0)
+            result = 31 * result + uid.hashCode()
+            result = 31 * result + twoFactorAuthentication.hashCode()
+            result = 31 * result + serviceLicenseAgreement
+            result = 31 * result + (wantsEmails?.hashCode() ?: 0)
+            result = 31 * result + displayName.hashCode()
+            return result
+        }
     }
 }
 

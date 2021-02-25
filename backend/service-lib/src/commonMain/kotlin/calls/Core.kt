@@ -2,6 +2,9 @@ package dk.sdu.cloud.calls
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
+import kotlin.reflect.typeOf
 
 data class AttributeKey<V : Any>(val key: String)
 
@@ -43,6 +46,9 @@ class CallDescription<Request : Any, Success : Any, Error : Any> internal constr
     val requestType: KSerializer<Request>,
     val successType: KSerializer<Success>,
     val errorType: KSerializer<Error>,
+    val requestClass: KType,
+    val successClass: KType,
+    val errorClass: KType,
     val containerRef: CallDescriptionContainer,
 ) {
     val fullName: String get() = "$namespace.$name"
@@ -61,10 +67,23 @@ abstract class CallDescriptionContainer(val namespace: String) {
         handler: (CallDescription<Request, Success, Error>.() -> Unit),
         requestType: KSerializer<Request>,
         successType: KSerializer<Success>,
-        errorType: KSerializer<Error>
+        errorType: KSerializer<Error>,
+        requestClass: KType,
+        successClass: KType,
+        errorClass: KType,
     ): CallDescription<Request, Success, Error> {
-        val callDescription =
-            CallDescription(name, namespace, AttributeContainer(), requestType, successType, errorType, this)
+        val callDescription = CallDescription(
+            name,
+            namespace,
+            AttributeContainer(),
+            requestType,
+            successType,
+            errorType,
+            requestClass,
+            successClass,
+            errorClass,
+            this
+        )
         callDescription.handler()
         _callContainer.add(callDescription)
         onBuildHandlers.forEach { it(callDescription) }
@@ -82,9 +101,18 @@ abstract class CallDescriptionContainer(val namespace: String) {
 
 inline fun <reified Request : Any, reified Success : Any, reified Error : Any> CallDescriptionContainer.call(
     name: String,
-    noinline handler: (CallDescription<Request, Success, Error>.() -> Unit)
+    noinline handler: (CallDescription<Request, Success, Error>.() -> Unit),
 ): CallDescription<Request, Success, Error> {
-    return call(name, handler, serializer(), serializer(), serializer())
+    return call(
+        name,
+        handler,
+        serializer(),
+        serializer(),
+        serializer(),
+        typeOf<Request>(),
+        typeOf<Success>(),
+        typeOf<Error>(),
+    )
 }
 
 typealias OnCallDescriptionBuildHandler = (CallDescription<*, *, *>) -> Unit

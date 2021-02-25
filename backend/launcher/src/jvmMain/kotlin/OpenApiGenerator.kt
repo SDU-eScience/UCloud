@@ -31,6 +31,9 @@ import io.swagger.v3.oas.models.servers.Server
 import io.swagger.v3.oas.models.tags.Tag
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Transient
+import kotlinx.serialization.json.JsonObject
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.*
@@ -41,6 +44,7 @@ import kotlin.reflect.KProperty1
 import kotlin.reflect.full.*
 import kotlin.reflect.javaType
 import kotlin.reflect.jvm.javaField
+import kotlin.reflect.jvm.jvmName
 import kotlin.system.exitProcess
 
 private val componentsRef = "#/components/schemas/"
@@ -277,7 +281,7 @@ private fun writeSpecification(
                     }
                     op.tags = listOf(call.namespace)
                     op.responses = ApiResponses().apply {
-                        set("200", apiResponse(call.successType.toType(), typeRegistry).apply {
+                        set("200", apiResponse(call.successClass.javaType, typeRegistry).apply {
                             if (doc != null) {
                                 val json = this.content[ContentType.Application.Json.toString()]
                                 if (json != null) {
@@ -296,7 +300,7 @@ private fun writeSpecification(
 
                         doc?.examples?.groupBy { it.statusCode }?.filterKeys { !it.isSuccess() }
                             ?.forEach { (code, examples) ->
-                                set(code.value.toString(), apiResponse(call.errorType.toType(), typeRegistry).apply {
+                                set(code.value.toString(), apiResponse(call.errorClass.javaType, typeRegistry).apply {
                                     this.description = code.description
                                     val json = this.content[ContentType.Application.Json.toString()]
                                     if (json != null) {
@@ -316,22 +320,22 @@ private fun writeSpecification(
                         doc?.errors?.forEach { err ->
                             val description = computeIfAbsent(
                                 err.statusCode.value.toString(),
-                                { apiResponse(call.errorType.toType(), typeRegistry) }
+                                { apiResponse(call.errorClass.javaType, typeRegistry) }
                             )
 
                             description.description = err.description
                         }
 
-                        default = apiResponse(call.errorType.toType(), typeRegistry)
+                        default = apiResponse(call.errorClass.javaType, typeRegistry)
                     }
 
-                    if (call.successType.toType() != Unit::class) {
-                        callExtension.responseType = traverseType(call.successType.toType(), typeRegistry)
+                    if (call.successClass.javaType != Unit::class) {
+                        callExtension.responseType = traverseType(call.successClass.javaType, typeRegistry)
                     }
 
                     val body = http.body
-                    if (body != null && body.ref.toType() != Unit::class.java) {
-                        val requestType = traverseType(call.requestType.toType(), typeRegistry)
+                    if (body != null && !body.ref.descriptor.serialName.startsWith("kotlin.Unit")) {
+                        val requestType = traverseType(call.requestClass.javaType, typeRegistry)
                         callExtension.requestType = requestType
                         op.requestBody = RequestBody()
                         op.requestBody.content = Content().apply {
@@ -354,7 +358,7 @@ private fun writeSpecification(
 
                     val params = http.params
                     if (params != null) {
-                        val requestType = traverseType(call.requestType.toType(), typeRegistry) as? ComputedType.Struct
+                        val requestType = traverseType(call.requestClass.javaType, typeRegistry) as? ComputedType.Struct
                             ?: error("Query params bound to a non-class ${call.fullName}")
                         callExtension.requestType = requestType
 
@@ -725,6 +729,10 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
             return traverseType(type.upperBounds.firstOrNull() ?: Unit::class.java, visitedTypes)
         }
 
+        JsonObject::class.java -> {
+            return ComputedType.Dictionary(ComputedType.Unknown())
+        }
+
         java.lang.Short::class.java, Short::class.java -> {
             return ComputedType.Integer(16)
         }
@@ -784,6 +792,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                     if (prop.name == null) return@forEach
 
                     val classProp = kotlinType.memberProperties.find { it.name == prop.name }
+                    val classPropAnnotations = classProp?.annotations ?: emptyList()
                     val javaFieldAnnotations = (classProp?.javaField?.annotations?.toList() ?: emptyList())
                     val getterAnnotations = classProp?.getter?.annotations ?: emptyList()
                     val parentProp = kotlinType.superclasses
@@ -794,9 +803,9 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                     val parentJavaAnnotations = parentProp?.javaField?.annotations?.toList() ?: emptyList()
                     val parentGetterAnnotations = parentProp?.getter?.annotations ?: emptyList()
                     val annotations: Set<Annotation> =
-                        (prop.annotations + javaFieldAnnotations + getterAnnotations +
+                        (prop.annotations + javaFieldAnnotations + getterAnnotations + classPropAnnotations +
                             parentPropAnnotations+ parentJavaAnnotations + parentGetterAnnotations).toSet()
-                    if (annotations.any { it is JsonIgnore }) return@forEach
+                    if (annotations.any { it is JsonIgnore || it is Transient }) return@forEach
 
                     val propType = traverseType(prop.type.javaType, visitedTypes).asRef()
 
@@ -809,6 +818,11 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                     val jsonPropAnnotation = annotations.filterIsInstance<JsonProperty>().firstOrNull()
                     if (jsonPropAnnotation != null) {
                         propName = jsonPropAnnotation.value
+                    }
+
+                    val serialNameAnnotation = annotations.filterIsInstance<SerialName>().firstOrNull()
+                    if (serialNameAnnotation != null) {
+                        propName = serialNameAnnotation.value
                     }
 
                     propType.deprecated = annotations.any { it is Deprecated }
@@ -827,7 +841,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                     val getterAnnotations = prop.getter?.annotations ?: emptyList()
                     val annotations: Set<Annotation> =
                         (prop.annotations + javaFieldAnnotations + getterAnnotations).toSet()
-                    if (annotations.any { it is JsonIgnore }) return@forEach
+                    if (annotations.any { it is JsonIgnore || it is Transient }) return@forEach
 
                     val propType = traverseType(prop.returnType.javaType, visitedTypes).asRef()
 
@@ -858,6 +872,18 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
                             val subType = traverseType(it.value.java, visitedTypes)
                             if (subType !is ComputedType.Struct) return@mapNotNull null
                             it.name to subType.qualifiedName
+                        }.toMap()
+                    )
+                }
+
+                if (kotlinType.isSealed) {
+                    struct.discriminator = ComputedType.Discriminator(
+                        "type",
+                        kotlinType.sealedSubclasses.mapNotNull {
+                            val subType = traverseType(it.java, visitedTypes)
+                            if (subType !is ComputedType.Struct) return@mapNotNull null
+                            val serialName = it.findAnnotation<SerialName>()?.value ?: it.qualifiedName ?: it.jvmName
+                            serialName to subType.qualifiedName
                         }.toMap()
                     )
                 }
@@ -914,9 +940,4 @@ private fun findApiMaturity(annotations: List<Annotation>): UCloudApiMaturity? {
         }
 
     return null
-}
-
-@OptIn(ExperimentalSerializationApi::class)
-fun <T> KSerializer<T>.toType(): Type {
-    return javaClass.classLoader.loadClass(descriptor.serialName)
 }
