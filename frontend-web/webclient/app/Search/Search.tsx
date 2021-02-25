@@ -114,7 +114,7 @@ function Search(props: SearchProps): JSX.Element {
                     onPageChanged={page => props.searchFiles(
                         fileSearchBody(props.fileSearch, props.search, props.files.itemsPerPage, page)
                     )}
-                    page={files ? files : emptyPage}
+                    page={files ?? emptyPage}
                     onReloadRequested={refreshFiles}
                     includeVirtualFolders={false}
                 />
@@ -122,8 +122,10 @@ function Search(props: SearchProps): JSX.Element {
         );
     } else if (priority === "applications") {
         main = <>
-            <Applications.SearchWidget partOfResults/>
-            <Applications.SearchResults entriesPerPage={25}/>
+            <Hide xxl xl lg>
+                <Applications.SearchWidget partOfResults />
+            </Hide>
+            <Applications.SearchResults entriesPerPage={25} />
         </>
     }
 
