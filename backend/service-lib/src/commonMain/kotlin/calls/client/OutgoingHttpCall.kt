@@ -30,6 +30,8 @@ typealias KtorHttpRequestBuilder = io.ktor.client.request.HttpRequestBuilder
 
 class OutgoingHttpCall(val builder: KtorHttpRequestBuilder) : OutgoingCall {
     override val attributes: AttributeContainer = AttributeContainer()
+    var response: HttpResponse? = null
+        internal set
 
     companion object : OutgoingCallCompanion<OutgoingHttpCall> {
         override val klass: KClass<OutgoingHttpCall> = OutgoingHttpCall::class
@@ -116,7 +118,8 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             throw ex
         }
 
-        val result = parseResponse(resp, call, callId)
+        ctx.response = resp
+        val result = parseResponse(ctx, resp, call, callId)
         val end = Time.now()
 
         val responseDebug =
@@ -134,12 +137,13 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     }
 
     private suspend fun <E : Any, R : Any, S : Any> parseResponse(
+        ctx: OutgoingHttpCall,
         resp: HttpResponse,
         call: CallDescription<R, S, E>,
         callId: Int,
     ): IngoingCallResponse<S, E> {
         return if (resp.status.isSuccess()) {
-            IngoingCallResponse.Ok(parseResponseToType(resp, call.successType), resp.status)
+            IngoingCallResponse.Ok(parseResponseToType(resp, call.successType), resp.status, ctx)
         } else {
             IngoingCallResponse.Error(
                 runCatching {
@@ -149,7 +153,8 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                     log.trace(it.stackTraceToString())
                     null
                 },
-                resp.status
+                resp.status,
+                ctx,
             )
         }
     }

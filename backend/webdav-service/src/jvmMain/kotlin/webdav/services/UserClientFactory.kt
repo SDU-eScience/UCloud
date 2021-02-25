@@ -1,13 +1,11 @@
 package dk.sdu.cloud.webdav.services
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.ClientAndBackend
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.validateAndDecodeOrNull
+import dk.sdu.cloud.service.*
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -21,7 +19,7 @@ data class UserClient(
 
 class UserClientFactory(
     private val clientAndBackend: ClientAndBackend,
-    private val tokenValidationJWT: TokenValidationJWT
+    private val tokenValidationJWT: TokenValidation<DecodedJWT>
 ) {
     // Maps refreshToken to userClient.
     // DO NOT REPLACE THIS WITH USER TO CLIENT! We need to maintain the correct relationship between request and

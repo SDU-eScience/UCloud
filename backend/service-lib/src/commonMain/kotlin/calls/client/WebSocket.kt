@@ -142,8 +142,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
         @Suppress("UNCHECKED_CAST")
         return when (response.status) {
-            in 100..399 -> IngoingCallResponse.Ok(response.payload as S, HttpStatusCode.fromValue(response.status))
-            else -> IngoingCallResponse.Error(response.payload as E?, HttpStatusCode.fromValue(response.status))
+            in 100..399 -> IngoingCallResponse.Ok(response.payload as S, HttpStatusCode.fromValue(response.status), ctx)
+            else -> IngoingCallResponse.Error(response.payload as E?, HttpStatusCode.fromValue(response.status), ctx)
         }
     }
 

@@ -6,12 +6,19 @@ import io.ktor.http.HttpStatusCode
 
 sealed class IngoingCallResponse<S : Any, E : Any> {
     abstract val statusCode: HttpStatusCode
+    abstract val ctx: OutgoingCall
 
-    data class Ok<S : Any, E : Any>(val result: S, override val statusCode: HttpStatusCode) :
-        IngoingCallResponse<S, E>()
+    data class Ok<S : Any, E : Any>(
+        val result: S,
+        override val statusCode: HttpStatusCode,
+        override val ctx: OutgoingCall,
+    ) : IngoingCallResponse<S, E>()
 
-    data class Error<S : Any, E : Any>(val error: E?, override val statusCode: HttpStatusCode) :
-        IngoingCallResponse<S, E>()
+    data class Error<S : Any, E : Any>(
+        val error: E?,
+        override val statusCode: HttpStatusCode,
+        override val ctx: OutgoingCall,
+    ) : IngoingCallResponse<S, E>()
 }
 
 fun <T : Any> IngoingCallResponse<T, *>.orThrow(): T {

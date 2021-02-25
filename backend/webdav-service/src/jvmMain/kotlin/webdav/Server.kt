@@ -1,12 +1,12 @@
 package dk.sdu.cloud.webdav
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.CopyRequest
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
@@ -29,6 +29,7 @@ import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.webdav.services.CloudToDavConverter
@@ -39,6 +40,7 @@ import dk.sdu.cloud.webdav.services.convertDocumentToString
 import dk.sdu.cloud.webdav.services.newDocument
 import dk.sdu.cloud.webdav.services.urlEncode
 import io.ktor.application.*
+import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.features.*
 import io.ktor.http.*
@@ -74,7 +76,7 @@ class Server(override val micro: Micro) : CommonServer {
     private val fileConverter = CloudToDavConverter()
 
     private val userClientFactory =
-        UserClientFactory(ClientAndBackend(micro.client, OutgoingHttpCall), micro.tokenValidation as TokenValidationJWT)
+        UserClientFactory(ClientAndBackend(micro.client, OutgoingHttpCall), micro.tokenValidation as TokenValidation<DecodedJWT>)
 
     private val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
@@ -245,8 +247,6 @@ class Server(override val micro: Micro) : CommonServer {
 
                 method(HttpMethod.Get) {
                     handle {
-                        TODO()
-                        /*
                         withDavHandler { (client, pathPrefix) ->
                             val file = FileDescriptions.stat.call(
                                 StatRequest(getRealPath(requestPath, pathPrefix)),
@@ -262,17 +262,20 @@ class Server(override val micro: Micro) : CommonServer {
                                     FileDescriptions.download,
                                     DownloadByURI(getRealPath(requestPath, pathPrefix), null),
                                     OutgoingHttpCall,
-                                    beforeFilters = { call ->
+                                    beforeHook = { call ->
                                         client.authenticator(call)
                                         call.builder.header(HttpHeaders.Range, requestRanges)
                                     },
-                                    afterFilters = { call ->
-                                        client.afterFilters?.invoke(call)
+                                    afterHook = { call ->
+                                        client.afterHook?.invoke(call)
                                     }
-                                ).orThrow().asIngoing()
+                                )
 
-                                val length = ingoing.length!!
-                                val contentRange = ingoing.contentRange
+                                if (ingoing !is IngoingCallResponse.Ok) ingoing.throwError()
+                                val rawResponse = (ingoing.ctx as OutgoingHttpCall).response ?: error("No response")
+
+                                val length = rawResponse.contentLength()
+                                val contentRange = rawResponse.call.request.headers[HttpHeaders.ContentRange]
                                 val statusCode =
                                     if (contentRange != null) HttpStatusCode.PartialContent
                                     else HttpStatusCode.OK
@@ -284,12 +287,11 @@ class Server(override val micro: Micro) : CommonServer {
                                 call.respond(statusCode, object : OutgoingContent.WriteChannelContent() {
                                     override val contentLength: Long? = length
                                     override suspend fun writeTo(channel: ByteWriteChannel) {
-                                        ingoing.channel.copyAndClose(channel)
+                                        rawResponse.receive<ByteReadChannel>().copyAndClose(channel)
                                     }
                                 })
                             }
                         }
-                         */
                     }
                 }
 
