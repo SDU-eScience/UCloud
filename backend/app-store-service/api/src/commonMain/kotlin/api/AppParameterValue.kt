@@ -48,9 +48,7 @@ A provider must reject the request if it does not support read-only mounts when 
 """
         )
         var readOnly: Boolean = false,
-    ) : AppParameterValue() {
-        val type = "file"
-    }
+    ) : AppParameterValue()
 
     @UCloudApiDoc(
         """A boolean value (true or false)
@@ -63,9 +61,7 @@ A provider must reject the request if it does not support read-only mounts when 
     )
     @Serializable
     @SerialName("boolean")
-    data class Bool(val value: Boolean) : AppParameterValue() {
-        val type = "boolean"
-    }
+    data class Bool(val value: Boolean) : AppParameterValue()
 
     @UCloudApiDoc(
         """A textual value
@@ -80,9 +76,7 @@ When this is used with an `Enumeration` it must match the value of one of the as
     )
     @Serializable
     @SerialName("text")
-    data class Text(val value: String) : AppParameterValue() {
-        val type = "text"
-    }
+    data class Text(val value: String) : AppParameterValue()
 
     @UCloudApiDoc("""An integral value
 
@@ -96,9 +90,7 @@ Internally this uses a big integer type and there are no defined limits.
     )
     @Serializable
     @SerialName("integer")
-    data class Integer(val value: Long) : AppParameterValue() {
-        val type = "integer"
-    }
+    data class Integer(val value: Long) : AppParameterValue()
 
     @UCloudApiDoc("""A floating point value
     
@@ -111,9 +103,7 @@ Internally this uses a big decimal type and there are no defined limits.
 """)
     @Serializable
     @SerialName("floating_point")
-    data class FloatingPoint(val value: Double) : AppParameterValue() {
-        val type = "floating_point"
-    }
+    data class FloatingPoint(val value: Double) : AppParameterValue()
 
     @UCloudApiDoc("""A reference to a separate UCloud `Job`
     
@@ -136,7 +126,6 @@ Internally this uses a big decimal type and there are no defined limits.
             }
         }
 
-        val type = "peer"
     }
 
     @UCloudApiDoc("""A reference to a software license, registered locally at the provider
@@ -151,25 +140,19 @@ Internally this uses a big decimal type and there are no defined limits.
     @SerialName("license_server")
     data class License(
         val id: String,
-    ) : AppParameterValue() {
-        val type = "license_server"
-    }
+    ) : AppParameterValue()
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage (Not yet implemented)")
     @Serializable
     @SerialName("block_storage")
-    data class BlockStorage(val id: String) : AppParameterValue() {
-        val type = "block_storage"
-    }
+    data class BlockStorage(val id: String) : AppParameterValue()
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("A reference to block storage (Not yet implemented)")
     @Serializable
     @SerialName("network")
-    data class Network(val id: String) : AppParameterValue() {
-        val type = "network"
-    }
+    data class Network(val id: String) : AppParameterValue()
 
     @UCloudApiDoc("""A reference to an HTTP ingress, registered locally at the provider
     
@@ -182,9 +165,7 @@ Internally this uses a big decimal type and there are no defined limits.
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @Serializable
     @SerialName("ingress")
-    data class Ingress(val id: String) : AppParameterValue() {
-        val type = "ingress"
-    }
+    data class Ingress(val id: String) : AppParameterValue()
 }
 
 private val hostNameRegex =

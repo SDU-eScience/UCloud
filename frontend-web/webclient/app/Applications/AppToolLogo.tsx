@@ -49,7 +49,7 @@ class LogoCache {
         this.context = context;
         (async () => {
             const now = window.performance &&
-                window.performance.now &&
+                window.performance["now"] &&
                 window.performance.timing &&
                 window.performance.timing.navigationStart ?
                 window.performance.now() + window.performance.timing.navigationStart : Date.now();

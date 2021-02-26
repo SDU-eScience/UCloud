@@ -15,6 +15,8 @@ import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.*
@@ -277,32 +279,36 @@ class JobVerificationService(
                     -> null // Not supported and application should not have been validated. Silently fail.
 
                     is ApplicationParameter.Text -> {
-                        ((param.defaultValue as? Map<*, *>)?.get("value") as? String)?.let {
-                            AppParameterValue.Text(it)
-                        } ?: (param.defaultValue as? String)?.let { AppParameterValue.Text(it) }
+                        ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)?.let {
+                            AppParameterValue.Text(it.content)
+                        } ?: (param.defaultValue as? JsonPrimitive)?.let { AppParameterValue.Text(it.content) }
                     }
                     is ApplicationParameter.Integer -> {
-                        ((param.defaultValue as? Map<*, *>)?.get("value") as? Number)?.let {
-                            AppParameterValue.Integer(it.toLong())
-                        } ?: (param.defaultValue as? Number)?.let {
-                            AppParameterValue.Integer(it.toLong())
-                        }
+                        ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)
+                            ?.content?.toLongOrNull()
+                            ?.let { AppParameterValue.Integer(it) }
+                            ?: (param.defaultValue as? JsonPrimitive)?.content?.toLongOrNull()?.let {
+                                AppParameterValue.Integer(it)
+                            }
                     }
                     is ApplicationParameter.FloatingPoint -> {
-                        ((param.defaultValue as? Map<*, *>)?.get("value") as? Number)?.let {
-                            AppParameterValue.FloatingPoint(it.toDouble())
-                        } ?: (param.defaultValue as? Number)?.let {
-                            AppParameterValue.FloatingPoint(it.toDouble())
-                        }
+                        ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)
+                            ?.content
+                            ?.toLongOrNull()
+                            ?.let { AppParameterValue.FloatingPoint(it.toDouble()) }
+                            ?: (param.defaultValue as? JsonPrimitive)?.content?.toDoubleOrNull()?.let {
+                                AppParameterValue.FloatingPoint(it)
+                            }
                     }
                     is ApplicationParameter.Bool -> {
-                        ((param.defaultValue as? Map<*, *>)?.get("value") as? Boolean)?.let {
-                            AppParameterValue.Bool(it)
-                        } ?: (param.defaultValue as? Boolean)?.let { AppParameterValue.Bool(it) }
+                        ((param.defaultValue as? JsonObject)?.get("value") as? JsonPrimitive)
+                            ?.content?.toBoolean()?.let { AppParameterValue.Bool(it) }
+                            ?: (param.defaultValue as? JsonPrimitive)?.content?.toBoolean()
+                                ?.let { AppParameterValue.Bool(it) }
                     }
                     is ApplicationParameter.Enumeration -> {
-                        (param.defaultValue as? Map<*, *>)?.let { map ->
-                            val value = (map["value"] as? String)
+                        (param.defaultValue as? JsonObject)?.let { map ->
+                            val value = (map["value"] as? JsonPrimitive)?.content
                             val option = param.options.find { it.value == value }
                             if (option != null) {
                                 // Note: We have some applications already in production where this is allowed. We need
@@ -310,7 +316,7 @@ class JobVerificationService(
                                 log.info("Missing value in enumeration: $value")
                             }
 
-                            AppParameterValue.Text(value!!)
+                            if (value != null) AppParameterValue.Text(value) else null
                         }
                     }
 
@@ -319,7 +325,7 @@ class JobVerificationService(
 
                 if (providedValue == null) {
                     log.warn("This shouldn't happen!")
-                    log.warn("Param: ${param}")
+                    log.warn("Param: $param")
                     log.warn("Default value: ${param.defaultValue} ${param.defaultValue?.javaClass}")
                     throw RPCException("Missing value for '${param.name}'", HttpStatusCode.BadRequest)
                 }
