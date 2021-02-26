@@ -178,7 +178,6 @@ export const Browse: React.FunctionComponent<{
                         <Text>
                             Public IP addresses allow you to exposes the services of your application via the public
                             Internet. You can apply to use a public IP when you apply for resources.
-                            <Link to={"/project/grants-landing"}><Button fullWidth>Request an IP address</Button></Link>
                         </Text>
                     </NoResultsCardBody>
                 </> : null
