@@ -13,6 +13,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromString
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
@@ -87,12 +88,12 @@ class ToolTest {
             test = {
                 val response = sendRequest(
                     method = HttpMethod.Get,
-                    path = "/api/hpc/tools/name?itemsPerPage=10&page=0",
+                    path = "/api/hpc/tools/?appName=name&itemsPerPage=10&page=0",
                     user = TestUsers.user
                 )
                 response.assertSuccess()
 
-                val result = defaultMapper.readValue<Page<Tool>>(response.response.content!!)
+                val result = defaultMapper.decodeFromString<Page<Tool>>(response.response.content!!)
                 assertEquals(1, result.itemsInTotal)
                 assertEquals("owner", result.items.first().owner)
             }
@@ -113,12 +114,12 @@ class ToolTest {
             test = {
                 val response = sendRequest(
                     method = HttpMethod.Get,
-                    path = "/api/hpc/tools/name/2.2",
+                    path = "/api/hpc/tools?name=name&version=2.2",
                     user = TestUsers.user
                 )
                 response.assertSuccess()
 
-                val results = defaultMapper.readValue<Tool>(response.response.content!!)
+                val results = defaultMapper.decodeFromString<Tool>(response.response.content!!)
                 assertEquals("owner", results.owner)
             }
         )
@@ -145,7 +146,7 @@ class ToolTest {
                 )
                 response.assertSuccess()
 
-                val results = defaultMapper.readValue<Page<Tool>>(response.response.content!!)
+                val results = defaultMapper.decodeFromString<Page<Tool>>(response.response.content!!)
                 assertEquals(1, results.itemsInTotal)
                 assertEquals("owner", results.items.first().owner)
             }

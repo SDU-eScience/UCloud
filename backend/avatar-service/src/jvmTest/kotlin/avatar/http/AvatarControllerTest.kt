@@ -24,6 +24,7 @@ import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.just
 import io.mockk.mockk
+import kotlinx.serialization.decodeFromString
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -87,7 +88,7 @@ class AvatarControllerTest {
 
                 findResponse.assertSuccess()
 
-                val response = defaultMapper.readValue<FindResponse>(findResponse.response.content!!)
+                val response = defaultMapper.decodeFromString<FindResponse>(findResponse.response.content!!)
                 assertEquals(avatar.top.string, response.top)
                 assertEquals(avatar.topAccessory.string, response.topAccessory)
                 assertEquals(avatar.hairColor.string, response.hairColor)
@@ -134,7 +135,7 @@ class AvatarControllerTest {
                     )
 
                 findBulkRequest.assertSuccess()
-                val response = defaultMapper.readValue<FindBulkResponse>(findBulkRequest.response.content!!)
+                val response = defaultMapper.decodeFromString<FindBulkResponse>(findBulkRequest.response.content!!)
 
                 val user1 = response.avatars[TestUsers.user.username]
                 assertEquals(Top.HAT.string, user1?.top)

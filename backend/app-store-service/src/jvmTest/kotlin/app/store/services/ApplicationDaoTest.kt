@@ -1,12 +1,12 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.PaginationRequest
 import dk.sdu.cloud.app.store.api.AppStoreServiceDescription
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.withSession

@@ -19,6 +19,7 @@ import io.ktor.server.testing.*
 import io.mockk.*
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromString
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
@@ -148,16 +149,17 @@ class AppTest {
                     favorites.assertSuccess()
 
                     val results =
-                        defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(favorites.response.content!!)
+                        defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(favorites.response.content!!)
                     assertEquals(0, results.itemsInTotal)
                 }
 
                 run {
                     val response =
-                        sendRequest(
+                        sendJson(
                             method = HttpMethod.Post,
-                            path = "/api/hpc/apps/favorites/App4/4.4",
-                            user = TestUsers.user
+                            path = "/api/hpc/apps/favorites",
+                            user = TestUsers.user,
+                            request = FavoriteRequest("App4", "4.4")
                         )
                     response.assertSuccess()
 
@@ -170,16 +172,17 @@ class AppTest {
                     favorites.assertSuccess()
 
                     val results =
-                        defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(favorites.response.content!!)
+                        defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(favorites.response.content!!)
                     assertEquals(1, results.itemsInTotal)
                 }
 
                 run {
                     val response =
-                        sendRequest(
+                        sendJson(
                             method = HttpMethod.Post,
-                            path = "/api/hpc/apps/favorites/App4/4.4",
-                            user = TestUsers.user
+                            path = "/api/hpc/apps/favorites",
+                            user = TestUsers.user,
+                            request = FavoriteRequest("App4", "4.4")
                         )
                     response.assertSuccess()
 
@@ -192,7 +195,7 @@ class AppTest {
                     favorites.assertSuccess()
 
                     val results =
-                        defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(favorites.response.content!!)
+                        defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(favorites.response.content!!)
                     assertEquals(0, results.itemsInTotal)
                 }
             }
@@ -246,7 +249,7 @@ class AppTest {
                         )
                     response.assertSuccess()
 
-                    val results = defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(
+                    val results = defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(
                         response.response.content!!
                     )
                     assertEquals(1, results.itemsInTotal)
@@ -313,7 +316,7 @@ class AppTest {
                     )
                     response.assertSuccess()
 
-                    val results = defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(
+                    val results = defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(
                         response.response.content!!
                     )
 
@@ -329,7 +332,7 @@ class AppTest {
                     )
                     response.assertSuccess()
 
-                    val results = defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(
+                    val results = defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(
                         response.response.content!!
                     )
 
@@ -344,7 +347,7 @@ class AppTest {
                     )
                     response.assertSuccess()
 
-                    val results = defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(
+                    val results = defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(
                         response.response.content!!
                     )
 
@@ -404,7 +407,7 @@ class AppTest {
                         )
                         response.assertSuccess()
 
-                        val results = defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(
+                        val results = defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(
                             response.response.content!!
                         )
                         assertEquals(1, results.itemsInTotal)
@@ -420,7 +423,7 @@ class AppTest {
                     )
                     response.assertSuccess()
 
-                    val results = defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(
+                    val results = defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(
                         response.response.content!!
                     )
                     assertEquals(0, results.itemsInTotal)
@@ -482,7 +485,7 @@ class AppTest {
             test = {
                 val request = sendRequest(
                     method = HttpMethod.Get,
-                    path = "/api/hpc/apps/$name/$version?itemsPerPage=10&page=0",
+                    path = "/api/hpc/apps/?appName=$name&appVersion=$version&itemsPerPage=10&page=0",
                     user = TestUsers.user
                 )
                 println(request)
@@ -536,12 +539,12 @@ class AppTest {
             test = {
                 val response = sendRequest(
                     method = HttpMethod.Get,
-                    path = "/api/hpc/apps/$name",
+                    path = "/api/hpc/apps/byName?appName=$name",
                     user = TestUsers.user
                 )
                 response.assertSuccess()
 
-                val results = defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(
+                val results = defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(
                     response.response.content!!
                 )
                 assertEquals(1, results.itemsInTotal)
@@ -594,7 +597,7 @@ class AppTest {
                 )
                 response.assertSuccess()
 
-                val results = defaultMapper.readValue<Page<ApplicationSummaryWithFavorite>>(
+                val results = defaultMapper.decodeFromString<Page<ApplicationSummaryWithFavorite>>(
                     response.response.content!!
                 )
                 assertEquals(1, results.itemsInTotal)
@@ -740,7 +743,7 @@ class AppTest {
                     }
                 )
 
-                updateLogoRequest.assertSuccess()
+                updateLogoRequest.assertFailure() // should fail because logo is invalid
             }
         )
     }
@@ -772,10 +775,11 @@ class AppTest {
                     db)
             },
             test = {
-                val clearLogoRequest = sendRequest(
+                val clearLogoRequest = sendJson(
                     method = HttpMethod.Delete,
-                    path = "api/hpc/apps/clearLogo/nameOfApp",
-                    user = TestUsers.admin
+                    path = "api/hpc/apps/clearLogo",
+                    user = TestUsers.admin,
+                    request = ClearLogoRequest("nameOfApp")
                 )
 
                 clearLogoRequest.assertSuccess()
@@ -815,7 +819,7 @@ class AppTest {
             test = {
                 val fetchLogoRequest = sendRequest(
                     method = HttpMethod.Get,
-                    path = "api/hpc/apps/logo/nameOfApp",
+                    path = "api/hpc/apps/logo?name=nameOfApp",
                     user = TestUsers.admin
                 )
 
@@ -853,7 +857,7 @@ class AppTest {
             test = {
                 val findLatestByToolRequest = sendRequest(
                     method = HttpMethod.Get,
-                    path = "api/hpc/apps/byTool/toolname",
+                    path = "api/hpc/apps/byTool?tool=toolname",
                     user = TestUsers.user
                 )
 

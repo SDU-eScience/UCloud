@@ -1,6 +1,5 @@
 package dk.sdu.cloud.contact.book.rpc
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.contact.book.api.AllContactsForUserRequest
 import dk.sdu.cloud.contact.book.api.AllContactsForUserResponse
 import dk.sdu.cloud.contact.book.api.DeleteRequest
@@ -25,6 +24,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import kotlinx.serialization.decodeFromString
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.client.RequestOptions
@@ -89,7 +89,7 @@ class ContactBookTest {
                         )
                     )
                     response.assertSuccess()
-                    val results = defaultMapper.readValue<AllContactsForUserResponse>(response.response.content!!)
+                    val results = defaultMapper.decodeFromString<AllContactsForUserResponse>(response.response.content!!)
                     assertEquals(1, results.contacts.size)
                 }
                 //Insert Bulk (single duplicate)
@@ -119,7 +119,7 @@ class ContactBookTest {
                         )
                     )
                     response.assertSuccess()
-                    val results = defaultMapper.readValue<AllContactsForUserResponse>(response.response.content!!)
+                    val results = defaultMapper.decodeFromString<AllContactsForUserResponse>(response.response.content!!)
                     assertEquals(3, results.contacts.size)
                 }
                 //Query multi hit
@@ -134,7 +134,7 @@ class ContactBookTest {
                         )
                     )
                     response.assertSuccess()
-                    val results = defaultMapper.readValue<QueryContactsResponse>(response.response.content!!)
+                    val results = defaultMapper.decodeFromString<QueryContactsResponse>(response.response.content!!)
                     assertEquals(3, results.contacts.size)
                 }
                 //Query single hit
@@ -149,7 +149,7 @@ class ContactBookTest {
                         )
                     )
                     response.assertSuccess()
-                    val results = defaultMapper.readValue<QueryContactsResponse>(response.response.content!!)
+                    val results = defaultMapper.decodeFromString<QueryContactsResponse>(response.response.content!!)
                     assertEquals(1, results.contacts.size)
                 }
                 //Delete
@@ -179,7 +179,7 @@ class ContactBookTest {
                         )
                     )
                     response.assertSuccess()
-                    val results = defaultMapper.readValue<QueryContactsResponse>(response.response.content!!)
+                    val results = defaultMapper.decodeFromString<QueryContactsResponse>(response.response.content!!)
                     assertEquals(0, results.contacts.size)
                 }
 
@@ -288,7 +288,7 @@ class ContactBookTest {
                         )
                     )
                     response.assertSuccess()
-                    val results = defaultMapper.readValue<QueryContactsResponse>(response.response.content!!)
+                    val results = defaultMapper.decodeFromString<QueryContactsResponse>(response.response.content!!)
                     assertEquals(1, results.contacts.size)
                 }
             }
@@ -316,7 +316,7 @@ class ContactBookTest {
                         )
                     )
                     response.assertSuccess()
-                    val results = defaultMapper.readValue<AllContactsForUserResponse>(response.response.content!!)
+                    val results = defaultMapper.decodeFromString<AllContactsForUserResponse>(response.response.content!!)
                     assertEquals(1, results.contacts.size)
                 }
             }

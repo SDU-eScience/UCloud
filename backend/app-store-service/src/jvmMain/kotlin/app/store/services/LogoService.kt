@@ -68,7 +68,7 @@ class LogoService(
     fun resizeLogo(logoBytes: ByteArray): ByteArray {
         val parsedLogo = ByteArrayInputStream(logoBytes).use { ins ->
             ImageIO.read(ins)
-        }
+        } ?: throw RPCException("Invalid image file", HttpStatusCode.BadRequest)
 
         if (parsedLogo.width < DESIRED_LOGO_WIDTH) return logoBytes
 

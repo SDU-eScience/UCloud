@@ -3,9 +3,7 @@ package dk.sdu.cloud.file.trash.services
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.LongRunningResponse
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.trash.storageFile
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.BackgroundScope
@@ -28,7 +26,7 @@ class TrashTest {
         ClientMock.mockCallSuccess(
             FileDescriptions.stat,
             if (returnDirectory) {
-                storageFile.copy(fileTypeOrNull = FileType.DIRECTORY)
+                StorageFile(fileTypeOrNull = FileType.DIRECTORY).mergeWith(storageFile)
             } else {
                 storageFile
             }
@@ -46,21 +44,21 @@ class TrashTest {
     private fun mockMove() {
         ClientMock.mockCallSuccess(
             FileDescriptions.move,
-            LongRunningResponse.Result(item = Unit)
+            LongRunningResponse.Ok()
         )
     }
 
     private fun mockCreateDir() {
         ClientMock.mockCallSuccess(
             FileDescriptions.createDirectory,
-            LongRunningResponse.Result(item = Unit)
+            LongRunningResponse.Ok()
         )
     }
 
     private fun mockDelete() {
         ClientMock.mockCallSuccess(
             FileDescriptions.deleteFile,
-            LongRunningResponse.Result(item = Unit)
+            LongRunningResponse.Ok()
         )
     }
 

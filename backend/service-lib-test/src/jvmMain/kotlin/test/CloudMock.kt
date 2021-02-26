@@ -51,8 +51,8 @@ object ClientMock {
             val resp = resultCompute(outgoingCall, payload)
 
             when (resp) {
-                is TestCallResult.Ok -> IngoingCallResponse.Ok(resp.result, resp.statusCode)
-                is TestCallResult.Error -> IngoingCallResponse.Error(resp.error, resp.statusCode)
+                is TestCallResult.Ok -> IngoingCallResponse.Ok(resp.result, resp.statusCode, outgoingCall)
+                is TestCallResult.Error -> IngoingCallResponse.Error(resp.error, resp.statusCode, outgoingCall)
             }
         }
     }

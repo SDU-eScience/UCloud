@@ -1,18 +1,18 @@
 package dk.sdu.cloud.integration.backend
 
+import dk.sdu.cloud.PaginationRequestV2
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.PaginationRequestV2
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.toActor
+import dk.sdu.cloud.toActor
 import kotlin.test.Test
 
 class PaginationTest : IntegrationTest() {

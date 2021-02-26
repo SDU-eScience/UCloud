@@ -22,6 +22,7 @@ import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.decodeFromString
 import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -34,7 +35,7 @@ class SearchTest {
         listOf(SearchController(cloud))
     }
 
-    private val file: StorageFileImpl = StorageFileImpl(
+    private val file: StorageFile = StorageFile(
         pathOrNull = "path",
         ownerNameOrNull = "owner",
         fileTypeOrNull = FileType.FILE,
@@ -48,7 +49,7 @@ class SearchTest {
         2,
         10,
         0,
-        listOf(file, file.copy(pathOrNull = "path2"))
+        listOf(file, StorageFile(pathOrNull = "path2").mergeWith(file))
     )
     //No controller for simple search
     @Ignore
@@ -77,7 +78,7 @@ class SearchTest {
                     configure = { addHeader("X-No-Load", "true") }
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<Page<SearchResult>>(request.response.content!!)
 
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
@@ -114,7 +115,7 @@ class SearchTest {
                     configure = { addHeader("X-No-Load", "true") }
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<Page<SearchResult>>(request.response.content!!)
 
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
@@ -175,7 +176,7 @@ class SearchTest {
                     request = req.copy(fileName = null)
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<Page<SearchResult>>(request.response.content!!)
 
                 assertEquals(0, response.itemsInTotal)
                 assertEquals(0, response.pagesInTotal)
@@ -210,7 +211,7 @@ class SearchTest {
                     request = req.copy()
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<Page<SearchResult>>(request.response.content!!)
 
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
@@ -267,7 +268,7 @@ class SearchTest {
                     request = req
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<Page<SearchResult>>(request.response.content!!)
 
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
@@ -321,7 +322,7 @@ class SearchTest {
                     request = req
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<Page<SearchResult>>(request.response.content!!)
 
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)

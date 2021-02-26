@@ -3,6 +3,7 @@ package dk.sdu.cloud.integration.backend
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withHttpBody
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.DeleteFileRequest
@@ -27,7 +28,7 @@ import dk.sdu.cloud.project.api.TransferPiRoleRequest
 import dk.sdu.cloud.service.StaticTimeProvider
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.utils.io.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -65,11 +66,8 @@ class LimitCheckerTest : IntegrationTest() {
         addFundsToPersonalProject(root, user.username, product = sampleStorage.category)
         setPersonalQuota(root, user.username, 1024 * 1024 * 1024)
         MultiPartUploadDescriptions.simpleUpload.call(
-            SimpleUploadRequest(
-                joinPath(homeDirectory(user.username), "hello.txt"),
-                BinaryStream.outgoingFromChannel(ByteReadChannel("Hello, World!"))
-            ),
-            user.client
+            SimpleUploadRequest(joinPath(homeDirectory(user.username), "hello.txt")),
+            user.client.withHttpBody("Hello, World!")
         ).orThrow()
     }
 
@@ -82,11 +80,8 @@ class LimitCheckerTest : IntegrationTest() {
         setPersonalQuota(root, user.username, 0)
         try {
             MultiPartUploadDescriptions.simpleUpload.call(
-                SimpleUploadRequest(
-                    joinPath(homeDirectory(user.username), "hello.txt"),
-                    BinaryStream.outgoingFromChannel(ByteReadChannel("Hello, World!"))
-                ),
-                user.client
+                SimpleUploadRequest(joinPath(homeDirectory(user.username), "hello.txt")),
+                user.client.withHttpBody("Hello, World!")
             ).orThrow()
             assert(false)
         } catch (ex: RPCException) {
@@ -101,11 +96,8 @@ class LimitCheckerTest : IntegrationTest() {
         val user = createUser()
         try {
             MultiPartUploadDescriptions.simpleUpload.call(
-                SimpleUploadRequest(
-                    joinPath(homeDirectory(user.username), "hello.txt"),
-                    BinaryStream.outgoingFromChannel(ByteReadChannel("Hello, World!"))
-                ),
-                user.client
+                SimpleUploadRequest(joinPath(homeDirectory(user.username), "hello.txt")),
+                user.client.withHttpBody("Hello, World!")
             ).orThrow()
             assert(false)
         } catch (ex: RPCException) {
@@ -126,22 +118,20 @@ class LimitCheckerTest : IntegrationTest() {
         // Upload a 1MB file
         val bigFile = "1mb"
         MultiPartUploadDescriptions.simpleUpload.call(
-            SimpleUploadRequest(
-                joinPath(homeDirectory(user.username), bigFile),
-                BinaryStream.outgoingFromChannel(ByteReadChannel(ByteArray(1024 * 1024)))
-            ),
-            user.client
+            SimpleUploadRequest(joinPath(homeDirectory(user.username), bigFile)),
+            user.client.withHttpBody(
+                ContentType.Application.OctetStream,
+                1024 * 1024,
+                ByteReadChannel(ByteArray(1024 * 1024))
+            )
         ).orThrow()
         StaticTimeProvider.time += 3600 * 1000
 
         // Check that we cannot upload a new file
         try {
             MultiPartUploadDescriptions.simpleUpload.call(
-                SimpleUploadRequest(
-                    joinPath(homeDirectory(user.username), "hello.txt"),
-                    BinaryStream.outgoingFromChannel(ByteReadChannel("Hello, World!"))
-                ),
-                user.client
+                SimpleUploadRequest(joinPath(homeDirectory(user.username), "hello.txt")),
+                user.client.withHttpBody("Hello, World!")
             ).orThrow()
             assert(false)
         } catch (ex: RPCException) {
@@ -158,11 +148,8 @@ class LimitCheckerTest : IntegrationTest() {
 
         // Attempt to upload hello.txt again
         MultiPartUploadDescriptions.simpleUpload.call(
-            SimpleUploadRequest(
-                joinPath(homeDirectory(user.username), "hello.txt"),
-                BinaryStream.outgoingFromChannel(ByteReadChannel("Hello, World!"))
-            ),
-            user.client
+            SimpleUploadRequest(joinPath(homeDirectory(user.username), "hello.txt")),
+            user.client.withHttpBody("Hello, World!")
         ).orThrow()
     }
 

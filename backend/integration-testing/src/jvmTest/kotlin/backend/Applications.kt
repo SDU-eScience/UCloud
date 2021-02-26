@@ -5,10 +5,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.DKK
@@ -18,8 +15,10 @@ import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.integration.t
 import dk.sdu.cloud.service.test.assertThatInstance
+import io.ktor.client.call.*
 import io.ktor.http.*
 import io.ktor.util.*
+import io.ktor.utils.io.*
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -31,97 +30,109 @@ object SampleApplications {
 
     suspend fun create() {
         ToolStore.create.call(
-            BinaryStream.outgoingFromText(
-                //language=yaml
-                """
-                    ---
-                    tool: v1
+            Unit,
+            serviceClient.withHttpBody(
+                ContentType("text", "yaml"),
+                contentLength = null,
+                ByteReadChannel(
+                    //language=yaml
+                    """
+                        ---
+                        tool: v1
 
-                    title: Figlet
+                        title: Figlet
 
-                    name: figlet
-                    version: 1.0.0
+                        name: figlet
+                        version: 1.0.0
 
-                    container: truek/figlets:1.1.1
+                        container: truek/figlets:1.1.1
 
-                    authors:
-                    - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+                        authors:
+                        - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
 
-                    description: Tool for rendering text.
+                        description: Tool for rendering text.
 
-                    defaultTimeAllocation:
-                      hours: 0
-                      minutes: 1
-                      seconds: 0
+                        defaultTimeAllocation:
+                          hours: 0
+                          minutes: 1
+                          seconds: 0
 
-                    backend: DOCKER
-                """.trimIndent()
-            ),
-            serviceClient
+                        backend: DOCKER
+                    """.trimIndent()
+                )
+            )
         ).orThrow()
 
         AppStore.create.call(
-            BinaryStream.outgoingFromText(
-                //language=yaml
-                """
-                   ---
-                   application: v1
+            Unit,
+            serviceClient.withHttpBody(
+                ContentType("text", "yaml"),
+                contentLength = null,
+                ByteReadChannel(
+                    //language=yaml
+                    """
+                       ---
+                       application: v1
 
-                   title: Figlet
-                   name: figlet
-                   version: 1.0.0
+                       title: Figlet
+                       name: figlet
+                       version: 1.0.0
 
-                   tool:
-                     name: figlet
-                     version: 1.0.0
+                       tool:
+                         name: figlet
+                         version: 1.0.0
 
-                   authors:
-                   - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+                       authors:
+                       - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
 
-                   description: >
-                     Render some text with Figlet Docker!
+                       description: >
+                         Render some text with Figlet Docker!
 
-                   invocation:
-                   - figlet
-                   - type: var
-                     vars: text
-                     
-                   parameters:
-                     text:
-                       title: "Some text to render with figlet"
-                       type: text
-     
-                """.trimIndent()
-            ),
-            serviceClient
+                       invocation:
+                       - figlet
+                       - type: var
+                         vars: text
+                         
+                       parameters:
+                         text:
+                           title: "Some text to render with figlet"
+                           type: text
+         
+                    """.trimIndent()
+                )
+            )
         ).orThrow()
 
         AppStore.create.call(
-            BinaryStream.outgoingFromText(
-                //language=yaml
-                """
-                    ---
-                    application: v1
-                    
-                    title: long running
-                    name: long-running
-                    version: 1.0.0
-                    
-                    tool:
-                      name: figlet
-                      version: 1.0.0
-                    
-                    authors: ["Dan Thrane"]
-                    
-                    description: Runs for a long time
-                    
-                    # We just count to a really big number
-                    invocation:
-                    - figlet-count
-                    - 1000000000
-                """.trimIndent()
-            ),
-            serviceClient
+            Unit,
+            serviceClient.withHttpBody(
+                ContentType("text", "yaml"),
+                contentLength = null,
+                ByteReadChannel(
+                    //language=yaml
+                    """
+                        ---
+                        application: v1
+                        
+                        title: long running
+                        name: long-running
+                        version: 1.0.0
+                        
+                        tool:
+                          name: figlet
+                          version: 1.0.0
+                        
+                        authors: ["Dan Thrane"]
+                        
+                        description: Runs for a long time
+                        
+                        # We just count to a really big number
+                        invocation:
+                        - figlet-count
+                        - 1000000000
+                    """.trimIndent()
+                )
+            )
         ).orThrow()
     }
 }
@@ -162,9 +173,10 @@ class ApplicationTest : IntegrationTest() {
                     ),
                     user.client
                 )
-                .orThrow()
-                .asIngoing()
-                .channel
+                .ctx
+                .let { it as OutgoingHttpCall }
+                .response!!
+                .receive<ByteReadChannel>()
                 .toByteArray()
                 .toString(Charsets.UTF_8)
 

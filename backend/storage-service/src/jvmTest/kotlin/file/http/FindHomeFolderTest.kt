@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.services.WithBackgroundScope
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.decodeFromString
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.*
@@ -21,7 +22,7 @@ class FindHomeFolderTest : WithBackgroundScope() {
 
             test = {
                 val response = engine.findHome("user@name.dk")
-                val result = defaultMapper.readValue<FindHomeFolderResponse>(response.content!!)
+                val result = defaultMapper.decodeFromString<FindHomeFolderResponse>(response.content!!)
                 assertEquals("/home/user@name.dk".normalize(), result.path.normalize())
             }
         )

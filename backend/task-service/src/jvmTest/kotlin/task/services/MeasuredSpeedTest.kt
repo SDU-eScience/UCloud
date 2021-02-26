@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlin.test.Test
 
 class MeasuredSpeedTest {
@@ -13,9 +15,9 @@ class MeasuredSpeedTest {
         measurer.start()
         Thread.sleep(100)
         measurer.increment(1)
-        val writeValueAsString = defaultMapper.writeValueAsString(measurer)
+        val writeValueAsString = defaultMapper.encodeToString(measurer)
         println(writeValueAsString)
-        val tree = defaultMapper.readTree(writeValueAsString) as ObjectNode
+        val tree = defaultMapper.decodeFromString(writeValueAsString) as ObjectNode
         val fields = tree.fieldNames().asSequence().toList()
         assertThatInstance(fields) { it.contains("speed") }
         assertThatInstance(fields) { it.contains("unit") }
@@ -30,9 +32,9 @@ class MeasuredSpeedTest {
         measurer.start()
         Thread.sleep(100)
         measurer.increment(1)
-        val writeValueAsString = defaultMapper.writeValueAsString(measurer)
+        val writeValueAsString = defaultMapper.encodeToString(measurer)
         println(writeValueAsString)
-        val tree = defaultMapper.readTree(writeValueAsString) as ObjectNode
+        val tree = defaultMapper.decodeFromString(writeValueAsString) as ObjectNode
         val fields = tree.fieldNames().asSequence().toList()
         assertThatInstance(fields) { it.contains("speed") }
         assertThatInstance(fields) { it.contains("unit") }

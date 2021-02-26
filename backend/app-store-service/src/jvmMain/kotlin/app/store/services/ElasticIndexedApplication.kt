@@ -1,9 +1,12 @@
 package dk.sdu.cloud.app.store.services
 
+import kotlinx.serialization.Serializable
+
 /**
  * An application as it is represented in elasticsearch
  */
 
+@Serializable
 data class ElasticIndexedApplication(
     val name: String,
     val version: String,

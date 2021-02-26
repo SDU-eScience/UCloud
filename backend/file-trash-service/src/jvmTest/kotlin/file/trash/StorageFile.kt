@@ -2,7 +2,7 @@ package dk.sdu.cloud.file.trash
 
 import dk.sdu.cloud.file.api.*
 
-internal val storageFile: StorageFileImpl = StorageFileImpl(
+internal val storageFile: StorageFile = StorageFile(
     fileTypeOrNull = FileType.FILE,
     pathOrNull = "path",
     createdAtOrNull = 10000,

@@ -10,7 +10,6 @@ class V13__MigrateMetadata : BaseJavaMigration() {
     override fun migrate(context: Context) {
         // NOTE(Dan): Removed because we have switched dependencies. This migration script is no longer needed
         //  a commented version is kept to understand what it did.
-        /*
         val connection = context.connection
         connection.autoCommit = false
 
@@ -34,6 +33,7 @@ class V13__MigrateMetadata : BaseJavaMigration() {
             }
         }
 
+        /*
         connection.createStatement().use { statement ->
             statement.execute("create index on applications using gin (tags);")
         }
@@ -105,8 +105,8 @@ class V13__MigrateMetadata : BaseJavaMigration() {
                 }
             }
         }
+         */
 
         connection.commit()
-         */
     }
 }

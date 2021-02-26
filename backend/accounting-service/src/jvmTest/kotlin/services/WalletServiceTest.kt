@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.AccountingServiceDescription
 import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
 import dk.sdu.cloud.accounting.api.TransactionType
@@ -22,7 +23,6 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.UserGroupSummary
 import dk.sdu.cloud.project.api.UserStatusInProject
 import dk.sdu.cloud.project.api.UserStatusResponse
-import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession

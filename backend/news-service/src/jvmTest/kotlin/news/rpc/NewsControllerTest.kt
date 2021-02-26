@@ -25,6 +25,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromString
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
@@ -131,7 +132,7 @@ class NewsControllerTest {
                 )
                 listResponse.assertSuccess()
 
-                val list = defaultMapper.readValue<ListPostsResponse>(listResponse.response.content!!)
+                val list = defaultMapper.decodeFromString<ListPostsResponse>(listResponse.response.content!!)
                 assertEquals(2, list.itemsInTotal)
 
                 val catResponse = sendRequest(
@@ -141,7 +142,7 @@ class NewsControllerTest {
                 )
 
                 catResponse.assertSuccess()
-                val categories = defaultMapper.readValue<ListCategoriesResponse>(catResponse.response.content!!)
+                val categories = defaultMapper.decodeFromString<ListCategoriesResponse>(catResponse.response.content!!)
                 assertEquals(2, categories.size)
                 assertTrue(categories.contains("Warnings"))
                 assertTrue(categories.contains("Welcomes"))
@@ -156,7 +157,7 @@ class NewsControllerTest {
                 )
                 getResponse.assertSuccess()
 
-                val foundPost = defaultMapper.readValue<GetPostByIdResponse>(getResponse.response.content!!)
+                val foundPost = defaultMapper.decodeFromString<GetPostByIdResponse>(getResponse.response.content!!)
                 assertEquals("hello everybody", foundPost.subtitle)
 
                 sendJson(
@@ -180,7 +181,7 @@ class NewsControllerTest {
                 )
                 listResponseAfterToggle.assertSuccess()
 
-                val listAfterToggle = defaultMapper.readValue<ListPostsResponse>(
+                val listAfterToggle = defaultMapper.decodeFromString<ListPostsResponse>(
                     listResponseAfterToggle.response.content!!
                 )
 
@@ -193,7 +194,7 @@ class NewsControllerTest {
                     user = TestUsers.admin
                 )
                 downtimeResponse.assertSuccess()
-                val downtime = defaultMapper.readValue<ListDownTimesResponse>(downtimeResponse.response.content!!)
+                val downtime = defaultMapper.decodeFromString<ListDownTimesResponse>(downtimeResponse.response.content!!)
                 assertEquals(0, downtime.itemsInTotal)
 
                 sendJson(
@@ -216,7 +217,7 @@ class NewsControllerTest {
                     user = TestUsers.admin
                 )
                 downtimeResponseAfterInsert.assertSuccess()
-                val downtimeAfterInsert = defaultMapper.readValue<ListDownTimesResponse>(downtimeResponseAfterInsert.response.content!!)
+                val downtimeAfterInsert = defaultMapper.decodeFromString<ListDownTimesResponse>(downtimeResponseAfterInsert.response.content!!)
                 assertEquals(1, downtimeAfterInsert.itemsInTotal)
 
             }

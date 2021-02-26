@@ -30,6 +30,9 @@ import io.ktor.server.testing.TestApplicationCall
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -87,7 +90,7 @@ class NotificationTest {
     private val createdNotification = Notification(
         type = "type",
         message = "You Got MAIL!!!",
-        meta = mapOf("foo" to 42)
+        meta = JsonObject(mapOf("foo" to JsonPrimitive(42)))
     )
 
     @Test
@@ -189,7 +192,7 @@ class NotificationTest {
                 )
                 requestResponse.assertStatus(HttpStatusCode.OK)
 
-                val responseList = defaultMapper.readValue<DeleteResponse>(requestResponse.response.content!!)
+                val responseList = defaultMapper.decodeFromString<DeleteResponse>(requestResponse.response.content!!)
 
                 assertEquals(123124, responseList.failures.first())
                 assertEquals(123456, responseList.failures.last())
@@ -221,7 +224,7 @@ class NotificationTest {
                 val createdNotification = Notification(
                     type = "type",
                     message = "You Got MAIL!!!",
-                    meta = mapOf("foo" to 42)
+                    meta = JsonObject(mapOf("foo" to JsonPrimitive(42)))
                 )
 
                 val createdFor = TestUsers.user
@@ -246,7 +249,7 @@ class NotificationTest {
                 )
 
                 requestResponse.assertStatus(HttpStatusCode.OK)
-                val responseList = defaultMapper.readValue<MarkResponse>(requestResponse.response.content!!)
+                val responseList = defaultMapper.decodeFromString<MarkResponse>(requestResponse.response.content!!)
 
                 assertEquals(123456, responseList.failures.first())
                 assertEquals(1222, responseList.failures.last())

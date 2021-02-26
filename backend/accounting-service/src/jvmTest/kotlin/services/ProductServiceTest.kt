@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.AccountingServiceDescription
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.accounting.api.FindProductRequest
@@ -8,14 +9,13 @@ import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.accounting.services.ProductService
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import dk.sdu.cloud.service.toActor
+import dk.sdu.cloud.toActor
 import io.ktor.http.HttpStatusCode
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking

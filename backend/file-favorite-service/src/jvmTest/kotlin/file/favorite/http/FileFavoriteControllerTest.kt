@@ -3,6 +3,8 @@ package dk.sdu.cloud.file.favorite.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.mergeWith
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusRequest
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
@@ -21,6 +23,7 @@ import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.serialization.decodeFromString
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -75,7 +78,7 @@ class FileFavoriteControllerTest {
                 )
 
                 request.assertSuccess()
-                val response = defaultMapper.readValue<ToggleFavoriteResponse>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<ToggleFavoriteResponse>(request.response.content!!)
                 assertEquals(1, response.failures.size)
                 assertEquals("/home/user/1", response.failures.first())
             }
@@ -101,13 +104,13 @@ class FileFavoriteControllerTest {
                     request = FavoriteStatusRequest(
                         listOf(
                             storageFile.path,
-                            storageFile.copy(pathOrNull = "/home/user/5").path
+                            StorageFile(pathOrNull = "/home/user/5").mergeWith(storageFile).path
                         )
                     )
                 )
 
                 request.assertSuccess()
-                val response = defaultMapper.readValue<FavoriteStatusResponse>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<FavoriteStatusResponse>(request.response.content!!)
                 assertEquals(true, response.favorited["fileId"])
                 assertEquals(false, response.favorited["fileId2"])
             }

@@ -53,6 +53,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.config.ConfigurationFactory
 import org.testcontainers.containers.GenericContainer
@@ -615,11 +618,11 @@ object UCloudLauncher : Loggable {
             val client = KubernetesClient(KubernetesConfigurationSource.KubeConfigFile(target.absolutePath, null))
             client.createResource(
                 KubernetesResources.persistentVolumes,
-                defaultMapper.writeValueAsString(
+                defaultMapper.encodeToString(
                     PersistentVolume(
                         metadata = ObjectMeta("storage"),
                         spec = PersistentVolume.Spec(
-                            capacity = mapOf("storage" to "1000Gi"),
+                            capacity = JsonObject(mapOf("storage" to JsonPrimitive("1000Gi"))),
                             volumeMode = "Filesystem",
                             accessModes = listOf("ReadWriteMany"),
                             persistentVolumeReclaimPolicy = "Retain",
@@ -632,14 +635,16 @@ object UCloudLauncher : Loggable {
 
             client.createResource(
                 KubernetesResources.persistentVolumeClaims.withNamespace("app-kubernetes"),
-                defaultMapper.writeValueAsString(
+                defaultMapper.encodeToString(
                     PersistentVolumeClaim(
                         metadata = ObjectMeta("cephfs", namespace = "app-kubernetes"),
                         spec = PersistentVolumeClaim.Spec(
                             accessModes = listOf("ReadWriteMany"),
                             storageClassName = "",
                             volumeName = "storage",
-                            resources = Pod.Container.ResourceRequirements(requests = mapOf("storage" to "1000Gi"))
+                            resources = Pod.Container.ResourceRequirements(
+                                requests = JsonObject(mapOf("storage" to JsonPrimitive("1000Gi")))
+                            )
                         )
                     )
                 )

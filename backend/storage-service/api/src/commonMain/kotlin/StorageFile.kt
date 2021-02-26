@@ -98,7 +98,7 @@ open class StorageFile(
     @SerialName("sensitivityLevel")
     val sensitivityLevelOrNull: SensitivityLevel? = SensitivityLevel.PRIVATE,
     @SerialName("ownSensitivityLevel")
-    val ownSensitivityLevelOrNull: SensitivityLevel?,
+    val ownSensitivityLevelOrNull: SensitivityLevel? = null,
     @SerialName("permissionAlert")
     val permissionAlert: Boolean = false
 )

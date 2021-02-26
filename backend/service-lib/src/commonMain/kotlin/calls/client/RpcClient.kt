@@ -177,6 +177,14 @@ fun AuthenticatedClient.withHttpBody(
     )
 }
 
+fun AuthenticatedClient.withHttpBody(
+    text: String,
+    contentType: ContentType = ContentType.Text.Plain
+): AuthenticatedClient {
+    val encoded = text.encodeToByteArray()
+    return withHttpBody(contentType, encoded.size.toLong(), ByteReadChannel(encoded))
+}
+
 fun AuthenticatedClient.withFixedHost(hostInfo: HostInfo): AuthenticatedClient {
     return AuthenticatedClient(
         client,

@@ -17,6 +17,7 @@ import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.serialization.decodeFromString
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -43,7 +44,7 @@ class FileStatsTest {
                     user = TestUsers.user
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<UsageResponse>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<UsageResponse>(request.response.content!!)
                 assertEquals(200, response.bytes)
                 assertEquals("/path/to/folder", response.path)
             }
@@ -62,7 +63,7 @@ class FileStatsTest {
                     user = TestUsers.user
                 )
                 request.assertSuccess()
-                val response = defaultMapper.readValue<UsageResponse>(request.response.content!!)
+                val response = defaultMapper.decodeFromString<UsageResponse>(request.response.content!!)
                 assertEquals(200, response.bytes)
                 assertEquals("/home/user/", response.path)
             }

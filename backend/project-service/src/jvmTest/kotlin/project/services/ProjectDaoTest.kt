@@ -17,7 +17,7 @@ import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.service.toActor
+import dk.sdu.cloud.toActor
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass

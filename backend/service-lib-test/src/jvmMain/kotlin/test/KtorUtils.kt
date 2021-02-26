@@ -19,6 +19,8 @@ import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.setBody
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import org.apache.logging.log4j.core.config.*
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -85,7 +87,7 @@ inline fun <reified RequestType : Any> KtorApplicationTestContext.sendJson(
     crossinline configure: TestApplicationRequest.() -> Unit = {}
 ): TestApplicationCall {
     return sendRequest(method, path, user, params) {
-        setBody(defaultMapper.writeValueAsString(request))
+        setBody(defaultMapper.encodeToString(request))
         configure()
     }
 }
@@ -98,7 +100,7 @@ inline fun <reified RequestType : Any> TestApplicationCall.parseSuccessful(): Re
     val content = this.response.content
     assertNotNull(content)
 
-    return defaultMapper.readValue(content)
+    return defaultMapper.decodeFromString(content)
 }
 
 fun TestApplicationCall.assertHandled() {

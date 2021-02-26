@@ -18,7 +18,6 @@ class ApplicationTest {
         assertEquals("name", input.name)
         assertEquals("description", input.description)
         assertEquals("title", input.title)
-        assertEquals("input_directory", input.type)
         assertEquals(false, input.optional)
     }
 
@@ -30,21 +29,20 @@ class ApplicationTest {
             null,
             "title",
             "description",
-            1.toBigInteger(),
-            2.toBigInteger(),
-            0.toBigInteger(),
+            1.toLong(),
+            2.toLong(),
+            0.toLong(),
             "unitName"
         )
 
         assertEquals("name", app.name)
         assertEquals("description", app.description)
         assertEquals("title", app.title)
-        assertEquals("integer", app.type)
         assertEquals(false, app.optional)
         assertEquals("unitName", app.unitName)
-        assertEquals(2.toBigInteger(), app.max)
-        assertEquals(1.toBigInteger(), app.min)
-        assertEquals(0.toBigInteger(), app.step)
+        assertEquals(2.toLong(), app.max)
+        assertEquals(1.toLong(), app.min)
+        assertEquals(0.toLong(), app.step)
     }
 
     @Test
@@ -55,21 +53,20 @@ class ApplicationTest {
             null,
             "title",
             "description",
-            1.1.toBigDecimal(),
-            2.2.toBigDecimal(),
-            0.0.toBigDecimal(),
+            1.1,
+            2.2,
+            0.0,
             "unitName"
         )
 
         assertEquals("name", app.name)
         assertEquals("description", app.description)
         assertEquals("title", app.title)
-        assertEquals("floating_point", app.type)
         assertEquals(false, app.optional)
         assertEquals("unitName", app.unitName)
-        assertEquals(2.2.toBigDecimal(), app.max)
-        assertEquals(1.1.toBigDecimal(), app.min)
-        assertEquals(0.0.toBigDecimal(), app.step)
+        assertEquals(2.2, app.max)
+        assertEquals(1.1, app.min)
+        assertEquals(0.0, app.step)
     }
 
     @Test
@@ -83,7 +80,6 @@ class ApplicationTest {
         )
 
         assertEquals(false, textInput.optional)
-        assertEquals("text", textInput.type)
         assertEquals("title", textInput.title)
         assertEquals("description", textInput.description)
     }
@@ -100,7 +96,6 @@ class ApplicationTest {
         )
 
         assertEquals(false, enum.optional)
-        assertEquals("enumeration", enum.type)
         assertEquals("title", enum.title)
         assertEquals("description", enum.description)
     }

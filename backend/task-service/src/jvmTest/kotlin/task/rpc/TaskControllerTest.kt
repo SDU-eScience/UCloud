@@ -1,6 +1,5 @@
 package dk.sdu.cloud.task.rpc
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -16,7 +15,6 @@ import dk.sdu.cloud.task.api.CreateRequest
 import dk.sdu.cloud.task.api.ListResponse
 import dk.sdu.cloud.task.api.Task
 import dk.sdu.cloud.task.api.TaskServiceDescription
-import dk.sdu.cloud.task.rpc.TaskController
 import dk.sdu.cloud.task.services.SubscriptionService
 import dk.sdu.cloud.task.services.TaskAsyncDao
 import dk.sdu.cloud.task.services.TaskService
@@ -27,6 +25,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromString
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
@@ -79,6 +78,7 @@ class TaskControllerTest {
     fun afterTest() {
         truncate()
     }
+
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         val subscription = mockk<SubscriptionService>()
         coEvery { subscription.onTaskUpdate(any(), any()) } just Runs
@@ -105,7 +105,7 @@ class TaskControllerTest {
                     )
                 )
                 task1.assertSuccess()
-                val task1Response = defaultMapper.readValue<Task>(task1.response.content!!)
+                val task1Response = defaultMapper.decodeFromString<Task>(task1.response.content!!)
                 val task2 = sendJson(
                     method = HttpMethod.Put,
                     path = "/api/tasks",
@@ -117,7 +117,7 @@ class TaskControllerTest {
                     )
                 )
                 task2.assertSuccess()
-                val task2Response = defaultMapper.readValue<Task>(task2.response.content!!)
+                val task2Response = defaultMapper.decodeFromString<Task>(task2.response.content!!)
 
                 val task3 = sendJson(
                     method = HttpMethod.Put,
@@ -137,7 +137,7 @@ class TaskControllerTest {
                     user = user
                 )
                 listRequest.assertSuccess()
-                val listResponse = defaultMapper.readValue<ListResponse>(listRequest.response.content!!)
+                val listResponse = defaultMapper.decodeFromString<ListResponse>(listRequest.response.content!!)
                 assertEquals(2, listResponse.itemsInTotal)
                 assertEquals(task1Response.jobId, listResponse.items.first().jobId)
                 assertEquals(task2Response.jobId, listResponse.items.last().jobId)
@@ -158,7 +158,9 @@ class TaskControllerTest {
                     user = user
                 )
                 listAfterUpdatesRequest.assertSuccess()
-                val listAfterResponse = defaultMapper.readValue<ListResponse>(listAfterUpdatesRequest.response.content!!)
+                val listAfterResponse = defaultMapper.decodeFromString<ListResponse>(
+                    listAfterUpdatesRequest.response.content!!
+                )
                 assertEquals(1, listAfterResponse.itemsInTotal)
                 assertEquals(task2Response.jobId, listAfterResponse.items.first().jobId)
             }

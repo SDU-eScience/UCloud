@@ -10,6 +10,8 @@ import org.flywaydb.core.api.migration.Context
 @Suppress("ClassNaming", "NestedBlockDepth")
 class V23__MigrateMetadata : BaseJavaMigration() {
     override fun migrate(context: Context) {
+        // NOTE(Dan): Given that this is no longer needed it will now silently ignore errors
+        if (true) return
         val connection = context.connection
         connection.autoCommit = false
 
@@ -32,9 +34,9 @@ class V23__MigrateMetadata : BaseJavaMigration() {
                                     WHERE (tag=? AND application_name=? AND application_version=?)
                                 """.trimIndent()
                             ).apply {
-                                setString(1,tag)
-                                setString(2,name)
-                                setString(3,version)
+                                setString(1, tag)
+                                setString(2, name)
+                                setString(3, version)
                             }.executeQuery().next()
 
                             if (!exists) {
