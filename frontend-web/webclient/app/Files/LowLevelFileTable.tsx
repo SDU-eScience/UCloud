@@ -203,7 +203,6 @@ function useApiForComponent(
 
         const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
             let sortByToUse = sortBy;
-            if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
 
             if (updateColumn) {
                 setSortingColumn(sortBy);

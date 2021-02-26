@@ -32,10 +32,12 @@ export interface File {
 }
 
 export interface UserEntity {
+    type: "user"
     username: string;
 }
 
 export interface ProjectEntity {
+    type: "project_group"
     group: string;
     projectId: string;
 }
@@ -46,12 +48,11 @@ export interface Acl {
 }
 
 export enum SortBy {
-    FILE_TYPE = "fileType",
-    PATH = "path",
-    MODIFIED_AT = "modifiedAt",
-    SIZE = "size",
-    ACL = "acl",
-    SENSITIVITY_LEVEL = "sensitivityLevel",
+    FILE_TYPE = "TYPE",
+    PATH = "PATH",
+    MODIFIED_AT = "MODIFIED_AT",
+    SIZE = "SIZE",
+    SENSITIVITY_LEVEL = "SENSITIVITY",
 }
 
 export interface FileSelectorProps {

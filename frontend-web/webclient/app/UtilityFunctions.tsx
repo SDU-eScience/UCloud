@@ -380,8 +380,6 @@ export function defaultErrorHandler(
  */
 export function sortByToPrettierString(sortBy: SortBy): string {
     switch (sortBy) {
-        case SortBy.ACL:
-            return "Members";
         case SortBy.FILE_TYPE:
             return "File Type";
         case SortBy.MODIFIED_AT:
