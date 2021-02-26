@@ -286,6 +286,16 @@ object UCloudLauncher : Loggable {
 
         initializeDatabases()
 
+        File(dir, "client.yml").writeText(
+            """
+                rpc:
+                  client:
+                    host:
+                      host: localhost
+                      port: 8080
+            """.trimIndent()
+        )
+
         File(dir, "token.yml").writeText(
             """
                 ---
@@ -405,7 +415,7 @@ object UCloudLauncher : Loggable {
 
             session
                 .sendPreparedStatement(
-                    parameters,
+                    {},
                     """
                         insert into principals 
                             (dtype, id, created_at, modified_at, role, first_names, last_name, orc_id, 

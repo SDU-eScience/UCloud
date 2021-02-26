@@ -23,12 +23,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
 import java.io.File
+import java.net.ConnectException
 import java.net.URLEncoder
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -41,7 +43,7 @@ sealed class KubernetesConfigurationSource {
             val clusters: List<Cluster>,
             val contexts: List<Context>,
             val users: List<User>,
-            @SerialName("current-context") @JsonAlias("current-context") val currentContext: String?
+            @SerialName("current-context") @JsonAlias("current-context") val currentContext: String?,
         )
 
         private data class User(val name: String, val user: UserData) {
@@ -50,7 +52,7 @@ sealed class KubernetesConfigurationSource {
                 @SerialName("client-certificate") @JsonAlias("client-certificate") val clientCertificate: String?,
                 @SerialName("client-key") @JsonAlias("client-key") val clientKey: String?,
                 val username: String?,
-                val password: String?
+                val password: String?,
             )
         }
 
@@ -66,7 +68,7 @@ sealed class KubernetesConfigurationSource {
                 @SerialName("certificate-authority")
                 @JsonAlias("certificate-authority")
                 val certificateAuthority: String?,
-                val server: String
+                val server: String,
             )
         }
 
@@ -283,7 +285,7 @@ sealed class KubernetesAuthenticationMethod {
 class KubernetesConnection(
     masterUrl: String,
     val authenticationMethod: KubernetesAuthenticationMethod,
-    val defaultNamespace: String = "default"
+    val defaultNamespace: String = "default",
 ) {
     val masterUrl = masterUrl.removeSuffix("/")
     override fun toString(): String {
@@ -300,7 +302,7 @@ data class KubernetesResourceLocator(
     val version: String,
     val resourceType: String,
     val name: String? = null,
-    val namespace: String? = null
+    val namespace: String? = null,
 ) {
     fun withName(name: String): KubernetesResourceLocator = copy(name = name)
 
@@ -319,7 +321,7 @@ data class KubernetesResourceLocator(
 }
 
 class KubernetesClient(
-    private val configurationSource: KubernetesConfigurationSource = KubernetesConfigurationSource.Auto
+    private val configurationSource: KubernetesConfigurationSource = KubernetesConfigurationSource.Auto,
 ) {
     @PublishedApi
     internal val conn by lazy {
@@ -344,7 +346,7 @@ class KubernetesClient(
     fun buildUrl(
         locator: KubernetesResourceLocator,
         queryParameters: Map<String, String>,
-        operation: String?
+        operation: String?,
     ): String = buildString {
         with(locator) {
             append(conn.masterUrl)
@@ -417,13 +419,22 @@ class KubernetesClient(
         operation: String? = null,
         content: OutgoingContent? = null,
     ): T {
-        return httpClient.request {
-            this.method = method
-            url(buildUrl(locator, queryParameters, operation).also { log.debug("${method.value} $it") })
-            header(HttpHeaders.Accept, ContentType.Application.Json)
-            if (content != null) body = content
-            configureRequest(this)
+        var retries = 0
+        while (retries < 5) {
+            try {
+                return httpClient.request {
+                    this.method = method
+                    url(buildUrl(locator, queryParameters, operation).also { log.debug("${method.value} $it") })
+                    header(HttpHeaders.Accept, ContentType.Application.Json)
+                    if (content != null) body = content
+                    configureRequest(this)
+                }
+            } catch (ex: ConnectException) {
+                retries++
+                delay(1000)
+            }
         }
+        throw ConnectException("Connection refused after 5 attempts")
     }
 
     inline fun configureRequest(requestBuilder: HttpRequestBuilder) {
@@ -445,7 +456,7 @@ suspend inline fun <reified T> KubernetesClient.getResource(
 
 data class KubernetesList<T>(
     val items: List<T>,
-    val continueAt: String? = null
+    val continueAt: String? = null,
 ) : List<T> by items
 
 suspend inline fun <reified T> KubernetesClient.listResources(
@@ -561,5 +572,5 @@ const val NAMESPACE_ANY = "#ANY"
 
 class KubernetesException(
     val statusCode: HttpStatusCode,
-    val responseBody: String
+    val responseBody: String,
 ) : RuntimeException("Kubernetes returned an error: $statusCode. Reason: $responseBody")

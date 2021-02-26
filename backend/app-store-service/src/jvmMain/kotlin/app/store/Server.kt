@@ -1,12 +1,13 @@
 package dk.sdu.cloud.app.store
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.cloud.sdu.app.store.rpc.AppLogoController
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.store.api.AppStoreStreams
-import dk.sdu.cloud.app.store.api.ApplicationDescription
-import dk.sdu.cloud.app.store.api.ToolDescription
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.rpc.AppFavoriteController
 import dk.sdu.cloud.app.store.rpc.AppPublicController
 import dk.sdu.cloud.app.store.rpc.AppSearchController
@@ -32,6 +33,7 @@ import dk.sdu.cloud.app.store.services.ToolAsyncDao
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
@@ -43,7 +45,10 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.SerialName
 import java.io.File
+import kotlin.reflect.KClass
+import kotlin.reflect.jvm.jvmName
 import kotlin.system.exitProcess
 
 class Server(override val micro: Micro) : CommonServer {
@@ -77,6 +82,8 @@ class Server(override val micro: Micro) : CommonServer {
         val publicService = ApplicationPublicService(db, publicDAO)
         val searchService = ApplicationSearchService(db, searchDAO, elasticDAO, applicationDAO, authenticatedClient)
         val favoriteService = FavoriteService(db, favoriteDAO, authenticatedClient)
+
+        configureJackson(ApplicationParameter::class, yamlMapper)
 
         with(micro.server) {
             configureControllers(
@@ -170,5 +177,37 @@ class Server(override val micro: Micro) : CommonServer {
             }
         }
         startServices()
+    }
+}
+
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+abstract class SealedClassMixin
+
+fun configureJackson(callContainer: CallDescriptionContainer, mapper: ObjectMapper) {
+    callContainer.callContainer.forEach { call ->
+        // TODO Need to traverse the types for generics
+        // TODO need to traverse dependencies also
+        val requestClassifier = call.requestClass.classifier
+        if (requestClassifier is KClass<*>) configureJackson(requestClassifier, mapper)
+
+        val successClassifier = call.successClass.classifier
+        if (successClassifier is KClass<*>) configureJackson(successClassifier, mapper)
+
+        val errorClassifier = call.errorClass.classifier
+        if (errorClassifier is KClass<*>) configureJackson(errorClassifier, mapper)
+    }
+}
+
+private fun configureJackson(klass: KClass<*>, mapper: ObjectMapper) {
+    val javaClass = klass.java
+
+    if (klass.isSealed) {
+        mapper.addMixIn(javaClass, SealedClassMixin::class.java)
+        klass.sealedSubclasses.forEach {
+            val name = it.annotations.filterIsInstance<SerialName>().firstOrNull()?.value ?: it.qualifiedName
+            ?: it.jvmName
+            mapper.registerSubtypes(NamedType(it.java, name))
+        }
     }
 }

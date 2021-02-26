@@ -32,106 +32,96 @@ object SampleApplications {
         ToolStore.create.call(
             Unit,
             serviceClient.withHttpBody(
-                ContentType("text", "yaml"),
-                contentLength = null,
-                ByteReadChannel(
-                    //language=yaml
-                    """
-                        ---
-                        tool: v1
+                //language=yaml
+                """
+                    ---
+                    tool: v1
 
-                        title: Figlet
+                    title: Figlet
 
-                        name: figlet
-                        version: 1.0.0
+                    name: figlet
+                    version: 1.0.0
 
-                        container: truek/figlets:1.1.1
+                    container: truek/figlets:1.1.1
 
-                        authors:
-                        - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+                    authors:
+                    - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
 
-                        description: Tool for rendering text.
+                    description: Tool for rendering text.
 
-                        defaultTimeAllocation:
-                          hours: 0
-                          minutes: 1
-                          seconds: 0
+                    defaultTimeAllocation:
+                      hours: 0
+                      minutes: 1
+                      seconds: 0
 
-                        backend: DOCKER
-                    """.trimIndent()
-                )
+                    backend: DOCKER
+                """.trimIndent(),
+                ContentType("text", "yaml")
             )
         ).orThrow()
 
         AppStore.create.call(
             Unit,
             serviceClient.withHttpBody(
-                ContentType("text", "yaml"),
-                contentLength = null,
-                ByteReadChannel(
-                    //language=yaml
-                    """
-                       ---
-                       application: v1
+                //language=yaml
+                """
+                   ---
+                   application: v1
 
-                       title: Figlet
-                       name: figlet
-                       version: 1.0.0
+                   title: Figlet
+                   name: figlet
+                   version: 1.0.0
 
-                       tool:
-                         name: figlet
-                         version: 1.0.0
+                   tool:
+                     name: figlet
+                     version: 1.0.0
 
-                       authors:
-                       - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
+                   authors:
+                   - Dan Sebastian Thrane <dthrane@imada.sdu.dk>
 
-                       description: >
-                         Render some text with Figlet Docker!
+                   description: >
+                     Render some text with Figlet Docker!
 
-                       invocation:
-                       - figlet
-                       - type: var
-                         vars: text
-                         
-                       parameters:
-                         text:
-                           title: "Some text to render with figlet"
-                           type: text
-         
-                    """.trimIndent()
-                )
+                   invocation:
+                   - figlet
+                   - type: var
+                     vars: text
+                     
+                   parameters:
+                     text:
+                       title: "Some text to render with figlet"
+                       type: text
+     
+                """.trimIndent(),
+                ContentType("text", "yaml")
             )
         ).orThrow()
 
         AppStore.create.call(
             Unit,
             serviceClient.withHttpBody(
-                ContentType("text", "yaml"),
-                contentLength = null,
-                ByteReadChannel(
-                    //language=yaml
-                    """
-                        ---
-                        application: v1
-                        
-                        title: long running
-                        name: long-running
-                        version: 1.0.0
-                        
-                        tool:
-                          name: figlet
-                          version: 1.0.0
-                        
-                        authors: ["Dan Thrane"]
-                        
-                        description: Runs for a long time
-                        
-                        # We just count to a really big number
-                        invocation:
-                        - figlet-count
-                        - 1000000000
-                    """.trimIndent()
-                )
+                """
+                    ---
+                    application: v1
+                    
+                    title: long running
+                    name: long-running
+                    version: 1.0.0
+                    
+                    tool:
+                      name: figlet
+                      version: 1.0.0
+                    
+                    authors: ["Dan Thrane"]
+                    
+                    description: Runs for a long time
+                    
+                    # We just count to a really big number
+                    invocation:
+                    - figlet-count
+                    - 1000000000
+                """.trimIndent(),
+                ContentType("text", "yaml")
             )
         ).orThrow()
     }
@@ -186,7 +176,7 @@ class ApplicationTest : IntegrationTest() {
 
     private suspend fun waitForJob(
         jobId: String,
-        userClient: AuthenticatedClient
+        userClient: AuthenticatedClient,
     ): Job {
         lateinit var status: Job
         retrySection(attempts = 300, delay = 10_000) {
@@ -417,7 +407,8 @@ class ApplicationTest : IntegrationTest() {
             project.piClient.withProject(project.projectId)
         ).orThrow().ids.single()
 
-        assert(Jobs.browse.call(JobsBrowseRequest(10), project.piClient.withProject(project.projectId)).orThrow().items.isNotEmpty())
+        assert(Jobs.browse.call(JobsBrowseRequest(10), project.piClient.withProject(project.projectId))
+            .orThrow().items.isNotEmpty())
         assert(Jobs.browse.call(JobsBrowseRequest(10), project.piClient).orThrow().items.isEmpty())
     }
 

@@ -54,7 +54,7 @@ data class FetchLogoRequest(
     val projectId: String
 )
 
-typealias FetchLogoResponse = BinaryStream
+typealias FetchLogoResponse = Unit
 
 @Serializable
 data class UploadDescriptionRequest(

@@ -407,7 +407,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val download = call<DownloadByURI, BinaryStream, CommonErrorMessage>("download") {
+    val download = call<DownloadByURI, Unit, CommonErrorMessage>("download") {
         audit<BulkFileAudit<FindByPath>>()
         auth {
             roles = Roles.PUBLIC

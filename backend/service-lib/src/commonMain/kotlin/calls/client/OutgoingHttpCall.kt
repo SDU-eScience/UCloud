@@ -133,6 +133,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         resp: HttpResponse,
         type: KSerializer<S>,
     ): S {
+        if (type.descriptor.serialName == "kotlin.Unit") return Unit as S
         return defaultMapper.decodeFromString(type, resp.content.readRemaining().readText())
     }
 
@@ -233,6 +234,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         request: R,
         call: CallDescription<R, *, *>,
     ): Map<String, List<String>> {
+        if (call.http.params == null) return emptyMap()
         return QueryParameterEncoder(call).also {
             it.encodeSerializableValue(call.requestType, request)
         }.builder

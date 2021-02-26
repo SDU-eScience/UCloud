@@ -152,7 +152,7 @@ typealias ClearLogoResponse = Unit
 
 @Serializable
 data class FetchLogoRequest(val name: String)
-typealias FetchLogoResponse = BinaryStream
+typealias FetchLogoResponse = Unit
 
 typealias UploadApplicationLogoResponse = Unit
 
