@@ -260,15 +260,15 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [selectProduct, setSelectProduct] = useState<boolean>(false);
-    const [availableProducts, setAvailableProducts] = useState<accounting.Product[]>([]);
+    const [availableProducts, setAvailableProducts] = useState<accounting.ProductNS.Compute[]>([]);
     const [selectedMachine, setSelectedMachine] = useState<accounting.ProductNS.Compute | null>(null);
     const [quickLaunchApp, fetchQuickLaunchApp] = useCloudAPI<compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
         null
     );
-    const [machineSupport, fetchMachineSupport] = useCloudAPI<compute.JobsRetrieveProductsTemporaryResponse>(
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<compute.JobsRetrieveProductsTemporaryResponse | null>(
         {noop: true},
-        {productsByProvider: {}}
+        null
     );
     const [wallet, fetchWallet] = useCloudAPI<PageV2<accounting.ProductNS.Compute>>({noop: true}, emptyPageV2);
     const [workLoading, , invokeWork] = useAsyncWork();
@@ -418,7 +418,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     }, [Client.projectId]);
 
     React.useEffect(() => {
-        if (quickLaunchApp.data !== null && props.path) {
+        if (quickLaunchApp.data !== null && props.path && machineSupport.data !== null) {
             setAvailableProducts(
                 ([] as accounting.ProductNS.Compute[]).concat.apply(
                     [],
@@ -443,9 +443,8 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                             )
                             .map(it => it.product);
                     })
-                )
-            );
-
+                ).map(it => it as accounting.ProductNS.Compute)
+            )
         }
     }, [quickLaunchApp, machineSupport]);
 
@@ -651,7 +650,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                     >
                         <Box height="300px" width="800px">
                             <Label>Please select a machine for this job</Label>
-                            <Machines machines={availableProducts.map(it => it as accounting.ProductNS.Compute)} onMachineChange={setSelectedMachine}/>
+                            <Machines machines={availableProducts} onMachineChange={setSelectedMachine}/>
                         </Box>
                         <Box textAlign="right">
                             <Button color="red" mr="5px" onClick={() => setSelectProduct(false)}>Cancel</Button>
@@ -692,7 +691,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         setCheckedFiles(checked);
     }
 
-    async function onQuickLaunch(app: QuickLaunchApp) {
+    function onQuickLaunch(app: QuickLaunchApp) {
         fetchWallet(accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250, includeBalance: true}));
 
         const s = new Set<string>();
