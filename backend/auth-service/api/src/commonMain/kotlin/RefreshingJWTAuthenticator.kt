@@ -1,19 +1,12 @@
 package dk.sdu.cloud.auth.api
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.TokenValidation
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.delay
-import java.net.ConnectException
-import java.time.temporal.ChronoUnit
-import java.util.*
 
 sealed class JwtRefresher {
     abstract suspend fun fetchToken(client: RpcClient): String
@@ -56,35 +49,23 @@ sealed class JwtRefresher {
 
 class RefreshingJWTAuthenticator(
     private val client: RpcClient,
-    private val refresher: JwtRefresher
+    private val refresher: JwtRefresher,
+    private val becomesInvalidSoon: (accessToken: String) -> Boolean,
 ) {
-    // Stays here for backwards compatibility
-    @Suppress("UNUSED_PARAMETER")
-    @Deprecated("Should be replaced with RefreshingJwtAuthenticator(client, JwtRefresher.Normal(refreshToken))")
-    constructor(client: RpcClient, refreshToken: String, tokenValidation: TokenValidation<DecodedJWT>) :
-        this(client, JwtRefresher.Normal(refreshToken))
-
     private var currentAccessToken = "~~token will not validate~~"
-    private val jwtDecoder = JWT()
 
     suspend fun retrieveTokenRefreshIfNeeded(): String {
         val currentToken = currentAccessToken
-        return if (runCatching { jwtDecoder.decodeJwt(currentToken).isExpiringSoon() }.getOrDefault(true)) {
+        return if (becomesInvalidSoon(currentToken)) {
             refresh()
         } else {
             currentToken
         }
     }
 
-    private fun DecodedJWT?.isExpiringSoon(): Boolean {
-        if (this == null) return true
-        return Date(Time.now()).toInstant().plus(3, ChronoUnit.MINUTES).isAfter(expiresAt.toInstant())
-    }
-
     private suspend fun refresh(attempts: Int = 0): String {
         log.trace("Refreshing token")
-        val validatedToken = runCatching { jwtDecoder.decodeJwt(currentAccessToken) }.getOrNull()
-        if (validatedToken.isExpiringSoon()) {
+        if (becomesInvalidSoon(currentAccessToken)) {
             try {
                 currentAccessToken = refresher.fetchToken(client)
                 return currentAccessToken
@@ -94,9 +75,10 @@ class RefreshingJWTAuthenticator(
                     statusCode == HttpStatusCode.BadGateway ||
                     statusCode == HttpStatusCode.GatewayTimeout
                 ) {
-                    throw ConnectException(
+                    throw RPCException(
                         "Unable to connect to authentication service while trying " +
-                            "to refresh access token"
+                            "to refresh access token",
+                        HttpStatusCode.BadGateway
                     )
                 }
 
@@ -115,7 +97,10 @@ class RefreshingJWTAuthenticator(
                     return refresh(attempts + 1)
                 }
 
-                throw ConnectException("Unexpected status code from auth service while refreshing: $statusCode")
+                throw RPCException(
+                    "Unexpected status code from auth service while refreshing: $statusCode",
+                    statusCode
+                )
             }
         }
         return currentAccessToken
