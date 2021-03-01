@@ -45,9 +45,13 @@ kotlin {
 
                 rootProject.childProjects.values
                     .filter { it.name.endsWith("-service") }
-                    .forEach {
-                        implementation(project(":" + it.name))
-                        implementation(project(":" + it.name + ":api"))
+                    .forEach { p ->
+                        implementation(project(":" + p.name))
+
+                        val hasApiProject = rootProject.subprojects
+                            .find { it.name == p.name }!!.subprojects
+                            .any { it.name == "api" }
+                        if (hasApiProject) implementation(project(":" + p.name + ":api"))
                     }
             }
         }

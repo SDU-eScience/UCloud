@@ -1,6 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.utils.addExtendsFromRelation
 
 repositories {
     mavenCentral()
@@ -23,21 +22,21 @@ buildscript {
 // https://docs.gradle.org/current/userguide/multi_project_builds.html
 subprojects {
     val groupBuilder = ArrayList<String>()
-    var currentProject: Project? = project
-    while (currentProject != null && currentProject != rootProject) {
-        groupBuilder.add(currentProject.name)
-        currentProject = currentProject.parent
+    run {
+        var currentProject: Project? = project
+        while (currentProject != null && currentProject != rootProject) {
+            groupBuilder.add(currentProject.name)
+            currentProject = currentProject.parent
+        }
     }
-    if (groupBuilder.isEmpty()) {
-        group = "dk.sdu.cloud"
+    group = if (groupBuilder.isEmpty()) {
+        "dk.sdu.cloud"
     } else {
-        group = "dk.sdu.cloud." + groupBuilder.reversed().joinToString(".")
+        "dk.sdu.cloud." + groupBuilder.reversed().joinToString(".")
     }
 
     val isApi = project.name == "api"
     val isService = project.name.endsWith("-service")
-    val isLauncher = project.name == "launcher"
-    val isServiceLib = project.name == "service-lib" || project.name == "service-lib-test"
 
     repositories {
         jcenter()
@@ -48,6 +47,7 @@ subprojects {
         apply(plugin = "org.jetbrains.kotlin.multiplatform")
         apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
         apply(plugin = "application")
+        apply(plugin = "jacoco")
 
         extensions.configure<KotlinMultiplatformExtension>("kotlin") {
             jvm {
@@ -146,14 +146,52 @@ subprojects {
                 isFailOnNoMatchingTests = false
                 excludeTestsMatching("dk.sdu.cloud.integration.*")
             }
+
+            finalizedBy(tasks["jacocoTestReport"])
+        }
+
+        extensions.configure<JacocoPluginExtension>("jacoco") {
+            toolVersion = "0.8.4"
+        }
+
+        tasks.withType<JacocoReport> {
+            reports {
+                xml.isEnabled= true
+                html.isEnabled = true
+            }
+        }
+
+        tasks.withType<Jar> {
+            val name = if (groupBuilder.isEmpty()) {
+                "ucloud"
+            } else {
+                "ucloud-" + groupBuilder.reversed().joinToString("-")
+            }
+
+            archiveName = "$name.jar"
+
+            /*
+            if (project.name.endsWith("-service")) {
+                from(sourceSets["generated"].output)
+            }
+             */
         }
     }
 
     if (isApi) {
         apply(plugin = "org.jetbrains.kotlin.multiplatform")
         apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
+        apply(plugin = "maven-publish")
+
+        val apiProject = project
+        apiProject.parent?.afterEvaluate {
+            apiProject.version = project.version
+        }
 
         extensions.configure<KotlinMultiplatformExtension>("kotlin") {
+            macosX64()
+            linuxX64()
+
             jvm {
                 withJava()
 
@@ -190,134 +228,13 @@ subprojects {
                 }
             }
         }
-    }
 
-    /*
-    apply(plugin = "java")
-    apply(plugin = "org.jetbrains.kotlin.jvm")
-    apply(plugin = "jacoco")
-
-    if (project.name == "launcher") {
-        apply(plugin = "application")
-    }
-
-    if (project.name.endsWith("-service")) {
-        run {
-            val generated = sourceSets.create("generated")
-
-            dependencies {
-                implementation(generated.output)
-                add("generatedImplementation", project(":service-common"))
-            }
-
-            val generateBuildConfig = tasks.register("generateBuildConfig") {
-                doFirst {
-                    if (project.version == "unspecified") {
-                        throw IllegalStateException("Version not set for service: ${project.name} (${project.version})")
-                    }
-
-                    run {
-                        val src = File(project.projectDir, "src/generated/kotlin")
-                        src.mkdirs()
-                        val simpleName = project.name.replace("-service", "")
-                        val packageName = simpleName.replace("-", ".")
-                        val className = simpleName.split("-").joinToString("") { it.capitalize() }
-
-                        File(src, "Description.kt").writeText(
-                            """
-                            package dk.sdu.cloud.$packageName.api
-                            
-                            import dk.sdu.cloud.ServiceDescription
-                            
-                            object ${className}ServiceDescription : ServiceDescription {
-                                override val name = "$simpleName"
-                                override val version = "${project.version}"
-                            }
-                        """.trimIndent()
-                        )
-                    }
-
-                    run {
-                        val src = File(project.projectDir, "src/generated/resources")
-                        src.mkdirs()
-
-                        File(src, "name.txt").writeText(project.name)
-                        File(src, "version.txt").writeText(project.version.toString())
-                    }
+        extensions.configure<PublishingExtension>("publishing") {
+            repositories {
+                maven {
+                    mavenLocal()
                 }
             }
         }
     }
-
-    /*
-    tasks.withType<Jar> {
-        val name = if (groupBuilder.isEmpty()) {
-            "ucloud"
-        } else {
-            "ucloud-" + groupBuilder.reversed().joinToString("-")
-        }
-
-        archiveName = "$name.jar"
-
-        if (project.name.endsWith("-service")) {
-            from(sourceSets["generated"].output)
-        }
-    }
-     */
-
-    dependencies {
-        implementation("org.jetbrains.kotlin:kotlin-reflect:1.4.30")
-    }
-
-    tasks {
-        jacoco {
-            toolVersion = "0.8.4"
-        }
-
-        jacocoTestReport {
-            reports {
-                xml.isEnabled = true
-                html.isEnabled = true
-            }
-        }
-
-        val test by getting(Task::class)
-        test.finalizedBy(jacocoTestReport)
-    }
-
-    dependencies {
-        //implementation(kotlin("stdlib-jdk11"))
-
-        val myApiProject = project.childProjects["api"]
-        if (myApiProject != null) {
-            implementation(myApiProject)
-        }
-
-        if (project.name.endsWith("-service") || project.name == "integration-testing") {
-            apply(plugin = "application")
-        }
-
-        if (project.name.endsWith("-service") || project.name == "api") {
-            implementation(project(":service-common"))
-            testImplementation(project(":service-common-test"))
-        }
-    }
-
-    /*
-    tasks.withType<KotlinCompile>().configureEach {
-        kotlinOptions.freeCompilerArgs += "-progressive"
-        kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
-    }
-
-
-    val compileKotlin: KotlinCompile by tasks
-    compileKotlin.kotlinOptions {
-        jvmTarget = "11"
-    }
-    val compileTestKotlin: KotlinCompile by tasks
-    compileTestKotlin.kotlinOptions {
-        jvmTarget = "11"
-    }
-     */
-     */
 }

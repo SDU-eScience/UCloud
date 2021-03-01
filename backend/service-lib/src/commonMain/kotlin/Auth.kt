@@ -12,6 +12,7 @@ import kotlinx.serialization.Serializable
  *
  * __DO NOT__ add your own roles here. They go in the services, this is __only__ for a system-wide role.
  */
+@Serializable
 enum class Role {
     /**
      * The security principal is an unauthenticated guest

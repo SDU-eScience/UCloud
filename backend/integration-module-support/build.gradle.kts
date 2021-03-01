@@ -1,7 +1,6 @@
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    application
     id("maven-publish")
 }
 
@@ -10,11 +9,10 @@ repositories {
     mavenCentral()
 }
 
-application {
-    mainClassName = "dk.sdu.cloud.MainKt"
-}
-
 kotlin {
+    linuxX64()
+    macosX64()
+
     jvm {
         withJava()
         val main by compilations.getting {
@@ -31,26 +29,24 @@ kotlin {
     }
 
     sourceSets {
-        val jvmMain by getting {
+        val commonMain by getting {
             dependencies {
-                implementation(project(":service-lib"))
-                implementation("io.swagger.core.v3:swagger-models:2.1.5")
-                implementation("io.swagger.core.v3:swagger-core:2.1.5")
-                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.4.0")
-                implementation("org.jetbrains.kotlin:kotlin-reflect:1.4.0")
+                api(project(":service-lib"))
 
                 rootProject.childProjects.values
                     .filter { it.name.endsWith("-service") }
                     .forEach { p ->
-                        implementation(project(":" + p.name))
-
                         val hasApiProject = rootProject.subprojects
                             .find { it.name == p.name }!!.subprojects
                             .any { it.name == "api" }
-                        if (hasApiProject) implementation(project(":" + p.name + ":api"))
+                        if (hasApiProject) api(project(":" + p.name + ":api"))
                     }
             }
         }
+
+        val jvmMain by getting {}
+        val linuxX64Main by getting {}
+        val macosX64Main by getting {}
 
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
@@ -63,7 +59,8 @@ kotlin {
     }
 }
 
-version = "1.0.0"
+version = "2021.1.0"
+group = "dk.sdu.cloud"
 
 publishing {
     repositories {
