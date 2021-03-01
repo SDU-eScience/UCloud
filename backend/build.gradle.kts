@@ -169,12 +169,6 @@ subprojects {
             }
 
             archiveName = "$name.jar"
-
-            /*
-            if (project.name.endsWith("-service")) {
-                from(sourceSets["generated"].output)
-            }
-             */
         }
     }
 
