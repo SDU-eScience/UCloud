@@ -260,6 +260,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [selectProduct, setSelectProduct] = useState<boolean>(false);
+    const [selectedQuickLaunchApp, setSelectedQuickLaunchApp] = useState<QuickLaunchApp | null>(null);
     const [availableProducts, setAvailableProducts] = useState<accounting.ProductNS.Compute[]>([]);
     const [selectedMachine, setSelectedMachine] = useState<accounting.ProductNS.Compute | null>(null);
     const [quickLaunchApp, fetchQuickLaunchApp] = useCloudAPI<compute.ApplicationWithFavoriteAndTags | null>(
@@ -418,6 +419,27 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     }, [Client.projectId]);
 
     React.useEffect(() => {
+        if (wallet.data.items.length > 0) {
+            const s = new Set<string>();
+            wallet.data.items.forEach(it => s.add(it.category.provider));
+
+            fetchMachineSupport(
+                compute.jobs.retrieveProductsTemporary({
+                    providers: joinToString(Array.from(s), ",")
+            }));
+        }
+
+        if (selectedQuickLaunchApp !== null) {
+            fetchQuickLaunchApp(
+                compute.apps.findByNameAndVersion({
+                    appName: selectedQuickLaunchApp.metadata.name,
+                    appVersion: selectedQuickLaunchApp.metadata.version
+            }));
+        }
+    }, [wallet, selectedQuickLaunchApp]);
+
+
+    React.useEffect(() => {
         if (quickLaunchApp.data !== null && props.path && machineSupport.data !== null) {
             setAvailableProducts(
                 ([] as accounting.ProductNS.Compute[]).concat.apply(
@@ -449,19 +471,21 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     }, [quickLaunchApp, machineSupport]);
 
     React.useEffect(() => {
-        if (availableProducts.length === 1 && quickLaunchApp.data !== null && props.path) {
-            quickLaunchJob(
-                quickLaunchApp.data,
-                {
-                    id: availableProducts[0].id,
-                    category: availableProducts[0].category.id,
-                    provider: availableProducts[0].category.provider
-                },
-                props.path,
-                history
-            )
-        } else if (availableProducts.length > 1) {
-            setSelectProduct(true);
+        if (quickLaunchApp.data !== null && props.path) {
+            if (availableProducts.length === 1) {
+                quickLaunchJob(
+                    quickLaunchApp.data,
+                    {
+                        id: availableProducts[0].id,
+                        category: availableProducts[0].category.id,
+                        provider: availableProducts[0].category.provider
+                    },
+                    props.path,
+                    history
+                )
+            } else if (availableProducts.length > 1) {
+                setSelectProduct(true);
+            }
         }
     }, [availableProducts]);
 
@@ -693,20 +717,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
 
     function onQuickLaunch(app: QuickLaunchApp) {
         fetchWallet(accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250, includeBalance: true}));
-
-        const s = new Set<string>();
-        wallet.data.items.forEach(it => s.add(it.category.provider));
-
-        fetchMachineSupport(
-            compute.jobs.retrieveProductsTemporary({
-                providers: joinToString(Array.from(s), ",")
-        }));
-
-        fetchQuickLaunchApp(
-            compute.apps.findByNameAndVersion({
-                appName: app.metadata.name,
-                appVersion: app.metadata.version
-        }));
+        setSelectedQuickLaunchApp(app);
     }
 
     function quickLaunchOnSelectedMachine() {
