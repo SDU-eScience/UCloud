@@ -439,7 +439,8 @@ class ApplicationService(
         ctx: DBContext,
         actor: Actor,
         id: Long,
-        newStatus: ApplicationStatus
+        newStatus: ApplicationStatus,
+        notifyChange: Boolean? = true
     ) {
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
 
@@ -503,50 +504,51 @@ class ApplicationService(
                 onApplicationApproved(actor, viewApplicationById(session, actor, id).first)
             }
         }
-
-        lateinit var application: Application
-        ctx.withSession { session ->
-            application = viewApplicationById(session, actor, id).first
-        }
-        val statusTitle = when (newStatus) {
-            ApplicationStatus.APPROVED -> "Approved"
-            ApplicationStatus.REJECTED -> "Rejected"
-            ApplicationStatus.CLOSED -> "Closed"
-            ApplicationStatus.IN_PROGRESS -> "In Progress"
-        }
-        notifications.notify(
-            GrantNotification(
-                application,
-                adminMessage =
-                GrantNotificationMessage(
-                    { "Grant application updated ($statusTitle)" },
-                    GRANT_APP_RESPONSE,
-                    message = { user, projectTitle ->
-                        statusChangeTemplateToAdmins(
-                            newStatus,
-                            user,
-                            actor.safeUsername(),
-                            projectTitle
-                        )
-                    }
+        if (notifyChange == true) {
+            lateinit var application: Application
+            ctx.withSession { session ->
+                application = viewApplicationById(session, actor, id).first
+            }
+            val statusTitle = when (newStatus) {
+                ApplicationStatus.APPROVED -> "Approved"
+                ApplicationStatus.REJECTED -> "Rejected"
+                ApplicationStatus.CLOSED -> "Closed"
+                ApplicationStatus.IN_PROGRESS -> "In Progress"
+            }
+            notifications.notify(
+                GrantNotification(
+                    application,
+                    adminMessage =
+                    GrantNotificationMessage(
+                        { "Grant application updated ($statusTitle)" },
+                        GRANT_APP_RESPONSE,
+                        message = { user, projectTitle ->
+                            statusChangeTemplateToAdmins(
+                                newStatus,
+                                user,
+                                actor.safeUsername(),
+                                projectTitle
+                            )
+                        }
+                    ),
+                    userMessage =
+                    GrantNotificationMessage(
+                        { "Grant application updated ($statusTitle)" },
+                        GRANT_APP_RESPONSE,
+                        message = { user, projectTitle ->
+                            responseTemplate(
+                                newStatus,
+                                user,
+                                actor.safeUsername(),
+                                projectTitle
+                            )
+                        }
+                    )
                 ),
-                userMessage =
-                GrantNotificationMessage(
-                    { "Grant application updated ($statusTitle)" },
-                    GRANT_APP_RESPONSE,
-                    message = { user, projectTitle ->
-                        responseTemplate(
-                            newStatus,
-                            user,
-                            actor.safeUsername(),
-                            projectTitle
-                        )
-                    }
-                )
-            ),
-            actor.safeUsername(),
-            mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
-        )
+                actor.safeUsername(),
+                mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
+            )
+        }
     }
 
     private suspend fun onApplicationApproved(

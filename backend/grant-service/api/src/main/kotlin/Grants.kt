@@ -162,10 +162,10 @@ typealias ReadRequestSettingsResponse = ProjectApplicationSettings
 data class ApproveApplicationRequest(val requestId: Long)
 typealias ApproveApplicationResponse = Unit
 
-data class RejectApplicationRequest(val requestId: Long)
+data class RejectApplicationRequest(val requestId: Long, val notify: Boolean? = true)
 typealias RejectApplicationResponse = Unit
 
-data class CloseApplicationRequest(val requestId: Long)
+data class CloseApplicationRequest(val requestId: Long, val notify: Boolean? = true)
 typealias CloseApplicationResponse = Unit
 
 data class CommentOnApplicationRequest(val requestId: Long, val comment: String)

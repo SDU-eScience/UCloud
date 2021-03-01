@@ -193,6 +193,7 @@ export function approveGrantApplication(
 
 export interface RejectGrantApplicationRequest {
     requestId: number;
+    notify?: boolean;
 }
 
 export function rejectGrantApplication(
@@ -209,6 +210,7 @@ export function rejectGrantApplication(
 
 export interface CloseGrantApplicationRequest {
     requestId: number;
+    notify?: boolean;
 }
 
 export function closeGrantApplication(

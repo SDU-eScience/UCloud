@@ -7,6 +7,7 @@ import {Dropdown, DropdownContent} from "./Dropdown";
 import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from "react";
 
 export interface ClickableDropdownProps<T> {
+    id?: string;
     trigger: React.ReactNode;
     children?: any;
     options?: { text: string; value: T }[];

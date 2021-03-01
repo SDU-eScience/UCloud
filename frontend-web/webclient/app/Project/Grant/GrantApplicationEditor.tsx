@@ -65,10 +65,12 @@ import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import * as UCloud from "UCloud";
 import grantApi = UCloud.grant.grant;
-import {grant} from "UCloud";
+import {grant, indexing} from "UCloud";
 import GrantsRetrieveProductsResponse = grant.GrantsRetrieveProductsResponse;
 import {IconName} from "ui-components/Icon";
 import {AppToolLogo} from "Applications/AppToolLogo";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {TextSpan} from "ui-components/Text";
 
 export const RequestForSingleResourceWrapper = styled.div`
   ${Icon} {
@@ -807,13 +809,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }
     }, [state.editingApplication?.id]);
 
-    const rejectRequest = useCallback(async () => {
+    const rejectRequest = useCallback(async (notify: boolean) => {
         if (state.editingApplication !== undefined) {
             addStandardDialog({
                 title: "Reject application?",
                 message: "Are you sure you wish to reject this application?",
                 onConfirm: async () => {
-                    await runWork(rejectGrantApplication({requestId: state.editingApplication!.id}));
+                    await runWork(rejectGrantApplication({requestId: state.editingApplication!.id, notify: notify}));
                     state.reload();
                 }
             });
@@ -1034,13 +1036,29 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     >
                                                                         Approve
                                                                     </Button>
-                                                                    <Button
-                                                                        color="red"
-                                                                        onClick={rejectRequest}
-                                                                        disabled={!isLocked}
+                                                                    <ClickableDropdown
+                                                                        top="-73px"
+                                                                        id="dropdown"
+                                                                        fullWidth={true}
+                                                                        trigger={(
+                                                                            <Button
+                                                                                color="red"
+                                                                                disabled={!isLocked}
+                                                                                onClick={() => {}}
+                                                                            >
+                                                                                Reject
+                                                                            </Button>
+                                                                        )}
                                                                     >
-                                                                        Reject
-                                                                    </Button>
+                                                                        <OptionItem
+                                                                            onClick={() => rejectRequest(true)}
+                                                                            text={"Reject"}
+                                                                        />
+                                                                        <OptionItem
+                                                                            onClick={() => rejectRequest(false)}
+                                                                            text={"Reject without notify"}
+                                                                        />
+                                                                    </ClickableDropdown>
                                                                 </> : null
                                                             }
                                                             {!state.approver && !grantFinalized ?
@@ -1227,6 +1245,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         />
     );
 };
+
+const OptionItem: React.FunctionComponent<{onClick: () => void; text: string; color?: string}> = props => (
+    <Box cursor="pointer" width="auto" onClick={props.onClick}>
+        <TextSpan color={props.color}>{props.text}</TextSpan>
+    </Box>
+);
 
 const CommentApplicationWrapper = styled.div`
   display: grid;
