@@ -153,7 +153,6 @@ data class FindHomeFolderRequest(val username: String)
 @Serializable
 data class FindHomeFolderResponse(val path: String)
 
-val DOWNLOAD_FILE_SCOPE = FileDescriptions.download.authDescription.requiredScope
 
 @Serializable
 data class DownloadByURI(
