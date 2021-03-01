@@ -22,7 +22,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
             width={props.width}
         >
             <Flex alignItems="center">
-                <div><WhiteSpacedText fontSize={1} color="black">{props.warning}{props.children}</WhiteSpacedText></div>
+                <div><WhiteSpacedText fontSize={1} color="black"><span>{props.warning}</span>{props.children}</WhiteSpacedText></div>
                 {!props.clearWarning ? null : (
                     <Box ml="auto">
                         <Icon
@@ -39,7 +39,9 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
 };
 
 const WhiteSpacedText = styled(Text)`
-    white-space: pre;
+    & > span {
+        white-space: pre;
+    }
 `;
 
 export default Warning;

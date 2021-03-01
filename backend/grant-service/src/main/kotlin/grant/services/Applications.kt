@@ -4,6 +4,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
@@ -12,10 +13,10 @@ import dk.sdu.cloud.grant.api.GrantApplicationFilter
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.UserCriteria
-import dk.sdu.cloud.grant.utils.autoApproveTemplate
-import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
-import dk.sdu.cloud.grant.utils.responseTemplate
-import dk.sdu.cloud.grant.utils.updatedTemplate
+import dk.sdu.cloud.grant.utils.*
+import dk.sdu.cloud.mail.api.MailDescriptions
+import dk.sdu.cloud.mail.api.SendBulkRequest
+import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -508,6 +509,82 @@ class ApplicationService(
             ),
             actor.safeUsername(),
             mapOf("grantRecipient" to application.grantRecipient, "appId" to application.id)
+        )
+    }
+
+    suspend fun transferApplication(
+        ctx: DBContext,
+        actor: Actor,
+        currentProject: String?,
+        applicationId: Long,
+        transferToProjectId: String
+    ) {
+        val application = viewApplicationById(ctx, actor, applicationId)
+        if (application.first.grantRecipient is GrantRecipient.ExistingProject) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Transfer not applicable to existing projects")
+        }
+        if (!projects.isAdminOfProject(application.first.resourcesOwnedBy, actor)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+        val projectTitle = ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("receivingProject", transferToProjectId)
+                    },
+                    """
+                        SELECT title
+                        FROM project.projects
+                        WHERE id = :receivingProject
+                    """
+                ).rows
+                .singleOrNull()
+                ?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+        val senderTitle = if (currentProject != null) {
+            ctx.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("sendingProject", currentProject)
+                        },
+                        """
+                        SELECT title
+                        FROM project.projects
+                        WHERE id = :sendingProject
+                    """
+                    ).rows
+                    .singleOrNull()
+                    ?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+        } else "another project"
+        ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("transfer", transferToProjectId)
+                        setParameter("applicationId", applicationId)
+                    },
+                    """
+                        UPDATE "grant".applications
+                        SET resources_owned_by = :transfer
+                        WHERE id = :applicationId
+                    """
+                )
+        }
+        val admins = projects.admins.get(transferToProjectId) ?: emptyList()
+        MailDescriptions.sendBulk.call(
+            SendBulkRequest(
+                admins.map { admin ->
+                    val message = forwardApplicationTemplate(admin.username, senderTitle, projectTitle)
+                    SendRequest(
+                        admin.username,
+                        FORWARD_SUBJECT,
+                        message
+                    )
+                }
+            ),
+            serviceClient
         )
     }
 

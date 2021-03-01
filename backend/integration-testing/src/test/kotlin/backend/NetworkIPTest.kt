@@ -117,7 +117,7 @@ class NetworkIPTest : IntegrationTest() {
             KubernetesNetworkIPMaintenance.browse.call(
                 KubernetesIPMaintenanceBrowseRequest(),
                 serviceClient
-            ).orThrow().items.single().cidr
+            ).orThrow().items.single().externalCidr
         )
 
         assertEquals(

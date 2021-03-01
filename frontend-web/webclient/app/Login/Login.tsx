@@ -556,7 +556,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         </Absolute>
 
 
-        <Absolute style={{overflowY: "hidden"}} bottom="0" height="50%" width="100%">
+        <Absolute style={{overflow: "hidden"}} bottom="0" height="50%" width="100%">
             <BG1 selection={props.selection} />
             <Absolute bottom={0} left="calc(50% - 280px)" width="calc(100% - 150px)">
                 <Image width={"150px"} src={aalborgu_logo} />

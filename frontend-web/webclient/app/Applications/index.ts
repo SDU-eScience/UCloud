@@ -1,3 +1,1 @@
-import {SearchWidget, SearchResults} from "Applications/Search";
-
-export {SearchWidget, SearchResults};
+export {SearchWidget, SearchResults} from "Applications/Search";

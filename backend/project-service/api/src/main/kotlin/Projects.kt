@@ -4,8 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.IngoingCall
 import dk.sdu.cloud.calls.server.project
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.WithPaginationRequest
+import dk.sdu.cloud.service.*
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 
@@ -194,6 +193,24 @@ typealias UpdateDataManagementPlanResponse = Unit
 
 typealias FetchDataManagementPlanRequest = Unit
 data class FetchDataManagementPlanResponse(val dmp: String?)
+
+interface ProjectIncludeFlags {
+    val includeFullPath: Boolean?
+}
+
+data class ProjectSearchByPathRequest(
+    val path: String,
+    override val itemsPerPage: Int?,
+    override val next: String?,
+    override val consistency: PaginationRequestV2Consistency?,
+    override val itemsToSkip: Long?,
+
+    override val includeFullPath: Boolean?
+
+): WithPaginationRequestV2, ProjectIncludeFlags
+
+typealias ProjectSearchByPathResponse = PageV2<Project>
+
 
 @TSTopLevel
 object Projects : CallDescriptionContainer("project") {
@@ -897,4 +914,11 @@ object Projects : CallDescriptionContainer("project") {
                 }
             }
         }
+
+    val search = call<ProjectSearchByPathRequest, ProjectSearchByPathResponse, CommonErrorMessage>("search") {
+        httpSearch(
+            baseContext = baseContext,
+            roles = Roles.PRIVILEGED
+        )
+    }
 }

@@ -13,7 +13,7 @@ import dk.sdu.cloud.service.WithPaginationRequestV2
 object KubernetesNetworkIP : NetworkIPProvider(UCLOUD_PROVIDER)
 
 data class K8NetworkStatus(val capacity: Long, val used: Long)
-data class K8Subnet(val cidr: String)
+data class K8Subnet(val externalCidr: String, val internalCidr: String)
 typealias KubernetesIPMaintenanceCreateRequest = BulkRequest<K8Subnet>
 typealias KubernetesIPMaintenanceCreateResponse = Unit
 
