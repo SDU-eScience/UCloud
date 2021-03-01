@@ -22,13 +22,6 @@ export function injectFonts(): void {
             font-weight: 400;
             font-display: swap;
         }
-
-        @font-face {
-            font-family: 'IBM Plex Sans';
-            src: url('${fontBold}');
-            font-weight: 400;
-            font-display: swap;
-        }
         
         @font-face {
             font-family: "Jetbrains Mono";
