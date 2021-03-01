@@ -141,6 +141,7 @@ config("app-kubernetes") { ctx ->
         "production" -> {
             configure("prefix", "app-")
             configure("domain", "cloud.sdu.dk")
+            configure("networkInterface", "bond0.20")
         }
     }
 

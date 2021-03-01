@@ -1061,7 +1061,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     >
                                                                         Reject
                                                                     </Button>
-                                                                    {state.editingApplication?.grantRecipient!.type !== "existing_project" ?
+                                                                    {state.editingApplication?.grantRecipient!.type !== "existing_project" && localStorage.getItem("enableprojecttransfer") != null ?
                                                                         <Button
                                                                             color="blue"
                                                                             onClick={() => setTransferringApplication(true)}
