@@ -8,6 +8,12 @@ Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
 ## 01-03-21
+Issue fix for transfer of applications from WAYF users 
+```
+✅  Deployment(grant, 0.3.1) (UP-TO-DATE)
+```
+
+## 01-03-21
 
 ```
 ✅  Deployment(accounting, 1.6.0) (UP-TO-DATE)
