@@ -1,9 +1,5 @@
 package dk.sdu.cloud.service
 
-import org.joda.time.DateTimeZone as JodaDateTimeZone
-import java.time.ZoneId as JavaZoneId
-import java.time.Instant as JavaInstant
-
 /**
  * Acts as a time source for all of UCloud
  *
@@ -14,8 +10,6 @@ import java.time.Instant as JavaInstant
  */
 actual object Time : TimeProvider {
     var provider: TimeProvider = SystemTimeProvider
-    val javaTimeZone = JavaZoneId.of("Europe/Copenhagen")
-    val jodaTimeZone = JodaDateTimeZone.forID("Europe/Copenhagen")
 
     override fun now(): Long = provider.now()
 }
@@ -37,8 +31,4 @@ object SystemTimeProvider : TimeProvider {
 object StaticTimeProvider : TimeProvider {
     var time: Long = 0L
     override fun now(): Long = time
-}
-
-fun epochToJava(ts: Long): JavaInstant {
-    return JavaInstant.ofEpochMilli(ts)
 }

@@ -34,6 +34,7 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation(project(":service-lib"))
+                implementation(project(":service-lib-server"))
                 implementation("io.swagger.core.v3:swagger-models:2.1.5")
                 implementation("io.swagger.core.v3:swagger-core:2.1.5")
                 implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.4.0")

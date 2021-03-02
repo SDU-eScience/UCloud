@@ -81,6 +81,7 @@ subprojects {
                         if (myApiProject != null) {
                             implementation(myApiProject)
                         }
+                        implementation(project(":service-lib-server"))
                     }
                 }
 

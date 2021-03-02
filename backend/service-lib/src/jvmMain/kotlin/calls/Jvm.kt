@@ -1,8 +1,6 @@
 package dk.sdu.cloud.calls
 
-import io.ktor.application.ApplicationCall
 import org.intellij.lang.annotations.Language
-import java.util.*
 import kotlin.jvm.internal.CallableReference
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty

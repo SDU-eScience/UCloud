@@ -40,7 +40,7 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.websocket(
 }
 
 @Serializable
-internal data class WSRequest<T>(
+data class WSRequest<T>(
     val call: String,
     val streamId: String,
     val payload: T,
@@ -75,12 +75,12 @@ internal data class WSRequest<T>(
 )
  */
 @Serializable
-internal sealed class WSMessage<T> {
+sealed class WSMessage<T> {
     abstract val payload: T
     abstract val streamId: String
 
     @Serializable
-    internal data class Response<T>(
+    data class Response<T>(
         override val streamId: String,
         override val payload: T,
         val status: Int,
@@ -88,7 +88,7 @@ internal sealed class WSMessage<T> {
     ) : WSMessage<T>()
 
     @Serializable
-    internal data class Message<T>(
+    data class Message<T>(
         override val streamId: String,
         override val payload: T,
         val type: String = MESSAGE_TYPE

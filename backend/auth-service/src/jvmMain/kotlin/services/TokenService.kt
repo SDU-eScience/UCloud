@@ -12,11 +12,11 @@ import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.toSecurityToken
 import kotlinx.coroutines.delay
 import java.security.SecureRandom
 import java.util.*

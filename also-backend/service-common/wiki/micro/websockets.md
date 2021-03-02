@@ -1,3 +1,0 @@
-# WebSockets
-
-TODO Cover client and server implementation of websockets

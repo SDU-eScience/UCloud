@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.bearer
-import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
@@ -32,6 +31,7 @@ import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.toSecurityToken
 import io.ktor.application.call
 import io.ktor.http.ContentRange
 import io.ktor.http.ContentType

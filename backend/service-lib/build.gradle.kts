@@ -50,21 +50,26 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
-                api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
+                /*
                 api("io.ktor:ktor-server-core:$ktorVersion")
                 api("io.ktor:ktor-server-netty:$ktorVersion")
                 api("io.ktor:ktor-server-host-common:$ktorVersion")
                 api("io.ktor:ktor-websockets:$ktorVersion")
                 api("org.jetbrains:annotations:16.0.2")
 
+
+                 */
+                api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
                 api("io.ktor:ktor-client-okhttp:$ktorVersion")
                 api("io.ktor:ktor-client-websockets:$ktorVersion")
                 api("io.ktor:ktor-client-cio:$ktorVersion")
 
                 api("org.apache.logging.log4j:log4j-api:2.12.0")
-                api("org.apache.logging.log4j:log4j-slf4j-impl:2.12.0")
                 api("org.apache.logging.log4j:log4j-core:2.12.0")
+                implementation(kotlin("reflect"))
+                implementation("com.google.guava:guava:27.0.1-jre")
                 api("com.auth0:java-jwt:3.8.3")
+                /*
 
                 api("org.postgresql:postgresql:42.2.5")
                 api("org.flywaydb:flyway-core:5.2.4")
@@ -74,6 +79,8 @@ kotlin {
                 api("io.lettuce:lettuce-core:5.1.6.RELEASE")
                 api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.5.0")
                 api("com.google.guava:guava:27.0.1-jre")
+
+                 */
             }
         }
 

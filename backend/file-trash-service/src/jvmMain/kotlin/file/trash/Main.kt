@@ -4,9 +4,7 @@ import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.file.trash.api.FileTrashServiceDescription
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.service.CommonServer
 
 object FileTrashService : Service {

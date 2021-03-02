@@ -1,6 +1,5 @@
 package dk.sdu.cloud.auth.api
 
-import org.apache.commons.codec.binary.Base64
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.security.KeyFactory
@@ -8,6 +7,7 @@ import java.security.PrivateKey
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.spec.PKCS8EncodedKeySpec
+import java.util.*
 
 // Contains a few utility methods extracted from com.onelogin.saml2.util.Util
 
@@ -60,7 +60,7 @@ internal fun loadPrivateKey(keyString: String): PrivateKey? {
     val kf = KeyFactory.getInstance("RSA")
 
     return try {
-        val encoded = Base64.decodeBase64(extractedKey)
+        val encoded = Base64.getDecoder().decode(extractedKey)
         val keySpec = PKCS8EncodedKeySpec(encoded)
         kf.generatePrivate(keySpec)
     } catch (e: IllegalArgumentException) {

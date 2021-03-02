@@ -12,7 +12,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import io.ktor.http.*
