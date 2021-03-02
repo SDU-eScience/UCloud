@@ -73,7 +73,6 @@ class CronJobs(
                     LookupAdminsBulkRequest(projectIDs),
                     serviceClient
                 ).orThrow()
-
                 val wallets = rows.map {
                     Wallet(
                         it.getField(WalletTable.accountId),
@@ -107,31 +106,6 @@ class CronJobs(
                                     )
                                 )
                             )
-                        }
-                    }
-                    if (projects[projectAndAdmins.first]?.parent != null) {
-                        val parentAdmins = ProjectMembers.lookupAdmins.call(
-                            LookupAdminsRequest(projects[projectAndAdmins.first]?.parent!!),
-                            serviceClient
-                        ).orThrow()
-                        parentAdmins.admins.forEach { parentAdmin ->
-                            projectWalletsBelowLimit.forEach { wallet ->
-                                sendRequests.add(
-                                    SendRequest(
-                                        parentAdmin.username,
-                                        LOW_FUNDS_SUBJECT,
-                                        lowResourcesTemplate(
-                                            parentAdmin.username,
-                                            wallet.paysFor.id,
-                                            wallet.paysFor.provider,
-                                            projects[projectAndAdmins.first]?.title ?: throw RPCException.fromStatusCode(
-                                                HttpStatusCode.InternalServerError,
-                                                "No project found"
-                                            )
-                                        )
-                                    )
-                                )
-                            }
                         }
                     }
                 }
