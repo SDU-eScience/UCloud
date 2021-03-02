@@ -86,6 +86,7 @@ object AvatarDescriptions : CallDescriptionContainer("avatar") {
     val findBulk = call<FindBulkRequest, FindBulkResponse, CommonErrorMessage>("findBulk") {
         auth {
             access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
         }
 
         http {

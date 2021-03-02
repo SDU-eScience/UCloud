@@ -107,6 +107,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
         }
 
+        log.trace("Sending request")
         val resp = try {
             httpClient.request<HttpResponse>(ctx.builder)
         } catch (ex: Throwable) {
@@ -117,9 +118,11 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
             throw ex
         }
+        log.trace("Received response")
 
         ctx.response = resp
         val result = parseResponse(ctx, resp, call, callId)
+        log.trace("Parsing complete")
         val end = Time.now()
 
         val responseDebug =
