@@ -29,7 +29,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {FilterTrigger} from "./OutgoingApplications";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {useDispatch} from "react-redux";
-import { setLoading } from "Navigation/Redux/StatusActions";
+import {setLoading, useTitle} from "Navigation/Redux/StatusActions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const dispatch = useDispatch()
@@ -51,11 +51,13 @@ export const IngoingApplications: React.FunctionComponent = () => {
         );
     });
 
+    useTitle("Ingoing Applications");
+
     useEffect(() => {
         fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: 0, filter}));
     }, [projectId, filter]);
 
-    useEffect( () => {
+    useEffect(() => {
         dispatch(setLoading(ingoingApplications.loading))
     }, [ingoingApplications.loading])
 
