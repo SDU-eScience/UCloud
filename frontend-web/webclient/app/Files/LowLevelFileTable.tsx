@@ -461,7 +461,11 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                 (tool.description.supportedProviders ?? [])
                                     .some(p => p === product.product.category.provider);
                     }
-                }).map(it => it.product)
+                })
+                .filter(product =>
+                    wallet.data.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
+                )
+                .map(it => it.product)
                 providerProducts.forEach(it => products.push(it));
             })
 
@@ -487,6 +491,28 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
             }
         }
     }, [availableProducts]);
+
+    const onQuickLaunch = React.useCallback((app: QuickLaunchApp) => {
+        fetchWallet(accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250, includeBalance: true}));
+        setSelectedQuickLaunchApp(app);
+    }, []);
+
+    const quickLaunchOnSelectedMachine = React.useCallback(() => {
+        if (selectedMachine !== null && quickLaunchApp.data !== null && props.path) {
+            quickLaunchJob(
+                quickLaunchApp.data,
+                {
+                    id: selectedMachine.id,
+                    category: selectedMachine.category.id,
+                    provider: selectedMachine.category.provider
+                },
+                props.path,
+                history
+            )
+        } else {
+            snackbarStore.addFailure("Please select a machine type", true)
+        }
+    }, [selectedMachine, quickLaunchApp, props.path]);
 
     return (
         <Shell
@@ -712,28 +738,6 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         }
 
         setCheckedFiles(checked);
-    }
-
-    function onQuickLaunch(app: QuickLaunchApp) {
-        fetchWallet(accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250, includeBalance: true}));
-        setSelectedQuickLaunchApp(app);
-    }
-
-    function quickLaunchOnSelectedMachine() {
-        if (selectedMachine !== null && quickLaunchApp.data !== null && props.path) {
-            quickLaunchJob(
-                quickLaunchApp.data,
-                {
-                    id: selectedMachine.id,
-                    category: selectedMachine.category.id,
-                    provider: selectedMachine.category.provider
-                },
-                props.path,
-                history
-            )
-        } else {
-            snackbarStore.addFailure("Please select a machine type", true)
-        }
     }
 
     function onRenameFile(key: number, name: string): void {
