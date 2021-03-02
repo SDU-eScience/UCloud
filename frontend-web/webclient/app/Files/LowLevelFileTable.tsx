@@ -288,6 +288,8 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
 
     const history = useHistory();
 
+    ReactModal.setAppElement("#app");
+
     const activeUploadCount = useSelector<ReduxObject, number>(redux =>
         redux.uploader.uploads.filter(upload =>
             ((upload.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
@@ -428,7 +430,9 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                     providers: joinToString(Array.from(s), ",")
             }));
         }
+    }, [wallet]);
 
+    React.useEffect(() => {
         if (selectedQuickLaunchApp !== null) {
             fetchQuickLaunchApp(
                 compute.apps.findByNameAndVersion({
@@ -436,37 +440,32 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                     appVersion: selectedQuickLaunchApp.metadata.version
             }));
         }
-    }, [wallet, selectedQuickLaunchApp]);
+    }, [selectedQuickLaunchApp])
 
 
     React.useEffect(() => {
         if (quickLaunchApp.data !== null && props.path && machineSupport.data !== null) {
-            setAvailableProducts(
-                ([] as accounting.ProductNS.Compute[]).concat.apply(
-                    [],
-                    Object.values(machineSupport.data.productsByProvider).map(it => {
-                        return it.products
-                            .filter(it => {
-                                const tool = quickLaunchApp.data!!.invocation.tool.tool!;
-                                const backend = tool.description.backend;
-                                switch (backend) {
-                                    case "DOCKER":
-                                        return it.support.docker.enabled;
-                                    case "SINGULARITY":
-                                        return false;
-                                    case "VIRTUAL_MACHINE":
-                                        return it.support.virtualMachine.enabled &&
-                                            (tool.description.supportedProviders ?? [])
-                                                .some(p => p === it.product.category.provider);
-                                }
-                            })
-                            .filter(product =>
-                                wallet.data.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
-                            )
-                            .map(it => it.product);
-                    })
-                ).map(it => it as accounting.ProductNS.Compute)
-            )
+            var products: accounting.ProductNS.Compute[] = []; 
+
+            Object.values(machineSupport.data.productsByProvider).forEach(provider => {
+                const providerProducts = provider.products.filter(product => {
+                    const tool = quickLaunchApp.data!.invocation.tool.tool!;
+                    const backend = tool.description.backend;
+                    switch (backend) {
+                        case "DOCKER":
+                            return product.support.docker.enabled;
+                        case "SINGULARITY":
+                            return false;
+                        case "VIRTUAL_MACHINE":
+                            return product.support.virtualMachine.enabled &&
+                                (tool.description.supportedProviders ?? [])
+                                    .some(p => p === product.product.category.provider);
+                    }
+                }).map(it => it.product)
+                providerProducts.forEach(it => products.push(it));
+            })
+
+            setAvailableProducts(products);
         }
     }, [quickLaunchApp, machineSupport]);
 
@@ -721,7 +720,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     }
 
     function quickLaunchOnSelectedMachine() {
-        if(selectedMachine !== null && quickLaunchApp.data !== null && props.path) {
+        if (selectedMachine !== null && quickLaunchApp.data !== null && props.path) {
             quickLaunchJob(
                 quickLaunchApp.data,
                 {
@@ -897,7 +896,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                             >
                                                 <QuickLaunchApps
                                                     file={f}
-                                                    applications={applications.get(f.path)!!}
+                                                    applications={applications.get(f.path)!}
                                                     quickLaunchCallback={onQuickLaunch}
                                                 />
                                             </ClickableDropdown>
