@@ -4,13 +4,16 @@ import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.features.websocket.*
+import io.ktor.util.*
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import java.net.ConnectException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
-internal actual val httpClient = HttpClient(OkHttp) {
+internal actual fun createHttpClient() = HttpClient(OkHttp) {
+    expectSuccess = false
+
     engine {
         config {
             readTimeout(5, TimeUnit.MINUTES)
@@ -27,7 +30,8 @@ internal actual val httpClient = HttpClient(OkHttp) {
     }
 }
 
-actual val websocketClient: HttpClient = HttpClient(CIO) {
+@OptIn(KtorExperimentalAPI::class)
+actual fun createWebsocketClient(): HttpClient = HttpClient(CIO) {
     install(WebSockets)
 }
 

@@ -35,7 +35,7 @@ export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
 }
 
 export const emptyPage: Readonly<Page<any>> =
-    {items: [], itemsInTotal: 0, itemsPerPage: 25, pageNumber: 0, pagesInTotal: 0};
+    {items: [], itemsInTotal: 0, itemsPerPage: 25, pageNumber: 0};
 
 export const emptyPageV2: Readonly<UCloud.PageV2<any>> =
     {items: [], itemsPerPage: 25};

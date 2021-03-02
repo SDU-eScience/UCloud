@@ -6,8 +6,14 @@ import io.ktor.client.engine.curl.*
 import io.ktor.client.features.websocket.*
 import io.ktor.util.*
 
-actual val httpClient = HttpClient(Curl)
+actual fun createHttpClient(): HttpClient {
+    return HttpClient(Curl) {
+        expectSuccess = false
+    }
+}
+
 @OptIn(KtorExperimentalAPI::class)
-actual val websocketClient = HttpClient(CIO) {
+actual fun createWebsocketClient(): HttpClient = HttpClient(CIO) {
     install(WebSockets)
+    expectSuccess = false
 }

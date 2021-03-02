@@ -32,8 +32,6 @@ export interface Page<T = unknown> {
     pageNumber: number /* int32 */
     ,
     items: T[],
-    pagesInTotal: number /* int32 */
-    ,
 }
 
 /**

@@ -39,11 +39,11 @@ class OutgoingHttpCall(val builder: KtorHttpRequestBuilder) : OutgoingCall {
     }
 }
 
-internal expect val httpClient: HttpClient
+expect internal fun createHttpClient(): HttpClient
 
 class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCall, OutgoingHttpCall.Companion> {
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
-
+    private val httpClient: HttpClient = createHttpClient()
     fun install(
         client: RpcClient,
         targetHostResolver: OutgoingHostResolver,

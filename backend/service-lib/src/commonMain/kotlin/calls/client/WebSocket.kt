@@ -276,12 +276,13 @@ internal data class WSRawMessage(
     val payload: JsonObject
 )
 
-expect val websocketClient: HttpClient
+expect fun createWebsocketClient(): HttpClient
 
 @OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 internal class WSConnectionPool {
     private val connectionPool = HashMap<String, WSClientSession>()
     private val mutex = Mutex()
+    private val websocketClient: HttpClient = createWebsocketClient()
 
     suspend fun retrieveConnection(
         location: String

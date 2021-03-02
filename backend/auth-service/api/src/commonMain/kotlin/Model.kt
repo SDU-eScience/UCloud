@@ -31,12 +31,6 @@ sealed class Principal {
     @Deprecated("Will be removed in future release")
     abstract val uid: Long
 
-    @Deprecated("No longer in use")
-    open val emailAddresses: List<String> = emptyList()
-
-    @Deprecated("No longer in use")
-    open val preferredEmailAddress: String? = null
-
     protected open fun validate() {
         require(id.isNotEmpty()) { "ID cannot be empty!" }
         require(!id.startsWith("__")) { "A principal's ID cannot start with '__'" }
@@ -61,9 +55,6 @@ sealed class Person : Principal() {
      * identity provider may count.
      */
     abstract val twoFactorAuthentication: Boolean
-
-    override val emailAddresses: List<String> get() = listOfNotNull(email)
-    override val preferredEmailAddress: String? get() = email
 
     abstract val displayName: String
 

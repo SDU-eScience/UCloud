@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.UCloudApiDoc
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlin.math.ceil
 import kotlin.math.min
 
@@ -15,7 +16,7 @@ data class Page<out T>(
     val pageNumber: Int,
     val items: List<T>,
 ) {
-    val pagesInTotal: Int = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
+    val pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 
     companion object {
         fun <T> forRequest(request: NormalizedPaginationRequest?, itemsInTotal: Int?, items: List<T>): Page<T> {
@@ -215,6 +216,7 @@ interface WithPaginationRequestV2 {
 enum class PaginationRequestV2Consistency {
     @UCloudApiDoc("Consistency is preferred but not required. An inconsistent snapshot might be returned.")
     PREFER,
+
     @UCloudApiDoc("Consistency is required. A request will fail if consistency is no longer guaranteed.")
     REQUIRE
 }

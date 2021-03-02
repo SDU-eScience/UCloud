@@ -228,7 +228,6 @@ const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: str
                         itemsInTotal: reposWithPermissions.length,
                         pageNumber: 0,
                         itemsPerPage: reposWithPermissions.length,
-                        pagesInTotal: 1
                     }}
                 />
             </>
