@@ -12,7 +12,6 @@ import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
 

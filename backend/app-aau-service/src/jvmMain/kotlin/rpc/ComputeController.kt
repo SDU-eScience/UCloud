@@ -29,6 +29,10 @@ import io.ktor.http.*
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 
 class ComputeController(
     private val serviceClient: AuthenticatedClient,
@@ -57,19 +61,19 @@ class ComputeController(
                     buildString {
                         appendLine("AAU VM creation request: ")
                         appendLine(
-                            defaultMapper.writeValueAsString(
+                            defaultMapper.encodeToString(JsonObject(
                                 mapOf(
-                                    "request" to "creation",
-                                    "job_id" to req.id,
-                                    "owner_username" to req.owner.createdBy,
-                                    "owner_project" to req.owner.project,
-                                    "base_image" to tool.description.image,
-                                    "machine_template" to resources.product.id,
-                                    "total_grant_allocation" to "${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK",
-                                    "request_parameters" to req.specification.parameters
+                                    "request" to JsonPrimitive("creation"),
+                                    "job_id" to JsonPrimitive(req.id),
+                                    "owner_username" to JsonPrimitive(req.owner.createdBy),
+                                    "owner_project" to JsonPrimitive(req.owner.project),
+                                    "base_image" to JsonPrimitive(tool.description.image),
+                                    "machine_template" to JsonPrimitive(resources.product.id),
+                                    "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
+                                    "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                 )
                             )
-                        )
+                        ))
                     }
                 )
             }
@@ -102,19 +106,19 @@ class ComputeController(
                     buildString {
                         appendLine("AAU VM deletion request: ")
                         appendLine(
-                            defaultMapper.writeValueAsString(
+                            defaultMapper.encodeToString(JsonObject(
                                 mapOf(
-                                    "request" to "deletion",
-                                    "job_id" to req.id,
-                                    "owner_username" to req.owner.createdBy,
-                                    "owner_project" to req.owner.project,
-                                    "base_image" to tool.description.image,
-                                    "machine_template" to resources.product.id,
-                                    "total_grant_allocation" to "${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK",
-                                    "request_parameters" to req.specification.parameters
+                                    "request" to JsonPrimitive("creation"),
+                                    "job_id" to JsonPrimitive(req.id),
+                                    "owner_username" to JsonPrimitive(req.owner.createdBy),
+                                    "owner_project" to JsonPrimitive(req.owner.project),
+                                    "base_image" to JsonPrimitive(tool.description.image),
+                                    "machine_template" to JsonPrimitive(resources.product.id),
+                                    "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
+                                    "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                 )
                             )
-                        )
+                        ))
                     }
                 )
             }

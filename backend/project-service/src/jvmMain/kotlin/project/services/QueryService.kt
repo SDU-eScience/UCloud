@@ -7,6 +7,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.*
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.offset
 import dk.sdu.cloud.project.api.*
@@ -31,7 +32,12 @@ data class ProjectForVerification(
 class QueryService(
     private val projects: ProjectService
 ) {
-    suspend fun searchProjectPaths(ctx: DBContext, actor: Actor, flags: ProjectIncludeFlags, request: ProjectSearchByPathRequest): PageV2<Project> {
+    suspend fun searchProjectPaths(
+        ctx: DBContext,
+        actor: Actor,
+        flags: ProjectIncludeFlags,
+        request: ProjectSearchByPathRequest,
+    ): PageV2<Project> {
         val role = if (actor is Actor.User) actor.principal.role else Role.USER
         if (role !in Roles.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "User not admin")

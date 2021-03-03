@@ -33,7 +33,7 @@ class NetworkIPTest : IntegrationTest() {
     fun `test creation of IP addresses`() = t {
         val rootProject = initializeRootProject()
         KubernetesNetworkIPMaintenance.create.call(
-            bulkRequestOf(K8Subnet("10.0.0.0/24")),
+            bulkRequestOf(K8Subnet("10.0.0.0/24", "10.0.0.0/24")),
             serviceClient
         ).orThrow()
 
@@ -47,7 +47,7 @@ class NetworkIPTest : IntegrationTest() {
     fun `test creation of IP with firewall`() = t {
         val rootProject = initializeRootProject()
         KubernetesNetworkIPMaintenance.create.call(
-            bulkRequestOf(K8Subnet("10.0.0.0/24")),
+            bulkRequestOf(K8Subnet("10.0.0.0/24", "10.0.0.0/24")),
             serviceClient
         ).orThrow()
 
@@ -68,7 +68,7 @@ class NetworkIPTest : IntegrationTest() {
     fun `test creation of IP and update firewall`() = t {
         val rootProject = initializeRootProject()
         KubernetesNetworkIPMaintenance.create.call(
-            bulkRequestOf(K8Subnet("10.0.0.0/24")),
+            bulkRequestOf(K8Subnet("10.0.0.0/24", "10.0.0.0/24")),
             serviceClient
         ).orThrow()
 
@@ -108,7 +108,7 @@ class NetworkIPTest : IntegrationTest() {
         val rootProject = initializeRootProject()
         val cidr = "10.0.0.0/24"
         KubernetesNetworkIPMaintenance.create.call(
-            bulkRequestOf(K8Subnet(cidr)),
+            bulkRequestOf(K8Subnet(cidr, cidr)),
             serviceClient
         ).orThrow()
 

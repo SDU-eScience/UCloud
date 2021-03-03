@@ -1,9 +1,9 @@
 package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.PaginationRequest
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.RetrieveWalletsForProjectsRequest
-import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.auth.api.GetPrincipalRequest
 import dk.sdu.cloud.auth.api.Person
