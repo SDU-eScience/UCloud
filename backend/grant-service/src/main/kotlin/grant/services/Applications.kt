@@ -526,37 +526,16 @@ class ApplicationService(
         if (!projects.isAdminOfProject(application.first.resourcesOwnedBy, actor)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
-        val projectTitle = ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("receivingProject", transferToProjectId)
-                    },
-                    """
-                        SELECT title
-                        FROM project.projects
-                        WHERE id = :receivingProject
-                    """
-                ).rows
-                .singleOrNull()
-                ?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
+        val projectTitle = Projects.lookupById.call(
+            LookupByIdRequest(transferToProjectId),
+            serviceClient
+        ).orThrow().title
+
         val senderTitle = if (currentProject != null) {
-            ctx.withSession { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("sendingProject", currentProject)
-                        },
-                        """
-                        SELECT title
-                        FROM project.projects
-                        WHERE id = :sendingProject
-                    """
-                    ).rows
-                    .singleOrNull()
-                    ?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
+            Projects.lookupById.call(
+                LookupByIdRequest(currentProject),
+                serviceClient
+            ).orThrow().title
         } else "another project"
         ctx.withSession { session ->
             session
