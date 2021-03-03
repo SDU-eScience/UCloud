@@ -71,7 +71,7 @@ object AuthProviders : CallDescriptionContainer("auth.providers") {
     @UCloudApiInternal(InternalLevel.BETA)
     val refreshAsProvider = call<AuthProvidersRefreshAsProviderRequest, AuthProvidersRefreshAsProviderResponse,
         CommonErrorMessage>("refreshAsProvider") {
-        httpUpdate(baseContext," refreshAsProvider", roles = Roles.PRIVILEGED)
+        httpUpdate(baseContext, "refreshAsProvider", roles = Roles.PRIVILEGED)
 
         documentation {
             summary = "Signs an access-token to be used by a UCloud service"

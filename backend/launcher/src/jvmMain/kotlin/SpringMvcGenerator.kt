@@ -8,106 +8,98 @@ import java.io.File
 import java.util.*
 import kotlin.collections.ArrayList
 
-
 fun generateSpringMvcCode(
     outputDir: File,
     api: OpenAPI,
     typeRegistry: Map<String, ComputedType>,
 ) {
-    val outputFile = File(outputDir, "Applications/index.ts")
+    val outputFile = File(outputDir, "Controllers.kt")
     outputFile.parentFile.mkdirs()
 
+    val dispatchBuilder = StringBuilder()
     val ctx = GenerationContext()
     with(ctx) {
         for ((path, pathItem) in api.paths) {
             if (pathItem.get != null) {
                 val callExtension = pathItem.get.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Get, pathItem.get, callExtension, typeRegistry)
+                generateOp(HttpMethod.Get, pathItem.get, callExtension, typeRegistry, dispatchBuilder)
             }
             if (pathItem.post != null) {
                 val callExtension = pathItem.post.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Post, pathItem.post, callExtension, typeRegistry)
+                generateOp(HttpMethod.Post, pathItem.post, callExtension, typeRegistry, dispatchBuilder)
             }
             if (pathItem.delete != null) {
                 val callExtension = pathItem.delete.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Delete, pathItem.delete, callExtension, typeRegistry)
+                generateOp(HttpMethod.Delete, pathItem.delete, callExtension, typeRegistry, dispatchBuilder)
             }
             if (pathItem.head != null) {
                 val callExtension = pathItem.head.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Head, pathItem.head, callExtension, typeRegistry)
+                generateOp(HttpMethod.Head, pathItem.head, callExtension, typeRegistry, dispatchBuilder)
             }
             if (pathItem.put != null) {
                 val callExtension = pathItem.put.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Put, pathItem.put, callExtension, typeRegistry)
+                generateOp(HttpMethod.Put, pathItem.put, callExtension, typeRegistry, dispatchBuilder)
             }
             if (pathItem.options != null) {
                 val callExtension = pathItem.options.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Options, pathItem.options, callExtension, typeRegistry)
+                generateOp(HttpMethod.Options, pathItem.options, callExtension, typeRegistry, dispatchBuilder)
             }
             if (pathItem.patch != null) {
                 val callExtension = pathItem.patch.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Patch, pathItem.patch, callExtension, typeRegistry)
+                generateOp(HttpMethod.Patch, pathItem.patch, callExtension, typeRegistry, dispatchBuilder)
             }
         }
 
         outputFile.writer().use { w ->
-            w.appendLine("/* eslint-disable */")
             w.appendLine("/* AUTO GENERATED CODE - DO NOT MODIFY */")
             w.appendLine("/* Generated at: ${Date()} */")
             w.appendLine()
-            w.appendLine(
-                """
-                    import {buildQueryString} from "Utilities/URIUtilities";
-                    
-                """.trimIndent()
-            )
+            w.appendLine("@file:Suppress(\"RemoveRedundantQualifierName\")")
+            w.appendLine()
+            w.appendLine("import dk.sdu.cloud.app.orchestrator.api.Compute")
+            w.appendLine("import dk.sdu.cloud.providers.UCloudRpcDispatcher")
+            w.appendLine("import dk.sdu.cloud.calls.CallDescription")
+            w.appendLine("import org.springframework.web.bind.annotation.*")
+            w.appendLine("import javax.servlet.http.HttpServletRequest")
+            w.appendLine("import javax.servlet.http.HttpServletResponse")
+            w.appendLine()
 
-            data class Node(val name: String, val children: ArrayList<Node>, val namespace: String, var text: String)
-
-            val root = Node("", ArrayList(), "", "")
-            for ((ns, text) in ctx.writers) {
-                var nodeSearch = root
-                var namespaceBuilder = ""
-                var first = true
-                ns.split(".").filter { it.isNotEmpty() }.forEach { n ->
-                    val nextNode = nodeSearch.children.find { it.name == n }
-
-                    if (first) first = false
-                    else namespaceBuilder += "."
-                    namespaceBuilder += n
-
-                    if (nextNode == null) {
-                        val newNode = Node(n, ArrayList(), namespaceBuilder, "")
-                        nodeSearch.children.add(newNode)
-                        nodeSearch = newNode
-                    } else {
-                        nodeSearch = nextNode
+            for ((ns, text) in writers) {
+                val docs = nsDoc[ns].takeIf { !it.isNullOrBlank() }
+                if (docs != null) {
+                    w.appendLine("/**")
+                    docs.lines().forEach {
+                        w.append(" * ")
+                        w.appendLine(it)
                     }
+                    w.appendLine(" */")
+                }
+                // TODO Hack
+                w.appendLine("abstract class ${ns}Controller(private val providerId: String) : " +
+                    "UCloudRpcDispatcher(listOf(Compute(providerId))) {")
+                text.lines().forEach {
+                    w.append("    ")
+                    w.appendLine(it)
                 }
 
-                nodeSearch.text += text
+                w.appendLine(buildString {
+                    appendLine("@Suppress(\"UNCHECKED_CAST\")")
+                    appendLine("override fun <R : Any, S : Any, E : Any> dispatchToHandler(")
+                    appendLine("    call: CallDescription<R, S, E>,")
+                    appendLine("    request: R,")
+                    appendLine("    rawRequest: HttpServletRequest,")
+                    appendLine("    rawResponse: HttpServletResponse,")
+                    appendLine("): R {")
+                    appendLine("    return when (call.fullName.replace(providerId, \"*\")) {")
+                    append(dispatchBuilder.toString().prependIndent("        "))
+                    appendLine("else -> error(\"Unhandled call\")")
+                    appendLine("    }")
+                    appendLine("}")
+                }.prependIndent("    "))
+                w.appendLine("}")
+                w.appendLine()
             }
-
-            fun writeNode(node: Node) {
-                if (node.name != "") {
-                    w.appendLine("export namespace ${node.name} {")
-                }
-
-                var text = node.text.removeSuffix("\n")
-                for (n in node.namespace.split(".")) {
-                    text = text.replace("$n.", "")
-                }
-
-                w.appendLine(text)
-
-                for (child in node.children) {
-                    writeNode(child)
-                }
-
-                if (node.name != "") w.appendLine("}")
-            }
-
-            writeNode(root)
+            w.appendLine()
         }
     }
 }
@@ -117,8 +109,10 @@ private fun GenerationContext.generateOp(
     op: Operation,
     info: CallExtension,
     registry: Map<String, ComputedType>,
+    dispatchBuilder: StringBuilder
 ) {
     val namespace = info.call.containerRef.javaClass.simpleName ?: error("Found no name for ${info.call}")
+    nsDoc[namespace] = info.call.containerRef.description ?: ""
 
     writer(namespace) {
         if (op.summary != null) {
@@ -129,79 +123,87 @@ private fun GenerationContext.generateOp(
             appendLine(" */")
             if (op.deprecated == true) appendLine("@Deprecated(\"Deprecated\")")
         }
-        appendLine("abstract fun ${info.call.name.substringBefore('.')}: ${info.call.successClass}")
-        // Hack: Delete anything after '.' to allow versioning in call ids
-        val requestType = info.requestType
-        if (requestType != null) {
-            appendLine()
-            append("    request: ")
-            buildType(requestType.asRef(), registry)
-            appendLine()
-        }
-        append("): APICallParameters<")
-        if (requestType == null) {
-            append("{}")
-        } else {
-            buildType(requestType.asRef(), registry)
-        }
 
-        val responseType = info.responseType
-        if (responseType == null) {
-            append(", {}")
-        } else {
-            append(", ")
-            buildType(responseType.asRef(), registry)
-        }
-
-        appendLine("> {")
-        appendLine("    return {")
-        appendLine("        context: \"\",")
-        appendLine("        method: \"${method.value.toUpperCase()}\",")
-        append("        path: ")
+        /*
         with(info.call.http.path) {
-            val usesParams = info.call.http.params?.parameters?.isNotEmpty() == true
-            if (usesParams) {
-                append("buildQueryString(")
-            }
-            append('"' + basePath.removeSuffix("/") + '"')
+            append("@RequestMapping(")
+            append('"' + basePath.replace(PROVIDER_ID_PLACEHOLDER, "*").removeSuffix("/"))
             for (segment in segments) {
                 when (segment) {
                     is HttpPathSegment.Simple -> {
-                        append(" + \"/")
-                        append(segment.text)
-                        append('"')
+                        append("/")
+                        append(segment.text.replace(PROVIDER_ID_PLACEHOLDER, "*"))
                     }
                 }
             }
-            if (usesParams) {
-                append(", {")
-                var isFirst = true
-                for (param in (info.call.http.params?.parameters ?: emptyList())) {
-                    when (param) {
-                        is HttpQueryParameter.Property<*> -> {
-                            if (isFirst) {
-                                isFirst = false
-                            } else {
-                                append(", ")
-                            }
+            append('"')
+            append(", method = ")
+            append("[RequestMethod.")
+            append(info.call.http.method.value.toUpperCase())
+            appendLine("])")
+        }
+        */
 
-                            append(param.property)
-                            append(": ")
-                            append("request.${param.property}")
-                        }
-                    }
+        // Hack: Delete anything after '.' to allow versioning in call ids
+        appendLine("abstract fun ${info.call.name.substringBefore('.')}(")
+
+        /*
+        val body = info.call.http.body
+        val params = info.call.http.params
+        val headers = info.call.http.headers
+        when {
+            body != null -> {
+                if (info.call.requestClass.classifier != Unit::class) {
+                    append("    ")
+                    appendLine("@RequestBody request: ${info.call.requestClass}")
                 }
-                append("})")
             }
-            appendLine(",")
-        }
-        if (requestType != null) appendLine("        parameters: request,")
-        appendLine("        reloadId: Math.random(),")
-        if (op.requestBody != null) {
-            appendLine("        payload: request,")
-        }
-        appendLine("    };")
-        appendLine("}")
 
+            params != null -> {
+                val struct = info.requestType as? ComputedType.Struct
+                struct?.properties?.forEach { (p, t) ->
+                    val type = when (t) {
+                        is ComputedType.Array -> "String"
+                        is ComputedType.Bool -> "Boolean"
+                        is ComputedType.CustomSchema -> "String"
+                        is ComputedType.Dictionary -> "String"
+                        is ComputedType.Enum -> "String" // TODO
+                        is ComputedType.FloatingPoint -> "Double"
+                        is ComputedType.Generic -> "String"
+                        is ComputedType.Integer -> "Long"
+                        is ComputedType.Struct -> "String"
+                        is ComputedType.StructRef -> "String"
+                        is ComputedType.Text -> "String"
+                        is ComputedType.Unknown -> "String"
+                    }
+
+                    append("    ")
+                    appendLine("@RequestParam ${p}: $type, ")
+                }
+            }
+
+            headers != null -> {
+                // TODO
+            }
+        }
+         */
+        append("    ")
+        appendLine("request: ${info.call.requestClass}")
+        appendLine("): ${info.call.successClass}")
+        appendLine()
+
+        with(dispatchBuilder) {
+            append('"')
+            append(info.call.fullName.replace(PROVIDER_ID_PLACEHOLDER, "*"))
+            append('"')
+            append(" -> ")
+            append(info.call.name.substringBefore('.'))
+            append("(")
+            append("request as ")
+            append(info.call.requestClass.toString())
+            appendLine(") as R")
+        }
     }
 }
+
+const val PROVIDER_ID_PLACEHOLDER = "PROVIDERID"

@@ -135,14 +135,27 @@ fun main() {
     run {
         // Provider calls
         val calls = buildList {
-            addAll(Compute("PROVIDERID").callContainer)
+            addAll(Compute(PROVIDER_ID_PLACEHOLDER).callContainer)
             addAll(JobsControl.callContainer)
         }
 
         writeSpecification(
             calls.toMutableList(),
-            File("/tmp/swagger/providers"),
-            subtitle = "Provider API"
+            File("/tmp/swagger/providers-complete"),
+            subtitle = "Provider API (UCloud and Provider)"
+        )
+    }
+
+    run {
+        // Provider API only
+        val calls = buildList {
+            addAll(Compute(PROVIDER_ID_PLACEHOLDER).callContainer)
+        }
+
+        writeSpecification(
+            calls.toMutableList(),
+            File("/tmp/swagger/providers-only"),
+            subtitle = "Provider API (Provider only)"
         )
     }
     exitProcess(0)
@@ -405,6 +418,7 @@ private fun writeSpecification(
     println("UCloud has ${typeRegistry.size} number of types")
     output.mkdirs()
     generateTypeScriptCode(output, doc, typeRegistry)
+    generateSpringMvcCode(output, doc, typeRegistry)
     if (writeMarkdown) injectMarkdownDocs(doc, typeRegistry)
     File(output, "swagger.yaml").writeText(Yaml.pretty(doc))
     File(output, "swagger.json").writeText(Json.pretty(doc))

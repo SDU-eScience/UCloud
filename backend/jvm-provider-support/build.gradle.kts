@@ -1,6 +1,9 @@
 plugins {
+    id("org.springframework.boot") version "2.4.3"
+    id("io.spring.dependency-management") version "1.0.11.RELEASE"
     kotlin("multiplatform")
     kotlin("plugin.serialization")
+    kotlin("plugin.spring") version "1.4.30"
     id("maven-publish")
 }
 
@@ -28,9 +31,13 @@ kotlin {
     sourceSets {
         val jvmMain by getting {
             dependencies {
+                val jacksonVersion = "2.11.4"
                 api(project(":integration-module-support"))
-                implementation("org.springframework.boot:spring-boot:2.4.3")
+                implementation("org.springframework.boot:spring-boot-starter")
                 implementation("org.springframework:spring-web:5.3.4")
+                implementation("org.springframework.boot:spring-boot-starter-web")
+                api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
+                api("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
             }
         }
 

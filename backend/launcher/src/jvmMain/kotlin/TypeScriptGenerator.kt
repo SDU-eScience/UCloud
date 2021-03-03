@@ -12,6 +12,7 @@ import kotlin.collections.HashSet
 
 class GenerationContext {
     val writers = HashMap<String, StringBuilder>()
+    val nsDoc = HashMap<String, String>()
 
     inline fun writer(ns: String, block: StringBuilder.() -> Unit) {
         writers.computeIfAbsent(ns, { StringBuilder() }).block()
