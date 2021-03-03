@@ -7,7 +7,7 @@ import kotlin.time.TimeSource
 
 actual fun Logger(tag: String): Logger = Log(tag)
 
-actual fun Loggable.defaultLogger(): Logger = Logger(this::class.qualifiedName ?: "?")
+actual fun Loggable.defaultLogger(): Logger = Logger(this::class.qualifiedName?.replace(".Companion", "") ?: "?")
 
 actual interface Logger {
     actual fun trace(message: String)
@@ -53,7 +53,7 @@ enum class LogLevel(val short: String) {
 
 @OptIn(ExperimentalTime::class)
 @ThreadLocal private var lastLog: TimeMark? = null
-@ThreadLocal var currentLogLevel: LogLevel = LogLevel.TRACE
+@ThreadLocal var currentLogLevel: LogLevel = LogLevel.DEBUG
 
 @OptIn(ExperimentalTime::class)
 object LogManager {
@@ -65,7 +65,7 @@ object LogManager {
 
         val duration = lastLog?.elapsedNow() ?: Duration.ZERO
         lastLog = TimeSource.Monotonic.markNow()
-        printlnWithLogColor(level, "[${level.short}/$tag ${duration}] $message")
+        printlnWithLogColor(level, "[${level.short}/${tag.split(".").last()} ${duration}] $message")
     }
 }
 
