@@ -50,6 +50,7 @@ const AppAauAdmin = React.lazy(() => import("Admin/AppAauAdmin"));
 const Demo = React.lazy(() => import("Playground/Demo"));
 const Providers = React.lazy(() => import("Admin/Providers/Providers"));
 const CreateProvider = React.lazy(() => import("Admin/Providers/Create"));
+const ViewProvider = React.lazy(() => import("Admin/Providers/View"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -132,7 +133,8 @@ const Core = (): JSX.Element => (
                     <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)} />
                     <Route exact path="/admin/appaau" component={requireAuth(AppAauAdmin)} />
                     <Route exact path="/admin/providers" component={requireAuth(Providers)} />
-                    <Route exact path="/admin/providers/Create" component={requireAuth(CreateProvider)} />
+                    <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
+                    <Route exact path="/admin/providers/:id" component={requireAuth(ViewProvider)} />
 
                     <Route exact path="/news/detailed/:id" component={DetailedNews} />
                     <Route exact path="/news/list/:filter?" component={NewsList} />

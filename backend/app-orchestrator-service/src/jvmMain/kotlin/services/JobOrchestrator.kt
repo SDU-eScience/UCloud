@@ -154,14 +154,23 @@ class JobOrchestrator(
 
             // Prepare job folders (needs to happen before database insertion)
             for ((index, jobWithToken) in verifiedJobs.withIndex()) {
-                val jobFolder = jobFileService.initializeResultFolder(jobWithToken)
-                val newJobWithToken = jobWithToken.copy(
-                    job = jobWithToken.job.copy(
-                        output = JobOutput(jobFolder.path)
+                try {
+                    val jobFolder = jobFileService.initializeResultFolder(jobWithToken)
+                    val newJobWithToken = jobWithToken.copy(
+                        job = jobWithToken.job.copy(
+                            output = JobOutput(jobFolder.path)
+                        )
                     )
-                )
-                verifiedJobs[index] = newJobWithToken
-                jobFileService.exportParameterFile(jobFolder.path, newJobWithToken, parameters[index])
+                    verifiedJobs[index] = newJobWithToken
+                    jobFileService.exportParameterFile(jobFolder.path, newJobWithToken, parameters[index])
+                } catch (ex: RPCException) {
+                    if (ex.httpStatusCode == HttpStatusCode.PaymentRequired &&
+                        jobWithToken.job.specification.product.provider == "aau") {
+                        log.warn("Silently ignoring lack of credits in storage due to temporary aau integration")
+                    } else {
+                        throw ex
+                    }
+                }
             }
 
             // Insert into databases
@@ -661,9 +670,9 @@ class JobOrchestrator(
         if (jobId != null && provider != null) throw IllegalArgumentException("jobId and provider != null")
 
         val providerId = provider ?: jobQueryService.retrieve(actor,
-                project,
-                jobId!!,
-                JobDataIncludeFlags()).job.specification.product.provider
+            project,
+            jobId!!,
+            JobDataIncludeFlags()).job.specification.product.provider
 
         val (api, client) = providers.prepareCommunication(providerId)
         val response = api.retrieveUtilization.call(Unit, client).orThrow()
@@ -679,7 +688,10 @@ class JobOrchestrator(
         return JobsRetrieveProductsTemporaryResponse(
             providerIds.map { provider ->
                 val comm = providers.prepareCommunication(provider)
-                provider to comm.api.retrieveProductsTemporary.call(Unit, comm.client).orThrow()
+                provider to (
+                    comm.api.retrieveProductsTemporary.call(Unit, comm.client).orNull()
+                        ?: ComputeRetrieveProductsTemporaryResponse(emptyList())
+                    )
             }.toMap()
         )
     }

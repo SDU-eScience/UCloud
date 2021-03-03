@@ -1,5 +1,7 @@
 package dk.sdu.cloud.elastic.management.services
 
+import dk.sdu.cloud.calls.RPCException
+import io.ktor.http.*
 import org.apache.http.util.EntityUtils
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
@@ -53,7 +55,6 @@ internal fun getListOfIndices(elastic: RestHighLevelClient, indexRegex: String):
     } catch (ex: ElasticsearchStatusException) {
         emptyList()
     }
-
 }
 
 internal fun flushIndex(elastic: RestHighLevelClient, index: String) {
@@ -66,18 +67,27 @@ internal fun getAllLogNamesWithPrefix(
     prefix: String,
     delimiter: String = "-"
 ): List<String> {
-    val listOfIndices = elastic.indices()
+    return elastic.indices()
         .get(GetIndexRequest("$prefix*"), RequestOptions.DEFAULT)
-        .indices.toList()
+        .indices
+        .toList().map { index ->
+            if (!index.contains(delimiter)) {
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError, "Weird formatting missing: '$delimiter'")
+            }
+            index.substring(0, index.indexOf(delimiter))
+        }.distinct()
+}
 
-    val httpLogNames = mutableSetOf<String>()
-    listOfIndices.forEach {
-        if (it.indexOf("-") != -1) {
-            httpLogNames.add(it.substring(0, it.indexOf(delimiter)))
-        }
-    }
-
-    return httpLogNames.toList()
+internal fun getAllLogNamesWithPrefixForDate(
+    elastic: RestHighLevelClient,
+    prefix: String,
+    dateInStringFormat: String,
+): List<String> {
+    return elastic.indices()
+        .get(GetIndexRequest("$prefix*${dateInStringFormat}*"), RequestOptions.DEFAULT)
+        .indices
+        .toList()
 }
 
 internal fun getDocumentCountSum(indices: List<String>, lowClient: RestClient): Int {
@@ -101,11 +111,11 @@ internal fun getShardCount(index: String, elastic: RestHighLevelClient): Int {
         .toInt()
 }
 
-internal fun getAllEmptyIndices(elastic: RestHighLevelClient, lowClient: RestClient): List<String> {
-    val allIndices = elastic.indices().get(GetIndexRequest("*"), RequestOptions.DEFAULT).indices.toList()
+internal fun getAllEmptyIndicesWithRegex(elastic: RestHighLevelClient, lowClient: RestClient, regex: String): List<String> {
+    val allLogIndices = elastic.indices().get(GetIndexRequest(regex), RequestOptions.DEFAULT).indices.toList()
     val emptyIndices = mutableListOf<String>()
     try {
-        allIndices.forEach {
+        allLogIndices.forEach {
             val response = lowClient.performRequest(Request("GET", "/_cat/count/$it"))
             val responseInfo = EntityUtils.toString(response.entity).split(" ").filter { it != "" }
             val size = responseInfo[2].trim().toInt()

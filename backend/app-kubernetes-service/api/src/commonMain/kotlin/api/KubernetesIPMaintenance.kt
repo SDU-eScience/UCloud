@@ -12,7 +12,7 @@ object KubernetesNetworkIP : NetworkIPProvider(UCLOUD_PROVIDER)
 @Serializable
 data class K8NetworkStatus(val capacity: Long, val used: Long)
 @Serializable
-data class K8Subnet(val cidr: String)
+data class K8Subnet(val externalCidr: String, val internalCidr: String)
 typealias KubernetesIPMaintenanceCreateRequest = BulkRequest<K8Subnet>
 typealias KubernetesIPMaintenanceCreateResponse = Unit
 

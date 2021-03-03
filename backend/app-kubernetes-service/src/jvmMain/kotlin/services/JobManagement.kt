@@ -87,7 +87,7 @@ class JobManagement(
     private val db: DBContext,
     private val sessions: SessionDao,
     private val disableMasterElection: Boolean = false,
-    private val fullScanFrequency: Long = 1000L * 60 * 15,
+    private val fullScanFrequency: Long = 1000L * 60 * 5,
 ) {
     private val plugins = ArrayList<JobManagementPlugin>()
 

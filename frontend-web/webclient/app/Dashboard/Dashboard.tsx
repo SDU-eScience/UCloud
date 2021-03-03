@@ -82,7 +82,7 @@ export const DashboardCard: React.FunctionComponent<{
         minHeight={minHeight}
     >
         <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
-        <Box px={3} py={1} height={"100%"} className={"dashboard-card-inner"}>
+        <Box px={3} py={1} height={"calc(100% - 5px)"} >
             <Flex alignItems="center">
                 {icon !== undefined ? (
                     <Icon
@@ -229,9 +229,8 @@ const DashboardFavoriteFiles = ({files, isLoading, favorite, error}: {
             <NoResultsCardBody title="No favorite files">
                 <Text>
                     Click the <Icon name="starEmpty" /> next to one of your files to mark it as a favorite.
-                    All of your favorite files will appear here.
                     <Link to={fileTablePage(Client.activeHomeFolder)}>
-                        <Button fullWidth mt={8}>Explore files</Button>
+                        <Button fullWidth mt={16}>Explore files</Button>
                     </Link>
                 </Text>
             </NoResultsCardBody>
@@ -468,7 +467,7 @@ function DashboardResources({products, loading, quota}: {
     });
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     const applyLinkButton = <Link to={"/project/grants-landing"}>
-        <Button fullWidth>Apply for resources</Button>
+        <Button fullWidth mb={"4px"}>Apply for resources</Button>
     </Link>;
 
     return (
@@ -487,7 +486,8 @@ function DashboardResources({products, loading, quota}: {
                 </NoResultsCardBody>
             ) :
                 <>
-                    <Flex flexDirection="column" height={"calc(100% - 60px)"}>
+                    {/* height is 100% - height of Heading 36px  */}
+                    <Flex flexDirection="column" height={"calc(100% - 36px)"}>
                         <Box mx="8px" my="5px">
                             <Table>
                                 <tbody>

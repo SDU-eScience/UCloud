@@ -265,7 +265,7 @@ const ProjectDashboardGrid = styled(GridCardGroup)`
         cursor: pointer;
         transition: transform 0.2s;
         &:hover {
-            transform: scale(1.02);
+            transform: translateY(-2px);
         }
     }
 `;

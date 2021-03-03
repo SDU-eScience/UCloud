@@ -1,4 +1,4 @@
-version = "1.3.0-rc1"
+version = "1.3.0"
 
 application {
     mainClassName = "dk.sdu.cloud.alerting.MainKt"

@@ -283,7 +283,8 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                         </LoginText>
                                     )}
                                 >
-                                    <LoginBox color="red" width="100%">
+                                    {/* add 17px to width to compensate for negative margin */}
+                                    <LoginBox color="red" width="calc(100% + 17px)">
                                         <form onSubmit={preventDefault}>
                                             <Login
                                                 enabled2fa={!!challengeId}
@@ -555,7 +556,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         </Absolute>
 
 
-        <Absolute style={{overflowY: "hidden"}} bottom="0" height="50%" width="100%">
+        <Absolute style={{overflow: "hidden"}} bottom="0" height="50%" width="100%">
             <BG1 selection={props.selection} />
             <Absolute bottom={0} left="calc(50% - 280px)" width="calc(100% - 150px)">
                 <Image width={"150px"} src={aalborgu_logo} />

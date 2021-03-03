@@ -1,6 +1,6 @@
 import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {PRODUCT_NAME} from "../../../site.config.json";
+import CONF from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
@@ -23,7 +23,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute, file, accounting} from "UCloud";
+import {compute, file} from "UCloud";
 import Job = compute.Job;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -35,31 +35,22 @@ import {useProjectStatus} from "Project/cache";
 import {ProjectName} from "Project";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import StorageFile = file.StorageFile;
 import {File} from "Files";
 import JobSpecification = compute.JobSpecification;
 import { retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import { addStandardDialog } from "UtilityComponents";
 import {bulkRequestOf} from "DefaultObjects";
+import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
+import {addStandardDialog} from "UtilityComponents";
 
 const enterAnimation = keyframes`${anims.pulse}`;
 const busyAnim = keyframes`${anims.fadeIn}`;
+const zoomInAnim = keyframes`${anims.zoomIn}`;
 
 const Container = styled.div`
   --logoScale: 1;
   --logoBaseSize: 200px;
   --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
-
-  --logoPX: 50px;
-  --logoPY: 50px;
-
-  /* NOTE(Dan): 14px are added by MainContainer and sidebar */
-  --logoIndentX: calc(var(--sidebarWidth) + var(--logoPX) + 14px);
-  --logoIndentY: calc(var(--headerHeight) + var(--logoPY) + 14px);
-
-  /* center while accounting for the frame */
-  --logoCenterX: calc((100vw + var(--sidebarWidth) - var(--logoSize)) / 2);
-  --logoCenterY: calc((100vh + var(--headerHeight) - var(--logoSize)) / 2);
 
   margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
   max-width: 2200px;
@@ -72,29 +63,24 @@ const Container = styled.div`
   & {
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .logo-wrapper {
     position: absolute;
-
-    left: var(--logoCenterX);
-    top: var(--logoCenterY);
+    left: 0;
+    top: 0;
+    animation: 800ms ${zoomInAnim};
   }
 
   .logo-wrapper.active {
-    transition: all 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-    transform: translate3d(calc(-1 * var(--logoCenterX) + var(--logoIndentX)),
-    calc(-1 * var(--logoCenterY) + var(--logoIndentY)),
-    0);
+    transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
   .logo-wrapper.active .logo-scale {
     transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
-    transform: scale3d(var(--logoScale),
-    var(--logoScale),
-    var(--logoScale)) translate3d(calc(var(--logoBaseSize) / (1 / var(--logoScale)) - var(--logoBaseSize)),
-    calc(var(--logoBaseSize) / (1 / var(--logoScale)) - var(--logoBaseSize)),
-    0);
+    transform: scale(var(--logoScale));
+    transform-origin: top left;
   }
 
   .fake-logo {
@@ -135,7 +121,6 @@ const Container = styled.div`
     margin-left: 32px;
     margin-top: calc(var(--logoScale) * 16px);
     width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
-    max-width: 1572px; /* TODO(Dan): Hackity, hack, hack */
   }
 
   ${deviceBreakpoint({maxWidth: "1000px"})} {
@@ -143,8 +128,8 @@ const Container = styled.div`
       width: 100%; /* force the header to wrap */
     }
 
-    & {
-      --logoIndentX: var(--logoCenterX);
+    .logo-wrapper {
+      left: calc(50% - var(--logoSize) / 2);
     }
 
     .header {
@@ -167,8 +152,8 @@ const Container = styled.div`
   }
 
   .top-buttons {
-      display: flex;
-      gap: 8px;
+    display: flex;
+    gap: 8px;
   }
 `;
 
@@ -190,7 +175,6 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
                     call: "jobs.follow",
                     payload: {id: job.id},
                     handler: message => {
-                        console.log("Receiving new message", message);
                         const streamEntry = message.payload as JobsFollowResponse;
                         callback(streamEntry);
                     }
@@ -263,20 +247,28 @@ export const View: React.FunctionComponent = () => {
                 const extend = await new Promise(resolve => addStandardDialog({
                     title: "Extend job beyond balance?",
                     message: <>
-                        <Box mb="20px">You are trying to extend the allocation of the job beyond your current funds.</Box>
+                        <Box mb="20px">You are trying to extend the allocation of the job beyond your current
+                            funds.</Box>
                         <Box><b>Current balance:</b> {creditFormatter(wallet.balance)}</Box>
                         <Box><b>New estimated cost for finishing the job:</b> {creditFormatter(needed)}</Box>
-                        <Box mt="20px">You are allowed to do so, but your job will be terminated without warning when your balance reaches 0 DKK.</Box>
+                        <Box mt="20px">You are allowed to do so, but your job will be terminated without warning when
+                            your balance reaches 0 DKK.</Box>
                     </>,
                     confirmText: "Extend allocation",
                     cancelText: "Cancel",
-                    onConfirm: () => { resolve(true) },
-                    onCancel: () => { resolve(false) }
+                    onConfirm: () => {
+                        resolve(true)
+                    },
+                    onCancel: () => {
+                        resolve(false)
+                    }
                 }));
 
                 setShowInsufficientFundsWarning(false);
 
-                if (!extend) { return false }
+                if (!extend) {
+                    return false
+                }
             }
         }
         return true;
@@ -367,7 +359,8 @@ export const View: React.FunctionComponent = () => {
                 <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
                     <div className="logo-scale">
                         <div className={"logo"}>
-                            <AppToolLogo name={job?.specification?.application?.name ?? appNameHint} type={"APPLICATION"}
+                            <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
+                                type={"APPLICATION"}
                                 size={"200px"} />
                         </div>
                     </div>
@@ -474,7 +467,7 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     }, [status]);
 
     return <>
-        <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
+        <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
             {job.specification.name ?
                 (<>
@@ -522,7 +515,8 @@ const Busy: React.FunctionComponent<{
             <Box mb={"16px"}>
                 {clusterUtilization > 80 ? (
                     <>
-                        Due to high resource utilization, it might take longer than normal to prepare the machine you requested.<br />
+                        Due to high resource utilization, it might take longer than normal to prepare the machine you
+                        requested.<br />
                         {utilization ? (
                             <>
                                 Cluster utilization is currently at {clusterUtilization}%
@@ -613,10 +607,10 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             null :
             <InfoCard
                 stat={prettyTime}
-                statTitle={"Allocated"}
+                statTitle={["SUCCESS", "EXPIRED"].includes(job.status.state) ? "Used" : "Allocated"}
                 icon={"hourglass"}
             >
-                {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br/></>}
+                {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
                 <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
             </InfoCard>
         }
@@ -773,24 +767,18 @@ const RunningContent: React.FunctionComponent<{
     const projectNames = getProjectNames(useProjectStatus());
 
     const calculateTimeLeft = (expiresAt: number | undefined) => {
-        if (!expiresAt) {
-            return {
-                hours: 0,
-                minutes: 0,
-                seconds: 0
-            }
-        }
+        if (!expiresAt) return {hours: 0, minutes: 0, seconds: 0};
 
         const now = new Date().getTime();
         const difference = expiresAt - now;
+
+        if (difference < 0) return {hours: 0, minutes: 0, seconds: 0};
 
         return {
             hours: Math.floor(difference / 1000 / 60 / 60),
             minutes: Math.floor((difference / 1000 / 60) % 60),
             seconds: Math.floor((difference / 1000) % 60)
-
         }
-
     }
 
     const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
@@ -838,7 +826,7 @@ const RunningContent: React.FunctionComponent<{
                         }
 
 
-                        <Box flexGrow={1}/>
+                        <Box flexGrow={1} />
 
                         {!expiresAt ? null :
                             <Box>
@@ -998,7 +986,8 @@ const RunningJobRank: React.FunctionComponent<{
                 <div className={"term"} ref={termRef} />
 
                 {job.specification.replicas === 1 ? null : (
-                    <RunningButtonGroup job={job} rank={rank} expanded={expanded} toggleExpand={toggleExpand}></RunningButtonGroup>
+                    <RunningButtonGroup job={job} rank={rank} expanded={expanded}
+                        toggleExpand={toggleExpand}></RunningButtonGroup>
                 )}
             </RunningJobRankWrapper>
         </DashboardCard>
@@ -1095,20 +1084,20 @@ const RunningButtonGroup: React.FunctionComponent<{
     return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
         {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
             "VIRTUAL_MACHINE" ? null : (
-            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                e.preventDefault();
+                <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
+                    e.preventDefault();
 
-                window.open(
-                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                    undefined,
-                    "width=800,height=600,status=no"
-                );
-            }}>
-                <Button type={"button"}>
-                    Open terminal
+                    window.open(
+                        ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                        undefined,
+                        "width=800,height=600,status=no"
+                    );
+                }}>
+                    <Button type={"button"}>
+                        Open terminal
                 </Button>
-            </Link>
-        )}
+                </Link>
+            )}
         {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
                 <Button>Open interface</Button>

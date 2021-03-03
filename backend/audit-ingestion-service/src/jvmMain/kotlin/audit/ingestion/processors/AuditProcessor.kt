@@ -43,6 +43,9 @@ class AuditProcessor(
                     runCatching {
                         val tree = defaultMapper.decodeFromString<JsonObject>(document)
                         val requestName = (tree["requestName"] as JsonPrimitive).content
+                        if (requestName == "healthcheck.status") {
+                            return@runCatching null
+                        }
                         val newTree = buildJsonObject {
                             for (e in tree) {
                                 put(e.key, e.value)
@@ -56,7 +59,7 @@ class AuditProcessor(
                 }
                 .groupBy { (requestName, _) -> requestName }
                 .flatMap { (requestName, batch) ->
-                    val dateSuffix = LocalDate.now().format(DateTimeFormatter.ofPattern("YYYY.MM.dd"))
+                    val dateSuffix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
                     val indexName = "http_logs_$requestName-$dateSuffix".toLowerCase()
 
                     log.trace("Inserting ${batch.size} elements into $indexName")

@@ -52,6 +52,12 @@ class JobVerificationService(
             throw JobException.VerificationError("Bad client request. Missing parameters or resources.")
         }
 
+        if (unverifiedJob.request.timeAllocation != null) {
+            if (unverifiedJob.request.timeAllocation!!.toMillis() <= 0) {
+                throw JobException.VerificationError("Time allocated for job is too short.")
+            }
+        }
+
         // Check provider support
         val (provider, manifest) = providers.fetchManifest(unverifiedJob.request.product.provider)
         run {

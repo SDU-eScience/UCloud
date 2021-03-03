@@ -225,6 +225,25 @@ typealias FetchDataManagementPlanRequest = Unit
 @Serializable
 data class FetchDataManagementPlanResponse(val dmp: String? = null)
 
+interface ProjectIncludeFlags {
+    val includeFullPath: Boolean?
+}
+
+@Serializable
+data class ProjectSearchByPathRequest(
+    val path: String,
+    override val itemsPerPage: Int?,
+    override val next: String?,
+    override val consistency: PaginationRequestV2Consistency?,
+    override val itemsToSkip: Long?,
+
+    override val includeFullPath: Boolean?
+
+): WithPaginationRequestV2, ProjectIncludeFlags
+
+typealias ProjectSearchByPathResponse = PageV2<Project>
+
+
 @TSTopLevel
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
@@ -927,4 +946,11 @@ object Projects : CallDescriptionContainer("project") {
                 }
             }
         }
+
+    val search = call<ProjectSearchByPathRequest, ProjectSearchByPathResponse, CommonErrorMessage>("search") {
+        httpSearch(
+            baseContext = baseContext,
+            roles = Roles.PRIVILEGED
+        )
+    }
 }

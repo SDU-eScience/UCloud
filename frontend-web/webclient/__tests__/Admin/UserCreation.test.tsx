@@ -1,5 +1,3 @@
-import {configure} from "enzyme";
-import * as Adapter from "enzyme-adapter-react-16";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
@@ -9,8 +7,6 @@ import UserCreation from "../../app/Admin/UserCreation";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
 import {render, screen, fireEvent} from "@testing-library/react";
-
-configure({adapter: new Adapter()});
 
 const userCreation = () => (
     <Provider store={store}>

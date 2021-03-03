@@ -2,13 +2,9 @@ package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
@@ -206,6 +202,13 @@ data class SingleTransferRequest(
 
 typealias TransferToPersonalResponse = Unit
 
+data class RetrieveWalletsForProjectsRequest(
+    val projectIds: List<String>
+)
+
+typealias RetrieveWalletsForProjectsResponse = List<Wallet>
+
+
 object Wallets : CallDescriptionContainer("wallets") {
     const val baseContext = "/api/accounting/wallets"
 
@@ -362,4 +365,26 @@ object Wallets : CallDescriptionContainer("wallets") {
             body { bindEntireRequestFromBody() }
         }
     }
+
+    val retrieveWalletsFromProjects =
+        call<RetrieveWalletsForProjectsRequest,
+            RetrieveWalletsForProjectsResponse,
+            CommonErrorMessage>("retrieveWalletsFromProjects")
+        {
+            auth {
+                access = AccessRight.READ
+                roles = Roles.PRIVILEGED
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"retrieveWallets"
+                }
+
+                body { bindEntireRequestFromBody()}
+            }
+        }
 }

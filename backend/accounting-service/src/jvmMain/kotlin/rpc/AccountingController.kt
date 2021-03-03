@@ -111,6 +111,14 @@ class AccountingController(
             ok(Unit)
         }
 
+        implement(Wallets.retrieveWalletsFromProjects) {
+            val results = balance.retrieveWalletsForProjects(db, request.projectIds)
+
+            ok(
+                results
+            )
+        }
+
         return@with
     }
 }

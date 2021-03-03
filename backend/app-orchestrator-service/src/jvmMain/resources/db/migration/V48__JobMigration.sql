@@ -164,7 +164,7 @@ begin
                     job.application_name,
                     job.application_version,
                     job.reserved_price_per_unit,
-                    (job.max_time_hours * 3600 * 1000) + (job.max_time_minutes * 60 * 1000) +
+                    (job.max_time_hours::bigint * 3600 * 1000) + (job.max_time_minutes * 60 * 1000) +
                     (job.max_time_seconds * 1000),
                     coalesce(job.credits_charged, 0),
                     job.reserved_provider,

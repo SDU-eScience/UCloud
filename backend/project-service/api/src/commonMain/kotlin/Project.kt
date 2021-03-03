@@ -7,7 +7,8 @@ data class Project(
     val id: String,
     val title: String,
     val parent: String? = null,
-    val archived: Boolean
+    val archived: Boolean,
+    val fullPath: String? = null
 )
 
 @Serializable

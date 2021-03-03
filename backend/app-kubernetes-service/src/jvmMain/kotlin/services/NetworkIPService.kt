@@ -3,6 +3,10 @@ package dk.sdu.cloud.app.kubernetes.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.app.kubernetes.api.K8Subnet
 import dk.sdu.cloud.app.kubernetes.api.K8NetworkStatus
+import dk.sdu.cloud.app.kubernetes.services.IpUtils.formatIpAddress
+import dk.sdu.cloud.app.kubernetes.services.IpUtils.isSafeToUse
+import dk.sdu.cloud.app.kubernetes.services.IpUtils.remapAddress
+import dk.sdu.cloud.app.kubernetes.services.IpUtils.validateCidr
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
@@ -20,6 +24,7 @@ import dk.sdu.cloud.service.k8.Volume
 import io.ktor.http.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlin.math.log2
 
 object BoundNetworkIPTable : SQLTable("bound_network_ips") {
     val networkIpId = text("network_ip_id")
@@ -28,11 +33,13 @@ object BoundNetworkIPTable : SQLTable("bound_network_ips") {
 
 object NetworkIPTable : SQLTable("network_ips") {
     val id = text("id")
-    val ipAddress = text("ip_address")
+    val externalIpAddress = text("external_ip_address")
+    val internalIpAddress = text("internal_ip_address")
 }
 
 object NetworkIPPoolTable : SQLTable("network_ip_pool") {
-    val cidr = text("cidr")
+    val externalCidr = text("external_cidr")
+    val internalCidr = text("internal_cidr")
 }
 
 class NetworkIPService(
@@ -61,13 +68,19 @@ class NetworkIPService(
             ).orThrow()
 
             for (network in networks.items) {
-                val ipAddress: String = findAddressFromPool(session)
+                val ipAddress: Address = findAddressFromPool(session)
                 session.insert(NetworkIPTable) {
                     set(NetworkIPTable.id, network.id)
-                    set(NetworkIPTable.ipAddress, ipAddress)
+                    set(NetworkIPTable.externalIpAddress, formatIpAddress(ipAddress.externalAddress))
+                    set(
+                        NetworkIPTable.internalIpAddress,
+                        formatIpAddress(
+                            remapAddress(ipAddress.externalAddress, ipAddress.externalSubnet, ipAddress.internalSubnet)
+                        )
+                    )
                 }
 
-                allocatedAddresses.add(IdAndIp(network.id, ipAddress))
+                allocatedAddresses.add(IdAndIp(network.id, formatIpAddress(ipAddress.externalAddress)))
             }
         }
 
@@ -131,11 +144,14 @@ class NetworkIPService(
 
             session.sendPreparedStatement(
                 { setParameter("networkIds", networks.map { it.id }) },
-                "select id, ip_address from app_kubernetes.network_ips where id in (select unnest(:networkIds::text[]))"
+                """
+                    select id, internal_ip_address 
+                    from app_kubernetes.network_ips 
+                    where id in (select unnest(:networkIds::text[]))
+                """
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
         }
 
-        // TODO See pubip deployment on UCloud dev
         val volName = "ipman"
 
         val podSpec = builder.spec?.tasks?.first()?.template?.spec
@@ -207,7 +223,7 @@ class NetworkIPService(
         ctx.withSession { session ->
             validateCidr(cidr)
             session.insert(NetworkIPPoolTable) {
-                set(NetworkIPPoolTable.cidr, cidr)
+                set(NetworkIPPoolTable.externalCidr, cidr)
             }
         }
     }
@@ -223,22 +239,22 @@ class NetworkIPService(
             create = { session ->
                 session.sendPreparedStatement(
                     {},
-                    "declare c cursor for select cidr from app_kubernetes.network_ip_pool"
+                    "declare c cursor for select external_cidr, internal_cidr from app_kubernetes.network_ip_pool"
                 )
             },
             mapper = { _, results ->
-                results.map { K8Subnet(it.getString(0)!!) }
+                results.map { K8Subnet(it.getString(0)!!, it.getString(1)!!) }
             },
         )
     }
 
     private suspend fun retrieveStatus(ctx: DBContext): K8NetworkStatus {
         return ctx.withSession { session ->
-            val subnets = session.sendPreparedStatement({}, "select cidr from network_ip_pool").rows
+            val subnets = session.sendPreparedStatement({}, "select external_cidr from network_ip_pool").rows
                 .map { it.getString(0)!! }.mapNotNull { runCatching { validateCidr(it) }.getOrNull() }
 
             val capacity = subnets.sumBy { it.last - it.first + 1 }
-            val used = session.sendPreparedStatement({}, "select count(ip_address) from network_ips").rows
+            val used = session.sendPreparedStatement({}, "select count(external_ip_address) from network_ips").rows
                 .singleOrNull()?.getLong(0) ?: 0L
 
             K8NetworkStatus(capacity.toLong(), used)
@@ -250,21 +266,43 @@ class NetworkIPService(
         return status.capacity - status.used
     }
 
-    private suspend fun findAddressFromPool(ctx: DBContext): String {
+    private data class Address(
+        val externalAddress: Int,
+        val externalSubnet: IntRange,
+        val internalSubnet: IntRange,
+    )
+
+    private suspend fun findAddressFromPool(ctx: DBContext): Address {
         return ctx.withSession { session ->
-            val subnets = session.sendPreparedStatement({}, "select cidr from network_ip_pool").rows
-                .map { it.getString(0)!! }.mapNotNull { runCatching { validateCidr(it) }.getOrNull() }
+            val subnets = session
+                .sendPreparedStatement(
+                    {},
+                    "select external_cidr, internal_cidr from network_ip_pool"
+                )
+                .rows
+                .map { K8Subnet(it.getString(0)!!, it.getString(1)!!) }
+                .mapNotNull {
+                    runCatching {
+                        validateCidr(it.externalCidr) to validateCidr(it.internalCidr)
+                    }.getOrNull()
+                }
 
             while (true) {
                 // This is probably a really stupid idea. I am sorry.
 
-                val randomAddresses = HashSet<Int>()
-                repeat(100) { randomAddresses.add(subnets.random().random()) }
+                val randomAddresses = HashSet<Address>()
+                repeat(100) {
+                    val (external, internal) = subnets.random()
+                    val addr = external.random()
+                    if (isSafeToUse(addr)) {
+                        randomAddresses.add(Address(addr, external, internal))
+                    }
+                }
 
                 val guess = session
                     .sendPreparedStatement(
                         {
-                            setParameter("guesses", randomAddresses.map { formatIpAddress(it) })
+                            setParameter("guesses", randomAddresses.map { formatIpAddress(it.externalAddress) })
                         },
                         """
                             with potential_addresses as (
@@ -273,13 +311,17 @@ class NetworkIPService(
                             
                             select guess 
                             from potential_addresses 
-                            where guess not in (select ip_address from network_ips)
+                            where guess not in (select external_ip_address from network_ips)
                             limit 1
                         """
                     )
                     .rows.map { it.getString(0)!! }.singleOrNull()
 
-                if (guess != null) return@withSession guess
+                if (guess != null) {
+                    val addr = validateCidr("$guess/32").first
+                    val result = randomAddresses.find { it.externalAddress == addr }
+                    if (result != null) return@withSession result
+                }
             }
 
             @Suppress("UNREACHABLE_CODE")
@@ -287,7 +329,15 @@ class NetworkIPService(
         }
     }
 
-    private fun validateCidr(cidr: String): IntRange {
+    companion object : Loggable {
+        override val log = logger()
+    }
+}
+
+object IpUtils {
+    private val cidrRegex = Regex("""\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?/\d\d?""")
+
+    fun validateCidr(cidr: String): IntRange {
         if (!cidrRegex.matches(cidr)) {
             throw RPCException("cidr '$cidr' is not valid", HttpStatusCode.BadRequest)
         }
@@ -314,7 +364,18 @@ class NetworkIPService(
         return (min..max)
     }
 
-    private fun formatIpAddress(addr: Int): String {
+    fun remapAddress(address: Int, sourceSubnet: IntRange, destinationSubnet: IntRange): Int {
+        val sourceSize = sourceSubnet.last - sourceSubnet.first + 1
+        val destSize = destinationSubnet.last - destinationSubnet.first + 1
+        require(sourceSize == destSize) { "Source subnet must be the same size as the destination subnet" }
+
+        val subnetSizeInBits = log2(sourceSize.toDouble()).toInt()
+        val mask = (1 shl subnetSizeInBits) - 1
+
+        return (destinationSubnet.first and mask.inv()) or (address and mask)
+    }
+
+    fun formatIpAddress(addr: Int): String {
         return buildString {
             append((addr shr 24) and 0xFF)
             append('.')
@@ -326,9 +387,7 @@ class NetworkIPService(
         }
     }
 
-    companion object : Loggable {
-        override val log = logger()
-
-        private val cidrRegex = Regex("""\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?/\d\d?""")
+    fun isSafeToUse(addr: Int): Boolean {
+        return (addr and 0xFFFF) != 1 && (addr and 0xFFFF) != 255
     }
 }

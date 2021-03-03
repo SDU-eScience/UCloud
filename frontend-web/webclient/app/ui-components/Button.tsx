@@ -81,7 +81,7 @@ const Button = styled.button<ButtonProps>`
   }
 
   &:hover {
-    transform: scale(1.03);
+    transform: translateY(-2px);
   }
 
   ${attached} ${asSquare} ${fullWidth} ${size} ${space} ${height} ${width};

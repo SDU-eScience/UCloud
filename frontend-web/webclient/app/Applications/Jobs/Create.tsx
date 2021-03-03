@@ -40,6 +40,7 @@ interface InsufficientFunds {
 
 export const Create: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
+
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
@@ -208,7 +209,15 @@ export const Create: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Runs);
     useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
 
-    if (application === null) return <MainContainer main={<LoadingIcon size={36} />} />;
+    if (applicationResp.loading === null) return <MainContainer main={<LoadingIcon size={36} />} />;
+
+    if (application == null) {
+        return (
+            <MainContainer
+                main={<Heading.h3>Unable to find application &apos;{appName} v{appVersion}&apos;</Heading.h3>}
+            />
+        );
+    }
 
     const mandatoryParameters = application.invocation!.parameters.filter(it =>
         !it.optional
@@ -223,11 +232,9 @@ export const Create: React.FunctionComponent = () => {
     );
 
     return <MainContainer
-        headerSize={48}
+        headerSize={92}
         header={
-            <Flex mx={["0px", "0px", "0px", "0px", "0px", "50px"]}>
-                <AppHeader slim application={application} />
-            </Flex>
+            <AppHeader slim application={application} />
         }
         sidebar={
             <VerticalButtonGroup>
@@ -299,7 +306,7 @@ export const Create: React.FunctionComponent = () => {
                             <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                 {mandatoryParameters.map(param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            active />
+                                        active />
                                 ))}
                             </Grid>
                         </Box>

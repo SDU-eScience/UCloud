@@ -1,6 +1,11 @@
 package dk.sdu.cloud.project.services
 
+import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.offset
@@ -26,6 +31,46 @@ data class ProjectForVerification(
 class QueryService(
     private val projects: ProjectService
 ) {
+    suspend fun searchProjectPaths(ctx: DBContext, actor: Actor, flags: ProjectIncludeFlags, request: ProjectSearchByPathRequest): PageV2<Project> {
+        val role = if (actor is Actor.User) actor.principal.role else Role.USER
+        if (role !in Roles.ADMIN) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "User not admin")
+        }
+        return ctx.paginateV2(
+            actor,
+            request.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("query", request.path)
+                    },
+                    """
+                    SELECT *
+                    FROM projects
+                    WHERE title LIKE '%' || :query || '%'
+                """
+                )
+            },
+            mapper = { session, rows -> mapProjects(rows, actor, flags, session) }
+        )
+    }
+
+    suspend fun mapProjects(
+        rows: ResultSet,
+        actor: Actor,
+        flags: ProjectIncludeFlags,
+        session: AsyncDBConnection
+    ): List<Project> {
+        var projects = rows.map { it.toProject() }
+        if (flags.includeFullPath == true) {
+            projects = projects.map { project ->
+                val path = viewAncestors(session, actor, project.id).joinToString("/")
+                project.copy(fullPath = path)
+            }
+        }
+        return projects
+    }
+
     suspend fun isMemberOfGroup(
         ctx: DBContext,
         queries: List<IsMemberQuery>

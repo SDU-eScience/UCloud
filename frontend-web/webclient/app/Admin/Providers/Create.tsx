@@ -1,5 +1,6 @@
 import {useInput} from "Admin/LicenseServers";
 import {useCloudCommand} from "Authentication/DataHook";
+import {Client} from "Authentication/HttpClientInstance";
 import MainContainer from "MainContainer/MainContainer";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
@@ -25,6 +26,8 @@ function Create(): JSX.Element | null {
 
     const dEnabled = dockerSettings.enabled;
     const vmEnabled = virtualMachineSettings.enabled;
+
+    if (!Client.userIsAdmin) return null;
 
     return <MainContainer
         main={<Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
@@ -66,7 +69,7 @@ function Create(): JSX.Element | null {
             </Label>
             <Label>
                 <Checkbox disabled={!dEnabled} onClick={() => setDocker(s => ({...s, terminal: !s.terminal}))} checked={dockerSettings.terminal && dEnabled} onChange={e => e} />
-                Peers: Flag to enable/disable the interactive terminal API
+                Terminal: Flag to enable/disable the interactive terminal API
             </Label>
             <Label>
                 <Checkbox disabled={!dEnabled} onClick={() => setDocker(s => ({...s, vnc: !s.vnc}))} checked={dockerSettings.vnc && dEnabled} onChange={e => e} />

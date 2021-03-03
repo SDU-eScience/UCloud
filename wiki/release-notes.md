@@ -7,6 +7,124 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 02-03-21
+
+```
+✅  Deployment(webclient, 0.42.3) (UP-TO-DATE)
+```
+
+## 01-03-21
+Issue fix for transfer of applications from WAYF users 
+```
+✅  Deployment(grant, 0.3.1) (UP-TO-DATE)
+```
+
+## 01-03-21
+
+```
+✅  Deployment(accounting, 1.6.0) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.3.0-rc0) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.3.0) (UP-TO-DATE)
+✅  Deployment(mail, 0.3.0) (UP-TO-DATE)
+✅  Deployment(alerting, 1.3.0) (UP-TO-DATE)
+✅  Deployment(activity, 1.6.0) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.3.0) (UP-TO-DATE)
+✅  Deployment(share, 1.9.0) (UP-TO-DATE)
+✅  Deployment(slack, 0.2.0) (UP-TO-DATE)
+✅  Deployment(auth, 1.30.0) (UP-TO-DATE)
+✅  Deployment(support, 1.5.0) (UP-TO-DATE)
+✅  Deployment(task, 0.4.0) (UP-TO-DATE)
+✅  Deployment(notification, 1.4.0) (UP-TO-DATE)
+✅  Deployment(webdav, 0.3.0) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.3.0) (UP-TO-DATE)
+✅  Deployment(storage, 4.3.0) (UP-TO-DATE)
+✅  Deployment(grant, 0.3.0) (UP-TO-DATE)
+✅  Deployment(ucloud-data-extraction, 0.1.6-23) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.21.0) (UP-TO-DATE)
+✅  Volcano Deployment (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.7.0) (UP-TO-DATE)
+✅  Deployment(news, 0.2.0) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.1.2) (UP-TO-DATE)
+✅  Deployment(project, 3.4.0) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.4.0) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.3.0) (UP-TO-DATE)
+✅  Deployment(app-store, 0.15.0) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.4.6) (UP-TO-DATE)
+✅  Deployment(avatar, 1.5.0) (UP-TO-DATE)
+✅  Deployment(indexing, 1.18.0) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.6.0) (UP-TO-DATE)
+✅  Deployment(webclient, 0.42.1) (UP-TO-DATE)
+```
+
+## 22-02-21
+
+```
+✅  Deployment(accounting, 1.5.1) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.3.0-rc0) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.3.0) (UP-TO-DATE)
+✅  Deployment(mail, 0.3.0) (UP-TO-DATE)
+✅  Deployment(alerting, 1.3.0) (UP-TO-DATE)
+✅  Deployment(activity, 1.6.0) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.3.0) (UP-TO-DATE)
+✅  Deployment(share, 1.9.0) (UP-TO-DATE)
+✅  Deployment(slack, 0.2.0) (UP-TO-DATE)
+✅  Deployment(auth, 1.29.0) (UP-TO-DATE)
+✅  Deployment(support, 1.5.0) (UP-TO-DATE)
+✅  Deployment(task, 0.4.0) (UP-TO-DATE)
+✅  Deployment(notification, 1.4.0) (UP-TO-DATE)
+✅  Deployment(webdav, 0.3.0) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.3.0) (UP-TO-DATE)
+✅  Deployment(storage, 4.3.0) (UP-TO-DATE)
+✅  Deployment(grant, 0.2.0) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.20.1) (UP-TO-DATE)
+✅  Volcano Deployment (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.7.0) (UP-TO-DATE)
+✅  Deployment(news, 0.2.0) (UP-TO-DATE)
+✅  Deployment(project, 3.3.0) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.4.0) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.3.0) (UP-TO-DATE)
+✅  Deployment(app-store, 0.15.0) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.4.4) (UP-TO-DATE)
+✅  Deployment(avatar, 1.5.0) (UP-TO-DATE)
+✅  Deployment(indexing, 1.18.0) (UP-TO-DATE)
+✅  Deployment(webclient, 0.40.6) (UP-TO-DATE)
+```
+
+## 11-02-21
+Changed to Apache Common Compress to fix extraction issues with tar and zip
+```
+✅  Deployment(storage, 4.2.21): (UP-TO-DATE)
+```
+
+## 01-02-21
+Exclude healthcheck from audit stream update to audit-ingestion-service
+Enhancements to Elastic Management Service (monthly)
+
+```
+✅  CronJob(elastic-entry-cleaner, 1.1.6): (UP-TO-DATE)
+✅  CronJob(elastic-cleanup, 1.1.6): (UP-TO-DATE)
+✅  CronJob(elastic-reindex, 1.1.6): (UP-TO-DATE)
+✅  CronJob(manage-grafana-alias, 1.1.6): (UP-TO-DATE)
+
+✅  Deployment(audit-ingestion, 0.2.3): (UP-TO-DATE)
+```
+
+## 27-01-21
+
+Bug fix to accounting.
+
+```
+✅  Deployment(accounting, 1.4.16): (UP-TO-DATE)
+```
+
+## 07-01-21
+
+Bug fix to app-store.
+
+```
+✅  Deployment(app-store, 0.14.8): (UP-TO-DATE)
+```
+
 ## 04-01-21
 
 Minor changes. ToS has been published.

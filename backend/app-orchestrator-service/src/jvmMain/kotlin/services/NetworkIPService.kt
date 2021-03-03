@@ -174,7 +174,7 @@ class NetworkIPService(
 
         val (username, project) = result.owner
         if (actor is Actor.User &&
-            (actor.principal.role == Role.PROVIDER || (actor.principal.role == Role.SERVICE && devMode))) {
+            (actor.principal.role == Role.PROVIDER || actor.principal.role == Role.SERVICE)) {
             providers.verifyProvider(result.specification.product.provider, actor)
         } else {
             if (project != null && projectCache.retrieveRole(actor.safeUsername(), project) == null) {

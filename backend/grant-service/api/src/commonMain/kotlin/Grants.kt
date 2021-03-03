@@ -171,6 +171,10 @@ data class CloseApplicationRequest(val requestId: Long)
 typealias CloseApplicationResponse = Unit
 
 @Serializable
+data class TransferApplicationRequest(val applicationId: Long, val transferToProjectId: String)
+typealias TransferApplicationResponse = Unit
+
+@Serializable
 data class CommentOnApplicationRequest(val requestId: Long, val comment: String)
 typealias CommentOnApplicationResponse = Unit
 
@@ -329,6 +333,14 @@ data class BrowseProjectsRequest(
 typealias BrowseProjectsResponse = Page<ProjectWithTitle>
 @Serializable
 data class ProjectWithTitle(val projectId: String, val title: String)
+
+@Serializable
+data class GrantsRetrieveAffiliationsRequest(
+    val grantId: Long,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
+typealias GrantsRetrieveAffiliationsResponse = Page<ProjectWithTitle>
 
 @Serializable
 data class GrantsRetrieveProductsRequest(
@@ -727,6 +739,28 @@ object Grants : CallDescriptionContainer("grant") {
     }
 
     /**
+     * Transfers application to other root project
+     */
+    val transferApplication =
+        call<TransferApplicationRequest, TransferApplicationResponse, CommonErrorMessage>("transferApplication") {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.AUTHENTICATED
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"transfer"
+                }
+
+                body { bindEntireRequestFromBody()}
+            }
+        }
+
+    /**
      * Lists active [Application]s which are 'ingoing' (received by) to a project
      */
     val ingoingApplications =
@@ -846,6 +880,30 @@ object Grants : CallDescriptionContainer("grant") {
             params {
                 +boundTo(BrowseProjectsRequest::itemsPerPage)
                 +boundTo(BrowseProjectsRequest::page)
+            }
+        }
+    }
+
+    val retrieveAffiliations = call<
+            GrantsRetrieveAffiliationsRequest,
+            GrantsRetrieveAffiliationsResponse,
+            CommonErrorMessage
+            >("retrieveAffiliations") {
+        auth {
+            access = AccessRight.READ
+        }
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"retrieveAffiliations"
+            }
+
+            params {
+                +boundTo(GrantsRetrieveAffiliationsRequest::grantId)
+                +boundTo(GrantsRetrieveAffiliationsRequest::itemsPerPage)
+                +boundTo(GrantsRetrieveAffiliationsRequest::page)
             }
         }
     }

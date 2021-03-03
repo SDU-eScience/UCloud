@@ -178,7 +178,6 @@ export const Browse: React.FunctionComponent<{
                         <Text>
                             Public IP addresses allow you to exposes the services of your application via the public
                             Internet. You can apply to use a public IP when you apply for resources.
-                            <Link to={"/project/grants-landing"}><Button fullWidth>Request an IP address</Button></Link>
                         </Text>
                     </NoResultsCardBody>
                 </> : null
@@ -287,7 +286,7 @@ function canUse(projectStatus: ProjectStatus, entity: NetworkIP): OperationEnabl
     const isInAcl = entity.acl?.some(entry => {
         if (!entry.permissions.some(p => p === "USE")) return false;
         return status.groups.some(group => {
-            return group.project === entry.entity.group && group.project === entry.entity.projectId;
+            return group.project === entry.entity.projectId && group.group === entry.entity.group;
         });
     }) === true;
 
@@ -299,6 +298,8 @@ function canUse(projectStatus: ProjectStatus, entity: NetworkIP): OperationEnabl
 function isEnabled(projectStatus: ProjectStatus, entity: NetworkIP): OperationEnabled {
     const hasPermission = canUse(projectStatus, entity);
     if (hasPermission !== true) return hasPermission;
+
+    if (entity.status.boundTo) return "This IP address is currently in use";
 
     switch (entity.status.state) {
         case "PREPARING":

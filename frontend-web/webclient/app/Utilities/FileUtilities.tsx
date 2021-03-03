@@ -315,7 +315,8 @@ export function replaceHomeOrProjectFolder(path: string, client: HttpClient, pro
 }
 
 export const expandHomeOrProjectFolder = (path: string, client: HttpClient): string => {
-    if (path.startsWith("/Home/")) {
+    if (path === "") return "";
+    else if (path.startsWith("/Home/")) {
         return path.replace("/Home/", client.homeFolder);
     } else if (path.startsWith("/home/") || path.startsWith("/projects/")) {
         return path;

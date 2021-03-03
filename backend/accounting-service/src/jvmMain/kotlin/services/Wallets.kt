@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.Utils.CREDITS_NOTIFY_LIMIT
@@ -148,6 +149,35 @@ class BalanceService(
         }
 
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+    }
+
+    suspend fun retrieveWalletsForProjects(
+        ctx: DBContext,
+        projectIds: List<String>
+    ): List<Wallet> {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectIds", projectIds)
+                    },
+                    """
+                        SELECT * 
+                        FROM wallets
+                        WHERE account_id IN (SELECT unnest(:projectIds::text[]))
+                    """
+                ).rows
+                .map {
+                    Wallet(
+                        it.getField(WalletTable.accountId),
+                        WalletOwnerType.valueOf(it.getField(WalletTable.accountType)),
+                        ProductCategoryId(
+                            it.getField(WalletTable.productCategory),
+                            it.getField(WalletTable.productProvider)
+                        )
+                    )
+                }
+        }
     }
 
     suspend fun getWalletsForAccount(
@@ -566,6 +596,12 @@ class BalanceService(
             }
         } catch (ignored: ReservationUserRequestedAbortException) {
             // Ignored
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            }
+
+            throw ex
         }
     }
 

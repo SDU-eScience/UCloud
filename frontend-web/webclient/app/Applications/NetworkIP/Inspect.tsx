@@ -178,6 +178,8 @@ const Inspect: React.FunctionComponent<{
                 <Table>
                     <tbody>
                     {inspecting.updates.map((update, idx) => {
+                        if (!update.state && !update.status) return null;
+
                         return <TableRow key={idx}>
                             <TableCell>{dateToString(update.timestamp)}</TableCell>
                             <TableCell>

@@ -160,7 +160,7 @@ const GroupList: React.FunctionComponent = () => {
             }
 
             right={!allowManagement ? null : (
-                <Button height="40px" width="120px" onClick={() => setCreatingGroup(true)}>New Group</Button>
+                <Button mt="2px" height="40px" width="120px" onClick={() => setCreatingGroup(true)}>New Group</Button>
             )}
         />
 
