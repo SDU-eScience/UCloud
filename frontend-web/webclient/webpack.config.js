@@ -14,16 +14,30 @@ module.exports = {
         extensions: [".js", ".jsx", ".json", ".ts", ".tsx"],
         // For webpack 5. Remember to install the 3 require.resolve packages
         //
-        /* fallback: {
-            buffer: require.resolve("buffer"),
+        fallback: {
+            path: require.resolve("path-browserify"),
+            http: false,
+        }
+        // fallback: {
+        /*    buffer: require.resolve("buffer"),
             util: require.resolve("util"),
-            stream: require.resolve("stream-browserify"),
-            path: false, http: false, crypto: false
-        } */
+            stream: require.resolve("stream-browserify"), */
+        // path: false, http: false, crypto: false
+        // }
     },
 
     module: {
         rules: [
+            {
+                test: /node_modules\/vfile\/core\.js/,
+                use: [{
+                    loader: 'imports-loader',
+                    options: {
+                        type: 'commonjs',
+                        imports: ['single process/browser process'],
+                    },
+                }],
+            },
             {
                 test: /\.[jt]sx?$/,
                 exclude: /node_modules/,

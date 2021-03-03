@@ -286,7 +286,7 @@ function canUse(projectStatus: ProjectStatus, entity: NetworkIP): OperationEnabl
     const isInAcl = entity.acl?.some(entry => {
         if (!entry.permissions.some(p => p === "USE")) return false;
         return status.groups.some(group => {
-            return group.project === entry.entity.group && group.project === entry.entity.projectId;
+            return group.project === entry.entity.projectId && group.group === entry.entity.group;
         });
     }) === true;
 

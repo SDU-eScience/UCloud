@@ -20,48 +20,12 @@ module.exports = merge(commonConfig, {
     optimization: {
         minimize: true,
         minimizer: [
-            new TerserPlugin({
-                terserOptions: {
-                    warnings: false,
-                    compress: {
-                        comparisons: false,
-                    },
-                    parse: {},
-                    mangle: true,
-                    output: {
-                        comments: false,
-                        ascii_only: true,
-                    },
-                },
-                parallel: true,
-                cache: true,
-                sourceMap: true,
-            }),
+            new TerserPlugin(),
         ],
         nodeEnv: 'production',
         sideEffects: true,
         concatenateModules: true,
-        splitChunks: {
-            chunks: 'all',
-            minSize: 30000,
-            minChunks: 1,
-            maxAsyncRequests: 5,
-            maxInitialRequests: 3,
-            name: true,
-            cacheGroups: {
-                commons: {
-                    test: /[\\/]node_modules[\\/]/,
-                    name: 'vendor',
-                    chunks: 'all',
-                },
-                main: {
-                    chunks: 'all',
-                    minChunks: 2,
-                    reuseExistingChunk: true,
-                    enforce: true,
-                },
-            },
-        },
+        splitChunks: {chunks: 'all'},
         runtimeChunk: true,
     },
 
@@ -72,22 +36,6 @@ module.exports = merge(commonConfig, {
             DEVELOPMENT_ENV: JSON.stringify(false)
         }),
         // Minify and optimize the index.html
-        new HtmlWebpackPlugin({
-            template: 'app/index.html',
-            minify: {
-                removeComments: true,
-                collapseWhitespace: true,
-                removeRedundantAttributes: true,
-                useShortDoctype: true,
-                removeEmptyAttributes: true,
-                removeStyleLinkTypeAttributes: true,
-                keepClosingSlash: true,
-                minifyJS: true,
-                minifyCSS: true,
-                minifyURLs: true,
-            },
-            inject: true,
-        }),
         new CompressionPlugin({
             algorithm: 'gzip',
             test: /\.js$|\.css$|\.html$/,

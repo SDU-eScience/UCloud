@@ -3,6 +3,7 @@ import {device} from "ui-components/Hide";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
+const fontBold = require("Assets/IBMPlexSans-Bold.ttf");
 const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
 
 export function injectFonts(): void {

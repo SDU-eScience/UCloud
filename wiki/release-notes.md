@@ -7,6 +7,18 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 02-03-21
+
+```
+✅  Deployment(webclient, 0.42.3) (UP-TO-DATE)
+```
+
+## 01-03-21
+Issue fix for transfer of applications from WAYF users 
+```
+✅  Deployment(grant, 0.3.1) (UP-TO-DATE)
+```
+
 ## 01-03-21
 
 ```
@@ -75,7 +87,7 @@ For details look in the `k8.kts` folders of each microservice.
 ✅  Deployment(app-orchestrator, 2.4.4) (UP-TO-DATE)
 ✅  Deployment(avatar, 1.5.0) (UP-TO-DATE)
 ✅  Deployment(indexing, 1.18.0) (UP-TO-DATE)
-✅  Deployment(webclient, 0.40.3) (UP-TO-DATE)
+✅  Deployment(webclient, 0.40.6) (UP-TO-DATE)
 ```
 
 ## 11-02-21

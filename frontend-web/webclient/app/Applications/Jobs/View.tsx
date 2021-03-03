@@ -1,6 +1,6 @@
 import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {PRODUCT_NAME} from "../../../site.config.json";
+import CONF from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
@@ -23,7 +23,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute, file, accounting} from "UCloud";
+import {compute, file} from "UCloud";
 import Job = compute.Job;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -35,7 +35,6 @@ import {useProjectStatus} from "Project/cache";
 import {ProjectName} from "Project";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import StorageFile = file.StorageFile;
 import {File} from "Files";
 import JobSpecification = compute.JobSpecification;
 import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
@@ -465,7 +464,7 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     }, [status]);
 
     return <>
-        <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
+        <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
             {job.specification.name ?
                 (<>

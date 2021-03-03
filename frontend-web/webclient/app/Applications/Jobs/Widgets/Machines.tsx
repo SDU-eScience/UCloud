@@ -5,12 +5,13 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
 import {creditFormatter} from "Project/ProjectUsage";
 import Box from "ui-components/Box";
-import {theme} from "ui-components";
+import {Button, Link, theme} from "ui-components";
 import {useEffect, useState} from "react";
 import {accounting} from "UCloud";
 import ComputeProductReference = accounting.ProductReference;
 import styled from "styled-components";
 import ProductNS = accounting.ProductNS;
+import {NoResultsCardBody} from "Dashboard/Dashboard";
 
 export const reservationMachine = "reservation-machine";
 
@@ -65,29 +66,43 @@ export const Machines: React.FunctionComponent<{
             )}
         >
             <Wrapper>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHeaderCell pl="6px">Name</TableHeaderCell>
-                            <TableHeaderCell>vCPU</TableHeaderCell>
-                            <TableHeaderCell>RAM (GB)</TableHeaderCell>
-                            <TableHeaderCell>GPU</TableHeaderCell>
-                            <TableHeaderCell>Price</TableHeaderCell>
-                        </TableRow>
-                    </TableHeader>
-                    <tbody>
-                    {props.machines.map(machine => {
-                        if (machine === null) return null;
-                        return <TableRow key={machine.id} onClick={() => setMachineReservation(machine)}>
-                            <TableCell pl="6px">{machine.id}</TableCell>
-                            <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>
-                            <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
-                            <TableCell>{machine.gpu ?? 0}</TableCell>
-                            <TableCell>{creditFormatter(machine.pricePerUnit * 60, 3)}/hour</TableCell>
-                        </TableRow>;
-                    })}
-                    </tbody>
-                </Table>
+                {props.machines.length === 0 ? null :
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHeaderCell pl="6px">Name</TableHeaderCell>
+                                <TableHeaderCell>vCPU</TableHeaderCell>
+                                <TableHeaderCell>RAM (GB)</TableHeaderCell>
+                                <TableHeaderCell>GPU</TableHeaderCell>
+                                <TableHeaderCell>Price</TableHeaderCell>
+                            </TableRow>
+                        </TableHeader>
+                        <tbody>
+                        {props.machines.map(machine => {
+                            if (machine === null) return null;
+                            return <TableRow key={machine.id} onClick={() => setMachineReservation(machine)}>
+                                <TableCell pl="6px">{machine.id}</TableCell>
+                                <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>
+                                <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
+                                <TableCell>{machine.gpu ?? 0}</TableCell>
+                                <TableCell>{creditFormatter(machine.pricePerUnit * 60, 3)}/hour</TableCell>
+                            </TableRow>;
+                        })}
+                        </tbody>
+                    </Table>
+                }
+
+                {props.machines.length !== 0 ? null : (<>
+                    <NoResultsCardBody title={"No machines available for use"}>
+                        You do not currently have credits for any machine which this application is able to use. If you
+                        are trying to run a virtual machine, please make sure you have applied for the correct credits
+                        in your grant application.
+
+                        <Link to={"/project/grants-landing"}>
+                            <Button fullWidth mb={"4px"}>Apply for resources</Button>
+                        </Link>
+                    </NoResultsCardBody>
+                </>)}
             </Wrapper>
         </ClickableDropdown>
     )

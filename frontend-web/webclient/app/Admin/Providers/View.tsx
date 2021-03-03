@@ -1,20 +1,64 @@
 import {useRouteMatch} from "react-router";
 import * as React from "react";
-import {Box, Label, Checkbox, TextArea} from "ui-components";
+import {Box, Label, Checkbox, TextArea, Button, Select, List, Text, RadioTilesContainer, RadioTile, Flex} from "ui-components";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as UCloud from "UCloud";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import MainContainer from "MainContainer/MainContainer";
+import {emptyPage} from "DefaultObjects";
+import HexSpin from "LoadingIcon/LoadingIcon";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {ListRow} from "ui-components/List";
+import {GroupWithSummary} from "Project/GroupList";
 
 function View(): JSX.Element | null {
     const match = useRouteMatch<{id: string}>();
     const {id} = match.params;
-    const [provider] = useCloudAPI<UCloud.provider.Provider | null>(
+    const [provider, fetchProvider] = useCloudAPI<UCloud.provider.Provider | null>(
         UCloud.provider.providers.retrieve({id}),
         null
     );
+
+    const [loading, invokeCommand] = useCloudCommand();
+    // Different one, so it doesn't mess with the loading rendering.
+    const [, invokeForGroups] = useCloudCommand();
+
+    const [groupStorage, setGroupStorage] = React.useState<Record<string, GroupWithSummary[]>>({});
+
+    const [projectId, setProjectId] = React.useState("");
+    const [group, setGroup] = React.useState("");
+
+    const [projects] = useCloudAPI<Page<UCloud.project.UserProjectSummary>>(
+        UCloud.project.listProjects({itemsPerPage: 100, archived: true}),
+        emptyPage
+    );
+
+    const [groups, fetchGroups] = useCloudAPI<Page<UCloud.project.GroupWithSummary>>(
+        {noop: true},
+        emptyPage
+    )
+
+    React.useEffect(() => {
+        if (projectId) {
+            fetchGroups({...UCloud.project.group.listGroupsWithSummary({itemsPerPage: 100}), projectOverride: projectId});
+        }
+    }, [projectId]);
+
+    React.useEffect(() => {
+        for (const projectToOverride of projects.data.items) {
+            const projectOverride = projectToOverride.projectId;
+            invokeForGroups({...UCloud.project.group.listGroupsWithSummary({itemsPerPage: 100}), projectOverride})
+                .then(it => setGroupStorage(gs => {
+                    gs[projectOverride] = it.items;
+                    return {...gs};
+                }));
+        }
+    }, [projects.data.items]);
+
+    const [showACLSelector, setShowACLSelector] = React.useState(false);
 
     if (provider.loading) return <MainContainer main={<LoadingSpinner />} />;
     if (provider.data == null) return null;
@@ -22,8 +66,45 @@ function View(): JSX.Element | null {
     const {https, manifest} = provider.data.specification;
     const {docker, virtualMachine} = manifest.features.compute;
 
+    async function addACL() {
+        try {
+            if (provider.data == null) return;
+            const otherAcls = provider.data.acl.filter(it => !(it.entity.projectId === projectId && it.entity.group === group));
+            await invokeCommand(UCloud.provider.providers.updateAcl({
+                id,
+                acl: [
+                    ...otherAcls,
+                    {permissions: ["EDIT"], entity: {projectId, type: "project_group", group}}
+                ]
+            }));
+            setProjectId("");
+            setGroup("");
+            snackbarStore.addSuccess("ACL added", false);
+            fetchProvider(UCloud.provider.providers.retrieve({id}))
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to update ACL"), false);
+        }
+    }
+
+    async function removeACL(projectId: string, group: string) {
+        try {
+            if (provider.data == null) return;
+            const otherAcls = provider.data.acl.filter(it => !(it.entity.projectId === projectId && it.entity.group === group));
+
+            await invokeCommand(UCloud.provider.providers.updateAcl({
+                id,
+                acl: otherAcls
+            }));
+
+            snackbarStore.addSuccess("ACL removed", false);
+            fetchProvider(UCloud.provider.providers.retrieve({id}))
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to update ACL"), false);
+        }
+    }
+
     return (<MainContainer main={
-        <Box>
+        <Box width="650px" mx="auto">
             <Error error={provider.error?.why} />
             <Heading.h3>{id}</Heading.h3>
             <Box>
@@ -91,10 +172,70 @@ function View(): JSX.Element | null {
                 <Checkbox checked={virtualMachine.vnc} onChange={e => e} />
                 VNC: Flag to enable/disable the VNC API
             </Label>
+
+            <Heading.h3>ACLs</Heading.h3>
+
+            {provider == null ? null : (
+                <List>
+                    {provider.data.acl.map(it => {
+                        const group = groupStorage[it.entity.projectId]?.find(gs => gs.groupId === it.entity.group)?.groupTitle ?? it.entity.group;
+                        return (
+                            <ListRow
+                                key={`${it.entity.projectId}-${group}`}
+                                left={<Flex>
+                                    <Text mr="8px">{projects.data.items.find(p => p.projectId === it.entity.projectId)?.title}</Text>
+                                    <Text color="gray">{group}</Text>
+                                </Flex>}
+                                right={
+                                    <RadioTilesContainer>
+                                        <RadioTile
+                                            label={"None"}
+                                            name={it.entity.group}
+                                            onChange={() => removeACL(it.entity.projectId, it.entity.group)}
+                                            icon={"close"}
+                                            checked={it.permissions.length === 0}
+                                            height={40}
+                                            fontSize={"0.5em"}
+                                        />
+                                        <RadioTile
+                                            label={"Edit"}
+                                            onChange={() => undefined}
+                                            icon={"search"}
+                                            name={it.entity.group}
+                                            checked={it.permissions.indexOf("EDIT") !== -1 && it.permissions.length === 1}
+                                            height={40}
+                                            fontSize={"0.5em"}
+                                        />
+                                    </RadioTilesContainer>
+                                }
+                            />
+                        )
+                    })}
+                </List>
+            )}
+
+            <Button fullWidth onClick={() => setShowACLSelector(t => !t)}>New ACL</Button>
+            <Box mt="10px" hidden={!showACLSelector}>
+                <Label>
+                    <Heading.h3>Project</Heading.h3>
+                    <Select>
+                        <option />
+                        {projects.data.items.map(it => <option key={it.projectId} onClick={() => (setProjectId(it.projectId), setGroup(""))}>{it.title}</option>)}
+                    </Select>
+                </Label>
+                {!projectId ? null :
+                    groups.loading ? <HexSpin /> : (<Label>
+                        <Heading.h3>Group</Heading.h3>
+                        {groups.data.itemsInTotal !== 0 ? <Select>
+                            <option />
+                            {groups.data.items.map(it => <option key={it.groupId} onClick={() => setGroup(it.groupId)}>{it.groupTitle}</option>)}
+                        </Select> : <Heading.h4>No groups found for project.</Heading.h4>}
+                    </Label>)
+                }
+                <Button mt="15px" fullWidth disabled={loading || !group || !projectId} onClick={addACL}>Add ACL</Button>
+            </Box>
         </Box>
     } />);
 }
-
-
 
 export default View;
