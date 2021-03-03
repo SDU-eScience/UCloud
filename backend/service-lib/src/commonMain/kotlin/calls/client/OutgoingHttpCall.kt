@@ -80,7 +80,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             val port = targetHost.port ?: if (scheme == "https") 443 else 80
             val http = call.http
 
-            val endpoint = http.resolveEndpoint(request, call).removePrefix("/")
+            val endpoint = http.resolveEndpoint(request, call).removePrefix("/").removeSuffix("/")
             val url = "$scheme://$host:$port/$endpoint"
 
             url(url)
