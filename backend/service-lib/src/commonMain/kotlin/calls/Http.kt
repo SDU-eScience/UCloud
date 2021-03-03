@@ -50,9 +50,9 @@ sealed class HttpPathSegment<Request : Any> {
 fun HttpPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
     val primaryPart = segments.joinToString("/") { it.toKtorTemplateString() }
     return if (fullyQualified) {
-        basePath.removeSuffix("/") + "/" + primaryPart
+        (basePath.removeSuffix("/") + "/" + primaryPart).removeSuffix("/")
     } else {
-        primaryPart
+        primaryPart.removeSuffix("/")
     }
 }
 

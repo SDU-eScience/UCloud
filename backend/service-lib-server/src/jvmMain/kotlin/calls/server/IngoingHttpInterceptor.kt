@@ -16,9 +16,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.withCharset
 import io.ktor.request.*
 import io.ktor.response.respond
-import io.ktor.routing.method
-import io.ktor.routing.route
-import io.ktor.routing.routing
+import io.ktor.routing.*
 import io.ktor.server.engine.*
 import io.ktor.util.*
 import io.ktor.util.pipeline.PipelineContext
@@ -43,22 +41,21 @@ class IngoingHttpInterceptor(
         engine.application.routing {
             // toKtorTemplate performs a plain one-to-one mapping of the http/path block semantics to Ktor routing
             // template
-            route(httpDescription.path.toKtorTemplate(fullyQualified = true)) {
-                method(httpDescription.method) {
-                    handle {
-                        try {
-                            // Calls the handler provided by 'implement'
-                            @Suppress("UNCHECKED_CAST")
-                            rpcServer.handleIncomingCall(
-                                this@IngoingHttpInterceptor,
-                                call,
-                                HttpCall(this as PipelineContext<Any, ApplicationCall>)
-                            )
-                        } catch (ex: IOException) {
-                            log.debug("Caught IOException:")
-                            log.debug(ex.stackTraceToString())
-                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        }
+
+            route(httpDescription.path.toKtorTemplate(fullyQualified = true), httpDescription.method) {
+                handle {
+                    try {
+                        // Calls the handler provided by 'implement'
+                        @Suppress("UNCHECKED_CAST")
+                        rpcServer.handleIncomingCall(
+                            this@IngoingHttpInterceptor,
+                            call,
+                            HttpCall(this as PipelineContext<Any, ApplicationCall>)
+                        )
+                    } catch (ex: IOException) {
+                        log.debug("Caught IOException:")
+                        log.debug(ex.stackTraceToString())
+                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
                 }
             }
