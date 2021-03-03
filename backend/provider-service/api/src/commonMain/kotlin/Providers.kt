@@ -25,7 +25,7 @@ enum class ProviderAclPermission {
 }
 
 @Serializable
-class ProviderSpecification(
+data class ProviderSpecification(
     val id: String,
     val domain: String,
     val https: Boolean,

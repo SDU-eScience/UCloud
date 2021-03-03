@@ -11,7 +11,7 @@ import javax.servlet.http.HttpServletResponse
 
 @Component
 class UCloudAuthInterceptor : HandlerInterceptor {
-    @Value("\${ucloud.publicCertificate:#{null}}")
+    @Value("\${ucloud.cerficiate:#{null}}")
     var publicCertificate: String? = null
 
     @Value("\${ucloud.sharedSecret:#{null}}")
