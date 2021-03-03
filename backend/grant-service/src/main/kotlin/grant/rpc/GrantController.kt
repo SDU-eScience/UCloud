@@ -203,7 +203,8 @@ class GrantController(
                         principal.lastName,
                         principal.uid,
                         principal.email,
-                        principal.twoFactorAuthentication
+                        principal.twoFactorAuthentication,
+                        organization = if (principal is Person.ByWAYF) principal.organizationId else null
                     )
                 }
                 else -> throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "user not found")
@@ -215,14 +216,12 @@ class GrantController(
             )
             val affiliatedProjectsIds = affiliatedProjects.items.map { it.projectId }
             //Seems pretty stupid, but works. If all required resources are available in other project -> list it.
-            var wallets = Wallets.retrieveWalletsFromProjects.call(
+            val wallets = Wallets.retrieveWalletsFromProjects.call(
                 RetrieveWalletsForProjectsRequest(affiliatedProjectsIds),
                 serviceClient
             ).orThrow()
-
             val projectIdAndMatchingResources = mutableMapOf<String, Int>()
             val resourcesAppliedFor = application.first.requestedResources.filter { it.creditsRequested!=0L }
-            println(resourcesAppliedFor)
             resourcesAppliedFor.forEach {
                 val productCategory = it.productCategory
                 val productProvider = it.productProvider
@@ -233,7 +232,6 @@ class GrantController(
                     }
                 }
             }
-
             val projectsIdWithRequestedResources = projectIdAndMatchingResources.filter { it.value == resourcesAppliedFor.count() }
             val projectsAvailable = affiliatedProjects.items.filter { projectsIdWithRequestedResources.contains(it.projectId) }
             ok(
