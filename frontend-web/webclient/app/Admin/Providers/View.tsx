@@ -1,13 +1,25 @@
 import {useRouteMatch} from "react-router";
 import * as React from "react";
-import {Box, Label, Checkbox, TextArea, Button, Select, List, Text, RadioTilesContainer, RadioTile, Flex} from "ui-components";
+import {
+    Box,
+    Label,
+    Checkbox,
+    TextArea,
+    Button,
+    Select,
+    List,
+    Text,
+    RadioTilesContainer,
+    RadioTile,
+    Flex
+} from "ui-components";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import * as UCloud from "UCloud";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import MainContainer from "MainContainer/MainContainer";
-import {emptyPage} from "DefaultObjects";
+import {bulkRequestOf, emptyPage} from "DefaultObjects";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -15,7 +27,7 @@ import {ListRow} from "ui-components/List";
 import {GroupWithSummary} from "Project/GroupList";
 
 function View(): JSX.Element | null {
-    const match = useRouteMatch<{id: string}>();
+    const match = useRouteMatch<{ id: string }>();
     const {id} = match.params;
     const [provider, fetchProvider] = useCloudAPI<UCloud.provider.Provider | null>(
         UCloud.provider.providers.retrieve({id}),
@@ -43,7 +55,10 @@ function View(): JSX.Element | null {
 
     React.useEffect(() => {
         if (projectId) {
-            fetchGroups({...UCloud.project.group.listGroupsWithSummary({itemsPerPage: 100}), projectOverride: projectId});
+            fetchGroups({
+                ...UCloud.project.group.listGroupsWithSummary({itemsPerPage: 100}),
+                projectOverride: projectId
+            });
         }
     }, [projectId]);
 
@@ -60,7 +75,7 @@ function View(): JSX.Element | null {
 
     const [showACLSelector, setShowACLSelector] = React.useState(false);
 
-    if (provider.loading) return <MainContainer main={<LoadingSpinner />} />;
+    if (provider.loading) return <MainContainer main={<LoadingSpinner/>}/>;
     if (provider.data == null) return null;
 
     const {https, manifest} = provider.data.specification;
@@ -70,13 +85,13 @@ function View(): JSX.Element | null {
         try {
             if (provider.data == null) return;
             const otherAcls = provider.data.acl.filter(it => !(it.entity.projectId === projectId && it.entity.group === group));
-            await invokeCommand(UCloud.provider.providers.updateAcl({
+            await invokeCommand(UCloud.provider.providers.updateAcl(bulkRequestOf({
                 id,
                 acl: [
                     ...otherAcls,
                     {permissions: ["EDIT"], entity: {projectId, type: "project_group", group}}
                 ]
-            }));
+            })));
             setProjectId("");
             setGroup("");
             snackbarStore.addSuccess("ACL added", false);
@@ -91,10 +106,10 @@ function View(): JSX.Element | null {
             if (provider.data == null) return;
             const otherAcls = provider.data.acl.filter(it => !(it.entity.projectId === projectId && it.entity.group === group));
 
-            await invokeCommand(UCloud.provider.providers.updateAcl({
+            await invokeCommand(UCloud.provider.providers.updateAcl(bulkRequestOf({
                 id,
                 acl: otherAcls
-            }));
+            })));
 
             snackbarStore.addSuccess("ACL removed", false);
             fetchProvider(UCloud.provider.providers.retrieve({id}))
@@ -105,7 +120,7 @@ function View(): JSX.Element | null {
 
     return (<MainContainer main={
         <Box width="650px" mx="auto">
-            <Error error={provider.error?.why} />
+            <Error error={provider.error?.why}/>
             <Heading.h3>{id}</Heading.h3>
             <Box>
                 <b>Created by:</b> {provider.data.owner.createdBy}
@@ -115,61 +130,63 @@ function View(): JSX.Element | null {
             </Box>
 
             <Label>
-                <Checkbox checked={https} onChange={e => e} />
+                <Checkbox checked={https} onChange={e => e}/>
                 Uses HTTPS
             </Label>
 
             <Heading.h4>Public key</Heading.h4>
-            <TextArea maxWidth="1200px" width="100%" value={provider.data.publicKey} />
+            <TextArea maxWidth="1200px" width="100%" value={provider.data.publicKey}/>
 
             <Heading.h4>Refresh token</Heading.h4>
-            <TextArea maxWidth="1200px" width="100%" value={provider.data.refreshToken} />
+            <TextArea maxWidth="1200px" width="100%" value={provider.data.refreshToken}/>
 
             <Heading.h4>Docker Support</Heading.h4>
             <Label>
-                <Checkbox checked={docker.enabled} onChange={e => e} />
-                Docker enabled: Flag to enable/disable this feature. <b>All other flags are ignored if this is <code>false</code>.</b>
+                <Checkbox checked={docker.enabled} onChange={e => e}/>
+                Docker enabled: Flag to enable/disable this feature. <b>All other flags are ignored if this
+                is <code>false</code>.</b>
             </Label>
             <Label>
-                <Checkbox checked={docker.batch} onChange={e => e} />
+                <Checkbox checked={docker.batch} onChange={e => e}/>
                 Batch: Flag to enable/disable <code>BATCH</code> <code>Application</code>s
             </Label>
             <Label>
-                <Checkbox checked={docker.logs} onChange={e => e} />
+                <Checkbox checked={docker.logs} onChange={e => e}/>
                 Log: lag to enable/disable the log API
             </Label>
             <Label>
-                <Checkbox checked={docker.peers} onChange={e => e} />
+                <Checkbox checked={docker.peers} onChange={e => e}/>
                 Peers: Flag to enable/disable connection between peering <code>Job</code>s
             </Label>
             <Label>
-                <Checkbox checked={docker.terminal} onChange={e => e} />
+                <Checkbox checked={docker.terminal} onChange={e => e}/>
                 Terminal: Flag to enable/disable the interactive terminal API
             </Label>
             <Label>
-                <Checkbox checked={docker.vnc} onChange={e => e} />
+                <Checkbox checked={docker.vnc} onChange={e => e}/>
                 VNC: Flag to enable/disable the interactive interface of <code>VNC</code> <code>Application</code>s
             </Label>
             <Label>
-                <Checkbox checked={docker.web} onChange={e => e} />
+                <Checkbox checked={docker.web} onChange={e => e}/>
                 Web: Flag to enable/disable the interactive interface of <code>WEB</code> <code>Application</code>s
             </Label>
 
             <Heading.h4>Virtual Machine Support</Heading.h4>
             <Label>
-                <Checkbox checked={virtualMachine.enabled} onChange={e => e} />
-                Virtual machine enabled: Flag to enable/disable this feature. <b>All other flags are ignored if this is <code>false</code>.</b>
+                <Checkbox checked={virtualMachine.enabled} onChange={e => e}/>
+                Virtual machine enabled: Flag to enable/disable this feature. <b>All other flags are ignored if this
+                is <code>false</code>.</b>
             </Label>
             <Label>
-                <Checkbox checked={virtualMachine.logs} onChange={e => e} />
+                <Checkbox checked={virtualMachine.logs} onChange={e => e}/>
                 Logs: Flag to enable/disable the log API
             </Label>
             <Label>
-                <Checkbox checked={virtualMachine.terminal} onChange={e => e} />
+                <Checkbox checked={virtualMachine.terminal} onChange={e => e}/>
                 Terminal: Flag to enable/disable the interactive terminal API
             </Label>
             <Label>
-                <Checkbox checked={virtualMachine.vnc} onChange={e => e} />
+                <Checkbox checked={virtualMachine.vnc} onChange={e => e}/>
                 VNC: Flag to enable/disable the VNC API
             </Label>
 
@@ -183,7 +200,8 @@ function View(): JSX.Element | null {
                             <ListRow
                                 key={`${it.entity.projectId}-${group}`}
                                 left={<Flex>
-                                    <Text mr="8px">{projects.data.items.find(p => p.projectId === it.entity.projectId)?.title}</Text>
+                                    <Text
+                                        mr="8px">{projects.data.items.find(p => p.projectId === it.entity.projectId)?.title}</Text>
                                     <Text color="gray">{group}</Text>
                                 </Flex>}
                                 right={
@@ -219,23 +237,25 @@ function View(): JSX.Element | null {
                 <Label>
                     <Heading.h3>Project</Heading.h3>
                     <Select>
-                        <option />
-                        {projects.data.items.map(it => <option key={it.projectId} onClick={() => (setProjectId(it.projectId), setGroup(""))}>{it.title}</option>)}
+                        <option/>
+                        {projects.data.items.map(it => <option key={it.projectId}
+                                                               onClick={() => (setProjectId(it.projectId), setGroup(""))}>{it.title}</option>)}
                     </Select>
                 </Label>
                 {!projectId ? null :
-                    groups.loading ? <HexSpin /> : (<Label>
+                    groups.loading ? <HexSpin/> : (<Label>
                         <Heading.h3>Group</Heading.h3>
                         {groups.data.itemsInTotal !== 0 ? <Select>
-                            <option />
-                            {groups.data.items.map(it => <option key={it.groupId} onClick={() => setGroup(it.groupId)}>{it.groupTitle}</option>)}
+                            <option/>
+                            {groups.data.items.map(it => <option key={it.groupId}
+                                                                 onClick={() => setGroup(it.groupId)}>{it.groupTitle}</option>)}
                         </Select> : <Heading.h4>No groups found for project.</Heading.h4>}
                     </Label>)
                 }
                 <Button mt="15px" fullWidth disabled={loading || !group || !projectId} onClick={addACL}>Add ACL</Button>
             </Box>
         </Box>
-    } />);
+    }/>);
 }
 
 export default View;
