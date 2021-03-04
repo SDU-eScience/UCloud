@@ -6,7 +6,6 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.aau.services.ResourceCache
 import dk.sdu.cloud.app.kubernetes.api.AauCompute
 import dk.sdu.cloud.app.kubernetes.api.AauComputeMaintenance
@@ -20,7 +19,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.provider.api.ManifestFeatureSupport
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.slack.api.SendSupportRequest
@@ -235,11 +233,11 @@ class ComputeController(
         return ComputeRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
             ComputeTemporaryProductSupport(
                 it,
-                ManifestFeatureSupport.Compute(
-                    ManifestFeatureSupport.Compute.Docker(
+                ComputeSupport(
+                    ComputeSupport.Docker(
                         enabled = false,
                     ),
-                    ManifestFeatureSupport.Compute.VirtualMachine(
+                    ComputeSupport.VirtualMachine(
                         enabled = true,
                     )
                 )

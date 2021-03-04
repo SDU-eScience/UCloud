@@ -165,7 +165,8 @@ class JobOrchestrator(
                     jobFileService.exportParameterFile(jobFolder.path, newJobWithToken, parameters[index])
                 } catch (ex: RPCException) {
                     if (ex.httpStatusCode == HttpStatusCode.PaymentRequired &&
-                        jobWithToken.job.specification.product.provider == "aau") {
+                        jobWithToken.job.specification.product.provider == "aau"
+                    ) {
                         log.warn("Silently ignoring lack of credits in storage due to temporary aau integration")
                     } else {
                         throw ex
@@ -269,7 +270,7 @@ class JobOrchestrator(
                             listeners.forEach { it.onTermination(session, job) }
                         }
                     } else if (newState != null && currentState.isFinal()) {
-                        log.info("Ignoring job update for $jobId by ${comm.provider} (bad state transition)")
+                        log.info("Ignoring job update for $jobId by ${comm.provider.id} (bad state transition)")
                         continue
                     }
 
@@ -358,7 +359,7 @@ class JobOrchestrator(
             throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
         }
 
-        val ownsAllJobs = loadedJobs.values.all { (it.job).specification.product.provider == comm.provider.metadata.id }
+        val ownsAllJobs = loadedJobs.values.all { (it.job).specification.product.provider == comm.provider.id }
         if (!ownsAllJobs && !developmentMode) {
             throw RPCException("Provider is not authorized to perform these updates", HttpStatusCode.Forbidden)
         }
@@ -405,7 +406,7 @@ class JobOrchestrator(
         request: JobsControlSubmitFileRequest,
         providerActor: Actor,
         contentLength: Long?,
-        content: ByteReadChannel
+        content: ByteReadChannel,
     ) {
         val comm = providers.prepareCommunication(providerActor)
         val jobWithToken = loadAndVerifyProviderJobs(db, setOf(request.jobId), comm).getValue(request.jobId)
@@ -437,7 +438,7 @@ class JobOrchestrator(
                 comm.api.extend.call(
                     bulkRequestOf(request.items.mapNotNull { extensionRequest ->
                         val (job) = jobs.getValue(extensionRequest.jobId)
-                        if (job.specification.product.provider != comm.provider.metadata.id) null
+                        if (job.specification.product.provider != comm.provider.id) null
                         else ComputeExtendRequestItem(job, extensionRequest.requestedTime)
                     }),
                     comm.client
@@ -634,7 +635,7 @@ class JobOrchestrator(
                         .sessions
                         .map {
                             OpenSessionWithProvider(
-                                with(comms.provider.metadata) {
+                                with(comms.provider) {
                                     buildString {
                                         if (https) {
                                             append("https://")
@@ -649,7 +650,7 @@ class JobOrchestrator(
                                         }
                                     }
                                 },
-                                comms.provider.metadata.id,
+                                comms.provider.id,
                                 it
                             )
                         }
@@ -687,11 +688,10 @@ class JobOrchestrator(
     suspend fun retrieveProductsTemporary(providerIds: List<String>): JobsRetrieveProductsTemporaryResponse {
         return JobsRetrieveProductsTemporaryResponse(
             providerIds.map { provider ->
-                val comm = providers.prepareCommunication(provider)
-                provider to (
+                provider to (runCatching {
+                    val comm = providers.prepareCommunication(provider)
                     comm.api.retrieveProductsTemporary.call(Unit, comm.client).orNull()
-                        ?: ComputeRetrieveProductsTemporaryResponse(emptyList())
-                    )
+                }.getOrNull() ?: ComputeRetrieveProductsTemporaryResponse(emptyList()))
             }.toMap()
         )
     }

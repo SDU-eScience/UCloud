@@ -16,7 +16,7 @@ import dk.sdu.cloud.service.k8.KubernetesClient
 data class K8Dependencies(
     var client: KubernetesClient,
     val scope: BackgroundScope,
-    val serviceClient: AuthenticatedClient,
+    var serviceClient: AuthenticatedClient,
     val nameAllocator: NameAllocator,
     val dockerImageSizeQuery: DockerImageSizeQuery,
 ) {

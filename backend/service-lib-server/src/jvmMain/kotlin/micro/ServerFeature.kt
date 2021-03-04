@@ -19,7 +19,7 @@ class ServerFeature : MicroFeature {
         ClientInfoInterceptor().register(server)
         JobIdInterceptor(!ctx.developmentModeEnabled).register(server)
         AuditToEventStream(ctx.serviceInstance, ctx.eventStreamService, ctx.tokenValidation).register(server)
-        AuthInterceptor(ctx.tokenValidation, ctx.developmentModeEnabled).register(server)
+        AuthInterceptor(ctx.developmentModeEnabled).register(server)
         ProjectInterceptor().register(server)
 
         val serverConfig = ctx.rpcConfiguration?.server

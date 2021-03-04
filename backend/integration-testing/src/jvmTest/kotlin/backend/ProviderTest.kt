@@ -207,48 +207,4 @@ class ProviderTest : IntegrationTest() {
             user.client
         ).orThrow()
     }
-
-    @Test
-    fun `test that we can update the manifest as needed`() = t {
-        val provider = createProvider()
-        val differentUser = createUser()
-
-        assertFails {
-            Providers.updateManifest.call(
-                bulkRequestOf(
-                    ManifestAndId(
-                        provider.spec.id,
-                        ProviderManifest()
-                    )
-                ),
-                differentUser.client
-            ).orThrow()
-        }
-
-        val newManifest = ProviderManifest(
-            ManifestFeatureSupport(
-                compute = ManifestFeatureSupport.Compute(
-                    virtualMachine = ManifestFeatureSupport.Compute.VirtualMachine(enabled = true)
-                )
-            )
-        )
-
-        Providers.updateManifest.call(
-            bulkRequestOf(
-                ManifestAndId(
-                    provider.spec.id,
-                    newManifest
-                )
-            ),
-            provider.providerContactClient
-        ).orThrow()
-
-        assertEquals(
-            newManifest,
-            Providers.retrieve.call(
-                ProvidersRetrieveRequest(provider.spec.id),
-                provider.providerContactClient
-            ).orThrow().specification.manifest
-        )
-    }
 }

@@ -20,7 +20,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withHttpBody
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.provider.api.ManifestFeatureSupport
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
@@ -572,8 +571,8 @@ class JobManagement(
         return ComputeRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
             ComputeTemporaryProductSupport(
                 it,
-                ManifestFeatureSupport.Compute(
-                    ManifestFeatureSupport.Compute.Docker(
+                ComputeSupport(
+                    ComputeSupport.Docker(
                         enabled = true,
                         web = true,
                         vnc = true,

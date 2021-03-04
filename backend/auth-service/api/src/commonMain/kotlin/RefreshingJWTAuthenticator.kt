@@ -37,7 +37,7 @@ sealed class JwtRefresher {
         private val providerId: String,
     ) : JwtRefresher() {
         override suspend fun fetchToken(client: RpcClient): String {
-            return AuthProviders.refreshAsProvider
+            return AuthProviders.refreshAsOrchestrator
                 .call(
                     bulkRequestOf(AuthProvidersRefreshAsProviderRequestItem(providerId)),
                     authenticatedClient

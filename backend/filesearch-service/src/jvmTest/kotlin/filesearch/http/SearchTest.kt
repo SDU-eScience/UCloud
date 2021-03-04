@@ -8,6 +8,7 @@ import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
 import dk.sdu.cloud.filesearch.api.SearchResult
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.QueryResponse
+import dk.sdu.cloud.pagesInTotal
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page

@@ -16,7 +16,6 @@ data class Page<out T>(
     val pageNumber: Int,
     val items: List<T>,
 ) {
-    val pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 
     companion object {
         fun <T> forRequest(request: NormalizedPaginationRequest?, itemsInTotal: Int?, items: List<T>): Page<T> {
@@ -26,6 +25,7 @@ data class Page<out T>(
     }
 }
 
+val Page<*>.pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 
 interface WithPaginationRequest {
     val itemsPerPage: Int?

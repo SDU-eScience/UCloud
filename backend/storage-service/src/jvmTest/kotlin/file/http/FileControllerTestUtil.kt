@@ -83,6 +83,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
 
     with(ctx) {
         micro.server.configureControllers(
+            micro,
             ActionController(
                 callRunner,
                 coreFs,

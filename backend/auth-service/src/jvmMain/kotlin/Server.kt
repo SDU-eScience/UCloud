@@ -99,7 +99,7 @@ class Server(
         val slaService = SLAService(config.serviceLicenseAgreement ?: ServiceAgreementText(0, ""), db, userDao)
 
         val providerDao = ProviderDao()
-        val providerService = ProviderService(db, providerDao)
+        val providerService = ProviderService(micro.developmentModeEnabled, db, providerDao)
 
         if (micro.commandLineArguments.contains("--tokenScan")) {
             log.info("Scanning for expired refresh tokens.")

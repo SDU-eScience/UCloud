@@ -1,5 +1,6 @@
 package dk.sdu.cloud.provider.rpc
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.services.ProviderService
@@ -10,11 +11,6 @@ class ProviderController(private val service: ProviderService) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Providers.create) {
             ok(service.create(actorAndProject, request))
-        }
-
-        implement(Providers.updateManifest) {
-            service.updateManifest(actorAndProject.actor, request)
-            ok(Unit)
         }
 
         implement(Providers.updateAcl) {
@@ -29,6 +25,11 @@ class ProviderController(private val service: ProviderService) : Controller {
 
         implement(Providers.retrieve) {
             ok(service.retrieveProvider(actorAndProject.actor, request.id))
+        }
+
+        implement(Providers.retrieveSpecification) {
+            // Call is only privileged, hence the switch to Actor.System
+            ok(service.retrieveProvider(Actor.System, request.id).specification)
         }
 
         implement(Providers.browse) {

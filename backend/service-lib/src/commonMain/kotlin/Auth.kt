@@ -59,7 +59,7 @@ enum class Role {
 }
 
 object Roles {
-    val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP)
+    val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP, Role.PROVIDER)
     val END_USER = setOf(Role.USER, Role.ADMIN)
     val PRIVILEGED = setOf(Role.ADMIN, Role.SERVICE)
     val SERVICE = setOf(Role.SERVICE)
@@ -238,7 +238,7 @@ data class SecurityScope internal constructor(
     }
 
     companion object {
-        private val segmentRegex = Regex("[a-zA-Z0-9]+")
+        private val segmentRegex = Regex("[a-zA-Z0-9_]+")
         const val ALL_SCOPE = "all"
         const val SPECIAL_SCOPE = "special"
 

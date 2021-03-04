@@ -44,7 +44,7 @@ object NetworkIPPoolTable : SQLTable("network_ip_pool") {
 
 class NetworkIPService(
     private val db: DBContext,
-    private val serviceClient: AuthenticatedClient,
+    private val k8: K8Dependencies,
     private val networkInterface: String,
 ) : JobManagementPlugin {
     suspend fun create(networks: BulkRequest<NetworkIP>) {
@@ -64,7 +64,7 @@ class NetworkIPService(
             // Immediately charge the user before we do any IP allocation
             NetworkIPControl.chargeCredits.call(
                 bulkRequestOf(networks.items.map { NetworkIPControlChargeCreditsRequestItem(it.id, it.id, 1) }),
-                serviceClient
+                k8.serviceClient
             ).orThrow()
 
             for (network in networks.items) {
@@ -95,7 +95,7 @@ class NetworkIPService(
                     )
                 }
             ),
-            serviceClient
+            k8.serviceClient
         ).orThrow()
     }
 
@@ -183,7 +183,7 @@ class NetworkIPService(
 
             val retrievedNetwork = NetworkIPControl.retrieve.call(
                 NetworkIPRetrieveWithFlags(id),
-                serviceClient
+                k8.serviceClient
             ).orThrow()
 
             val openPorts = retrievedNetwork.specification.firewall?.openPorts ?: emptyList()

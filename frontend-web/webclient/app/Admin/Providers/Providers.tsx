@@ -59,9 +59,6 @@ function Providers(): JSX.Element | null {
         return (
             <List>
                 {items.map(p => {
-                    const {manifest} = p.specification;
-                    const isDockerEnabled = manifest.features.compute.docker.enabled;
-                    const isVMEnabled = manifest.features.compute.virtualMachine.enabled;
                     const isHttps = p.specification.https;
                     return (
                         <ListRow
@@ -71,12 +68,6 @@ function Providers(): JSX.Element | null {
                                 <ListStatContainer>
                                     <ListRowStat icon={isHttps ? "check" : "close"}>
                                         HTTPS
-                                    </ListRowStat>
-                                    <ListRowStat icon={isVMEnabled ? "check" : "close"}>
-                                        VM enabled
-                                    </ListRowStat>
-                                    <ListRowStat icon={isDockerEnabled ? "check" : "close"}>
-                                        Docker enabled
                                     </ListRowStat>
                                 </ListStatContainer>
                             }

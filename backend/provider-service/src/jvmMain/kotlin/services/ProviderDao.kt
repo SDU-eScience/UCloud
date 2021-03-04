@@ -1,13 +1,9 @@
 package dk.sdu.cloud.provider.services
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.Role
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
@@ -37,7 +33,7 @@ class ProviderDao(
             )
         }
 
-        if (actor != Actor.System && (actor !is Actor.User || actor.principal.role != Role.ADMIN)) {
+        if (actor != Actor.System && (actor !is Actor.User || actor.principal.role !in Roles.PRIVILEGED)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
@@ -49,16 +45,15 @@ class ProviderDao(
                         setParameter("domain", spec.domain)
                         setParameter("https", spec.https)
                         setParameter("port", spec.port ?: if (spec.https) 443 else 80)
-                        setParameter("manifest", defaultMapper.encodeToString(spec.manifest))
                         setParameter("created_by", actor.safeUsername())
                         setParameter("project", project)
                         setParameter("claim_token", claimToken)
                     },
                     """
                         insert into provider.providers
-                        (id, domain, https, port, manifest, created_by, project, refresh_token, claim_token, public_key)
+                        (id, domain, https, port, created_by, project, refresh_token, claim_token, public_key)
                         values
-                        (:id, :domain, :https, :port, :manifest, :created_by, :project, null, :claim_token, null)
+                        (:id, :domain, :https, :port, :created_by, :project, null, :claim_token, null)
                     """
                 )
         }
@@ -194,36 +189,6 @@ class ProviderDao(
         }
     }
 
-    suspend fun updateManifest(
-        ctx: DBContext,
-        actor: Actor,
-        id: String,
-        newManifest: ProviderManifest,
-    ) {
-        ctx.withSession { session ->
-            val (provider) = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", id)
-                        setParameter("newManifest", defaultMapper.encodeToString(newManifest))
-                    },
-                    """
-                        update provider.providers
-                        set manifest = :newManifest::jsonb
-                        where id = :id and claim_token is null
-                        returning *
-                    """
-                )
-                .rows
-                .map { rowToProvider(it) }
-                .singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
-            if (!hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-        }
-    }
-
     private fun rowToProvider(
         result: RowData,
     ): InternalProvider = InternalProvider(
@@ -234,7 +199,6 @@ class ProviderDao(
                 result.getString("domain")!!,
                 result.getBoolean("https")!!,
                 result.getInt("port")!!,
-                defaultMapper.decodeFromString(result.getString("manifest")!!),
             ),
             result.getString("refresh_token") ?: "",
             result.getString("public_key") ?: "",

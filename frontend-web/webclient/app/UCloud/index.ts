@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Feb 25 14:29:28 CET 2021 */
+/* Generated at: Thu Mar 04 15:16:56 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -95,9 +95,6 @@ export interface PaginationRequest {
     ,
 }
 
-export interface BinaryStream {
-}
-
 export interface BulkResponse<T = unknown> {
     responses: T[],
 }
@@ -162,1484 +159,9 @@ export interface PaginationRequestV2 {
     ,
 }
 
-export namespace mail {
-    export function send(
-        request: SendRequest
-    ): APICallParameters<SendRequest, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/api/mail",
-            parameters: request,
-            reloadId: Math.random(),
-            payload: request,
-        };
-    }
-
-    export function sendSupport(
-        request: SendSupportEmailRequest
-    ): APICallParameters<SendSupportEmailRequest, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/api/mail" + "/support",
-            parameters: request,
-            reloadId: Math.random(),
-            payload: request,
-        };
-    }
-
-    export function sendBulk(
-        request: SendBulkRequest
-    ): APICallParameters<SendBulkRequest, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/api/mail" + "/bulk",
-            parameters: request,
-            reloadId: Math.random(),
-            payload: request,
-        };
-    }
-
-    export interface SendRequest {
-        userId: string,
-        subject: string,
-        message: string,
-        mandatory?: boolean,
-    }
-
-    export interface SendSupportEmailRequest {
-        fromEmail: string,
-        subject: string,
-        message: string,
-    }
-
-    export interface SendBulkRequest {
-        messages: SendRequest[],
-    }
-}
-export namespace provider {
-    export interface ResourceAclEntry<Permission = unknown> {
-        entity: AclEntity,
-        permissions: Permission[],
-    }
-
-    export type AclEntity = AclEntityNS.ProjectGroup
-
-    /**
-     * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
-     *
-     * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-     * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-     * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-     * the provider APIs for communicating the status of the `Job`.
-     *
-     * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-     * with metadata, such as: ownership, billing and status.
-     *
-     * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-     *  It is then up to the provider to implement the functionality of the `Resource`.
-     *
-     * ![](/backend/provider-service/wiki/resource_create.svg)
-     *
-     * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
-     *
-     */
-    export interface ResourceDoc {
-        /**
-         * A unique identifier referencing the `Resource`
-         *
-         * This ID is assigned by UCloud and is globally unique across all providers.
-         */
-        id: string,
-        /**
-         * Timestamp referencing when the request for creation was received by UCloud
-         */
-        createdAt: number /* int64 */
-        ,
-        /**
-         * Holds the current status of the `Resource`
-         */
-        status: ResourceStatus,
-        /**
-         * Contains a list of updates from the provider as well as UCloud
-         *
-         * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
-         * resource.
-         */
-        updates: ResourceUpdate[],
-        specification: ResourceSpecification,
-        /**
-         * Contains information related to billing information for this `Resource`
-         */
-        billing: ResourceBilling,
-        /**
-         * Contains information about the original creator of the `Resource` along with project association
-         */
-        owner: ResourceOwner,
-        /**
-         * An ACL for this `Resource`
-         */
-        acl?: ResourceAclEntry[],
-    }
-
-    /**
-     * Describes the current state of the `Resource`
-     *
-     * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
-     * this will contain information such as:
-     *
-     * - A state value. For example, a compute `Job` might be `RUNNING`
-     * - Key metrics about the resource.
-     * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
-     *   should be listed in the `status` section.
-     *
-     */
-    export interface ResourceStatus {
-    }
-
-    /**
-     * Describes an update to the `Resource`
-     *
-     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
-     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
-     * use the full update history if you only wish to know the _current_ state of a `Resource`.
-     *
-     * An update will typically contain information similar to the `status` field, for example:
-     *
-     * - A state value. For example, a compute `Job` might be `RUNNING`.
-     * - Change in key metrics.
-     * - Bindings to related `Resource`s.
-     *
-     */
-    export interface ResourceUpdate {
-        /**
-         * A generic text message describing the current status of the `Resource`
-         */
-        status?: string,
-        /**
-         * A timestamp referencing when UCloud received this update
-         */
-        timestamp: number /* int64 */
-        ,
-    }
-
-    export interface ResourceSpecification {
-        /**
-         * A reference to the product which backs this `Resource`
-         *
-         * All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
-         * consume the backing `Product` should simply have a `pricePerUnit` of 0.
-         */
-        product?: accounting.ProductReference,
-    }
-
-    /**
-     * Contains information related to the accounting/billing of a `Resource`
-     *
-     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
-     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
-     * to be charged a different price than newly launched products.
-     */
-    export interface ResourceBilling {
-        /**
-         * Amount of credits charged in total for this `Resource`
-         */
-        creditsCharged: number /* int64 */
-        ,
-        /**
-         * The price per unit. This can differ from current price of `Product`
-         */
-        pricePerUnit: number /* int64 */
-        ,
-    }
-
-    /**
-     * The owner of a `Resource`
-     */
-    export interface ResourceOwner {
-        createdBy: string,
-        project?: string,
-    }
-
-    export interface ProviderSpecification {
-        id: string,
-        domain: string,
-        https: boolean,
-        port?: number /* int32 */
-        ,
-        manifest: ProviderManifest,
-        product?: accounting.ProductReference,
-    }
-
-    /**
-     * The `ProviderManifest` contains general metadata about the
-     *
-     * The manifest, for example, includes information about which `features` are supported by a
-     */
-    export interface ProviderManifest {
-        /**
-         * Contains information about the features supported by this provider
-         */
-        features: ManifestFeatureSupport,
-    }
-
-    /**
-     * Contains information about the features supported by this provider
-
-     * Features are by-default always disabled. There is _no_ minimum set of features a provider needs to support.
-     */
-    export interface ManifestFeatureSupport {
-        /**
-         * Determines which compute related features are supported by this provider
-         */
-        compute: ManifestFeatureSupportNS.Compute,
-    }
-
-    export interface ManifestAndId {
-        id: string,
-        manifest: ProviderManifest,
-    }
-
-    export interface ProvidersUpdateAclRequestItem {
-        id: string,
-        acl: ResourceAclEntry<"EDIT">[],
-    }
-
-    export interface ProvidersRenewRefreshTokenRequestItem {
-        id: string,
-    }
-
-    /**
-     * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
-     *
-     * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
-     * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
-     * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
-     * the provider APIs for communicating the status of the `Job`.
-     *
-     * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
-     * with metadata, such as: ownership, billing and status.
-     *
-     * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
-     *  It is then up to the provider to implement the functionality of the `Resource`.
-     *
-     * ![](/backend/provider-service/wiki/resource_create.svg)
-     *
-     * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
-     *
-     */
-    export interface Provider {
-        /**
-         * A unique identifier referencing the `Resource`
-         *
-         * This ID is assigned by UCloud and is globally unique across all providers.
-         */
-        id: string,
-        specification: ProviderSpecification,
-        refreshToken: string,
-        publicKey: string,
-        /**
-         * Timestamp referencing when the request for creation was received by UCloud
-         */
-        createdAt: number /* int64 */
-        ,
-        /**
-         * Holds the current status of the `Resource`
-         */
-        status: ProviderStatus,
-        /**
-         * Contains a list of updates from the provider as well as UCloud
-         *
-         * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
-         * resource.
-         */
-        updates: ProviderUpdate[],
-        /**
-         * Contains information related to billing information for this `Resource`
-         */
-        billing: ProviderBilling,
-        /**
-         * Contains information about the original creator of the `Resource` along with project association
-         */
-        owner: ProviderOwner,
-        /**
-         * An ACL for this `Resource`
-         */
-        acl: ResourceAclEntry<"EDIT">[],
-    }
-
-    /**
-     * Describes the current state of the `Resource`
-     *
-     * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
-     * this will contain information such as:
-     *
-     * - A state value. For example, a compute `Job` might be `RUNNING`
-     * - Key metrics about the resource.
-     * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
-     *   should be listed in the `status` section.
-     *
-     */
-    export interface ProviderStatus {
-    }
-
-    /**
-     * Describes an update to the `Resource`
-     *
-     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
-     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
-     * use the full update history if you only wish to know the _current_ state of a `Resource`.
-     *
-     * An update will typically contain information similar to the `status` field, for example:
-     *
-     * - A state value. For example, a compute `Job` might be `RUNNING`.
-     * - Change in key metrics.
-     * - Bindings to related `Resource`s.
-     *
-     */
-    export interface ProviderUpdate {
-        /**
-         * A timestamp referencing when UCloud received this update
-         */
-        timestamp: number /* int64 */
-        ,
-        /**
-         * A generic text message describing the current status of the `Resource`
-         */
-        status?: string,
-    }
-
-    /**
-     * Contains information related to the accounting/billing of a `Resource`
-     *
-     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
-     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
-     * to be charged a different price than newly launched products.
-     */
-    export interface ProviderBilling {
-        /**
-         * The price per unit. This can differ from current price of `Product`
-         */
-        pricePerUnit: number /* int64 */
-        ,
-        /**
-         * Amount of credits charged in total for this `Resource`
-         */
-        creditsCharged: number /* int64 */
-        ,
-    }
-
-    /**
-     * The owner of a `Resource`
-     */
-    export interface ProviderOwner {
-        createdBy: string,
-        project?: string,
-    }
-
-    /**
-     * The base type for requesting paginated content.
-     *
-     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-     * semantics of the call:
-     *
-     * | Consistency | Description |
-     * |-------------|-------------|
-     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-     *
-     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-     * must contain all the items, in the correct order and without duplicates.
-     *
-     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-     * consistent.
-     *
-     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
-     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-     *
-     * ---
-     *
-     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-     * paginate through the results.
-     *
-     * ---
-     *
-     */
-    export interface ProvidersBrowseRequest {
-        /**
-         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-         */
-        itemsPerPage?: number /* int32 */
-        ,
-        /**
-         * A token requesting the next page of items
-         */
-        next?: string,
-        /**
-         * Controls the consistency guarantees provided by the backend
-         */
-        consistency?: "PREFER" | "REQUIRE",
-        /**
-         * Items to skip ahead
-         */
-        itemsToSkip?: number /* int64 */
-        ,
-    }
-
-    export namespace resources {
-        export function create(
-            request: BulkRequest<ResourceDoc>
-        ): APICallParameters<BulkRequest<ResourceDoc>, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/doc/resources",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function browse(
-            request: PaginationRequestV2
-        ): APICallParameters<PaginationRequestV2, PageV2<ResourceDoc>> {
-            return {
-                context: "",
-                method: "GET",
-                path: buildQueryString("/doc/resources" + "/browse", {
-                    itemsPerPage: request.itemsPerPage,
-                    next: request.next,
-                    consistency: request.consistency,
-                    itemsToSkip: request.itemsToSkip
-                }),
-                parameters: request,
-                reloadId: Math.random(),
-            };
-        }
-    }
-    export namespace providers {
-        export function create(
-            request: BulkRequest<ProviderSpecification>
-        ): APICallParameters<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/providers",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function updateManifest(
-            request: BulkRequest<ManifestAndId>
-        ): APICallParameters<BulkRequest<ManifestAndId>, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/providers" + "/updateManifest",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function updateAcl(
-            request: BulkRequest<ProvidersUpdateAclRequestItem>
-        ): APICallParameters<BulkRequest<ProvidersUpdateAclRequestItem>, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/providers" + "/updateAcl",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function renewToken(
-            request: BulkRequest<ProvidersRenewRefreshTokenRequestItem>
-        ): APICallParameters<BulkRequest<ProvidersRenewRefreshTokenRequestItem>, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/providers" + "/renewToken",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function retrieve(
-            request: FindByStringId
-        ): APICallParameters<FindByStringId, Provider> {
-            return {
-                context: "",
-                method: "GET",
-                path: buildQueryString("/api/providers" + "/retrieve", {id: request.id}),
-                parameters: request,
-                reloadId: Math.random(),
-            };
-        }
-
-        export function browse(
-            request: ProvidersBrowseRequest
-        ): APICallParameters<ProvidersBrowseRequest, PageV2<Provider>> {
-            return {
-                context: "",
-                method: "GET",
-                path: buildQueryString("/api/providers" + "/browse", {
-                    itemsPerPage: request.itemsPerPage,
-                    next: request.next,
-                    consistency: request.consistency,
-                    itemsToSkip: request.itemsToSkip
-                }),
-                parameters: request,
-                reloadId: Math.random(),
-            };
-        }
-    }
-    export namespace AclEntityNS {
-        export interface ProjectGroup {
-            projectId: string,
-            group: string,
-            type: "project_group",
-        }
-    }
-    export namespace ManifestFeatureSupportNS {
-        export interface Compute {
-            /**
-             * Support for `Tool`s using the `DOCKER` backend
-             */
-            docker: ComputeNS.Docker,
-            /**
-             * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
-             */
-            virtualMachine: ComputeNS.VirtualMachine,
-        }
-
-        export namespace ComputeNS {
-            export interface Docker {
-                /**
-                 * Flag to enable/disable this feature
-                 *
-                 * All other flags are ignored if this is `false`.
-                 */
-                enabled: boolean,
-                /**
-                 * Flag to enable/disable the interactive interface of `WEB` `Application`s
-                 */
-                web: boolean,
-                /**
-                 * Flag to enable/disable the interactive interface of `VNC` `Application`s
-                 */
-                vnc: boolean,
-                /**
-                 * Flag to enable/disable `BATCH` `Application`s
-                 */
-                batch: boolean,
-                /**
-                 * Flag to enable/disable the log API
-                 */
-                logs: boolean,
-                /**
-                 * Flag to enable/disable the interactive terminal API
-                 */
-                terminal: boolean,
-                /**
-                 * Flag to enable/disable connection between peering `Job`s
-                 */
-                peers: boolean,
-            }
-
-            export interface VirtualMachine {
-                /**
-                 * Flag to enable/disable this feature
-                 *
-                 * All other flags are ignored if this is `false`.
-                 */
-                enabled: boolean,
-                /**
-                 * Flag to enable/disable the log API
-                 */
-                logs: boolean,
-                /**
-                 * Flag to enable/disable the VNC API
-                 */
-                vnc: boolean,
-                /**
-                 * Flag to enable/disable the interactive terminal API
-                 */
-                terminal: boolean,
-            }
-        }
-    }
-}
-export namespace auth {
-    export function passwordLogin(): APICallParameters<{}, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/auth" + "/login",
-            reloadId: Math.random(),
-        };
-    }
-
-    export function refresh(): APICallParameters<{}, AccessToken> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/auth" + "/refresh",
-            reloadId: Math.random(),
-        };
-    }
-
-    export function webRefresh(): APICallParameters<{}, AccessTokenAndCsrf> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/auth" + "/refresh" + "/web",
-            reloadId: Math.random(),
-        };
-    }
-
-    export function tokenExtension(
-        request: TokenExtensionRequest
-    ): APICallParameters<TokenExtensionRequest, OptionalAuthenticationTokens> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/auth" + "/extend",
-            parameters: request,
-            reloadId: Math.random(),
-            payload: request,
-        };
-    }
-
-    export function requestOneTimeTokenWithAudience(
-        request: RequestOneTimeToken
-    ): APICallParameters<RequestOneTimeToken, OneTimeAccessToken> {
-        return {
-            context: "",
-            method: "POST",
-            path: buildQueryString("/auth" + "/request", {audience: request.audience}),
-            parameters: request,
-            reloadId: Math.random(),
-        };
-    }
-
-    export function claim(
-        request: ClaimOneTimeToken
-    ): APICallParameters<ClaimOneTimeToken, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: buildQueryString("/auth" + "/claim", {jti: request.jti}),
-            parameters: request,
-            reloadId: Math.random(),
-        };
-    }
-
-    export function logout(): APICallParameters<{}, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/auth" + "/logout",
-            reloadId: Math.random(),
-        };
-    }
-
-    export function webLogout(): APICallParameters<{}, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/auth" + "/logout" + "/web",
-            reloadId: Math.random(),
-        };
-    }
-
-    export function bulkInvalidate(
-        request: BulkInvalidateRequest
-    ): APICallParameters<BulkInvalidateRequest, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/auth" + "/logout" + "/bulk",
-            parameters: request,
-            reloadId: Math.random(),
-            payload: request,
-        };
-    }
-
-    export function listUserSessions(
-        request: ListUserSessionsRequest
-    ): APICallParameters<ListUserSessionsRequest, Page<Session>> {
-        return {
-            context: "",
-            method: "GET",
-            path: buildQueryString("/auth" + "/sessions", {itemsPerPage: request.itemsPerPage, page: request.page}),
-            parameters: request,
-            reloadId: Math.random(),
-        };
-    }
-
-    export function invalidateSessions(): APICallParameters<{}, any /* unknown */> {
-        return {
-            context: "",
-            method: "DELETE",
-            path: "/auth" + "/sessions",
-            reloadId: Math.random(),
-        };
-    }
-
-    export interface AccessToken {
-        accessToken: string,
-    }
-
-    export interface AccessTokenAndCsrf {
-        accessToken: string,
-        csrfToken: string,
-    }
-
-    export interface OptionalAuthenticationTokens {
-        accessToken: string,
-        csrfToken?: string,
-        refreshToken?: string,
-    }
-
-    export interface TokenExtensionRequest {
-        validJWT: string,
-        requestedScopes: string[],
-        expiresIn: number /* int64 */
-        ,
-        allowRefreshes: boolean,
-    }
-
-    export interface OneTimeAccessToken {
-        accessToken: string,
-        jti: string,
-    }
-
-    export interface RequestOneTimeToken {
-        audience: string,
-    }
-
-    export interface ClaimOneTimeToken {
-        jti: string,
-    }
-
-    export interface BulkInvalidateRequest {
-        tokens: string[],
-    }
-
-    export interface AuthenticationTokens {
-        accessToken: string,
-        refreshToken: string,
-        csrfToken: string,
-    }
-
-    export interface CreateSingleUserRequest {
-        username: string,
-        password?: string,
-        email?: string,
-        role?: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
-    }
-
-    export interface UpdateUserInfoRequest {
-        email?: string,
-        firstNames?: string,
-        lastName?: string,
-    }
-
-    export interface GetUserInfoResponse {
-        email?: string,
-        firstNames?: string,
-        lastName?: string,
-    }
-
-    export interface ChangePasswordRequest {
-        currentPassword: string,
-        newPassword: string,
-    }
-
-    export interface ChangePasswordWithResetRequest {
-        userId: string,
-        newPassword: string,
-    }
-
-    export interface LookupUsersResponse {
-        results: Record<string, UserLookup>,
-    }
-
-    export interface UserLookup {
-        subject: string,
-        uid: number /* int64 */
-        ,
-        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
-    }
-
-    export interface LookupUsersRequest {
-        users: string[],
-    }
-
-    export interface LookupEmailResponse {
-        email: string,
-    }
-
-    export interface LookupEmailRequest {
-        userId: string,
-    }
-
-    export interface LookupUserWithEmailResponse {
-        userId: string,
-        firstNames: string,
-    }
-
-    export interface LookupUserWithEmailRequest {
-        email: string,
-    }
-
-    export interface WantsEmailsRequest {
-        username?: string,
-    }
-
-    export interface LookupUIDResponse {
-        users: Record<string, UserLookup>,
-    }
-
-    export interface LookupUIDRequest {
-        uids: number /* int64 */[],
-    }
-
-    export type Principal = Person | ServicePrincipal | ProviderPrincipal
-    export type Person = PersonNS.ByWAYF | PersonNS.ByPassword
-
-    export interface ServicePrincipal {
-        id: string,
-        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
-        uid: number /* int64 */
-        ,
-        emailAddresses: string[],
-        preferredEmailAddress?: string,
-        type: "service",
-    }
-
-    export interface ProviderPrincipal {
-        id: string,
-        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
-        uid: number /* int64 */
-        ,
-        emailAddresses: string[],
-        preferredEmailAddress?: string,
-        type: "provider",
-    }
-
-    export interface Create2FACredentialsResponse {
-        otpAuthUri: string,
-        qrCodeB64Data: string,
-        secret: string,
-        challengeId: string,
-    }
-
-    export interface AnswerChallengeRequest {
-        challengeId: string,
-        verificationCode: number /* int32 */
-        ,
-    }
-
-    export interface TwoFactorStatusResponse {
-        connected: boolean,
-    }
-
-    export interface Session {
-        ipAddress: string,
-        userAgent: string,
-        createdAt: number /* int64 */
-        ,
-    }
-
-    export interface ListUserSessionsRequest {
-        itemsPerPage?: number /* int32 */
-        ,
-        page?: number /* int32 */
-        ,
-    }
-
-    export interface ServiceAgreementText {
-        version: number /* int32 */
-        ,
-        text: string,
-    }
-
-    export interface AcceptSLARequest {
-        version: number /* int32 */
-        ,
-    }
-
-    export interface PublicKeyAndRefreshToken {
-        providerId: string,
-        publicKey: string,
-        refreshToken: string,
-    }
-
-    export interface AuthProvidersRegisterResponseItem {
-        claimToken: string,
-    }
-
-    export interface RefreshToken {
-        refreshToken: string,
-    }
-
-    export interface AuthProvidersRefreshAsProviderRequestItem {
-        providerId: string,
-    }
-
-    export interface AuthProvidersRegisterRequestItem {
-        id: string,
-    }
-
-    export interface AuthProvidersRetrievePublicKeyResponse {
-        publicKey: string,
-    }
-
-    export namespace users {
-        export function createNewUser(
-            request: CreateSingleUserRequest[]
-        ): APICallParameters<CreateSingleUserRequest[], AuthenticationTokens[]> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/register",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function updateUserInfo(
-            request: UpdateUserInfoRequest
-        ): APICallParameters<UpdateUserInfoRequest, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/updateUserInfo",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function getUserInfo(): APICallParameters<{}, GetUserInfoResponse> {
-            return {
-                context: "",
-                method: "GET",
-                path: "/auth/users" + "/userInfo",
-                reloadId: Math.random(),
-            };
-        }
-
-        export function changePassword(
-            request: ChangePasswordRequest
-        ): APICallParameters<ChangePasswordRequest, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/password",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function changePasswordWithReset(
-            request: ChangePasswordWithResetRequest
-        ): APICallParameters<ChangePasswordWithResetRequest, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/password" + "/reset",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function lookupUsers(
-            request: LookupUsersRequest
-        ): APICallParameters<LookupUsersRequest, LookupUsersResponse> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/lookup",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function lookupEmail(
-            request: LookupEmailRequest
-        ): APICallParameters<LookupEmailRequest, LookupEmailResponse> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/lookup" + "/email",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function lookupUserWithEmail(
-            request: LookupUserWithEmailRequest
-        ): APICallParameters<LookupUserWithEmailRequest, LookupUserWithEmailResponse> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/lookup" + "/with-email",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function toggleEmailSubscription(): APICallParameters<{}, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/toggleEmailSubscription",
-                reloadId: Math.random(),
-            };
-        }
-
-        export function wantsEmails(
-            request: WantsEmailsRequest
-        ): APICallParameters<WantsEmailsRequest, boolean> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/wantsEmails",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function lookupUID(
-            request: LookupUIDRequest
-        ): APICallParameters<LookupUIDRequest, LookupUIDResponse> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/lookup-uid",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function openUserIterator(): APICallParameters<{}, FindByStringId> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/iterator" + "/open",
-                reloadId: Math.random(),
-            };
-        }
-
-        export function fetchNextIterator(
-            request: FindByStringId
-        ): APICallParameters<FindByStringId, Principal[]> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/iterator" + "/next",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function closeIterator(
-            request: FindByStringId
-        ): APICallParameters<FindByStringId, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/iterator" + "/close",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-    }
-    export namespace sla {
-        export function find(): APICallParameters<{}, ServiceAgreementText> {
-            return {
-                context: "",
-                method: "GET",
-                path: "/api/sla",
-                reloadId: Math.random(),
-            };
-        }
-
-        export function accept(
-            request: AcceptSLARequest
-        ): APICallParameters<AcceptSLARequest, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/sla" + "/accept",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-    }
-    export namespace providers {
-        export function claim(
-            request: BulkRequest<AuthProvidersRegisterResponseItem>
-        ): APICallParameters<BulkRequest<AuthProvidersRegisterResponseItem>, BulkResponse<PublicKeyAndRefreshToken>> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/providers" + "/claim",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function refresh(
-            request: BulkRequest<RefreshToken>
-        ): APICallParameters<BulkRequest<RefreshToken>, BulkResponse<AccessToken>> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/providers" + "/refresh",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        /**
-         * Signs an access-token to be used by a UCloud service (refreshAsProvider)
-         *
-         * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
-         * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
-         *
-         * This RPC signs an access-token which will be used by authorized UCloud services to act as an
-         * orchestrator of resources.
-         */
-        export function refreshAsProvider(
-            request: BulkRequest<AuthProvidersRefreshAsProviderRequestItem>
-        ): APICallParameters<BulkRequest<AuthProvidersRefreshAsProviderRequestItem>, BulkResponse<AccessToken>> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/providers" + "/ refreshAsProvider",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function register(
-            request: BulkRequest<AuthProvidersRegisterRequestItem>
-        ): APICallParameters<BulkRequest<AuthProvidersRegisterRequestItem>, BulkResponse<AuthProvidersRegisterResponseItem>> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/providers",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function renew(
-            request: BulkRequest<FindByStringId>
-        ): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<PublicKeyAndRefreshToken>> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/providers" + "/renew",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function retrievePublicKey(
-            request: FindByStringId
-        ): APICallParameters<FindByStringId, AuthProvidersRetrievePublicKeyResponse> {
-            return {
-                context: "",
-                method: "GET",
-                path: buildQueryString("/auth/providers" + "/retrieveKey", {id: request.id}),
-                parameters: request,
-                reloadId: Math.random(),
-            };
-        }
-    }
-    export namespace twofactor {
-        export function createCredentials(): APICallParameters<{}, Create2FACredentialsResponse> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/2fa",
-                reloadId: Math.random(),
-            };
-        }
-
-        export function answerChallenge(
-            request: AnswerChallengeRequest
-        ): APICallParameters<AnswerChallengeRequest, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/2fa" + "/challenge",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function twoFactorStatus(): APICallParameters<{}, TwoFactorStatusResponse> {
-            return {
-                context: "",
-                method: "GET",
-                path: "/auth/2fa" + "/status",
-                reloadId: Math.random(),
-            };
-        }
-    }
-    export namespace PersonNS {
-        export interface ByWAYF {
-            id: string,
-            role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
-            title?: string,
-            firstNames: string,
-            lastName: string,
-            phoneNumber?: string,
-            orcId?: string,
-            email?: string,
-            uid: number /* int64 */
-            ,
-            serviceLicenseAgreement: number /* int32 */
-            ,
-            wantsEmails?: boolean,
-            organizationId: string,
-            wayfId: string,
-            displayName: string,
-            twoFactorAuthentication: boolean,
-            emailAddresses: string[],
-            preferredEmailAddress?: string,
-            type: "wayf",
-        }
-
-        export interface ByPassword {
-            id: string,
-            role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
-            title?: string,
-            firstNames: string,
-            lastName: string,
-            phoneNumber?: string,
-            orcId?: string,
-            email?: string,
-            uid: number /* int64 */
-            ,
-            twoFactorAuthentication: boolean,
-            serviceLicenseAgreement: number /* int32 */
-            ,
-            wantsEmails?: boolean,
-            displayName: string,
-            emailAddresses: string[],
-            preferredEmailAddress?: string,
-            type: "password",
-        }
-    }
-}
-export namespace filesearch {
-    export function advancedSearch(
-        request: AdvancedSearchRequest
-    ): APICallParameters<AdvancedSearchRequest, Page<file.StorageFile>> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/api/file-search" + "/advanced",
-            parameters: request,
-            reloadId: Math.random(),
-            payload: request,
-        };
-    }
-
-    export interface AdvancedSearchRequest {
-        fileName?: string,
-        extensions?: string[],
-        fileTypes?: "FILE" | "DIRECTORY"[],
-        includeShares?: boolean,
-        itemsPerPage?: number /* int32 */
-        ,
-        page?: number /* int32 */
-        ,
-    }
-}
 export namespace compute {
-    /**
-     * A `Job` in UCloud is the core abstraction used to describe a unit of computation.
-     *
-     * They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
-     * much bigger and more machines. In a simplified view, a `Job` describes the following information:
-     *
-     * - The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
-     * - The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
-     *   [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
-     * - A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
-     *   includes a reference to the _provider_
-     * - The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
-     *
-     * A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
-     * orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
-     * information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
-     * compute environment and how to launch the software
-     * correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
-     *
-     * At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
-     * a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
-     * the `Job`
-     * is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
-     * can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
-     * are available.
-     *
-     * Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
-     * terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
-     * software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
-     * in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
-     * state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
-     *
-     * At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
-     * delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
-     * any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
-     */
-    export interface Job {
-        /**
-         * Unique identifier for this job.
-         *
-         * UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier.
-         */
-        id: string,
-        /**
-         * A reference to the owner of this job
-         */
-        owner: JobOwner,
-        /**
-         * A list of status updates from the compute backend.
-         *
-         * The status updates tell a story of what happened with the job. This list is ordered by the timestamp in ascending order. The current state of the job will always be the last element. `updates` is guaranteed to always contain at least one element.
-         */
-        updates: JobUpdate[],
-        /**
-         * Contains information related to billing information for this `Resource`
-         */
-        billing: JobBilling,
-        /**
-         * The specification used to launch this job.
-         *
-         * This property is always available but must be explicitly requested.
-         */
-        specification: JobSpecification,
-        /**
-         * A summary of the `Job`'s current status
-         */
-        status: JobStatus,
-        /**
-         * Timestamp referencing when the request for creation was received by UCloud
-         */
-        createdAt: number /* int64 */
-        ,
-        /**
-         * Information regarding the output of this job.
-         */
-        output?: JobOutput,
-        /**
-         * An ACL for this `Resource`
-         */
-        acl?: provider.ResourceAclEntry[],
-    }
-
-    /**
-     * The owner of a `Resource`
-     */
-    export interface JobOwner {
-        /**
-         * The username of the user which started the job
-         */
-        createdBy: string,
-        /**
-         * The project ID of the project which owns this job
-         *
-         * This value can be null and this signifies that the job belongs to the personal workspace of the user.
-         */
-        project?: string,
-    }
-
-    /**
-     * Describes an update to the `Resource`
-     *
-     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
-     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
-     * use the full update history if you only wish to know the _current_ state of a `Resource`.
-     *
-     * An update will typically contain information similar to the `status` field, for example:
-     *
-     * - A state value. For example, a compute `Job` might be `RUNNING`.
-     * - Change in key metrics.
-     * - Bindings to related `Resource`s.
-     *
-     */
-    export interface JobUpdate {
-        /**
-         * A timestamp referencing when UCloud received this update
-         */
-        timestamp: number /* int64 */
-        ,
-        state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
-        /**
-         * A generic text message describing the current status of the `Resource`
-         */
-        status?: string,
-    }
-
-    /**
-     * Contains information related to the accounting/billing of a `Resource`
-     *
-     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
-     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
-     * to be charged a different price than newly launched products.
-     */
-    export interface JobBilling {
-        /**
-         * The amount of credits charged to the `owner` of this job
-         */
-        creditsCharged: number /* int64 */
-        ,
-        /**
-         * The unit price of this job
-         */
-        pricePerUnit: number /* int64 */
-        ,
-        __creditsAllocatedToWalletDoNotDependOn__: number /* int64 */
-        ,
+    export interface JobsCreateResponse {
+        ids: string[],
     }
 
     export interface JobSpecification {
@@ -1879,6 +401,153 @@ export namespace compute {
     }
 
     /**
+     * A `Job` in UCloud is the core abstraction used to describe a unit of computation.
+     *
+     * They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
+     * much bigger and more machines. In a simplified view, a `Job` describes the following information:
+     *
+     * - The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
+     * - The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
+     *   [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
+     * - A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
+     *   includes a reference to the _provider_
+     * - The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
+     *
+     * A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
+     * orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
+     * information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
+     * compute environment and how to launch the software
+     * correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
+     *
+     * At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
+     * a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
+     * the `Job`
+     * is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
+     * can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
+     * are available.
+     *
+     * Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
+     * terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
+     * software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
+     * in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
+     * state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
+     *
+     * At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
+     * delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
+     * any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
+     */
+    export interface Job {
+        /**
+         * Unique identifier for this job.
+         *
+         * UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier.
+         */
+        id: string,
+        /**
+         * A reference to the owner of this job
+         */
+        owner: JobOwner,
+        /**
+         * A list of status updates from the compute backend.
+         *
+         * The status updates tell a story of what happened with the job. This list is ordered by the timestamp in ascending order. The current state of the job will always be the last element. `updates` is guaranteed to always contain at least one element.
+         */
+        updates: JobUpdate[],
+        /**
+         * Contains information related to billing information for this `Resource`
+         */
+        billing: JobBilling,
+        /**
+         * The specification used to launch this job.
+         *
+         * This property is always available but must be explicitly requested.
+         */
+        specification: JobSpecification,
+        /**
+         * A summary of the `Job`'s current status
+         */
+        status: JobStatus,
+        /**
+         * Timestamp referencing when the request for creation was received by UCloud
+         */
+        createdAt: number /* int64 */
+        ,
+        /**
+         * Information regarding the output of this job.
+         */
+        output?: JobOutput,
+        /**
+         * An ACL for this `Resource`
+         */
+        acl?: provider.ResourceAclEntry[],
+    }
+
+    /**
+     * The owner of a `Resource`
+     */
+    export interface JobOwner {
+        /**
+         * The username of the user which started the job
+         */
+        createdBy: string,
+        /**
+         * The project ID of the project which owns this job
+         *
+         * This value can be null and this signifies that the job belongs to the personal workspace of the user.
+         */
+        project?: string,
+    }
+
+    /**
+     * Describes an update to the `Resource`
+     *
+     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+     * use the full update history if you only wish to know the _current_ state of a `Resource`.
+     *
+     * An update will typically contain information similar to the `status` field, for example:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`.
+     * - Change in key metrics.
+     * - Bindings to related `Resource`s.
+     *
+     */
+    export interface JobUpdate {
+        /**
+         * A timestamp referencing when UCloud received this update
+         */
+        timestamp: number /* int64 */
+        ,
+        state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+        /**
+         * A generic text message describing the current status of the `Resource`
+         */
+        status?: string,
+    }
+
+    /**
+     * Contains information related to the accounting/billing of a `Resource`
+     *
+     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+     * to be charged a different price than newly launched products.
+     */
+    export interface JobBilling {
+        /**
+         * The amount of credits charged to the `owner` of this job
+         */
+        creditsCharged: number /* int64 */
+        ,
+        /**
+         * The unit price of this job
+         */
+        pricePerUnit: number /* int64 */
+        ,
+        __creditsAllocatedToWalletDoNotDependOn__: number /* int64 */
+        ,
+    }
+
+    /**
      * Describes the current state of the `Resource`
      *
      * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
@@ -1917,34 +586,27 @@ export namespace compute {
         outputFolder: string,
     }
 
-    export interface ComputeExtendRequestItem {
-        job: Job,
-        requestedTime: SimpleDuration,
+    export interface JobsRetrieveRequest {
+        id: string,
+        /**
+         * Includes `parameters.parameters` and `parameters.resources`
+         */
+        includeParameters?: boolean,
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `parameters.resolvedApplication`
+         */
+        includeApplication?: boolean,
+        /**
+         * Includes `parameters.resolvedProduct`
+         */
+        includeProduct?: boolean,
     }
 
-    export interface ComputeOpenInteractiveSessionResponse {
-        sessions: OpenSession[],
-    }
-
-    export type OpenSession = OpenSessionNS.Shell | OpenSessionNS.Web | OpenSessionNS.Vnc
-
-    export interface ComputeOpenInteractiveSessionRequestItem {
-        job: Job,
-        rank: number /* int32 */
-        ,
-        sessionType: "WEB" | "VNC" | "SHELL",
-    }
-
-    export interface ComputeRetrieveProductsTemporaryResponse {
-        products: ComputeTemporaryProductSupport[],
-    }
-
-    export interface ComputeTemporaryProductSupport {
-        product: accounting.ProductNS.Compute,
-        support: provider.ManifestFeatureSupportNS.Compute,
-    }
-
-    export interface ComputeUtilizationResponse {
+    export interface JobsRetrieveUtilizationResponse {
         capacity: CpuAndMemory,
         usedCapacity: CpuAndMemory,
         queueStatus: QueueStatus,
@@ -1962,6 +624,207 @@ export namespace compute {
         ,
         pending: number /* int32 */
         ,
+    }
+
+    export interface JobsRetrieveUtilizationRequest {
+        provider?: string,
+        jobId?: string,
+    }
+
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
+    export interface JobsBrowseRequest {
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
+        itemsPerPage: number /* int32 */
+        ,
+        /**
+         * A token requesting the next page of items
+         */
+        next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
+        consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
+        itemsToSkip?: number /* int64 */
+        ,
+        /**
+         * Includes `parameters.parameters` and `parameters.resources`
+         */
+        includeParameters?: boolean,
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `parameters.resolvedApplication`
+         */
+        includeApplication?: boolean,
+        /**
+         * Includes `parameters.resolvedProduct`
+         */
+        includeProduct?: boolean,
+        sortBy?: "CREATED_AT" | "STATE" | "APPLICATION",
+        filterApplication?: string,
+        filterLaunchedBy?: string,
+        filterState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+        filterTitle?: string,
+        filterBefore?: number /* int64 */
+        ,
+        filterAfter?: number /* int64 */
+        ,
+    }
+
+    export interface JobsExtendRequestItem {
+        jobId: string,
+        requestedTime: SimpleDuration,
+    }
+
+    export interface JobsOpenInteractiveSessionResponse {
+        sessions: OpenSessionWithProvider[],
+    }
+
+    export interface OpenSessionWithProvider {
+        providerDomain: string,
+        providerId: string,
+        session: OpenSession,
+    }
+
+    export type OpenSession = OpenSessionNS.Shell | OpenSessionNS.Web | OpenSessionNS.Vnc
+
+    export interface JobsOpenInteractiveSessionRequestItem {
+        id: string,
+        rank: number /* int32 */
+        ,
+        sessionType: "WEB" | "VNC" | "SHELL",
+    }
+
+    export interface JobsRetrieveProductsTemporaryResponse {
+        productsByProvider: Record<string, ComputeRetrieveProductsTemporaryResponse>,
+    }
+
+    export interface ComputeRetrieveProductsTemporaryResponse {
+        products: ComputeTemporaryProductSupport[],
+    }
+
+    export interface ComputeTemporaryProductSupport {
+        product: accounting.ProductNS.Compute,
+        support: ComputeSupport,
+    }
+
+    export interface ComputeSupport {
+        /**
+         * Support for `Tool`s using the `DOCKER` backend
+         */
+        docker: ComputeSupportNS.Docker,
+        /**
+         * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
+         */
+        virtualMachine: ComputeSupportNS.VirtualMachine,
+    }
+
+    export interface JobsRetrieveProductsTemporaryRequest {
+        providers: string,
+    }
+
+    export interface JobsControlUpdateRequestItem {
+        jobId: string,
+        state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+        status?: string,
+        /**
+         * Indicates that this request should be ignored if the current state does not match the expected state
+         */
+        expectedState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+        /**
+         * Indicates that this request should be ignored if the current state equals `state`
+         */
+        expectedDifferentState?: boolean,
+    }
+
+    export interface JobsControlChargeCreditsResponse {
+        /**
+         * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
+         */
+        insufficientFunds: FindByStringId[],
+        /**
+         * A list of jobs which could not be charged due to it being a duplicate charge. If all jobs were charged successfully this will be empty.
+         */
+        duplicateCharges: FindByStringId[],
+    }
+
+    export interface JobsControlChargeCreditsRequestItem {
+        /**
+         * The ID of the job
+         */
+        id: string,
+        /**
+         * The ID of the charge
+         *
+         * This charge ID must be unique for the job, UCloud will reject charges which are not unique.
+         */
+        chargeId: string,
+        /**
+         * Amount of compute time to charge the user
+         *
+         * The wall duration should be for a single job replica and should only be for the time used since the lastupdate. UCloud will automatically multiply the amount with the number of job replicas.
+         */
+        wallDuration: SimpleDuration,
+    }
+
+    export interface JobsControlRetrieveRequest {
+        id: string,
+        /**
+         * Includes `parameters.parameters` and `parameters.resources`
+         */
+        includeParameters?: boolean,
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `parameters.resolvedApplication`
+         */
+        includeApplication?: boolean,
+        /**
+         * Includes `parameters.resolvedProduct`
+         */
+        includeProduct?: boolean,
     }
 
     /**
@@ -2088,9 +951,134 @@ export namespace compute {
         newBinding?: string,
     }
 
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
+    export interface IngressesBrowseRequest {
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
+        includeProduct?: boolean,
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
+        itemsPerPage?: number /* int32 */
+        ,
+        /**
+         * A token requesting the next page of items
+         */
+        next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
+        consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
+        itemsToSkip?: number /* int64 */
+        ,
+        domain?: string,
+        provider?: string,
+    }
+
+    export interface IngressesCreateResponse {
+        ids: string[],
+    }
+
+    export interface IngressRetrieve {
+        id: string,
+    }
+
+    export interface IngressRetrieveWithFlags {
+        id: string,
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
+        includeProduct?: boolean,
+    }
+
     export interface IngressSettings {
         domainPrefix: string,
         domainSuffix: string,
+    }
+
+    export interface IngressControlUpdateRequestItem {
+        id: string,
+        state?: "PREPARING" | "READY" | "UNAVAILABLE",
+        status?: string,
+        clearBindingToJob?: boolean,
+    }
+
+    export interface IngressControlChargeCreditsResponse {
+        /**
+         * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
+         */
+        insufficientFunds: IngressId[],
+        /**
+         * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
+         */
+        duplicateCharges: IngressId[],
+    }
+
+    export interface IngressId {
+        id: string,
+    }
+
+    export interface IngressControlChargeCreditsRequestItem {
+        /**
+         * The ID of the `Ingress`
+         */
+        id: string,
+        /**
+         * The ID of the charge
+         *
+         * This charge ID must be unique for the `Ingress`, UCloud will reject charges which are not unique.
+         */
+        chargeId: string,
+        /**
+         * Amount of units to charge the user
+         */
+        units: number /* int64 */
+        ,
     }
 
     /**
@@ -2210,6 +1198,143 @@ export namespace compute {
          * A new status message for the `License` (if any)
          */
         status?: string,
+    }
+
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
+    export interface LicensesBrowseRequest {
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
+        includeProduct?: boolean,
+        /**
+         * Includes `acl`
+         */
+        includeAcl?: boolean,
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
+        itemsPerPage?: number /* int32 */
+        ,
+        /**
+         * A token requesting the next page of items
+         */
+        next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
+        consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
+        itemsToSkip?: number /* int64 */
+        ,
+        provider?: string,
+        tag?: string,
+    }
+
+    export interface LicensesCreateResponse {
+        ids: string[],
+    }
+
+    export interface LicenseRetrieve {
+        id: string,
+    }
+
+    export interface LicenseRetrieveWithFlags {
+        id: string,
+        /**
+         * Includes `updates`
+         */
+        includeUpdates?: boolean,
+        /**
+         * Includes `resolvedProduct`
+         */
+        includeProduct?: boolean,
+        /**
+         * Includes `acl`
+         */
+        includeAcl?: boolean,
+    }
+
+    export interface LicensesUpdateAclRequestItem {
+        id: string,
+        acl: provider.ResourceAclEntry<"USE">[],
+    }
+
+    export interface LicenseControlUpdateRequestItem {
+        id: string,
+        state?: "PREPARING" | "READY" | "UNAVAILABLE",
+        status?: string,
+    }
+
+    export interface LicenseControlChargeCreditsResponse {
+        /**
+         * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
+         */
+        insufficientFunds: LicenseId[],
+        /**
+         * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
+         */
+        duplicateCharges: LicenseId[],
+    }
+
+    export interface LicenseId {
+        id: string,
+    }
+
+    export interface LicenseControlChargeCreditsRequestItem {
+        /**
+         * The ID of the `License`
+         */
+        id: string,
+        /**
+         * The ID of the charge
+         *
+         * This charge ID must be unique for the `License`, UCloud will reject charges which are not unique.
+         */
+        chargeId: string,
+        /**
+         * Amount of units to charge the user
+         */
+        units: number /* int64 */
+        ,
     }
 
     /**
@@ -2352,482 +1477,6 @@ export namespace compute {
         newIpAddress?: string,
     }
 
-    export interface FirewallAndId {
-        id: string,
-        firewall: NetworkIPSpecificationNS.Firewall,
-    }
-
-    export interface JobsCreateResponse {
-        ids: string[],
-    }
-
-    export interface JobsRetrieveRequest {
-        id: string,
-        /**
-         * Includes `parameters.parameters` and `parameters.resources`
-         */
-        includeParameters?: boolean,
-        /**
-         * Includes `updates`
-         */
-        includeUpdates?: boolean,
-        /**
-         * Includes `parameters.resolvedApplication`
-         */
-        includeApplication?: boolean,
-        /**
-         * Includes `parameters.resolvedProduct`
-         */
-        includeProduct?: boolean,
-    }
-
-    export interface JobsRetrieveUtilizationResponse {
-        capacity: CpuAndMemory,
-        usedCapacity: CpuAndMemory,
-        queueStatus: QueueStatus,
-    }
-
-    export interface JobsRetrieveUtilizationRequest {
-        provider?: string,
-        jobId?: string,
-    }
-
-    /**
-     * The base type for requesting paginated content.
-     *
-     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-     * semantics of the call:
-     *
-     * | Consistency | Description |
-     * |-------------|-------------|
-     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-     *
-     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-     * must contain all the items, in the correct order and without duplicates.
-     *
-     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-     * consistent.
-     *
-     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
-     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-     *
-     * ---
-     *
-     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-     * paginate through the results.
-     *
-     * ---
-     *
-     */
-    export interface JobsBrowseRequest {
-        /**
-         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-         */
-        itemsPerPage: number /* int32 */
-        ,
-        /**
-         * A token requesting the next page of items
-         */
-        next?: string,
-        /**
-         * Controls the consistency guarantees provided by the backend
-         */
-        consistency?: "PREFER" | "REQUIRE",
-        /**
-         * Items to skip ahead
-         */
-        itemsToSkip?: number /* int64 */
-        ,
-        /**
-         * Includes `parameters.parameters` and `parameters.resources`
-         */
-        includeParameters?: boolean,
-        /**
-         * Includes `updates`
-         */
-        includeUpdates?: boolean,
-        /**
-         * Includes `parameters.resolvedApplication`
-         */
-        includeApplication?: boolean,
-        /**
-         * Includes `parameters.resolvedProduct`
-         */
-        includeProduct?: boolean,
-        sortBy?: "CREATED_AT" | "STATE" | "APPLICATION",
-        filterApplication?: string,
-        filterLaunchedBy?: string,
-        filterState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
-        filterTitle?: string,
-        filterBefore?: number /* int64 */
-        ,
-        filterAfter?: number /* int64 */
-        ,
-    }
-
-    export interface JobsExtendRequestItem {
-        jobId: string,
-        requestedTime: SimpleDuration,
-    }
-
-    export interface JobsOpenInteractiveSessionResponse {
-        sessions: OpenSessionWithProvider[],
-    }
-
-    export interface OpenSessionWithProvider {
-        providerDomain: string,
-        providerId: string,
-        session: OpenSession,
-    }
-
-    export interface JobsOpenInteractiveSessionRequestItem {
-        id: string,
-        rank: number /* int32 */
-        ,
-        sessionType: "WEB" | "VNC" | "SHELL",
-    }
-
-    export interface JobsRetrieveProductsTemporaryResponse {
-        productsByProvider: Record<string, ComputeRetrieveProductsTemporaryResponse>,
-    }
-
-    export interface JobsRetrieveProductsTemporaryRequest {
-        providers: string,
-    }
-
-    export interface JobsControlUpdateRequestItem {
-        jobId: string,
-        state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
-        status?: string,
-        /**
-         * Indicates that this request should be ignored if the current state does not match the expected state
-         */
-        expectedState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
-        /**
-         * Indicates that this request should be ignored if the current state equals `state`
-         */
-        expectedDifferentState?: boolean,
-    }
-
-    export interface JobsControlChargeCreditsResponse {
-        /**
-         * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
-         */
-        insufficientFunds: FindByStringId[],
-        /**
-         * A list of jobs which could not be charged due to it being a duplicate charge. If all jobs were charged successfully this will be empty.
-         */
-        duplicateCharges: FindByStringId[],
-    }
-
-    export interface JobsControlChargeCreditsRequestItem {
-        /**
-         * The ID of the job
-         */
-        id: string,
-        /**
-         * The ID of the charge
-         *
-         * This charge ID must be unique for the job, UCloud will reject charges which are not unique.
-         */
-        chargeId: string,
-        /**
-         * Amount of compute time to charge the user
-         *
-         * The wall duration should be for a single job replica and should only be for the time used since the lastupdate. UCloud will automatically multiply the amount with the number of job replicas.
-         */
-        wallDuration: SimpleDuration,
-    }
-
-    export interface JobsControlRetrieveRequest {
-        id: string,
-        /**
-         * Includes `parameters.parameters` and `parameters.resources`
-         */
-        includeParameters?: boolean,
-        /**
-         * Includes `updates`
-         */
-        includeUpdates?: boolean,
-        /**
-         * Includes `parameters.resolvedApplication`
-         */
-        includeApplication?: boolean,
-        /**
-         * Includes `parameters.resolvedProduct`
-         */
-        includeProduct?: boolean,
-    }
-
-    /**
-     * The base type for requesting paginated content.
-     *
-     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-     * semantics of the call:
-     *
-     * | Consistency | Description |
-     * |-------------|-------------|
-     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-     *
-     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-     * must contain all the items, in the correct order and without duplicates.
-     *
-     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-     * consistent.
-     *
-     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
-     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-     *
-     * ---
-     *
-     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-     * paginate through the results.
-     *
-     * ---
-     *
-     */
-    export interface IngressesBrowseRequest {
-        /**
-         * Includes `updates`
-         */
-        includeUpdates?: boolean,
-        /**
-         * Includes `resolvedProduct`
-         */
-        includeProduct?: boolean,
-        /**
-         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-         */
-        itemsPerPage?: number /* int32 */
-        ,
-        /**
-         * A token requesting the next page of items
-         */
-        next?: string,
-        /**
-         * Controls the consistency guarantees provided by the backend
-         */
-        consistency?: "PREFER" | "REQUIRE",
-        /**
-         * Items to skip ahead
-         */
-        itemsToSkip?: number /* int64 */
-        ,
-        domain?: string,
-        provider?: string,
-    }
-
-    export interface IngressesCreateResponse {
-        ids: string[],
-    }
-
-    export interface IngressRetrieve {
-        id: string,
-    }
-
-    export interface IngressRetrieveWithFlags {
-        id: string,
-        /**
-         * Includes `updates`
-         */
-        includeUpdates?: boolean,
-        /**
-         * Includes `resolvedProduct`
-         */
-        includeProduct?: boolean,
-    }
-
-    export interface IngressControlUpdateRequestItem {
-        id: string,
-        state?: "PREPARING" | "READY" | "UNAVAILABLE",
-        status?: string,
-        clearBindingToJob?: boolean,
-    }
-
-    export interface IngressControlChargeCreditsResponse {
-        /**
-         * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
-         */
-        insufficientFunds: IngressId[],
-        /**
-         * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
-         */
-        duplicateCharges: IngressId[],
-    }
-
-    export interface IngressId {
-        id: string,
-    }
-
-    export interface IngressControlChargeCreditsRequestItem {
-        /**
-         * The ID of the `Ingress`
-         */
-        id: string,
-        /**
-         * The ID of the charge
-         *
-         * This charge ID must be unique for the `Ingress`, UCloud will reject charges which are not unique.
-         */
-        chargeId: string,
-        /**
-         * Amount of units to charge the user
-         */
-        units: number /* int64 */
-        ,
-    }
-
-    /**
-     * The base type for requesting paginated content.
-     *
-     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-     * semantics of the call:
-     *
-     * | Consistency | Description |
-     * |-------------|-------------|
-     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-     *
-     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-     * must contain all the items, in the correct order and without duplicates.
-     *
-     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-     * consistent.
-     *
-     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
-     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-     *
-     * ---
-     *
-     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-     * paginate through the results.
-     *
-     * ---
-     *
-     */
-    export interface LicensesBrowseRequest {
-        /**
-         * Includes `updates`
-         */
-        includeUpdates?: boolean,
-        /**
-         * Includes `resolvedProduct`
-         */
-        includeProduct?: boolean,
-        /**
-         * Includes `acl`
-         */
-        includeAcl?: boolean,
-        /**
-         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-         */
-        itemsPerPage?: number /* int32 */
-        ,
-        /**
-         * A token requesting the next page of items
-         */
-        next?: string,
-        /**
-         * Controls the consistency guarantees provided by the backend
-         */
-        consistency?: "PREFER" | "REQUIRE",
-        /**
-         * Items to skip ahead
-         */
-        itemsToSkip?: number /* int64 */
-        ,
-        provider?: string,
-        tag?: string,
-    }
-
-    export interface LicensesCreateResponse {
-        ids: string[],
-    }
-
-    export interface LicenseRetrieve {
-        id: string,
-    }
-
-    export interface LicenseRetrieveWithFlags {
-        id: string,
-        /**
-         * Includes `updates`
-         */
-        includeUpdates?: boolean,
-        /**
-         * Includes `resolvedProduct`
-         */
-        includeProduct?: boolean,
-        /**
-         * Includes `acl`
-         */
-        includeAcl?: boolean,
-    }
-
-    export interface LicensesUpdateAclRequestItem {
-        id: string,
-        acl: provider.ResourceAclEntry<"USE">[],
-    }
-
-    export interface LicenseControlUpdateRequestItem {
-        id: string,
-        state?: "PREPARING" | "READY" | "UNAVAILABLE",
-        status?: string,
-    }
-
-    export interface LicenseControlChargeCreditsResponse {
-        /**
-         * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
-         */
-        insufficientFunds: LicenseId[],
-        /**
-         * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
-         */
-        duplicateCharges: LicenseId[],
-    }
-
-    export interface LicenseId {
-        id: string,
-    }
-
-    export interface LicenseControlChargeCreditsRequestItem {
-        /**
-         * The ID of the `License`
-         */
-        id: string,
-        /**
-         * The ID of the charge
-         *
-         * This charge ID must be unique for the `License`, UCloud will reject charges which are not unique.
-         */
-        chargeId: string,
-        /**
-         * Amount of units to charge the user
-         */
-        units: number /* int64 */
-        ,
-    }
-
     /**
      * The base type for requesting paginated content.
      *
@@ -2923,6 +1572,11 @@ export namespace compute {
     export interface NetworkIPsUpdateAclRequestItem {
         id: string,
         acl: provider.ResourceAclEntry<"USE">[],
+    }
+
+    export interface FirewallAndId {
+        id: string,
+        firewall: NetworkIPSpecificationNS.Firewall,
     }
 
     export interface NetworkIPControlUpdateRequestItem {
@@ -3122,6 +1776,83 @@ export namespace compute {
         appVersion: string,
     }
 
+    export interface ComputeExtendRequestItem {
+        job: Job,
+        requestedTime: SimpleDuration,
+    }
+
+    export interface ComputeOpenInteractiveSessionResponse {
+        sessions: OpenSession[],
+    }
+
+    export interface ComputeOpenInteractiveSessionRequestItem {
+        job: Job,
+        rank: number /* int32 */
+        ,
+        sessionType: "WEB" | "VNC" | "SHELL",
+    }
+
+    export interface ComputeUtilizationResponse {
+        capacity: CpuAndMemory,
+        usedCapacity: CpuAndMemory,
+        queueStatus: QueueStatus,
+    }
+
+    export namespace ComputeSupportNS {
+        export interface Docker {
+            /**
+             * Flag to enable/disable this feature
+             *
+             * All other flags are ignored if this is `false`.
+             */
+            enabled: boolean,
+            /**
+             * Flag to enable/disable the interactive interface of `WEB` `Application`s
+             */
+            web: boolean,
+            /**
+             * Flag to enable/disable the interactive interface of `VNC` `Application`s
+             */
+            vnc: boolean,
+            /**
+             * Flag to enable/disable `BATCH` `Application`s
+             */
+            batch: boolean,
+            /**
+             * Flag to enable/disable the log API
+             */
+            logs: boolean,
+            /**
+             * Flag to enable/disable the interactive terminal API
+             */
+            terminal: boolean,
+            /**
+             * Flag to enable/disable connection between peering `Job`s
+             */
+            peers: boolean,
+        }
+
+        export interface VirtualMachine {
+            /**
+             * Flag to enable/disable this feature
+             *
+             * All other flags are ignored if this is `false`.
+             */
+            enabled: boolean,
+            /**
+             * Flag to enable/disable the log API
+             */
+            logs: boolean,
+            /**
+             * Flag to enable/disable the VNC API
+             */
+            vnc: boolean,
+            /**
+             * Flag to enable/disable the interactive terminal API
+             */
+            terminal: boolean,
+        }
+    }
     export namespace AppParameterValueNS {
         /**
          * A reference to a UCloud file
@@ -3319,16 +2050,12 @@ export namespace compute {
             };
         }
 
-        export function create(
-            request: BinaryStream
-        ): APICallParameters<BinaryStream, any /* unknown */> {
+        export function create(): APICallParameters<{}, any /* unknown */> {
             return {
                 context: "",
                 method: "PUT",
                 path: "/api/hpc/tools",
-                parameters: request,
                 reloadId: Math.random(),
-                payload: request,
             };
         }
 
@@ -3356,7 +2083,7 @@ export namespace compute {
 
         export function fetchLogo(
             request: FetchLogoRequest
-        ): APICallParameters<FetchLogoRequest, BinaryStream> {
+        ): APICallParameters<FetchLogoRequest, any /* unknown */> {
             return {
                 context: "",
                 method: "GET",
@@ -3482,16 +2209,12 @@ export namespace compute {
             };
         }
 
-        export function create(
-            request: BinaryStream
-        ): APICallParameters<BinaryStream, any /* unknown */> {
+        export function create(): APICallParameters<{}, any /* unknown */> {
             return {
                 context: "",
                 method: "PUT",
                 path: "/api/hpc/apps",
-                parameters: request,
                 reloadId: Math.random(),
-                payload: request,
             };
         }
 
@@ -3535,7 +2258,7 @@ export namespace compute {
 
         export function fetchLogo(
             request: FetchLogoRequest
-        ): APICallParameters<FetchLogoRequest, BinaryStream> {
+        ): APICallParameters<FetchLogoRequest, any /* unknown */> {
             return {
                 context: "",
                 method: "GET",
@@ -3764,6 +2487,16 @@ export namespace compute {
         }
     }
     export namespace ucloud {
+        export interface AauComputeSendUpdateRequest {
+            id: string,
+            update: string,
+            newState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+        }
+
+        export interface AauComputeRetrieveRequest {
+            id: string,
+        }
+
         export interface DrainNodeRequest {
             node: string,
         }
@@ -3855,7 +2588,8 @@ export namespace compute {
         }
 
         export interface K8Subnet {
-            cidr: string,
+            externalCidr: string,
+            internalCidr: string,
         }
 
         /**
@@ -3918,16 +2652,6 @@ export namespace compute {
             ,
             used: number /* int64 */
             ,
-        }
-
-        export interface AauComputeSendUpdateRequest {
-            id: string,
-            update: string,
-            newState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
-        }
-
-        export interface AauComputeRetrieveRequest {
-            id: string,
         }
 
         export namespace licenses {
@@ -5303,6 +4027,1247 @@ export namespace compute {
         }
     }
 }
+export namespace mail {
+    export function send(
+        request: SendRequest
+    ): APICallParameters<SendRequest, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/mail",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
+    export function sendSupport(
+        request: SendSupportEmailRequest
+    ): APICallParameters<SendSupportEmailRequest, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/mail" + "/support",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
+    export function sendBulk(
+        request: SendBulkRequest
+    ): APICallParameters<SendBulkRequest, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/mail" + "/bulk",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
+    export interface SendRequest {
+        userId: string,
+        subject: string,
+        message: string,
+        mandatory?: boolean,
+    }
+
+    export interface SendSupportEmailRequest {
+        fromEmail: string,
+        subject: string,
+        message: string,
+    }
+
+    export interface SendBulkRequest {
+        messages: SendRequest[],
+    }
+}
+export namespace provider {
+    export interface ResourceAclEntry<Permission = unknown> {
+        entity: AclEntity,
+        permissions: Permission[],
+    }
+
+    export type AclEntity = AclEntityNS.ProjectGroup
+
+    /**
+     * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+     *
+     * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
+     * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
+     * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
+     * the provider APIs for communicating the status of the `Job`.
+     *
+     * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
+     * with metadata, such as: ownership, billing and status.
+     *
+     * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
+     *  It is then up to the provider to implement the functionality of the `Resource`.
+     *
+     * ![](/backend/provider-service/wiki/resource_create.svg)
+     *
+     * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
+     *
+     */
+    export interface ResourceDoc {
+        /**
+         * A unique identifier referencing the `Resource`
+         *
+         * This ID is assigned by UCloud and is globally unique across all providers.
+         */
+        id: string,
+        /**
+         * Timestamp referencing when the request for creation was received by UCloud
+         */
+        createdAt: number /* int64 */
+        ,
+        /**
+         * Holds the current status of the `Resource`
+         */
+        status: ResourceStatus,
+        /**
+         * Contains a list of updates from the provider as well as UCloud
+         *
+         * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+         * resource.
+         */
+        updates: ResourceUpdate[],
+        specification: ResourceSpecification,
+        /**
+         * Contains information related to billing information for this `Resource`
+         */
+        billing: ResourceBilling,
+        /**
+         * Contains information about the original creator of the `Resource` along with project association
+         */
+        owner: ResourceOwner,
+        /**
+         * An ACL for this `Resource`
+         */
+        acl?: ResourceAclEntry[],
+    }
+
+    /**
+     * Describes the current state of the `Resource`
+     *
+     * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+     * this will contain information such as:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`
+     * - Key metrics about the resource.
+     * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+     *   should be listed in the `status` section.
+     *
+     */
+    export interface ResourceStatus {
+    }
+
+    /**
+     * Describes an update to the `Resource`
+     *
+     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+     * use the full update history if you only wish to know the _current_ state of a `Resource`.
+     *
+     * An update will typically contain information similar to the `status` field, for example:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`.
+     * - Change in key metrics.
+     * - Bindings to related `Resource`s.
+     *
+     */
+    export interface ResourceUpdate {
+        /**
+         * A generic text message describing the current status of the `Resource`
+         */
+        status?: string,
+        /**
+         * A timestamp referencing when UCloud received this update
+         */
+        timestamp: number /* int64 */
+        ,
+    }
+
+    export interface ResourceSpecification {
+        /**
+         * A reference to the product which backs this `Resource`
+         *
+         * All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
+         * consume the backing `Product` should simply have a `pricePerUnit` of 0.
+         */
+        product?: accounting.ProductReference,
+    }
+
+    /**
+     * Contains information related to the accounting/billing of a `Resource`
+     *
+     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+     * to be charged a different price than newly launched products.
+     */
+    export interface ResourceBilling {
+        /**
+         * Amount of credits charged in total for this `Resource`
+         */
+        creditsCharged: number /* int64 */
+        ,
+        /**
+         * The price per unit. This can differ from current price of `Product`
+         */
+        pricePerUnit: number /* int64 */
+        ,
+    }
+
+    /**
+     * The owner of a `Resource`
+     */
+    export interface ResourceOwner {
+        createdBy: string,
+        project?: string,
+    }
+
+    export interface ProviderSpecification {
+        id: string,
+        domain: string,
+        https: boolean,
+        port?: number /* int32 */
+        ,
+        product?: accounting.ProductReference,
+    }
+
+    export interface ProvidersUpdateAclRequestItem {
+        id: string,
+        acl: ResourceAclEntry<"EDIT">[],
+    }
+
+    export interface ProvidersRenewRefreshTokenRequestItem {
+        id: string,
+    }
+
+    /**
+     * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+     *
+     * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
+     * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
+     * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
+     * the provider APIs for communicating the status of the `Job`.
+     *
+     * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
+     * with metadata, such as: ownership, billing and status.
+     *
+     * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
+     *  It is then up to the provider to implement the functionality of the `Resource`.
+     *
+     * ![](/backend/provider-service/wiki/resource_create.svg)
+     *
+     * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
+     *
+     */
+    export interface Provider {
+        /**
+         * A unique identifier referencing the `Resource`
+         *
+         * This ID is assigned by UCloud and is globally unique across all providers.
+         */
+        id: string,
+        specification: ProviderSpecification,
+        refreshToken: string,
+        publicKey: string,
+        /**
+         * Timestamp referencing when the request for creation was received by UCloud
+         */
+        createdAt: number /* int64 */
+        ,
+        /**
+         * Holds the current status of the `Resource`
+         */
+        status: ProviderStatus,
+        /**
+         * Contains a list of updates from the provider as well as UCloud
+         *
+         * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+         * resource.
+         */
+        updates: ProviderUpdate[],
+        /**
+         * Contains information related to billing information for this `Resource`
+         */
+        billing: ProviderBilling,
+        /**
+         * Contains information about the original creator of the `Resource` along with project association
+         */
+        owner: ProviderOwner,
+        /**
+         * An ACL for this `Resource`
+         */
+        acl: ResourceAclEntry<"EDIT">[],
+    }
+
+    /**
+     * Describes the current state of the `Resource`
+     *
+     * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+     * this will contain information such as:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`
+     * - Key metrics about the resource.
+     * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+     *   should be listed in the `status` section.
+     *
+     */
+    export interface ProviderStatus {
+    }
+
+    /**
+     * Describes an update to the `Resource`
+     *
+     * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+     * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+     * use the full update history if you only wish to know the _current_ state of a `Resource`.
+     *
+     * An update will typically contain information similar to the `status` field, for example:
+     *
+     * - A state value. For example, a compute `Job` might be `RUNNING`.
+     * - Change in key metrics.
+     * - Bindings to related `Resource`s.
+     *
+     */
+    export interface ProviderUpdate {
+        /**
+         * A timestamp referencing when UCloud received this update
+         */
+        timestamp: number /* int64 */
+        ,
+        /**
+         * A generic text message describing the current status of the `Resource`
+         */
+        status?: string,
+    }
+
+    /**
+     * Contains information related to the accounting/billing of a `Resource`
+     *
+     * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+     * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+     * to be charged a different price than newly launched products.
+     */
+    export interface ProviderBilling {
+        /**
+         * The price per unit. This can differ from current price of `Product`
+         */
+        pricePerUnit: number /* int64 */
+        ,
+        /**
+         * Amount of credits charged in total for this `Resource`
+         */
+        creditsCharged: number /* int64 */
+        ,
+    }
+
+    /**
+     * The owner of a `Resource`
+     */
+    export interface ProviderOwner {
+        createdBy: string,
+        project?: string,
+    }
+
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
+    export interface ProvidersBrowseRequest {
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
+        itemsPerPage?: number /* int32 */
+        ,
+        /**
+         * A token requesting the next page of items
+         */
+        next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
+        consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
+        itemsToSkip?: number /* int64 */
+        ,
+    }
+
+    export namespace resources {
+        export function create(
+            request: BulkRequest<ResourceDoc>
+        ): APICallParameters<BulkRequest<ResourceDoc>, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/doc/resources",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function browse(
+            request: PaginationRequestV2
+        ): APICallParameters<PaginationRequestV2, PageV2<ResourceDoc>> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/doc/resources" + "/browse", {
+                    itemsPerPage: request.itemsPerPage,
+                    next: request.next,
+                    consistency: request.consistency,
+                    itemsToSkip: request.itemsToSkip
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+    }
+    export namespace providers {
+        export function create(
+            request: BulkRequest<ProviderSpecification>
+        ): APICallParameters<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/providers",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function updateAcl(
+            request: BulkRequest<ProvidersUpdateAclRequestItem>
+        ): APICallParameters<BulkRequest<ProvidersUpdateAclRequestItem>, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/providers" + "/updateAcl",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function renewToken(
+            request: BulkRequest<ProvidersRenewRefreshTokenRequestItem>
+        ): APICallParameters<BulkRequest<ProvidersRenewRefreshTokenRequestItem>, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/providers" + "/renewToken",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function retrieve(
+            request: FindByStringId
+        ): APICallParameters<FindByStringId, Provider> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/providers" + "/retrieve", {id: request.id}),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export function retrieveSpecification(
+            request: FindByStringId
+        ): APICallParameters<FindByStringId, ProviderSpecification> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/providers" + "/retrieveSpecification", {id: request.id}),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export function browse(
+            request: ProvidersBrowseRequest
+        ): APICallParameters<ProvidersBrowseRequest, PageV2<Provider>> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/providers" + "/browse", {
+                    itemsPerPage: request.itemsPerPage,
+                    next: request.next,
+                    consistency: request.consistency,
+                    itemsToSkip: request.itemsToSkip
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+    }
+    export namespace AclEntityNS {
+        export interface ProjectGroup {
+            projectId: string,
+            group: string,
+            type: "project_group",
+        }
+    }
+}
+export namespace auth {
+    export function passwordLogin(): APICallParameters<{}, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/auth" + "/login",
+            reloadId: Math.random(),
+        };
+    }
+
+    export function refresh(): APICallParameters<{}, AccessToken> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/auth" + "/refresh",
+            reloadId: Math.random(),
+        };
+    }
+
+    export function webRefresh(): APICallParameters<{}, AccessTokenAndCsrf> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/auth" + "/refresh" + "/web",
+            reloadId: Math.random(),
+        };
+    }
+
+    export function tokenExtension(
+        request: TokenExtensionRequest
+    ): APICallParameters<TokenExtensionRequest, OptionalAuthenticationTokens> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/auth" + "/extend",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
+    export function requestOneTimeTokenWithAudience(
+        request: RequestOneTimeToken
+    ): APICallParameters<RequestOneTimeToken, OneTimeAccessToken> {
+        return {
+            context: "",
+            method: "POST",
+            path: buildQueryString("/auth" + "/request", {audience: request.audience}),
+            parameters: request,
+            reloadId: Math.random(),
+        };
+    }
+
+    export function claim(
+        request: ClaimOneTimeToken
+    ): APICallParameters<ClaimOneTimeToken, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: buildQueryString("/auth" + "/claim", {jti: request.jti}),
+            parameters: request,
+            reloadId: Math.random(),
+        };
+    }
+
+    export function logout(): APICallParameters<{}, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/auth" + "/logout",
+            reloadId: Math.random(),
+        };
+    }
+
+    export function webLogout(): APICallParameters<{}, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/auth" + "/logout" + "/web",
+            reloadId: Math.random(),
+        };
+    }
+
+    export function bulkInvalidate(
+        request: BulkInvalidateRequest
+    ): APICallParameters<BulkInvalidateRequest, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/auth" + "/logout" + "/bulk",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
+    export function listUserSessions(
+        request: ListUserSessionsRequest
+    ): APICallParameters<ListUserSessionsRequest, Page<Session>> {
+        return {
+            context: "",
+            method: "GET",
+            path: buildQueryString("/auth" + "/sessions", {itemsPerPage: request.itemsPerPage, page: request.page}),
+            parameters: request,
+            reloadId: Math.random(),
+        };
+    }
+
+    export function invalidateSessions(): APICallParameters<{}, any /* unknown */> {
+        return {
+            context: "",
+            method: "DELETE",
+            path: "/auth" + "/sessions",
+            reloadId: Math.random(),
+        };
+    }
+
+    export interface AccessToken {
+        accessToken: string,
+    }
+
+    export interface AccessTokenAndCsrf {
+        accessToken: string,
+        csrfToken: string,
+    }
+
+    export interface OptionalAuthenticationTokens {
+        accessToken: string,
+        csrfToken?: string,
+        refreshToken?: string,
+    }
+
+    export interface TokenExtensionRequest {
+        validJWT: string,
+        requestedScopes: string[],
+        expiresIn: number /* int64 */
+        ,
+        allowRefreshes: boolean,
+    }
+
+    export interface OneTimeAccessToken {
+        accessToken: string,
+        jti: string,
+    }
+
+    export interface RequestOneTimeToken {
+        audience: string,
+    }
+
+    export interface ClaimOneTimeToken {
+        jti: string,
+    }
+
+    export interface BulkInvalidateRequest {
+        tokens: string[],
+    }
+
+    export interface AuthenticationTokens {
+        accessToken: string,
+        refreshToken: string,
+        csrfToken: string,
+    }
+
+    export interface CreateSingleUserRequest {
+        username: string,
+        password?: string,
+        email?: string,
+        role?: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    }
+
+    export interface UpdateUserInfoRequest {
+        email?: string,
+        firstNames?: string,
+        lastName?: string,
+    }
+
+    export interface GetUserInfoResponse {
+        email?: string,
+        firstNames?: string,
+        lastName?: string,
+    }
+
+    export type Principal = Person | ServicePrincipal | ProviderPrincipal
+    export type Person = PersonNS.ByWAYF | PersonNS.ByPassword
+
+    export interface ServicePrincipal {
+        id: string,
+        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+        uid: number /* int64 */
+        ,
+        type: "service",
+    }
+
+    export interface ProviderPrincipal {
+        id: string,
+        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+        uid: number /* int64 */
+        ,
+        type: "provider",
+    }
+
+    export interface GetPrincipalRequest {
+        username: string,
+    }
+
+    export interface ChangePasswordRequest {
+        currentPassword: string,
+        newPassword: string,
+    }
+
+    export interface ChangePasswordWithResetRequest {
+        userId: string,
+        newPassword: string,
+    }
+
+    export interface LookupUsersResponse {
+        results: Record<string, UserLookup>,
+    }
+
+    export interface UserLookup {
+        subject: string,
+        uid: number /* int64 */
+        ,
+        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    }
+
+    export interface LookupUsersRequest {
+        users: string[],
+    }
+
+    export interface LookupEmailResponse {
+        email: string,
+    }
+
+    export interface LookupEmailRequest {
+        userId: string,
+    }
+
+    export interface LookupUserWithEmailResponse {
+        userId: string,
+        firstNames: string,
+    }
+
+    export interface LookupUserWithEmailRequest {
+        email: string,
+    }
+
+    export interface WantsEmailsRequest {
+        username?: string,
+    }
+
+    export interface LookupUIDResponse {
+        users: Record<string, UserLookup>,
+    }
+
+    export interface LookupUIDRequest {
+        uids: number /* int64 */[],
+    }
+
+    export interface Create2FACredentialsResponse {
+        otpAuthUri: string,
+        qrCodeB64Data: string,
+        secret: string,
+        challengeId: string,
+    }
+
+    export interface AnswerChallengeRequest {
+        challengeId: string,
+        verificationCode: number /* int32 */
+        ,
+    }
+
+    export interface TwoFactorStatusResponse {
+        connected: boolean,
+    }
+
+    export interface Session {
+        ipAddress: string,
+        userAgent: string,
+        createdAt: number /* int64 */
+        ,
+    }
+
+    export interface ListUserSessionsRequest {
+        itemsPerPage?: number /* int32 */
+        ,
+        page?: number /* int32 */
+        ,
+    }
+
+    export interface ServiceAgreementText {
+        version: number /* int32 */
+        ,
+        text: string,
+    }
+
+    export interface AcceptSLARequest {
+        version: number /* int32 */
+        ,
+    }
+
+    export interface PublicKeyAndRefreshToken {
+        providerId: string,
+        publicKey: string,
+        refreshToken: string,
+    }
+
+    export interface AuthProvidersRegisterResponseItem {
+        claimToken: string,
+    }
+
+    export interface RefreshToken {
+        refreshToken: string,
+    }
+
+    export interface AuthProvidersRefreshAsProviderRequestItem {
+        providerId: string,
+    }
+
+    export interface AuthProvidersRegisterRequestItem {
+        id: string,
+    }
+
+    export interface AuthProvidersRetrievePublicKeyResponse {
+        publicKey: string,
+    }
+
+    export namespace users {
+        export function createNewUser(
+            request: CreateSingleUserRequest[]
+        ): APICallParameters<CreateSingleUserRequest[], AuthenticationTokens[]> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/register",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function updateUserInfo(
+            request: UpdateUserInfoRequest
+        ): APICallParameters<UpdateUserInfoRequest, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/updateUserInfo",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function getUserInfo(): APICallParameters<{}, GetUserInfoResponse> {
+            return {
+                context: "",
+                method: "GET",
+                path: "/auth/users" + "/userInfo",
+                reloadId: Math.random(),
+            };
+        }
+
+        export function retrievePrincipal(
+            request: GetPrincipalRequest
+        ): APICallParameters<GetPrincipalRequest, Principal> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/auth/users" + "/retrievePrincipal", {username: request.username}),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
+        export function changePassword(
+            request: ChangePasswordRequest
+        ): APICallParameters<ChangePasswordRequest, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/password",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function changePasswordWithReset(
+            request: ChangePasswordWithResetRequest
+        ): APICallParameters<ChangePasswordWithResetRequest, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/password" + "/reset",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function lookupUsers(
+            request: LookupUsersRequest
+        ): APICallParameters<LookupUsersRequest, LookupUsersResponse> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/lookup",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function lookupEmail(
+            request: LookupEmailRequest
+        ): APICallParameters<LookupEmailRequest, LookupEmailResponse> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/lookup" + "/email",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function lookupUserWithEmail(
+            request: LookupUserWithEmailRequest
+        ): APICallParameters<LookupUserWithEmailRequest, LookupUserWithEmailResponse> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/lookup" + "/with-email",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function toggleEmailSubscription(): APICallParameters<{}, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/toggleEmailSubscription",
+                reloadId: Math.random(),
+            };
+        }
+
+        export function wantsEmails(
+            request: WantsEmailsRequest
+        ): APICallParameters<WantsEmailsRequest, boolean> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/wantsEmails",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function lookupUID(
+            request: LookupUIDRequest
+        ): APICallParameters<LookupUIDRequest, LookupUIDResponse> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/lookup-uid",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function openUserIterator(): APICallParameters<{}, FindByStringId> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/iterator" + "/open",
+                reloadId: Math.random(),
+            };
+        }
+
+        export function fetchNextIterator(
+            request: FindByStringId
+        ): APICallParameters<FindByStringId, Principal[]> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/iterator" + "/next",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function closeIterator(
+            request: FindByStringId
+        ): APICallParameters<FindByStringId, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/users" + "/iterator" + "/close",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+    }
+    export namespace sla {
+        export function find(): APICallParameters<{}, ServiceAgreementText> {
+            return {
+                context: "",
+                method: "GET",
+                path: "/api/sla",
+                reloadId: Math.random(),
+            };
+        }
+
+        export function accept(
+            request: AcceptSLARequest
+        ): APICallParameters<AcceptSLARequest, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/sla" + "/accept",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+    }
+    export namespace providers {
+        export function claim(
+            request: BulkRequest<AuthProvidersRegisterResponseItem>
+        ): APICallParameters<BulkRequest<AuthProvidersRegisterResponseItem>, BulkResponse<PublicKeyAndRefreshToken>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers" + "/claim",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function refresh(
+            request: BulkRequest<RefreshToken>
+        ): APICallParameters<BulkRequest<RefreshToken>, BulkResponse<AccessToken>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers" + "/refresh",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        /**
+         * Signs an access-token to be used by a UCloud service (refreshAsOrchestrator)
+         *
+         * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+         * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+         *
+         * This RPC signs an access-token which will be used by authorized UCloud services to act as an
+         * orchestrator of resources.
+         */
+        export function refreshAsOrchestrator(
+            request: BulkRequest<AuthProvidersRefreshAsProviderRequestItem>
+        ): APICallParameters<BulkRequest<AuthProvidersRefreshAsProviderRequestItem>, BulkResponse<AccessToken>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers" + "/refreshAsOrchestrator",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function register(
+            request: BulkRequest<AuthProvidersRegisterRequestItem>
+        ): APICallParameters<BulkRequest<AuthProvidersRegisterRequestItem>, BulkResponse<AuthProvidersRegisterResponseItem>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function renew(
+            request: BulkRequest<FindByStringId>
+        ): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<PublicKeyAndRefreshToken>> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/providers" + "/renew",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function retrievePublicKey(
+            request: FindByStringId
+        ): APICallParameters<FindByStringId, AuthProvidersRetrievePublicKeyResponse> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/auth/providers" + "/retrieveKey", {id: request.id}),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+    }
+    export namespace twofactor {
+        export function createCredentials(): APICallParameters<{}, Create2FACredentialsResponse> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/2fa",
+                reloadId: Math.random(),
+            };
+        }
+
+        export function answerChallenge(
+            request: AnswerChallengeRequest
+        ): APICallParameters<AnswerChallengeRequest, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/auth/2fa" + "/challenge",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function twoFactorStatus(): APICallParameters<{}, TwoFactorStatusResponse> {
+            return {
+                context: "",
+                method: "GET",
+                path: "/auth/2fa" + "/status",
+                reloadId: Math.random(),
+            };
+        }
+    }
+    export namespace PersonNS {
+        export interface ByWAYF {
+            id: string,
+            role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+            title?: string,
+            firstNames: string,
+            lastName: string,
+            phoneNumber?: string,
+            orcId?: string,
+            email?: string,
+            uid: number /* int64 */
+            ,
+            serviceLicenseAgreement: number /* int32 */
+            ,
+            wantsEmails?: boolean,
+            organizationId: string,
+            wayfId: string,
+            displayName: string,
+            twoFactorAuthentication: boolean,
+            type: "wayf",
+        }
+
+        export interface ByPassword {
+            id: string,
+            role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+            title?: string,
+            firstNames: string,
+            lastName: string,
+            phoneNumber?: string,
+            orcId?: string,
+            email?: string,
+            uid: number /* int64 */
+            ,
+            twoFactorAuthentication: boolean,
+            serviceLicenseAgreement: number /* int32 */
+            ,
+            wantsEmails?: boolean,
+            displayName: string,
+            type: "password",
+        }
+    }
+}
+export namespace filesearch {
+    export function advancedSearch(
+        request: AdvancedSearchRequest
+    ): APICallParameters<AdvancedSearchRequest, Page<file.StorageFile>> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/file-search" + "/advanced",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
+    export interface AdvancedSearchRequest {
+        fileName?: string,
+        extensions?: string[],
+        fileTypes?: "FILE" | "DIRECTORY"[],
+        includeShares?: boolean,
+        itemsPerPage?: number /* int32 */
+        ,
+        page?: number /* int32 */
+        ,
+    }
+}
 export namespace project {
     export function create(
         request: CreateProjectRequest
@@ -5697,6 +5662,19 @@ export namespace project {
         };
     }
 
+    export function search(
+        request: ProjectSearchByPathRequest
+    ): APICallParameters<ProjectSearchByPathRequest, PageV2<Project>> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/projects" + "/search",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
     export interface CreateProjectRequest {
         title: string,
         parent?: string,
@@ -5833,6 +5811,7 @@ export namespace project {
         title: string,
         parent?: string,
         archived: boolean,
+        fullPath?: string,
     }
 
     export interface ListSubProjectsRequest {
@@ -5882,6 +5861,63 @@ export namespace project {
 
     export interface FetchDataManagementPlanResponse {
         dmp?: string,
+    }
+
+    /**
+     * The base type for requesting paginated content.
+     *
+     * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+     * semantics of the call:
+     *
+     * | Consistency | Description |
+     * |-------------|-------------|
+     * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+     * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+     *
+     * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+     * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+     * must contain all the items, in the correct order and without duplicates.
+     *
+     * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+     * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+     * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+     * consistent.
+     *
+     * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+     * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+     * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+     * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+     *
+     * ---
+     *
+     * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+     * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+     * paginate through the results.
+     *
+     * ---
+     *
+     */
+    export interface ProjectSearchByPathRequest {
+        path: string,
+        /**
+         * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+         */
+        itemsPerPage?: number /* int32 */
+        ,
+        /**
+         * A token requesting the next page of items
+         */
+        next?: string,
+        /**
+         * Controls the consistency guarantees provided by the backend
+         */
+        consistency?: "PREFER" | "REQUIRE",
+        /**
+         * Items to skip ahead
+         */
+        itemsToSkip?: number /* int64 */
+        ,
+        includeFullPath?: boolean,
     }
 
     export interface CreateGroupRequest {
@@ -6515,6 +6551,10 @@ export namespace accounting {
         ,
     }
 
+    export interface RetrieveWalletsForProjectsRequest {
+        projectIds: string[],
+    }
+
     export type Product =
         ProductNS.Storage
         | ProductNS.Compute
@@ -6907,6 +6947,19 @@ export namespace accounting {
                 context: "",
                 method: "POST",
                 path: "/api/accounting/wallets" + "/set-balance",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function retrieveWalletsFromProjects(
+            request: RetrieveWalletsForProjectsRequest
+        ): APICallParameters<RetrieveWalletsForProjectsRequest, Wallet[]> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/accounting/wallets" + "/retrieveWallets",
                 parameters: request,
                 reloadId: Math.random(),
                 payload: request,
@@ -7784,7 +7837,7 @@ export namespace file {
 
     export function download(
         request: DownloadByURI
-    ): APICallParameters<DownloadByURI, BinaryStream> {
+    ): APICallParameters<DownloadByURI, any /* unknown */> {
         return {
             context: "",
             method: "GET",
@@ -8310,6 +8363,12 @@ export namespace grant {
         ,
     }
 
+    export interface TransferApplicationRequest {
+        applicationId: number /* int64 */
+        ,
+        transferToProjectId: string,
+    }
+
     export interface CommentOnApplicationRequest {
         requestId: number /* int64 */
         ,
@@ -8456,6 +8515,15 @@ export namespace grant {
         ,
     }
 
+    export interface GrantsRetrieveAffiliationsRequest {
+        grantId: number /* int64 */
+        ,
+        itemsPerPage?: number /* int32 */
+        ,
+        page?: number /* int32 */
+        ,
+    }
+
     export interface FetchLogoRequest {
         projectId: string,
     }
@@ -8570,6 +8638,19 @@ export namespace grant {
                 context: "",
                 method: "POST",
                 path: "/api/grant" + "/close",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
+            };
+        }
+
+        export function transferApplication(
+            request: TransferApplicationRequest
+        ): APICallParameters<TransferApplicationRequest, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/grant" + "/transfer",
                 parameters: request,
                 reloadId: Math.random(),
                 payload: request,
@@ -8762,6 +8843,22 @@ export namespace grant {
             };
         }
 
+        export function retrieveAffiliations(
+            request: GrantsRetrieveAffiliationsRequest
+        ): APICallParameters<GrantsRetrieveAffiliationsRequest, Page<ProjectWithTitle>> {
+            return {
+                context: "",
+                method: "GET",
+                path: buildQueryString("/api/grant" + "/retrieveAffiliations", {
+                    grantId: request.grantId,
+                    itemsPerPage: request.itemsPerPage,
+                    page: request.page
+                }),
+                parameters: request,
+                reloadId: Math.random(),
+            };
+        }
+
         export function uploadLogo(): APICallParameters<{}, any /* unknown */> {
             return {
                 context: "",
@@ -8773,7 +8870,7 @@ export namespace grant {
 
         export function fetchLogo(
             request: FetchLogoRequest
-        ): APICallParameters<FetchLogoRequest, BinaryStream> {
+        ): APICallParameters<FetchLogoRequest, any /* unknown */> {
             return {
                 context: "",
                 method: "GET",

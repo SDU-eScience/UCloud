@@ -1,105 +1,86 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.Actor
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
-import dk.sdu.cloud.provider.api.ManifestFeatureSupport
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.auth.api.JwtRefresher
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.provider.api.ProviderSpecification
+import dk.sdu.cloud.provider.api.ProvidersRetrieveSpecificationRequest
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.provider.api.Providers as ProvidersApi
 import io.ktor.http.*
 
 data class ProviderCommunication(
     val api: Compute,
     val client: AuthenticatedClient,
     val wsClient: AuthenticatedClient,
-    val provider: ComputeProviderManifest,
     val ingressApi: IngressProvider?,
     val licenseApi: LicenseProvider?,
     val networkApi: NetworkIPProvider?,
+    val provider: ProviderSpecification,
 )
 
 class Providers(
-    private val developmentModeEnabled: Boolean,
     private val serviceClient: AuthenticatedClient,
-    private val wsServiceClient: AuthenticatedClient,
-    private val hardcodedProvider: ComputeProviderManifest,
 ) {
-    private val ucloudCompute = Compute(UCLOUD_PROVIDER)
+    private val rpcClient = serviceClient.withoutAuthentication()
 
-    private val aauManifest = hardcodedProvider.copy(
-        metadata = hardcodedProvider.metadata.copy(id = "aau"),
-        manifest = ProviderManifest(
-            ManifestFeatureSupport(
-                compute = ManifestFeatureSupport.Compute(
-                    docker = ManifestFeatureSupport.Compute.Docker(enabled = false),
-                    virtualMachine = ManifestFeatureSupport.Compute.VirtualMachine(enabled = true)
-                )
+    private val communicationCache = SimpleCache<String, ProviderCommunication>(
+        maxAge = 60_000 * 15,
+        lookup = { provider ->
+            val auth = RefreshingJWTAuthenticator(
+                rpcClient.client,
+                JwtRefresher.ProviderOrchestrator(serviceClient, provider)
             )
-        ),
+
+            val httpClient = auth.authenticateClient(OutgoingHttpCall)
+            val wsClient = auth.authenticateClient(OutgoingWSCall)
+
+            // TODO We don't know which are actually valid
+            val ingressApi = IngressProvider(provider)
+            val licenseApi = LicenseProvider(provider)
+            val networkApi = NetworkIPProvider(provider)
+            val computeApi = Compute(provider)
+
+            val providerSpec = ProvidersApi.retrieveSpecification.call(
+                ProvidersRetrieveSpecificationRequest(provider),
+                serviceClient
+            ).orThrow()
+
+            ProviderCommunication(computeApi, httpClient, wsClient, ingressApi, licenseApi, networkApi, providerSpec)
+        }
     )
 
+    /**
+     * Prepares communication with a given provider represented by an actor
+     * @throws RPCException (Internal Server Error) in case of unknown providers
+     */
     suspend fun prepareCommunication(actor: Actor): ProviderCommunication {
         return prepareCommunication(actor.safeUsername().removePrefix(PROVIDER_USERNAME_PREFIX))
     }
 
+    /**
+     * Prepares communication with a given provider
+     * @throws RPCException (Internal Server Error) in case of unknown providers
+     */
     suspend fun prepareCommunication(provider: String): ProviderCommunication {
-        if (provider == "aau" || provider == "_app-aau") {
-            // Hackity, hack, hack. TODO Remove this later, please.
-            return ProviderCommunication(
-                Compute("aau"),
-                serviceClient,
-                wsServiceClient,
-                aauManifest,
-                null,
-                null,
-                null,
-            )
-        }
-
-        if (provider == UCLOUD_PROVIDER || provider == "_app-kubernetes") {
-            return ProviderCommunication(
-                ucloudCompute,
-                serviceClient,
-                wsServiceClient,
-                hardcodedProvider,
-                IngressProvider(UCLOUD_PROVIDER),
-                LicenseProvider(UCLOUD_PROVIDER),
-                NetworkIPProvider(UCLOUD_PROVIDER),
-            )
-        }
-
-        if (developmentModeEnabled) {
-            return ProviderCommunication(
-                ucloudCompute,
-                serviceClient,
-                wsServiceClient,
-                hardcodedProvider,
-                IngressProvider(UCLOUD_PROVIDER),
-                LicenseProvider(UCLOUD_PROVIDER),
-                NetworkIPProvider(UCLOUD_PROVIDER),
-            )
-        }
-
-        throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
+        return communicationCache.get(provider)
+            ?: throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
     }
 
+    /**
+     * Verifies that a given actor can act on the behalf of the provider
+     */
     suspend fun verifyProvider(provider: String, principal: Actor) {
-        if (developmentModeEnabled) return
-        if (provider == "aau" && principal.safeUsername() == "_app-aau") return
-        if (provider == UCLOUD_PROVIDER && principal.safeUsername() == "_app-kubernetes") return
-
-        throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-    }
-
-    suspend fun fetchManifest(provider: String): ComputeProviderManifest {
-        if (provider == UCLOUD_PROVIDER) return hardcodedProvider
-        if (provider == "aau") return aauManifest
-
-        throw RPCException("Unknown provider: $provider", HttpStatusCode.InternalServerError)
+        if (provider != principal.safeUsername().removePrefix(PROVIDER_USERNAME_PREFIX)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
     }
 
     companion object {
-        const val PROVIDER_USERNAME_PREFIX = "#P"
+        const val PROVIDER_USERNAME_PREFIX = "#P_"
     }
 }

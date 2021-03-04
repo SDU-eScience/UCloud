@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.JobId
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import io.ktor.application.Application
@@ -156,9 +157,17 @@ fun withKtorTest(
     val engine = serverFeature.ktorApplicationEngine!! as TestApplicationEngine
 
     try {
-        val controllers = KtorApplicationTestSetupContext(engine.application, micro).setup()
-        serverFeature.server.configureControllers(*controllers.toTypedArray())
-        serverFeature.server.start()
+        val server = object : CommonServer {
+            override val micro = micro
+            override fun start() {
+                val controllers = KtorApplicationTestSetupContext(engine.application, micro).setup()
+                configureControllers(*controllers.toTypedArray())
+                serverFeature.server.start()
+            }
+
+            override val log = logger()
+        }
+        server.start()
         KtorApplicationTestContext(engine, micro).test()
     } finally {
         engine.stop(0, 0)

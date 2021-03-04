@@ -43,7 +43,6 @@ object Launcher : Loggable {
 val services = setOf(
     AccountingService,
     ActivityService,
-    AppKubernetesService,
     AppOrchestratorService,
     AppStoreService,
     AuditIngestionService,
@@ -69,6 +68,7 @@ val services = setOf(
     TaskService,
     ProviderService,
     AppAauService,
+    AppKubernetesService,
 )
 
 suspend fun main(args: Array<String>) {

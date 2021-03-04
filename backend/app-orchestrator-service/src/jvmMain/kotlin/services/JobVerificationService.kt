@@ -17,8 +17,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.util.*
 
 data class UnverifiedJob(
@@ -59,35 +57,44 @@ class JobVerificationService(
         }
 
         // Check provider support
-        val (provider, manifest) = providers.fetchManifest(unverifiedJob.request.product.provider)
+        val comms = providers.prepareCommunication(unverifiedJob.request.product.provider)
         run {
             if (tool.description.backend == ToolBackend.DOCKER) {
                 when (application.invocation.applicationType) {
                     ApplicationType.BATCH -> {
-                        if (!manifest.features.compute.docker.batch) {
+                        // TODO("Issue #2222")
+                        /*
+                        if (!provider.specification.compute.docker.batch) {
                             throw RPCException(
                                 "Batch applications are not supported at ${provider.id}",
                                 HttpStatusCode.BadRequest
                             )
                         }
+                         */
                     }
 
                     ApplicationType.VNC -> {
+                        // TODO("Issue #2222")
+                        /*
                         if (!manifest.features.compute.docker.vnc) {
                             throw RPCException(
                                 "Interactive applications are not supported at ${provider.id}",
                                 HttpStatusCode.BadRequest
                             )
                         }
+                         */
                     }
 
                     ApplicationType.WEB -> {
+                        // TODO("Issue #2222")
+                        /*
                         if (!manifest.features.compute.docker.web) {
                             throw RPCException(
                                 "Web applications are not supported at ${provider.id}",
                                 HttpStatusCode.BadRequest
                             )
                         }
+                         */
                     }
                 }
             }
@@ -101,13 +108,22 @@ class JobVerificationService(
                 }
 
                 ToolBackend.DOCKER -> {
+                    // TODO("Issue #2222")
+                    /*
                     if (!manifest.features.compute.docker.enabled) {
                         throw RPCException(
                             "Docker applications are not supported at ${provider.id}",
                             HttpStatusCode.BadRequest
                         )
                     }
+                     */
                 }
+
+                ToolBackend.VIRTUAL_MACHINE -> {
+                    // TODO("Issue #2222")
+                }
+
+                else -> error("Unexpected backend")
             }
         }
 
