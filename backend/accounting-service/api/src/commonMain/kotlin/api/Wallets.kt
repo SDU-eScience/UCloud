@@ -202,6 +202,7 @@ data class SingleTransferRequest(
 
 typealias TransferToPersonalResponse = Unit
 
+@Serializable
 data class RetrieveWalletsForProjectsRequest(
     val projectIds: List<String>
 )
