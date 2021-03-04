@@ -21,7 +21,7 @@ data class LookupEmailRequest(val userId: String)
 data class LookupEmailResponse(val email: String)
 
 data class LookupUserWithEmailRequest(val email: String)
-data class LookupUserWithEmailResponse(val userId: String, val firstNames: String)
+data class LookupUserWithEmailResponse(val userId: String, val firstNames: String, val lastName: String)
 
 typealias CreateUserAudit = List<CreateSingleUserAudit>
 
@@ -49,14 +49,6 @@ data class GetUserInfoResponse(
     val firstNames: String?,
     val lastName: String?
 )
-
-data class WantsEmailsRequest(
-    val username: String?
-)
-typealias WantsEmailsResponse = Boolean
-
-typealias ToggleEmailSubscriptionRequest = Unit
-typealias ToggleEmailSubscriptionResponse = Unit
 
 class ChangePasswordAudit
 
@@ -191,40 +183,6 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
                 using(baseContext)
                 +"lookup"
                 +"email"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val toggleEmailSubscription = call<ToggleEmailSubscriptionRequest, ToggleEmailSubscriptionResponse, CommonErrorMessage>("toggleEmailSubscription") {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"toggleEmailSubscription"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-    //If expanded upon it should be moved out of AUTH
-    val wantsEmails = call<WantsEmailsRequest, WantsEmailsResponse, CommonErrorMessage>("wantsEmails") {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"wantsEmails"
             }
 
             body { bindEntireRequestFromBody() }

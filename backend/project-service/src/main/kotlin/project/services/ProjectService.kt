@@ -14,9 +14,7 @@ import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendBulkRequest
-import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -24,7 +22,6 @@ import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.utils.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
@@ -212,7 +209,7 @@ class ProjectService(
             val messages = invitesTo.map { invitee ->
                 SendRequest(
                     invitee,
-                    PROJECT_USER_INVITE,
+                    MailSubjects.PROJECT_USER_INVITE,
                     userInvitedToInviteeTemplate(invitee, projectTitle)
                 )
             }
@@ -334,7 +331,7 @@ class ProjectService(
                 SendBulkRequest(allAdmins.map { admin ->
                     SendRequest(
                         admin,
-                        USER_LEFT,
+                        MailSubjects.USER_LEFT,
                         userLeftTemplate(pi, initiatedBy, projectTitle)
                     )
                 }),
@@ -419,14 +416,14 @@ class ProjectService(
                 .map {
                     SendRequest(
                         pi,
-                        USER_LEFT,
+                        MailSubjects.USER_LEFT,
                         userRemovedTemplate(pi, userToDelete, projectTitle)
                     )
                 }
 
             val userMessage = SendRequest(
                 userToDelete,
-                USER_LEFT,
+                MailSubjects.USER_LEFT,
                 userRemovedToPersonRemovedTemplate(userToDelete, projectTitle)
             )
 
@@ -508,8 +505,8 @@ class ProjectService(
                 SendBulkRequest(allAdmins.map {
                     SendRequest(
                         pi,
-                        USER_ROLE_CHANGE,
-                        userRoleChangeTemplate(pi, memberToUpdate, newRole, projectTitle)
+                        MailSubjects.USER_ROLE_CHANGE,
+                        userRoleChangeTemplate(pi, memberToUpdate, newRole.name, projectTitle)
                     )
                 }),
                 serviceClient
@@ -833,8 +830,5 @@ class ProjectService(
 
     companion object : Loggable {
         override val log = logger()
-        const val USER_ROLE_CHANGE = "Role change in project"
-        const val USER_LEFT = "User left project"
-        const val PROJECT_USER_INVITE = "User invited to project"
     }
 }

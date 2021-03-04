@@ -4,13 +4,12 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationWithComments
 import dk.sdu.cloud.grant.api.Comment
-import dk.sdu.cloud.grant.utils.newCommentTemplate
-import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.mail.api.MailSubjects
+import dk.sdu.cloud.mail.api.newCommentTemplate
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
-import org.apache.http.HttpStatus
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
@@ -60,7 +59,8 @@ class CommentService(
                         type = "COMMENT_GRANT_APPLICATION",
                         message = { user, projectTitle ->
                             newCommentTemplate(user, actor.safeUsername(), projectTitle, application.grantRecipientTitle)
-                        }
+                        },
+                        MailSubjects.COMMENT_GRANT_APPLICATION
                     )
                 ),
                 actor.safeUsername(),
@@ -76,7 +76,8 @@ class CommentService(
                         type = "COMMENT_GRANT_APPLICATION",
                         message = { user, projectTitle ->
                             newCommentTemplate(user, actor.safeUsername(), projectTitle, application.grantRecipientTitle)
-                        }
+                        },
+                        MailSubjects.COMMENT_GRANT_APPLICATION
                     ),
                     userMessage = null
                 ),

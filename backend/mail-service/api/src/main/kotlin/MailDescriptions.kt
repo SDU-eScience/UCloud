@@ -9,7 +9,7 @@ import io.ktor.http.HttpMethod
 
 data class SendRequest(
     val userId: String,
-    val subject: String,
+    val subject: MailSubjects,
     val message: String,
     val mandatory: Boolean? = false
 )
@@ -25,6 +25,24 @@ data class SendSupportEmailRequest(
 )
 
 typealias SendSupportEmailResponse = Unit
+
+data class EmailSettingsItem(
+    val username: String,
+    val settings: Map<MailSubjects, Boolean>
+)
+
+typealias ToggleEmailSettingsRequest = BulkRequest<EmailSettingsItem>
+
+typealias ToggleEmailSettingsResponse = Unit
+
+data class RetrieveEmailSettingsRequest(
+    val username: String?
+)
+
+data class RetrieveEmailSettingsResponse(
+    val settings: Map<MailSubjects, Boolean>
+)
+
 
 @TSTopLevel
 object MailDescriptions : CallDescriptionContainer("mail") {
@@ -81,5 +99,27 @@ object MailDescriptions : CallDescriptionContainer("mail") {
 
             body { bindEntireRequestFromBody() }
         }
+    }
+
+    val toggleEmailSettings = call<
+        ToggleEmailSettingsRequest,
+        ToggleEmailSettingsResponse,
+        CommonErrorMessage>("toogleEmailSettings")
+    {
+            httpUpdate(
+                baseContext,
+                "toggleEmailSettings"
+            )
+    }
+
+    val retrieveEmailSettings = call<
+        RetrieveEmailSettingsRequest,
+        RetrieveEmailSettingsResponse,
+        CommonErrorMessage>("retrieveEmailSettings")
+    {
+        httpRetrieve(
+            baseContext,
+            "emailSettings"
+        )
     }
 }

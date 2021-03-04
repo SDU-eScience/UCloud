@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.mail.api.MailDescriptions
+import dk.sdu.cloud.mail.api.MailSubjects
 import dk.sdu.cloud.mail.api.SendBulkRequest
 import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.notification.api.CreateNotification
@@ -13,7 +14,8 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 data class GrantNotificationMessage(
     val subject: (projectTitle: String) -> String,
     val type: String,
-    val message: (receiver: String, projectTitle: String) -> String
+    val message: (receiver: String, projectTitle: String) -> String,
+    val emailSubjects: MailSubjects
 )
 
 data class GrantNotification(
@@ -50,7 +52,7 @@ class NotificationService(
                         sendRequests.add(
                             SendRequest(
                                 admin.username,
-                                adminMessage.subject(title),
+                                adminMessage.emailSubjects,
                                 adminMessage.message(admin.username, title)
                             )
                         )
@@ -62,7 +64,7 @@ class NotificationService(
                 sendRequests.add(
                     SendRequest(
                         application.requestedBy,
-                        userMessage.subject(title),
+                        userMessage.emailSubjects,
                         userMessage.message(application.requestedBy, title)
                     )
                 )

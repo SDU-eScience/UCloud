@@ -2,7 +2,6 @@ package dk.sdu.cloud.accounting.services
 
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.Utils.CREDITS_NOTIFY_LIMIT
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -60,6 +59,8 @@ object TransactionTable : SQLTable("transactions") {
     val expiresAt = timestamp("expires_at")
     val transactionComment = text("transaction_comment")
 }
+
+const val CREDITS_NOTIFY_LIMIT = 5000000
 
 class BalanceService(
     private val projectCache: ProjectCache,

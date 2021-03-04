@@ -5,7 +5,6 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupEmailRequest
 import dk.sdu.cloud.auth.api.LookupEmailResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.auth.api.WantsEmailsRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call

@@ -4,7 +4,9 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.mail.api.MailDescriptions
+import dk.sdu.cloud.mail.api.MailSubjects
 import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.verifyReminderTemplate
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -56,30 +58,9 @@ class VerificationReminder(
                 val mailStatus = MailDescriptions.send.call(
                     SendRequest(
                         user,
-                        "[UCloud] Time to review your project ($title)",
+                        MailSubjects.VERIFICATION_REMINDER,
                         //language=html
-                        """
-                            <p>Hello ${user},</p> 
-                            
-                            <p>
-                                It is time for a review of your project $title in which you are 
-                                ${if (role == ProjectRole.ADMIN) " an admin" else " a PI"}.
-                            </p>
-                            
-                            <ul>
-                                <li>PIs and admins are asked to occasionally review members of their project</li>
-                                <li>We ask you to ensure that only the people who need access have access</li>
-                                <li>
-                                    If you find someone who should not have access then remove them by clicking 'Remove'
-                                    next to their name
-                                </li>
-                                <li>
-                                    You can begin the review by clicking 
-                                    <a href="https://cloud.sdu.dk/app/projects}">here</a>.
-                                </li>
-                            </ul>
- 
-                        """.trimMargin()
+                        verifyReminderTemplate(user, title, role.name)
                     ),
                     serviceClient
                 )

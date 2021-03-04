@@ -12,7 +12,7 @@ import dk.sdu.cloud.grant.api.GrantApplicationFilter
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.UserCriteria
-import dk.sdu.cloud.grant.utils.*
+import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -154,7 +154,8 @@ class ApplicationService(
                     "NEW_GRANT_APPLICATION",
                     message = { user, projectTitle ->
                         newIngoingApplicationTemplate(user, actor.safeUsername(), projectTitle)
-                    }
+                    },
+                    MailSubjects.NEW_GRANT_APPLICATION
                 ),
                 userMessage = null
             ),
@@ -311,14 +312,16 @@ class ApplicationService(
                     GRANT_APP_RESPONSE,
                     message = { user, title ->
                         approvedProjectToAdminsTemplate(user, application.requestedBy, title)
-                    }
+                    },
+                    MailSubjects.GRANT_APP_AUTO_APPROVE
                 ),
                 userMessage = GrantNotificationMessage(
                     { "Grant application approved" },
                     GRANT_APP_RESPONSE,
                     message = { user, title ->
-                        responseTemplate(ApplicationStatus.APPROVED, user, "UCloud", title)
-                    }
+                        approved(user, title)
+                    },
+                    MailSubjects.GRANT_APP_AUTO_APPROVE
                 )
             ),
             "_ucloud",
@@ -419,7 +422,8 @@ class ApplicationService(
                     "GRANT_APPLICATION_UPDATED",
                     message = { user, projectTitle ->
                         updatedTemplateToAdmins(projectTitle, user, actor.safeUsername(), application.grantRecipientTitle)
-                    }
+                    },
+                    MailSubjects.GRANT_APPLICATION_UPDATED
                 ),
                 userMessage =
                 GrantNotificationMessage(
@@ -427,7 +431,8 @@ class ApplicationService(
                     "GRANT_APPLICATION_UPDATED",
                     message = { user, projectTitle ->
                         updatedTemplate(projectTitle, user, actor.safeUsername())
-                    }
+                    },
+                    MailSubjects.GRANT_APPLICATION_UPDATED
                 )
             ),
             actor.safeUsername(),
@@ -524,11 +529,17 @@ class ApplicationService(
                         GRANT_APP_RESPONSE,
                         message = { user, projectTitle ->
                             statusChangeTemplateToAdmins(
-                                newStatus,
+                                newStatus.name,
                                 user,
                                 actor.safeUsername(),
                                 projectTitle
                             )
+                        },
+                        when (newStatus){
+                            ApplicationStatus.APPROVED -> MailSubjects.GRANT_APP_APPROVED
+                            ApplicationStatus.REJECTED -> MailSubjects.GRANT_APP_REJECTED
+                            ApplicationStatus.CLOSED -> MailSubjects.GRANT_APP_WITHDRAWN
+                            else -> throw IllegalStateException()
                         }
                     ),
                     userMessage =
@@ -536,12 +547,18 @@ class ApplicationService(
                         { "Grant application updated ($statusTitle)" },
                         GRANT_APP_RESPONSE,
                         message = { user, projectTitle ->
-                            responseTemplate(
-                                newStatus,
-                                user,
-                                actor.safeUsername(),
-                                projectTitle
-                            )
+                            when (newStatus){
+                                ApplicationStatus.APPROVED -> approved(user, projectTitle)
+                                ApplicationStatus.REJECTED -> rejected(user, projectTitle)
+                                ApplicationStatus.CLOSED -> closed(user, projectTitle, actor.safeUsername())
+                                else -> throw IllegalStateException()
+                            }
+                        },
+                        when (newStatus){
+                            ApplicationStatus.APPROVED -> MailSubjects.GRANT_APP_APPROVED
+                            ApplicationStatus.REJECTED -> MailSubjects.GRANT_APP_REJECTED
+                            ApplicationStatus.CLOSED -> MailSubjects.GRANT_APP_WITHDRAWN
+                            else -> throw IllegalStateException()
                         }
                     )
                 ),
