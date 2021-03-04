@@ -1,11 +1,15 @@
-version = "1.5.1"
+version = "1.6.0"
 
 application {
     mainClassName = "dk.sdu.cloud.accounting.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
-    implementation(project(":project-service:api"))
-    implementation(project(":mail-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+            implementation(project(":project-service:api"))
+            implementation(project(":mail-service:api"))
+        }
+    }
 }

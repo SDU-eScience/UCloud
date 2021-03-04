@@ -28,8 +28,12 @@ import {ThemeColor} from "ui-components/theme";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {FilterTrigger} from "./OutgoingApplications";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {useDispatch} from "react-redux";
+import {setLoading, useTitle} from "Navigation/Redux/StatusActions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
+    const dispatch = useDispatch()
+
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
     const [filter, setFilter] = React.useState<GrantApplicationFilter>(GrantApplicationFilter.ACTIVE);
     const [ingoingApplications, fetchIngoingApplications] = useCloudAPI<IngoingGrantApplicationsResponse>(
@@ -47,9 +51,15 @@ export const IngoingApplications: React.FunctionComponent = () => {
         );
     });
 
+    useTitle("Ingoing Applications");
+
     useEffect(() => {
         fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: 0, filter}));
     }, [projectId, filter]);
+
+    useEffect(() => {
+        dispatch(setLoading(ingoingApplications.loading))
+    }, [ingoingApplications.loading])
 
     useSidebarPage(SidebarPages.Projects);
 

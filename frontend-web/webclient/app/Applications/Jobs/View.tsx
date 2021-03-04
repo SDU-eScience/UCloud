@@ -1,6 +1,6 @@
 import * as React from "react";
 import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {PRODUCT_NAME} from "../../../site.config.json";
+import CONF from "../../../site.config.json";
 import {useHistory, useParams} from "react-router";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
@@ -23,7 +23,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute, file, accounting} from "UCloud";
+import {compute, file} from "UCloud";
 import Job = compute.Job;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -35,9 +35,9 @@ import {useProjectStatus} from "Project/cache";
 import {ProjectName} from "Project";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
-import StorageFile = file.StorageFile;
 import {File} from "Files";
 import JobSpecification = compute.JobSpecification;
+import {bulkRequestOf} from "DefaultObjects";
 import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import {addStandardDialog} from "UtilityComponents";
 
@@ -465,7 +465,7 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     }, [status]);
 
     return <>
-        <Heading.h2>{PRODUCT_NAME} is preparing your job</Heading.h2>
+        <Heading.h2>{CONF.PRODUCT_NAME} is preparing your job</Heading.h2>
         <Heading.h3>
             {job.specification.name ?
                 (<>
@@ -605,7 +605,7 @@ const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({jo
             null :
             <InfoCard
                 stat={prettyTime}
-                statTitle={"Allocated"}
+                statTitle={["SUCCESS", "EXPIRED"].includes(job.status.state) ? "Used" : "Allocated"}
                 icon={"hourglass"}
             >
                 {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br/></>}
@@ -747,10 +747,10 @@ const RunningContent: React.FunctionComponent<{
             if (await confirmExtendAllocation(duration)) {
                 setExpiresAt(expiresAt + (3600 * 1000 * duration));
                 try {
-                    await invokeCommand(compute.jobs.extend({
+                    await invokeCommand(compute.jobs.extend(bulkRequestOf({
                         jobId: job.id,
                         requestedTime: {hours: duration, minutes: 0, seconds: 0}
-                    }));
+                    })));
                 } catch (e) {
                     setExpiresAt(expiresAt);
                 }
@@ -1131,7 +1131,7 @@ const CancelButton: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
-            await invokeCommand(compute.jobs.remove({id: job.id}));
+            await invokeCommand(compute.jobs.remove(bulkRequestOf({id: job.id})));
         }
     }, [loading]);
 

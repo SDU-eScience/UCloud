@@ -21,8 +21,12 @@ File(serviceDir, "build.gradle.kts").writeText(
             mainClassName = "dk.sdu.cloud.$packageName.MainKt"
         }
         
-        dependencies {
-            implementation(project(":auth-service:api"))
+        kotlin.sourceSets {
+            val jvmMain by getting {
+                dependencies {
+                    implementation(project(":auth-service:api"))
+                }
+            }
         }
     """.trimIndent()
 )
@@ -121,17 +125,11 @@ File(apiDir, "build.gradle.kts").writeText("/* Empty */")
 val apiSrc = File(apiDir, "src/main/kotlin")
 apiSrc.mkdirs()
 
-File(apiSrc, "Descriptions.kt").writeText("""
+File(apiSrc, "${className}s.kt").writeText("""
     package dk.sdu.cloud.${packageName}.api
     
-    import dk.sdu.cloud.AccessRight
-    import dk.sdu.cloud.CommonErrorMessage
-    import dk.sdu.cloud.Role
-    import dk.sdu.cloud.calls.CallDescriptionContainer
-    import dk.sdu.cloud.calls.auth
-    import dk.sdu.cloud.calls.call
-    import dk.sdu.cloud.calls.http
-    import dk.sdu.cloud.calls.bindEntireRequestFromBody
+    import dk.sdu.cloud.*
+    import dk.sdu.cloud.calls.*
     
     object ${className}s : CallDescriptionContainer("$packageName") {
         val baseContext = "/api/${service.split("-").joinToString("/")}"

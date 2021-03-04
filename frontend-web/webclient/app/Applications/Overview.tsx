@@ -49,6 +49,7 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "Applied Science",
         "Natural Science",
         "Development",
+        "Virtual Machines",
         "Bioinformatics"
     ];
 

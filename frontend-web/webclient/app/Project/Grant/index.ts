@@ -405,6 +405,37 @@ export function browseProjects(request: BrowseProjectsRequest): APICallParameter
     };
 }
 
+export interface GrantsRetrieveAffiliationsRequest {
+    grantId: number,
+    itemsPerPage: number,
+    page: number
+}
+export type GrantsRetrieveAffiliationsResponse = Page<{projectId: string, title: string}>;
+
+export function findAffiliations(request: GrantsRetrieveAffiliationsRequest): APICallParameters<GrantsRetrieveAffiliationsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/retrieveAffiliations", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface TransferApplicationRequest {
+    applicationId: number;
+    transferToProjectId: string
+}
+
+export function transferApplication(request: TransferApplicationRequest): APICallParameters<TransferApplicationRequest> {
+    return {
+        method: "POST",
+        path:"/grant/transfer",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
 export interface ListOutgoingApplications extends PaginationRequest {
     filter?: GrantApplicationFilter;
 }

@@ -31,6 +31,7 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import JobSpecification = compute.JobSpecification;
 import {NetworkIPResource} from "Applications/Jobs/Resources/NetworkIPs";
+import {bulkRequestOf} from "DefaultObjects";
 
 interface InsufficientFunds {
     why?: string;
@@ -39,6 +40,7 @@ interface InsufficientFunds {
 
 export const Create: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
+
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
@@ -170,7 +172,7 @@ export const Create: React.FunctionComponent = () => {
 
             try {
                 const response = await invokeCommand<UCloud.compute.JobsCreateResponse>(
-                    UCloud.compute.jobs.create(request),
+                    UCloud.compute.jobs.create(bulkRequestOf(request)),
                     {defaultErrorHandler: false}
                 );
 
@@ -207,7 +209,15 @@ export const Create: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Runs);
     useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
 
-    if (application === null) return <MainContainer main={<LoadingIcon size={36} />} />;
+    if (applicationResp.loading === null) return <MainContainer main={<LoadingIcon size={36} />} />;
+
+    if (application == null) {
+        return (
+            <MainContainer
+                main={<Heading.h3>Unable to find application &apos;{appName} v{appVersion}&apos;</Heading.h3>}
+            />
+        );
+    }
 
     const mandatoryParameters = application.invocation!.parameters.filter(it =>
         !it.optional
@@ -296,7 +306,7 @@ export const Create: React.FunctionComponent = () => {
                             <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                 {mandatoryParameters.map(param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            active />
+                                        active />
                                 ))}
                             </Grid>
                         </Box>

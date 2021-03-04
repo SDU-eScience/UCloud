@@ -203,7 +203,6 @@ function useApiForComponent(
 
         const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
             let sortByToUse = sortBy;
-            if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
 
             if (updateColumn) {
                 setSortingColumn(sortBy);
@@ -975,7 +974,7 @@ const MembersFileRowStat: React.FunctionComponent<{
     const aclLength = (file.acl ?? []).filter(it => it.rights.length > 0).length;
     if (aclLength === 0) {
         if (!FUtils.isPartOfProject(file.path)) return null;
-        if (FUtils.isPartOfProject && FUtils.pathComponents(file.path).length >= 4) return null;
+        if (FUtils.isPartOfProject(file.path) && FUtils.pathComponents(file.path).length >= 4) return null;
         if (FUtils.isPartOfSomePersonalFolder(file.path)) return null;
         if (projectRole === undefined) return null;
         if (!isAdminOrPI(projectRole)) return null;

@@ -6,7 +6,6 @@ import {
     Box,
     Flex,
     ExternalLink,
-    Image,
     Link,
     Markdown,
     OutlineButton,

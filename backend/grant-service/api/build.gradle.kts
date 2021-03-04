@@ -1,5 +1,5 @@
 dependencies {
-    implementation(project(":project-service:api"))
-    implementation(project(":accounting-service:api"))
-    implementation(project(":auth-service:api"))
+    commonMainApi(project(":project-service:api"))
+    commonMainApi(project(":accounting-service:api"))
+    commonMainApi(project(":auth-service:api"))
 }

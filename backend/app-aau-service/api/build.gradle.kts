@@ -1,3 +1,3 @@
 dependencies {
-    api(project(":app-orchestrator-service:api"))
+    commonMainApi(project(":app-orchestrator-service:api"))
 }

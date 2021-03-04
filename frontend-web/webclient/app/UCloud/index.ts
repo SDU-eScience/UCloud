@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Feb 18 10:21:02 CET 2021 */
+/* Generated at: Thu Feb 25 14:29:28 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -32,8 +32,6 @@ export interface Page<T = unknown> {
     pageNumber: number /* int32 */
     ,
     items: T[],
-    pagesInTotal: number /* int32 */
-    ,
 }
 
 /**
@@ -64,16 +62,6 @@ export interface PageV2<T = unknown> {
 /**
  * A base type for requesting a bulk operation
 
- * The bulk operations allow for a client to send a bulk operation in one of two ways:
- *
- * 1 Single item request
- * 2 Multiple item request
- *
- * Both approaches should be treated by a server as a bulk request, one of them simply only has one item in it The
- * serialization for single item request is special, in that it allows the request item to be unwrapped and send by itself
- * Servers can recognize the difference by looking for the `type` property in the request, if it is not equal to `"bulk"`
- * (or doesn't exist) then it should be treated as a single item request
- *
  * ---
  *
  * __⚠ WARNING:__ All request items listed in the bulk request must be treated as a _single_ transaction This means
@@ -94,7 +82,7 @@ export interface PageV2<T = unknown> {
  *
  */
 
-export type BulkRequest<T> = T | { type: "bulk", items: T[] }
+export type BulkRequest<T> = { type: "bulk", items: T[] }
 
 export interface FindByStringId {
     id: string,
@@ -627,10 +615,10 @@ export namespace provider {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/doc/resources" + "/browse", {
-                    consistency: request.consistency,
                     itemsPerPage: request.itemsPerPage,
-                    itemsToSkip: request.itemsToSkip,
-                    next: request.next
+                    next: request.next,
+                    consistency: request.consistency,
+                    itemsToSkip: request.itemsToSkip
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -709,10 +697,10 @@ export namespace provider {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/providers" + "/browse", {
-                    consistency: request.consistency,
                     itemsPerPage: request.itemsPerPage,
-                    itemsToSkip: request.itemsToSkip,
-                    next: request.next
+                    next: request.next,
+                    consistency: request.consistency,
+                    itemsToSkip: request.itemsToSkip
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -854,7 +842,7 @@ export namespace auth {
         return {
             context: "",
             method: "POST",
-            path: "/auth" + "/claim" + "/" + request.jti,
+            path: buildQueryString("/auth" + "/claim", {jti: request.jti}),
             parameters: request,
             reloadId: Math.random(),
         };
@@ -1031,7 +1019,8 @@ export namespace auth {
         uids: number /* int64 */[],
     }
 
-    export type Principal = PersonNS.ByWAYF | PersonNS.ByPassword | ServicePrincipal
+    export type Principal = Person | ServicePrincipal | ProviderPrincipal
+    export type Person = PersonNS.ByWAYF | PersonNS.ByPassword
 
     export interface ServicePrincipal {
         id: string,
@@ -1041,6 +1030,16 @@ export namespace auth {
         emailAddresses: string[],
         preferredEmailAddress?: string,
         type: "service",
+    }
+
+    export interface ProviderPrincipal {
+        id: string,
+        role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+        uid: number /* int64 */
+        ,
+        emailAddresses: string[],
+        preferredEmailAddress?: string,
+        type: "provider",
     }
 
     export interface Create2FACredentialsResponse {
@@ -1738,8 +1737,8 @@ export namespace compute {
         | AppParameterValueNS.FloatingPoint
         | AppParameterValueNS.Peer
         | AppParameterValueNS.License
-        | AppParameterValueNS.Network
         | AppParameterValueNS.BlockStorage
+        | AppParameterValueNS.Network
         | AppParameterValueNS.Ingress
 
     export interface SimpleDuration {
@@ -1817,20 +1816,19 @@ export namespace compute {
     }
 
     export type InvocationParameter =
-        WordInvocationParameter
-        | BooleanFlagParameter
+        EnvironmentVariableParameter
+        | WordInvocationParameter
         | VariableInvocationParameter
-        | EnvironmentVariableParameter
+        | BooleanFlagParameter
+
+    export interface EnvironmentVariableParameter {
+        variable: string,
+        type: "env",
+    }
 
     export interface WordInvocationParameter {
         word: string,
         type: "word",
-    }
-
-    export interface BooleanFlagParameter {
-        variableName: string,
-        flag: string,
-        type: "bool_flag",
     }
 
     export interface VariableInvocationParameter {
@@ -1844,9 +1842,10 @@ export namespace compute {
         type: "var",
     }
 
-    export interface EnvironmentVariableParameter {
-        variable: string,
-        type: "env",
+    export interface BooleanFlagParameter {
+        variableName: string,
+        flag: string,
+        type: "bool_flag",
     }
 
     export type ApplicationParameter =
@@ -1854,12 +1853,12 @@ export namespace compute {
         | ApplicationParameterNS.InputDirectory
         | ApplicationParameterNS.Text
         | ApplicationParameterNS.Integer
-        | ApplicationParameterNS.Bool
         | ApplicationParameterNS.FloatingPoint
-        | ApplicationParameterNS.Peer
+        | ApplicationParameterNS.Bool
         | ApplicationParameterNS.Enumeration
-        | ApplicationParameterNS.LicenseServer
+        | ApplicationParameterNS.Peer
         | ApplicationParameterNS.Ingress
+        | ApplicationParameterNS.LicenseServer
         | ApplicationParameterNS.NetworkIP
 
     export interface VncDescription {
@@ -2567,11 +2566,6 @@ export namespace compute {
         includeProduct?: boolean,
     }
 
-    export interface JobsControlSubmitFileRequest {
-        jobId: string,
-        filePath: string,
-    }
-
     /**
      * The base type for requesting paginated content.
      *
@@ -3069,11 +3063,6 @@ export namespace compute {
         version: string,
     }
 
-    export interface UploadApplicationLogoRequest {
-        name: string,
-        data: BinaryStream,
-    }
-
     export interface ClearLogoRequest {
         name: string,
     }
@@ -3219,7 +3208,7 @@ export namespace compute {
          *
          */
         export interface FloatingPoint {
-            value: number /* float32 */
+            value: number /* float64 */
             ,
             type: "floating_point",
         }
@@ -3258,17 +3247,17 @@ export namespace compute {
         /**
          * A reference to block storage (Not yet implemented)
          */
-        export interface Network {
+        export interface BlockStorage {
             id: string,
-            type: "network",
+            type: "block_storage",
         }
 
         /**
          * A reference to block storage (Not yet implemented)
          */
-        export interface BlockStorage {
+        export interface Network {
             id: string,
-            type: "block_storage",
+            type: "network",
         }
 
         /**
@@ -3293,7 +3282,8 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: buildQueryString("/api/hpc/tools" + "/" + request.appName, {
+                path: buildQueryString("/api/hpc/tools" + "/byName", {
+                    appName: request.appName,
                     itemsPerPage: request.itemsPerPage,
                     page: request.page
                 }),
@@ -3308,7 +3298,10 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/hpc/tools" + "/" + request.name + "/" + request.version,
+                path: buildQueryString("/api/hpc/tools" + "/byNameAndVersion", {
+                    name: request.name,
+                    version: request.version
+                }),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -3339,16 +3332,12 @@ export namespace compute {
             };
         }
 
-        export function uploadLogo(
-            request: UploadApplicationLogoRequest
-        ): APICallParameters<UploadApplicationLogoRequest, any /* unknown */> {
+        export function uploadLogo(): APICallParameters<{}, any /* unknown */> {
             return {
                 context: "",
                 method: "POST",
                 path: "/api/hpc/tools" + "/uploadLogo",
-                parameters: request,
                 reloadId: Math.random(),
-                payload: request,
             };
         }
 
@@ -3358,9 +3347,10 @@ export namespace compute {
             return {
                 context: "",
                 method: "DELETE",
-                path: "/api/hpc/tools" + "/clearLogo" + "/" + request.name,
+                path: "/api/hpc/tools" + "/clearLogo",
                 parameters: request,
                 reloadId: Math.random(),
+                payload: request,
             };
         }
 
@@ -3370,7 +3360,7 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/hpc/tools" + "/logo" + "/" + request.name,
+                path: buildQueryString("/api/hpc/tools" + "/logo", {name: request.name}),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -3388,7 +3378,10 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/hpc/apps" + "/" + request.appName + "/" + request.appVersion,
+                path: buildQueryString("/api/hpc/apps" + "/byNameAndVersion", {
+                    appName: request.appName,
+                    appVersion: request.appVersion
+                }),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -3400,7 +3393,11 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/hpc/apps" + "/permission" + "/" + request.appName + "/" + request.appVersion + "/" + request.permission,
+                path: buildQueryString("/api/hpc/apps" + "/permission", {
+                    appName: request.appName,
+                    appVersion: request.appVersion,
+                    permission: request.permission
+                }),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -3412,7 +3409,7 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/hpc/apps" + "/list-acl" + "/" + request.appName,
+                path: buildQueryString("/api/hpc/apps" + "/list-acl", {appName: request.appName}),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -3450,7 +3447,8 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: buildQueryString("/api/hpc/apps" + "/" + request.appName, {
+                path: buildQueryString("/api/hpc/apps" + "/byName", {
+                    appName: request.appName,
                     itemsPerPage: request.itemsPerPage,
                     page: request.page
                 }),
@@ -3503,7 +3501,8 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: buildQueryString("/api/hpc/apps" + "/byTool" + "/" + request.tool, {
+                path: buildQueryString("/api/hpc/apps" + "/byTool", {
+                    tool: request.tool,
                     itemsPerPage: request.itemsPerPage,
                     page: request.page
                 }),
@@ -3512,16 +3511,12 @@ export namespace compute {
             };
         }
 
-        export function uploadLogo(
-            request: UploadApplicationLogoRequest
-        ): APICallParameters<UploadApplicationLogoRequest, any /* unknown */> {
+        export function uploadLogo(): APICallParameters<{}, any /* unknown */> {
             return {
                 context: "",
                 method: "POST",
                 path: "/api/hpc/apps" + "/uploadLogo",
-                parameters: request,
                 reloadId: Math.random(),
-                payload: request,
             };
         }
 
@@ -3531,9 +3526,10 @@ export namespace compute {
             return {
                 context: "",
                 method: "DELETE",
-                path: "/api/hpc/apps" + "/clearLogo" + "/" + request.name,
+                path: "/api/hpc/apps" + "/clearLogo",
                 parameters: request,
                 reloadId: Math.random(),
+                payload: request,
             };
         }
 
@@ -3543,7 +3539,7 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/hpc/apps" + "/logo" + "/" + request.name,
+                path: buildQueryString("/api/hpc/apps" + "/logo", {name: request.name}),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -3647,18 +3643,6 @@ export namespace compute {
             };
         }
 
-        export function toggleFavorite(
-            request: FavoriteRequest
-        ): APICallParameters<FavoriteRequest, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/api/hpc/apps" + "/favorites" + "/" + request.appName + "/" + request.appVersion,
-                parameters: request,
-                reloadId: Math.random(),
-            };
-        }
-
         export function retrieveFavorites(
             request: PaginationRequest
         ): APICallParameters<PaginationRequest, Page<ApplicationSummaryWithFavorite>> {
@@ -3671,6 +3655,19 @@ export namespace compute {
                 }),
                 parameters: request,
                 reloadId: Math.random(),
+            };
+        }
+
+        export function toggleFavorite(
+            request: FavoriteRequest
+        ): APICallParameters<FavoriteRequest, any /* unknown */> {
+            return {
+                context: "",
+                method: "POST",
+                path: "/api/hpc/apps" + "/favorites",
+                parameters: request,
+                reloadId: Math.random(),
+                payload: request,
             };
         }
     }
@@ -3736,10 +3733,10 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/jobs/control" + "/retrieve", {
                     id: request.id,
-                    includeApplication: request.includeApplication,
                     includeParameters: request.includeParameters,
-                    includeProduct: request.includeProduct,
-                    includeUpdates: request.includeUpdates
+                    includeUpdates: request.includeUpdates,
+                    includeApplication: request.includeApplication,
+                    includeProduct: request.includeProduct
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -3757,16 +3754,12 @@ export namespace compute {
          *
          * Note: We do not recommend using this endpoint for transferring large quantities of data/files.
          */
-        export function submitFile(
-            request: JobsControlSubmitFileRequest
-        ): APICallParameters<JobsControlSubmitFileRequest, any /* unknown */> {
+        export function submitFile(): APICallParameters<{}, any /* unknown */> {
             return {
                 context: "",
                 method: "POST",
                 path: "/api/jobs/control" + "/submitFile",
-                parameters: request,
                 reloadId: Math.random(),
-                payload: request,
             };
         }
     }
@@ -3998,11 +3991,11 @@ export namespace compute {
                         context: "",
                         method: "GET",
                         path: buildQueryString("/ucloud/ucloud/licenses/maintenance" + "/browse", {
-                            consistency: request.consistency,
+                            tag: request.tag,
                             itemsPerPage: request.itemsPerPage,
-                            itemsToSkip: request.itemsToSkip,
                             next: request.next,
-                            tag: request.tag
+                            consistency: request.consistency,
+                            itemsToSkip: request.itemsToSkip
                         }),
                         parameters: request,
                         reloadId: Math.random(),
@@ -4155,10 +4148,10 @@ export namespace compute {
                         context: "",
                         method: "GET",
                         path: buildQueryString("/ucloud/ucloud/networkips/maintenance" + "/browse", {
-                            consistency: request.consistency,
                             itemsPerPage: request.itemsPerPage,
-                            itemsToSkip: request.itemsToSkip,
-                            next: request.next
+                            next: request.next,
+                            consistency: request.consistency,
+                            itemsToSkip: request.itemsToSkip
                         }),
                         parameters: request,
                         reloadId: Math.random(),
@@ -4366,8 +4359,8 @@ export namespace compute {
                     context: "",
                     method: "GET",
                     path: buildQueryString("/ucloud/ucloud/ingresses" + "/retrieveSettings", {
-                        category: request.category,
                         id: request.id,
+                        category: request.category,
                         provider: request.provider
                     }),
                     parameters: request,
@@ -4397,13 +4390,13 @@ export namespace compute {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/licenses" + "/browse", {
-                    consistency: request.consistency,
-                    includeAcl: request.includeAcl,
-                    includeProduct: request.includeProduct,
                     includeUpdates: request.includeUpdates,
+                    includeProduct: request.includeProduct,
+                    includeAcl: request.includeAcl,
                     itemsPerPage: request.itemsPerPage,
-                    itemsToSkip: request.itemsToSkip,
                     next: request.next,
+                    consistency: request.consistency,
+                    itemsToSkip: request.itemsToSkip,
                     provider: request.provider,
                     tag: request.tag
                 }),
@@ -4446,9 +4439,9 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/licenses" + "/retrieve", {
                     id: request.id,
-                    includeAcl: request.includeAcl,
+                    includeUpdates: request.includeUpdates,
                     includeProduct: request.includeProduct,
-                    includeUpdates: request.includeUpdates
+                    includeAcl: request.includeAcl
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -4490,9 +4483,9 @@ export namespace compute {
                     method: "GET",
                     path: buildQueryString("/api/licenses/control" + "/retrieve", {
                         id: request.id,
-                        includeAcl: request.includeAcl,
+                        includeUpdates: request.includeUpdates,
                         includeProduct: request.includeProduct,
-                        includeUpdates: request.includeUpdates
+                        includeAcl: request.includeAcl
                     }),
                     parameters: request,
                     reloadId: Math.random(),
@@ -4521,13 +4514,13 @@ export namespace compute {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/ingresses" + "/browse", {
-                    consistency: request.consistency,
-                    domain: request.domain,
-                    includeProduct: request.includeProduct,
                     includeUpdates: request.includeUpdates,
+                    includeProduct: request.includeProduct,
                     itemsPerPage: request.itemsPerPage,
-                    itemsToSkip: request.itemsToSkip,
                     next: request.next,
+                    consistency: request.consistency,
+                    itemsToSkip: request.itemsToSkip,
+                    domain: request.domain,
                     provider: request.provider
                 }),
                 parameters: request,
@@ -4569,8 +4562,8 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/ingresses" + "/retrieve", {
                     id: request.id,
-                    includeProduct: request.includeProduct,
-                    includeUpdates: request.includeUpdates
+                    includeUpdates: request.includeUpdates,
+                    includeProduct: request.includeProduct
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -4584,8 +4577,8 @@ export namespace compute {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/ingresses" + "/retrieveSettings", {
-                    category: request.category,
                     id: request.id,
+                    category: request.category,
                     provider: request.provider
                 }),
                 parameters: request,
@@ -4615,8 +4608,8 @@ export namespace compute {
                     method: "GET",
                     path: buildQueryString("/api/ingresses/control" + "/retrieve", {
                         id: request.id,
-                        includeProduct: request.includeProduct,
-                        includeUpdates: request.includeUpdates
+                        includeUpdates: request.includeUpdates,
+                        includeProduct: request.includeProduct
                     }),
                     parameters: request,
                     reloadId: Math.random(),
@@ -4645,13 +4638,13 @@ export namespace compute {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/networkips" + "/browse", {
-                    consistency: request.consistency,
-                    includeAcl: request.includeAcl,
-                    includeProduct: request.includeProduct,
                     includeUpdates: request.includeUpdates,
+                    includeProduct: request.includeProduct,
+                    includeAcl: request.includeAcl,
                     itemsPerPage: request.itemsPerPage,
-                    itemsToSkip: request.itemsToSkip,
                     next: request.next,
+                    consistency: request.consistency,
+                    itemsToSkip: request.itemsToSkip,
                     provider: request.provider
                 }),
                 parameters: request,
@@ -4693,9 +4686,9 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/networkips" + "/retrieve", {
                     id: request.id,
-                    includeAcl: request.includeAcl,
+                    includeUpdates: request.includeUpdates,
                     includeProduct: request.includeProduct,
-                    includeUpdates: request.includeUpdates
+                    includeAcl: request.includeAcl
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -4750,9 +4743,9 @@ export namespace compute {
                     method: "GET",
                     path: buildQueryString("/api/networkips/control" + "/retrieve", {
                         id: request.id,
-                        includeAcl: request.includeAcl,
+                        includeUpdates: request.includeUpdates,
                         includeProduct: request.includeProduct,
-                        includeUpdates: request.includeUpdates
+                        includeAcl: request.includeAcl
                     }),
                     parameters: request,
                     reloadId: Math.random(),
@@ -4838,10 +4831,10 @@ export namespace compute {
                 method: "GET",
                 path: buildQueryString("/api/jobs" + "/retrieve", {
                     id: request.id,
-                    includeApplication: request.includeApplication,
                     includeParameters: request.includeParameters,
-                    includeProduct: request.includeProduct,
-                    includeUpdates: request.includeUpdates
+                    includeUpdates: request.includeUpdates,
+                    includeApplication: request.includeApplication,
+                    includeProduct: request.includeProduct
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -4863,8 +4856,8 @@ export namespace compute {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/jobs" + "/retrieveUtilization", {
-                    jobId: request.jobId,
-                    provider: request.provider
+                    provider: request.provider,
+                    jobId: request.jobId
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -4886,21 +4879,21 @@ export namespace compute {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/jobs" + "/browse", {
+                    itemsPerPage: request.itemsPerPage,
+                    next: request.next,
                     consistency: request.consistency,
-                    filterAfter: request.filterAfter,
+                    itemsToSkip: request.itemsToSkip,
+                    includeParameters: request.includeParameters,
+                    includeUpdates: request.includeUpdates,
+                    includeApplication: request.includeApplication,
+                    includeProduct: request.includeProduct,
+                    sortBy: request.sortBy,
                     filterApplication: request.filterApplication,
-                    filterBefore: request.filterBefore,
                     filterLaunchedBy: request.filterLaunchedBy,
                     filterState: request.filterState,
                     filterTitle: request.filterTitle,
-                    includeApplication: request.includeApplication,
-                    includeParameters: request.includeParameters,
-                    includeProduct: request.includeProduct,
-                    includeUpdates: request.includeUpdates,
-                    itemsPerPage: request.itemsPerPage,
-                    itemsToSkip: request.itemsToSkip,
-                    next: request.next,
-                    sortBy: request.sortBy
+                    filterBefore: request.filterBefore,
+                    filterAfter: request.filterAfter
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -5189,8 +5182,7 @@ export namespace compute {
         export interface InputFile {
             name: string,
             optional: boolean,
-            defaultValue?: any /* unknown */
-            ,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
             title: string,
             description: string,
             type: "input_file",
@@ -5199,8 +5191,7 @@ export namespace compute {
         export interface InputDirectory {
             name: string,
             optional: boolean,
-            defaultValue?: any /* unknown */
-            ,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
             title: string,
             description: string,
             type: "input_directory",
@@ -5209,8 +5200,7 @@ export namespace compute {
         export interface Text {
             name: string,
             optional: boolean,
-            defaultValue?: any /* unknown */
-            ,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
             title: string,
             description: string,
             type: "text",
@@ -5219,8 +5209,7 @@ export namespace compute {
         export interface Integer {
             name: string,
             optional: boolean,
-            defaultValue?: any /* unknown */
-            ,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
             title: string,
             description: string,
             min?: number /* int64 */
@@ -5233,11 +5222,26 @@ export namespace compute {
             type: "integer",
         }
 
+        export interface FloatingPoint {
+            name: string,
+            optional: boolean,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
+            title: string,
+            description: string,
+            min?: number /* float64 */
+            ,
+            max?: number /* float64 */
+            ,
+            step?: number /* float64 */
+            ,
+            unitName?: string,
+            type: "floating_point",
+        }
+
         export interface Bool {
             name: string,
             optional: boolean,
-            defaultValue?: any /* unknown */
-            ,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
             title: string,
             description: string,
             trueValue: string,
@@ -5245,39 +5249,10 @@ export namespace compute {
             type: "boolean",
         }
 
-        export interface FloatingPoint {
-            name: string,
-            optional: boolean,
-            defaultValue?: any /* unknown */
-            ,
-            title: string,
-            description: string,
-            min?: number /* float32 */
-            ,
-            max?: number /* float32 */
-            ,
-            step?: number /* float32 */
-            ,
-            unitName?: string,
-            type: "floating_point",
-        }
-
-        export interface Peer {
-            name: string,
-            title: string,
-            description: string,
-            suggestedApplication?: string,
-            defaultValue?: any /* unknown */
-            ,
-            optional: boolean,
-            type: "peer",
-        }
-
         export interface Enumeration {
             name: string,
             optional: boolean,
-            defaultValue?: any /* unknown */
-            ,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
             title: string,
             description: string,
             options: EnumOption[],
@@ -5289,33 +5264,40 @@ export namespace compute {
             value: string,
         }
 
-        export interface LicenseServer {
+        export interface Peer {
             name: string,
             title: string,
-            optional: boolean,
             description: string,
-            tagged: string[],
-            defaultValue?: any /* unknown */
-            ,
-            type: "license_server",
+            suggestedApplication?: string,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
+            optional: boolean,
+            type: "peer",
         }
 
         export interface Ingress {
             name: string,
             title: string,
             description: string,
-            defaultValue?: any /* unknown */
-            ,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
             optional: boolean,
             type: "ingress",
+        }
+
+        export interface LicenseServer {
+            name: string,
+            title: string,
+            optional: boolean,
+            description: string,
+            tagged: string[],
+            defaultValue?: kotlinx.serialization.json.JsonElement,
+            type: "license_server",
         }
 
         export interface NetworkIP {
             name: string,
             title: string,
             description: string,
-            defaultValue?: any /* unknown */
-            ,
+            defaultValue?: kotlinx.serialization.json.JsonElement,
             optional: boolean,
             type: "network_ip",
         }
@@ -6780,15 +6762,15 @@ export namespace accounting {
                 context: "",
                 method: "GET",
                 path: buildQueryString("/api/products" + "/browse", {
-                    consistency: request.consistency,
-                    filterArea: request.filterArea,
-                    filterCategory: request.filterCategory,
-                    filterProvider: request.filterProvider,
-                    filterUsable: request.filterUsable,
-                    includeBalance: request.includeBalance,
                     itemsPerPage: request.itemsPerPage,
+                    next: request.next,
+                    consistency: request.consistency,
                     itemsToSkip: request.itemsToSkip,
-                    next: request.next
+                    filterProvider: request.filterProvider,
+                    filterArea: request.filterArea,
+                    filterUsable: request.filterUsable,
+                    filterCategory: request.filterCategory,
+                    includeBalance: request.includeBalance
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -7115,12 +7097,20 @@ export namespace activity {
         activityEvent: ActivityEvent,
     }
 
-    export interface ActivityEvent {
-        filePath: string,
-        timestamp: number /* int64 */
-        ,
-        username: string,
-    }
+    export type ActivityEvent =
+        ActivityEventNS.Reclassify
+        | ActivityEventNS.DirectoryCreated
+        | ActivityEventNS.Download
+        | ActivityEventNS.Copy
+        | ActivityEventNS.Uploaded
+        | ActivityEventNS.UpdatedAcl
+        | ActivityEventNS.UpdateProjectAcl
+        | ActivityEventNS.Favorite
+        | ActivityEventNS.Moved
+        | ActivityEventNS.Deleted
+        | ActivityEventNS.SingleFileUsedByApplication
+        | ActivityEventNS.AllFilesUsedByApplication
+        | ActivityEventNS.SharedWith
 
     export interface ListActivityByPathRequest {
         path: string,
@@ -7154,6 +7144,134 @@ export namespace activity {
             }
         }
     }
+    export namespace ActivityEventNS {
+        export interface Reclassify {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            newSensitivity: string,
+            type: "reclassify",
+        }
+
+        export interface DirectoryCreated {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            type: "directory_created",
+        }
+
+        export interface Download {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            type: "download",
+        }
+
+        export interface Copy {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            copyFilePath: string,
+            type: "copy",
+        }
+
+        export interface Uploaded {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            type: "uploaded",
+        }
+
+        export interface UpdatedAcl {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            rightsAndUser: RightsAndUser[],
+            type: "updated_acl",
+        }
+
+        export interface RightsAndUser {
+            rights: "READ" | "WRITE"[],
+            user: string,
+        }
+
+        export interface UpdateProjectAcl {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            project: string,
+            acl: ProjectAclEntry[],
+            type: "update_project_acl",
+        }
+
+        export interface ProjectAclEntry {
+            group: string,
+            rights: "READ" | "WRITE"[],
+        }
+
+        export interface Favorite {
+            username: string,
+            isFavorite: boolean,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            type: "favorite",
+        }
+
+        export interface Moved {
+            username: string,
+            newName: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            type: "moved",
+        }
+
+        export interface Deleted {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            type: "deleted",
+        }
+
+        export interface SingleFileUsedByApplication {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            applicationName: string,
+            applicationVersion: string,
+            type: "single_file_used_by_application",
+        }
+
+        export interface AllFilesUsedByApplication {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            applicationName: string,
+            applicationVersion: string,
+            type: "all_files_used_by_application",
+        }
+
+        export interface SharedWith {
+            username: string,
+            timestamp: number /* int64 */
+            ,
+            filePath: string,
+            sharedWith: string,
+            status: "READ" | "WRITE"[],
+            type: "shared_with",
+        }
+    }
 }
 export namespace notification {
     export function list(
@@ -7170,6 +7288,19 @@ export namespace notification {
             }),
             parameters: request,
             reloadId: Math.random(),
+        };
+    }
+
+    export function remove(
+        request: DeleteNotificationRequest
+    ): APICallParameters<DeleteNotificationRequest, DeleteResponse> {
+        return {
+            context: "",
+            method: "DELETE",
+            path: "/api/notifications",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
         };
     }
 
@@ -7192,9 +7323,10 @@ export namespace notification {
         return {
             context: "",
             method: "POST",
-            path: "/api/notifications" + "/read" + "/" + request.bulkId,
+            path: "/api/notifications" + "/read",
             parameters: request,
             reloadId: Math.random(),
+            payload: request,
         };
     }
 
@@ -7203,18 +7335,6 @@ export namespace notification {
             context: "",
             method: "POST",
             path: "/api/notifications" + "/read" + "/all",
-            reloadId: Math.random(),
-        };
-    }
-
-    export function remove(
-        request: DeleteNotificationRequest
-    ): APICallParameters<DeleteNotificationRequest, DeleteResponse> {
-        return {
-            context: "",
-            method: "DELETE",
-            path: "/api/notifications" + "/" + request.bulkId,
-            parameters: request,
             reloadId: Math.random(),
         };
     }
@@ -7245,23 +7365,23 @@ export namespace notification {
         notification: Notification,
     }
 
-    export interface MarkResponse {
-        failures: number /* int64 */[],
-    }
-
-    export interface MarkAsReadRequest {
-        bulkId: FindByNotificationIdBulk,
-    }
-
-    export interface FindByNotificationIdBulk {
-        ids: number /* int64 */[],
-    }
-
     export interface DeleteResponse {
         failures: number /* int64 */[],
     }
 
     export interface DeleteNotificationRequest {
+        bulkId: FindByNotificationIdBulk,
+    }
+
+    export interface FindByNotificationIdBulk {
+        ids: string,
+    }
+
+    export interface MarkResponse {
+        failures: number /* int64 */[],
+    }
+
+    export interface MarkAsReadRequest {
         bulkId: FindByNotificationIdBulk,
     }
 }
@@ -7441,7 +7561,7 @@ export namespace file {
 
     export function createDirectory(
         request: CreateDirectoryRequest
-    ): APICallParameters<CreateDirectoryRequest, LongRunningResponse<any /* unknown */>> {
+    ): APICallParameters<CreateDirectoryRequest, LongRunningResponse> {
         return {
             context: "",
             method: "POST",
@@ -7474,7 +7594,7 @@ export namespace file {
 
     export function deleteFile(
         request: DeleteFileRequest
-    ): APICallParameters<DeleteFileRequest, LongRunningResponse<any /* unknown */>> {
+    ): APICallParameters<DeleteFileRequest, LongRunningResponse> {
         return {
             context: "",
             method: "DELETE",
@@ -7487,7 +7607,7 @@ export namespace file {
 
     export function move(
         request: MoveRequest
-    ): APICallParameters<MoveRequest, LongRunningResponse<any /* unknown */>> {
+    ): APICallParameters<MoveRequest, LongRunningResponse> {
         return {
             context: "",
             method: "POST",
@@ -7503,7 +7623,7 @@ export namespace file {
 
     export function copy(
         request: CopyRequest
-    ): APICallParameters<CopyRequest, LongRunningResponse<any /* unknown */>> {
+    ): APICallParameters<CopyRequest, LongRunningResponse> {
         return {
             context: "",
             method: "POST",
@@ -7688,19 +7808,19 @@ export namespace file {
     }
 
     export interface StorageFile {
-        acl?: AccessEntry[],
+        fileType?: "FILE" | "DIRECTORY",
+        path?: string,
         createdAt?: number /* int64 */
         ,
-        fileType?: "FILE" | "DIRECTORY",
         modifiedAt?: number /* int64 */
         ,
-        ownSensitivityLevel?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
         ownerName?: string,
-        path?: string,
-        permissionAlert: boolean,
-        sensitivityLevel?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
         size?: number /* int64 */
         ,
+        acl?: AccessEntry[],
+        sensitivityLevel?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
+        ownSensitivityLevel?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
+        permissionAlert: boolean,
     }
 
     export interface AccessEntry {
@@ -7708,15 +7828,14 @@ export namespace file {
         rights: "READ" | "WRITE"[],
     }
 
-    export interface ACLEntity {
-    }
+    export type ACLEntity = ACLEntityNS.User | ACLEntityNS.ProjectAndGroup
 
     export interface CreatePersonalRepositoryRequest {
         project: string,
         username: string,
     }
 
-    export interface LongRunningResponse<T> {
+    export interface LongRunningResponse {
         type: string;
     }
 
@@ -7859,24 +7978,8 @@ export namespace file {
         token?: string,
     }
 
-    export interface SimpleUploadRequest {
-        location: string,
-        file: BinaryStream,
-        policy?: "OVERWRITE" | "MERGE" | "RENAME" | "REJECT",
-        sensitivity?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
-    }
-
     export interface BulkUploadErrorMessage {
         message: string,
-    }
-
-    export interface SimpleBulkUpload {
-        location: string,
-        format: string,
-        file: BinaryStream,
-        name?: string,
-        policy?: "OVERWRITE" | "MERGE" | "RENAME" | "REJECT",
-        sensitivity?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
     }
 
     export interface ExtractRequest {
@@ -8106,11 +8209,11 @@ export namespace file {
     }
     export namespace LongRunningResponseNS {
 
-        export interface Timeout<T> extends LongRunningResponse<T> {
+        export interface Timeout<T> extends LongRunningResponse {
             type: "timeout"
         }
 
-        export interface Result<T> extends LongRunningResponse<T> {
+        export interface Ok extends LongRunningResponse {
             type: "result"
         }
     }
@@ -8125,35 +8228,34 @@ export namespace file {
         }
     }
     export namespace upload {
-        export function simpleUpload(
-            request: SimpleUploadRequest
-        ): APICallParameters<SimpleUploadRequest, any /* unknown */> {
+        export function simpleUpload(): APICallParameters<{}, any /* unknown */> {
             return {
                 context: "",
                 method: "POST",
                 path: "/api/files/upload" + "/file",
-                parameters: request,
                 reloadId: Math.random(),
-                payload: request,
             };
         }
 
-        export function simpleBulkUpload(
-            request: SimpleBulkUpload
-        ): APICallParameters<SimpleBulkUpload, BulkUploadErrorMessage> {
+        export function simpleBulkUpload(): APICallParameters<{}, BulkUploadErrorMessage> {
             return {
                 context: "",
                 method: "POST",
                 path: "/api/files/upload" + "/archive",
-                parameters: request,
                 reloadId: Math.random(),
-                payload: request,
             };
         }
     }
     export namespace ACLEntityNS {
         export interface User {
             username: string,
+            type: "user",
+        }
+
+        export interface ProjectAndGroup {
+            projectId: string,
+            group: string,
+            type: "project_group",
         }
     }
     export namespace trash {
@@ -8352,11 +8454,6 @@ export namespace grant {
         ,
         page?: number /* int32 */
         ,
-    }
-
-    export interface UploadLogoRequest {
-        projectId: string,
-        data: BinaryStream,
     }
 
     export interface FetchLogoRequest {
@@ -8619,7 +8716,7 @@ export namespace grant {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/grant" + "/" + request.id,
+                path: buildQueryString("/api/grant", {id: request.id}),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -8665,16 +8762,12 @@ export namespace grant {
             };
         }
 
-        export function uploadLogo(
-            request: UploadLogoRequest
-        ): APICallParameters<UploadLogoRequest, any /* unknown */> {
+        export function uploadLogo(): APICallParameters<{}, any /* unknown */> {
             return {
                 context: "",
                 method: "POST",
                 path: "/api/grant" + "/uploadLogo",
-                parameters: request,
                 reloadId: Math.random(),
-                payload: request,
             };
         }
 
@@ -8684,7 +8777,7 @@ export namespace grant {
             return {
                 context: "",
                 method: "GET",
-                path: "/api/grant" + "/logo" + "/" + request.projectId,
+                path: buildQueryString("/api/grant" + "/logo", {projectId: request.projectId}),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -8820,9 +8913,9 @@ export namespace task {
         };
     }
 
-    export function postStatus(
-        request: PostStatusRequest
-    ): APICallParameters<PostStatusRequest, any /* unknown */> {
+    export function markAsComplete(
+        request: FindByStringId
+    ): APICallParameters<FindByStringId, any /* unknown */> {
         return {
             context: "",
             method: "POST",
@@ -8852,19 +8945,7 @@ export namespace task {
         return {
             context: "",
             method: "GET",
-            path: "/api/tasks" + "/" + request.id,
-            parameters: request,
-            reloadId: Math.random(),
-        };
-    }
-
-    export function markAsComplete(
-        request: FindByStringId
-    ): APICallParameters<FindByStringId, any /* unknown */> {
-        return {
-            context: "",
-            method: "POST",
-            path: "/api/tasks" + "/" + request.id,
+            path: buildQueryString("/api/tasks" + "/retrieve", {id: request.id}),
             parameters: request,
             reloadId: Math.random(),
         };
@@ -8885,11 +8966,11 @@ export namespace task {
     }
 
     export interface Speed {
-        asText: string,
+        title: string,
         speed: number /* float64 */
         ,
-        title: string,
         unit: string,
+        asText: string,
     }
 
     export interface Progress {
@@ -8956,6 +9037,37 @@ export namespace support {
     export interface CreateTicketRequest {
         subject: string,
         message: string,
+    }
+}
+export namespace kotlinx {
+
+    export namespace serialization {
+
+        export namespace json {
+            export type JsonElement = JsonPrimitive | JsonArray
+            export type JsonPrimitive = JsonLiteral | JsonNull
+
+            export interface JsonLiteral {
+                body: any /* unknown */
+                ,
+                isString: boolean,
+                content: string,
+                type: "JsonLiteral",
+            }
+
+            export interface JsonNull {
+                content: string,
+                isString: boolean,
+                type: "JsonNull",
+            }
+
+            export interface JsonArray {
+                content: JsonElement[],
+                size: number /* int32 */
+                ,
+                type: "JsonArray",
+            }
+        }
     }
 }
 export namespace news {
@@ -9306,40 +9418,6 @@ export namespace avatar {
     export interface FindBulkRequest {
         usernames: string[],
     }
-}
-export namespace BulkRequestNS {
-    /**
-     * A base type for requesting a bulk operation.
-
-     * The bulk operations allow for a client to send a bulk operation in one of two ways:
-     *
-     * 1. Single item request
-     * 2. Multiple item request
-     *
-     * Both approaches should be treated by a server as a bulk request, one of them simply only has one item in it. The
-     * serialization for single item request is special, in that it allows the request item to be unwrapped and send by itself.
-     * Servers can recognize the difference by looking for the `type` property in the request, if it is not equal to `"bulk"`
-     * (or doesn't exist) then it should be treated as a single item request.
-     *
-     * ---
-     *
-     * __⚠ WARNING:__ All request items listed in the bulk request must be treated as a _single_ transaction. This means
-     * that either the entire request succeeds, or the entire request fails.
-     *
-     * There are two exceptions to this rule:
-     *
-     * 1. Certain calls may choose to only guarantee this at the provider level. That is if a single call contain request
-     * for multiple providers, then in rare occasions (i.e. crash) changes might not be rolled back immediately on all
-     * providers. A service _MUST_ attempt to rollback already committed changes at other providers.
-     *
-     * 2. The underlying system does not provide such guarantees. In this case the service/provider _MUST_ support the
-     * verification API to cleanup these resources later.
-     *
-     * ---
-
-     *
-     *
-     */
 }
 export namespace contactbook {
     export function queryUserContacts(

@@ -1,8 +1,11 @@
 rootProject.name = "ucloud"
 
-include("service-common")
-include("service-common-test")
+include("service-lib")
+include("service-lib-test")
+include("launcher")
+/*
 include("integration-testing")
+*/
 
 // Automatically pull in sub-projects
 (rootProject.projectDir.listFiles() ?: emptyArray()).forEach { file ->
@@ -16,5 +19,3 @@ include("integration-testing")
         }
     }
 }
-
-include("launcher")

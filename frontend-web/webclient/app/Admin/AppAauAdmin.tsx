@@ -9,6 +9,7 @@ import Job = compute.Job;
 import {useRef} from "react";
 import {JobState} from "Applications/Jobs";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {bulkRequestOf} from "DefaultObjects";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AppAauAdmin: React.FunctionComponent = props => {
@@ -57,11 +58,11 @@ const AppAauAdmin: React.FunctionComponent = props => {
                     const newState = newStateRaw === "NO_CHANGE" ? undefined : newStateRaw as JobState;
                     const update: string = statusUpdateRef.current!.value;
 
-                    await invokeCommand(UCloud.compute.aau.maintenance.sendUpdate({
+                    await invokeCommand(UCloud.compute.aau.maintenance.sendUpdate(bulkRequestOf({
                         id,
                         newState,
                         update
-                    }));
+                    })));
 
                     snackbarStore.addSuccess("Successfully updated your job!", false);
                 }}>
