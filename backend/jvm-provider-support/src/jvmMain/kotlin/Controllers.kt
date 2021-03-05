@@ -3,10 +3,9 @@
 
 @file:Suppress("RemoveRedundantQualifierName")
 
-import dk.sdu.cloud.app.orchestrator.api.Compute
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.providers.UCloudRpcDispatcher
 import dk.sdu.cloud.calls.CallDescription
-import org.springframework.web.bind.annotation.*
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -96,7 +95,7 @@ import javax.servlet.http.HttpServletResponse
  * | [6] Request | UCloud | → | Provider | [`jobs.control.update`](#operation/jobs.control.update) | Proceed `FOO123` to `FAILURE` |
  *
  */
-abstract class ComputeController(private val providerId: String) : UCloudRpcDispatcher(listOf(Compute(providerId))) {
+abstract class ComputeController(private val providerId: String) : UCloudRpcDispatcher(listOf(JobsProvider(providerId))) {
     /**
      * Start a compute job (create)
      *
@@ -137,7 +136,7 @@ abstract class ComputeController(private val providerId: String) : UCloudRpcDisp
      *
      */
     abstract fun extend(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.ComputeExtendRequestItem>
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>
     ): kotlin.Unit
 
     /**
@@ -170,12 +169,12 @@ abstract class ComputeController(private val providerId: String) : UCloudRpcDisp
     ): kotlin.Unit
 
     abstract fun openInteractiveSession(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.ComputeOpenInteractiveSessionRequestItem>
-    ): dk.sdu.cloud.app.orchestrator.api.ComputeOpenInteractiveSessionResponse
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>
+    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionResponse
 
     abstract fun retrieveUtilization(
         request: kotlin.Unit
-    ): dk.sdu.cloud.app.orchestrator.api.ComputeUtilizationResponse
+    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
 
     /**
      * Retrieve products (Temporary API) (retrieveProductsTemporary)
@@ -187,7 +186,7 @@ abstract class ComputeController(private val providerId: String) : UCloudRpcDisp
      */
     abstract fun retrieveProductsTemporary(
         request: kotlin.Unit
-    ): dk.sdu.cloud.app.orchestrator.api.ComputeRetrieveProductsTemporaryResponse
+    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderRetrieveProductsTemporaryResponse
 
 
     @Suppress("UNCHECKED_CAST")
@@ -200,10 +199,10 @@ abstract class ComputeController(private val providerId: String) : UCloudRpcDisp
         return when (call.fullName.replace(providerId, "*")) {
             "jobs.compute.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as R
             "jobs.compute.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as R
-            "jobs.compute.*.extend" -> extend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.ComputeExtendRequestItem>) as R
+            "jobs.compute.*.extend" -> extend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>) as R
             "jobs.compute.*.suspend" -> suspend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as R
             "jobs.compute.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as R
-            "jobs.compute.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.ComputeOpenInteractiveSessionRequestItem>) as R
+            "jobs.compute.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>) as R
             "jobs.compute.*.retrieveUtilization" -> retrieveUtilization(request as kotlin.Unit) as R
             "jobs.compute.*.retrieveProductsTemporary" -> retrieveProductsTemporary(request as kotlin.Unit) as R
             else -> error("Unhandled call")

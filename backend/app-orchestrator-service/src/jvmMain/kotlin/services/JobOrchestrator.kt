@@ -439,7 +439,7 @@ class JobOrchestrator(
                     bulkRequestOf(request.items.mapNotNull { extensionRequest ->
                         val (job) = jobs.getValue(extensionRequest.jobId)
                         if (job.specification.product.provider != comm.provider.id) null
-                        else ComputeExtendRequestItem(job, extensionRequest.requestedTime)
+                        else JobsProviderExtendRequestItem(job, extensionRequest.requestedTime)
                     }),
                     comm.client
                 ).orThrow()
@@ -510,7 +510,7 @@ class JobOrchestrator(
                         try {
                             while (isActive) {
                                 if (currentState.get() == JobState.RUNNING.ordinal) {
-                                    api.follow.subscribe(ComputeFollowRequest.Init(initialJob), wsClient, { message ->
+                                    api.follow.subscribe(JobsProviderFollowRequest.Init(initialJob), wsClient, { message ->
                                         if (streamId == null) {
                                             streamId = message.streamId
                                         }
@@ -587,7 +587,7 @@ class JobOrchestrator(
                         val capturedId = streamId
                         if (capturedId != null) {
                             api.follow.call(
-                                ComputeFollowRequest.CancelStream(capturedId),
+                                JobsProviderFollowRequest.CancelStream(capturedId),
                                 wsClient
                             )
                         }
@@ -626,7 +626,7 @@ class JobOrchestrator(
                         .call(
                             bulkRequestOf(jobs.flatMap { (job) ->
                                 requestsByJobId.getValue(job.id).map { req ->
-                                    ComputeOpenInteractiveSessionRequestItem(job, req.rank, req.sessionType)
+                                    JobsProviderOpenInteractiveSessionRequestItem(job, req.rank, req.sessionType)
                                 }
                             }),
                             client
@@ -691,7 +691,7 @@ class JobOrchestrator(
                 provider to (runCatching {
                     val comm = providers.prepareCommunication(provider)
                     comm.api.retrieveProductsTemporary.call(Unit, comm.client).orNull()
-                }.getOrNull() ?: ComputeRetrieveProductsTemporaryResponse(emptyList()))
+                }.getOrNull() ?: JobsProviderRetrieveProductsTemporaryResponse(emptyList()))
             }.toMap()
         )
     }

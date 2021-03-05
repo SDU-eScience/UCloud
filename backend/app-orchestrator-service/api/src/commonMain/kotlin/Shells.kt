@@ -48,7 +48,7 @@ sealed class ShellResponse {
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 abstract class Shells(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace.shell") {
-    val baseContext = "/ucloud/$namespace/compute/jobs/shells"
+    val baseContext = "/ucloud/$namespace/jobs/shells"
 
     init {
         title = "Provider API: Compute/Shells"

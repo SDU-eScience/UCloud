@@ -15,66 +15,66 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.reflect.KProperty
 
-typealias ComputeCreateRequest = BulkRequest<ComputeCreateRequestItem>
-typealias ComputeCreateResponse = Unit
-typealias ComputeCreateRequestItem = Job
+typealias JobsProviderCreateRequest = BulkRequest<JobsProviderCreateRequestItem>
+typealias JobsProviderCreateResponse = Unit
+typealias JobsProviderCreateRequestItem = Job
 
-typealias ComputeDeleteRequest = BulkRequest<ComputeDeleteRequestItem>
-typealias ComputeDeleteResponse = Unit
-typealias ComputeDeleteRequestItem = Job
+typealias JobsProviderDeleteRequest = BulkRequest<JobsProviderDeleteRequestItem>
+typealias JobsProviderDeleteResponse = Unit
+typealias JobsProviderDeleteRequestItem = Job
 
-typealias ComputeExtendRequest = BulkRequest<ComputeExtendRequestItem>
-typealias ComputeExtendResponse = Unit
+typealias JobsProviderExtendRequest = BulkRequest<JobsProviderExtendRequestItem>
+typealias JobsProviderExtendResponse = Unit
 
 @Serializable
-data class ComputeExtendRequestItem(
+data class JobsProviderExtendRequestItem(
     val job: Job,
     val requestedTime: SimpleDuration,
 )
 
-typealias ComputeSuspendRequest = BulkRequest<ComputeSuspendRequestItem>
-typealias ComputeSuspendResponse = Unit
-typealias ComputeSuspendRequestItem = Job
+typealias JobsProviderSuspendRequest = BulkRequest<JobsProviderSuspendRequestItem>
+typealias JobsProviderSuspendResponse = Unit
+typealias JobsProviderSuspendRequestItem = Job
 
-typealias ComputeVerifyRequest = BulkRequest<ComputeVerifyRequestItem>
-typealias ComputeVerifyResponse = Unit
-typealias ComputeVerifyRequestItem = Job
+typealias JobsProviderVerifyRequest = BulkRequest<JobsProviderVerifyRequestItem>
+typealias JobsProviderVerifyResponse = Unit
+typealias JobsProviderVerifyRequestItem = Job
 
 @Serializable
-sealed class ComputeFollowRequest {
+sealed class JobsProviderFollowRequest {
     @Serializable
     @SerialName("init")
-    data class Init(val job: Job) : ComputeFollowRequest()
+    data class Init(val job: Job) : JobsProviderFollowRequest()
 
     @Serializable
     @SerialName("cancel")
-    data class CancelStream(val streamId: String) : ComputeFollowRequest()
+    data class CancelStream(val streamId: String) : JobsProviderFollowRequest()
 }
 
 @Serializable
-data class ComputeFollowResponse(
+data class JobsProviderFollowResponse(
     val streamId: String,
     val rank: Int,
     val stdout: String? = null,
     val stderr: String? = null,
 )
 
-typealias ComputeOpenInteractiveSessionRequest = BulkRequest<ComputeOpenInteractiveSessionRequestItem>
+typealias JobsProviderOpenInteractiveSessionRequest = BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>
 
 @Serializable
-data class ComputeOpenInteractiveSessionRequestItem(
+data class JobsProviderOpenInteractiveSessionRequestItem(
     val job: Job,
     val rank: Int,
     val sessionType: InteractiveSessionType,
 )
 
 @Serializable
-data class ComputeOpenInteractiveSessionResponse(val sessions: List<OpenSession>)
+data class JobsProviderOpenInteractiveSessionResponse(val sessions: List<OpenSession>)
 
-typealias ComputeUtilizationRequest = Unit
+typealias JobsProviderUtilizationRequest = Unit
 
 @Serializable
-data class ComputeUtilizationResponse(
+data class JobsProviderUtilizationResponse(
     val capacity: CpuAndMemory,
     val usedCapacity: CpuAndMemory,
     val queueStatus: QueueStatus,
@@ -92,11 +92,11 @@ data class QueueStatus(
     val pending: Int,
 )
 
-typealias ComputeRetrieveProductsTemporaryRequest = Unit
+typealias JobsProviderRetrieveProductsTemporaryRequest = Unit
 
 @Serializable
-data class ComputeRetrieveProductsTemporaryResponse(
-    val products: List<ComputeTemporaryProductSupport>,
+data class JobsProviderRetrieveProductsTemporaryResponse(
+    val products: List<JobsProviderTemporaryProductSupport>,
 )
 
 @Serializable
@@ -139,16 +139,16 @@ data class ComputeSupport(
 }
 
 @Serializable
-data class ComputeTemporaryProductSupport(
+data class JobsProviderTemporaryProductSupport(
     val product: Product.Compute,
     val support: ComputeSupport
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-open class Compute(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
-    val baseContext = "/ucloud/$namespace/compute/jobs"
+open class JobsProvider(namespace: String) : CallDescriptionContainer("jobs.compute.$namespace") {
+    val baseContext = "/ucloud/$namespace/jobs"
 
-    override fun toString() = "Compute($baseContext)"
+    override fun toString() = "JobsProvider($baseContext)"
 
     init {
         title = "Provider API: Compute"
@@ -270,7 +270,7 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
 """
     }
 
-    val create = call<ComputeCreateRequest, ComputeCreateResponse, CommonErrorMessage>("create") {
+    val create = call<JobsProviderCreateRequest, JobsProviderCreateResponse, CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = Roles.PRIVILEGED)
 
         documentation {
@@ -286,7 +286,7 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
     }
 
-    val delete = call<ComputeDeleteRequest, ComputeDeleteResponse, CommonErrorMessage>("delete") {
+    val delete = call<JobsProviderDeleteRequest, JobsProviderDeleteResponse, CommonErrorMessage>("delete") {
         httpDelete(baseContext, roles = Roles.PRIVILEGED)
 
         documentation {
@@ -299,7 +299,7 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
     }
 
-    val extend = call<ComputeExtendRequest, ComputeExtendResponse, CommonErrorMessage>("extend") {
+    val extend = call<JobsProviderExtendRequest, JobsProviderExtendResponse, CommonErrorMessage>("extend") {
         httpUpdate(baseContext, "extend", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -307,7 +307,7 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
     }
 
-    val suspend = call<ComputeSuspendRequest, ComputeSuspendResponse, CommonErrorMessage>("suspend") {
+    val suspend = call<JobsProviderSuspendRequest, JobsProviderSuspendResponse, CommonErrorMessage>("suspend") {
         httpUpdate(baseContext, "suspend", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -315,7 +315,7 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
     }
 
-    val verify = call<ComputeVerifyRequest, ComputeVerifyResponse, CommonErrorMessage>("verify") {
+    val verify = call<JobsProviderVerifyRequest, JobsProviderVerifyResponse, CommonErrorMessage>("verify") {
         httpVerify(baseContext, roles = Roles.PRIVILEGED)
 
         documentation {
@@ -331,7 +331,7 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         }
     }
 
-    val follow = call<ComputeFollowRequest, ComputeFollowResponse, CommonErrorMessage>("follow") {
+    val follow = call<JobsProviderFollowRequest, JobsProviderFollowResponse, CommonErrorMessage>("follow") {
         auth {
             access = AccessRight.READ
             roles = Roles.PRIVILEGED
@@ -340,19 +340,19 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
         websocket(baseContext)
     }
 
-    val openInteractiveSession = call<ComputeOpenInteractiveSessionRequest, ComputeOpenInteractiveSessionResponse,
+    val openInteractiveSession = call<JobsProviderOpenInteractiveSessionRequest, JobsProviderOpenInteractiveSessionResponse,
         CommonErrorMessage>("openInteractiveSession") {
         httpUpdate(baseContext, "interactiveSession", roles = Roles.PRIVILEGED)
     }
 
-    val retrieveUtilization = call<ComputeUtilizationRequest, ComputeUtilizationResponse,
+    val retrieveUtilization = call<JobsProviderUtilizationRequest, JobsProviderUtilizationResponse,
         CommonErrorMessage>("retrieveUtilization") {
         httpRetrieve(baseContext, "utilization", roles = Roles.PRIVILEGED)
     }
 
     @UCloudApiInternal(InternalLevel.BETA)
-    val retrieveProductsTemporary = call<ComputeRetrieveProductsTemporaryRequest,
-        ComputeRetrieveProductsTemporaryResponse, CommonErrorMessage>("retrieveProductsTemporary") {
+    val retrieveProductsTemporary = call<JobsProviderRetrieveProductsTemporaryRequest,
+        JobsProviderRetrieveProductsTemporaryResponse, CommonErrorMessage>("retrieveProductsTemporary") {
         httpRetrieve(baseContext, "productsTemporary", roles = Roles.PRIVILEGED)
 
         documentation {

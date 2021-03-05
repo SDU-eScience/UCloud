@@ -162,8 +162,8 @@ class ComputeController(
         }
 
         implement(AauCompute.follow) {
-            sendWSMessage(ComputeFollowResponse("id", -1, null, null))
-            sendWSMessage(ComputeFollowResponse(
+            sendWSMessage(JobsProviderFollowResponse("id", -1, null, null))
+            sendWSMessage(JobsProviderFollowResponse(
                 "id",
                 0,
                 "Please see the 'Messages' panel for how to access your machine",
@@ -172,7 +172,7 @@ class ComputeController(
             while (currentCoroutineContext().isActive) {
                 delay(1000)
             }
-            ok(ComputeFollowResponse("", 0, "Please see the 'Messages' panel for how to access your machine", null))
+            ok(JobsProviderFollowResponse("", 0, "Please see the 'Messages' panel for how to access your machine", null))
         }
 
         implement(AauCompute.extend) {
@@ -184,7 +184,7 @@ class ComputeController(
         }
 
         implement(AauCompute.retrieveUtilization) {
-            ok(ComputeUtilizationResponse(CpuAndMemory(100.0, 100L), CpuAndMemory(0.0, 0L), QueueStatus(0, 0)))
+            ok(JobsProviderUtilizationResponse(CpuAndMemory(100.0, 100L), CpuAndMemory(0.0, 0L), QueueStatus(0, 0)))
         }
 
         implement(AauCompute.verify) {
@@ -228,9 +228,9 @@ class ComputeController(
         ).orThrow().filterIsInstance<Product.Compute>()
     })
 
-    suspend fun retrieveProductsTemporary(): ComputeRetrieveProductsTemporaryResponse {
-        return ComputeRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
-            ComputeTemporaryProductSupport(
+    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsTemporaryResponse {
+        return JobsProviderRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
+            JobsProviderTemporaryProductSupport(
                 it,
                 ComputeSupport(
                     ComputeSupport.Docker(

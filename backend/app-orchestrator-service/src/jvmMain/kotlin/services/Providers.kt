@@ -14,7 +14,7 @@ import dk.sdu.cloud.provider.api.Providers as ProvidersApi
 import io.ktor.http.*
 
 data class ProviderCommunication(
-    val api: Compute,
+    val api: JobsProvider,
     val client: AuthenticatedClient,
     val wsClient: AuthenticatedClient,
     val ingressApi: IngressProvider?,
@@ -43,7 +43,7 @@ class Providers(
             val ingressApi = IngressProvider(provider)
             val licenseApi = LicenseProvider(provider)
             val networkApi = NetworkIPProvider(provider)
-            val computeApi = Compute(provider)
+            val computeApi = JobsProvider(provider)
 
             val providerSpec = ProvidersApi.retrieveSpecification.call(
                 ProvidersRetrieveSpecificationRequest(provider),

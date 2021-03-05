@@ -514,7 +514,7 @@ val JobsRetrieveProductsTemporaryRequest.providersAsList: List<String>
     get() = providers.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 @Serializable
 data class JobsRetrieveProductsTemporaryResponse(
-    val productsByProvider: Map<String, ComputeRetrieveProductsTemporaryResponse>,
+    val productsByProvider: Map<String, JobsProviderRetrieveProductsTemporaryResponse>,
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

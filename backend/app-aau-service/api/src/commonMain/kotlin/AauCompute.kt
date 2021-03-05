@@ -2,14 +2,14 @@ package dk.sdu.cloud.app.kubernetes.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.app.orchestrator.api.Compute
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
 @TSNamespace("compute.aau.jobs")
-object AauCompute : Compute("aau")
+object AauCompute : JobsProvider("aau")
 
 @Serializable
 data class AauComputeSendUpdateRequest(

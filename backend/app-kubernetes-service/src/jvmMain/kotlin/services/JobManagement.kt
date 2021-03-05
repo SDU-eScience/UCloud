@@ -134,7 +134,7 @@ class JobManagement(
         plugins.add(plugin)
     }
 
-    suspend fun create(jobs: BulkRequest<ComputeCreateRequestItem>) {
+    suspend fun create(jobs: BulkRequest<JobsProviderCreateRequestItem>) {
         jobs.items.forEach { create(it) }
     }
 
@@ -192,7 +192,7 @@ class JobManagement(
         }
     }
 
-    suspend fun extend(request: BulkRequest<ComputeExtendRequestItem>) {
+    suspend fun extend(request: BulkRequest<JobsProviderExtendRequestItem>) {
         request.items.forEach { extension ->
             extend(extension.job, extension.requestedTime)
         }
@@ -567,9 +567,9 @@ class JobManagement(
         ).orThrow().filterIsInstance<Product.Compute>()
     })
 
-    suspend fun retrieveProductsTemporary(): ComputeRetrieveProductsTemporaryResponse {
-        return ComputeRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
-            ComputeTemporaryProductSupport(
+    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsTemporaryResponse {
+        return JobsProviderRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
+            JobsProviderTemporaryProductSupport(
                 it,
                 ComputeSupport(
                     ComputeSupport.Docker(
