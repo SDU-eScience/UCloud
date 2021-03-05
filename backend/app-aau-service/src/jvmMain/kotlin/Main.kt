@@ -5,12 +5,17 @@ import dk.sdu.cloud.app.aau.api.AppAauServiceDescription
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.service.CommonServer
 
+data class Configuration(
+    val providerRefreshToken: String? = null,
+    val ucloudCertificate: String? = null,
+)
 object AppAauService : Service {
     override val description = AppAauServiceDescription
     
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
-        return Server(micro)
+        val configuration = micro.configuration.requestChunkAtOrNull("app", "aau") ?: Configuration()
+        return Server(micro, configuration)
     }
 }
 
