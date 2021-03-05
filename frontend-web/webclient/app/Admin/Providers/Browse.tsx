@@ -16,7 +16,7 @@ import {addStandardDialog} from "UtilityComponents";
 
 const entityName = "Provider";
 
-function Providers(): JSX.Element | null {
+function Browse(): JSX.Element | null {
     const [providers, fetchProviders] = useCloudAPI<UCloud.PageV2<UCloud.provider.Provider>>(
         UCloud.provider.providers.browse({itemsPerPage: 25}),
         emptyPageV2
@@ -117,4 +117,4 @@ const operations: Operation<UCloud.provider.Provider, {invokeCommand: InvokeComm
     // UCloud.provider.providers.updateManifest
 ];
 
-export default Providers;
+export default Browse;

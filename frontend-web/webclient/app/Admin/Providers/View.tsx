@@ -1,17 +1,13 @@
 import {useRouteMatch} from "react-router";
 import * as React from "react";
-import {
-    Box,
-    Label,
-    Checkbox,
-    TextArea,
-} from "ui-components";
-import Error from "ui-components/Error";
-import * as Heading from "ui-components/Heading";
 import {useCloudAPI} from "Authentication/DataHook";
 import * as UCloud from "UCloud";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import MainContainer from "MainContainer/MainContainer";
+import {ResourcePage} from "ui-components/ResourcePage";
+import {useCallback} from "react";
+import {TextArea} from "ui-components";
+import {doNothing} from "UtilityFunctions";
 
 function View(): JSX.Element | null {
     const match = useRouteMatch<{ id: string }>();
@@ -21,34 +17,61 @@ function View(): JSX.Element | null {
         null
     );
 
-    if (provider.loading) return <MainContainer main={<LoadingSpinner/>}/>;
+    const reload = useCallback(() => {
+        fetchProvider(UCloud.provider.providers.retrieve({id}));
+    }, [id]);
+
+    if (provider.loading && provider.data == null) return <MainContainer main={<LoadingSpinner/>}/>;
     if (provider.data == null) return null;
 
-    const {https} = provider.data.specification;
+    return (
+        <MainContainer
+            main={
+                <ResourcePage
+                    entityName={"Provider"}
+                    aclOptions={[{icon: "edit", name: "EDIT", title: "Edit"}]}
+                    entity={provider.data}
+                    reload={reload}
+                    showMissingPermissionHelp={false}
+                    stats={[
+                        {
+                            title: "Domain",
+                            render: t => {
+                                let stringBuilder = "";
+                                if (t.specification.https) {
+                                    stringBuilder += "https://"
+                                } else {
+                                    stringBuilder += "http://"
+                                }
 
-    return (<MainContainer main={
-        <Box width="650px" mx="auto">
-            <Error error={provider.error?.why}/>
-            <Heading.h3>{id}</Heading.h3>
-            <Box>
-                <b>Created by:</b> {provider.data.owner.createdBy}
-            </Box>
-            <Box>
-                <b>Domain: </b> {provider.data.specification.domain}
-            </Box>
+                                stringBuilder += t.specification.domain;
 
-            <Label>
-                <Checkbox checked={https} onChange={e => e}/>
-                Uses HTTPS
-            </Label>
+                                if (t.specification.port) {
+                                    stringBuilder += ":";
+                                    stringBuilder += t.specification.port;
+                                }
 
-            <Heading.h4>Certificate</Heading.h4>
-            <TextArea maxWidth="1200px" width="100%" value={provider.data.publicKey} rows={10}/>
-
-            <Heading.h4>Refresh token</Heading.h4>
-            <TextArea maxWidth="1200px" width="100%" value={provider.data.refreshToken} rows={2}/>
-        </Box>
-    }/>);
+                                return stringBuilder;
+                            }
+                        },
+                        {
+                            title: "Refresh Token",
+                            // eslint-disable-next-line react/display-name
+                            render: t => <TextArea width="100%" value={t.refreshToken} rows={3} onChange={doNothing}/>,
+                            inline: false,
+                        },
+                        {
+                            title: "Certificate",
+                            // eslint-disable-next-line react/display-name
+                            render: t => <TextArea width="100%" value={t.publicKey} rows={10} onChange={doNothing}/>,
+                            inline: false,
+                        },
+                    ]}
+                    updateAclEndpoint={UCloud.provider.providers.updateAcl}
+                />
+            }
+        />
+    );
 }
 
 export default View;

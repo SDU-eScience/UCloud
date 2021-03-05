@@ -48,7 +48,7 @@ const Wayf = React.lazy(() => import("Login/Wayf"));
 const AppK8Admin = React.lazy(() => import("Admin/AppK8Admin"));
 const AppAauAdmin = React.lazy(() => import("Admin/AppAauAdmin"));
 const Demo = React.lazy(() => import("Playground/Demo"));
-const Providers = React.lazy(() => import("Admin/Providers/Providers"));
+const Providers = React.lazy(() => import("Admin/Providers/Browse"));
 const CreateProvider = React.lazy(() => import("Admin/Providers/Create"));
 const ViewProvider = React.lazy(() => import("Admin/Providers/View"));
 
