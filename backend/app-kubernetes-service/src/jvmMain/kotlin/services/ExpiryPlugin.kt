@@ -44,16 +44,20 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
             defaultMapper.encodeToString(
                 // http://jsonpatch.com/
                 listOf(
-                    mapOf(
-                        "op" to "add",
-                        // https://tools.ietf.org/html/rfc6901#section-3
-                        "path" to "/metadata/annotations/${EXPIRY_ANNOTATION.replace("/", "~1")}",
-                        "value" to expiry.toString()
+                    JsonObject(
+                        mapOf(
+                            "op" to JsonPrimitive("add"),
+                            // https://tools.ietf.org/html/rfc6901#section-3
+                            "path" to JsonPrimitive("/metadata/annotations/${EXPIRY_ANNOTATION.replace("/", "~1")}"),
+                            "value" to JsonPrimitive(expiry.toString())
+                        )
                     ),
-                    mapOf(
-                        "op" to "add",
-                        "path" to "/metadata/annotations/${JOB_START.replace("/", "~1")}",
-                        "value" to start.toString()
+                    JsonObject(
+                        mapOf(
+                            "op" to JsonPrimitive("add"),
+                            "path" to JsonPrimitive("/metadata/annotations/${JOB_START.replace("/", "~1")}"),
+                            "value" to JsonPrimitive(start.toString())
+                        )
                     )
                 )
             ),
@@ -89,22 +93,26 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
             KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace)
         )
 
-        val ops = ArrayList<Map<String, Any?>>()
+        val ops = ArrayList<JsonObject>()
         ops.add(
-            mapOf(
-                "op" to "replace",
-                "path" to "/metadata/annotations/${MAX_TIME_ANNOTATION.replace("/", "~1")}",
-                "value" to newMaxTime.toMillis().toString()
+            JsonObject(
+                mapOf(
+                    "op" to JsonPrimitive("replace"),
+                    "path" to JsonPrimitive("/metadata/annotations/${MAX_TIME_ANNOTATION.replace("/", "~1")}"),
+                    "value" to JsonPrimitive(newMaxTime.toMillis().toString())
+                )
             )
         )
 
         val jobStart = job.jobStart
         if (jobStart != null) {
             ops.add(
-                mapOf(
-                    "op" to "replace",
-                    "path" to "/metadata/annotations/${EXPIRY_ANNOTATION.replace("/", "~1")}",
-                    "value" to (jobStart + newMaxTime.toMillis()).toString()
+                JsonObject(
+                    mapOf(
+                        "op" to JsonPrimitive("replace"),
+                        "path" to JsonPrimitive("/metadata/annotations/${EXPIRY_ANNOTATION.replace("/", "~1")}"),
+                        "value" to JsonPrimitive((jobStart + newMaxTime.toMillis()).toString())
+                    )
                 )
             )
         }
@@ -120,14 +128,17 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
     }
 }
 
-val VolcanoJob.maxTime: Long? get() {
-    return (metadata?.annotations?.get(ExpiryPlugin.MAX_TIME_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
-}
+val VolcanoJob.maxTime: Long?
+    get() {
+        return (metadata?.annotations?.get(ExpiryPlugin.MAX_TIME_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
+    }
 
-val VolcanoJob.jobStart: Long? get() {
-    return (metadata?.annotations?.get(ExpiryPlugin.JOB_START) as? JsonPrimitive)?.content?.toLongOrNull()
-}
+val VolcanoJob.jobStart: Long?
+    get() {
+        return (metadata?.annotations?.get(ExpiryPlugin.JOB_START) as? JsonPrimitive)?.content?.toLongOrNull()
+    }
 
-val VolcanoJob.expiry: Long? get() {
-    return (metadata?.annotations?.get(ExpiryPlugin.EXPIRY_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
-}
+val VolcanoJob.expiry: Long?
+    get() {
+        return (metadata?.annotations?.get(ExpiryPlugin.EXPIRY_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
+    }

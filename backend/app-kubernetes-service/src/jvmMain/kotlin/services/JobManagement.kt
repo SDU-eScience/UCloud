@@ -158,8 +158,6 @@ class JobManagement(
         builder.spec = VolcanoJob.Spec(schedulerName = "volcano")
         plugins.forEach { with(it) { with(k8) { onCreate(verifiedJob, builder) } } }
 
-        println(defaultMapper.encodeToString(builder))
-
         @Suppress("BlockingMethodInNonBlockingContext")
         k8.client.createResource(
             KubernetesResources.volcanoJob.withNamespace(namespace),

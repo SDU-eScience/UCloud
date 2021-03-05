@@ -6,9 +6,11 @@ import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import kotlin.test.Ignore
 import kotlin.test.Test
 
 class MeasuredSpeedTest {
+    @Ignore
     @Test
     fun `test json serialization`() {
         val measurer = MeasuredSpeedInteger("Title", "Foo")
@@ -26,6 +28,7 @@ class MeasuredSpeedTest {
         assertThatInstance(fields) { it.size == 4 }
     }
 
+    @Ignore
     @Test
     fun `test json serialization - custom`() {
         val measurer = MeasuredSpeedInteger("Title", "Foo") { "Custom" }

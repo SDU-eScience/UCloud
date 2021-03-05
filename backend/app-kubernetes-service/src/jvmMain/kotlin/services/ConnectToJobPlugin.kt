@@ -11,6 +11,7 @@ import io.ktor.http.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 
 object ConnectToJobPlugin : JobManagementPlugin, Loggable {
     override val log = logger()
@@ -136,23 +137,33 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
                     ),
                     defaultMapper.encodeToString(
                         listOf(
-                            mapOf(
-                                "op" to "add",
-                                "path" to "/spec/ingress/-",
-                                "value" to NetworkPolicy.IngressRule().apply {
-                                    from = listOf(NetworkPolicy.Peer().apply {
-                                        podSelector = selectorForThisJob
-                                    })
-                                }
+                            JsonObject(
+                                mapOf(
+                                    "op" to JsonPrimitive("add"),
+                                    "path" to JsonPrimitive("/spec/ingress/-"),
+                                    "value" to defaultMapper.encodeToJsonElement(
+                                        NetworkPolicy.IngressRule().apply {
+                                            from = listOf(NetworkPolicy.Peer().apply {
+                                                podSelector = selectorForThisJob
+                                            })
+                                        }
+                                    )
+                                )
                             ),
-                            mapOf(
-                                "op" to "add",
-                                "path" to "/spec/egress/-",
-                                "value" to NetworkPolicy.EgressRule().apply {
-                                    to = listOf(NetworkPolicy.Peer().apply {
-                                        podSelector = selectorForThisJob
-                                    })
-                                }
+                            JsonObject(
+                                JsonObject(
+                                    mapOf(
+                                        "op" to JsonPrimitive("add"),
+                                        "path" to JsonPrimitive("/spec/egress/-"),
+                                        "value" to defaultMapper.encodeToJsonElement(
+                                                NetworkPolicy.EgressRule().apply {
+                                                to = listOf(NetworkPolicy.Peer().apply {
+                                                    podSelector = selectorForThisJob
+                                                })
+                                            }
+                                        )
+                                    )
+                                )
                             )
                         )
                     ),
