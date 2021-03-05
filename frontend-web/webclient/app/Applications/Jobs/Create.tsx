@@ -208,7 +208,7 @@ export const Create: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Runs);
     useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
 
-    if (applicationResp.loading === null) return <MainContainer main={<LoadingIcon size={36} />} />;
+    if (applicationResp.loading) return <MainContainer main={<LoadingIcon size={36} />} />;
 
     if (application == null) {
         return (
