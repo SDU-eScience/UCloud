@@ -17,7 +17,12 @@ data class Provider(
     override val billing: ProviderBilling,
     override val owner: ProviderOwner,
     override val acl: List<ResourceAclEntry<ProviderAclPermission>>
-) : Resource<ProviderAclPermission>
+) : Resource<ProviderAclPermission> {
+    override fun toString(): String {
+        return "Provider(id='$id', specification=$specification, createdAt=$createdAt, status=$status, " +
+            "billing=$billing, owner=$owner)"
+    }
+}
 
 @Serializable
 enum class ProviderAclPermission {

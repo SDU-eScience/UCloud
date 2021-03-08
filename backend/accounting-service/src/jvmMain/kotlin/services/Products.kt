@@ -5,6 +5,7 @@ import com.github.jasync.sql.db.RowData
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -51,7 +52,7 @@ class ProductService(
         product: Product
     ) {
         ctx.withSession { session ->
-            requirePermission(session, actor, readOnly = false)
+            requirePermission(session, actor, product.category.provider, readOnly = false)
             createProductCategoryIfNotExists(session, product.category.provider, product.category.id, product.area)
             try {
                 session.insert(ProductTable) {
@@ -114,7 +115,7 @@ class ProductService(
         product: Product
     ) {
         ctx.withSession { session ->
-            requirePermission(session, actor, readOnly = false)
+            requirePermission(session, actor, product.category.provider, readOnly = false)
 
             val productRow = findProductCategory(session, product.category.provider, product.category.id)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -200,7 +201,7 @@ class ProductService(
         product: FindProductRequest
     ): Product {
         return ctx.withSession { session ->
-            requirePermission(session, actor, readOnly = true)
+            requirePermission(session, actor, product.provider, readOnly = true)
 
             session
                 .sendPreparedStatement(
@@ -232,7 +233,7 @@ class ProductService(
         showHidden: Boolean
     ): List<Product> {
         return ctx.withSession { session ->
-            requirePermission(session, actor, readOnly = true)
+            requirePermission(session, actor, provider, readOnly = true)
 
             session
                 .sendPreparedStatement(
@@ -259,7 +260,7 @@ class ProductService(
         paging: NormalizedPaginationRequest
     ): Page<Product> {
         return ctx.withSession { session ->
-            requirePermission(session, actor, readOnly = true)
+            requirePermission(session, actor, provider, readOnly = true)
 
             session
                 .paginatedQuery(
@@ -286,7 +287,7 @@ class ProductService(
         showHidden: Boolean
     ): Page<Product> {
         return ctx.withSession { session ->
-            requirePermission(session, actor, readOnly = true)
+            requirePermission(session, actor, provider, readOnly = true)
 
             session
                 .paginatedQuery(
@@ -450,10 +451,12 @@ class ProductService(
         }
     }
 
-    private fun requirePermission(ctx: DBContext, actor: Actor, readOnly: Boolean) {
+    private fun requirePermission(ctx: DBContext, actor: Actor, providerId: String, readOnly: Boolean) {
         if (readOnly) return
         if (actor is Actor.System) return
         if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) return
+        if (actor is Actor.User && actor.principal.role == Role.PROVIDER &&
+            actor.username.removePrefix(AuthProviders.PROVIDER_PREFIX) == providerId) return
 
         throw RPCException("Forbidden", HttpStatusCode.Forbidden)
     }
