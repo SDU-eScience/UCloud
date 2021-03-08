@@ -23,7 +23,6 @@
         "localforage": "^1.9.0",
         "path-browserify": "^1.0.1",
         "react": "17.0.1",
-        "react-animations": "^1.0.0",
         "react-datepicker": "3.6.0",
         "react-dom": "17.0.1",
         "react-dropzone": "^11.3.1",

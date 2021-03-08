@@ -14,7 +14,6 @@ import styled, {keyframes} from "styled-components";
 import {Box, Button, Flex, Icon, Link} from "ui-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {IconName} from "ui-components/Icon";
-import * as anims from "react-animations";
 import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
@@ -23,7 +22,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute, file} from "UCloud";
+import {compute} from "UCloud";
 import Job = compute.Job;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -40,9 +39,36 @@ import JobSpecification = compute.JobSpecification;
 import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import {addStandardDialog} from "UtilityComponents";
 
-const enterAnimation = keyframes`${anims.pulse}`;
-const busyAnim = keyframes`${anims.fadeIn}`;
-const zoomInAnim = keyframes`${anims.zoomIn}`;
+const enterAnimation = keyframes`
+    from {
+      transform: scale3d(1, 1, 1);
+    }
+    50% {
+      transform: scale3d(1.05, 1.05, 1.05);
+    }
+    to {
+      transform: scale3d(1, 1, 1);
+    }
+`;
+
+const busyAnim = keyframes`
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+`;
+
+const zoomInAnim = keyframes`
+    from {
+        opacity: 0;
+        transform: scale3d(0.3, 0.3, 0.3);
+    }
+    50% {
+        opacity: 1;
+    }
+`;
 
 const Container = styled.div`
   --logoScale: 1;
@@ -523,9 +549,9 @@ const Busy: React.FunctionComponent<{
                         ) : null}
                     </>
                 ) : (
-                        <>We are currently preparing your job. This step might take a few
+                    <>We are currently preparing your job. This step might take a few
                         minutes.</>
-                    )}
+                )}
             </Box>
 
             <CancelButton job={job} state={"IN_QUEUE"} />
@@ -1081,20 +1107,20 @@ const RunningButtonGroup: React.FunctionComponent<{
     return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
         {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
             "VIRTUAL_MACHINE" ? null : (
-                <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                    e.preventDefault();
+            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
+                e.preventDefault();
 
-                    window.open(
-                        ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                        undefined,
-                        "width=800,height=600,status=no"
-                    );
-                }}>
-                    <Button type={"button"}>
-                        Open terminal
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    undefined,
+                    "width=800,height=600,status=no"
+                );
+            }}>
+                <Button type={"button"}>
+                    Open terminal
                 </Button>
-                </Link>
-            )}
+            </Link>
+        )}
         {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
                 <Button>Open interface</Button>
