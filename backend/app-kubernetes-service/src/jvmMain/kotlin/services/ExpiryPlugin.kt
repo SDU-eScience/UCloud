@@ -85,7 +85,7 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
         }
     }
 
-    suspend fun extendJob(k8: K8Dependencies, jobId: String, newMaxTime: SimpleDuration) {
+    suspend fun extendJob(k8: K8Dependencies, jobId: String, extendBy: SimpleDuration) {
         val name = k8.nameAllocator.jobIdToJobName(jobId)
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
@@ -94,24 +94,28 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
         )
 
         val ops = ArrayList<JsonObject>()
-        ops.add(
-            JsonObject(
-                mapOf(
-                    "op" to JsonPrimitive("replace"),
-                    "path" to JsonPrimitive("/metadata/annotations/${MAX_TIME_ANNOTATION.replace("/", "~1")}"),
-                    "value" to JsonPrimitive(newMaxTime.toMillis().toString())
+
+        val maxTime = job.maxTime
+        if (maxTime != null) {
+            ops.add(
+                JsonObject(
+                    mapOf(
+                        "op" to JsonPrimitive("replace"),
+                        "path" to JsonPrimitive("/metadata/annotations/${MAX_TIME_ANNOTATION.replace("/", "~1")}"),
+                        "value" to JsonPrimitive((maxTime + extendBy.toMillis()).toString())
+                    )
                 )
             )
-        )
+        }
 
-        val jobStart = job.jobStart
-        if (jobStart != null) {
+        val jobExpiry = job.expiry
+        if (jobExpiry != null) {
             ops.add(
                 JsonObject(
                     mapOf(
                         "op" to JsonPrimitive("replace"),
                         "path" to JsonPrimitive("/metadata/annotations/${EXPIRY_ANNOTATION.replace("/", "~1")}"),
-                        "value" to JsonPrimitive((jobStart + newMaxTime.toMillis()).toString())
+                        "value" to JsonPrimitive((jobExpiry + extendBy.toMillis()).toString())
                     )
                 )
             )
