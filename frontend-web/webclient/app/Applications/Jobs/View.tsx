@@ -339,8 +339,8 @@ export const View: React.FunctionComponent = () => {
         }
 
         return () => {
-            if (t1) clearTimeout(t1);
-            if (t2) clearTimeout(t2);
+            if (t1 != undefined) clearTimeout(t1);
+            if (t2 != undefined) clearTimeout(t2);
         };
     }, [job]);
 
@@ -959,7 +959,7 @@ const RunningJobRank: React.FunctionComponent<{
 }> = ({job, rank, updateListeners}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
     const [expanded, setExpanded] = useState(false);
-    const toggleExpand = useCallback((autoScroll: boolean = true) => {
+    const toggleExpand = useCallback((autoScroll = true) => {
         setExpanded(!expanded);
         const targetView = termRef.current?.parentElement;
         if (targetView != null) {
