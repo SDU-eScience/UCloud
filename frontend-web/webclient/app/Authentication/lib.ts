@@ -10,6 +10,7 @@ interface CallParameters {
     context?: string;
     withCredentials?: boolean;
     projectOverride?: string;
+    accessTokenOverride?: string;
 }
 
 /**
@@ -117,7 +118,8 @@ export default class HttpClient {
         body,
         context = this.apiContext,
         withCredentials = false,
-        projectOverride
+        projectOverride,
+        accessTokenOverride,
     }: CallParameters): Promise<any> {
         await this.waitForCloudReady();
 
@@ -131,7 +133,10 @@ export default class HttpClient {
                 return new Promise((resolve, reject) => {
                     const req = new XMLHttpRequest();
                     req.open(method, this.computeURL(context, path));
-                    req.setRequestHeader("Authorization", `Bearer ${token}`);
+                    req.setRequestHeader(
+                        "Authorization",
+                        accessTokenOverride === undefined ? `Bearer ${token}` : `Bearer ${accessTokenOverride}`
+                    );
                     req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
                     const projectId = projectOverride ?? this.projectId;
                     if (projectId) req.setRequestHeader("Project", projectId);

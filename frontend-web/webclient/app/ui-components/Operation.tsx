@@ -126,6 +126,7 @@ interface OperationProps<T, R = undefined> {
     entityNamePlural?: string;
     dropdownTag?: string;
     row?: T;
+    showSelectedCount?: boolean;
 }
 
 type OperationsType = <T, R = undefined>(props: PropsWithChildren<OperationProps<T, R>>, context?: any) =>
@@ -172,19 +173,21 @@ export const Operations: OperationsType = props => {
         .map(op => op!);
 
     if (!(selected.length === 0 || props.operations.length === 1) && props.location === "SIDEBAR") {
-        operations.push({
-            elem: <div key={"selected"}>
-                <TextSpan bold>
-                    {selected.length}
-                    {" "}
-                    {selected.length === 1 ? props.entityNameSingular : entityNamePlural}
-                    {" "}
-                    selected
-                </TextSpan>
-            </div>,
-            priority: 1,
-            primary: false
-        });
+        if (props.showSelectedCount ?? true) {
+            operations.push({
+                elem: <div key={"selected"}>
+                    <TextSpan bold>
+                        {selected.length}
+                        {" "}
+                        {selected.length === 1 ? props.entityNameSingular : entityNamePlural}
+                        {" "}
+                        selected
+                    </TextSpan>
+                </div>,
+                priority: 1,
+                primary: false
+            });
+        }
     }
 
     const content = operations
