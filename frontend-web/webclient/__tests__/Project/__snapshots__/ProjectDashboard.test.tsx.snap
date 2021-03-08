@@ -18,7 +18,6 @@ exports[`Mount ProjectDashboard 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c9 {
