@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Mar 04 15:16:56 CET 2021 */
+/* Generated at: Tue Mar 09 12:51:30 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -735,15 +735,11 @@ export namespace compute {
         sessionType: "WEB" | "VNC" | "SHELL",
     }
 
-    export interface JobsRetrieveProductsTemporaryResponse {
-        productsByProvider: Record<string, ComputeRetrieveProductsTemporaryResponse>,
+    export interface JobsRetrieveProductsResponse {
+        productsByProvider: Record<string, ComputeProductSupportResolved[]>,
     }
 
-    export interface ComputeRetrieveProductsTemporaryResponse {
-        products: ComputeTemporaryProductSupport[],
-    }
-
-    export interface ComputeTemporaryProductSupport {
+    export interface ComputeProductSupportResolved {
         product: accounting.ProductNS.Compute,
         support: ComputeSupport,
     }
@@ -759,7 +755,7 @@ export namespace compute {
         virtualMachine: ComputeSupportNS.VirtualMachine,
     }
 
-    export interface JobsRetrieveProductsTemporaryRequest {
+    export interface JobsRetrieveProductsRequest {
         providers: string,
     }
 
@@ -1776,23 +1772,32 @@ export namespace compute {
         appVersion: string,
     }
 
-    export interface ComputeExtendRequestItem {
+    export interface JobsProviderRetrieveProductsResponse {
+        products: ComputeProductSupport[],
+    }
+
+    export interface ComputeProductSupport {
+        product: accounting.ProductReference,
+        support: ComputeSupport,
+    }
+
+    export interface JobsProviderExtendRequestItem {
         job: Job,
         requestedTime: SimpleDuration,
     }
 
-    export interface ComputeOpenInteractiveSessionResponse {
+    export interface JobsProviderOpenInteractiveSessionResponse {
         sessions: OpenSession[],
     }
 
-    export interface ComputeOpenInteractiveSessionRequestItem {
+    export interface JobsProviderOpenInteractiveSessionRequestItem {
         job: Job,
         rank: number /* int32 */
         ,
         sessionType: "WEB" | "VNC" | "SHELL",
     }
 
-    export interface ComputeUtilizationResponse {
+    export interface JobsProviderUtilizationResponse {
         capacity: CpuAndMemory,
         usedCapacity: CpuAndMemory,
         queueStatus: QueueStatus,
@@ -2912,7 +2917,7 @@ export namespace compute {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs",
+                    path: "/ucloud/ucloud/jobs",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -2935,7 +2940,7 @@ export namespace compute {
                 return {
                     context: "",
                     method: "DELETE",
-                    path: "/ucloud/ucloud/compute/jobs",
+                    path: "/ucloud/ucloud/jobs",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -2951,12 +2956,12 @@ export namespace compute {
              *
              */
             export function extend(
-                request: BulkRequest<ComputeExtendRequestItem>
-            ): APICallParameters<BulkRequest<ComputeExtendRequestItem>, any /* unknown */> {
+                request: BulkRequest<JobsProviderExtendRequestItem>
+            ): APICallParameters<BulkRequest<JobsProviderExtendRequestItem>, any /* unknown */> {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs" + "/extend",
+                    path: "/ucloud/ucloud/jobs" + "/extend",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -2977,7 +2982,7 @@ export namespace compute {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs" + "/suspend",
+                    path: "/ucloud/ucloud/jobs" + "/suspend",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -3003,7 +3008,7 @@ export namespace compute {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs" + "/verify",
+                    path: "/ucloud/ucloud/jobs" + "/verify",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -3011,12 +3016,12 @@ export namespace compute {
             }
 
             export function openInteractiveSession(
-                request: BulkRequest<ComputeOpenInteractiveSessionRequestItem>
-            ): APICallParameters<BulkRequest<ComputeOpenInteractiveSessionRequestItem>, ComputeOpenInteractiveSessionResponse> {
+                request: BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>
+            ): APICallParameters<BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>, JobsProviderOpenInteractiveSessionResponse> {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/ucloud/compute/jobs" + "/interactiveSession",
+                    path: "/ucloud/ucloud/jobs" + "/interactiveSession",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -3024,27 +3029,27 @@ export namespace compute {
             }
 
             /**
-             * Retrieve products (Temporary API) (retrieveProductsTemporary)
+             * Retrieve products (retrieveProducts)
              *
              * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
              * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
              *
-             * A temporary API for retrieving the products and the support from a provider. This API will be clarified later, for now this is needed for backwards-compatibility while we transform other parts of the UCloud API. This issue is tracked here: https://github.com/SDU-eScience/UCloud/issues/2222
+             * An API for retrieving the products and the support from a provider.
              */
-            export function retrieveProductsTemporary(): APICallParameters<{}, ComputeRetrieveProductsTemporaryResponse> {
+            export function retrieveProducts(): APICallParameters<{}, JobsProviderRetrieveProductsResponse> {
                 return {
                     context: "",
                     method: "GET",
-                    path: "/ucloud/ucloud/compute/jobs" + "/retrieveProductsTemporary",
+                    path: "/ucloud/ucloud/jobs" + "/retrieveProducts",
                     reloadId: Math.random(),
                 };
             }
 
-            export function retrieveUtilization(): APICallParameters<{}, ComputeUtilizationResponse> {
+            export function retrieveUtilization(): APICallParameters<{}, JobsProviderUtilizationResponse> {
                 return {
                     context: "",
                     method: "GET",
-                    path: "/ucloud/ucloud/compute/jobs" + "/retrieveUtilization",
+                    path: "/ucloud/ucloud/jobs" + "/retrieveUtilization",
                     reloadId: Math.random(),
                 };
             }
@@ -3671,20 +3676,20 @@ export namespace compute {
         }
 
         /**
-         * Retrieve products (Temporary API) (retrieveProductsTemporary)
+         * Retrieve products (retrieveProducts)
          *
          * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
          * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
          *
-         * A temporary API for retrieving the products and the support from a provider. This API will be clarified later, for now this is needed for backwards-compatibility while we transform other parts of the UCloud API. This issue is tracked here: https://github.com/SDU-eScience/UCloud/issues/2222
+         * A temporary API for retrieving the products and the support from a provider.
          */
-        export function retrieveProductsTemporary(
-            request: JobsRetrieveProductsTemporaryRequest
-        ): APICallParameters<JobsRetrieveProductsTemporaryRequest, JobsRetrieveProductsTemporaryResponse> {
+        export function retrieveProducts(
+            request: JobsRetrieveProductsRequest
+        ): APICallParameters<JobsRetrieveProductsRequest, JobsRetrieveProductsResponse> {
             return {
                 context: "",
                 method: "GET",
-                path: buildQueryString("/api/jobs" + "/retrieveProductsTemporary", {providers: request.providers}),
+                path: buildQueryString("/api/jobs" + "/retrieveProducts", {providers: request.providers}),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -3738,7 +3743,7 @@ export namespace compute {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/aau/compute/jobs",
+                    path: "/ucloud/aau/jobs",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -3761,7 +3766,7 @@ export namespace compute {
                 return {
                     context: "",
                     method: "DELETE",
-                    path: "/ucloud/aau/compute/jobs",
+                    path: "/ucloud/aau/jobs",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -3769,18 +3774,18 @@ export namespace compute {
             }
 
             /**
-             * Retrieve products (Temporary API) (retrieveProductsTemporary)
+             * Retrieve products (retrieveProducts)
              *
              * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
              * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
              *
-             * A temporary API for retrieving the products and the support from a provider. This API will be clarified later, for now this is needed for backwards-compatibility while we transform other parts of the UCloud API. This issue is tracked here: https://github.com/SDU-eScience/UCloud/issues/2222
+             * An API for retrieving the products and the support from a provider.
              */
-            export function retrieveProductsTemporary(): APICallParameters<{}, ComputeRetrieveProductsTemporaryResponse> {
+            export function retrieveProducts(): APICallParameters<{}, JobsProviderRetrieveProductsResponse> {
                 return {
                     context: "",
                     method: "GET",
-                    path: "/ucloud/aau/compute/jobs" + "/retrieveProductsTemporary",
+                    path: "/ucloud/aau/jobs" + "/retrieveProducts",
                     reloadId: Math.random(),
                 };
             }
@@ -3794,12 +3799,12 @@ export namespace compute {
              *
              */
             export function extend(
-                request: BulkRequest<ComputeExtendRequestItem>
-            ): APICallParameters<BulkRequest<ComputeExtendRequestItem>, any /* unknown */> {
+                request: BulkRequest<JobsProviderExtendRequestItem>
+            ): APICallParameters<BulkRequest<JobsProviderExtendRequestItem>, any /* unknown */> {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/aau/compute/jobs" + "/extend",
+                    path: "/ucloud/aau/jobs" + "/extend",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -3807,23 +3812,23 @@ export namespace compute {
             }
 
             export function openInteractiveSession(
-                request: BulkRequest<ComputeOpenInteractiveSessionRequestItem>
-            ): APICallParameters<BulkRequest<ComputeOpenInteractiveSessionRequestItem>, ComputeOpenInteractiveSessionResponse> {
+                request: BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>
+            ): APICallParameters<BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>, JobsProviderOpenInteractiveSessionResponse> {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/aau/compute/jobs" + "/interactiveSession",
+                    path: "/ucloud/aau/jobs" + "/interactiveSession",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
                 };
             }
 
-            export function retrieveUtilization(): APICallParameters<{}, ComputeUtilizationResponse> {
+            export function retrieveUtilization(): APICallParameters<{}, JobsProviderUtilizationResponse> {
                 return {
                     context: "",
                     method: "GET",
-                    path: "/ucloud/aau/compute/jobs" + "/retrieveUtilization",
+                    path: "/ucloud/aau/jobs" + "/retrieveUtilization",
                     reloadId: Math.random(),
                 };
             }
@@ -3847,7 +3852,7 @@ export namespace compute {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/aau/compute/jobs" + "/verify",
+                    path: "/ucloud/aau/jobs" + "/verify",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
@@ -3868,7 +3873,7 @@ export namespace compute {
                 return {
                     context: "",
                     method: "POST",
-                    path: "/ucloud/aau/compute/jobs" + "/suspend",
+                    path: "/ucloud/aau/jobs" + "/suspend",
                     parameters: request,
                     reloadId: Math.random(),
                     payload: request,
