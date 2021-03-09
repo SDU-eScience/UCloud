@@ -5,9 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationWithComments
 import dk.sdu.cloud.grant.api.Comment
-import dk.sdu.cloud.mail.api.MailSubjects
-import dk.sdu.cloud.mail.api.newCommentTemplate
-import dk.sdu.cloud.grant.utils.newCommentTemplate
+import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
@@ -57,13 +55,15 @@ class CommentService(
                     application,
                     adminMessage= null,
                     userMessage =
-                    GrantNotificationMessage(
+                    UserGrantNotificationMessage(
                         subject = { "Comment on Application" },
                         type = "COMMENT_GRANT_APPLICATION",
-                        message = { user, projectTitle ->
-                            newCommentTemplate(user, actor.safeUsername(), projectTitle, application.grantRecipientTitle)
-                        },
-                        MailSubjects.COMMENT_GRANT_APPLICATION
+                        email = Mail.NewCommentOnApplicationMail(
+                            actor.safeUsername(),
+                            application.resourcesOwnedByTitle,
+                            application.grantRecipientTitle
+                        ),
+                        application.requestedBy
                     )
                 ),
                 actor.safeUsername(),
@@ -74,13 +74,14 @@ class CommentService(
             notifications.notify(
                 GrantNotification(
                     application,
-                    GrantNotificationMessage(
+                    AdminGrantNotificationMessage(
                         subject = { "Comment on Application" },
                         type = "COMMENT_GRANT_APPLICATION",
-                        message = { user, projectTitle ->
-                            newCommentTemplate(user, actor.safeUsername(), projectTitle, application.grantRecipientTitle)
-                        },
-                        MailSubjects.COMMENT_GRANT_APPLICATION
+                        Mail.NewCommentOnApplicationMail(
+                            actor.safeUsername(),
+                            application.resourcesOwnedByTitle,
+                            application.grantRecipientTitle
+                        )
                     ),
                     userMessage = null
                 ),

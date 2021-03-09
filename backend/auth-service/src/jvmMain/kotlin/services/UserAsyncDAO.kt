@@ -51,7 +51,6 @@ object PrincipalTable : SQLTable("principals") {
     val wayfId = text("wayf_id")
     val email = text("email")
     val serviceLicenseAgreement = int("service_license_agreement", notNull = true)
-    val wantsEmails = bool("wants_emails")
 }
 
 enum class USERTYPE {
@@ -80,7 +79,6 @@ fun RowData.toPrincipal(totpStatus: Boolean): Principal {
                 getField(PrincipalTable.email),
                 getField(PrincipalTable.uid),
                 getField(PrincipalTable.serviceLicenseAgreement),
-                getField(PrincipalTable.wantsEmails),
                 getField(PrincipalTable.orgId),
                 getField(PrincipalTable.wayfId)
             )
@@ -98,7 +96,6 @@ fun RowData.toPrincipal(totpStatus: Boolean): Principal {
                 getField(PrincipalTable.uid),
                 totpStatus,
                 getField(PrincipalTable.serviceLicenseAgreement),
-                getField(PrincipalTable.wantsEmails),
                 getField(PrincipalTable.hashedPassword),
                 getField(PrincipalTable.salt)
             )
@@ -465,7 +462,6 @@ class UserAsyncDAO(
                             set(PrincipalTable.wayfId, principal.wayfId)
                             set(PrincipalTable.email, principal.email)
                             set(PrincipalTable.serviceLicenseAgreement, 0)
-                            set(PrincipalTable.wantsEmails, true)
                         }
                     is Person.ByPassword ->
                         session.insert(PrincipalTable) {
@@ -482,7 +478,6 @@ class UserAsyncDAO(
                             set(PrincipalTable.uid, principal.uid)
                             set(PrincipalTable.email, principal.email)
                             set(PrincipalTable.serviceLicenseAgreement, principal.serviceLicenseAgreement)
-                            set(PrincipalTable.wantsEmails, principal.wantsEmails)
                             set(PrincipalTable.hashedPassword, principal.password)
                             set(PrincipalTable.salt, principal.salt)
                         }

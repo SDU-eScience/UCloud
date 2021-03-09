@@ -8,17 +8,13 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.MailSubjects
 import dk.sdu.cloud.mail.api.SendRequest
-import dk.sdu.cloud.mail.api.resetPasswordTemplate
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
-import io.ktor.util.toLocalDateTime
 import kotlinx.coroutines.delay
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -64,8 +60,9 @@ class PasswordResetService(
         MailDescriptions.send.call(
             SendRequest(
                 lookup.userId,
-                MailSubjects.RESET_PASSWORD,
-                resetPasswordTemplate("${lookup.firstNames} ${lookup.lastName}", token),
+                Mail.ResetPasswordMail(
+                    token
+                ),
                 true
             ), authenticatedClient
         ).orThrow()

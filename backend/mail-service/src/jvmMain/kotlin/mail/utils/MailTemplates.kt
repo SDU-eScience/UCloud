@@ -1,33 +1,27 @@
-package dk.sdu.cloud.mail.api
+package mail.utils
 
 import dk.sdu.cloud.service.escapeHtml
-
-//Remember to update DB column 'email_settings' in principals
-enum class MailSubjects(val subject: String) {
-    LOW_FUNDS_SUBJECT("Project low on resource"),
-    USER_ROLE_CHANGE("Role change in project"),
-    USER_LEFT("User left project"),
-    PROJECT_USER_INVITE("User invited to project"),
-    NEW_GRANT_APPLICATION("New grant application"),
-    GRANT_APP_AUTO_APPROVE("Grant application for subproject automatically approved"),
-    GRANT_APPLICATION_UPDATED("Grant application updated"),
-    GRANT_APP_APPROVED("Grant application updated (Approved)"),
-    GRANT_APP_REJECTED("Grant application updated (Rejected)"),
-    GRANT_APP_WITHDRAWN("Grant application updated (Closed)"),
-    COMMENT_GRANT_APPLICATION("Comment on Application"),
-    RESET_PASSWORD("[UCloud] Reset of Password"), // ALWAYS true in DB
-    VERIFICATION_REMINDER("Time to review your project");
-}
 
 const val NO_NOTIFICATIONS_DISCLAIMER = """<p>If you do not want to receive these email notifications, 
     you can unsubscribe to non-critical emails in your personal settings on UCloud</p>"""
 
-fun verifyReminderTemplate(receiver: String, projectTitle: String, role: String) =
+fun transferOfApplication(receiver: String, senderProject: String, receiverProject: String, applicationProjectTitle: String) =
     """
-        <p>Hello ${receiver},</p> 
+        <p>Dear ${escapeHtml(receiver)}</p>
         
         <p>
-            It is time for a review of your project $projectTitle in which you are 
+            You have been transferred an application from the project '${escapeHtml(senderProject)}' to your project '${escapeHtml(receiverProject)}.
+            Application is called: '${escapeHtml(applicationProjectTitle)}'
+        </p>
+        $NO_NOTIFICATIONS_DISCLAIMER
+    """.trimIndent()
+
+fun verifyReminderTemplate(receiver: String, projectTitle: String, role: String) =
+    """
+        <p>Dear ${escapeHtml(receiver)},</p> 
+        
+        <p>
+            It is time for a review of your project '${escapeHtml(projectTitle)}' in which you are 
             ${if (role == "ADMIN") " an admin" else " a PI"}.
         </p>
         
@@ -43,12 +37,12 @@ fun verifyReminderTemplate(receiver: String, projectTitle: String, role: String)
                 <a href="https://cloud.sdu.dk/app/projects}">here</a>.
             </li>
         </ul>
-
+        $NO_NOTIFICATIONS_DISCLAIMER
     """.trimMargin()
 
 fun resetPasswordTemplate(receiver: String, token: String) =
     """
-        <p>Dear ${escapeHtml(receiver)}</p>
+        <p>Dear ${escapeHtml(receiver)}</p> 
         <p>We have received a request to reset your UCloud account password. To proceed, follow the link below.</p>
         <p>
             <a href="https://cloud.sdu.dk/app/login?password-reset=true&token=${token}">https://cloud.sdu.dk/app/login?password-reset=true&token=${token}</a>
@@ -86,7 +80,7 @@ fun approvedProjectToAdminsTemplate(receiver: String, sender: String, projectTit
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
-fun autoApproveTemplate(receiver: String, sender: String, projectTitle: String) =
+fun autoApproveTemplateToAdmins(receiver: String, sender: String, projectTitle: String) =
     """
         <p>Dear ${escapeHtml(receiver)}</p>
         <p>
@@ -133,22 +127,22 @@ fun statusChangeTemplateToAdmins(status: String, receiver: String, sender: Strin
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
-fun updatedTemplate(projectTitle: String, receiver: String, sender: String) =
+fun updatedTemplate(projectTitle: String, receiver: String, changedBy: String) =
     """
         <p>Dear ${escapeHtml(receiver)}</p>
         <p>
             Your application for resources in project '${escapeHtml(projectTitle)}' has been changed by 
-            ${escapeHtml(sender)}. Please review the changes to the application.
+            ${escapeHtml(changedBy)}. Please review the changes to the application.
         </p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
-fun updatedTemplateToAdmins(projectTitle: String, receiver: String, sender: String, receivingProjectTitle: String) =
+fun updatedTemplateToAdmins(projectTitle: String, receiver: String, changedBy: String, receivingProjectTitle: String) =
     """
         <p>Dear ${escapeHtml(receiver)}</p>
         <p>
             The application for resources regarding project '${escapeHtml(receivingProjectTitle)}' in project 
-            '${escapeHtml(projectTitle)}' has been changed by ${escapeHtml(sender)}.
+            '${escapeHtml(projectTitle)}' has been changed by ${escapeHtml(changedBy)}.
         </p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
@@ -162,7 +156,7 @@ fun userRoleChangeTemplate(
     <p>Dear ${escapeHtml(recipient)}</p>    
         <p>
             The role of the user ${escapeHtml(subjectToChange)} was changed to 
-            ${roleChange} in the project ${escapeHtml(projectTitle)}.
+            ${roleChange} in the project '${escapeHtml(projectTitle)}'.
         </p>
         $NO_NOTIFICATIONS_DISCLAIMER
         
@@ -175,7 +169,7 @@ fun userLeftTemplate(
 ) = """
         <p>Dear ${escapeHtml(recipient)}</p>
         <p>
-            The user ${escapeHtml(leavingUser)} has left the project ${escapeHtml(projectTitle)}.
+            The user ${escapeHtml(leavingUser)} has left the project '${escapeHtml(projectTitle)}'.
         </p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
@@ -187,17 +181,17 @@ fun userRemovedTemplate(
 ) = """
         <p>Dear ${escapeHtml(recipient)}</p>    
         <p>
-            The user ${escapeHtml(leavingUser)} has been removed the project ${escapeHtml(projectTitle)}.
+            The user ${escapeHtml(leavingUser)} has been removed from the project '${escapeHtml(projectTitle)}'.
         </p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
-fun userRemovedToPersonRemovedTemplate(
+fun userRemovedToUserTemplate(
     recipient: String,
     projectTitle: String
 ) = """
         <p>Dear ${escapeHtml(recipient)}</p>
-        <p>You have been removed from the project ${escapeHtml(projectTitle)}.</p>
+        <p>You have been removed from the project '${escapeHtml(projectTitle)}'.</p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
@@ -207,20 +201,20 @@ fun userInvitedToInviteeTemplate(
 ) = """
         <p>Dear ${escapeHtml(recipient)}</p>    
         <p>
-            You have been invited to join the project ${escapeHtml(projectTitle)} on UCloud.
+            You have been invited to join the project '${escapeHtml(projectTitle)}' on UCloud.
         </p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
 fun stillLowResources (
     recipient: String,
-    catagory: String,
+    category: String,
     provider: String,
     projectTitle: String
 ) = """
         <p>Dear ${escapeHtml(recipient)}</p>
         <p>
-            The project ${escapeHtml(projectTitle)} is still low on the ${escapeHtml(catagory)} resource 
+            The project '${escapeHtml(projectTitle)}' is still low on the ${escapeHtml(category)} resource 
             from ${escapeHtml(provider)} after new resources were allocated. <br>
             If this was intentional, please ignore this message.
         </p>
@@ -229,13 +223,13 @@ fun stillLowResources (
 
 fun lowResourcesTemplate(
     recipient: String,
-    catagory: String,
+    category: String,
     provider: String,
     projectTitle: String
 ) = """
         <p>Dear ${escapeHtml(recipient)}</p>
         <p>
-            The project ${escapeHtml(projectTitle)} is running low on the ${escapeHtml(catagory)} resource 
+            The project '${escapeHtml(projectTitle)}' is running low on the ${escapeHtml(category)} resource 
             from ${escapeHtml(provider)}. <br>
             If needed, you can request additional resources from the project's resource page.
         </p>

@@ -1,6 +1,5 @@
 package dk.sdu.cloud.project.services
 
-import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
@@ -23,7 +22,6 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.project.api.Projects.viewAncestors
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -224,8 +222,9 @@ class ProjectService(
             val messages = invitesTo.map { invitee ->
                 SendRequest(
                     invitee,
-                    MailSubjects.PROJECT_USER_INVITE,
-                    userInvitedToInviteeTemplate(invitee, projectTitle)
+                    Mail.ProjectInviteMail(
+                        projectTitle
+                    )
                 )
             }
 
@@ -346,8 +345,10 @@ class ProjectService(
                 SendBulkRequest(allAdmins.map { admin ->
                     SendRequest(
                         admin,
-                        MailSubjects.USER_LEFT,
-                        userLeftTemplate(pi, initiatedBy, projectTitle)
+                        Mail.UserLeftMail(
+                            initiatedBy,
+                            projectTitle
+                        )
                     )
                 }),
                 serviceClient
@@ -431,15 +432,18 @@ class ProjectService(
                 .map {
                     SendRequest(
                         pi,
-                        MailSubjects.USER_LEFT,
-                        userRemovedTemplate(pi, userToDelete, projectTitle)
+                        Mail.UserRemovedMail(
+                            userToDelete,
+                            projectTitle
+                        )
                     )
                 }
 
             val userMessage = SendRequest(
                 userToDelete,
-                MailSubjects.USER_LEFT,
-                userRemovedToPersonRemovedTemplate(userToDelete, projectTitle)
+                Mail.UserRemovedMailToUser(
+                    projectTitle
+                )
             )
 
             MailDescriptions.sendBulk.call(
@@ -525,8 +529,11 @@ class ProjectService(
                 SendBulkRequest(allAdmins.map {
                     SendRequest(
                         pi,
-                        MailSubjects.USER_ROLE_CHANGE,
-                        userRoleChangeTemplate(pi, memberToUpdate, newRole.name, projectTitle)
+                        Mail.UserRoleChangeMail(
+                            memberToUpdate,
+                            newRole.name,
+                            projectTitle
+                        )
                     )
                 }),
                 serviceClient

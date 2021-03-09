@@ -9,10 +9,13 @@ import dk.sdu.cloud.mail.services.MailService
 import dk.sdu.cloud.service.Loggable
 import mail.services.SettingsService
 
-class MailController(private val mailService: MailService, private val settingsService: SettingsService) : Controller {
+class MailController(
+    private val mailService: MailService,
+    private val settingsService: SettingsService,
+) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(MailDescriptions.send) {
-            ok(mailService.send(ctx.securityPrincipal, request.userId, request.subject.subject, request.message, request.mandatory!!))
+            ok(mailService.send(ctx.securityPrincipal, request.receiver, request.mail, request.mandatory))
         }
 
         implement(MailDescriptions.sendSupport) {
@@ -21,9 +24,9 @@ class MailController(private val mailService: MailService, private val settingsS
 
         implement(MailDescriptions.sendBulk) {
             request.messages.forEach {
-                val allowedToSend = mailService.allowedToSend(it.userId)
+                val allowedToSend = mailService.allowedToSend(it.receiver)
                 if (allowedToSend) {
-                    mailService.send(ctx.securityPrincipal, it.userId, it.subject.subject, it.message, it.mandatory!!)
+                    mailService.send(ctx.securityPrincipal, it.receiver, it.mail, it.mandatory)
                 }
             }
             ok(Unit)
@@ -35,11 +38,13 @@ class MailController(private val mailService: MailService, private val settingsS
             } else {
                 ctx.securityPrincipal.username
             }
-            settingsService.getEmailSettings(request.username)
+            ok(RetrieveEmailSettingsResponse(
+                settingsService.getEmailSettings(request.username!!)
+            ))
         }
 
         implement(MailDescriptions.toggleEmailSettings) {
-
+            ok(Unit)
         }
 
         return@configure

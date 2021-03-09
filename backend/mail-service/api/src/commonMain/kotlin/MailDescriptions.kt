@@ -10,10 +10,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SendRequest(
-    val userId: String,
-    val subject: MailSubjects,
-    val message: String,
-    val mandatory: Boolean? = false
+    val receiver: String,
+    val mail: Mail,
+    val mandatory: Boolean = false
 )
 
 @Serializable
@@ -30,21 +29,23 @@ data class SendSupportEmailRequest(
 
 typealias SendSupportEmailResponse = Unit
 
+@Serializable
 data class EmailSettingsItem(
     val username: String,
-    val settings: Map<MailSubjects, Boolean>
+    val settings: EmailSettings
 )
 
 typealias ToggleEmailSettingsRequest = BulkRequest<EmailSettingsItem>
 
 typealias ToggleEmailSettingsResponse = Unit
 
+@Serializable
 data class RetrieveEmailSettingsRequest(
     val username: String?
 )
-
+@Serializable
 data class RetrieveEmailSettingsResponse(
-    val settings: Map<MailSubjects, Boolean>
+    val settings: EmailSettings
 )
 
 

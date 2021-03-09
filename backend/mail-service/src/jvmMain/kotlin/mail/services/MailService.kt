@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
@@ -22,6 +23,8 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.ktor.http.HttpStatusCode
+import mail.services.SettingsService
+import mail.utils.*
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.io.ByteArrayOutputStream
@@ -41,7 +44,8 @@ class MailService(
     private val fromAddress: String,
     private val whitelist: List<String>,
     private val devMode: Boolean = false,
-    private val ctx: DBContext
+    private val ctx: DBContext,
+    private val settingsService: SettingsService
 ) {
     private var session: Session
 
@@ -168,8 +172,7 @@ class MailService(
     suspend fun send(
         principal: SecurityPrincipal,
         recipient: String,
-        subject: String,
-        text: String,
+        mail: Mail,
         emailRequestedByUser: Boolean,
         testMail: Boolean = false
     ) {
@@ -178,12 +181,9 @@ class MailService(
         }
         if (!emailRequestedByUser) {
             //IF expanded upon it should be moved out of AUTH
-            val wantEmails = UserDescriptions.wantsEmails.call(
-                WantsEmailsRequest(principal.username),
-                authenticatedClient
-            ).orThrow()
+            val wantsEmails = settingsService.wantEmail(recipient, mail)
 
-            if (!wantEmails) {
+            if (!wantsEmails) {
                 log.info("User: ${principal.username} does not want to receive emails")
                 return
             }
@@ -200,11 +200,80 @@ class MailService(
 
         val recipientAddress = InternetAddress(getEmail.email)
 
+        val text = when (mail) {
+            is Mail.TransferApplicationMail -> {
+                transferOfApplication(recipient, mail.senderProject, mail.receiverProject, mail.applicationProjectTitle)
+            }
+            is Mail.GrantApplicationWithdrawnMail -> {
+                closed(recipient, mail.projectTitle, mail.sender)
+            }
+            is Mail.GrantApplicationRejectedMail -> {
+                rejected(recipient, mail.projectTitle)
+            }
+            is Mail.GrantApplicationApproveMail -> {
+                approved(recipient, mail.projectTitle)
+            }
+            is Mail.GrantApplicationStatusChangedToAdmin -> {
+                statusChangeTemplateToAdmins(mail.status, recipient, mail.sender, mail.projectTitle)
+            }
+            is Mail.GrantApplicationUpdatedMailToAdmins -> {
+                updatedTemplateToAdmins(mail.projectTitle, recipient, mail.sender, mail.receivingProjectTitle)
+            }
+            is Mail.GrantApplicationUpdatedMail -> {
+                updatedTemplate(mail.projectTitle, recipient, mail.sender)
+            }
+            is Mail.GrantAppAutoApproveToAdminsMail -> {
+                autoApproveTemplateToAdmins(recipient, mail.sender, mail.projectTitle)
+            }
+            is Mail.GrantApplicationApproveMailToAdmins -> {
+                approvedProjectToAdminsTemplate(recipient, mail.sender, mail.projectTitle)
+            }
+            is Mail.NewGrantApplicationMail -> {
+                newIngoingApplicationTemplate(recipient, mail.sender, mail.projectTitle)
+            }
+            is Mail.LowFundsMail -> {
+                lowResourcesTemplate(recipient, mail.category, mail.provider, mail.projectTitle)
+            }
+            is Mail.StillLowFundsMail  -> {
+                stillLowResources(recipient, mail.category, mail.provider, mail.projectTitle)
+            }
+            is Mail.NewCommentOnApplicationMail -> {
+                newCommentTemplate(recipient, mail.sender, mail.projectTitle, mail.receivingProjectTitle)
+            }
+            is Mail.ProjectInviteMail -> {
+                userInvitedToInviteeTemplate(recipient, mail.projectTitle)
+            }
+            is Mail.ResetPasswordMail -> {
+                resetPasswordTemplate(recipient, mail.token)
+            }
+            is Mail.UserLeftMail -> {
+                userLeftTemplate(recipient, mail.leavingUser, mail.projectTitle)
+            }
+            is Mail.UserRemovedMail -> {
+                userRemovedTemplate(recipient, mail.leavingUser, mail.projectTitle)
+            }
+            is Mail.UserRemovedMailToUser -> {
+                userRemovedToUserTemplate(recipient, mail.projectTitle)
+            }
+            is Mail.UserRoleChangeMail -> {
+                userRoleChangeTemplate(recipient, mail.subjectToChange, mail.roleChange, mail.projectTitle)
+            }
+            is Mail.VerificationReminderMail -> {
+                verifyReminderTemplate(recipient, mail.projectTitle, mail.role)
+            }
+            else -> {
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError,
+                    "Mail type does not exist. Missing template for email."
+                )
+            }
+        }
+
         try {
             val message = MimeMessage(session)
             message.setFrom(InternetAddress(fromAddress, "eScience Support"))
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
-            message.subject = subject
+            message.subject = mail.subject
 
             val multipart = MimeMultipart()
 

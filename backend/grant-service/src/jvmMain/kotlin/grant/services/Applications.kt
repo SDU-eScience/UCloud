@@ -5,7 +5,6 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.Application
@@ -16,14 +15,9 @@ import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.mail.api.*
-import dk.sdu.cloud.grant.utils.*
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.mail.api.SendBulkRequest
 import dk.sdu.cloud.mail.api.SendRequest
-import dk.sdu.cloud.grant.utils.autoApproveTemplate
-import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
-import dk.sdu.cloud.grant.utils.responseTemplate
-import dk.sdu.cloud.grant.utils.updatedTemplate
 import dk.sdu.cloud.offset
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.safeUsername
@@ -167,13 +161,13 @@ class ApplicationService(
         notifications.notify(
             GrantNotification(
                 returnedApplication,
-                adminMessage = GrantNotificationMessage(
+                adminMessage = AdminGrantNotificationMessage(
                     { title -> "New grant application to $title" },
                     "NEW_GRANT_APPLICATION",
-                    message = { user, projectTitle ->
-                        newIngoingApplicationTemplate(user, actor.safeUsername(), projectTitle)
-                    },
-                    MailSubjects.NEW_GRANT_APPLICATION
+                    Mail.NewGrantApplicationMail(
+                        actor.safeUsername(),
+                        returnedApplication.grantRecipientTitle
+                    )
                 ),
                 userMessage = null
             ),
@@ -329,21 +323,21 @@ class ApplicationService(
         notifications.notify(
             GrantNotification(
                 application,
-                adminMessage = GrantNotificationMessage(
+                adminMessage = AdminGrantNotificationMessage(
                     { "Grant application for subproject automatically approved" },
                     GRANT_APP_RESPONSE,
-                    message = { user, title ->
-                        approvedProjectToAdminsTemplate(user, application.requestedBy, title)
-                    },
-                    MailSubjects.GRANT_APP_AUTO_APPROVE
+                    Mail.GrantAppAutoApproveToAdminsMail(
+                        application.requestedBy,
+                        application.resourcesOwnedByTitle
+                    )
                 ),
-                userMessage = GrantNotificationMessage(
+                userMessage = UserGrantNotificationMessage(
                     { "Grant application approved" },
                     GRANT_APP_RESPONSE,
-                    message = { user, title ->
-                        approved(user, title)
-                    },
-                    MailSubjects.GRANT_APP_AUTO_APPROVE
+                    Mail.GrantApplicationApproveMail(
+                        application.resourcesOwnedByTitle
+                    ),
+                    application.requestedBy
                 )
             ),
             "_ucloud",
@@ -442,22 +436,24 @@ class ApplicationService(
             GrantNotification(
                 application,
                 adminMessage =
-                GrantNotificationMessage(
+                AdminGrantNotificationMessage(
                     { "Grant application updated" },
                     "GRANT_APPLICATION_UPDATED",
-                    message = { user, projectTitle ->
-                        updatedTemplateToAdmins(projectTitle, user, actor.safeUsername(), application.grantRecipientTitle)
-                    },
-                    MailSubjects.GRANT_APPLICATION_UPDATED
+                    Mail.GrantApplicationUpdatedMailToAdmins(
+                        application.resourcesOwnedByTitle,
+                        application.requestedBy,
+                        application.grantRecipientTitle
+                    )
                 ),
                 userMessage =
-                GrantNotificationMessage(
+                UserGrantNotificationMessage(
                     { "Grant application updated" },
                     "GRANT_APPLICATION_UPDATED",
-                    message = { user, projectTitle ->
-                        updatedTemplate(projectTitle, user, actor.safeUsername())
-                    },
-                    MailSubjects.GRANT_APPLICATION_UPDATED
+                    Mail.GrantApplicationUpdatedMail(
+                        application.resourcesOwnedByTitle,
+                        application.requestedBy
+                    ),
+                    application.requestedBy
                 )
             ),
             actor.safeUsername(),
@@ -552,42 +548,27 @@ class ApplicationService(
                 GrantNotification(
                     application,
                     adminMessage =
-                    GrantNotificationMessage(
+                    AdminGrantNotificationMessage(
                         { "Grant application updated ($statusTitle)" },
                         GRANT_APP_RESPONSE,
-                        message = { user, projectTitle ->
-                            statusChangeTemplateToAdmins(
-                                newStatus.name,
-                                user,
-                                actor.safeUsername(),
-                                projectTitle
-                            )
-                        },
-                        when (newStatus){
-                            ApplicationStatus.APPROVED -> MailSubjects.GRANT_APP_APPROVED
-                            ApplicationStatus.REJECTED -> MailSubjects.GRANT_APP_REJECTED
-                            ApplicationStatus.CLOSED -> MailSubjects.GRANT_APP_WITHDRAWN
-                            else -> throw IllegalStateException()
-                        }
+                        Mail.GrantApplicationStatusChangedToAdmin(
+                            newStatus.name,
+                            application.resourcesOwnedByTitle,
+                            application.requestedBy,
+                            application.grantRecipientTitle
+                        )
                     ),
                     userMessage =
-                    GrantNotificationMessage(
+                    UserGrantNotificationMessage(
                         { "Grant application updated ($statusTitle)" },
                         GRANT_APP_RESPONSE,
-                        message = { user, projectTitle ->
-                            when (newStatus){
-                                ApplicationStatus.APPROVED -> approved(user, projectTitle)
-                                ApplicationStatus.REJECTED -> rejected(user, projectTitle)
-                                ApplicationStatus.CLOSED -> closed(user, projectTitle, actor.safeUsername())
-                                else -> throw IllegalStateException()
-                            }
-                        },
                         when (newStatus){
-                            ApplicationStatus.APPROVED -> MailSubjects.GRANT_APP_APPROVED
-                            ApplicationStatus.REJECTED -> MailSubjects.GRANT_APP_REJECTED
-                            ApplicationStatus.CLOSED -> MailSubjects.GRANT_APP_WITHDRAWN
+                            ApplicationStatus.APPROVED -> Mail.GrantApplicationApproveMail(application.resourcesOwnedByTitle)
+                            ApplicationStatus.REJECTED -> Mail.GrantApplicationRejectedMail(application.resourcesOwnedByTitle)
+                            ApplicationStatus.CLOSED -> Mail.GrantApplicationWithdrawnMail(application.resourcesOwnedByTitle, actor.safeUsername())
                             else -> throw IllegalStateException()
-                        }
+                        },
+                        application.requestedBy
                     )
                 ),
                 actor.safeUsername(),
@@ -642,11 +623,13 @@ class ApplicationService(
         MailDescriptions.sendBulk.call(
             SendBulkRequest(
                 admins.map { admin ->
-                    val message = forwardApplicationTemplate(admin.username, senderTitle, projectTitle)
                     SendRequest(
                         admin.username,
-                        FORWARD_SUBJECT,
-                        message
+                        Mail.TransferApplicationMail(
+                            senderTitle,
+                            projectTitle,
+                            application.first.grantRecipientTitle
+                        )
                     )
                 }
             ),

@@ -87,9 +87,7 @@ class CronJobs(
                             sendRequests.add(
                                 SendRequest(
                                     admin.username,
-                                    MailSubjects.LOW_FUNDS_SUBJECT,
-                                    lowResourcesTemplate(
-                                        admin.username,
+                                    Mail.LowFundsMail(
                                         wallet.paysFor.id,
                                         wallet.paysFor.provider,
                                         projects[projectAndAdmins.first]?.title ?: throw RPCException.fromStatusCode(

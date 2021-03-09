@@ -3,14 +3,12 @@ package dk.sdu.cloud.project.services
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.MailSubjects
 import dk.sdu.cloud.mail.api.SendRequest
-import dk.sdu.cloud.mail.api.verifyReminderTemplate
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
@@ -60,9 +58,10 @@ class VerificationReminder(
                 val mailStatus = MailDescriptions.send.call(
                     SendRequest(
                         user,
-                        MailSubjects.VERIFICATION_REMINDER,
-                        //language=html
-                        verifyReminderTemplate(user, title, role.name)
+                        Mail.VerificationReminderMail(
+                            project,
+                            role.name
+                        )
                     ),
                     serviceClient
                 )

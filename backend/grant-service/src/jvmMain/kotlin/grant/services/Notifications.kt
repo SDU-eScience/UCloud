@@ -3,26 +3,29 @@ package dk.sdu.cloud.grant.services
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.Application
-import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.MailSubjects
-import dk.sdu.cloud.mail.api.SendBulkRequest
-import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import kotlinx.serialization.json.JsonObject
 
-data class GrantNotificationMessage(
+data class AdminGrantNotificationMessage(
     val subject: (projectTitle: String) -> String,
     val type: String,
-    val message: (receiver: String, projectTitle: String) -> String,
-    val emailSubjects: MailSubjects
+    val email: Mail
+)
+
+data class UserGrantNotificationMessage(
+    val subject: (projectTitle: String) -> String,
+    val type: String,
+    val email: Mail,
+    val username: String
 )
 
 data class GrantNotification(
     val application: Application,
-    val adminMessage: GrantNotificationMessage?,
-    val userMessage: GrantNotificationMessage? = adminMessage
+    val adminMessage: AdminGrantNotificationMessage?,
+    val userMessage: UserGrantNotificationMessage?
 )
 
 class NotificationService(
@@ -53,8 +56,7 @@ class NotificationService(
                         sendRequests.add(
                             SendRequest(
                                 admin.username,
-                                adminMessage.emailSubjects,
-                                adminMessage.message(admin.username, title)
+                                adminMessage.email
                             )
                         )
                     }
@@ -64,9 +66,8 @@ class NotificationService(
             if (application.requestedBy != invokedBy && userMessage != null) {
                 sendRequests.add(
                     SendRequest(
-                        application.requestedBy,
-                        userMessage.emailSubjects,
-                        userMessage.message(application.requestedBy, title)
+                        userMessage.username,
+                        userMessage.email
                     )
                 )
 

@@ -66,8 +66,7 @@ class GrantController(
                 db,
                 ctx.securityPrincipal.toActor(),
                 request.requestId,
-                ApplicationStatus.CLOSED,
-                request.notify
+                ApplicationStatus.CLOSED
             )
             ok(Unit)
         }
