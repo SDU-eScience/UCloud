@@ -11,6 +11,7 @@ import {ChangePassword} from "UserSettings/ChangePassword";
 import {Sessions} from "UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
 import {ChangeUserDetails} from "UserSettings/ChangeUserDetails";
+import {ChangeEmailSettings} from "UserSettings/ChangeEmailSettings";
 
 interface UserSettingsState {
     headerLoading: boolean;
@@ -46,7 +47,9 @@ const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSetting
                                     <ChangeUserDetails
                                         setLoading={props.setLoading}
                                     />
-
+                                    <ChangeEmailSettings
+                                        setLoading={props.setLoading}
+                                    />
                                     <Sessions
                                         setLoading={props.setLoading}
                                         setRefresh={props.setRefresh}

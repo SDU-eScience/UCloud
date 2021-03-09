@@ -1,7 +1,7 @@
 import {useCloudCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
-import {useCallback, useEffect, useRef} from "react";
 import * as React from "react";
+import {useCallback, useEffect, useRef} from "react";
 import {Box, Button, Checkbox, Input, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -10,14 +10,12 @@ interface UserDetailsState {
     placeHolderFirstNames: string;
     placeHolderLastName: string;
     placeHolderEmail: string;
-    wantsEmails: boolean;
 }
 
 const initialState: UserDetailsState = {
     placeHolderFirstNames: "Enter First Name(s)",
     placeHolderLastName: "Enter Last Name",
-    placeHolderEmail: "Enter Email",
-    wantsEmails: true
+    placeHolderEmail: "Enter Email"
 };
 
 type Action<T, B> = {type: T; payload: B};
@@ -47,32 +45,13 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
             context: ""
         });
 
-        const wantsEmails = await invokeCommand({
-            method: "POST",
-            path: "/auth/users/wantsEmails",
-            context: "",
-            payload: {
-                username: null
-            }
-        });
-
         dispatch({
             type: "UpdatePlaceholders",
             payload: {
-                wantsEmails,
                 placeHolderFirstNames: user.firstNames ?? "Enter First Name(s)",
                 placeHolderLastName: user.lastName ?? "Enter Last Name",
                 placeHolderEmail: user.email ?? "Enter Email"
             }
-        });
-    }, []);
-
-
-    const toogleSubscription = useCallback(async () => {
-        await invokeCommand({
-            method: "POST",
-            path: "/auth/users/toggleEmailSubscription",
-            context: ""
         });
     }, []);
 
@@ -106,25 +85,10 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
         } else {
             snackbarStore.addSuccess("User information updated", false);
         }
-
-
     }, [commandLoading, userFirstNames.current, userLastName.current, userEmail.current]);
 
     if (Client.principalType !== "password") {
-        return (
-            <Box mb={16}>
-                <Heading.h2>Change User Details</Heading.h2>
-                <Label ml={10} width="auto">
-                    <Checkbox
-                        size={27}
-                        onClick={toogleSubscription}
-                        checked={state.wantsEmails}
-                        onChange={info}
-                    />
-                    <Box as="span">Receive emails</Box>
-                </Label>
-            </Box>
-        );
+        return null
     }
     else {
         return (
@@ -162,17 +126,6 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                             />
                         </Label>
                     </Box>
-
-                    <Label ml={10} width="auto">
-                        <Checkbox
-                            size={27}
-                            onClick={toogleSubscription}
-                            checked={state.wantsEmails}
-                            onChange={info}
-                        />
-                        <Box as="span">Receive emails</Box>
-                    </Label>
-
                     <Button
                         mt="1em"
                         type="submit"
