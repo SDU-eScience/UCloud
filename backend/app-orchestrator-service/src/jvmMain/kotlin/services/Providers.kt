@@ -36,8 +36,14 @@ class Providers(
                 JwtRefresher.ProviderOrchestrator(serviceClient, provider)
             )
 
-            val httpClient = auth.authenticateClient(OutgoingHttpCall)
-            val wsClient = auth.authenticateClient(OutgoingWSCall)
+            val providerSpec = ProvidersApi.retrieveSpecification.call(
+                ProvidersRetrieveSpecificationRequest(provider),
+                serviceClient
+            ).orThrow()
+
+            val hostInfo = HostInfo(providerSpec.domain, if (providerSpec.https) "https" else "http", providerSpec.port)
+            val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
+            val wsClient = auth.authenticateClient(OutgoingWSCall).withFixedHost(hostInfo)
 
             // TODO We don't know which are actually valid
             val ingressApi = IngressProvider(provider)
@@ -45,10 +51,6 @@ class Providers(
             val networkApi = NetworkIPProvider(provider)
             val computeApi = JobsProvider(provider)
 
-            val providerSpec = ProvidersApi.retrieveSpecification.call(
-                ProvidersRetrieveSpecificationRequest(provider),
-                serviceClient
-            ).orThrow()
 
             ProviderCommunication(computeApi, httpClient, wsClient, ingressApi, licenseApi, networkApi, providerSpec)
         }

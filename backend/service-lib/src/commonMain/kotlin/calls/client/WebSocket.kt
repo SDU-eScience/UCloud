@@ -342,6 +342,7 @@ suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.subscribe(
             ctx.attributes[OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY] = {
                 handler(it as S)
             }
-        }
+        },
+        afterHook = authenticatedClient.afterHook,
     )
 }

@@ -6,6 +6,9 @@
 import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.providers.UCloudRpcDispatcher
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.providers.UCloudWSContext
+import dk.sdu.cloud.providers.UCloudWsDispatcher
+import org.springframework.web.bind.annotation.RequestMapping
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -95,7 +98,8 @@ import javax.servlet.http.HttpServletResponse
  * | [6] Request | UCloud | → | Provider | [`jobs.control.update`](#operation/jobs.control.update) | Proceed `FOO123` to `FAILURE` |
  *
  */
-abstract class ComputeController(private val providerId: String) : UCloudRpcDispatcher(listOf(JobsProvider(providerId))) {
+@RequestMapping("/ucloud/*/jobs")
+abstract class ComputeController(private val providerId: String, wsDispatcher: UCloudWsDispatcher) : UCloudRpcDispatcher(JobsProvider(providerId), wsDispatcher) {
     /**
      * Start a compute job (create)
      *
@@ -195,19 +199,24 @@ abstract class ComputeController(private val providerId: String) : UCloudRpcDisp
         request: R,
         rawRequest: HttpServletRequest,
         rawResponse: HttpServletResponse,
-    ): R {
+    ): S {
         return when (call.fullName.replace(providerId, "*")) {
-            "jobs.compute.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as R
-            "jobs.compute.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as R
-            "jobs.compute.*.extend" -> extend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>) as R
-            "jobs.compute.*.suspend" -> suspend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as R
-            "jobs.compute.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as R
-            "jobs.compute.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>) as R
-            "jobs.compute.*.retrieveUtilization" -> retrieveUtilization(request as kotlin.Unit) as R
-            "jobs.compute.*.retrieveProductsTemporary" -> retrieveProductsTemporary(request as kotlin.Unit) as R
+            "jobs.compute.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
+            "jobs.compute.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
+            "jobs.compute.*.extend" -> extend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>) as S
+            "jobs.compute.*.suspend" -> suspend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
+            "jobs.compute.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
+            "jobs.compute.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>) as S
+            "jobs.compute.*.retrieveUtilization" -> retrieveUtilization(request as kotlin.Unit) as S
+            "jobs.compute.*.retrieveProductsTemporary" -> retrieveProductsTemporary(request as kotlin.Unit) as S
             else -> error("Unhandled call")
         }
     }
 
+    override fun canHandleWebsocketCall(call: CallDescription<*, *, *>): Boolean = true
+
+    override fun <R : Any, S : Any, E : Any> dispatchToWebsocketHandler(ctx: UCloudWSContext<R, S, E>, request: R) {
+        println(ctx.call)
+    }
 }
 

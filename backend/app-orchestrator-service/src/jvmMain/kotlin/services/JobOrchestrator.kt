@@ -500,7 +500,9 @@ class JobOrchestrator(
                 // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
                 // retrieve them by themselves.
                 var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
-                val (api, _, wsClient) = providers.prepareCommunication(initialJob.specification.product.provider)
+                val comms = providers.prepareCommunication(initialJob.specification.product.provider)
+                val api = comms.api
+                val wsClient = comms.wsClient
                 var streamId: String? = null
                 val states = JobState.values()
                 val currentState = AtomicInteger(JobState.IN_QUEUE.ordinal)

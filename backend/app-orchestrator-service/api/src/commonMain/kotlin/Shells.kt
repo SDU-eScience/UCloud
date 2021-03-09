@@ -63,6 +63,6 @@ abstract class Shells(namespace: String) : CallDescriptionContainer("jobs.comput
             roles = Roles.PUBLIC // NOTE(Dan): Access is granted via sessionIdentifier
         }
 
-        websocket(baseContext)
+        websocket("/ucloud/$namespace/websocket")
     }
 }

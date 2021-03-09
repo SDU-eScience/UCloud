@@ -337,7 +337,7 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
             roles = Roles.PRIVILEGED
         }
 
-        websocket(baseContext)
+        websocket("/ucloud/$namespace/websocket")
     }
 
     val openInteractiveSession = call<JobsProviderOpenInteractiveSessionRequest, JobsProviderOpenInteractiveSessionResponse,
