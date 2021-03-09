@@ -1157,7 +1157,7 @@ const CancelButton: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
-            await invokeCommand(compute.jobs.remove({id: job.id}));
+            await invokeCommand(compute.jobs.remove(bulkRequestOf({id: job.id})));
         }
     }, [loading]);
 

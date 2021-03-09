@@ -230,6 +230,25 @@ subprojects {
                     mavenLocal()
                 }
             }
+
+            publications {
+                all {
+                    if (this is MavenPublication) {
+                        this.groupId = "dk.sdu.cloud"
+                        this.artifactId = project.parent!!.name + "-api"
+                    }
+                }
+            }
+        }
+
+        tasks.withType<Jar> {
+            val name = if (groupBuilder.isEmpty()) {
+                "ucloud"
+            } else {
+                "ucloud-" + groupBuilder.reversed().joinToString("-")
+            }
+
+            archiveName = "$name.jar"
         }
     }
 }
