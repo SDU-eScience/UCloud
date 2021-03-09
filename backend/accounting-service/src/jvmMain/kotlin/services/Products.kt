@@ -212,7 +212,7 @@ class ProductService(
                     },
                     """
                         select *
-                        from products
+                        from accounting.products
                         where
                             category = :category and
                             provider = :provider and

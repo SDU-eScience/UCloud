@@ -1,6 +1,10 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.FindProductRequest
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
@@ -687,13 +691,48 @@ class JobOrchestrator(
         )
     }
 
-    suspend fun retrieveProductsTemporary(providerIds: List<String>): JobsRetrieveProductsTemporaryResponse {
-        return JobsRetrieveProductsTemporaryResponse(
+    private val productCache = SimpleCache<ProductReference, Product.Compute>(
+        maxAge = 60_000 * 15,
+        lookup = { ref ->
+            val productResp = Products.findProduct.call(
+                FindProductRequest(ref.provider, ref.category, ref.id),
+                serviceClient
+            )
+
+            if (productResp is IngoingCallResponse.Error) {
+                log.warn("Received an error while resolving product from provider: $ref $productResp")
+                null
+            } else {
+                val product = productResp.orThrow()
+                if (product !is Product.Compute) {
+                    log.warn("Did not receive a comptue related product: $ref")
+                    null
+                } else {
+                    product
+                }
+            }
+        }
+    )
+
+    suspend fun retrieveProducts(providerIds: List<String>): JobsRetrieveProductsResponse {
+        return JobsRetrieveProductsResponse(
             providerIds.map { provider ->
                 provider to (runCatching {
                     val comm = providers.prepareCommunication(provider)
-                    comm.api.retrieveProductsTemporary.call(Unit, comm.client).orNull()
-                }.getOrNull() ?: JobsProviderRetrieveProductsTemporaryResponse(emptyList()))
+                    val providerResponse = comm.api.retrieveProducts.call(Unit, comm.client).orNull()
+                    if (providerResponse == null) {
+                        log.warn("Did not receive a valid product response from: $provider")
+                    }
+
+                    providerResponse?.products?.mapNotNull {
+                        val product = productCache.get(it.product)
+                        if (product == null) {
+                            null
+                        } else {
+                            ComputeProductSupportResolved(product, it.support)
+                        }
+                    }
+                }.getOrNull() ?: emptyList())
             }.toMap()
         )
     }

@@ -3,7 +3,7 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.CallDescriptionContainer
@@ -92,11 +92,11 @@ data class QueueStatus(
     val pending: Int,
 )
 
-typealias JobsProviderRetrieveProductsTemporaryRequest = Unit
+typealias JobsProviderRetrieveProductsRequest = Unit
 
 @Serializable
-data class JobsProviderRetrieveProductsTemporaryResponse(
-    val products: List<JobsProviderTemporaryProductSupport>,
+data class JobsProviderRetrieveProductsResponse(
+    val products: List<ComputeProductSupport>,
 )
 
 @Serializable
@@ -139,9 +139,9 @@ data class ComputeSupport(
 }
 
 @Serializable
-data class JobsProviderTemporaryProductSupport(
-    val product: Product.Compute,
-    val support: ComputeSupport
+data class ComputeProductSupport(
+    val product: ProductReference,
+    val support: ComputeSupport,
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -351,16 +351,13 @@ ${req("6", true, JobsControl::update, "Proceed `FOO123` to `FAILURE`")}
     }
 
     @UCloudApiInternal(InternalLevel.BETA)
-    val retrieveProductsTemporary = call<JobsProviderRetrieveProductsTemporaryRequest,
-        JobsProviderRetrieveProductsTemporaryResponse, CommonErrorMessage>("retrieveProductsTemporary") {
-        httpRetrieve(baseContext, "productsTemporary", roles = Roles.PRIVILEGED)
+    val retrieveProducts = call<JobsProviderRetrieveProductsRequest,
+        JobsProviderRetrieveProductsResponse, CommonErrorMessage>("retrieveProducts") {
+        httpRetrieve(baseContext, "products", roles = Roles.PRIVILEGED)
 
         documentation {
-            summary = "Retrieve products (Temporary API)"
-            description = "A temporary API for retrieving the products and the support from a provider. " +
-                "This API will be clarified later, for now this is needed for backwards-compatibility while " +
-                "we transform other parts of the UCloud API. This issue is tracked here: " +
-                "https://github.com/SDU-eScience/UCloud/issues/2222"
+            summary = "Retrieve products"
+            description = "An API for retrieving the products and the support from a provider."
         }
     }
 }

@@ -1,11 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
-import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
@@ -18,7 +14,6 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withHttpBody
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
@@ -565,10 +560,10 @@ class JobManagement(
         ).orThrow().filterIsInstance<Product.Compute>()
     })
 
-    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsTemporaryResponse {
-        return JobsProviderRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
-            JobsProviderTemporaryProductSupport(
-                it,
+    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsResponse {
+        return JobsProviderRetrieveProductsResponse(productCache.get(Unit)?.map {
+            ComputeProductSupport(
+                ProductReference(it.id, it.category.id, it.category.provider),
                 ComputeSupport(
                     ComputeSupport.Docker(
                         enabled = true,

@@ -89,7 +89,7 @@ class AppKubernetesController(
             ))
         }
 
-        implement(KubernetesCompute.retrieveProductsTemporary) {
+        implement(KubernetesCompute.retrieveProducts) {
             ok(jobManagement.retrieveProductsTemporary())
         }
 

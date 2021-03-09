@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.aau.rpc
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
 import dk.sdu.cloud.app.aau.ClientHolder
@@ -157,7 +158,7 @@ class ComputeController(
             ).orThrow())
         }
 
-        implement(AauCompute.retrieveProductsTemporary) {
+        implement(AauCompute.retrieveProducts) {
             ok(retrieveProductsTemporary())
         }
 
@@ -228,10 +229,10 @@ class ComputeController(
         ).orThrow().filterIsInstance<Product.Compute>()
     })
 
-    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsTemporaryResponse {
-        return JobsProviderRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
-            JobsProviderTemporaryProductSupport(
-                it,
+    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsResponse {
+        return JobsProviderRetrieveProductsResponse(productCache.get(Unit)?.map {
+            ComputeProductSupport(
+                ProductReference(it.id, it.category.id, it.category.provider),
                 ComputeSupport(
                     ComputeSupport.Docker(
                         enabled = false,

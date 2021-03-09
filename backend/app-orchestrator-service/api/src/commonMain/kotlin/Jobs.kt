@@ -509,12 +509,19 @@ sealed class OpenSession {
 }
 
 @Serializable
-data class JobsRetrieveProductsTemporaryRequest(val providers: String)
-val JobsRetrieveProductsTemporaryRequest.providersAsList: List<String>
+data class JobsRetrieveProductsRequest(val providers: String)
+val JobsRetrieveProductsRequest.providersAsList: List<String>
     get() = providers.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
 @Serializable
-data class JobsRetrieveProductsTemporaryResponse(
-    val productsByProvider: Map<String, JobsProviderRetrieveProductsTemporaryResponse>,
+data class ComputeProductSupportResolved(
+    val product: Product.Compute,
+    val support: ComputeSupport,
+)
+
+@Serializable
+data class JobsRetrieveProductsResponse(
+    val productsByProvider: Map<String, List<ComputeProductSupportResolved>>,
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -630,16 +637,13 @@ object Jobs : CallDescriptionContainer("jobs") {
     }
 
     @UCloudApiInternal(InternalLevel.BETA)
-    val retrieveProductsTemporary = call<JobsRetrieveProductsTemporaryRequest, JobsRetrieveProductsTemporaryResponse,
-        CommonErrorMessage>("retrieveProductsTemporary") {
-        httpRetrieve(baseContext, "productsTemporary")
+    val retrieveProducts = call<JobsRetrieveProductsRequest, JobsRetrieveProductsResponse,
+        CommonErrorMessage>("retrieveProducts") {
+        httpRetrieve(baseContext, "products")
 
         documentation {
-            summary = "Retrieve products (Temporary API)"
-            description = "A temporary API for retrieving the products and the support from a provider. " +
-                "This API will be clarified later, for now this is needed for backwards-compatibility while " +
-                "we transform other parts of the UCloud API. This issue is tracked here: " +
-                "https://github.com/SDU-eScience/UCloud/issues/2222"
+            summary = "Retrieve products"
+            description = "A temporary API for retrieving the products and the support from a provider."
         }
     }
 }

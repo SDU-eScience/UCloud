@@ -4,7 +4,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
-import dk.sdu.cloud.app.orchestrator.api.JobsRetrieveProductsTemporaryResponse
+import dk.sdu.cloud.app.orchestrator.api.JobsRetrieveProductsResponse
 import dk.sdu.cloud.app.orchestrator.api.providersAsList
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobQueryService
@@ -89,11 +89,11 @@ class JobController(
             ok(jobOrchestrator.openInteractiveSession(request, ctx.securityPrincipal.toActor()))
         }
 
-        implement(Jobs.retrieveProductsTemporary) {
+        implement(Jobs.retrieveProducts) {
             if (request.providersAsList.isEmpty()) {
-                ok(JobsRetrieveProductsTemporaryResponse(emptyMap()))
+                ok(JobsRetrieveProductsResponse(emptyMap()))
             } else {
-                ok(jobOrchestrator.retrieveProductsTemporary(request.providersAsList))
+                ok(jobOrchestrator.retrieveProducts(request.providersAsList))
             }
         }
     }

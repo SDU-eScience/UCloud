@@ -82,6 +82,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
             val endpoint = http.resolveEndpoint(request, call).removePrefix("/").removeSuffix("/")
             val url = "$scheme://$host:$port/$endpoint"
+            log.info(url)
 
             url(url)
             method = http.method
@@ -220,7 +221,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         val queryPathMap = serializeQueryParameters(request, call)
         val queryPath = encodeQueryParamsToString(queryPathMap)
 
-        return path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
+        return (path.basePath.removeSuffix("/") + "/" + primaryPath).removeSuffix("/") + queryPath
     }
 
     private fun <R : Any> HttpRequest<R, *, *>.serializePathSegments(

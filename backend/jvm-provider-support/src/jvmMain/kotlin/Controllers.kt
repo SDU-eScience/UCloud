@@ -1,5 +1,5 @@
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Mar 09 10:58:25 CET 2021 */
+/* Generated at: Tue Mar 09 12:51:32 CET 2021 */
 
 @file:Suppress("RemoveRedundantQualifierName", "RedundantUnitReturnType", "unused", "UNREACHABLE_CODE", "UNCHECKED_CAST")
 
@@ -98,12 +98,12 @@ import org.springframework.web.bind.annotation.RequestMapping
  * 
  */
 @RequestMapping(
+    "/ucloud/*/jobs/retrieveProducts",
     "/ucloud/*/jobs/verify",
     "/ucloud/*/jobs/suspend",
     "/ucloud/*/jobs/extend",
     "/ucloud/*/jobs/interactiveSession",
     "/ucloud/*/jobs/retrieveUtilization",
-    "/ucloud/*/jobs/retrieveProductsTemporary",
     "/ucloud/*/jobs",
 )
 abstract class JobsController(
@@ -179,13 +179,13 @@ abstract class JobsController(
     ): dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
     
     /**
-     * Retrieve products (Temporary API)
+     * Retrieve products
      *
-     * A temporary API for retrieving the products and the support from a provider. This API will be clarified later, for now this is needed for backwards-compatibility while we transform other parts of the UCloud API. This issue is tracked here: https://github.com/SDU-eScience/UCloud/issues/2222
+     * An API for retrieving the products and the support from a provider.
      */
-    abstract fun retrieveProductsTemporary(
+    abstract fun retrieveProducts(
         request: kotlin.Unit,
-    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderRetrieveProductsTemporaryResponse
+    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderRetrieveProductsResponse
     
     
     @Suppress("UNCHECKED_CAST")
@@ -203,7 +203,7 @@ abstract class JobsController(
             "jobs.compute.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
             "jobs.compute.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>) as S
             "jobs.compute.*.retrieveUtilization" -> retrieveUtilization(request as kotlin.Unit) as S
-            "jobs.compute.*.retrieveProductsTemporary" -> retrieveProductsTemporary(request as kotlin.Unit) as S
+            "jobs.compute.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
             else -> error("Unhandled call")
         }
     }
