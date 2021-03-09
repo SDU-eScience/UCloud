@@ -1,9 +1,9 @@
 import styled from "styled-components";
-import {bottom, left, right, top, zIndex} from "styled-system";
+import {bottom, left, right, top, TopProps, zIndex} from "styled-system";
 import Box, {BoxProps} from "./Box";
 import {NumberOrStringOrArray} from "./Types";
 
-interface RelativeProps extends BoxProps {
+interface RelativeProps extends BoxProps, TopProps {
   bottom?: NumberOrStringOrArray;
   left?: NumberOrStringOrArray;
   right?: NumberOrStringOrArray;
