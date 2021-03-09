@@ -36,7 +36,6 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c7 {
@@ -45,7 +44,6 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   padding-right: 14px;
   width: 290px;
   height: 100%;
-  top: 0;
 }
 
 .c10 {

@@ -18,7 +18,6 @@ exports[`UserCreation Mount 1`] = `
   width: 100%;
   height: 64px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c5 {
