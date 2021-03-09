@@ -23,7 +23,7 @@ private val defaultMapper = Json {
     coerceInputValues = true
 }
 
-class UCloudWSContext<R : Any, S : Any, E : Any>(
+class UCloudWsContext<R : Any, S : Any, E : Any>(
     val call: CallDescription<R, S, E>,
     val session: WebSocketSession,
     val sendMessage: (S) -> Unit,
@@ -31,9 +31,9 @@ class UCloudWSContext<R : Any, S : Any, E : Any>(
 )
 
 interface UCloudWSHandler {
-    fun canHandleWebsocketCall(call: CallDescription<*, *, *>): Boolean
-    fun <R : Any, S : Any, E : Any> dispatchToWebsocketHandler(
-        ctx: UCloudWSContext<R, S, E>,
+    fun canHandleWebSocketCall(call: CallDescription<*, *, *>): Boolean
+    fun <R : Any, S : Any, E : Any> dispatchToWebSocketHandler(
+        ctx: UCloudWsContext<R, S, E>,
         request: R,
     )
 }
@@ -97,7 +97,8 @@ class UCloudWsDispatcher(
                     TextMessage(defaultMapper.encodeToString(WSMessage.Response(request.streamId, Unit, 401)))
                 )
             }
-            val sendMessage = { response: Any ->
+            val sendMessage = f@{ response: Any ->
+                if (!session.isOpen) return@f
                 session.sendMessage(
                     TextMessage(
                         defaultMapper.encodeToString(
@@ -108,7 +109,8 @@ class UCloudWsDispatcher(
                 )
             }
 
-            val sendResponse = { response: Any, statusCode: Int ->
+            val sendResponse = f@{ response: Any, statusCode: Int ->
+                if (!session.isOpen) return@f
                 session.sendMessage(
                     TextMessage(
                         defaultMapper.encodeToString(
@@ -119,12 +121,12 @@ class UCloudWsDispatcher(
                 )
             }
 
-            val wsCtx = UCloudWSContext(call, session, sendMessage, sendResponse)
+            val wsCtx = UCloudWsContext(call, session, sendMessage, sendResponse)
 
             var didHandle = false
             for (handler in handlers) {
-                if (handler.canHandleWebsocketCall(wsCtx.call)) {
-                    handler.dispatchToWebsocketHandler(
+                if (handler.canHandleWebSocketCall(wsCtx.call)) {
+                    handler.dispatchToWebSocketHandler(
                         wsCtx,
                         defaultMapper.decodeFromJsonElement(call.requestType, request.payload),
                     )

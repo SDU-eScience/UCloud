@@ -416,7 +416,7 @@ private fun writeSpecification(
     println("UCloud has ${typeRegistry.size} number of types")
     output.mkdirs()
     generateTypeScriptCode(output, doc, typeRegistry)
-    generateSpringMvcCode(output, doc, typeRegistry)
+    generateSpringMvcCode()
     if (writeMarkdown) injectMarkdownDocs(doc, typeRegistry)
     File(output, "swagger.yaml").writeText(Yaml.pretty(doc))
     File(output, "swagger.json").writeText(Json.pretty(doc))
