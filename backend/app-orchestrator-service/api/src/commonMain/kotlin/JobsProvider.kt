@@ -110,31 +110,37 @@ data class ComputeSupport(
     @Serializable
     data class Docker(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
-        var enabled: Boolean = false,
+        var enabled: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive interface of `WEB` `Application`s")
-        var web: Boolean = false,
+        var web: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive interface of `VNC` `Application`s")
-        var vnc: Boolean = false,
+        var vnc: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable `BATCH` `Application`s")
-        var batch: Boolean = false,
+        var batch: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the log API")
-        var logs: Boolean = false,
+        var logs: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
-        var terminal: Boolean = false,
+        var terminal: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable connection between peering `Job`s")
-        var peers: Boolean = false,
+        var peers: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable extension of jobs")
+        var timeExtension: Boolean? = null,
     )
 
     @Serializable
     data class VirtualMachine(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
-        var enabled: Boolean = false,
+        var enabled: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the log API")
-        var logs: Boolean = false,
+        var logs: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the VNC API")
-        var vnc: Boolean = false,
+        var vnc: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
-        var terminal: Boolean = false,
+        var terminal: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable extension of jobs")
+        var timeExtension: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable suspension of jobs")
+        var suspension: Boolean? = null
     )
 }
 

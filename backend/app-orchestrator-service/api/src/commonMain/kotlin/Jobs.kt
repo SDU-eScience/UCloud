@@ -263,6 +263,10 @@ data class JobSpecification(
             "This attribute is not included by default unless `includeApplication` is specified."
     )
     val resolvedApplication: Application? = null,
+
+    @UCloudApiDoc("The resolved compute suport by the provider.\n\n" +
+        "This attribute is not included by default unless `includeSupport` is defined.")
+    val resolvedSupport: ComputeSupport? = null,
 ) : ResourceSpecification {
     init {
         if (name != null && !name.matches(nameRegex)) {
@@ -290,17 +294,20 @@ data class JobOutput(
 )
 
 interface JobDataIncludeFlags {
-    @UCloudApiDoc("Includes `parameters.parameters` and `parameters.resources`")
+    @UCloudApiDoc("Includes `specification.parameters` and `specification.resources`")
     val includeParameters: Boolean?
 
     @UCloudApiDoc("Includes `updates`")
     val includeUpdates: Boolean?
 
-    @UCloudApiDoc("Includes `parameters.resolvedApplication`")
+    @UCloudApiDoc("Includes `specification.resolvedApplication`")
     val includeApplication: Boolean?
 
-    @UCloudApiDoc("Includes `parameters.resolvedProduct`")
+    @UCloudApiDoc("Includes `specification.resolvedProduct`")
     val includeProduct: Boolean?
+
+    @UCloudApiDoc("Includes `specification.resolvedSupport`")
+    val includeSupport: Boolean?
 }
 
 interface JobFilters {
@@ -330,6 +337,7 @@ data class JobDataIncludeFlagsImpl(
     override val includeUpdates: Boolean? = null,
     override val includeApplication: Boolean? = null,
     override val includeProduct: Boolean? = null,
+    override val includeSupport: Boolean? = null
 ) : JobDataIncludeFlags
 
 typealias JobsCreateRequest = BulkRequest<JobSpecification>
@@ -344,6 +352,7 @@ data class JobsRetrieveRequest(
     override val includeUpdates: Boolean? = null,
     override val includeApplication: Boolean? = null,
     override val includeProduct: Boolean? = null,
+    override val includeSupport: Boolean? = null
 ) : JobDataIncludeFlags
 typealias JobsRetrieveResponse = Job
 
@@ -380,6 +389,7 @@ data class JobsBrowseRequest(
     override val includeUpdates: Boolean? = null,
     override val includeApplication: Boolean? = null,
     override val includeProduct: Boolean? = null,
+    override val includeSupport: Boolean? = null,
     val sortBy: JobsSortBy? = null,
     override val filterApplication: String? = null,
     override val filterLaunchedBy: String? = null,

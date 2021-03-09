@@ -82,7 +82,6 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
             val endpoint = http.resolveEndpoint(request, call).removePrefix("/").removeSuffix("/")
             val url = "$scheme://$host:$port/$endpoint"
-            log.info(url)
 
             url(url)
             method = http.method

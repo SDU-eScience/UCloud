@@ -247,7 +247,7 @@ class JobFileService(
                 jobsFolder,
                 application.metadata.title,
                 folderName
-            ).also { cacheJobFolder(job.id, it) }
+            ).normalize().also { cacheJobFolder(job.id, it) }
         }
     }
 

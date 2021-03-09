@@ -216,7 +216,8 @@ export const View: React.FunctionComponent = () => {
             includeParameters: true,
             includeProduct: true,
             includeApplication: true,
-            includeUpdates: true
+            includeUpdates: true,
+            includeSupport: true,
         }));
     }, [id]);
 
@@ -781,6 +782,15 @@ const RunningContent: React.FunctionComponent<{
 
     const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
 
+    const appInvocation = job.specification.resolvedApplication!.invocation;
+    const backendType = appInvocation.tool.tool!.description.backend;
+    const support = job.specification.resolvedSupport!;
+    const supportsExtension =
+        (backendType === "DOCKER" && support.docker.timeExtension) ||
+        (backendType === "VIRTUAL_MACHINE" && support.virtualMachine.timeExtension);
+    const supportsLogs =
+        (backendType === "DOCKER" && support.docker.logs) ||
+        (backendType === "VIRTUAL_MACHINE" && support.virtualMachine.logs);
 
     useEffect(() => {
         setTimeout(() => {
@@ -826,7 +836,7 @@ const RunningContent: React.FunctionComponent<{
 
                         <Box flexGrow={1}/>
 
-                        {!expiresAt ? null :
+                        {!expiresAt || !supportsExtension ? null :
                             <Box>
                                 Extend allocation (hours):
                                 <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
@@ -846,11 +856,13 @@ const RunningContent: React.FunctionComponent<{
             </DashboardCard>
         </RunningInfoWrapper>
 
-        <RunningJobsWrapper>
-            {Array(job.specification.replicas).fill(0).map((_, i) => {
-                return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
-            })}
-        </RunningJobsWrapper>
+        {!supportsLogs ? null :
+            <RunningJobsWrapper>
+                {Array(job.specification.replicas).fill(0).map((_, i) => {
+                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
+                })}
+            </RunningJobsWrapper>
+        }
     </>;
 };
 
@@ -1079,9 +1091,21 @@ const RunningButtonGroup: React.FunctionComponent<{
     expanded?: boolean | false,
     toggleExpand?: () => void | undefined
 }> = ({job, rank, expanded, toggleExpand}) => {
+    const appInvocation = job.specification.resolvedApplication!.invocation;
+    const backendType = appInvocation.tool.tool!.description.backend;
+    const support = job.specification.resolvedSupport!;
+    const supportTerminal =
+        backendType === "VIRTUAL_MACHINE" ? support.virtualMachine.terminal :
+        backendType === "DOCKER" ? support.docker.terminal : false;
+
+    const appType = appInvocation.applicationType;
+    const supportsInterface =
+        (appType === "WEB" && backendType === "DOCKER" && support.docker.web) ||
+        (appType === "VNC" && backendType === "DOCKER" && support.docker.vnc) ||
+        (appType === "VNC" && backendType === "VIRTUAL_MACHINE" && support.virtualMachine.vnc);
+
     return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
-        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
-        "VIRTUAL_MACHINE" ? null : (
+        {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
 
@@ -1096,12 +1120,12 @@ const RunningButtonGroup: React.FunctionComponent<{
                 </Button>
             </Link>
         )}
-        {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+        {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
                 <Button>Open interface</Button>
             </Link>
         )}
-        {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+        {appType !== "VNC" || !supportsInterface ? null : (
             <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
                 e.preventDefault();
 

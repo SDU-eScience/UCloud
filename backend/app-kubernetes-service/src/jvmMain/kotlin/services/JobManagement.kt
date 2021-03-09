@@ -573,6 +573,7 @@ class JobManagement(
                         logs = true,
                         terminal = true,
                         peers = true,
+                        timeExtension = true,
                     )
                 )
             )

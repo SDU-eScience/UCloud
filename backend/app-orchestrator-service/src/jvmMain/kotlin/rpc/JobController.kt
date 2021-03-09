@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobsRetrieveProductsResponse
 import dk.sdu.cloud.app.orchestrator.api.providersAsList
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobQueryService
+import dk.sdu.cloud.app.orchestrator.services.ProviderSupportService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
@@ -19,6 +20,7 @@ import io.ktor.http.*
 class JobController(
     private val jobQueryService: JobQueryService,
     private val jobOrchestrator: JobOrchestrator,
+    private val providerSupport: ProviderSupportService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Jobs.create) {
@@ -90,11 +92,7 @@ class JobController(
         }
 
         implement(Jobs.retrieveProducts) {
-            if (request.providersAsList.isEmpty()) {
-                ok(JobsRetrieveProductsResponse(emptyMap()))
-            } else {
-                ok(jobOrchestrator.retrieveProducts(request.providersAsList))
-            }
+            ok(providerSupport.retrieveProducts(request.providersAsList))
         }
     }
 

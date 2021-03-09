@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Mar 09 12:51:30 CET 2021 */
+/* Generated at: Tue Mar 09 15:12:58 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -229,6 +229,12 @@ export namespace compute {
          * This attribute is not included by default unless `includeApplication` is specified.
          */
         resolvedApplication?: Application,
+        /**
+         * The resolved compute suport by the provider.
+         *
+         * This attribute is not included by default unless `includeSupport` is defined.
+         */
+        resolvedSupport?: ComputeSupport,
     }
 
     export interface NameAndVersion {
@@ -398,6 +404,17 @@ export namespace compute {
         changeWorkingDirectory: boolean,
         runAsRoot: boolean,
         runAsRealUser: boolean,
+    }
+
+    export interface ComputeSupport {
+        /**
+         * Support for `Tool`s using the `DOCKER` backend
+         */
+        docker: ComputeSupportNS.Docker,
+        /**
+         * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
+         */
+        virtualMachine: ComputeSupportNS.VirtualMachine,
     }
 
     /**
@@ -589,7 +606,7 @@ export namespace compute {
     export interface JobsRetrieveRequest {
         id: string,
         /**
-         * Includes `parameters.parameters` and `parameters.resources`
+         * Includes `specification.parameters` and `specification.resources`
          */
         includeParameters?: boolean,
         /**
@@ -597,13 +614,17 @@ export namespace compute {
          */
         includeUpdates?: boolean,
         /**
-         * Includes `parameters.resolvedApplication`
+         * Includes `specification.resolvedApplication`
          */
         includeApplication?: boolean,
         /**
-         * Includes `parameters.resolvedProduct`
+         * Includes `specification.resolvedProduct`
          */
         includeProduct?: boolean,
+        /**
+         * Includes `specification.resolvedSupport`
+         */
+        includeSupport?: boolean,
     }
 
     export interface JobsRetrieveUtilizationResponse {
@@ -685,7 +706,7 @@ export namespace compute {
         itemsToSkip?: number /* int64 */
         ,
         /**
-         * Includes `parameters.parameters` and `parameters.resources`
+         * Includes `specification.parameters` and `specification.resources`
          */
         includeParameters?: boolean,
         /**
@@ -693,13 +714,17 @@ export namespace compute {
          */
         includeUpdates?: boolean,
         /**
-         * Includes `parameters.resolvedApplication`
+         * Includes `specification.resolvedApplication`
          */
         includeApplication?: boolean,
         /**
-         * Includes `parameters.resolvedProduct`
+         * Includes `specification.resolvedProduct`
          */
         includeProduct?: boolean,
+        /**
+         * Includes `specification.resolvedSupport`
+         */
+        includeSupport?: boolean,
         sortBy?: "CREATED_AT" | "STATE" | "APPLICATION",
         filterApplication?: string,
         filterLaunchedBy?: string,
@@ -742,17 +767,6 @@ export namespace compute {
     export interface ComputeProductSupportResolved {
         product: accounting.ProductNS.Compute,
         support: ComputeSupport,
-    }
-
-    export interface ComputeSupport {
-        /**
-         * Support for `Tool`s using the `DOCKER` backend
-         */
-        docker: ComputeSupportNS.Docker,
-        /**
-         * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
-         */
-        virtualMachine: ComputeSupportNS.VirtualMachine,
     }
 
     export interface JobsRetrieveProductsRequest {
@@ -806,7 +820,7 @@ export namespace compute {
     export interface JobsControlRetrieveRequest {
         id: string,
         /**
-         * Includes `parameters.parameters` and `parameters.resources`
+         * Includes `specification.parameters` and `specification.resources`
          */
         includeParameters?: boolean,
         /**
@@ -814,13 +828,17 @@ export namespace compute {
          */
         includeUpdates?: boolean,
         /**
-         * Includes `parameters.resolvedApplication`
+         * Includes `specification.resolvedApplication`
          */
         includeApplication?: boolean,
         /**
-         * Includes `parameters.resolvedProduct`
+         * Includes `specification.resolvedProduct`
          */
         includeProduct?: boolean,
+        /**
+         * Includes `specification.resolvedSupport`
+         */
+        includeSupport?: boolean,
     }
 
     /**
@@ -1810,31 +1828,35 @@ export namespace compute {
              *
              * All other flags are ignored if this is `false`.
              */
-            enabled: boolean,
+            enabled?: boolean,
             /**
              * Flag to enable/disable the interactive interface of `WEB` `Application`s
              */
-            web: boolean,
+            web?: boolean,
             /**
              * Flag to enable/disable the interactive interface of `VNC` `Application`s
              */
-            vnc: boolean,
+            vnc?: boolean,
             /**
              * Flag to enable/disable `BATCH` `Application`s
              */
-            batch: boolean,
+            batch?: boolean,
             /**
              * Flag to enable/disable the log API
              */
-            logs: boolean,
+            logs?: boolean,
             /**
              * Flag to enable/disable the interactive terminal API
              */
-            terminal: boolean,
+            terminal?: boolean,
             /**
              * Flag to enable/disable connection between peering `Job`s
              */
-            peers: boolean,
+            peers?: boolean,
+            /**
+             * Flag to enable/disable extension of jobs
+             */
+            timeExtension?: boolean,
         }
 
         export interface VirtualMachine {
@@ -1843,19 +1865,27 @@ export namespace compute {
              *
              * All other flags are ignored if this is `false`.
              */
-            enabled: boolean,
+            enabled?: boolean,
             /**
              * Flag to enable/disable the log API
              */
-            logs: boolean,
+            logs?: boolean,
             /**
              * Flag to enable/disable the VNC API
              */
-            vnc: boolean,
+            vnc?: boolean,
             /**
              * Flag to enable/disable the interactive terminal API
              */
-            terminal: boolean,
+            terminal?: boolean,
+            /**
+             * Flag to enable/disable extension of jobs
+             */
+            timeExtension?: boolean,
+            /**
+             * Flag to enable/disable suspension of jobs
+             */
+            suspension?: boolean,
         }
     }
     export namespace AppParameterValueNS {
@@ -2464,7 +2494,8 @@ export namespace compute {
                     includeParameters: request.includeParameters,
                     includeUpdates: request.includeUpdates,
                     includeApplication: request.includeApplication,
-                    includeProduct: request.includeProduct
+                    includeProduct: request.includeProduct,
+                    includeSupport: request.includeSupport
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -3563,7 +3594,8 @@ export namespace compute {
                     includeParameters: request.includeParameters,
                     includeUpdates: request.includeUpdates,
                     includeApplication: request.includeApplication,
-                    includeProduct: request.includeProduct
+                    includeProduct: request.includeProduct,
+                    includeSupport: request.includeSupport
                 }),
                 parameters: request,
                 reloadId: Math.random(),
@@ -3616,6 +3648,7 @@ export namespace compute {
                     includeUpdates: request.includeUpdates,
                     includeApplication: request.includeApplication,
                     includeProduct: request.includeProduct,
+                    includeSupport: request.includeSupport,
                     sortBy: request.sortBy,
                     filterApplication: request.filterApplication,
                     filterLaunchedBy: request.filterLaunchedBy,

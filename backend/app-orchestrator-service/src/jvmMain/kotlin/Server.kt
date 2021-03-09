@@ -41,17 +41,15 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val parameterExportService = ParameterExportService(productCache)
         val jobFileService = JobFileService(userClientFactory, serviceClient, appStoreCache)
         val projectCache = ProjectCache(serviceClient)
+        val providers = Providers(serviceClient)
+        val providerSupportService = ProviderSupportService(providers, serviceClient)
 
         val jobQueryService = JobQueryService(
             db,
             projectCache,
             appStoreCache,
             productCache,
-        )
-
-        // TODO Providers
-        val providers = Providers(
-            serviceClient
+            providerSupportService,
         )
 
         val jobVerificationService = JobVerificationService(
@@ -114,6 +112,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 JobController(
                     jobQueryService,
                     jobOrchestrator,
+                    providerSupportService,
                 ),
 
                 CallbackController(jobOrchestrator),

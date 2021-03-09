@@ -43,6 +43,7 @@ data class JobsControlRetrieveRequest(
     override val includeUpdates: Boolean? = null,
     override val includeApplication: Boolean? = null,
     override val includeProduct: Boolean? = null,
+    override val includeSupport: Boolean? = null,
 ) : JobDataIncludeFlags
 typealias JobsControlRetrieveResponse = Job
 

@@ -691,52 +691,6 @@ class JobOrchestrator(
         )
     }
 
-    private val productCache = SimpleCache<ProductReference, Product.Compute>(
-        maxAge = 60_000 * 15,
-        lookup = { ref ->
-            val productResp = Products.findProduct.call(
-                FindProductRequest(ref.provider, ref.category, ref.id),
-                serviceClient
-            )
-
-            if (productResp is IngoingCallResponse.Error) {
-                log.warn("Received an error while resolving product from provider: $ref $productResp")
-                null
-            } else {
-                val product = productResp.orThrow()
-                if (product !is Product.Compute) {
-                    log.warn("Did not receive a comptue related product: $ref")
-                    null
-                } else {
-                    product
-                }
-            }
-        }
-    )
-
-    suspend fun retrieveProducts(providerIds: List<String>): JobsRetrieveProductsResponse {
-        return JobsRetrieveProductsResponse(
-            providerIds.map { provider ->
-                provider to (runCatching {
-                    val comm = providers.prepareCommunication(provider)
-                    val providerResponse = comm.api.retrieveProducts.call(Unit, comm.client).orNull()
-                    if (providerResponse == null) {
-                        log.warn("Did not receive a valid product response from: $provider")
-                    }
-
-                    providerResponse?.products?.mapNotNull {
-                        val product = productCache.get(it.product)
-                        if (product == null) {
-                            null
-                        } else {
-                            ComputeProductSupportResolved(product, it.support)
-                        }
-                    }
-                }.getOrNull() ?: emptyList())
-            }.toMap()
-        )
-    }
-
     companion object : Loggable {
         override val log = logger()
     }
