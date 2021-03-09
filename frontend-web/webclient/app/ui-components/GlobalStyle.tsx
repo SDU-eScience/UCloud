@@ -23,7 +23,8 @@ export function injectFonts(): void {
                 font-family: 'Inter';
                 src: url('${inter}');
                 font-display: swap;
-                -webkit-font-smoothing: subpixel-antialiased;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
             }`
             :
             `@font-face {
