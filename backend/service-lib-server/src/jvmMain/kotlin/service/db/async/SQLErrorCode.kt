@@ -19,5 +19,6 @@ object PostgresErrorCodes {
     // Codes can also be found here. Add entries as needed.
     // https://www.postgresql.org/docs/9.3/errcodes-appendix.html
     const val UNIQUE_VIOLATION = "23505"
+    const val EXCLUSION_VIOLATION = "23P01"
 }
 
