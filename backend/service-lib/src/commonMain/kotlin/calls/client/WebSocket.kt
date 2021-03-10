@@ -241,7 +241,8 @@ internal class WSClientSession constructor(
                     }
                 }
             } catch (ex: Throwable) {
-                if (ex is ClosedReceiveChannelException || ex.cause is ClosedReceiveChannelException) {
+                if (ex is ClosedReceiveChannelException || ex.cause is ClosedReceiveChannelException
+                    || ex::class.simpleName == "CancellationException") {
                     mutex.withLock {
                         val emptyTree = JsonObject(emptyMap())
 

@@ -176,13 +176,6 @@ class JobManagement(
             }
         }
 
-        with(k8) {
-            plugins.forEach { plugin ->
-                with(plugin) {
-                    onCleanup(jobId)
-                }
-            }
-        }
     }
 
     suspend fun extend(request: BulkRequest<JobsProviderExtendRequestItem>) {
@@ -510,6 +503,14 @@ class JobManagement(
             }
         } finally {
             dir?.deleteRecursively()
+        }
+
+        with(k8) {
+            plugins.forEach { plugin ->
+                with(plugin) {
+                    onCleanup(jobId)
+                }
+            }
         }
 
         return true

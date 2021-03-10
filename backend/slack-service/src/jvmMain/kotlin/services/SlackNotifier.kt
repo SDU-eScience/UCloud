@@ -26,7 +26,9 @@ private data class SlackMessage(val text: String)
 class SlackNotifier(
     val hook: String
 ) : Notifier {
-    private val httpClient = HttpClient()
+    private val httpClient = HttpClient() {
+        expectSuccess = false
+    }
 
     @OptIn(KtorExperimentalAPI::class)
     override suspend fun onAlert(alert: Alert) {

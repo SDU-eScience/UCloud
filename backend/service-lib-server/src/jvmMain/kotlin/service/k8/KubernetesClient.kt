@@ -340,6 +340,8 @@ class KubernetesClient(
                 this.connectTimeoutMillis = 1000 * 60
                 this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
             }
+
+            expectSuccess = false
         }
     }
 

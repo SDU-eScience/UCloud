@@ -20,6 +20,7 @@ class DockerImageSizeQuery {
             this.connectTimeoutMillis = 1000 * 30
             this.requestTimeoutMillis = 1000 * 30
         }
+        expectSuccess = false
     }
 
     private fun String.urlEncode() = URLEncoder.encode(this, "UTF-8")
