@@ -31,7 +31,7 @@ typealias SendSupportEmailResponse = Unit
 
 @Serializable
 data class EmailSettingsItem(
-    val username: String,
+    val username: String? = null,
     val settings: EmailSettings
 )
 
@@ -41,7 +41,7 @@ typealias ToggleEmailSettingsResponse = Unit
 
 @Serializable
 data class RetrieveEmailSettingsRequest(
-    val username: String?
+    val username: String? = null
 )
 @Serializable
 data class RetrieveEmailSettingsResponse(
@@ -109,7 +109,7 @@ object MailDescriptions : CallDescriptionContainer("mail") {
     val toggleEmailSettings = call<
         ToggleEmailSettingsRequest,
         ToggleEmailSettingsResponse,
-        CommonErrorMessage>("toogleEmailSettings")
+        CommonErrorMessage>("toggleEmailSettings")
     {
             httpUpdate(
                 baseContext,

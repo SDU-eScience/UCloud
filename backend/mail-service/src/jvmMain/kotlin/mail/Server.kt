@@ -44,7 +44,7 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
         }
         with(micro.server) {
             configureControllers(
-                MailController(mailService, settingsService)
+                MailController(mailService, settingsService, db)
             )
         }
 

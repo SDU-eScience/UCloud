@@ -181,34 +181,8 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
         <Box mb={16}>
             <Heading.h2>Email Settings</Heading.h2>
             <form onSubmit={onSubmit}>
-                <Heading.h5>Applications</Heading.h5>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
-                    <Checkbox
-                        size={27}
-                        onClick={() => toggleSubscription(MailType.APPLICATION_STATUS_CHANGE)}
-                        onChange={update}
-                        checked={state.settings.applicationStatusChange}
-                    />
-                    <Box as="span">Application Status</Box>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
-                    <Checkbox
-                        size={27}
-                        onClick={() => toggleSubscription(MailType.NEW_GRANT_APPLICATION)}
-                        onChange={update}
-                        checked={state.settings.newGrantApplication}
-                    />
-                    <Box as="span">New Grant Applications</Box>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
-                    <Checkbox
-                        size={27}
-                        onClick={() => toggleSubscription(MailType.APPLICATION_TRANSFER)}
-                        onChange={update}
-                        checked={state.settings.applicationTransfer}
-                    />
-                    <Box as="span">Application Transfers</Box>
-                </Label>
+
+                <Heading.h5>Grant Applications</Heading.h5>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
                         size={27}
@@ -239,11 +213,38 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
                         size={27}
+                        onClick={() => toggleSubscription(MailType.NEW_GRANT_APPLICATION)}
+                        onChange={update}
+                        checked={state.settings.newGrantApplication}
+                    />
+                    <Box as="span">New Application Received</Box>
+                </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.APPLICATION_STATUS_CHANGE)}
+                        onChange={update}
+                        checked={state.settings.applicationStatusChange}
+                    />
+                    <Box as="span">Status Change By Others Admins</Box>
+                </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.APPLICATION_TRANSFER)}
+                        onChange={update}
+                        checked={state.settings.applicationTransfer}
+                    />
+                    <Box as="span">Transfers From Other Projects</Box>
+                </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_AUTO_APPROVE)}
                         onChange={update}
                         checked={state.settings.grantAutoApprove}
                     />
-                    <Box as="span">Application Auto Approval</Box>
+                    <Box as="span">On Auto Approval</Box>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -252,37 +253,27 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                         onChange={update}
                         checked={state.settings.newCommentOnApplication}
                     />
-                    <Box as="span">New Comments on Application</Box>
+                    <Box as="span">New Comment In Application</Box>
                 </Label>
-
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_UPDATED)}
+                        onChange={update}
+                        checked={state.settings.grantApplicationUpdated}
+                    />
+                    <Box as="span">Application Has Been Edited</Box>
+                </Label>
 
                 <Heading.h5>Projects</Heading.h5>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
                         size={27}
-                        onClick={() => toggleSubscription(MailType.VERIFICATION_REMINDER)}
+                        onClick={() => toggleSubscription(MailType.LOW_FUNDS)}
                         onChange={update}
-                        checked={state.settings.verificationReminder}
+                        checked={state.settings.lowFunds}
                     />
-                    <Box as="span">Verification reminders</Box>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
-                    <Checkbox
-                        size={27}
-                        onClick={() => toggleSubscription(MailType.USER_LEFT)}
-                        onChange={update}
-                        checked={state.settings.userLeft}
-                    />
-                    <Box as="span">User Left</Box>
-                </Label>
-                <Label ml={10} width="45%" style={{display: "inline-block"}}>
-                    <Checkbox
-                        size={27}
-                        onClick={() => toggleSubscription(MailType.USER_ROLE_CHANGE)}
-                        onChange={update}
-                        checked={state.settings.userRoleChange}
-                    />
-                    <Box as="span">User Role Changes</Box>
+                    <Box as="span">Low On Funds</Box>
                 </Label>
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
@@ -296,12 +287,40 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                 <Label ml={10} width="45%" style={{display: "inline-block"}}>
                     <Checkbox
                         size={27}
+                        onClick={() => toggleSubscription(MailType.USER_LEFT)}
+                        onChange={update}
+                        checked={state.settings.userLeft}
+                    />
+                    <Box as="span">User Left Project</Box>
+                </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.USER_ROLE_CHANGE)}
+                        onChange={update}
+                        checked={state.settings.userRoleChange}
+                    />
+                    <Box as="span">User Role Changed</Box>
+                </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
                         onClick={() => toggleSubscription(MailType.PROJECT_USER_REMOVED)}
                         onChange={update}
                         checked={state.settings.projectUserRemoved}
                     />
                     <Box as="span">User Removed From Project</Box>
                 </Label>
+                <Label ml={10} width="45%" style={{display: "inline-block"}}>
+                    <Checkbox
+                        size={27}
+                        onClick={() => toggleSubscription(MailType.VERIFICATION_REMINDER)}
+                        onChange={update}
+                        checked={state.settings.verificationReminder}
+                    />
+                    <Box as="span">Verification Reminders</Box>
+                </Label>
+
                 <Heading.h5> </Heading.h5>
                 <Button
                     mt="1em"

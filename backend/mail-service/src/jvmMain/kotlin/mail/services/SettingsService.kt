@@ -18,9 +18,9 @@ class SettingsService(
     private val db: DBContext
 ) {
 
-    suspend fun updateEmailSettings(emailSettings: EmailSettings, username: String) {
+    suspend fun updateEmailSettings(session: DBContext, emailSettings: EmailSettings, username: String) {
         val json = defaultMapper.encodeToJsonElement(emailSettings)
-        db.withSession { session ->
+        session.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
@@ -36,6 +36,7 @@ class SettingsService(
                 )
         }
     }
+
 
     suspend fun getEmailSettings(username: String): EmailSettings {
         return db.withSession { session ->
