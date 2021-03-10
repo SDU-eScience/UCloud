@@ -133,16 +133,15 @@ class FileSystemScanner(
             .filter { it.path !in files }
             .forEach {
                 bulk.add(deleteDocWithFile(it.path))
-                val searchRequest = SearchRequest(FILES_INDEX)
-                val query = SearchSourceBuilder().query(
+                val queryDeleteRequest = DeleteByQueryRequest(FILES_INDEX)
+                queryDeleteRequest.setConflicts("proceed")
+                queryDeleteRequest.setQuery(
                     QueryBuilders.wildcardQuery(
                         "_id",
                         "${it.path}/*"
                     )
-                ).size(100)
-                searchRequest.source(query)
-                val queryDeleteRequest = DeleteByQueryRequest(searchRequest)
-                queryDeleteRequest.setConflicts("proceed")
+                )
+                queryDeleteRequest.batchSize = 100
                 try {
                     //We only delete 100 at a time to reduce stress. Redo until all matching search is deleted
                     var moreToDelete = true
