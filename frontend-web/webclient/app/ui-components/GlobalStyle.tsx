@@ -12,27 +12,30 @@ export function injectFonts(): void {
     const styleTag = document.createElement("style");
     styleTag.innerHTML = `
         /* Custom font */
-        @font-face {
-            font-family: 'IBM Plex Sans';
-            src: url('${fontLight}');
-            font-display: swap;
-        }
-
         ${useInter ?
-            `@font-face {
+            `
+            @font-face {
                 font-family: 'Inter';
                 src: url('${inter}');
                 font-display: swap;
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-            }`
+                font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
+            }
+            `
             :
-            `@font-face {
+            `
+            @font-face {
+                font-family: 'IBM Plex Sans';
+                src: url('${fontLight}');
+                font-display: swap;
+            }
+            
+            @font-face {
                 font-family: 'IBM Plex Sans';
                 src: url('${fontRegular}');
                 font-weight: 400;
                 font-display: swap;
-            }`
+            }
+            `
         }
         
         @font-face {
