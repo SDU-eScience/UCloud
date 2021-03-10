@@ -116,7 +116,7 @@ export function viewGrantApplication(
 ): APICallParameters<ViewGrantApplicationRequest> {
     return {
         method: "GET",
-        path: `/grant/${request.id}`,
+        path: buildQueryString("/grant", request),
         parameters: request,
         reloadId: Math.random()
     };
