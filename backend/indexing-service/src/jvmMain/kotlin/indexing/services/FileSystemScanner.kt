@@ -12,14 +12,20 @@ import org.elasticsearch.*
 import org.elasticsearch.action.bulk.*
 import org.elasticsearch.action.delete.*
 import org.elasticsearch.action.get.*
+import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.update.*
 import org.elasticsearch.client.*
 import org.elasticsearch.common.xcontent.*
 import org.elasticsearch.index.query.*
-import org.elasticsearch.index.reindex.*
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
+import org.elasticsearch.search.builder.SearchSourceBuilder
 import java.io.*
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.*
 import kotlin.math.*
+
+const val DOC_TYPE = "_doc"
 
 @Suppress("BlockingMethodInNonBlockingContext")
 class FileSystemScanner(
@@ -31,7 +37,7 @@ class FileSystemScanner(
     private val pool = Executors.newFixedThreadPool(16).asCoroutineDispatcher()
 
     private fun updateDocWithNewFile(file: ElasticIndexedFile): UpdateRequest {
-        return UpdateRequest(FILES_INDEX, file.path).apply {
+        return UpdateRequest(FILES_INDEX, DOC_TYPE, file.path).apply {
             val writeValueAsBytes = defaultMapper.encodeToString(file).encodeToByteArray()
             doc(writeValueAsBytes, XContentType.JSON)
             docAsUpsert(true)
@@ -39,7 +45,7 @@ class FileSystemScanner(
     }
 
     private fun deleteDocWithFile(cloudPath: String): DeleteRequest {
-        return DeleteRequest(FILES_INDEX, cloudPath)
+        return DeleteRequest(FILES_INDEX, DOC_TYPE, cloudPath)
     }
 
     suspend fun runScan() {
@@ -90,7 +96,7 @@ class FileSystemScanner(
 
         val thisFileInIndex = run {
             val source =
-                elastic.get(GetRequest(FILES_INDEX, path.toCloudPath()), RequestOptions.DEFAULT)?.sourceAsString
+                elastic.get(GetRequest(FILES_INDEX, DOC_TYPE, path.toCloudPath()), RequestOptions.DEFAULT)?.sourceAsString
             if (source != null) {
                 defaultMapper.decodeFromString<ElasticIndexedFile>(source)
             } else {
@@ -111,7 +117,7 @@ class FileSystemScanner(
             }
         }
 
-        val fileList = (path.listFiles() ?: emptyArray())
+        val fileList = (path.listFiles() ?: emptyArray()).filter { !Files.isSymbolicLink(Path.of(it.path)) }
         val files = fileList.map { it.toElasticIndexedFile() }.associateBy { it.path }
         val filesInIndex = query.query(
             FileQuery(
@@ -127,21 +133,22 @@ class FileSystemScanner(
             .filter { it.path !in files }
             .forEach {
                 bulk.add(deleteDocWithFile(it.path))
-                val queryDeleteRequest = DeleteByQueryRequest(FILES_INDEX)
-                queryDeleteRequest.setConflicts("proceed")
-                queryDeleteRequest.setQuery(
+                val searchRequest = SearchRequest(FILES_INDEX)
+                val query = SearchSourceBuilder().query(
                     QueryBuilders.wildcardQuery(
                         "_id",
                         "${it.path}/*"
                     )
-                )
-                queryDeleteRequest.batchSize = 100
+                ).size(100)
+                searchRequest.source(query)
+                val queryDeleteRequest = DeleteByQueryRequest(searchRequest)
+                queryDeleteRequest.setConflicts("proceed")
                 try {
                     //We only delete 100 at a time to reduce stress. Redo until all matching search is deleted
-                    var moreTodelete = true
-                    while (moreTodelete) {
+                    var moreToDelete = true
+                    while (moreToDelete) {
                         val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
-                        if (response.deleted == 0L) moreTodelete = false
+                        if (response.deleted == 0L) moreToDelete = false
                     }
                 } catch (ex: ElasticsearchException) {
                     log.warn("Deletion of ${it.path}/* , failed")
