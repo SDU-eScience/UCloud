@@ -518,17 +518,10 @@ class ProjectService(
                 )
             }
 
-            notify(
-                NotificationType.PROJECT_ROLE_CHANGE,
-                pi,
-                notificationMessage,
-                JsonObject(mapOf("projectId" to JsonPrimitive(projectId)))
-            )
-
             MailDescriptions.sendBulk.call(
-                SendBulkRequest(allAdmins.map {
+                SendBulkRequest(allAdmins.map { admin ->
                     SendRequest(
-                        pi,
+                        admin,
                         Mail.UserRoleChangeMail(
                             memberToUpdate,
                             newRole.name,
