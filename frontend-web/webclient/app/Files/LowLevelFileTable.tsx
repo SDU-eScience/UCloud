@@ -209,7 +209,7 @@ function useApiForComponent(
         const loading = pageLoading;
 
         const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
-            let sortByToUse = sortBy;
+            const sortByToUse = sortBy;
 
             if (updateColumn) {
                 setSortingColumn(sortBy);
@@ -266,7 +266,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         {noop: true},
         null
     );
-    const [machineSupport, fetchMachineSupport] = useCloudAPI<compute.JobsRetrieveProductsTemporaryResponse | null>(
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<compute.JobsRetrieveProductsResponse | null>(
         {noop: true},
         null
     );
@@ -425,7 +425,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
             wallet.data.items.forEach(it => s.add(it.category.provider));
 
             fetchMachineSupport(
-                compute.jobs.retrieveProductsTemporary({
+                compute.jobs.retrieveProducts({
                     providers: joinToString(Array.from(s), ",")
             }));
         }
@@ -444,10 +444,10 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
 
     React.useEffect(() => {
         if (quickLaunchApp.data !== null && props.path && machineSupport.data !== null) {
-            var products: accounting.ProductNS.Compute[] = []; 
+            const allProducts: accounting.ProductNS.Compute[] = [];
 
-            Object.values(machineSupport.data.productsByProvider).forEach(provider => {
-                const providerProducts = provider.products.filter(product => {
+            Object.values(machineSupport.data.productsByProvider).forEach(products => {
+                const providerProducts = products.filter(product => {
                     const tool = quickLaunchApp.data!.invocation.tool.tool!;
                     const backend = tool.description.backend;
                     switch (backend) {
@@ -465,10 +465,11 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                     wallet.data.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
                 )
                 .map(it => it.product)
-                providerProducts.forEach(it => products.push(it));
-            })
 
-            setAvailableProducts(products);
+                providerProducts.forEach(it => allProducts.push(it));
+            });
+
+            setAvailableProducts(allProducts);
         }
     }, [quickLaunchApp, machineSupport]);
 
