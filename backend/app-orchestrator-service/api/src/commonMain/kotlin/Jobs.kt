@@ -324,11 +324,13 @@ fun JobDataIncludeFlags(
     includeUpdates: Boolean? = null,
     includeApplication: Boolean? = null,
     includeProduct: Boolean? = null,
+    includeSupport: Boolean? = null,
 ) = JobDataIncludeFlagsImpl(
     includeParameters,
     includeUpdates,
     includeApplication,
-    includeProduct
+    includeProduct,
+    includeSupport,
 )
 
 @Serializable
@@ -357,20 +359,7 @@ data class JobsRetrieveRequest(
 typealias JobsRetrieveResponse = Job
 
 @Serializable
-data class JobsRetrieveUtilizationRequest(
-    val provider: String? = null,
-    val jobId: String? = null,
-) {
-    init {
-        if (jobId == null && provider == null) {
-            throw RPCException("Must provide either provider or jobId", HttpStatusCode.BadRequest)
-        }
-
-        if (jobId != null && provider != null) {
-            throw RPCException("Can only provide one of provider or jobId", HttpStatusCode.BadRequest)
-        }
-    }
-}
+data class JobsRetrieveUtilizationRequest(val jobId: String)
 
 @Serializable
 data class JobsRetrieveUtilizationResponse(

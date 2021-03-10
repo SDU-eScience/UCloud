@@ -1,14 +1,11 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.FindProductRequest
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.app.orchestrator.UserClientFactory
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.BulkRequest
@@ -17,6 +14,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -434,7 +432,31 @@ class JobOrchestrator(
     suspend fun extendDuration(request: BulkRequest<JobsExtendRequestItem>, userActor: Actor.User) {
         val extensions = request.items.groupBy { it.jobId }
         db.withSession { session ->
-            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor, Action.EXTEND)
+            val jobs = loadAndVerifyUserJobs(
+                session,
+                extensions.keys,
+                userActor,
+                Action.EXTEND,
+                flags = JobDataIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
+            )
+
+            for ((job) in jobs.values) {
+                val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
+                val support = job.specification.resolvedSupport!!
+
+                val isSupported =
+                    (appBackend == ToolBackend.DOCKER && support.docker.timeExtension == true) ||
+                        (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
+
+                if (!isSupported) {
+                    throw RPCException(
+                        "Extension of deadline is not supported by the provider",
+                        HttpStatusCode.BadRequest,
+                        FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                    )
+                }
+            }
+
             val providers = jobs.values.map { it.job.specification.product.provider }
                 .map { providers.prepareCommunication(it) }
 
@@ -481,15 +503,20 @@ class JobOrchestrator(
     ) {
         with(callHandler) {
             withContext<WSCall> {
-                log.info("Actor: $actor")
-                log.info("Project: ${ctx.project}")
-                log.info("ID: ${request.id}")
                 val (initialJob) = jobQueryService.retrieve(
                     actor,
                     ctx.project,
                     request.id,
-                    JobDataIncludeFlags(includeUpdates = true)
+                    JobDataIncludeFlags(includeUpdates = true, includeApplication = true, includeSupport = true)
                 )
+
+                val appBackend = initialJob.specification.resolvedApplication!!.invocation.tool.tool!!
+                    .description.backend
+                val support = initialJob.specification.resolvedSupport!!
+
+                val logsSupported =
+                    (appBackend == ToolBackend.DOCKER && support.docker.logs == true) ||
+                        (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
 
                 val stateUpdate = initialJob.updates.lastOrNull { it.state != null }
                 if (stateUpdate != null) {
@@ -516,22 +543,28 @@ class JobOrchestrator(
                         try {
                             while (isActive) {
                                 if (currentState.get() == JobState.RUNNING.ordinal) {
-                                    api.follow.subscribe(JobsProviderFollowRequest.Init(initialJob), wsClient, { message ->
-                                        if (streamId == null) {
-                                            streamId = message.streamId
-                                        }
+                                    if (logsSupported) {
+                                        api.follow.subscribe(JobsProviderFollowRequest.Init(initialJob),
+                                            wsClient,
+                                            { message ->
+                                                if (streamId == null) {
+                                                    streamId = message.streamId
+                                                }
 
-                                        // Providers are allowed to use negative ranks for control messages
-                                        if (message.rank >= 0) {
-                                            sendWSMessage(
-                                                JobsFollowResponse(
-                                                    emptyList(),
-                                                    listOf(JobsLog(message.rank, message.stdout, message.stderr)),
-                                                    null
-                                                )
-                                            )
-                                        }
-                                    }).orThrow()
+                                                // Providers are allowed to use negative ranks for control messages
+                                                if (message.rank >= 0) {
+                                                    sendWSMessage(
+                                                        JobsFollowResponse(
+                                                            emptyList(),
+                                                            listOf(JobsLog(message.rank,
+                                                                message.stdout,
+                                                                message.stderr)),
+                                                            null
+                                                        )
+                                                    )
+                                                }
+                                            }).orThrow()
+                                    }
                                     break
                                 } else {
                                     delay(500)
@@ -615,12 +648,47 @@ class JobOrchestrator(
         return db.withSession { session ->
             val requestsByJobId = request.items.groupBy { it.id }
             val jobIds = request.items.map { it.id }.toSet()
-            val jobs = loadAndVerifyUserJobs(session, jobIds, actor, Action.OPEN_INTERACTIVE_SESSION).values
+            val jobs = loadAndVerifyUserJobs(
+                session,
+                jobIds,
+                actor,
+                Action.OPEN_INTERACTIVE_SESSION,
+                flags = JobDataIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
+            ).values
             val jobsByProvider = jobs.groupBy { it.job.specification.product.provider }
 
             if (jobs.size != jobIds.size) {
                 log.debug("Not all jobs were found")
                 throw RPCException(errorMessage, HttpStatusCode.Forbidden)
+            }
+
+            for ((provider, jobs) in jobsByProvider) {
+                for ((job) in jobs) {
+                    val reqs = requestsByJobId.getValue(job.id)
+                    val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
+                    val support = job.specification.resolvedSupport!!
+
+                    for (req in reqs) {
+                        val isSessionSupported = when (req.sessionType) {
+                            InteractiveSessionType.WEB ->
+                                (appBackend == ToolBackend.DOCKER && support.docker.web == true)
+                            InteractiveSessionType.VNC ->
+                                (appBackend == ToolBackend.DOCKER && support.docker.vnc == true) ||
+                                    (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.vnc == true)
+                            InteractiveSessionType.SHELL ->
+                                (appBackend == ToolBackend.DOCKER && support.docker.terminal == true) ||
+                                    (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.terminal == true)
+                        }
+
+                        if (!isSessionSupported) {
+                            throw RPCException(
+                                "Unsupported by the provider",
+                                HttpStatusCode.BadRequest,
+                                FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                            )
+                        }
+                    }
+                }
             }
 
             val sessions = ArrayList<OpenSessionWithProvider>()
@@ -668,18 +736,34 @@ class JobOrchestrator(
     }
 
     suspend fun retrieveUtilization(
-        actor: Actor,
-        project: String?,
-        jobId: String?,
-        provider: String?,
+        actorAndProject: ActorAndProject,
+        jobId: String,
     ): JobsRetrieveUtilizationResponse {
-        if (jobId == null && provider == null) throw IllegalArgumentException("jobId and provider == null")
-        if (jobId != null && provider != null) throw IllegalArgumentException("jobId and provider != null")
+        val (actor, project) = actorAndProject
+        val job = jobQueryService
+            .retrieve(
+                actor,
+                project,
+                jobId,
+                JobDataIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
+            )
+            .job
 
-        val providerId = provider ?: jobQueryService.retrieve(actor,
-            project,
-            jobId!!,
-            JobDataIncludeFlags()).job.specification.product.provider
+        val providerId = job.specification.product.provider
+        val support = job.specification.resolvedSupport!!
+        val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
+
+        val supported =
+            (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.utilization == true) ||
+                (appBackend == ToolBackend.DOCKER && support.docker.utilization == true)
+
+        if (!supported) {
+            throw RPCException(
+                "Utilization is not supported by the provider",
+                HttpStatusCode.BadRequest,
+                FEATURE_NOT_SUPPORTED_BY_PROVIDER
+            )
+        }
 
         val (api, client) = providers.prepareCommunication(providerId)
         val response = api.retrieveUtilization.call(Unit, client).orThrow()

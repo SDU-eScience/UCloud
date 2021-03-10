@@ -13,6 +13,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.mapItems
 import dk.sdu.cloud.toActor
 import io.ktor.http.*
@@ -41,12 +42,7 @@ class JobController(
 
         implement(Jobs.retrieveUtilization) {
             verifySlaFromPrincipal()
-            ok(jobOrchestrator.retrieveUtilization(
-                ctx.securityPrincipal.toActor(),
-                ctx.project,
-                request.jobId,
-                request.provider
-            ))
+            ok(jobOrchestrator.retrieveUtilization(actorAndProject, request.jobId))
         }
 
         implement(Jobs.browse) {

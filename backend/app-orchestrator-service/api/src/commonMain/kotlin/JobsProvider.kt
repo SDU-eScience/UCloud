@@ -115,8 +115,6 @@ data class ComputeSupport(
         var web: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive interface of `VNC` `Application`s")
         var vnc: Boolean? = null,
-        @UCloudApiDoc("Flag to enable/disable `BATCH` `Application`s")
-        var batch: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the log API")
         var logs: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
@@ -125,6 +123,8 @@ data class ComputeSupport(
         var peers: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable extension of jobs")
         var timeExtension: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the retrieveUtilization of jobs")
+        var utilization: Boolean? = null,
     )
 
     @Serializable
@@ -140,7 +140,9 @@ data class ComputeSupport(
         @UCloudApiDoc("Flag to enable/disable extension of jobs")
         var timeExtension: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable suspension of jobs")
-        var suspension: Boolean? = null
+        var suspension: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the retrieveUtilization of jobs")
+        var utilization: Boolean? = null,
     )
 }
 

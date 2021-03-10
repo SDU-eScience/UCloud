@@ -58,7 +58,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             jobQueryService,
             serviceClient,
             providers,
-            productCache
+            productCache,
+            providerSupportService,
         )
 
         val jobOrchestrator =

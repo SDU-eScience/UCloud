@@ -6,9 +6,11 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.app.orchestrator.api.ComputeProductSupportResolved
 import dk.sdu.cloud.app.orchestrator.api.JobsRetrieveProductsResponse
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import io.ktor.http.*
 
 class ProviderSupportService(
     private val providers: Providers,
@@ -66,6 +68,14 @@ class ProviderSupportService(
                 provider to (providerProductCache.get(provider) ?: emptyList())
             }.toMap()
         )
+    }
+
+    suspend fun retrieveProductSupport(product: ProductReference): ComputeProductSupportResolved {
+        return providerProductCache.get(product.provider)
+            ?.find { it.product.id == product.id &&
+                it.product.category.id == product.category &&
+                it.product.category.provider == product.provider
+            } ?: throw RPCException("Unknown product requested $product", HttpStatusCode.InternalServerError)
     }
 
     companion object : Loggable {

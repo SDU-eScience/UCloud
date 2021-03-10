@@ -570,7 +570,6 @@ class JobManagement(
                         enabled = true,
                         web = true,
                         vnc = true,
-                        batch = true,
                         logs = true,
                         terminal = true,
                         peers = true,
