@@ -378,7 +378,7 @@ export default class HttpClient {
     public createOneTimeTokenWithPermission(permission): Promise<any> {
         return this.receiveAccessTokenOrRefreshIt()
             .then(token => {
-                const oneTimeToken = this.computeURL(this.authContext, `/request/?audience=${permission}`);
+                const oneTimeToken = this.computeURL(this.authContext, `/request?audience=${permission}`);
                 return new Promise((resolve, reject) => {
                     const req = new XMLHttpRequest();
                     req.open("POST", oneTimeToken);
