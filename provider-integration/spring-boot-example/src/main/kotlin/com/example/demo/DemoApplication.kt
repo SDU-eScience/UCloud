@@ -55,7 +55,7 @@ class SimpleCompute(
     override fun create(request: BulkRequest<Job>) {
         log.info("Creating some jobs: $request")
         threadPool.execute {
-            Thread.sleep(5000) // TODO Status is not set if we change this too quickly
+            Thread.sleep(5000) // TODO Status is not set if we change this too quickly (https://github.com/SDU-eScience/UCloud/issues/2303)
             JobsControl.update.call(
                 bulkRequestOf(request.items.map { job ->
                     JobsControlUpdateRequestItem(
