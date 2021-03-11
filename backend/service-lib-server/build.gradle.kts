@@ -70,12 +70,3 @@ kotlin {
         }
     }
 }
-
-version = "2021.1.0"
-extensions.configure<PublishingExtension>("publishing") {
-    repositories {
-        maven {
-            mavenLocal()
-        }
-    }
-}

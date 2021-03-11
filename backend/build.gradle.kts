@@ -228,6 +228,17 @@ subprojects {
             repositories {
                 maven {
                     mavenLocal()
+
+                    maven {
+                        name = "GitHubPackages"
+                        url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+                        credentials {
+                            username = (project.findProperty("gpr.user") as? String?)
+                                ?: System.getenv("GITHUB_USERNAME")
+                            password = (project.findProperty("gpr.key") as? String?)
+                                ?: System.getenv("GITHUB_TOKEN")
+                        }
+                    }
                 }
             }
 
