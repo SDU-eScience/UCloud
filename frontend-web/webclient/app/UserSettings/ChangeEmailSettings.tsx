@@ -5,10 +5,14 @@ import {useCallback, useEffect, useRef} from "react";
 import {Box, Button, Checkbox, Input, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {EmailSettings, retrieveEmailSettings, toggleEmailSettings} from "UserSettings/api";
 import {bulkRequestOf} from "DefaultObjects";
-import {file} from "UCloud";
+import {file, mail} from "UCloud";
 import stat = file.stat;
+import EmailSettings = mail.EmailSettings;
+import retrieveEmailSettings = mail.retrieveEmailSettings;
+import toggleEmailSettings = mail.toggleEmailSettings;
+import {Action} from "UserSettings/ChangeUserDetails";
+import HexSpin from "LoadingIcon/LoadingIcon";
 
 interface UserDetailsState {
     settings: EmailSettings
@@ -56,7 +60,6 @@ const initialState: UserDetailsState = {
     settings: defaultEmailSettings
 };
 
-type Action<T, B> = {type: T; payload: B};
 type UpdatePlaceholdersEmailSettings = Action<"UpdatePlaceholdersEmailSettings", UserDetailsState>;
 
 const reducer = (state: UserDetailsState, action: UpdatePlaceholdersEmailSettings): UserDetailsState => {
@@ -69,20 +72,17 @@ const reducer = (state: UserDetailsState, action: UpdatePlaceholdersEmailSetting
 export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading: boolean) => void}> = () => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [state, dispatch] = React.useReducer(reducer, initialState, () => initialState);
-
-    var currentEmailSettings: EmailSettings = defaultEmailSettings
     const info = useCallback(async () => {
 
         const emailSettings = await invokeCommand(
             retrieveEmailSettings({})
         )
 
-        currentEmailSettings = emailSettings.settings ?? defaultEmailSettings
-
         dispatch({
             type: "UpdatePlaceholdersEmailSettings",
             payload: {
-                settings: currentEmailSettings
+                settings: emailSettings.settings ?? defaultEmailSettings
+
             }
         });
     }, []);
@@ -91,14 +91,14 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
         info();
     }, []);
 
-    const update = useCallback(async () => {
+    /*const update = useCallback(async () => {
         dispatch({
             type: "UpdatePlaceholdersEmailSettings",
             payload: {
                 settings: currentEmailSettings
             }
         })
-    }, [])
+    }, []);*/
 
     const onSubmit = useCallback(async (e: React.SyntheticEvent) => {
         e.preventDefault();
@@ -106,7 +106,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
         if (commandLoading) return;
 
         const wasSuccessful = await invokeCommand(toggleEmailSettings(bulkRequestOf({
-            settings: currentEmailSettings
+            settings: state.settings
         }))) !== null;
 
         if (!wasSuccessful) {
@@ -114,69 +114,64 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
         } else {
             snackbarStore.addSuccess("User email settings updated", false);
         }
-    }, [commandLoading]);
+    }, [commandLoading, state.settings]);
 
     function toggleSubscription(type: MailType) {
         switch (type) {
             case MailType.NEW_GRANT_APPLICATION:
                 state.settings.newGrantApplication = !state.settings.newGrantApplication
-                currentEmailSettings.newGrantApplication = state.settings.newGrantApplication
                 break;
             case MailType.GRANT_AUTO_APPROVE:
                 state.settings.grantAutoApprove = !state.settings.grantAutoApprove
-                currentEmailSettings.grantAutoApprove = state.settings.grantAutoApprove
                 break;
             case MailType.GRANT_APPLICATION_UPDATED:
                 state.settings.grantApplicationUpdated = !state.settings.grantApplicationUpdated
-                currentEmailSettings.grantApplicationUpdated = state.settings.grantApplicationUpdated
                 break;
             case MailType.GRANT_APPLICATION_APPROVED:
                 state.settings.grantApplicationApproved = !state.settings.grantApplicationApproved
-                currentEmailSettings.grantApplicationApproved = state.settings.grantApplicationApproved
                 break;
             case MailType.GRANT_APPLICATION_REJECTED:
                 state.settings.grantApplicationRejected = !state.settings.grantApplicationRejected
-                currentEmailSettings.grantApplicationRejected = state.settings.grantApplicationRejected
                 break;
             case MailType.GRANT_APPLICATION_WITHDRAWN:
                 state.settings.grantApplicationWithdrawn = !state.settings.grantApplicationWithdrawn
-                currentEmailSettings.grantApplicationWithdrawn = state.settings.grantApplicationWithdrawn
                 break;
             case MailType.NEW_COMMENT_ON_APPLICATION:
                 state.settings.newCommentOnApplication = !state.settings.newCommentOnApplication
-                currentEmailSettings.newCommentOnApplication = state.settings.newCommentOnApplication
                 break;
             case MailType.PROJECT_USER_INVITE:
                 state.settings.projectUserInvite = !state.settings.projectUserInvite
-                currentEmailSettings.projectUserInvite = state.settings.projectUserInvite
                 break;
             case MailType.PROJECT_USER_REMOVED:
                 state.settings.projectUserRemoved = !state.settings.projectUserRemoved
-                currentEmailSettings.projectUserRemoved = state.settings.projectUserRemoved
                 break;
             case MailType.VERIFICATION_REMINDER:
                 state.settings.verificationReminder = !state.settings.verificationReminder
-                currentEmailSettings.verificationReminder = state.settings.verificationReminder
                 break;
             case MailType.USER_ROLE_CHANGE:
                 state.settings.userRoleChange = !state.settings.userRoleChange
-                currentEmailSettings.userRoleChange = state.settings.userRoleChange
                 break;
             case MailType.USER_LEFT:
                 state.settings.userLeft = !state.settings.userLeft
-                currentEmailSettings.userLeft = state.settings.userLeft
                 break;
             case MailType.LOW_FUNDS:
                 state.settings.lowFunds = !state.settings.lowFunds
-                currentEmailSettings.lowFunds = state.settings.lowFunds
                 break;
             case MailType.APPLICATION_STATUS_CHANGE:
                 state.settings.applicationStatusChange = !state.settings.applicationStatusChange
-                currentEmailSettings.applicationStatusChange = state.settings.applicationStatusChange
+                break;
+            case MailType.APPLICATION_TRANSFER:
+                state.settings.applicationTransfer = !state.settings.applicationTransfer
                 break;
         }
+        dispatch({
+            type: "UpdatePlaceholdersEmailSettings",
+            payload: state
+        })
     }
-
+    if (commandLoading) {
+        return <HexSpin/>
+    }
     return (
         <Box mb={16}>
             <Heading.h2>Email Settings</Heading.h2>
@@ -187,7 +182,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_APPROVED)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.grantApplicationApproved}
                     />
                     <Box as="span">Application Approved</Box>
@@ -196,7 +191,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_REJECTED)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.grantApplicationRejected}
                     />
                     <Box as="span">Application Rejected</Box>
@@ -205,7 +200,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_WITHDRAWN)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.grantApplicationWithdrawn}
                     />
                     <Box as="span">Application Withdrawn</Box>
@@ -214,7 +209,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.NEW_GRANT_APPLICATION)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.newGrantApplication}
                     />
                     <Box as="span">New Application Received</Box>
@@ -223,7 +218,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.APPLICATION_STATUS_CHANGE)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.applicationStatusChange}
                     />
                     <Box as="span">Status Change By Others Admins</Box>
@@ -232,7 +227,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.APPLICATION_TRANSFER)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.applicationTransfer}
                     />
                     <Box as="span">Transfers From Other Projects</Box>
@@ -241,7 +236,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_AUTO_APPROVE)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.grantAutoApprove}
                     />
                     <Box as="span">On Auto Approval</Box>
@@ -250,7 +245,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.NEW_COMMENT_ON_APPLICATION)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.newCommentOnApplication}
                     />
                     <Box as="span">New Comment In Application</Box>
@@ -259,7 +254,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.GRANT_APPLICATION_UPDATED)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.grantApplicationUpdated}
                     />
                     <Box as="span">Application Has Been Edited</Box>
@@ -270,7 +265,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.LOW_FUNDS)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.lowFunds}
                     />
                     <Box as="span">Low On Funds</Box>
@@ -279,7 +274,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.PROJECT_USER_INVITE)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.projectUserInvite}
                     />
                     <Box as="span">User Invited To Project</Box>
@@ -288,7 +283,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.USER_LEFT)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.userLeft}
                     />
                     <Box as="span">User Left Project</Box>
@@ -297,7 +292,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.USER_ROLE_CHANGE)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.userRoleChange}
                     />
                     <Box as="span">User Role Changed</Box>
@@ -306,7 +301,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.PROJECT_USER_REMOVED)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.projectUserRemoved}
                     />
                     <Box as="span">User Removed From Project</Box>
@@ -315,7 +310,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
                     <Checkbox
                         size={27}
                         onClick={() => toggleSubscription(MailType.VERIFICATION_REMINDER)}
-                        onChange={update}
+                        onChange={() => undefined}
                         checked={state.settings.verificationReminder}
                     />
                     <Box as="span">Verification Reminders</Box>

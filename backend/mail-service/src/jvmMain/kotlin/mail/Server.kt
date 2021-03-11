@@ -9,9 +9,9 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.mail.rpc.*
 import dk.sdu.cloud.mail.services.MailService
+import dk.sdu.cloud.mail.services.SettingsService
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import kotlinx.coroutines.runBlocking
-import mail.services.SettingsService
 import kotlin.system.exitProcess
 
 class Server(private val config: MailConfiguration, override val micro: Micro) : CommonServer {

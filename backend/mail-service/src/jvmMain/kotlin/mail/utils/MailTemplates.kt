@@ -1,4 +1,4 @@
-package mail.utils
+package dk.sdu.cloud.mail.utils
 
 import dk.sdu.cloud.service.escapeHtml
 
@@ -34,7 +34,7 @@ fun verifyReminderTemplate(receiver: String, projectTitle: String, role: String)
             </li>
             <li>
                 You can begin the review by clicking 
-                <a href="https://cloud.sdu.dk/app/projects}">here</a>.
+                <a href="https://cloud.sdu.dk/app/projects">here</a>.
             </li>
         </ul>
         $NO_NOTIFICATIONS_DISCLAIMER
@@ -45,7 +45,7 @@ fun resetPasswordTemplate(receiver: String, token: String) =
         <p>Dear ${escapeHtml(receiver)}</p> 
         <p>We have received a request to reset your UCloud account password. To proceed, follow the link below.</p>
         <p>
-            <a href="https://cloud.sdu.dk/app/login?password-reset=true&token=${token}">https://cloud.sdu.dk/app/login?password-reset=true&token=${token}</a>
+            <a href="https://cloud.sdu.dk/app/login?password-reset=true&token=${escapeHtml(token)}">https://cloud.sdu.dk/app/login?password-reset=true&token=${token}</a>
         </p>
         <p>If you did not initiate this request, feel free to disregard this email, or reply to this email for support.</p>
     """.trimIndent()

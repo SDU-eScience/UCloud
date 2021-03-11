@@ -23,8 +23,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.ktor.http.HttpStatusCode
-import mail.services.SettingsService
-import mail.utils.*
+import dk.sdu.cloud.mail.utils.*
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.io.ByteArrayOutputStream

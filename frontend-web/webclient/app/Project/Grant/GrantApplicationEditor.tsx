@@ -1059,7 +1059,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     </Button>
                                                                     <ClickableDropdown
                                                                         top="-73px"
-                                                                        id="dropdown"
                                                                         fullWidth={true}
                                                                         trigger={(
                                                                             <Button

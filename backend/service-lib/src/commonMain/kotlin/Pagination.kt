@@ -12,12 +12,9 @@ import kotlin.math.min
 data class Page<out T>(
     val itemsInTotal: Int,
     val itemsPerPage: Int,
-
     val pageNumber: Int,
     val items: List<T>,
 ) {
-    val pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
-
     companion object {
         fun <T> forRequest(request: NormalizedPaginationRequest?, itemsInTotal: Int?, items: List<T>): Page<T> {
             val actualItemsInTotal = itemsInTotal ?: items.size
@@ -25,6 +22,7 @@ data class Page<out T>(
         }
     }
 }
+val Page<*>.pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 
 
 interface WithPaginationRequest {

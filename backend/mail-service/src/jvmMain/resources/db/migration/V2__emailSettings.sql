@@ -1,4 +1,4 @@
 CREATE TABLE email_settings(
-    username varchar(255) UNIQUE NOT NULL,
+    username TEXT PRIMARY KEY ,
     settings jsonb NOT NULL
 );

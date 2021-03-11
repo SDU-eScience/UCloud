@@ -7,11 +7,11 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.mail.services.MailService
+import dk.sdu.cloud.mail.services.SettingsService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
-import mail.services.SettingsService
 
 class MailController(
     private val mailService: MailService,

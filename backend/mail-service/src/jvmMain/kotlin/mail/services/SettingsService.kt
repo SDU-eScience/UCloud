@@ -1,4 +1,4 @@
-package mail.services
+package dk.sdu.cloud.mail.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper

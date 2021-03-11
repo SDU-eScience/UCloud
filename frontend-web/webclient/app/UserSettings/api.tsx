@@ -20,7 +20,7 @@ export function listUserSessions(
         context: ""
     };
 }
-
+/*
 export interface EmailSettings {
     //Grant applications
     newGrantApplication: boolean;
@@ -61,19 +61,19 @@ export interface ToggleEmailSettingsRequestItem {
     username?: string,
     settings: EmailSettings
 }
-
-export function toggleEmailSettings(
-    request: BulkRequest<ToggleEmailSettingsRequestItem>
-): APICallParameters<BulkRequest<ToggleEmailSettingsRequestItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/mail" + "/toggleEmailSettings",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
+*/
+//export function toggleEmailSettings(
+//    request: BulkRequest<ToggleEmailSettingsRequestItem>
+//): APICallParameters<BulkRequest<ToggleEmailSettingsRequestItem>, any /* unknown */> {
+//    return {
+//        context: "",
+//        method: "POST",
+//        path: "/api/mail" + "/toggleEmailSettings",
+//        parameters: request,
+//        reloadId: Math.random(),
+//        payload: request,
+//    };
+//}
 
 export function invalidateAllSessions(): APICallParameters {
     return {
