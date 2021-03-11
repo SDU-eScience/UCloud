@@ -24,6 +24,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.*
 import kotlin.math.*
+import kotlin.system.exitProcess
 
 const val DOC_TYPE = "_doc"
 
@@ -150,6 +151,7 @@ class FileSystemScanner(
                         if (response.deleted == 0L) moreToDelete = false
                     }
                 } catch (ex: ElasticsearchException) {
+                    log.warn(ex.message)
                     log.warn("Deletion of ${it.path}/* , failed")
                 }
             }
