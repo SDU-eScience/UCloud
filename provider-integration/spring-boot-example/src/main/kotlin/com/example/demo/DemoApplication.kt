@@ -141,6 +141,7 @@ class SimpleCompute(
     }
 
     private val knownProducts = listOf(
+        ProductReference("test1", "test", PROVIDER_ID),
         ProductReference("test2", "test", PROVIDER_ID),
         ProductReference("test3", "test", PROVIDER_ID),
     )

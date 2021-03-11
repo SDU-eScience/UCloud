@@ -7,7 +7,7 @@ import MainContainer from "MainContainer/MainContainer";
 import {ResourcePage} from "ui-components/ResourcePage";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {Button, Flex, Grid, Input, Label, List, Select, TextArea} from "ui-components";
-import {doNothing, PropType} from "UtilityFunctions";
+import {doNothing, inDevEnvironment, onDevSite, PropType} from "UtilityFunctions";
 import {Operation, Operations} from "ui-components/Operation";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
@@ -23,9 +23,10 @@ import Provider = provider.Provider;
 import AccessToken = auth.AccessToken;
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import ProductNS = accounting.ProductNS;
-import Table, {TableHeader, TableHeaderCell} from "ui-components/Table";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {creditFormatter} from "Project/ProjectUsage";
+import {useProjectId} from "Project";
+import {Client} from "Authentication/HttpClientInstance";
 
 const entityName = "Provider";
 
@@ -228,6 +229,8 @@ const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onCompl
     const [gpus, setGpus] = useState<string>("")
     const onGpusChange = useCallback(e => setGpus(e.target.value), [setGpus]);
 
+    const projectId = useProjectId();
+
     const [commandLoading, invokeCommand] = useCloudCommand();
 
     const addProduct = useCallback(async () => {
@@ -276,6 +279,7 @@ const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onCompl
         let product: Product | null = null;
         switch (type) {
             case "storage":
+                /*
                 product = {
                     type: "storage",
                     id: id,
@@ -285,6 +289,7 @@ const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onCompl
                     hiddenInGrantApplications: false,
                     priority: 1,
                 } as ProductNS.Storage;
+                 */
                 break;
             case "compute":
                 product = {
@@ -309,6 +314,20 @@ const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onCompl
             await invokeCommand(
                 {...UCloud.accounting.products.createProduct(product), accessTokenOverride: accessToken}
             );
+
+            if (inDevEnvironment() || onDevSite()) {
+                await invokeCommand(
+                    UCloud.accounting.wallets.setBalance({
+                        wallet: {
+                            paysFor: {provider: product.category.provider, id: product.category.id},
+                            type: projectId === undefined ? "USER" : "PROJECT",
+                            id: projectId === undefined ? Client.username! : projectId
+                        },
+                        lastKnownBalance: 0,
+                        newBalance: 1000000 * 10000
+                    })
+                );
+            }
             props.onComplete();
         }
     }, [type, pricePerUnit, pricePerUnitDecimal, id, category, description, invokeCommand, cpu, memoryInGigs, gpus]);
