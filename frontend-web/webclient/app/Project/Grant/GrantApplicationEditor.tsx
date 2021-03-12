@@ -29,7 +29,8 @@ import {
     ProductCategoryId,
     retrieveBalance,
     RetrieveBalanceResponse,
-    WalletBalance
+    WalletBalance,
+    UCLOUD_PROVIDER
 } from "Accounting";
 import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
@@ -701,7 +702,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const history = useHistory();
         const dispatch = useDispatch();
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
-        const storagePrice = useStoragePrice(); // Note: This will change later
+        // HOTFIX Start - useStoragePrice does not work as is
+        const [availableStorage] = useCloudAPI<Page<UCloud.accounting.Product>>(
+            UCloud.accounting.products.listProductionsByType({
+                area: "STORAGE", provider: UCLOUD_PROVIDER, itemsPerPage: 100, page: 0, showHidden: true
+            }),
+            emptyPage
+        );
+        const storagePrice = availableStorage.data.items[0]?.pricePerUnit ?? 0; // useStoragePrice(); // Note: This will change later
+        // HOTFIX end
 
         switch (target) {
             case RequestTarget.EXISTING_PROJECT:
