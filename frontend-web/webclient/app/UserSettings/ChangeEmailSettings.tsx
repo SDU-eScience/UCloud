@@ -11,8 +11,8 @@ import stat = file.stat;
 import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
-import {Action} from "UserSettings/ChangeUserDetails";
 import HexSpin from "LoadingIcon/LoadingIcon";
+import {Action} from "redux";
 
 interface UserDetailsState {
     settings: EmailSettings
@@ -60,7 +60,7 @@ const initialState: UserDetailsState = {
     settings: defaultEmailSettings
 };
 
-type UpdatePlaceholdersEmailSettings = Action<"UpdatePlaceholdersEmailSettings", UserDetailsState>;
+type UpdatePlaceholdersEmailSettings = PayloadAction<"UpdatePlaceholdersEmailSettings", UserDetailsState>;
 
 const reducer = (state: UserDetailsState, action: UpdatePlaceholdersEmailSettings): UserDetailsState => {
     switch (action.type) {
@@ -90,15 +90,6 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
     useEffect(() => {
         info();
     }, []);
-
-    /*const update = useCallback(async () => {
-        dispatch({
-            type: "UpdatePlaceholdersEmailSettings",
-            payload: {
-                settings: currentEmailSettings
-            }
-        })
-    }, []);*/
 
     const onSubmit = useCallback(async (e: React.SyntheticEvent) => {
         e.preventDefault();
@@ -167,7 +158,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
         dispatch({
             type: "UpdatePlaceholdersEmailSettings",
             payload: state
-        })
+        });
     }
     if (commandLoading) {
         return <HexSpin/>

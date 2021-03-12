@@ -18,7 +18,7 @@ const initialState: UserDetailsState = {
     placeHolderEmail: "Enter Email"
 };
 
-export type Action<T, B> = {type: T; payload: B};
+type Action<T, B> = {type: T; payload: B};
 type UpdatePlaceholderFirstNames = Action<"UpdatePlaceholders", UserDetailsState>;
 
 const reducer = (state: UserDetailsState, action: UpdatePlaceholderFirstNames): UserDetailsState => {
@@ -29,7 +29,6 @@ const reducer = (state: UserDetailsState, action: UpdatePlaceholderFirstNames): 
 };
 
 export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: boolean) => void}> = () => {
-    console.log("rerender")
     const userFirstNames = useRef<HTMLInputElement>(null);
     const userLastName = useRef<HTMLInputElement>(null);
     const userEmail = useRef<HTMLInputElement>(null);
