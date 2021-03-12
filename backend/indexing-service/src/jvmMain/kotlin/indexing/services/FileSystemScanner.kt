@@ -12,19 +12,16 @@ import org.elasticsearch.*
 import org.elasticsearch.action.bulk.*
 import org.elasticsearch.action.delete.*
 import org.elasticsearch.action.get.*
-import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.update.*
 import org.elasticsearch.client.*
 import org.elasticsearch.common.xcontent.*
 import org.elasticsearch.index.query.*
 import org.elasticsearch.index.reindex.DeleteByQueryRequest
-import org.elasticsearch.search.builder.SearchSourceBuilder
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.*
 import kotlin.math.*
-import kotlin.system.exitProcess
 
 const val DOC_TYPE = "_doc"
 
