@@ -18,6 +18,7 @@ import dk.sdu.cloud.service.k8.deleteResource
 import dk.sdu.cloud.service.k8.patchResource
 import io.ktor.http.*
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 object AccountingPlugin : JobManagementPlugin, Loggable {
@@ -93,11 +94,16 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
                 defaultMapper.encodeToString(
                     // http://jsonpatch.com/
                     listOf(
-                        mapOf(
-                            "op" to "add",
-                            // https://tools.ietf.org/html/rfc6901#section-3
-                            "path" to "/metadata/annotations/${LAST_PERFORMED_AT_ANNOTATION.replace("/", "~1")}",
-                            "value" to now.toString()
+                        JsonObject(
+                            mapOf(
+                                "op" to JsonPrimitive("add"),
+                                // https://tools.ietf.org/html/rfc6901#section-3
+                                "path" to JsonPrimitive("/metadata/annotations/${
+                                    LAST_PERFORMED_AT_ANNOTATION.replace("/",
+                                        "~1")
+                                }"),
+                                "value" to JsonPrimitive(now.toString())
+                            )
                         )
                     )
                 ),

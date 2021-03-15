@@ -38,12 +38,13 @@ class ElasticQueryTest {
             every { response.aggregations.get<ValueCount>("completeCount") } returns object : ValueCount {
                 override fun getName(): String = "completeCount"
                 override fun getType(): String = ""
+                override fun getMetadata(): MutableMap<String, Any> = mutableMapOf()
+
                 override fun value(): Double = 20.0
 
                 override fun toXContent(builder: XContentBuilder?, params: ToXContent.Params?): XContentBuilder =
                     mockk()
 
-                override fun getMetaData(): MutableMap<String, Any> = mutableMapOf()
                 override fun getValue(): Long = 20
                 override fun getValueAsString(): String = ""
             }

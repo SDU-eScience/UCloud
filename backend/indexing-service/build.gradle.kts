@@ -1,4 +1,4 @@
-version = "1.18.0"
+version = "1.19.6"
 
 application {
     mainClassName = "dk.sdu.cloud.indexing.MainKt"
@@ -11,7 +11,9 @@ kotlin.sourceSets {
             implementation(project(":accounting-service:api"))
             api(project(":storage-service:api"))
             implementation("net.java.dev.jna:jna:5.2.0")
-            implementation("mbuhot:eskotlin:0.7.0")
+            implementation("mbuhot:eskotlin:0.7.0") {
+                exclude(group="org.elasticsearch", module="elasticsearch")
+            }
         }
     }
 }

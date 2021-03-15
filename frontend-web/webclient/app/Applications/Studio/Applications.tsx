@@ -9,7 +9,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {useCallback, useEffect, useRef} from "react";
 import * as React from "react";
 import {useState} from "react";
-import {RouteComponentProps, useRouteMatch} from "react-router";
+import {useRouteMatch} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Button, Checkbox, Flex, Icon, Label, Text, VerticalButtonGroup} from "ui-components";
@@ -131,7 +131,7 @@ export const App: React.FunctionComponent = () => {
         <MainContainer
             header={(
                 <Heading.h1>
-                    <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} cacheBust={logoCacheBust} />
+                    <AppToolLogo name={name} type={"APPLICATION"} size={"64px"} />
                     {" "}
                     {appTitle}
                 </Heading.h1>

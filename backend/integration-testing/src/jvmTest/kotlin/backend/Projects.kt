@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.SetBalanceRequest
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -545,5 +546,24 @@ class ProjectTests : IntegrationTest() {
 
             assertEquals(parents.subList(1, i + 1), ancestors)
         }
+    }
+    
+    @Test
+    fun `ensure root-project title uniqueness`() = t {
+        Projects.create.call(
+            CreateProjectRequest("UCloud"),
+            serviceClient
+        ).orThrow()
+
+        try {
+            Projects.create.call(
+                CreateProjectRequest("UCloud"),
+                serviceClient
+            ).orThrow()
+        } catch (e: RPCException) {
+            assert(e.httpStatusCode == HttpStatusCode.Conflict)
+            return@t
+        }
+        assert(false)
     }
 }

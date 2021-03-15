@@ -13,9 +13,6 @@ import {TextAlignProps} from "styled-system";
 import {useGlobalCloudAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 
-// Hack: We need products to only load once
-// TODO: Find a proper way to load this kind of shared data
-let didLoadProducts = false;
 
 export const Balance: React.FunctionComponent<{
     amount: number;
@@ -51,30 +48,34 @@ export function useStoragePrice(): number {
     return items[0].pricePerUnit;
 }
 
+// Hack: We need products to only load once
+// TODO: Find a proper way to load this kind of shared data
+const providerFetched: Record<string, boolean> = {};
 
 export const BalanceExplainer: React.FunctionComponent<{
     amount: number;
     productCategory: ProductCategoryId;
     precision?: number;
 }> = props => {
+    const {provider} = props.productCategory;
+
     const [computeProducts, fetchCompute, computeParams] = useGlobalCloudAPI<Page<Product>>(
-        "computeProducts",
-        listByProductArea({itemsPerPage: 100, page: 0, area: "COMPUTE", provider: UCLOUD_PROVIDER, showHidden: true}),
+        "computeProducts" + provider,
+        listByProductArea({itemsPerPage: 100, page: 0, area: "COMPUTE", provider: provider, showHidden: true}),
         emptyPage
     );
     const [storageProducts, fetchStorage, storageParams] = useGlobalCloudAPI<Page<Product>>(
-        "storageProducts",
-        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: UCLOUD_PROVIDER, showHidden: true}),
+        "storageProducts" + provider,
+        listByProductArea({itemsPerPage: 100, page: 0, area: "STORAGE", provider: provider, showHidden: true}),
         emptyPage
     );
 
     React.useEffect(() => {
-        if (!didLoadProducts) {
-            didLoadProducts = true;
-            fetchCompute(computeParams);
-            fetchStorage(storageParams);
-        }
-    }, []);
+        if (providerFetched[provider]) return;
+        providerFetched[provider] = true;
+        fetchCompute(computeParams);
+        fetchStorage(storageParams);
+    }, [provider]);
 
     let pricePerUnit: number | null = null;
     let productName: string | null = null;

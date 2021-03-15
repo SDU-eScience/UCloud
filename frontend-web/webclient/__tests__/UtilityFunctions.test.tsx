@@ -121,14 +121,14 @@ test("Upper 5xx range", () =>
 // Get owner from ACL
 
 const mockAcls: Acl[] = [{
-    entity: {username: "user3@test.dk"},
+    entity: "user3@test.dk",
     rights: [
         AccessRight.READ
     ]
 }];
 
 test("Get multiple owners from Acls", () =>
-    expect(UF.getMembersString(mockAcls)).toBe("2 members")
+    expect(UF.getMembersString(mockAcls)).toBe("Only You")
 );
 
 test("Get single owner from Acls", () =>
@@ -269,7 +269,6 @@ describe("Themes", () => {
 });
 
 describe("Sort by prettier string", () => {
-    test("ACL", () => expect(UF.sortByToPrettierString(SortBy.ACL)).toBe("Members"));
     test("File Type", () => expect(UF.sortByToPrettierString(SortBy.FILE_TYPE)).toBe("File Type"));
     test("Modified at", () => expect(UF.sortByToPrettierString(SortBy.MODIFIED_AT)).toBe("Modified at"));
     test("Path", () => expect(UF.sortByToPrettierString(SortBy.PATH)).toBe("Filename"));

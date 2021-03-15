@@ -23,8 +23,7 @@ const groupSummaryPage: Page<GroupWithSummary> = {
     items: [newGroupWithSummary(), newGroupWithSummary(), newGroupWithSummary()],
     itemsInTotal: 3,
     itemsPerPage: 25,
-    pageNumber: 0,
-    pagesInTotal: 1
+    pageNumber: 0
 };
 
 describe("repositoryName", () => {

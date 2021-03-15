@@ -1,10 +1,15 @@
-import CONF from "../../site.config.json";
 import {Client} from "Authentication/HttpClientInstance";
 import {History} from "history";
 import {setLoading} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {buildQueryString} from "Utilities/URIUtilities";
+import { compute } from "UCloud";
+import React from "react";
+import { AppToolLogo } from "Applications/AppToolLogo";
+import { SpaceProps } from "styled-system";
+import { File } from "Files";
+import { Flex } from "ui-components";
 
 export async function quickLaunchFromParametersFile(
     fileContent: string,
@@ -23,42 +28,60 @@ export async function quickLaunchFromParametersFile(
     }
 }
 
-export async function quickLaunchCallback(
-    app: QuickLaunchApp,
+interface QuickLaunchAppsProps extends SpaceProps {
+    file: File;
+    applications: QuickLaunchApp[];
+    quickLaunchCallback: (app: QuickLaunchApp) => void;
+}
+
+export const QuickLaunchApps: React.FunctionComponent<QuickLaunchAppsProps> = props => {
+    return (
+        <>
+            
+            {props.applications.map((app, key) => (
+                <Flex
+                    key={key}
+                    cursor="pointer"
+                    alignItems="center"
+                    onClick={() => props.quickLaunchCallback(app)}
+                    width="auto"
+                >
+                    <AppToolLogo name={app.metadata.name} size="20px" type="APPLICATION" />
+                    <span style={{marginLeft: "5px", marginRight: "5px"}}>{app.metadata.title}</span>
+                </Flex>
+            ))}
+        </>
+    );
+};
+
+export const quickLaunchJob = async (
+    app: compute.ApplicationWithFavoriteAndTags,
+    product: {
+        id: string;
+        category: string;
+        provider: string;
+    },
     mountPath: string,
     history: History<any>
-): Promise<void> {
-    const mountPathList = mountPath.split("/");
-    const directory = (mountPath.endsWith("/")) ?
-        mountPathList[mountPathList.length - 2]
-        : mountPathList[mountPathList.length - 1];
-
-
-    const job = {
+ ) => {
+    const job: compute.JobSpecification = {
         application: {
             name: app.metadata.name,
             version: app.metadata.version,
         },
-        mounts: [{
-            source: mountPath,
-            destination: directory,
-            readOnly: false
-        }],
-        numberOfNodes: 1,
-        peers: [],
-        reservation: CONF.QUICK_LAUNCH_PRODUCT,
-        type: "start",
-        name: null,
+        product: product,
+        resources: [
+            { path: mountPath, readOnly: false, type: "file" }
+        ],
+        replicas: 1,
+        allowDuplicateJob: true,
         parameters: {}
     };
 
     try {
         setLoading(true);
-        /*
-        const req = await Client.post(hpcJobQueryPost, job);
-        history.push(`/applications/jobs/${req.response.jobId}?app=${encodeURIComponent(app.metadata.name)}`);
-
-         */
+        const response = await Client.post<compute.JobsCreateResponse>("/jobs", job);
+        history.push(`/applications/jobs/${response.response.ids[0]}?app=${encodeURIComponent(app.metadata.name)}`);
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred submitting the job."), false);
     } finally {

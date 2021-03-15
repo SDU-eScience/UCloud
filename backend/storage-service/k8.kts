@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "4.3.0"
+    version = "4.4.0"
 
     val mountLocation: String = config("mountLocation", "Sub path in volume (e.g. 'test')", "")
 

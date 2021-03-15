@@ -114,11 +114,13 @@ class ProjectService(
                 verifyMembership(session, "_project", id)
             }
         } catch (ex: GenericDatabaseException) {
-            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION ||
+                ex.errorCode == PostgresErrorCodes.EXCLUSION_VIOLATION) {
                 throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
             }
             throw ex
         }
+
 
         eventProducer.produce(ProjectEvent.Created(id))
         eventProducer.produce(

@@ -108,7 +108,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
         }],
-    pagesInTotal: 2
 };
 
 export const newMockFile = ({

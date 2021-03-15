@@ -1,10 +1,12 @@
 import theme from "./theme";
 import {device} from "ui-components/Hide";
 
+const useInter = localStorage.getItem("inter") !== null;
+
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
-const fontBold = require("Assets/IBMPlexSans-Bold.ttf");
 const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
+const inter = require("Assets/Inter.ttf");
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");
@@ -16,11 +18,21 @@ export function injectFonts(): void {
             font-display: swap;
         }
 
-        @font-face {
-            font-family: 'IBM Plex Sans';
-            src: url('${fontRegular}');
-            font-weight: 400;
-            font-display: swap;
+        ${useInter ?
+            `@font-face {
+                font-family: 'Inter';
+                src: url('${inter}');
+                font-display: swap;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }`
+            :
+            `@font-face {
+                font-family: 'IBM Plex Sans';
+                src: url('${fontRegular}');
+                font-weight: 400;
+                font-display: swap;
+            }`
         }
         
         @font-face {
