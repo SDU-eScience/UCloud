@@ -112,7 +112,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
 
         if (R::class != Unit::class) {
             params {
-                serializer<R>().descriptor.elementNames.forEach {
+                containerRef.fixedSerializer<R>().descriptor.elementNames.forEach {
                     +boundTo(it)
                 }
             }
@@ -181,7 +181,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
 
         if (R::class != Unit::class) {
             params {
-                serializer<R>().descriptor.elementNames.forEach {
+                containerRef.fixedSerializer<R>().descriptor.elementNames.forEach {
                     +boundTo(it)
                 }
             }

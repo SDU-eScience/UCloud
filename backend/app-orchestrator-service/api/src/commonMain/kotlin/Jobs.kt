@@ -532,6 +532,13 @@ object Jobs : CallDescriptionContainer("jobs") {
         description = """
             This is a test description
         """.trimIndent()
+
+        serializerLookupTable = mapOf(
+            serializerEntry(OpenSession.serializer()),
+            serializerEntry(JobsProviderFollowRequest.serializer()),
+            serializerEntry(ShellRequest.serializer()),
+            serializerEntry(ShellResponse.serializer())
+        )
     }
 
     val create = call<JobsCreateRequest, JobsCreateResponse, CommonErrorMessage>("create") {

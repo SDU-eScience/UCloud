@@ -14,6 +14,7 @@ import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.reflect.KProperty
+import kotlin.reflect.typeOf
 
 typealias JobsProviderCreateRequest = BulkRequest<JobsProviderCreateRequestItem>
 typealias JobsProviderCreateResponse = Unit
@@ -160,6 +161,13 @@ open class JobsProvider(namespace: String) : CallDescriptionContainer("jobs.comp
 
     init {
         title = "Provider API: Compute"
+
+        serializerLookupTable = mapOf(
+            serializerEntry(OpenSession.serializer()),
+            serializerEntry(JobsProviderFollowRequest.serializer()),
+            serializerEntry(ShellRequest.serializer()),
+            serializerEntry(ShellResponse.serializer())
+        )
 
         val left = "←"
         val right = "→"

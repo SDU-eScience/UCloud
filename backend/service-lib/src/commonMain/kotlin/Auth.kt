@@ -238,7 +238,7 @@ data class SecurityScope internal constructor(
     }
 
     companion object {
-        private val segmentRegex = Regex("[a-zA-Z0-9_]+")
+        private val segmentRegex = Regex("[a-zA-Z0-9_\\-\\+]+")
         const val ALL_SCOPE = "all"
         const val SPECIAL_SCOPE = "special"
 

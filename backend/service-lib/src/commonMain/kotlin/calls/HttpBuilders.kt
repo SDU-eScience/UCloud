@@ -8,7 +8,7 @@ import kotlin.reflect.KProperty1
 class HttpDSLException(why: String) : RuntimeException(why)
 
 class HttpRequestBuilder<R : Any, S : Any, E : Any> internal constructor(
-    private val context: CallDescription<R, S, E>
+    @PublishedApi internal val context: CallDescription<R, S, E>
 ) {
     var method: HttpMethod = HttpMethod.Get
     internal var body: HttpBody<R, *>? = null
@@ -121,7 +121,7 @@ class HttpCallHeadersBuilder<R : Any> internal constructor() {
     }
 }
 
-class HttpCallBodyBuilder<R : Any> internal constructor(private val parent: HttpRequestBuilder<R, *, *>) {
+class HttpCallBodyBuilder<R : Any> internal constructor(@PublishedApi internal val parent: HttpRequestBuilder<R, *, *>) {
     internal var body: HttpBody<R, *>? = null
 
     fun bindEntireRequestFromBody(ref: KSerializer<R>) {
@@ -138,5 +138,5 @@ class HttpCallBodyBuilder<R : Any> internal constructor(private val parent: Http
 }
 
 inline fun <reified R : Any> HttpCallBodyBuilder<R>.bindEntireRequestFromBody() {
-    bindEntireRequestFromBody(serializer())
+    bindEntireRequestFromBody(parent.context.containerRef.fixedSerializer())
 }

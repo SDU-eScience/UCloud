@@ -20,7 +20,10 @@ inline fun <reified A : Any> CallDescription<*, *, *>.audit(
 ) {
     @Suppress("UNCHECKED_CAST")
     attributes[AuditDescription.descriptionKey] =
-        AuditDescriptionBuilder<A>(this, serializer<A>()).also(builder).build() as AuditDescription<Any>
+        AuditDescriptionBuilder<A>(
+            this,
+            containerRef.fixedSerializer<A>()
+        ).also(builder).build() as AuditDescription<Any>
 }
 
 @Suppress("UNCHECKED_CAST")

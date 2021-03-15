@@ -55,6 +55,13 @@ open class Shells(namespace: String) : CallDescriptionContainer("jobs.compute.$n
         description = """
             Provides an API for providers to give shell access to their running compute jobs.
         """.trimIndent()
+
+        serializerLookupTable = mapOf(
+            serializerEntry(OpenSession.serializer()),
+            serializerEntry(JobsProviderFollowRequest.serializer()),
+            serializerEntry(ShellRequest.serializer()),
+            serializerEntry(ShellResponse.serializer())
+        )
     }
 
     val open = call<ShellRequest, ShellResponse, CommonErrorMessage>("open") {

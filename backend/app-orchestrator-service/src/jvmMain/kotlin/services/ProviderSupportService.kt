@@ -57,7 +57,10 @@ class ProviderSupportService(
                         ComputeProductSupportResolved(product, it.support)
                     }
                 }
-            }.getOrNull()
+            }.getOrElse {
+                log.debug(it.stackTraceToString())
+                null
+            }
         }
     )
 
