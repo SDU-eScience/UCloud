@@ -3,7 +3,7 @@ package dk.sdu.cloud.mail.utils
 import dk.sdu.cloud.service.escapeHtml
 
 const val NO_NOTIFICATIONS_DISCLAIMER = """<p>If you do not want to receive these email notifications, 
-    you can unsubscribe to non-critical emails in your personal settings on UCloud</p>"""
+    you can unsubscribe to non-critical emails in your <a href="https://cloud.sdu.dk/app/users/settings">personal settings</a> on UCloud</p>"""
 
 fun transferOfApplication(receiver: String, senderProject: String, receiverProject: String, applicationProjectTitle: String) =
     """
