@@ -24,7 +24,7 @@ class Server(override val micro: Micro) : CommonServer {
         val templates = TemplateService(projects, settings, "Default")
         val notifications = NotificationService(projects, serviceClient)
         val applications = ApplicationService(projects, settings, notifications, serviceClient)
-        val comments = CommentService(applications, notifications)
+        val comments = CommentService(applications, notifications, projects)
         val gifts = GiftService(projects, serviceClient)
 
         with(micro.server) {

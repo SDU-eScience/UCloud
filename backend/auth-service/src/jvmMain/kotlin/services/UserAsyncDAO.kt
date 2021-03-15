@@ -24,7 +24,7 @@ import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
 data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteArray)
-data class UserIdAndName(val userId: String, val firstNames: String)
+data class UserIdAndName(val userId: String, val firstNames: String, val lastName: String)
 
 
 /**
@@ -51,7 +51,6 @@ object PrincipalTable : SQLTable("principals") {
     val wayfId = text("wayf_id")
     val email = text("email")
     val serviceLicenseAgreement = int("service_license_agreement", notNull = true)
-    val wantsEmails = bool("wants_emails")
 }
 
 enum class USERTYPE {
@@ -80,7 +79,6 @@ fun RowData.toPrincipal(totpStatus: Boolean): Principal {
                 getField(PrincipalTable.email),
                 getField(PrincipalTable.uid),
                 getField(PrincipalTable.serviceLicenseAgreement),
-                getField(PrincipalTable.wantsEmails),
                 getField(PrincipalTable.orgId),
                 getField(PrincipalTable.wayfId)
             )
@@ -98,7 +96,6 @@ fun RowData.toPrincipal(totpStatus: Boolean): Principal {
                 getField(PrincipalTable.uid),
                 totpStatus,
                 getField(PrincipalTable.serviceLicenseAgreement),
-                getField(PrincipalTable.wantsEmails),
                 getField(PrincipalTable.hashedPassword),
                 getField(PrincipalTable.salt)
             )
@@ -307,7 +304,11 @@ class UserAsyncDAO(
                 .singleOrNull() ?: throw UserException.NotFound()
         }
 
-        return UserIdAndName(user.getField(PrincipalTable.id), user.getField(PrincipalTable.firstNames))
+        return UserIdAndName(
+            user.getField(PrincipalTable.id),
+            user.getField(PrincipalTable.firstNames),
+            user.getField(PrincipalTable.lastName)
+        )
     }
 
     /**
@@ -461,7 +462,6 @@ class UserAsyncDAO(
                             set(PrincipalTable.wayfId, principal.wayfId)
                             set(PrincipalTable.email, principal.email)
                             set(PrincipalTable.serviceLicenseAgreement, 0)
-                            set(PrincipalTable.wantsEmails, true)
                         }
                     is Person.ByPassword ->
                         session.insert(PrincipalTable) {
@@ -478,7 +478,6 @@ class UserAsyncDAO(
                             set(PrincipalTable.uid, principal.uid)
                             set(PrincipalTable.email, principal.email)
                             set(PrincipalTable.serviceLicenseAgreement, principal.serviceLicenseAgreement)
-                            set(PrincipalTable.wantsEmails, principal.wantsEmails)
                             set(PrincipalTable.hashedPassword, principal.password)
                             set(PrincipalTable.salt, principal.salt)
                         }
@@ -597,45 +596,6 @@ class UserAsyncDAO(
             if (affected == 0L) {
                 throw UserException.NotFound()
             }
-        }
-    }
-
-    //Should be moved out of AUTH in case of expanding functionality of subscriptions
-    suspend fun toggleEmail(db: DBContext, username: String) {
-        db.withSession { session ->
-            val affected = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", username)
-                    },
-                    """
-                        UPDATE principals
-                        SET wants_emails = NOT w.wants_emails
-                        FROM (SELECT * FROM principals WHERE id = :username) AS w
-                        WHERE principals.id = w.id
-                    """
-                ).rowsAffected
-            if (affected == 0L) {
-                throw UserException.NotFound()
-            }
-        }
-
-    }
-
-    //Should be moved out of AUTH in case of expanding functionality of subscriptions
-    suspend fun wantEmails(db: DBContext, username: String): Boolean {
-        return db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", username)
-                    },
-                    """
-                        SELECT *
-                        FROM principals
-                        WHERE id = :id
-                    """
-                ).rows.singleOrNull()?.getField(PrincipalTable.wantsEmails) ?: throw UserException.NotFound()
         }
     }
 }

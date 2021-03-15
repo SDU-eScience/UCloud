@@ -8,15 +8,13 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
-import io.ktor.util.toLocalDateTime
 import kotlinx.coroutines.delay
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -62,15 +60,9 @@ class PasswordResetService(
         MailDescriptions.send.call(
             SendRequest(
                 lookup.userId,
-                "[UCloud] Reset of Password",
-                """<p>Hello ${lookup.firstNames},</p>
-                |
-                |<p>We have received a request to reset your UCloud account password. To proceed, follow the link below.</p>
-                |
-                |<p><a href="https://cloud.sdu.dk/app/login?password-reset=true&token=${token}">https://cloud.sdu.dk/app/login?password-reset=true&token=${token}</a></p>
-                |
-                |<p>If you did not initiate this request, feel free to disregard this email, or reply to this email for support.</p>
-                """.trimMargin(),
+                Mail.ResetPasswordMail(
+                    token
+                ),
                 true
             ), authenticatedClient
         ).orThrow()

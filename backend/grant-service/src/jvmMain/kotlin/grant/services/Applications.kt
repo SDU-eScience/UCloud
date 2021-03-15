@@ -5,7 +5,6 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.Application
@@ -15,14 +14,10 @@ import dk.sdu.cloud.grant.api.GrantApplicationFilter
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.UserCriteria
-import dk.sdu.cloud.grant.utils.*
+import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.mail.api.SendBulkRequest
 import dk.sdu.cloud.mail.api.SendRequest
-import dk.sdu.cloud.grant.utils.autoApproveTemplate
-import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
-import dk.sdu.cloud.grant.utils.responseTemplate
-import dk.sdu.cloud.grant.utils.updatedTemplate
 import dk.sdu.cloud.offset
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.safeUsername
@@ -166,12 +161,13 @@ class ApplicationService(
         notifications.notify(
             GrantNotification(
                 returnedApplication,
-                adminMessage = GrantNotificationMessage(
+                adminMessage = AdminGrantNotificationMessage(
                     { title -> "New grant application to $title" },
                     "NEW_GRANT_APPLICATION",
-                    message = { user, projectTitle ->
-                        newIngoingApplicationTemplate(user, actor.safeUsername(), projectTitle)
-                    }
+                    Mail.NewGrantApplicationMail(
+                        actor.safeUsername(),
+                        returnedApplication.grantRecipientTitle
+                    )
                 ),
                 userMessage = null
             ),
@@ -327,19 +323,21 @@ class ApplicationService(
         notifications.notify(
             GrantNotification(
                 application,
-                adminMessage = GrantNotificationMessage(
+                adminMessage = AdminGrantNotificationMessage(
                     { "Grant application for subproject automatically approved" },
                     GRANT_APP_RESPONSE,
-                    message = { user, title ->
-                        autoApproveTemplate(user, application.requestedBy, title)
-                    }
+                    Mail.GrantAppAutoApproveToAdminsMail(
+                        application.requestedBy,
+                        application.resourcesOwnedByTitle
+                    )
                 ),
-                userMessage = GrantNotificationMessage(
+                userMessage = UserGrantNotificationMessage(
                     { "Grant application approved" },
                     GRANT_APP_RESPONSE,
-                    message = { user, title ->
-                        responseTemplate(ApplicationStatus.APPROVED, user, "UCloud", title)
-                    }
+                    Mail.GrantApplicationApproveMail(
+                        application.resourcesOwnedByTitle
+                    ),
+                    application.requestedBy
                 )
             ),
             "_ucloud",
@@ -437,12 +435,25 @@ class ApplicationService(
         notifications.notify(
             GrantNotification(
                 application,
-                GrantNotificationMessage(
+                adminMessage =
+                AdminGrantNotificationMessage(
                     { "Grant application updated" },
                     "GRANT_APPLICATION_UPDATED",
-                    message = { user, projectTitle ->
-                        updatedTemplate(projectTitle, user, actor.safeUsername())
-                    }
+                    Mail.GrantApplicationUpdatedMailToAdmins(
+                        application.resourcesOwnedByTitle,
+                        application.requestedBy,
+                        application.grantRecipientTitle
+                    )
+                ),
+                userMessage =
+                UserGrantNotificationMessage(
+                    { "Grant application updated" },
+                    "GRANT_APPLICATION_UPDATED",
+                    Mail.GrantApplicationUpdatedMail(
+                        application.resourcesOwnedByTitle,
+                        application.requestedBy
+                    ),
+                    application.requestedBy
                 )
             ),
             actor.safeUsername(),
@@ -457,11 +468,30 @@ class ApplicationService(
         ctx: DBContext,
         actor: Actor,
         id: Long,
-        newStatus: ApplicationStatus
+        newStatus: ApplicationStatus,
+        notifyChange: Boolean? = true
     ) {
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
 
         ctx.withSession { session ->
+            val currentStatus = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                    },
+                    """
+                        SELECT *
+                        FROM "grant".applications
+                        WHERE id = :id
+                    """
+                ).rows
+                .singleOrNull()
+                ?.getField(ApplicationTable.status) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            if (currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Not able to change status of finished application")
+            }
+
             val (updatedProjectId, requestedBy) = session
                 .sendPreparedStatement(
                     {
@@ -503,39 +533,51 @@ class ApplicationService(
                 onApplicationApproved(actor, viewApplicationById(session, actor, id).first)
             }
         }
-
-        lateinit var application: Application
-        ctx.withSession { session ->
-            application = viewApplicationById(session, actor, id).first
-        }
-        val statusTitle = when (newStatus) {
-            ApplicationStatus.APPROVED -> "Approved"
-            ApplicationStatus.REJECTED -> "Rejected"
-            ApplicationStatus.CLOSED -> "Closed"
-            ApplicationStatus.IN_PROGRESS -> "In Progress"
-        }
-        notifications.notify(
-            GrantNotification(
-                application,
-                GrantNotificationMessage(
-                    { "Grant application updated ($statusTitle)" },
-                    GRANT_APP_RESPONSE,
-                    message = { user, projectTitle ->
-                        responseTemplate(
-                            newStatus,
-                            user,
-                            actor.safeUsername(),
-                            projectTitle
+        if (notifyChange == true) {
+            lateinit var application: Application
+            ctx.withSession { session ->
+                application = viewApplicationById(session, actor, id).first
+            }
+            val statusTitle = when (newStatus) {
+                ApplicationStatus.APPROVED -> "Approved"
+                ApplicationStatus.REJECTED -> "Rejected"
+                ApplicationStatus.CLOSED -> "Closed"
+                ApplicationStatus.IN_PROGRESS -> "In Progress"
+            }
+            notifications.notify(
+                GrantNotification(
+                    application,
+                    adminMessage =
+                    AdminGrantNotificationMessage(
+                        { "Grant application updated ($statusTitle)" },
+                        GRANT_APP_RESPONSE,
+                        Mail.GrantApplicationStatusChangedToAdmin(
+                            newStatus.name,
+                            application.resourcesOwnedByTitle,
+                            application.requestedBy,
+                            application.grantRecipientTitle
                         )
-                    }
-                )
-            ),
-            actor.safeUsername(),
-            JsonObject(mapOf(
-                "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
-                "appId" to JsonPrimitive(application.id),
-            ))
-        )
+                    ),
+                    userMessage =
+                    UserGrantNotificationMessage(
+                        { "Grant application updated ($statusTitle)" },
+                        GRANT_APP_RESPONSE,
+                        when (newStatus){
+                            ApplicationStatus.APPROVED -> Mail.GrantApplicationApproveMail(application.resourcesOwnedByTitle)
+                            ApplicationStatus.REJECTED -> Mail.GrantApplicationRejectedMail(application.resourcesOwnedByTitle)
+                            ApplicationStatus.CLOSED -> Mail.GrantApplicationWithdrawnMail(application.resourcesOwnedByTitle, actor.safeUsername())
+                            else -> throw IllegalStateException()
+                        },
+                        application.requestedBy
+                    )
+                ),
+                actor.safeUsername(),
+                JsonObject(mapOf(
+                    "grantRecipient" to defaultMapper.encodeToJsonElement(application.grantRecipient),
+                    "appId" to JsonPrimitive(application.id),
+                ))
+            )
+        }
     }
 
     suspend fun transferApplication(
@@ -581,11 +623,13 @@ class ApplicationService(
         MailDescriptions.sendBulk.call(
             SendBulkRequest(
                 admins.map { admin ->
-                    val message = forwardApplicationTemplate(admin.username, senderTitle, projectTitle)
                     SendRequest(
                         admin.username,
-                        FORWARD_SUBJECT,
-                        message
+                        Mail.TransferApplicationMail(
+                            senderTitle,
+                            projectTitle,
+                            application.first.grantRecipientTitle
+                        )
                     )
                 }
             ),

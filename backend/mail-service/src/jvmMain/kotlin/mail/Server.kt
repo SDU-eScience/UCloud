@@ -4,10 +4,12 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.mail.rpc.*
 import dk.sdu.cloud.mail.services.MailService
+import dk.sdu.cloud.mail.services.SettingsService
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import kotlinx.coroutines.runBlocking
 import kotlin.system.exitProcess
@@ -19,19 +21,22 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val db = AsyncDBSessionFactory(micro.databaseConfig)
 
+        val settingsService = SettingsService(db)
+
         val mailService = MailService(
             authenticatedClient,
             config.fromAddress,
             config.whitelist,
             micro.developmentModeEnabled,
-            db
+            db,
+            settingsService
         )
 
         if (micro.commandLineArguments.contains("--send-test-mail")) {
             try {
                 val principal = SecurityPrincipal("_password-reset", Role.SERVICE, "", "", 0)
                 runBlocking {
-                    mailService.send(principal, "support@imada.sdu.dk", "Test", "Testing...", true, true)
+                    mailService.send(principal, "support@imada.sdu.dk", Mail.NewCommentOnApplicationMail("Test", "Testing...", "test"), true, true)
                 }
             } finally {
                 exitProcess(0)
@@ -39,7 +44,7 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
         }
         with(micro.server) {
             configureControllers(
-                MailController(mailService)
+                MailController(mailService, settingsService, db)
             )
         }
 

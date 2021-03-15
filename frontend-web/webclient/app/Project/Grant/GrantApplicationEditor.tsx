@@ -69,10 +69,12 @@ import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import * as UCloud from "UCloud";
 import grantApi = UCloud.grant.grant;
-import {grant} from "UCloud";
+import {grant, indexing} from "UCloud";
 import GrantsRetrieveProductsResponse = grant.GrantsRetrieveProductsResponse;
 import {IconName} from "ui-components/Icon";
 import {AppToolLogo} from "Applications/AppToolLogo";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {TextSpan} from "ui-components/Text";
 import ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {emptyPage} from "DefaultObjects";
@@ -816,13 +818,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }, [state.editingApplication?.id]);
 
-        const rejectRequest = useCallback(async () => {
+        const rejectRequest = useCallback(async (notify: boolean) => {
             if (state.editingApplication !== undefined) {
                 addStandardDialog({
                     title: "Reject application?",
                     message: "Are you sure you wish to reject this application?",
                     onConfirm: async () => {
-                        await runWork(rejectGrantApplication({requestId: state.editingApplication!.id}));
+                        await runWork(rejectGrantApplication({requestId: state.editingApplication!.id, notify: notify}));
                         state.reload();
                     }
                 });
@@ -1003,77 +1005,92 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top">
                                                         Project Type
                                             </TableCell>
-                                                    <TableCell>
-                                                        <table>
-                                                            <tbody>
-                                                                <tr>
-                                                                    <td>Personal</td>
-                                                                    <td width="100%">
-                                                                        {state.recipient.type === "personal" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td width="100%">New Project</td>
-                                                                    <td>
-                                                                        {state.recipient.type === "new_project" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td width="100%">Existing Project</td>
-                                                                    <td>
-                                                                        {state.recipient.type === "existing_project" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
-                                                                    </td>
-                                                                </tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
-                                                    <TableCell>
-                                                        {
-                                                            state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                                state.editingApplication!.status === GrantApplicationStatus.APPROVED ? (state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy) :
-                                                                    state.editingApplication!.status === GrantApplicationStatus.REJECTED ? (state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
-                                                                        (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
-                                                        }
-                                                        <ButtonGroup>
-                                                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                            <TableCell>
+                                                <table>
+                                                    <tbody>
+                                                    <tr>
+                                                        <td>Personal</td>
+                                                        <td width="100%">
+                                                            {state.recipient.type === "personal" ?
+                                                                <Icon name={"check"} color={"green"}/> :
+                                                                <Icon name={"close"} color={"red"}/>}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td width="100%">New Project</td>
+                                                        <td>
+                                                            {state.recipient.type === "new_project" ?
+                                                                <Icon name={"check"} color={"green"}/> :
+                                                                <Icon name={"close"} color={"red"}/>}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td width="100%">Existing Project</td>
+                                                        <td>
+                                                            {state.recipient.type === "existing_project" ?
+                                                                <Icon name={"check"} color={"green"}/> :
+                                                                <Icon name={"close"} color={"red"}/>}
+                                                        </td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
+                                            <TableCell>
+                                                {
+                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
+                                                        state.editingApplication!.status === GrantApplicationStatus.APPROVED ? (state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy) :
+                                                            state.editingApplication!.status === GrantApplicationStatus.REJECTED ? (state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
+                                                                (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
+                                                }
+                                                <ButtonGroup>
+                                                    {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                                        <>
+                                                            {state.approver && !grantFinalized ?
                                                                 <>
-                                                                    {state.approver && !grantFinalized ?
-                                                                        <>
-                                                                            <Button
-                                                                                color="green"
-                                                                                onClick={approveRequest}
-                                                                                disabled={!isLocked}
-                                                                            >
-                                                                                Approve
-                                                                            </Button>
+                                                                    <Button
+                                                                        color="green"
+                                                                        onClick={approveRequest}
+                                                                        disabled={!isLocked}
+                                                                    >
+                                                                        Approve
+                                                                    </Button>
+                                                                    <ClickableDropdown
+                                                                        top="-73px"
+                                                                        fullWidth={true}
+                                                                        trigger={(
                                                                             <Button
                                                                                 color="red"
-                                                                                onClick={rejectRequest}
                                                                                 disabled={!isLocked}
+                                                                                onClick={() => {}}
                                                                             >
                                                                                 Reject
                                                                             </Button>
-                                                                            {state.editingApplication?.grantRecipient!.type !== "existing_project" && localStorage.getItem("enableprojecttransfer") != null ?
-                                                                                <Button
-                                                                                    color="blue"
-                                                                                    onClick={() => setTransferringApplication(true)}
-                                                                                    disabled={!isLocked}
-                                                                                >
-                                                                                    Transfer to other project
-                                                                                </Button> : null
-                                                                            }
-                                                                        </> : null
+                                                                        )}
+                                                                    >
+                                                                        <OptionItem
+                                                                            onClick={() => rejectRequest(true)}
+                                                                            text={"Reject"}
+                                                                        />
+                                                                        <OptionItem
+                                                                            onClick={() => rejectRequest(false)}
+                                                                            text={"Reject without notify"}
+                                                                        />
+                                                                    </ClickableDropdown>
+                                                                    {state.editingApplication?.grantRecipient!.type !== "existing_project" && localStorage.getItem("enableprojecttransfer") != null ?
+                                                                        <Button
+                                                                        color="blue"
+                                                                        onClick={() => setTransferringApplication(true)}
+                                                                        disabled={!isLocked}
+                                                                        >
+                                                                        Transfer to other project
+                                                                        </Button> : null
                                                                     }
-                                                                    {!state.approver && !grantFinalized ?
+                                                                        </> : null
+                                                            }
+                                                            {!state.approver && !grantFinalized ?
                                                                         <>
                                                                             <Button
                                                                                 color="red"
@@ -1328,6 +1345,12 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
         </ReactModal>
     );
 }
+
+const OptionItem: React.FunctionComponent<{onClick: () => void; text: string; color?: string}> = props => (
+    <Box cursor="pointer" width="auto" onClick={props.onClick}>
+        <TextSpan color={props.color}>{props.text}</TextSpan>
+    </Box>
+);
 
 const CommentApplicationWrapper = styled.div`
   display: grid;

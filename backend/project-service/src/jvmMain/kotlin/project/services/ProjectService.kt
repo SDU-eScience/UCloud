@@ -1,6 +1,5 @@
 package dk.sdu.cloud.project.services
 
-import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
@@ -17,16 +16,12 @@ import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendBulkRequest
-import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.project.api.Projects.viewAncestors
-import dk.sdu.cloud.project.utils.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -229,8 +224,9 @@ class ProjectService(
             val messages = invitesTo.map { invitee ->
                 SendRequest(
                     invitee,
-                    PROJECT_USER_INVITE,
-                    userInvitedToInviteeTemplate(invitee, projectTitle)
+                    Mail.ProjectInviteMail(
+                        projectTitle
+                    )
                 )
             }
 
@@ -351,8 +347,10 @@ class ProjectService(
                 SendBulkRequest(allAdmins.map { admin ->
                     SendRequest(
                         admin,
-                        USER_LEFT,
-                        userLeftTemplate(pi, initiatedBy, projectTitle)
+                        Mail.UserLeftMail(
+                            initiatedBy,
+                            projectTitle
+                        )
                     )
                 }),
                 serviceClient
@@ -436,15 +434,18 @@ class ProjectService(
                 .map {
                     SendRequest(
                         pi,
-                        USER_LEFT,
-                        userRemovedTemplate(pi, userToDelete, projectTitle)
+                        Mail.UserRemovedMail(
+                            userToDelete,
+                            projectTitle
+                        )
                     )
                 }
 
             val userMessage = SendRequest(
                 userToDelete,
-                USER_LEFT,
-                userRemovedToPersonRemovedTemplate(userToDelete, projectTitle)
+                Mail.UserRemovedMailToUser(
+                    projectTitle
+                )
             )
 
             MailDescriptions.sendBulk.call(
@@ -519,19 +520,15 @@ class ProjectService(
                 )
             }
 
-            notify(
-                NotificationType.PROJECT_ROLE_CHANGE,
-                pi,
-                notificationMessage,
-                JsonObject(mapOf("projectId" to JsonPrimitive(projectId)))
-            )
-
             MailDescriptions.sendBulk.call(
-                SendBulkRequest(allAdmins.map {
+                SendBulkRequest(allAdmins.map { admin ->
                     SendRequest(
-                        pi,
-                        USER_ROLE_CHANGE,
-                        userRoleChangeTemplate(pi, memberToUpdate, newRole, projectTitle)
+                        admin,
+                        Mail.UserRoleChangeMail(
+                            memberToUpdate,
+                            newRole.name,
+                            projectTitle
+                        )
                     )
                 }),
                 serviceClient
@@ -856,8 +853,5 @@ class ProjectService(
 
     companion object : Loggable {
         override val log = logger()
-        const val USER_ROLE_CHANGE = "Role change in project"
-        const val USER_LEFT = "User left project"
-        const val PROJECT_USER_INVITE = "User invited to project"
     }
 }

@@ -3,12 +3,12 @@ package dk.sdu.cloud.project.services
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
@@ -58,30 +58,10 @@ class VerificationReminder(
                 val mailStatus = MailDescriptions.send.call(
                     SendRequest(
                         user,
-                        "[UCloud] Time to review your project ($title)",
-                        //language=html
-                        """
-                            <p>Hello ${user},</p> 
-                            
-                            <p>
-                                It is time for a review of your project $title in which you are 
-                                ${if (role == ProjectRole.ADMIN) " an admin" else " a PI"}.
-                            </p>
-                            
-                            <ul>
-                                <li>PIs and admins are asked to occasionally review members of their project</li>
-                                <li>We ask you to ensure that only the people who need access have access</li>
-                                <li>
-                                    If you find someone who should not have access then remove them by clicking 'Remove'
-                                    next to their name
-                                </li>
-                                <li>
-                                    You can begin the review by clicking 
-                                    <a href="https://cloud.sdu.dk/app/projects}">here</a>.
-                                </li>
-                            </ul>
- 
-                        """.trimMargin()
+                        Mail.VerificationReminderMail(
+                            project,
+                            role.name
+                        )
                     ),
                     serviceClient
                 )

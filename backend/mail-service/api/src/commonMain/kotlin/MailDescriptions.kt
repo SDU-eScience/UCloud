@@ -10,10 +10,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SendRequest(
-    val userId: String,
-    val subject: String,
-    val message: String,
-    val mandatory: Boolean? = false
+    val receiver: String,
+    val mail: Mail,
+    val mandatory: Boolean = false
 )
 
 @Serializable
@@ -29,6 +28,26 @@ data class SendSupportEmailRequest(
 )
 
 typealias SendSupportEmailResponse = Unit
+
+@Serializable
+data class EmailSettingsItem(
+    val username: String? = null,
+    val settings: EmailSettings
+)
+
+typealias ToggleEmailSettingsRequest = BulkRequest<EmailSettingsItem>
+
+typealias ToggleEmailSettingsResponse = Unit
+
+@Serializable
+data class RetrieveEmailSettingsRequest(
+    val username: String? = null
+)
+@Serializable
+data class RetrieveEmailSettingsResponse(
+    val settings: EmailSettings
+)
+
 
 @TSTopLevel
 object MailDescriptions : CallDescriptionContainer("mail") {
@@ -85,5 +104,27 @@ object MailDescriptions : CallDescriptionContainer("mail") {
 
             body { bindEntireRequestFromBody() }
         }
+    }
+
+    val toggleEmailSettings = call<
+        ToggleEmailSettingsRequest,
+        ToggleEmailSettingsResponse,
+        CommonErrorMessage>("toggleEmailSettings")
+    {
+            httpUpdate(
+                baseContext,
+                "toggleEmailSettings"
+            )
+    }
+
+    val retrieveEmailSettings = call<
+        RetrieveEmailSettingsRequest,
+        RetrieveEmailSettingsResponse,
+        CommonErrorMessage>("retrieveEmailSettings")
+    {
+        httpRetrieve(
+            baseContext,
+            "emailSettings"
+        )
     }
 }

@@ -55,7 +55,8 @@ class GrantController(
                 db,
                 ctx.securityPrincipal.toActor(),
                 request.requestId,
-                ApplicationStatus.REJECTED
+                ApplicationStatus.REJECTED,
+                request.notify
             )
             ok(Unit)
         }

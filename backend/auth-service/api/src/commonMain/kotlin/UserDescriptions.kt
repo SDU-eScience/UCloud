@@ -32,9 +32,8 @@ data class LookupEmailResponse(val email: String)
 
 @Serializable
 data class LookupUserWithEmailRequest(val email: String)
-
 @Serializable
-data class LookupUserWithEmailResponse(val userId: String, val firstNames: String)
+data class LookupUserWithEmailResponse(val userId: String, val firstNames: String, val lastName: String)
 
 typealias CreateUserAudit = List<CreateSingleUserAudit>
 
@@ -77,15 +76,6 @@ data class GetPrincipalRequest(
     val username: String
 )
 typealias GetPrincipalResponse = Principal
-
-@Serializable
-data class WantsEmailsRequest(
-    val username: String? = null,
-)
-typealias WantsEmailsResponse = Boolean
-
-typealias ToggleEmailSubscriptionRequest = Unit
-typealias ToggleEmailSubscriptionResponse = Unit
 
 @Serializable
 class ChangePasswordAudit
@@ -246,40 +236,6 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
                 using(baseContext)
                 +"lookup"
                 +"email"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val toggleEmailSubscription = call<ToggleEmailSubscriptionRequest, ToggleEmailSubscriptionResponse, CommonErrorMessage>("toggleEmailSubscription") {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"toggleEmailSubscription"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-    //If expanded upon it should be moved out of AUTH
-    val wantsEmails = call<WantsEmailsRequest, WantsEmailsResponse, CommonErrorMessage>("wantsEmails") {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"wantsEmails"
             }
 
             body { bindEntireRequestFromBody() }

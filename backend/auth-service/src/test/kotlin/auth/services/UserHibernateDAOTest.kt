@@ -145,23 +145,6 @@ class UserHibernateDAOTest {
     }
 
     @Test
-    fun `toggle emails`() {
-        runBlocking {
-            db.withTransaction { session ->
-                userHibernate.insert(session, person)
-
-                assertTrue(userHibernate.wantEmails(session, person.id))
-
-                userHibernate.toggleEmail(session, person.id)
-
-                assertFalse(userHibernate.wantEmails(session, person.id))
-
-                userHibernate.toggleEmail(session, person.id)
-            }
-        }
-    }
-
-    @Test
     fun `findBY test`() {
         runBlocking {
             db.withTransaction { session ->

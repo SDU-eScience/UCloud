@@ -163,7 +163,7 @@ data class ApproveApplicationRequest(val requestId: Long)
 typealias ApproveApplicationResponse = Unit
 
 @Serializable
-data class RejectApplicationRequest(val requestId: Long)
+data class RejectApplicationRequest(val requestId: Long, val notify: Boolean? = true)
 typealias RejectApplicationResponse = Unit
 
 @Serializable

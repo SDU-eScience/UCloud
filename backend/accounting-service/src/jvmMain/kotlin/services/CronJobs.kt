@@ -1,7 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.accounting.Configuration
-import dk.sdu.cloud.accounting.Utils.lowResourcesTemplate
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
@@ -9,11 +8,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendBulkRequest
-import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.project.api.LookupAdminsBulkRequest
-import dk.sdu.cloud.project.api.LookupAdminsRequest
 import dk.sdu.cloud.project.api.LookupByIdBulkRequest
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.Projects
@@ -22,7 +18,6 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.escapeHtml
 import io.ktor.http.HttpStatusCode
 import java.lang.Exception
 
@@ -32,8 +27,6 @@ class CronJobs(
     private val serviceClient: AuthenticatedClient,
     private val config: Configuration
 ) {
-    private val LOW_FUNDS_SUBJECT = "Project low on resource"
-
     suspend fun notifyLowFundsWallets() {
         db.withSession { session ->
             session
@@ -73,7 +66,6 @@ class CronJobs(
                     LookupAdminsBulkRequest(projectIDs),
                     serviceClient
                 ).orThrow()
-
                 val wallets = rows.map {
                     Wallet(
                         it.getField(WalletTable.accountId),
@@ -95,9 +87,7 @@ class CronJobs(
                             sendRequests.add(
                                 SendRequest(
                                     admin.username,
-                                    LOW_FUNDS_SUBJECT,
-                                    lowResourcesTemplate(
-                                        admin.username,
+                                    Mail.LowFundsMail(
                                         wallet.paysFor.id,
                                         wallet.paysFor.provider,
                                         projects[projectAndAdmins.first]?.title ?: throw RPCException.fromStatusCode(
@@ -107,31 +97,6 @@ class CronJobs(
                                     )
                                 )
                             )
-                        }
-                    }
-                    if (projects[projectAndAdmins.first]?.parent != null) {
-                        val parentAdmins = ProjectMembers.lookupAdmins.call(
-                            LookupAdminsRequest(projects[projectAndAdmins.first]?.parent!!),
-                            serviceClient
-                        ).orThrow()
-                        parentAdmins.admins.forEach { parentAdmin ->
-                            projectWalletsBelowLimit.forEach { wallet ->
-                                sendRequests.add(
-                                    SendRequest(
-                                        parentAdmin.username,
-                                        LOW_FUNDS_SUBJECT,
-                                        lowResourcesTemplate(
-                                            parentAdmin.username,
-                                            wallet.paysFor.id,
-                                            wallet.paysFor.provider,
-                                            projects[projectAndAdmins.first]?.title ?: throw RPCException.fromStatusCode(
-                                                HttpStatusCode.InternalServerError,
-                                                "No project found"
-                                            )
-                                        )
-                                    )
-                                )
-                            }
                         }
                     }
                 }
