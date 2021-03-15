@@ -18,8 +18,7 @@ const initialState: UserDetailsState = {
     placeHolderEmail: "Enter Email"
 };
 
-type Action<T, B> = {type: T; payload: B};
-type UpdatePlaceholderFirstNames = Action<"UpdatePlaceholders", UserDetailsState>;
+type UpdatePlaceholderFirstNames = PayloadAction<"UpdatePlaceholders", UserDetailsState>;
 
 const reducer = (state: UserDetailsState, action: UpdatePlaceholderFirstNames): UserDetailsState => {
     switch (action.type) {

@@ -1,5 +1,4 @@
 import {useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
 import * as React from "react";
 import {useCallback, useEffect, useRef} from "react";
 import {Box, Button, Checkbox, Input, Label} from "ui-components";
@@ -7,12 +6,10 @@ import * as Heading from "ui-components/Heading";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {bulkRequestOf} from "DefaultObjects";
 import {file, mail} from "UCloud";
-import stat = file.stat;
 import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import HexSpin from "LoadingIcon/LoadingIcon";
-import {Action} from "redux";
 
 interface UserDetailsState {
     settings: EmailSettings
