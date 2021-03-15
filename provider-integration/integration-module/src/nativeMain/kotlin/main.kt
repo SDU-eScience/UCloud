@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.*
@@ -79,14 +80,11 @@ fun main() {
                 OutgoingCallResponse.Ok(Unit)
             }
 
-
-            /*
             val jobs = JobsProvider("im-test")
             implement(jobs.retrieveProducts) {
                 println("Call made by: ${ctx.securityPrincipalTokenOrNull}")
                 throw RPCException("Bailing out", HttpStatusCode.InternalServerError)
             }
-             */
         }
 
 
@@ -96,11 +94,14 @@ fun main() {
         val refreshToken = NativeFile.open("$homeDir/sducloud/refreshtoken.txt", readOnly = true).readText().lines()
             .firstOrNull() ?: throw IllegalStateException("Missing refresh token")
         val certificate = NativeFile.open("$homeDir/sducloud/certificate.txt", readOnly = true).readText()
+            .replace("\n", "")
+            .replace("\r", "")
             .removePrefix("-----BEGIN PUBLIC KEY-----")
             .removeSuffix("-----END PUBLIC KEY-----")
             .chunked(64)
+            .filter { it.isNotBlank() }
             .joinToString("\n")
-            .let { "-----BEGIN PUBLIC KEY-----\n" + it + "\n" + "-----END PUBLIC KEY-----" }
+            .let { "-----BEGIN PUBLIC KEY-----\n" + it + "\n-----END PUBLIC KEY-----" }
 
         val validation = NativeJWTValidation(certificate)
 
@@ -129,14 +130,14 @@ fun main() {
                     null
                 }
 
-                log.debug("Bearer is $bearer")
-                log.debug("Validated is $token")
                 val principal = token?.principal
 
                 val auth = handler.description.authDescription
                 if (auth.roles != Roles.PUBLIC && principal == null) {
+                    log.debug("Princpal was null")
                     throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-                } else if (principal != null && principal.role in auth.roles) {
+                } else if (principal != null && principal.role !in auth.roles) {
+                    log.debug("Role is not authorized ${principal}")
                     throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 }
             }
@@ -193,8 +194,12 @@ data class TestRequest(val a: Int, val b: Boolean, val c: String)
 object CallTest : CallDescriptionContainer("test") {
     const val baseContext = "/ucloud/test"
 
+    init {
+        println("init()")
+    }
 
     val testQuery = call<TestRequest, Unit, CommonErrorMessage>("testQuery") {
+        println("testQuery")
         httpRetrieve(baseContext)
     }
 

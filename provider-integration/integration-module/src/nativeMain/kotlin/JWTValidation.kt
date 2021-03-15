@@ -7,7 +7,9 @@ import platform.posix.time
 import kotlin.native.concurrent.freeze
 
 class NativeJWTValidation(certificate: String) {
-    private val frozenCertificate = certificate.encodeToByteArray().toUByteArray().pin().also { it.freeze() }
+    private val arena = Arena()
+    private val length = certificate.encodeToByteArray().size
+    private val frozenCertificate = certificate.cstr.placeTo(arena)
 
     @OptIn(ExperimentalUnsignedTypes::class)
     fun validateOrNull(token: String): SecurityPrincipalToken? = memScoped {
@@ -21,7 +23,7 @@ class NativeJWTValidation(certificate: String) {
 
         jwt_valid_set_headers(valid[0], 1)
         jwt_valid_set_now(valid[0], time(null))
-        jwt_decode(jwtRef, token, frozenCertificate.addressOf(0), frozenCertificate.get().size)
+        jwt_decode(jwtRef, token, frozenCertificate.reinterpret(), length)
         if (jwt_validate(jwtRef[0], valid[0]) != 0U) {
             return null
         }
