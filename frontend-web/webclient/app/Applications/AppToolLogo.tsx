@@ -9,7 +9,6 @@ interface AppToolLogoProps {
     name: string;
     size?: string;
     type: AppOrTool;
-    cacheBust?: string;
 }
 
 export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
@@ -18,6 +17,8 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
     const [dataUrl, setDataUrl] = useState<string | null | "loading">("loading");
     useEffect(() => {
         let didCancel = false;
+        /* NOTE(jonas): `props.name` is sometimes an empty string, why? */
+        if (!props.name) return;
         (async () => {
             const fetchedLogo = props.type === "APPLICATION" ?
                 await appLogoCache.fetchLogo(props.name) :
