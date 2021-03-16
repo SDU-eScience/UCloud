@@ -19,8 +19,9 @@ class ApplicationTagsAsyncDao() {
         applicationName: String,
         tags: List<String>
     ) {
+        val normalizedAppName = applicationName.toLowerCase()
         ctx.withSession { session ->
-            val owner = findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
+            val owner = findOwnerOfApplication(session, normalizedAppName) ?: throw RPCException.fromStatusCode(
                 HttpStatusCode.NotFound
             )
 
@@ -28,7 +29,7 @@ class ApplicationTagsAsyncDao() {
                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not owner of application")
             }
             tags.forEach { tag ->
-                val existing = ctx.withSession { session -> findTag(session, applicationName, tag) }
+                val existing = ctx.withSession { session -> findTag(session, normalizedAppName, tag) }
 
                 if (existing != null) {
                     return@forEach
@@ -36,7 +37,7 @@ class ApplicationTagsAsyncDao() {
                 val id = session.allocateId()
                 session.insert(TagTable) {
                     set(TagTable.id, id)
-                    set(TagTable.applicationName, applicationName)
+                    set(TagTable.applicationName, normalizedAppName)
                     set(TagTable.tag, tag)
                 }
             }
@@ -49,8 +50,9 @@ class ApplicationTagsAsyncDao() {
         applicationName: String,
         tags: List<String>
     ) {
+        val normalizedAppName = applicationName.toLowerCase()
         ctx.withSession { session ->
-            val owner = findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
+            val owner = findOwnerOfApplication(session, normalizedAppName) ?: throw RPCException.fromStatusCode(
                 HttpStatusCode.NotFound
             )
 
@@ -61,7 +63,7 @@ class ApplicationTagsAsyncDao() {
             tags.forEach { tag ->
                 val existing = findTag(
                     session,
-                    applicationName,
+                    normalizedAppName,
                     tag
                 ) ?: return@forEach
 
@@ -90,7 +92,7 @@ class ApplicationTagsAsyncDao() {
                 .sendPreparedStatement(
                     {
                         setParameter("tag", tag)
-                        setParameter("appname", appName)
+                        setParameter("appname", appName.toLowerCase())
                     },
                     """
                         SELECT * 
@@ -111,7 +113,7 @@ class ApplicationTagsAsyncDao() {
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("appname", applicationName)
+                        setParameter("appname", applicationName.toLowerCase())
                     },
                     """
                         SELECT * 

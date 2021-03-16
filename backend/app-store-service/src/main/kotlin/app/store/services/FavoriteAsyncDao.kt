@@ -30,10 +30,12 @@ class FavoriteAsyncDao(
         appName: String,
         appVersion: String
     ) {
+        val normalizedAppName = appName.toLowerCase()
+        val normalizedAppVersion = appVersion.toLowerCase()
         ctx.withSession { session ->
             val foundApp =
-                internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.BadApplication()
-            val isFavorite = isFavorite(session, user, appName, appVersion)
+                internalByNameAndVersion(session, normalizedAppName, normalizedAppVersion) ?: throw ApplicationException.BadApplication()
+            val isFavorite = isFavorite(session, user, normalizedAppName, normalizedAppVersion)
 
             if (isFavorite) {
 
@@ -41,8 +43,8 @@ class FavoriteAsyncDao(
                     .sendPreparedStatement(
                         {
                             setParameter("user", user.username)
-                            setParameter("appname", appName)
-                            setParameter("appversion", appVersion)
+                            setParameter("appname", normalizedAppName)
+                            setParameter("appversion", normalizedAppVersion)
                         },
                         """
                             DELETE FROM favorited_by
@@ -96,8 +98,8 @@ class FavoriteAsyncDao(
                 .sendPreparedStatement(
                     {
                         setParameter("user", user.username)
-                        setParameter("name", appName)
-                        setParameter("version", appVersion)
+                        setParameter("name", appName.toLowerCase())
+                        setParameter("version", appVersion.toLowerCase())
                     },
                     """
                         SELECT COUNT(*)

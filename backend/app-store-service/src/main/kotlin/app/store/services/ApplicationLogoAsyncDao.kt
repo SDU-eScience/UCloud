@@ -14,22 +14,23 @@ class ApplicationLogoAsyncDao(
     private val appStoreAsyncDao: AppStoreAsyncDao
 ) {
 
-    suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, name: String, imageBytes: ByteArray) {
+    suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, appName: String, imageBytes: ByteArray) {
+        val normalizedAppName = appName.toLowerCase()
         val applicationOwner = ctx.withSession { session ->
-            findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            findOwnerOfApplication(session, normalizedAppName) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
 
         if (user != null && applicationOwner != user.username && user.role != Role.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        val exists = fetchLogo(ctx, name)
+        val exists = fetchLogo(ctx, normalizedAppName)
         if (exists != null) {
             ctx.withSession { session ->
                 session.sendPreparedStatement(
                     {
                         setParameter("bytes", imageBytes)
-                        setParameter("appname", name)
+                        setParameter("appname", normalizedAppName)
                     },
                     """
                         UPDATE application_logos
@@ -41,17 +42,18 @@ class ApplicationLogoAsyncDao(
         } else {
             ctx.withSession { session ->
                 session.insert(ApplicationLogosTable) {
-                    set(ApplicationLogosTable.application, name)
+                    set(ApplicationLogosTable.application, normalizedAppName)
                     set(ApplicationLogosTable.data, imageBytes)
                 }
             }
         }
     }
 
-    suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
+    suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, appName: String) {
+        val normalizedAppName = appName.toLowerCase()
         val application =
             ctx.withSession { session ->
-                findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                findOwnerOfApplication(session, normalizedAppName) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         if (application != user.username && user.role != Role.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
@@ -60,7 +62,7 @@ class ApplicationLogoAsyncDao(
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("appname", name)
+                    setParameter("appname", normalizedAppName)
                 },
                 """
                     DELETE FROM application_logos
@@ -70,11 +72,12 @@ class ApplicationLogoAsyncDao(
         }
     }
 
-    suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray? {
+    suspend fun fetchLogo(ctx: DBContext, appName: String): ByteArray? {
+        val normalizedAppName = appName.toLowerCase()
         val logoFromApp = ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("appname", name)
+                    setParameter("appname", normalizedAppName)
                 },
                 """
                     SELECT *
@@ -90,7 +93,7 @@ class ApplicationLogoAsyncDao(
                 null,
                 null,
                 emptyList(),
-                name,
+                normalizedAppName,
                 PaginationRequest().normalize(),
                 appStoreAsyncDao
             ).items.firstOrNull()
