@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.client.*
@@ -16,7 +15,6 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
-import io.ktor.util.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.CoroutineScope
@@ -29,11 +27,15 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
-import java.io.File
+import java.io.*
 import java.net.ConnectException
 import java.net.URLEncoder
+import java.security.KeyStore
 import java.util.*
 import java.util.concurrent.TimeUnit
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+import javax.net.ssl.*
 
 sealed class KubernetesConfigurationSource {
     abstract fun retrieveConnection(): KubernetesConnection?
@@ -150,15 +152,32 @@ sealed class KubernetesConfigurationSource {
                 .takeIf { it.exists() } ?: return null
 
             val token = File(serviceAccount, "token").takeIf { it.exists() }?.readText()
-            val caCert = File(serviceAccount, "ca.crt").takeIf { it.exists() }?.readText()
+            val caCert = File(serviceAccount, "ca.crt").takeIf { it.exists() }?.inputStream()
             val namespace = File(serviceAccount, "namespace").takeIf { it.exists() }?.readText()
+
+            val certificate = CertificateFactory.getInstance("X.509").generateCertificate(caCert) as X509Certificate
+            val alias = "kube-ca"
+
+            val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
+            keyStore.load(null, null)
+            keyStore.setCertificateEntry(alias, certificate)
+
+            val trustManagerFactory = TrustManagerFactory.getInstance("X509")
+            trustManagerFactory.init(keyStore)
+
+            val trustManager = if (trustManagerFactory.trustManagers.size > 0) {
+                trustManagerFactory.trustManagers.get(0)
+            } else {
+                null
+            }
 
             if (token == null) return null
 
             return KubernetesConnection(
                 "https://kubernetes.default.svc",
-                KubernetesAuthenticationMethod.Proxy(null),
-                namespace ?: "default"
+                KubernetesAuthenticationMethod.Token(token),
+                namespace ?: "default",
+                trustManager
             )
         }
     }
@@ -286,6 +305,7 @@ class KubernetesConnection(
     masterUrl: String,
     val authenticationMethod: KubernetesAuthenticationMethod,
     val defaultNamespace: String = "default",
+    val trustManager: TrustManager? = null
 ) {
     val masterUrl = masterUrl.removeSuffix("/")
     override fun toString(): String {
@@ -339,6 +359,12 @@ class KubernetesClient(
                 this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
                 this.connectTimeoutMillis = 1000 * 60
                 this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
+            }
+
+            engine {
+                https {
+                    trustManager = configurationSource.retrieveConnection()?.trustManager
+                }
             }
         }
     }
