@@ -631,7 +631,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             null :
             <InfoCard
                 stat={prettyTime}
-                statTitle={["SUCCESS", "EXPIRED"].includes(job.status.state) ? "Used" : "Allocated"}
+                statTitle={"Allocated"}
                 icon={"hourglass"}
             >
                 {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
