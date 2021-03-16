@@ -105,5 +105,15 @@ kotlin {
     sourceSets {
         val nativeMain by getting
         val nativeTest by getting
+
+        all {
+            languageSettings.enableLanguageFeature("InlineClasses")
+            languageSettings.progressiveMode = true
+            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
+            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
+            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalStdlibApi")
+            languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
+        }
     }
 }

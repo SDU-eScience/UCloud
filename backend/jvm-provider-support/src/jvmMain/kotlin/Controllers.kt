@@ -1,7 +1,9 @@
+@file:Suppress("RemoveRedundantQualifierName", "RedundantUnitReturnType", "unused", "UNREACHABLE_CODE", "UNCHECKED_CAST")
+
+package dk.sdu.cloud.providers
+
 /* AUTO GENERATED CODE - DO NOT MODIFY */
 /* Generated at: Tue Mar 09 15:12:59 CET 2021 */
-
-@file:Suppress("RemoveRedundantQualifierName", "RedundantUnitReturnType", "unused", "UNREACHABLE_CODE", "UNCHECKED_CAST")
 
 import dk.sdu.cloud.providers.UCloudRpcDispatcher
 import dk.sdu.cloud.providers.UCloudWsDispatcher

@@ -31,10 +31,12 @@ fun generateSpringMvcCode() {
     )
 
     outputFile.writer().use { w ->
+        w.appendLine("@file:Suppress(\"RemoveRedundantQualifierName\", \"RedundantUnitReturnType\", \"unused\", \"UNREACHABLE_CODE\", \"UNCHECKED_CAST\")")
+        w.appendLine("package dk.sdu.cloud.providers")
+        w.appendLine()
         w.appendLine("/* AUTO GENERATED CODE - DO NOT MODIFY */")
         w.appendLine("/* Generated at: ${Date()} */")
         w.appendLine()
-        w.appendLine("@file:Suppress(\"RemoveRedundantQualifierName\", \"RedundantUnitReturnType\", \"unused\", \"UNREACHABLE_CODE\", \"UNCHECKED_CAST\")")
         w.appendLine()
         w.appendLine("import dk.sdu.cloud.providers.UCloudRpcDispatcher")
         w.appendLine("import dk.sdu.cloud.providers.UCloudWsDispatcher")

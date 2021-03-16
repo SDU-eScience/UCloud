@@ -26,7 +26,7 @@ interface Middleware {
     fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>)
 }
 
-data class H2OCtx(
+data class HttpContext(
     val reqPtr: CPointer<h2o.h2o_req_t>
 )
 
