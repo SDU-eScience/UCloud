@@ -344,6 +344,19 @@ export const View: React.FunctionComponent = () => {
         };
     }, [job]);
 
+    useEffect(() => {
+        // Used to fetch creditsCharged when job finishes.
+        if (isJobStateTerminal(status?.state ?? "RUNNING") && job?.status.state !== status?.state) {
+            fetchJob(compute.jobs.retrieve({
+                id,
+                includeParameters: true,
+                includeProduct: true,
+                includeApplication: true,
+                includeUpdates: true
+            }));
+        }
+    }, [status?.state])
+
     const jobUpdateCallbackHandlers = useRef<JobUpdateListener[]>([]);
     useEffect(() => {
         jobUpdateCallbackHandlers.current = [{
@@ -630,11 +643,13 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             null :
             <InfoCard
                 stat={prettyTime}
-                statTitle={["SUCCESS", "EXPIRED"].includes(job.status.state) ? "Used" : "Allocated"}
+                statTitle={"Allocated"}
                 icon={"hourglass"}
             >
-                {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
-                <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+                {!isJobStateTerminal(status?.state) ? (<>
+                    {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
+                    <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+                </>) : <><b>Charged: </b>{creditFormatter(job.billing.creditsCharged)}</>}
             </InfoCard>
         }
         <InfoCard
