@@ -32,7 +32,9 @@ fun findHomeDirectoryFromPath(path: String): String {
 }
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
-    val basePath = components.joinToString("/") + (if (isDirectory) "/" else "").normalize()
+    val basePath = components.map {
+        it.removeSuffix("/")
+    }.joinToString("/") + (if (isDirectory) "/" else "").normalize()
     return if (basePath.startsWith("/")) basePath
     else "/$basePath"
 }

@@ -34,7 +34,7 @@ class JobFileService(
         val userClient = userClientFactory(refreshToken)
 
         val project = job.owner.project
-        val jobsFolder = jobsFolder(job.owner.launchedBy, project)
+        val jobsFolder = jobsFolder(job.owner.createdBy, project)
         if (project != null) {
             // Create the personal repository lazily
             FileDescriptions.createPersonalRepository.call(
@@ -190,7 +190,7 @@ class JobFileService(
         if (outputFolder != null) {
             return outputFolder
         } else {
-            val jobsFolder = jobsFolder(job.owner.launchedBy, job.owner.project)
+            val jobsFolder = jobsFolder(job.owner.createdBy, job.owner.project)
             var folderName = job.id
 
             if (new) {
