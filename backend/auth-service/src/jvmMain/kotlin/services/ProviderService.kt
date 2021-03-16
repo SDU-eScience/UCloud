@@ -17,6 +17,7 @@ import java.security.interfaces.RSAPrivateKey
 import java.util.*
 
 class ProviderService(
+    private val devMode: Boolean,
     private val db: AsyncDBSessionFactory,
     private val dao: ProviderDao,
 ) {
@@ -99,12 +100,12 @@ class ProviderService(
         return AccessToken(factory.generate(contents))
     }
 
-    suspend fun refreshTokenAsProvider(
+    suspend fun refreshTokenAsOrchestrator(
         actorAndProject: ActorAndProject,
         request: AuthProvidersRefreshAsProviderRequest,
     ): AuthProvidersRefreshAsProviderResponse {
         val (actor) = actorAndProject
-        if (actor != Actor.System && actor.safeUsername() !in whitelistedProviders) {
+        if (!devMode && (actor != Actor.System && actor.safeUsername() !in whitelistedProviders)) {
             throw RPCException("You have not been pre-authorized to perform this call", HttpStatusCode.Forbidden)
         }
 

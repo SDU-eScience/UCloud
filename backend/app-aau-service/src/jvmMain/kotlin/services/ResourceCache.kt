@@ -1,13 +1,13 @@
 package dk.sdu.cloud.app.aau.services
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.app.aau.ClientHolder
 import dk.sdu.cloud.app.orchestrator.api.ComputeProductReference
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.app.orchestrator.api.JobsControlRetrieveRequest
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.SimpleCache
@@ -17,7 +17,7 @@ data class ResolvedJobResources(
     val application: Application,
 )
 
-class ResourceCache(private val serviceClient: AuthenticatedClient) {
+class ResourceCache(private val client: ClientHolder) {
     private val products = SimpleCache<String, Product.Compute>(
         maxAge = 1000 * 60 * 60 * 24L,
         lookup = { null }
@@ -49,7 +49,7 @@ class ResourceCache(private val serviceClient: AuthenticatedClient) {
 
         val retrievedJob = JobsControl.retrieve.call(
             JobsControlRetrieveRequest(job.id, includeProduct = true, includeApplication = true),
-            serviceClient
+            client.client
         ).orThrow()
 
         cache(retrievedJob)

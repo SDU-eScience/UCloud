@@ -33,6 +33,7 @@ internal actual fun createHttpClient() = HttpClient(OkHttp) {
 @OptIn(KtorExperimentalAPI::class)
 actual fun createWebsocketClient(): HttpClient = HttpClient(CIO) {
     install(WebSockets)
+    expectSuccess = false
 }
 
 internal actual fun urlEncode(value: String): String {

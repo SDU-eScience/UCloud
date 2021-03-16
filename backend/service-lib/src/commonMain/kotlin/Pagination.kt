@@ -22,8 +22,8 @@ data class Page<out T>(
         }
     }
 }
-val Page<*>.pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 
+val Page<*>.pagesInTotal: Int get() = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 
 interface WithPaginationRequest {
     val itemsPerPage: Int?

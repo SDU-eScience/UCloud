@@ -22,6 +22,7 @@ class JobQueryService(
     private val projectCache: ProjectCache,
     private val appStoreCache: AppStoreCache,
     private val productCache: ProductCache,
+    private val providerSupport: ProviderSupportService,
 ) {
     suspend fun browse(
         securityPrincipal: Actor,
@@ -213,6 +214,21 @@ class JobQueryService(
                 job.copy(
                     specification = job.specification.copy(resolvedProduct = uniqueMachines[job.specification.product])
                 )
+            }
+        }
+
+        if (flags.includeSupport == true) {
+            val providers = jobs.map { it.specification.product.provider }.toSet()
+            val productsWithSupport = providerSupport.retrieveProducts(providers).productsByProvider
+            jobs = jobs.map { job ->
+                job.copy(specification = job.specification.copy(
+                    resolvedSupport = productsWithSupport[job.specification.product.provider]
+                        ?.find {
+                            it.product.id == job.specification.product.id &&
+                                it.product.category.id == job.specification.product.category
+                        }
+                        ?.support
+                ))
             }
         }
 

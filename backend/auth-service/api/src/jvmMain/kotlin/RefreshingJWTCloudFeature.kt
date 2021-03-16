@@ -39,7 +39,8 @@ class AuthenticatorFeature : MicroFeature {
         ) as TokenValidation<Any>
     }
 
-    companion object Feature : MicroFeatureFactory<AuthenticatorFeature, Unit> {
+    companion object Feature : MicroFeatureFactory<AuthenticatorFeature, Unit>, Loggable {
+        override val log = logger()
         override val key = MicroAttributeKey<AuthenticatorFeature>("refreshing-jwt-cloud-feature")
         override fun create(config: Unit): AuthenticatorFeature = AuthenticatorFeature()
 
@@ -57,10 +58,9 @@ class TokenValidationWithProviderSupport(
             FindByStringId(provider),
             serviceClient
         ).orThrow().publicKey
-        val publicKey = loadCert(publicKeyAsString)?.publicKey
-            ?: throw RPCException("Could not read public key", HttpStatusCode.InternalServerError)
+        val publicKey = InternalTokenValidationJWT.parsePublicKey(publicKeyAsString)
 
-        JWT.require(Algorithm.RSA256(publicKey as RSAPublicKey, null)).run {
+        JWT.require(Algorithm.RSA256(publicKey, null)).run {
             withIssuer("cloud.sdu.dk")
             build()
         }
@@ -71,7 +71,14 @@ class TokenValidationWithProviderSupport(
     }
 
     override fun validate(token: String, scopes: List<SecurityScope>?): DecodedJWT {
-        val decodedJwt = jwtDecoderWhichDoesNotVerifyThinkBeforeYouType.decodeJwt(token).toSecurityToken()
+        val decodedJwt = try {
+            jwtDecoderWhichDoesNotVerifyThinkBeforeYouType.decodeJwt(token).toSecurityToken()
+        } catch (ex: JWTVerificationException) {
+            throw TokenValidationException.Invalid()
+        } catch (ex: JWTDecodeException) {
+            throw TokenValidationException.Invalid()
+        }
+
         return if (decodedJwt.principal.role == Role.PROVIDER) {
             val verifier = runBlocking {
                 providerVerifier.get(decodedJwt.principal.username.removePrefix(AuthProviders.PROVIDER_PREFIX))
@@ -88,6 +95,10 @@ class TokenValidationWithProviderSupport(
         } else {
             delegate.validate(token, scopes)
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

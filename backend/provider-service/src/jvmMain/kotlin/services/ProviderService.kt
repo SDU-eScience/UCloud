@@ -109,17 +109,6 @@ class ProviderService(
         }
     }
 
-    suspend fun updateManifest(
-        actor: Actor,
-        request: BulkRequest<ManifestAndId>,
-    ) {
-        db.withSession { session ->
-            request.items.forEach { req ->
-                dao.updateManifest(session, actor, req.id, req.manifest)
-            }
-        }
-    }
-
     suspend fun claimTheUnclaimed() {
         db.withSession { session ->
             val items = dao.findUnclaimed(session).mapNotNull {

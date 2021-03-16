@@ -386,7 +386,7 @@ fun injectMarkdownDocs(
     documents.add(MarkdownDocument.fromFile(File("./README.md")))
 
     (File(".").listFiles() ?: emptyArray())
-        .filter { it.isDirectory && (it.name.endsWith("-service") || it.name == "service-common") }
+        .filter { it.isDirectory && (it.name.endsWith("-service") || it.name == "service-lib") }
         .forEach { serviceDir ->
             documents.add(MarkdownDocument.fromFile(File(serviceDir, "README.md")))
             val wiki = File(serviceDir, "wiki").takeIf { it.exists() } ?: return@forEach

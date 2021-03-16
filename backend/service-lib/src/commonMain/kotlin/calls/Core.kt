@@ -1,6 +1,7 @@
 package dk.sdu.cloud.calls
 
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
@@ -106,9 +107,9 @@ inline fun <reified Request : Any, reified Success : Any, reified Error : Any> C
     return call(
         name,
         handler,
-        serializer(),
-        serializer(),
-        serializer(),
+        fixedSerializer(),
+        fixedSerializer(),
+        fixedSerializer(),
         typeOf<Request>(),
         typeOf<Success>(),
         typeOf<Error>(),
@@ -117,3 +118,24 @@ inline fun <reified Request : Any, reified Success : Any, reified Error : Any> C
 
 typealias OnCallDescriptionBuildHandler = (CallDescription<*, *, *>) -> Unit
 
+private val serializerLookupTableKey = AttributeKey<Map<KType, KSerializer<*>>>("serializer-lookup-table")
+var CallDescriptionContainer.serializerLookupTable: Map<KType, KSerializer<*>>
+    get() = attributes[serializerLookupTableKey]
+    set(value) {
+        attributes[serializerLookupTableKey] = value
+    }
+
+@OptIn(ExperimentalStdlibApi::class)
+inline fun <reified T> serializerEntry(serializer: KSerializer<T>): Pair<KType, KSerializer<T>> {
+    return Pair(typeOf<T>(), serializer)
+}
+
+@OptIn(ExperimentalStdlibApi::class)
+inline fun <reified Request : Any> CallDescriptionContainer.fixedSerializer(): KSerializer<Request> {
+    return try {
+        serializer<Request>()
+    } catch (ex: SerializationException) {
+        @Suppress("UNCHECKED_CAST")
+        serializerLookupTable[typeOf<Request>()] as KSerializer<Request>? ?: throw ex
+    }
+}

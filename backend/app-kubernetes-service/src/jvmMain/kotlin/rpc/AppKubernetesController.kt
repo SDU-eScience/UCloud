@@ -74,7 +74,7 @@ class AppKubernetesController(
             }
             val vncSessions = vncJobs.map { vncService.createSession(it) }
 
-            ok(ComputeOpenInteractiveSessionResponse(
+            ok(JobsProviderOpenInteractiveSessionResponse(
                 buildList {
                     addAll(
                         shellSessions.mapIndexed { idx, sessionIdentifier ->
@@ -89,13 +89,13 @@ class AppKubernetesController(
             ))
         }
 
-        implement(KubernetesCompute.retrieveProductsTemporary) {
+        implement(KubernetesCompute.retrieveProducts) {
             ok(jobManagement.retrieveProductsTemporary())
         }
 
         implement(KubernetesCompute.follow) {
             when (val request = request) {
-                is ComputeFollowRequest.Init -> {
+                is JobsProviderFollowRequest.Init -> {
                     val streamId = UUID.randomUUID().toString()
                     try {
                         val logWatch = logService.useLogWatch(request.job.id)
@@ -103,27 +103,27 @@ class AppKubernetesController(
                             streams[streamId] = logWatch
                         }
 
-                        sendWSMessage(ComputeFollowResponse(streamId, -1, null, null))
+                        sendWSMessage(JobsProviderFollowResponse(streamId, -1, null, null))
 
                         while (!logWatch.isClosedForReceive) {
                             val nextMessage = logWatch.receiveOrNull() ?: break
-                            sendWSMessage(ComputeFollowResponse(streamId, nextMessage.rank, nextMessage.message, null))
+                            sendWSMessage(JobsProviderFollowResponse(streamId, nextMessage.rank, nextMessage.message, null))
                         }
 
                         streamsMutex.withLock { streams.remove(streamId) }
-                        ok(ComputeFollowResponse(streamId, -1, null, null))
+                        ok(JobsProviderFollowResponse(streamId, -1, null, null))
                     } catch (ex: Throwable) {
                         streamsMutex.withLock { streams.remove(streamId) }
                         okContentAlreadyDelivered()
                     }
                 }
 
-                is ComputeFollowRequest.CancelStream -> {
+                is JobsProviderFollowRequest.CancelStream -> {
                     try {
                         streamsMutex.withLock {
                             streams.remove(request.streamId)?.cancel()
                         }
-                        ok(ComputeFollowResponse("", -1, null, null))
+                        ok(JobsProviderFollowResponse("", -1, null, null))
                     } catch (ex: Throwable) {
                         okContentAlreadyDelivered()
                     }
@@ -132,7 +132,7 @@ class AppKubernetesController(
         }
 
         implement(KubernetesCompute.retrieveUtilization) {
-            ok(ComputeUtilizationResponse(
+            ok(JobsProviderUtilizationResponse(
                 utilizationService.retrieveCapacity(),
                 utilizationService.retrieveUsedCapacity(),
                 utilizationService.retrieveQueueStatus()

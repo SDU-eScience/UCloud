@@ -14,6 +14,7 @@ import kotlinx.coroutines.selects.select
 
 private val webSocketClient = HttpClient(CIO).config {
     install(io.ktor.client.features.websocket.WebSockets)
+    expectSuccess = false
 }
 
 class ExecContext(

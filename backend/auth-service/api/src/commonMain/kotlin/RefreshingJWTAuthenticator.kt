@@ -37,7 +37,7 @@ sealed class JwtRefresher {
         private val providerId: String,
     ) : JwtRefresher() {
         override suspend fun fetchToken(client: RpcClient): String {
-            return AuthProviders.refreshAsProvider
+            return AuthProviders.refreshAsOrchestrator
                 .call(
                     bulkRequestOf(AuthProvidersRefreshAsProviderRequestItem(providerId)),
                     authenticatedClient
@@ -52,10 +52,11 @@ class RefreshingJWTAuthenticator(
     private val refresher: JwtRefresher,
     private val becomesInvalidSoon: (accessToken: String) -> Boolean,
 ) {
-    private var currentAccessToken = "~~token will not validate~~"
+    // We use an atomic only because Kotlin/Native needs this to be frozen
+    private var currentAccessToken = atomicString("~~token will not validate~~")
 
     suspend fun retrieveTokenRefreshIfNeeded(): String {
-        val currentToken = currentAccessToken
+        val currentToken = currentAccessToken.getValue()
         return if (becomesInvalidSoon(currentToken)) {
             refresh()
         } else {
@@ -65,10 +66,11 @@ class RefreshingJWTAuthenticator(
 
     private suspend fun refresh(attempts: Int = 0): String {
         log.trace("Refreshing token")
-        if (becomesInvalidSoon(currentAccessToken)) {
+        if (becomesInvalidSoon(currentAccessToken.getValue())) {
             try {
-                currentAccessToken = refresher.fetchToken(client)
-                return currentAccessToken
+                val newValue = refresher.fetchToken(client)
+                currentAccessToken.getAndSet(newValue)
+                return newValue
             } catch (ex: RPCException) {
                 val statusCode = ex.httpStatusCode
                 if (
@@ -103,7 +105,7 @@ class RefreshingJWTAuthenticator(
                 )
             }
         }
-        return currentAccessToken
+        return currentAccessToken.getValue()
     }
 
     fun authenticateClient(

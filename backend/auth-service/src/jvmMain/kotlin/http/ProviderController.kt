@@ -23,8 +23,8 @@ class ProviderController(private val service: ProviderService) : Controller {
             ok(BulkResponse(refreshed.responses.map { it.second }))
         }
 
-        implement(AuthProviders.refreshAsProvider) {
-            ok(service.refreshTokenAsProvider(actorAndProject, request))
+        implement(AuthProviders.refreshAsOrchestrator) {
+            ok(service.refreshTokenAsOrchestrator(actorAndProject, request))
         }
 
         implement(AuthProviders.register) {

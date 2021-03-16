@@ -82,3 +82,10 @@ var Micro.tokenValidation: TokenValidation<Any>
         attributes[tokenValidationKey] = value
     }
 
+private val providerTokenValidationKey = MicroAttributeKey<TokenValidation<Any>>("provider-token-validation")
+var Micro.providerTokenValidation: TokenValidation<Any>
+    get() = attributes[providerTokenValidationKey]
+    set (value) {
+        attributes[providerTokenValidationKey] = value
+    }
+

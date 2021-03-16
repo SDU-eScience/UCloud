@@ -44,6 +44,7 @@ declare global {
         withCredentials?: boolean;
         projectOverride?: string;
         disableCache?: boolean;
+        accessTokenOverride?: string;
     }
 }
 
@@ -79,7 +80,8 @@ export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Pro
         body: parameters.payload,
         context: parameters.context,
         withCredentials: parameters.withCredentials,
-        projectOverride: parameters.projectOverride
+        projectOverride: parameters.projectOverride,
+        accessTokenOverride: parameters.accessTokenOverride,
     })).response;
 }
 

@@ -228,6 +228,17 @@ subprojects {
             repositories {
                 maven {
                     mavenLocal()
+
+                    maven {
+                        name = "GitHubPackages"
+                        url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+                        credentials {
+                            username = (project.findProperty("gpr.user") as? String?)
+                                ?: System.getenv("GITHUB_USERNAME")
+                            password = (project.findProperty("gpr.key") as? String?)
+                                ?: System.getenv("GITHUB_TOKEN")
+                        }
+                    }
                 }
             }
 
@@ -235,20 +246,22 @@ subprojects {
                 all {
                     if (this is MavenPublication) {
                         this.groupId = "dk.sdu.cloud"
-                        this.artifactId = project.parent!!.name + "-api"
+                        val metadata = artifactId.substringAfterLast("-")
+                        this.artifactId = project.parent!!.name + "-api" + if (metadata == "api") "" else "-$metadata"
                     }
                 }
             }
         }
 
         tasks.withType<Jar> {
+            val metadata = archiveName.substringAfterLast("-").removeSuffix(".jar")
             val name = if (groupBuilder.isEmpty()) {
                 "ucloud"
             } else {
                 "ucloud-" + groupBuilder.reversed().joinToString("-")
             }
 
-            archiveName = "$name.jar"
+            archiveName = "$name-${metadata}.jar"
         }
     }
 }

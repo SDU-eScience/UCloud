@@ -20,7 +20,7 @@ object UCloudApi {
  * Used for RPCs which request the creation of one or more resources in UCloud.
  *
  * RPCs in this category must accept request payloads in the form of a
- * [bulk request](/backend/service-common/wiki/api_conventions.md#bulk-request).
+ * [bulk request](/backend/service-lib/wiki/api_conventions.md#bulk-request).
  *
  * Calls in this category should respond back with a list of newly created IDs for every resource that has been
  * created. A client can choose to use these to display information about the newly created resources.
@@ -76,7 +76,7 @@ private fun CallDescriptionContainer.httpCreateExample() {
  * Used for RPCs which requests a set of resources from UCloud defined by some criteria.
  *
  * Browse RPCs are typically used for pagination of a resource, defined by some criteria. You can read more about
- * pagination [here](/backend/service-common/wiki/api_conventions.md#pagination).
+ * pagination [here](/backend/service-lib/wiki/api_conventions.md#pagination).
  *
  * All data returned by this API must be returned in a predictable and deterministic way. In particular, this means
  * that implementors need to take care and implement a _consistent sort order_ of the items. This is unlike the
@@ -112,7 +112,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
 
         if (R::class != Unit::class) {
             params {
-                serializer<R>().descriptor.elementNames.forEach {
+                containerRef.fixedSerializer<R>().descriptor.elementNames.forEach {
                     +boundTo(it)
                 }
             }
@@ -181,7 +181,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
 
         if (R::class != Unit::class) {
             params {
-                serializer<R>().descriptor.elementNames.forEach {
+                containerRef.fixedSerializer<R>().descriptor.elementNames.forEach {
                     +boundTo(it)
                 }
             }
@@ -235,7 +235,7 @@ private fun CallDescriptionContainer.httpRetrieveExample() {
  * [httpBrowse] category.
  *
  * This type of call typically exposes its results via the
- * [pagination](/backend/service-common/wiki/api_conventions.md#pagination) API.
+ * [pagination](/backend/service-lib/wiki/api_conventions.md#pagination) API.
  *
  * Search criteria, unlike browse criterion, can also with great benefit choose to search in multiple fields at the
  * same time. For example, if a user is searching for a file with a simple free-text query. Then it would be beneficial
@@ -306,7 +306,7 @@ private fun CallDescriptionContainer.httpSearchExample() {
  * _Interacts_ with a UCloud resource, typically causing an update to the resource itself.
  *
  * RPCs in this category must accept request payloads in the form of a
- * [bulk request](/backend/service-common/wiki/api_conventions.md#bulk-request).
+ * [bulk request](/backend/service-lib/wiki/api_conventions.md#bulk-request).
  *
  * This category of calls can be used for any type of interaction with a UCloud resource. Many resources in UCloud
  * are represented by some underlying complex logic. As a result, it is typically not meaningful or possible to simple
@@ -376,7 +376,7 @@ private fun CallDescriptionContainer.httpUpdateExample() {
  * Used for RPCs which request the deletion of one or more resources in UCloud.
  *
  * RPCs in this category must accept request payloads in the form of a
- * [bulk request](/backend/service-common/wiki/api_conventions.md#bulk-request).
+ * [bulk request](/backend/service-lib/wiki/api_conventions.md#bulk-request).
  *
  * Calls in this category should choose to accept as little information about the resources, while still uniquely
  * identifying them.

@@ -26,7 +26,7 @@ object IngressTable : SQLTable("ingresses") {
 class IngressService(
     val settings: IngressSettings,
     private val db: DBContext,
-    private val serviceClient: AuthenticatedClient,
+    private val k8: K8Dependencies,
 ) : JobManagementPlugin {
     suspend fun create(ingresses: BulkRequest<Ingress>) {
         try {
@@ -83,7 +83,7 @@ class IngressService(
                     IngressControlUpdateRequestItem(it.id, IngressState.READY, "Ingress is now ready")
                 }
             ),
-            serviceClient
+            k8.serviceClient
         ).orThrow()
     }
 

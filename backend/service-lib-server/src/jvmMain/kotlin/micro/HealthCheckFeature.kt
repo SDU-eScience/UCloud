@@ -65,6 +65,7 @@ class HealthCheckFeature : MicroFeature {
         }
 
         with(serverFeature.server) {
+            microWhichIsConfiguringCalls = ctx
             implement(HealthCheckDescriptions.status) {
                 if (redisFeature != null) {
                     log.debug("Testing Redis")

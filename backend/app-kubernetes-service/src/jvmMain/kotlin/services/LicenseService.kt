@@ -45,7 +45,7 @@ object LicenseInstancesTable : SQLTable("license_instances") {
 }
 
 class LicenseService(
-    private val serviceClient: AuthenticatedClient,
+    private val k8: K8Dependencies,
     private val db: DBContext,
 ) {
     suspend fun createServer(request: BulkRequest<KubernetesLicense>) {
@@ -83,7 +83,7 @@ class LicenseService(
 
                 val resp = Products.createProduct.call(
                     license.toProduct(),
-                    serviceClient
+                    k8.serviceClient
                 )
 
                 if (resp.statusCode != HttpStatusCode.Conflict) {
@@ -160,7 +160,7 @@ class LicenseService(
 
                 Products.updateProduct.call(
                     newLicense.toProduct(),
-                    serviceClient
+                    k8.serviceClient
                 ).orThrow()
             }
         }
@@ -199,7 +199,7 @@ class LicenseService(
                         it.getField(LicenseServerTable.id),
                         it.getField(LicenseServerTable.id)
                     ),
-                    serviceClient
+                    k8.serviceClient
                 ).orThrow().hiddenInGrantApplications,
                 when (val reason = it.getFieldNullable(LicenseServerTable.availability)) {
                     null -> ProductAvailability.Available()
@@ -224,7 +224,7 @@ class LicenseService(
                 bulkRequestOf(request.items.map {
                     LicenseControlUpdateRequestItem(it.id, LicenseState.READY, "License is ready for use")
                 }),
-                serviceClient
+                k8.serviceClient
             ).orThrow()
         }
     }

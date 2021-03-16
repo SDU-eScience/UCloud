@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import dk.sdu.cloud.app.orchestrator.api.Compute
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.HttpCall
@@ -29,8 +29,6 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.responses.ApiResponses
 import io.swagger.v3.oas.models.servers.Server
 import io.swagger.v3.oas.models.tags.Tag
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonObject
@@ -135,7 +133,7 @@ fun main() {
     run {
         // Provider calls
         val calls = buildList {
-            addAll(Compute(PROVIDER_ID_PLACEHOLDER).callContainer)
+            addAll(JobsProvider(PROVIDER_ID_PLACEHOLDER).callContainer)
             addAll(JobsControl.callContainer)
         }
 
@@ -149,7 +147,7 @@ fun main() {
     run {
         // Provider API only
         val calls = buildList {
-            addAll(Compute(PROVIDER_ID_PLACEHOLDER).callContainer)
+            addAll(JobsProvider(PROVIDER_ID_PLACEHOLDER).callContainer)
         }
 
         writeSpecification(
@@ -418,7 +416,7 @@ private fun writeSpecification(
     println("UCloud has ${typeRegistry.size} number of types")
     output.mkdirs()
     generateTypeScriptCode(output, doc, typeRegistry)
-    generateSpringMvcCode(output, doc, typeRegistry)
+    generateSpringMvcCode()
     if (writeMarkdown) injectMarkdownDocs(doc, typeRegistry)
     File(output, "swagger.yaml").writeText(Yaml.pretty(doc))
     File(output, "swagger.json").writeText(Json.pretty(doc))

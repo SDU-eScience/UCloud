@@ -8,13 +8,13 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.service.SimpleCache
 
-class VerifiedJobCache(private val serviceClient: AuthenticatedClient) {
+class VerifiedJobCache(private val k8: K8Dependencies) {
     private val cache = SimpleCache<String, Job>(
         maxAge = 1000 * 60 * 60,
         lookup = { id ->
             JobsControl.retrieve.call(
                 JobsControlRetrieveRequest(id),
-                serviceClient
+                k8.serviceClient
             ).orNull()
         }
     )

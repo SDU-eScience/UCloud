@@ -31,11 +31,13 @@ class ServiceSecrets(val name: String) : KubernetesResource {
                 header("Authorization", "Bearer $jwt")
                 body = TextContent(
                     defaultMapper.writeValueAsString(
-                        mapOf(
-                            "username" to "_$name",
-                            "password" to "not-used",
-                            "email" to "not-used@example.com",
-                            "role" to "SERVICE"
+                        listOf(
+                            mapOf(
+                                "username" to "_$name",
+                                "password" to "not-used",
+                                "email" to "not-used@example.com",
+                                "role" to "SERVICE"
+                            )
                         )
                     ), ContentType.Application.Json
                 )

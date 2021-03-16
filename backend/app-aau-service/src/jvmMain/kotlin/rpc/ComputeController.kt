@@ -1,12 +1,12 @@
 package dk.sdu.cloud.app.aau.rpc
 
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.app.aau.ClientHolder
 import dk.sdu.cloud.app.aau.services.ResourceCache
 import dk.sdu.cloud.app.kubernetes.api.AauCompute
 import dk.sdu.cloud.app.kubernetes.api.AauComputeMaintenance
@@ -14,13 +14,11 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.provider.api.ManifestFeatureSupport
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.slack.api.SendSupportRequest
@@ -35,7 +33,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 
 class ComputeController(
-    private val serviceClient: AuthenticatedClient,
+    private val client: ClientHolder,
     private val resourceCache: ResourceCache,
     private val devMode: Boolean,
 ) : Controller {
@@ -89,7 +87,7 @@ class ComputeController(
                         )
                     }
                 ),
-                serviceClient
+                client.client
             ).orThrow()
 
             ok(Unit)
@@ -134,7 +132,7 @@ class ComputeController(
                         )
                     }
                 ),
-                serviceClient
+                client.client
             ).orThrow()
 
             ok(Unit)
@@ -147,7 +145,7 @@ class ComputeController(
                         req.newState,
                         req.update)
                 }),
-                serviceClient
+                client.client
             ).orThrow()
 
             ok(Unit)
@@ -156,17 +154,17 @@ class ComputeController(
         implement(AauComputeMaintenance.retrieve) {
             ok(JobsControl.retrieve.call(
                 JobsControlRetrieveRequest(request.id, includeProduct = true, includeApplication = true),
-                serviceClient
+                client.client
             ).orThrow())
         }
 
-        implement(AauCompute.retrieveProductsTemporary) {
+        implement(AauCompute.retrieveProducts) {
             ok(retrieveProductsTemporary())
         }
 
         implement(AauCompute.follow) {
-            sendWSMessage(ComputeFollowResponse("id", -1, null, null))
-            sendWSMessage(ComputeFollowResponse(
+            sendWSMessage(JobsProviderFollowResponse("id", -1, null, null))
+            sendWSMessage(JobsProviderFollowResponse(
                 "id",
                 0,
                 "Please see the 'Messages' panel for how to access your machine",
@@ -175,7 +173,7 @@ class ComputeController(
             while (currentCoroutineContext().isActive) {
                 delay(1000)
             }
-            ok(ComputeFollowResponse("", 0, "Please see the 'Messages' panel for how to access your machine", null))
+            ok(JobsProviderFollowResponse("", 0, "Please see the 'Messages' panel for how to access your machine", null))
         }
 
         implement(AauCompute.extend) {
@@ -187,7 +185,7 @@ class ComputeController(
         }
 
         implement(AauCompute.retrieveUtilization) {
-            ok(ComputeUtilizationResponse(CpuAndMemory(100.0, 100L), CpuAndMemory(0.0, 0L), QueueStatus(0, 0)))
+            ok(JobsProviderUtilizationResponse(CpuAndMemory(100.0, 100L), CpuAndMemory(0.0, 0L), QueueStatus(0, 0)))
         }
 
         implement(AauCompute.verify) {
@@ -219,7 +217,7 @@ class ComputeController(
                     "AAU Virtual Machine [${id.substringBefore('-').toUpperCase()}]",
                     message
                 ),
-                serviceClient
+                client.client
             ).orThrow()
         }
     }
@@ -227,19 +225,19 @@ class ComputeController(
     private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
         Products.retrieveAllFromProvider.call(
             RetrieveAllFromProviderRequest("aau"),
-            serviceClient
+            client.client
         ).orThrow().filterIsInstance<Product.Compute>()
     })
 
-    suspend fun retrieveProductsTemporary(): ComputeRetrieveProductsTemporaryResponse {
-        return ComputeRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
-            ComputeTemporaryProductSupport(
-                it,
-                ManifestFeatureSupport.Compute(
-                    ManifestFeatureSupport.Compute.Docker(
+    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsResponse {
+        return JobsProviderRetrieveProductsResponse(productCache.get(Unit)?.map {
+            ComputeProductSupport(
+                ProductReference(it.id, it.category.id, it.category.provider),
+                ComputeSupport(
+                    ComputeSupport.Docker(
                         enabled = false,
                     ),
-                    ManifestFeatureSupport.Compute.VirtualMachine(
+                    ComputeSupport.VirtualMachine(
                         enabled = true,
                     )
                 )

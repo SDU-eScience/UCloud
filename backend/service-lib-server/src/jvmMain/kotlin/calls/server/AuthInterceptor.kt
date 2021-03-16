@@ -1,17 +1,23 @@
 package dk.sdu.cloud.calls.server
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.calls.AttributeKey
-import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.authDescription
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.providerTokenValidation
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 
+private val microImplementedByKey = AttributeKey<Micro>("call-implemented-by")
+var CallDescription<*, *, *>.microImplementedBy: Micro
+    get() = attributes[microImplementedByKey]
+    set(value) {
+        attributes.set(microImplementedByKey, value)
+    }
+
+
 class AuthInterceptor(
-    private val tokenValidator: TokenValidation<Any>,
     private val developmentModeEnabled: Boolean,
 ) {
     fun register(server: RpcServer) {
@@ -19,6 +25,10 @@ class AuthInterceptor(
             override fun canUseContext(ctx: IngoingCall): Boolean = true
 
             override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
+                val callPath = call.httpOrNull?.path?.basePath ?: call.websocketOrNull?.path
+                val isProviderCall = callPath?.startsWith("/ucloud/") == true
+                val micro = call.microImplementedBy
+                val tokenValidator = if (isProviderCall) micro.providerTokenValidation else micro.tokenValidation
                 val auth = call.authDescription
 
                 val tokenMustValidate = Role.GUEST !in auth.roles

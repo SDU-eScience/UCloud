@@ -19,33 +19,44 @@ private val defaultMapper = Json {
 }
 
 abstract class UCloudRpcDispatcher(
-    private val rpcContainers: List<CallDescriptionContainer>,
-) {
-    @RequestMapping("/ucloud/**", consumes = [MediaType.ALL_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
+    private val container: CallDescriptionContainer,
+    private val wsDispatcher: UCloudWsDispatcher,
+) : UCloudWSHandler {
+    init {
+        wsDispatcher.addContainer(container)
+        wsDispatcher.addHandler(this) // probably a bad idea
+    }
+
+    @RequestMapping("/**", consumes = [MediaType.ALL_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
     @ResponseBody
     fun handler(request: HttpServletRequest, response: HttpServletResponse): String {
         val path = request.requestURI.removeSuffix("/").removePrefix("/").let { "/$it" }
         val method = request.method
 
+        if (request.getHeader("Upgrade").equals("websocket", ignoreCase = true) &&
+            request.getHeader("Connection").equals("upgrade", ignoreCase = true)) {
+            // Just in case we receive a WS request (which hasn't been authenticated) we should bail out
+            response.sendError(404)
+            return ""
+        }
+
         var foundCall: CallDescription<*, *, *>? = null
-        outer@for (container in rpcContainers) {
-            inner@for (call in container.callContainer) {
-                val http = call.httpOrNull ?: continue@inner
-                val expectedPath =
-                    (http.path.basePath.removeSuffix("/") + "/" +
-                        http.path.segments.joinToString("/") {
-                            when (it) {
-                                is HttpPathSegment.Simple -> it.text
-                                else -> error("Unexpected path segment")
-                            }
-                        }).removePrefix("/").removeSuffix("/").let { "/$it" }
+        inner@for (call in container.callContainer) {
+            val http = call.httpOrNull ?: continue@inner
+            val expectedPath =
+                (http.path.basePath.removeSuffix("/") + "/" +
+                    http.path.segments.joinToString("/") {
+                        when (it) {
+                            is HttpPathSegment.Simple -> it.text
+                            else -> error("Unexpected path segment")
+                        }
+                    }).removePrefix("/").removeSuffix("/").let { "/$it" }
 
-                if (expectedPath != path) continue@inner
-                if (method != http.method.value.toUpperCase()) continue@inner
+            if (expectedPath != path) continue@inner
+            if (method != http.method.value.toUpperCase()) continue@inner
 
-                foundCall = call
-                break@outer
-            }
+            foundCall = call
+            break
         }
 
         if (foundCall == null) {
@@ -95,5 +106,5 @@ abstract class UCloudRpcDispatcher(
         request: R,
         rawRequest: HttpServletRequest,
         rawResponse: HttpServletResponse,
-    ): R
+    ): S
 }

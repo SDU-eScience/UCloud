@@ -280,7 +280,7 @@ object Products : CallDescriptionContainer("products") {
     val createProduct = call<CreateProductRequest, CreateProductResponse, CommonErrorMessage>("createProduct") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED // This might need to change later for providers
+            roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER)
         }
 
         http {

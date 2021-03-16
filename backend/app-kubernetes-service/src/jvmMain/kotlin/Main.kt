@@ -18,7 +18,9 @@ data class Configuration(
     val disableMasterElection: Boolean = false,
     val fullScanFrequency: Long = 1000 * 60 * 15L,
     val useSmallReservation: Boolean = false,
-    val networkInterface: String? = null
+    val networkInterface: String? = null,
+    val providerRefreshToken: String? = null,
+    val ucloudCertificate: String? = null,
 )
 
 data class CephConfiguration(

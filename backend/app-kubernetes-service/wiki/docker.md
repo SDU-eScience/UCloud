@@ -207,7 +207,7 @@ Most other plugins depend on this plugin having run.
 ## Connecting to Kubernetes Cluster
 
 UCloud will auto-configure the connection to the Kubernetes cluster using either in-cluster configuration, from
-the `ServiceAccount`, or using the `~/.kube/config` file. The Kubernetes client is implemented in `service-common`.
+the `ServiceAccount`, or using the `~/.kube/config` file. The Kubernetes client is implemented in `service-lib`.
 
 ## Transferring Files
 

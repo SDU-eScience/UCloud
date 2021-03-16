@@ -17,7 +17,12 @@ data class Provider(
     override val billing: ProviderBilling,
     override val owner: ProviderOwner,
     override val acl: List<ResourceAclEntry<ProviderAclPermission>>
-) : Resource<ProviderAclPermission>
+) : Resource<ProviderAclPermission> {
+    override fun toString(): String {
+        return "Provider(id='$id', specification=$specification, createdAt=$createdAt, status=$status, " +
+            "billing=$billing, owner=$owner)"
+    }
+}
 
 @Serializable
 enum class ProviderAclPermission {
@@ -30,7 +35,6 @@ data class ProviderSpecification(
     val domain: String,
     val https: Boolean,
     val port: Int? = null,
-    val manifest: ProviderManifest = ProviderManifest(),
 ) : ResourceSpecification {
     override val product: ProductReference? = null
 }
@@ -51,69 +55,6 @@ data class ProviderOwner(
     override val createdBy: String,
     override val project: String? = null,
 ) : ResourceOwner
-
-@UCloudApiDoc("""The `ProviderManifest` contains general metadata about the provider.
-
-The manifest, for example, includes information about which `features` are supported by a provider. """)
-@Serializable
-data class ProviderManifest(
-    @UCloudApiDoc("Contains information about the features supported by this provider")
-    val features: ManifestFeatureSupport = ManifestFeatureSupport(),
-)
-
-@Serializable
-data class ManifestAndId(
-    val id: String,
-    val manifest: ProviderManifest
-)
-
-@UCloudApiDoc("""Contains information about the features supported by this provider
-    
-Features are by-default always disabled. There is _no_ minimum set of features a provider needs to support.""")
-@Serializable
-data class ManifestFeatureSupport(
-    @UCloudApiDoc("Determines which compute related features are supported by this provider")
-    val compute: Compute = Compute(),
-) {
-    @Serializable
-    data class Compute(
-        @UCloudApiDoc("Support for `Tool`s using the `DOCKER` backend")
-        val docker: Docker = Docker(),
-
-        @UCloudApiDoc("Support for `Tool`s using the `VIRTUAL_MACHINE` backend")
-        val virtualMachine: VirtualMachine = VirtualMachine(),
-    ) {
-        @Serializable
-        data class Docker(
-            @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
-            var enabled: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable the interactive interface of `WEB` `Application`s")
-            var web: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable the interactive interface of `VNC` `Application`s")
-            var vnc: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable `BATCH` `Application`s")
-            var batch: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable the log API")
-            var logs: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
-            var terminal: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable connection between peering `Job`s")
-            var peers: Boolean = false,
-        )
-
-        @Serializable
-        data class VirtualMachine(
-            @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
-            var enabled: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable the log API")
-            var logs: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable the VNC API")
-            var vnc: Boolean = false,
-            @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
-            var terminal: Boolean = false,
-        )
-    }
-}
 
 @Serializable
 data class ProvidersUpdateAclRequestItem(
@@ -138,15 +79,14 @@ data class ProvidersBrowseRequest(
 
 typealias ProvidersBrowseResponse = PageV2<Provider>
 
+typealias ProvidersRetrieveSpecificationRequest = FindByStringId
+typealias ProvidersRetrieveSpecificationResponse = ProviderSpecification
+
 object Providers : CallDescriptionContainer("providers") {
     const val baseContext = "/api/providers"
 
     val create = call<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>, CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = Roles.PRIVILEGED)
-    }
-
-    val updateManifest = call<BulkRequest<ManifestAndId>, Unit, CommonErrorMessage>("updateManifest") {
-        httpUpdate(baseContext, "updateManifest")
     }
 
     val updateAcl = call<BulkRequest<ProvidersUpdateAclRequestItem>, Unit, CommonErrorMessage>("updateAcl") {
@@ -159,10 +99,15 @@ object Providers : CallDescriptionContainer("providers") {
     }
 
     val retrieve = call<ProvidersRetrieveRequest, ProvidersRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
+        httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
     }
 
     val browse = call<ProvidersBrowseRequest, ProvidersBrowseResponse, CommonErrorMessage>("browse") {
         httpBrowse(baseContext)
+    }
+
+    val retrieveSpecification = call<ProvidersRetrieveSpecificationRequest,
+        ProvidersRetrieveSpecificationResponse, CommonErrorMessage>("retrieveSpecification") {
+        httpRetrieve(baseContext, "specification", roles = Roles.PRIVILEGED)
     }
 }

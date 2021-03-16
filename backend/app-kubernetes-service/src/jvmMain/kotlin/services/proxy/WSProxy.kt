@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory
 
 val webSocketClient = HttpClient(CIO).config {
     install(io.ktor.client.features.websocket.WebSockets)
+    expectSuccess = false
 }
 
 suspend fun WebSocketServerSession.runWSProxy(

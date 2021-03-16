@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.microWhichIsConfiguringCalls
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -314,6 +315,8 @@ class RpcServer {
         requiredContext: Set<IngoingCallCompanion<*>>? = null,
         handler: suspend CallHandler<R, S, E>.() -> Unit
     ) {
+        val microImplementedBy = microWhichIsConfiguringCalls ?: error("no micro")
+        call.microImplementedBy = microImplementedBy
         delayedHandlers.add(DelayedHandler(call, requiredContext, handler))
     }
 

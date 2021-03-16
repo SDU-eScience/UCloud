@@ -153,7 +153,7 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                 props.setLoading(true);
                 setSubmitted(true);
                 await promiseKeeper.makeCancelable(
-                    Client.post("/auth/users/register", {username, password, email}, "")
+                    Client.post("/auth/users/register", [{username, password, email}], "")
                 ).promise;
                 snackbarStore.addSuccess(`User '${username}' successfully created`, false);
                 dispatch({type: "Reset", payload: {}});

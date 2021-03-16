@@ -1,11 +1,6 @@
 package dk.sdu.cloud.app.orchestrator
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
-import dk.sdu.cloud.app.orchestrator.api.ComputeProvider
-import dk.sdu.cloud.app.orchestrator.api.ComputeProviderManifest
-import dk.sdu.cloud.app.orchestrator.api.LicenseControl
-import dk.sdu.cloud.app.orchestrator.api.ProviderManifest
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.rpc.*
 import dk.sdu.cloud.app.orchestrator.services.JobDao
@@ -46,37 +41,15 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val parameterExportService = ParameterExportService(productCache)
         val jobFileService = JobFileService(userClientFactory, serviceClient, appStoreCache)
         val projectCache = ProjectCache(serviceClient)
+        val providers = Providers(serviceClient)
+        val providerSupportService = ProviderSupportService(providers, serviceClient)
 
         val jobQueryService = JobQueryService(
             db,
             projectCache,
             appStoreCache,
             productCache,
-        )
-
-        // TODO Providers
-        val providers = Providers(
-            micro.developmentModeEnabled,
-            serviceClient,
-            serviceClientWS,
-            ComputeProviderManifest(
-                ComputeProvider(UCLOUD_PROVIDER, config.provider.domain, config.provider.https, config.provider.port),
-                ProviderManifest().apply {
-                    with(features) {
-                        with(compute) {
-                            with(docker) {
-                                enabled = true
-                                web = true
-                                vnc = true
-                                batch = true
-                                logs = true
-                                peers = true
-                                terminal = true
-                            }
-                        }
-                    }
-                }
-            )
+            providerSupportService,
         )
 
         val jobVerificationService = JobVerificationService(
@@ -85,7 +58,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             jobQueryService,
             serviceClient,
             providers,
-            productCache
+            productCache,
+            providerSupportService,
         )
 
         val jobOrchestrator =
@@ -139,6 +113,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 JobController(
                     jobQueryService,
                     jobOrchestrator,
+                    providerSupportService,
                 ),
 
                 CallbackController(jobOrchestrator),

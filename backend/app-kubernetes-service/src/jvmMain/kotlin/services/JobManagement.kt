@@ -1,11 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
-import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
@@ -18,9 +14,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withHttpBody
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.provider.api.ManifestFeatureSupport
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
@@ -135,7 +129,7 @@ class JobManagement(
         plugins.add(plugin)
     }
 
-    suspend fun create(jobs: BulkRequest<ComputeCreateRequestItem>) {
+    suspend fun create(jobs: BulkRequest<JobsProviderCreateRequestItem>) {
         jobs.items.forEach { create(it) }
     }
 
@@ -182,16 +176,9 @@ class JobManagement(
             }
         }
 
-        with(k8) {
-            plugins.forEach { plugin ->
-                with(plugin) {
-                    onCleanup(jobId)
-                }
-            }
-        }
     }
 
-    suspend fun extend(request: BulkRequest<ComputeExtendRequestItem>) {
+    suspend fun extend(request: BulkRequest<JobsProviderExtendRequestItem>) {
         request.items.forEach { extension ->
             extend(extension.job, extension.requestedTime)
         }
@@ -518,6 +505,14 @@ class JobManagement(
             dir?.deleteRecursively()
         }
 
+        with(k8) {
+            plugins.forEach { plugin ->
+                with(plugin) {
+                    onCleanup(jobId)
+                }
+            }
+        }
+
         return true
     }
 
@@ -566,19 +561,19 @@ class JobManagement(
         ).orThrow().filterIsInstance<Product.Compute>()
     })
 
-    suspend fun retrieveProductsTemporary(): ComputeRetrieveProductsTemporaryResponse {
-        return ComputeRetrieveProductsTemporaryResponse(productCache.get(Unit)?.map {
-            ComputeTemporaryProductSupport(
-                it,
-                ManifestFeatureSupport.Compute(
-                    ManifestFeatureSupport.Compute.Docker(
+    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsResponse {
+        return JobsProviderRetrieveProductsResponse(productCache.get(Unit)?.map {
+            ComputeProductSupport(
+                ProductReference(it.id, it.category.id, it.category.provider),
+                ComputeSupport(
+                    ComputeSupport.Docker(
                         enabled = true,
                         web = true,
                         vnc = true,
-                        batch = true,
                         logs = true,
                         terminal = true,
                         peers = true,
+                        timeExtension = true,
                     )
                 )
             )

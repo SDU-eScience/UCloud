@@ -17,7 +17,7 @@ data class ResolvedJobResources(
     val application: Application,
 )
 
-class ResourceCache(private val serviceClient: AuthenticatedClient) {
+class ResourceCache(private val k8: K8Dependencies) {
     private val products = SimpleCache<String, Product.Compute>(
         maxAge = 1000 * 60 * 60 * 24L,
         lookup = { null }
@@ -49,7 +49,7 @@ class ResourceCache(private val serviceClient: AuthenticatedClient) {
 
         val retrievedJob = JobsControl.retrieve.call(
             JobsControlRetrieveRequest(job.id, includeProduct = true, includeApplication = true),
-            serviceClient
+            k8.serviceClient
         ).orThrow()
 
         cache(retrievedJob)

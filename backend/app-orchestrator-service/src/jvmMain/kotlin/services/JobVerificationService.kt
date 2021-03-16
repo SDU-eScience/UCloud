@@ -17,8 +17,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.util.*
 
 data class UnverifiedJob(
@@ -39,6 +37,7 @@ class JobVerificationService(
     private val serviceClient: AuthenticatedClient,
     private val providers: Providers,
     private val productCache: ProductCache,
+    private val providerSupport: ProviderSupportService
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -58,56 +57,29 @@ class JobVerificationService(
             }
         }
 
+        val appBackend = tool.description.backend
+        val support = try {
+            providerSupport.retrieveProductSupport(unverifiedJob.request.product).support
+        } catch (ex: Throwable) {
+            throw JobException.VerificationError("Invalid machine type supplied")
+        }
+
         // Check provider support
-        val (provider, manifest) = providers.fetchManifest(unverifiedJob.request.product.provider)
+        val comms = providers.prepareCommunication(unverifiedJob.request.product.provider)
         run {
-            if (tool.description.backend == ToolBackend.DOCKER) {
-                when (application.invocation.applicationType) {
-                    ApplicationType.BATCH -> {
-                        if (!manifest.features.compute.docker.batch) {
-                            throw RPCException(
-                                "Batch applications are not supported at ${provider.id}",
-                                HttpStatusCode.BadRequest
-                            )
-                        }
-                    }
-
-                    ApplicationType.VNC -> {
-                        if (!manifest.features.compute.docker.vnc) {
-                            throw RPCException(
-                                "Interactive applications are not supported at ${provider.id}",
-                                HttpStatusCode.BadRequest
-                            )
-                        }
-                    }
-
-                    ApplicationType.WEB -> {
-                        if (!manifest.features.compute.docker.web) {
-                            throw RPCException(
-                                "Web applications are not supported at ${provider.id}",
-                                HttpStatusCode.BadRequest
-                            )
-                        }
-                    }
-                }
+            if (appBackend == ToolBackend.DOCKER && support.docker.enabled != true) {
+                throw JobException.VerificationError("The selected machine does not support this application")
             }
 
-            when (tool.description.backend) {
-                ToolBackend.SINGULARITY -> {
-                    throw RPCException(
-                        "Unsupported UCloud application. Please contact support.",
-                        HttpStatusCode.BadRequest
-                    )
-                }
+            if (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.enabled != true) {
+                throw JobException.VerificationError("The selected machine does not support this application")
+            }
 
-                ToolBackend.DOCKER -> {
-                    if (!manifest.features.compute.docker.enabled) {
-                        throw RPCException(
-                            "Docker applications are not supported at ${provider.id}",
-                            HttpStatusCode.BadRequest
-                        )
-                    }
-                }
+            if (appBackend == ToolBackend.SINGULARITY) {
+                throw RPCException(
+                    "Application is no longer supported. Please contact support.",
+                    HttpStatusCode.BadRequest
+                )
             }
         }
 

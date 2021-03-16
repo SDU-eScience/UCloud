@@ -4,14 +4,16 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
-import dk.sdu.cloud.app.orchestrator.api.JobsRetrieveProductsTemporaryResponse
+import dk.sdu.cloud.app.orchestrator.api.JobsRetrieveProductsResponse
 import dk.sdu.cloud.app.orchestrator.api.providersAsList
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.orchestrator.services.JobQueryService
+import dk.sdu.cloud.app.orchestrator.services.ProviderSupportService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.mapItems
 import dk.sdu.cloud.toActor
 import io.ktor.http.*
@@ -19,6 +21,7 @@ import io.ktor.http.*
 class JobController(
     private val jobQueryService: JobQueryService,
     private val jobOrchestrator: JobOrchestrator,
+    private val providerSupport: ProviderSupportService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Jobs.create) {
@@ -39,12 +42,7 @@ class JobController(
 
         implement(Jobs.retrieveUtilization) {
             verifySlaFromPrincipal()
-            ok(jobOrchestrator.retrieveUtilization(
-                ctx.securityPrincipal.toActor(),
-                ctx.project,
-                request.jobId,
-                request.provider
-            ))
+            ok(jobOrchestrator.retrieveUtilization(actorAndProject, request.jobId))
         }
 
         implement(Jobs.browse) {
@@ -89,12 +87,8 @@ class JobController(
             ok(jobOrchestrator.openInteractiveSession(request, ctx.securityPrincipal.toActor()))
         }
 
-        implement(Jobs.retrieveProductsTemporary) {
-            if (request.providersAsList.isEmpty()) {
-                ok(JobsRetrieveProductsTemporaryResponse(emptyMap()))
-            } else {
-                ok(jobOrchestrator.retrieveProductsTemporary(request.providersAsList))
-            }
+        implement(Jobs.retrieveProducts) {
+            ok(providerSupport.retrieveProducts(request.providersAsList))
         }
     }
 

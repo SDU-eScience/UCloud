@@ -33,6 +33,12 @@ class OutgoingWSCall : OutgoingCall {
     }
 }
 
+expect fun atomicString(initialValue: String): AtomicString
+expect class AtomicString{
+    fun compareAndSet(expected: String, newValue: String): Boolean
+    fun getAndSet(newValue: String): String
+    fun getValue(): String
+}
 expect fun atomicInt(initialValue: Int): AtomicInteger
 expect class AtomicInteger {
     fun incrementAndGet(): Int
@@ -241,7 +247,8 @@ internal class WSClientSession constructor(
                     }
                 }
             } catch (ex: Throwable) {
-                if (ex is ClosedReceiveChannelException || ex.cause is ClosedReceiveChannelException) {
+                if (ex is ClosedReceiveChannelException || ex.cause is ClosedReceiveChannelException
+                    || ex::class.simpleName == "CancellationException") {
                     mutex.withLock {
                         val emptyTree = JsonObject(emptyMap())
 
@@ -342,6 +349,7 @@ suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.subscribe(
             ctx.attributes[OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY] = {
                 handler(it as S)
             }
-        }
+        },
+        afterHook = authenticatedClient.afterHook,
     )
 }

@@ -33,9 +33,13 @@ kotlin {
             dependencies {
                 val jacksonVersion = "2.11.4"
                 api(project(":integration-module-support"))
-                implementation("org.springframework.boot:spring-boot-starter")
+                implementation("org.springframework.boot:spring-boot-starter-websocket")
                 implementation("org.springframework:spring-web:5.3.4")
                 implementation("org.springframework.boot:spring-boot-starter-web")
+
+                // Spring boot bundles its own version which isn't compatible with what we need
+                api("com.squareup.okhttp3:okhttp:4.6.0")
+
                 api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
                 api("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
             }
@@ -59,6 +63,17 @@ publishing {
     repositories {
         maven {
             mavenLocal()
+        }
+
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+            credentials {
+                username = (project.findProperty("gpr.user") as? String?)
+                    ?: System.getenv("GITHUB_USERNAME")
+                password = (project.findProperty("gpr.key") as? String?)
+                    ?: System.getenv("GITHUB_TOKEN")
+            }
         }
     }
 }
