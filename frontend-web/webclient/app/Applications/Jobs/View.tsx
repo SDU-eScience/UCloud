@@ -345,6 +345,25 @@ export const View: React.FunctionComponent = () => {
         };
     }, [job]);
 
+    /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
+    useEffect(() => {
+        if (job?.status != null) setStatus(s => s ?? job.status);
+    }, [job]);
+    /* NOTE-END */
+
+    useEffect(() => {
+        // Used to fetch creditsCharged when job finishes.
+        if (isJobStateTerminal(status?.state ?? "RUNNING") && job?.status.state !== status?.state) {
+            fetchJob(compute.jobs.retrieve({
+                id,
+                includeParameters: true,
+                includeProduct: true,
+                includeApplication: true,
+                includeUpdates: true
+            }));
+        }
+    }, [status?.state])
+
     const jobUpdateCallbackHandlers = useRef<JobUpdateListener[]>([]);
     useEffect(() => {
         jobUpdateCallbackHandlers.current = [{
@@ -555,7 +574,7 @@ const Busy: React.FunctionComponent<{
                 )}
             </Box>
 
-            <CancelButton job={job} state={"IN_QUEUE"}/>
+            <CancelButton job={job} state={"IN_QUEUE"} />
         </Box>
     </BusyWrapper>;
 };
@@ -1111,17 +1130,17 @@ const RunningButtonGroup: React.FunctionComponent<{
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
 
-                    window.open(
-                        ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                        undefined,
-                        "width=800,height=600,status=no"
-                    );
-                }}>
-                    <Button type={"button"}>
-                        Open terminal
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    undefined,
+                    "width=800,height=600,status=no"
+                );
+            }}>
+                <Button type={"button"}>
+                    Open terminal
                 </Button>
-                </Link>
-            )}
+            </Link>
+        )}
         {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
                 <Button>Open interface</Button>
