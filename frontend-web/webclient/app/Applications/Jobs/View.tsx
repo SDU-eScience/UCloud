@@ -653,8 +653,10 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
                 statTitle={"Allocated"}
                 icon={"hourglass"}
             >
-                {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
-                <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+                {!isJobStateTerminal(status?.state) ? (<>
+                    {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
+                    <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+                </>) : <><b>Charged: </b>{creditFormatter(job.billing.creditsCharged, 0)}</>}
             </InfoCard>
         }
         <InfoCard
