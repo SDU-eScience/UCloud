@@ -156,7 +156,7 @@ sealed class KubernetesConfigurationSource {
             val namespace = File(serviceAccount, "namespace").takeIf { it.exists() }?.readText()
 
             val certificate = CertificateFactory.getInstance("X.509").generateCertificate(caCert) as X509Certificate
-            val alias="kube-ca"
+            val alias = "kube-ca"
 
             val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
             keyStore.load(null, null)
