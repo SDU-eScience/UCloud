@@ -346,6 +346,25 @@ export const View: React.FunctionComponent = () => {
         };
     }, [job]);
 
+    /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
+    useEffect(() => {
+        if (job?.status != null) setStatus(s => s ?? job.status);
+    }, [job]);
+    /* NOTE-END */
+
+    useEffect(() => {
+        // Used to fetch creditsCharged when job finishes.
+        if (isJobStateTerminal(status?.state ?? "RUNNING") && job?.status.state !== status?.state) {
+            fetchJob(compute.jobs.retrieve({
+                id,
+                includeParameters: true,
+                includeProduct: true,
+                includeApplication: true,
+                includeUpdates: true
+            }));
+        }
+    }, [status?.state])
+
     const jobUpdateCallbackHandlers = useRef<JobUpdateListener[]>([]);
     useEffect(() => {
         jobUpdateCallbackHandlers.current = [{
@@ -556,7 +575,7 @@ const Busy: React.FunctionComponent<{
                 )}
             </Box>
 
-            <CancelButton job={job} state={"IN_QUEUE"}/>
+            <CancelButton job={job} state={"IN_QUEUE"} />
         </Box>
     </BusyWrapper>;
 };
@@ -635,8 +654,10 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
                 statTitle={"Allocated"}
                 icon={"hourglass"}
             >
-                {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
-                <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+                {!isJobStateTerminal(status?.state) ? (<>
+                    {!time ? null : <><b>Estimated price:</b> {creditFormatter(estimatedCost, 0)} <br /></>}
+                    <b>Price per hour:</b> {creditFormatter(pricePerUnit * 60, 0)}
+                </>) : <><b>Charged: </b>{creditFormatter(job.billing.creditsCharged, 0)}</>}
             </InfoCard>
         }
         <InfoCard
@@ -1135,14 +1156,14 @@ const RunningButtonGroup: React.FunctionComponent<{
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
 
-                    window.open(
-                        ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
-                        undefined,
-                        "width=800,height=600,status=no"
-                    );
-                }}>
-                    <Button type={"button"}>
-                        Open terminal
+                window.open(
+                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    undefined,
+                    "width=800,height=600,status=no"
+                );
+            }}>
+                <Button type={"button"}>
+                    Open terminal
                 </Button>
             </Link>
         )}
