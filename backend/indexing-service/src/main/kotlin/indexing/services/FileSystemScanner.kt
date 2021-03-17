@@ -18,6 +18,8 @@ import org.elasticsearch.index.query.*
 import org.elasticsearch.index.reindex.*
 import org.slf4j.*
 import java.io.*
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.*
 import kotlin.math.*
 
@@ -111,7 +113,7 @@ class FileSystemScanner(
             }
         }
 
-        val fileList = (path.listFiles() ?: emptyArray())
+        val fileList = (path.listFiles() ?: emptyArray()).filter { !Files.isSymbolicLink(Path.of(it.path)) }
         val files = fileList.map { it.toElasticIndexedFile() }.associateBy { it.path }
         val filesInIndex = query.query(
             FileQuery(
@@ -138,12 +140,13 @@ class FileSystemScanner(
                 queryDeleteRequest.batchSize = 100
                 try {
                     //We only delete 100 at a time to reduce stress. Redo until all matching search is deleted
-                    var moreTodelete = true
-                    while (moreTodelete) {
+                    var moreToDelete = true
+                    while (moreToDelete) {
                         val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
-                        if (response.deleted == 0L) moreTodelete = false
+                        if (response.deleted == 0L) moreToDelete = false
                     }
                 } catch (ex: ElasticsearchException) {
+                    log.warn(ex.message)
                     log.warn("Deletion of ${it.path}/* , failed")
                 }
             }

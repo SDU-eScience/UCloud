@@ -57,7 +57,7 @@ dependencies {
     api(group = "org.apache.logging.log4j", name = "log4j-core", version = "2.12.0")
 
     // Elastic
-    api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.5.0")
+    api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.11.1")
     api("net.java.dev.jna:jna:5.2.0")
 
     // Testing
