@@ -121,37 +121,51 @@ class WebService(
             }
         }
 
-        // Called by envoy before every single request. We are allowed to control the "Cookie" header.
+        // One of these are called. It does not seem obvious which one.
+        route("${KubernetesCompute.baseContext}/app-authorization") {
+            handleAppAuthorization(this, this@WebService)
+        }
         route("${KubernetesCompute.baseContext}/app-authorization/{...}") {
-            handle {
-                val host = call.request.host()
-                log.info("Authorizing request: $host")
+            handleAppAuthorization(this, this@WebService)
+        }
+        route("${KubernetesCompute.baseContext}/app-authorization/") {
+            handleAppAuthorization(this, this@WebService)
+        }
+    }
 
-                if (ingressCache.get(host) != null) {
-                    call.respondText("", status = HttpStatusCode.OK)
-                    return@handle
+    // Called by envoy before every single request. We are allowed to control the "Cookie" header.
+    private fun handleAppAuthorization(
+        route: Route,
+        webService: WebService,
+    ) {
+        route.handle {
+            val host = call.request.host()
+            log.info("Authorizing request: $host")
+
+            if (ingressCache.get(host) != null) {
+                call.respondText("", status = HttpStatusCode.OK)
+                return@handle
+            }
+
+            if (!host.startsWith(prefix) || !host.endsWith(domain)) {
+                call.respondText("Forbidden", status = HttpStatusCode.Forbidden)
+                return@handle
+            }
+
+            val jobId = host.removePrefix(prefix).removeSuffix(".$domain").substringBeforeLast('-')
+            val rank = host.removePrefix(prefix).removeSuffix(".$domain").substringAfterLast('-').toInt()
+            if (webService.authorizeUser(call, JobIdAndRank(jobId, rank))) {
+                val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
+                    // Remove authentication tokens
+                    remove(cookieName)
+                    remove("refreshToken")
                 }
+                call.response.header(
+                    HttpHeaders.Cookie,
+                    requestCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                )
 
-                if (!host.startsWith(prefix) || !host.endsWith(domain)) {
-                    call.respondText("Forbidden", status = HttpStatusCode.Forbidden)
-                    return@handle
-                }
-
-                val jobId = host.removePrefix(prefix).removeSuffix(".$domain").substringBeforeLast('-')
-                val rank = host.removePrefix(prefix).removeSuffix(".$domain").substringAfterLast('-').toInt()
-                if (authorizeUser(call, JobIdAndRank(jobId, rank))) {
-                    val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
-                        // Remove authentication tokens
-                        remove(cookieName)
-                        remove("refreshToken")
-                    }
-                    call.response.header(
-                        HttpHeaders.Cookie,
-                        requestCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
-                    )
-
-                    call.respondText("", status = HttpStatusCode.OK)
-                }
+                call.respondText("", status = HttpStatusCode.OK)
             }
         }
     }
