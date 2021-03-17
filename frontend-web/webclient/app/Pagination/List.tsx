@@ -30,7 +30,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
                 <Self.PaginationButtons
                     currentPage={props.page.pageNumber}
                     toPage={page => ifPresent(props.onPageChanged, c => c(page, props.page))}
-                    totalPages={props.page.itemsInTotal / props.page.itemsPerPage}
+                    totalPages={Math.ceil(props.page.itemsInTotal / props.page.itemsPerPage)}
                 />
             </>
         );

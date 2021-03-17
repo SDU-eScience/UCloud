@@ -124,6 +124,16 @@ export default class HttpClient {
         await this.waitForCloudReady();
 
         if (path.indexOf("/") !== 0) path = "/" + path;
+        const queryBegin = path.indexOf("?");
+        const beforeQuery = queryBegin === -1 ? path : path.substring(0, queryBegin);
+        const afterQuery = queryBegin === -1 ? null : path.substring(queryBegin);
+        if (beforeQuery.length > 1 && beforeQuery[beforeQuery.length - 1] === '/') {
+            path = beforeQuery.substring(0, beforeQuery.length - 1);
+            if (afterQuery !== null) {
+                path += afterQuery;
+            }
+        }
+
         return this.receiveAccessTokenOrRefreshIt()
             .catch(it => {
                 console.warn(it);
