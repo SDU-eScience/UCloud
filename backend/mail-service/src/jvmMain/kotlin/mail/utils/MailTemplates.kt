@@ -96,7 +96,6 @@ fun statusChangeTemplateToAdmins(status: String, receiver: String, sender: Strin
         <p>The status of the application from ${escapeHtml(sender)} in the project '${escapeHtml(projectTitle)}' 
         has been changed to ${escapeHtml(status)}.
         </p>
-    }
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
