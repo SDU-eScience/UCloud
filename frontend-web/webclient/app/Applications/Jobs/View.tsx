@@ -595,7 +595,33 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
     const projectNames = getProjectNames(useProjectStatus());
 
     let prettyTime = "No job deadline";
-    if (time) {
+    if (isJobStateTerminal(job.status.state)) {
+        prettyTime = "";
+        const charged = job.billing.creditsCharged;
+        const pricePerMinute = job.billing.pricePerUnit
+        const totalMinutes = charged / pricePerMinute
+
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        prettyTime = "";
+        if (hours > 0) {
+            prettyTime += hours;
+            if (hours > 1) prettyTime += " hours";
+            else prettyTime += " hour";
+        }
+        if (minutes > 0) {
+            if (prettyTime !== "") prettyTime += " ";
+            prettyTime += minutes;
+            if (minutes > 1) prettyTime += " minutes";
+            else prettyTime += " minute";
+        }
+
+        if (prettyTime === "") {
+            prettyTime = "< 1 minute";
+        }
+
+    } else if (time) {
         prettyTime = "";
         if (time.hours > 0) {
             prettyTime += time.hours;
@@ -643,7 +669,7 @@ const InfoCards: React.FunctionComponent<{job: Job, status: JobStatus}> = ({job,
             null :
             <InfoCard
                 stat={prettyTime}
-                statTitle={"Allocated"}
+                statTitle={isJobStateTerminal(job.status.state) ? "Used" : "Allocated"}
                 icon={"hourglass"}
             >
                 {!isJobStateTerminal(status?.state) ? (<>
