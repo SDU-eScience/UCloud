@@ -198,7 +198,7 @@ class Server(
                     vncService,
                     utilizationService
                 ),
-                MaintenanceController(maintenance),
+                MaintenanceController(maintenance, micro.tokenValidation),
                 ShellController(k8Dependencies, db, sessions),
                 IngressController(ingressService),
                 LicenseController(licenseService),

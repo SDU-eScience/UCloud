@@ -34,7 +34,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
     val killJob = call<KillJobRequest, KillJobResponse, CommonErrorMessage>("killJob") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
+            roles = Roles.PUBLIC
         }
 
         http {
@@ -52,7 +52,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
     val isPaused = call<IsPausedRequest, IsPausedResponse, CommonErrorMessage>("isPaused") {
         auth {
             access = AccessRight.READ
-            roles = Roles.PRIVILEGED
+            roles = Roles.PUBLIC
         }
 
         http {
@@ -70,7 +70,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
     ) {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
+            roles = Roles.PUBLIC
         }
 
         http {
@@ -88,7 +88,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
     val drainNode = call<DrainNodeRequest, DrainNodeResponse, CommonErrorMessage>("drainNode") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
+            roles = Roles.PUBLIC
         }
 
         http {
@@ -106,7 +106,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
     val drainCluster = call<DrainClusterRequest, DrainClusterResponse, CommonErrorMessage>("drainCluster") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
+            roles = Roles.PUBLIC
         }
 
         http {

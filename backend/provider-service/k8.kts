@@ -3,9 +3,11 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "provider"
-    version = "0.2.0"
+    version = "0.2.1"
     
-    withAmbassador() {}
+    withAmbassador() {
+        addSimpleMapping("/api/providers")
+    }
     
     val deployment = withDeployment {
         deployment.spec.replicas = 2

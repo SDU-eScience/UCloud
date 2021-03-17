@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Mar 09 15:12:58 CET 2021 */
+/* Generated at: Tue Mar 16 15:05:44 CET 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -648,8 +648,7 @@ export namespace compute {
     }
 
     export interface JobsRetrieveUtilizationRequest {
-        provider?: string,
-        jobId?: string,
+        jobId: string,
     }
 
     /**
@@ -1838,10 +1837,6 @@ export namespace compute {
              */
             vnc?: boolean,
             /**
-             * Flag to enable/disable `BATCH` `Application`s
-             */
-            batch?: boolean,
-            /**
              * Flag to enable/disable the log API
              */
             logs?: boolean,
@@ -1857,6 +1852,10 @@ export namespace compute {
              * Flag to enable/disable extension of jobs
              */
             timeExtension?: boolean,
+            /**
+             * Flag to enable/disable the retrieveUtilization of jobs
+             */
+            utilization?: boolean,
         }
 
         export interface VirtualMachine {
@@ -1886,6 +1885,10 @@ export namespace compute {
              * Flag to enable/disable suspension of jobs
              */
             suspension?: boolean,
+            /**
+             * Flag to enable/disable the retrieveUtilization of jobs
+             */
+            utilization?: boolean,
         }
     }
     export namespace AppParameterValueNS {
@@ -3616,10 +3619,7 @@ export namespace compute {
             return {
                 context: "",
                 method: "GET",
-                path: buildQueryString("/api/jobs" + "/retrieveUtilization", {
-                    provider: request.provider,
-                    jobId: request.jobId
-                }),
+                path: buildQueryString("/api/jobs" + "/retrieveUtilization", {jobId: request.jobId}),
                 parameters: request,
                 reloadId: Math.random(),
             };
@@ -4105,12 +4105,58 @@ export namespace mail {
         };
     }
 
-    export interface SendRequest {
-        userId: string,
-        subject: string,
-        message: string,
-        mandatory?: boolean,
+    export function retrieveEmailSettings(
+        request: RetrieveEmailSettingsRequest
+    ): APICallParameters<RetrieveEmailSettingsRequest, RetrieveEmailSettingsResponse> {
+        return {
+            context: "",
+            method: "GET",
+            path: buildQueryString("/api/mail" + "/retrieveEmailSettings", {username: request.username}),
+            parameters: request,
+            reloadId: Math.random(),
+        };
     }
+
+    export function toggleEmailSettings(
+        request: BulkRequest<EmailSettingsItem>
+    ): APICallParameters<BulkRequest<EmailSettingsItem>, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/mail" + "/toggleEmailSettings",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
+
+    export interface SendRequest {
+        receiver: string,
+        mail: Mail,
+        mandatory: boolean,
+    }
+
+    export type Mail =
+        MailNS.TransferApplicationMail
+        | MailNS.LowFundsMail
+        | MailNS.StillLowFundsMail
+        | MailNS.UserRoleChangeMail
+        | MailNS.UserLeftMail
+        | MailNS.UserRemovedMail
+        | MailNS.UserRemovedMailToUser
+        | MailNS.ProjectInviteMail
+        | MailNS.NewGrantApplicationMail
+        | MailNS.GrantAppAutoApproveToAdminsMail
+        | MailNS.GrantApplicationUpdatedMail
+        | MailNS.GrantApplicationUpdatedMailToAdmins
+        | MailNS.GrantApplicationStatusChangedToAdmin
+        | MailNS.GrantApplicationApproveMail
+        | MailNS.GrantApplicationApproveMailToAdmins
+        | MailNS.GrantApplicationRejectedMail
+        | MailNS.GrantApplicationWithdrawnMail
+        | MailNS.NewCommentOnApplicationMail
+        | MailNS.ResetPasswordMail
+        | MailNS.VerificationReminderMail
 
     export interface SendSupportEmailRequest {
         fromEmail: string,
@@ -4120,6 +4166,182 @@ export namespace mail {
 
     export interface SendBulkRequest {
         messages: SendRequest[],
+    }
+
+    export interface RetrieveEmailSettingsResponse {
+        settings: EmailSettings,
+    }
+
+    export interface EmailSettings {
+        newGrantApplication: boolean,
+        grantAutoApprove: boolean,
+        grantApplicationUpdated: boolean,
+        grantApplicationApproved: boolean,
+        grantApplicationRejected: boolean,
+        grantApplicationWithdrawn: boolean,
+        newCommentOnApplication: boolean,
+        applicationTransfer: boolean,
+        applicationStatusChange: boolean,
+        projectUserInvite: boolean,
+        projectUserRemoved: boolean,
+        verificationReminder: boolean,
+        userRoleChange: boolean,
+        userLeft: boolean,
+        lowFunds: boolean,
+    }
+
+    export interface RetrieveEmailSettingsRequest {
+        username?: string,
+    }
+
+    export interface EmailSettingsItem {
+        username?: string,
+        settings: EmailSettings,
+    }
+
+    export namespace MailNS {
+        export interface TransferApplicationMail {
+            senderProject: string,
+            receiverProject: string,
+            applicationProjectTitle: string,
+            subject: string,
+            type: "transferApplication",
+        }
+
+        export interface LowFundsMail {
+            category: string,
+            provider: string,
+            projectTitle: string,
+            subject: string,
+            type: "lowFunds",
+        }
+
+        export interface StillLowFundsMail {
+            category: string,
+            provider: string,
+            projectTitle: string,
+            subject: string,
+            type: "stillLowFunds",
+        }
+
+        export interface UserRoleChangeMail {
+            subjectToChange: string,
+            roleChange: string,
+            projectTitle: string,
+            subject: string,
+            type: "userRoleChange",
+        }
+
+        export interface UserLeftMail {
+            leavingUser: string,
+            projectTitle: string,
+            subject: string,
+            type: "userLeft",
+        }
+
+        export interface UserRemovedMail {
+            leavingUser: string,
+            projectTitle: string,
+            subject: string,
+            type: "userRemoved",
+        }
+
+        export interface UserRemovedMailToUser {
+            projectTitle: string,
+            subject: string,
+            type: "userRemovedToUser",
+        }
+
+        export interface ProjectInviteMail {
+            projectTitle: string,
+            subject: string,
+            type: "invitedToProject",
+        }
+
+        export interface NewGrantApplicationMail {
+            sender: string,
+            projectTitle: string,
+            subject: string,
+            type: "newGrantApplication",
+        }
+
+        export interface GrantAppAutoApproveToAdminsMail {
+            sender: string,
+            projectTitle: string,
+            subject: string,
+            type: "autoApproveGrant",
+        }
+
+        export interface GrantApplicationUpdatedMail {
+            projectTitle: string,
+            sender: string,
+            subject: string,
+            type: "applicationUpdated",
+        }
+
+        export interface GrantApplicationUpdatedMailToAdmins {
+            projectTitle: string,
+            sender: string,
+            receivingProjectTitle: string,
+            subject: string,
+            type: "applicationUpdatedToAdmins",
+        }
+
+        export interface GrantApplicationStatusChangedToAdmin {
+            status: string,
+            projectTitle: string,
+            sender: string,
+            receivingProjectTitle: string,
+            subject: string,
+            type: "applicationStatusChangedToAdmins",
+        }
+
+        export interface GrantApplicationApproveMail {
+            projectTitle: string,
+            subject: string,
+            type: "applicationApproved",
+        }
+
+        export interface GrantApplicationApproveMailToAdmins {
+            sender: string,
+            projectTitle: string,
+            subject: string,
+            type: "applicationApprovedToAdmins",
+        }
+
+        export interface GrantApplicationRejectedMail {
+            projectTitle: string,
+            subject: string,
+            type: "applicationRejected",
+        }
+
+        export interface GrantApplicationWithdrawnMail {
+            projectTitle: string,
+            sender: string,
+            subject: string,
+            type: "applicationWithdrawn",
+        }
+
+        export interface NewCommentOnApplicationMail {
+            sender: string,
+            projectTitle: string,
+            receivingProjectTitle: string,
+            subject: string,
+            type: "newComment",
+        }
+
+        export interface ResetPasswordMail {
+            token: string,
+            subject: string,
+            type: "resetPassword",
+        }
+
+        export interface VerificationReminderMail {
+            projectTitle: string,
+            role: string,
+            subject: string,
+            type: "verificationReminder",
+        }
     }
 }
 export namespace provider {
@@ -4828,14 +5050,11 @@ export namespace auth {
     export interface LookupUserWithEmailResponse {
         userId: string,
         firstNames: string,
+        lastName: string,
     }
 
     export interface LookupUserWithEmailRequest {
         email: string,
-    }
-
-    export interface WantsEmailsRequest {
-        username?: string,
     }
 
     export interface LookupUIDResponse {
@@ -5021,28 +5240,6 @@ export namespace auth {
                 context: "",
                 method: "POST",
                 path: "/auth/users" + "/lookup" + "/with-email",
-                parameters: request,
-                reloadId: Math.random(),
-                payload: request,
-            };
-        }
-
-        export function toggleEmailSubscription(): APICallParameters<{}, any /* unknown */> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/toggleEmailSubscription",
-                reloadId: Math.random(),
-            };
-        }
-
-        export function wantsEmails(
-            request: WantsEmailsRequest
-        ): APICallParameters<WantsEmailsRequest, boolean> {
-            return {
-                context: "",
-                method: "POST",
-                path: "/auth/users" + "/wantsEmails",
                 parameters: request,
                 reloadId: Math.random(),
                 payload: request,
@@ -5253,7 +5450,6 @@ export namespace auth {
             ,
             serviceLicenseAgreement: number /* int32 */
             ,
-            wantsEmails?: boolean,
             organizationId: string,
             wayfId: string,
             displayName: string,
@@ -5275,7 +5471,6 @@ export namespace auth {
             twoFactorAuthentication: boolean,
             serviceLicenseAgreement: number /* int32 */
             ,
-            wantsEmails?: boolean,
             displayName: string,
             type: "password",
         }
@@ -8394,6 +8589,7 @@ export namespace grant {
     export interface RejectApplicationRequest {
         requestId: number /* int64 */
         ,
+        notify?: boolean,
     }
 
     export interface CloseApplicationRequest {

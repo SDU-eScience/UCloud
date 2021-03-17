@@ -27,6 +27,7 @@ class Server(override val micro: Micro, private val configuration: Configuration
     private lateinit var client: ClientHolder
 
     override fun start() {
+        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val (refreshToken, validation) =
             if (configuration.providerRefreshToken == null || configuration.ucloudCertificate == null) {
                 if (!micro.developmentModeEnabled) {
@@ -48,7 +49,13 @@ class Server(override val micro: Micro, private val configuration: Configuration
 
         with(micro.server) {
              configureControllers(
-                 ComputeController(client, ResourceCache(client), micro.developmentModeEnabled),
+                 ComputeController(
+                     client,
+                     ResourceCache(client),
+                     serviceClient,
+                     micro.developmentModeEnabled,
+                     micro.tokenValidation,
+                 ),
              )
         }
         

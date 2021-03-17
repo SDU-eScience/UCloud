@@ -28,10 +28,10 @@ object AauComputeMaintenance : CallDescriptionContainer("jobs.compute.aau.mainte
     val baseContext = "/ucloud/aau/compute/jobs/maintenance"
 
     val sendUpdate = call<BulkRequest<AauComputeSendUpdateRequest>, Unit, CommonErrorMessage>("sendUpdate") {
-        httpUpdate(baseContext, "update", roles = Roles.PRIVILEGED)
+        httpUpdate(baseContext, "update", roles = Roles.PUBLIC) // Verified in code
     }
 
     val retrieve = call<AauComputeRetrieveRequest, AauComputeRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext, roles = Roles.PRIVILEGED)
+        httpRetrieve(baseContext, roles = Roles.PUBLIC) // Verified in code
     }
 }

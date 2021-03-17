@@ -188,6 +188,7 @@ __Example usage:__
 ```kotlin
 private fun CallDescriptionContainer.httpRetrieveExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     run {
@@ -203,7 +204,7 @@ private fun CallDescriptionContainer.httpRetrieveExample() {
         // Retrieve by one or more unique parameters
         data class ResourcesRetrieveRequest(
             val id: String? = null, // optional parameters should have a default value in Kotlin code
-            val number: Int? = null
+            val number: Int? = null,
         ) {
             init {
                 // In this case `number` also uniquely identifies the resource. The code must reject requests
@@ -256,6 +257,7 @@ __Example usage:__
 ```kotlin
 private fun CallDescriptionContainer.httpBrowseExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     run {
@@ -321,6 +323,7 @@ __Example usage:__
 ```kotlin
 private fun CallDescriptionContainer.httpSearchExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     run {
@@ -381,6 +384,7 @@ __Example usage:__
 ```kotlin
 private fun CallDescriptionContainer.httpCreateExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     // NOTE: We use a separate data model which only contains the model specification (i.e. without additional
@@ -433,6 +437,7 @@ __Example usage:__
 ```kotlin
 private fun CallDescriptionContainer.httpDeleteExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     val delete = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("delete") {
@@ -488,6 +493,7 @@ __Example usage:__
 ```kotlin
 private fun CallDescriptionContainer.httpUpdateExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     data class ResourcesIncrementRequestItem(val incrementStep: Int = 1)
@@ -541,6 +547,7 @@ __Example usage:__
 ```kotlin
 private fun CallDescriptionContainer.httpVerifyExample() {
     data class MyResource(val id: String, val number: Int)
+
     val baseContext = "/api/myresources"
 
     // Note: We send the entire resource in the request to make sure both sides have enough information to verify
@@ -563,19 +570,8 @@ A base type for requesting a bulk operation.
 | Property | Type | Description |
 |----------|------|-------------|
 | `items` | `Array<Any>` | No documentation |
-| `type` | `("bulk")` | No documentation |
 
     
-The bulk operations allow for a client to send a bulk operation in one of two ways:
-
-1. Single item request
-2. Multiple item request
-
-Both approaches should be treated by a server as a bulk request, one of them simply only has one item in it. The
-serialization for single item request is special, in that it allows the request item to be unwrapped and send by itself.
-Servers can recognize the difference by looking for the `type` property in the request, if it is not equal to `"bulk"`
-(or doesn't exist) then it should be treated as a single item request.
-
 ---
 
 __⚠ WARNING:__ All request items listed in the bulk request must be treated as a _single_ transaction. This means
@@ -603,7 +599,7 @@ verification API to cleanup these resources later.
 
 ### `PaginationRequestV2`
 
-<!-- typedoc:dk.sdu.cloud.service.PaginationRequestV2:includeProps=true -->
+<!-- typedoc:dk.sdu.cloud.PaginationRequestV2:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
 The base type for requesting paginated content.
 
@@ -652,7 +648,7 @@ paginate through the results.
 
 ### `PageV2`
 
-<!-- typedoc:dk.sdu.cloud.service.PageV2:includeProps=true -->
+<!-- typedoc:dk.sdu.cloud.PageV2:includeProps=true -->
 <!--<editor-fold desc="Generated documentation">-->
 Represents a single 'page' of results
 

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.aau.rpc
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
@@ -14,13 +15,15 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.sendWSMessage
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.validateAndDecodeOrNull
 import dk.sdu.cloud.slack.api.SendSupportRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.ktor.http.*
@@ -35,7 +38,9 @@ import kotlinx.serialization.json.encodeToJsonElement
 class ComputeController(
     private val client: ClientHolder,
     private val resourceCache: ResourceCache,
+    private val serviceClient: AuthenticatedClient,
     private val devMode: Boolean,
+    private val tokenValidation: TokenValidation<*>,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(AauCompute.create) {
@@ -71,7 +76,7 @@ class ComputeController(
                                     "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                 )
                             )
-                        ))
+                            ))
                     }
                 )
             }
@@ -116,7 +121,7 @@ class ComputeController(
                                     "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
                                 )
                             )
-                        ))
+                            ))
                     }
                 )
             }
@@ -139,23 +144,39 @@ class ComputeController(
         }
 
         implement(AauComputeMaintenance.sendUpdate) {
-            JobsControl.update.call(
-                bulkRequestOf(request.items.map { req ->
-                    JobsControlUpdateRequestItem(req.id,
-                        req.newState,
-                        req.update)
-                }),
-                client.client
-            ).orThrow()
+            withContext<HttpCall> {
+                val bearer = ctx.context.request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                val principal = tokenValidation.validateAndDecodeOrNull(bearer)?.principal
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                if (principal.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
-            ok(Unit)
+                JobsControl.update.call(
+                    bulkRequestOf(request.items.map { req ->
+                        JobsControlUpdateRequestItem(req.id,
+                            req.newState,
+                            req.update)
+                    }),
+                    client.client
+                ).orThrow()
+
+                ok(Unit)
+            }
         }
 
         implement(AauComputeMaintenance.retrieve) {
-            ok(JobsControl.retrieve.call(
-                JobsControlRetrieveRequest(request.id, includeProduct = true, includeApplication = true),
-                client.client
-            ).orThrow())
+            withContext<HttpCall> {
+                val bearer = ctx.context.request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                val principal = tokenValidation.validateAndDecodeOrNull(bearer)?.principal
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                if (principal.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+
+                ok(JobsControl.retrieve.call(
+                    JobsControlRetrieveRequest(request.id, includeProduct = true, includeApplication = true),
+                    client.client
+                ).orThrow())
+            }
         }
 
         implement(AauCompute.retrieveProducts) {
@@ -173,7 +194,10 @@ class ComputeController(
             while (currentCoroutineContext().isActive) {
                 delay(1000)
             }
-            ok(JobsProviderFollowResponse("", 0, "Please see the 'Messages' panel for how to access your machine", null))
+            ok(JobsProviderFollowResponse("",
+                0,
+                "Please see the 'Messages' panel for how to access your machine",
+                null))
         }
 
         implement(AauCompute.extend) {
@@ -217,7 +241,7 @@ class ComputeController(
                     "AAU Virtual Machine [${id.substringBefore('-').toUpperCase()}]",
                     message
                 ),
-                client.client
+                serviceClient
             ).orThrow()
         }
     }
