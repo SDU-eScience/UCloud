@@ -22,19 +22,15 @@ end
 
 User->UCloud: Connect with provider
 UCloud->Provider: Alice#1234 wishes to connect
-Provider-->UCloud: Redirect user to $URL
-UCloud-->User: Redirect user to $URL
-User->Provider: GET $URL
-Provider-->User: Instructions on how to authenticate/request a user
-note over User, UCloud: In this example the\ninstructions says to run a\ncommand on the HPC
-
-User->HPC: Open SSH using an existing user
-HPC-->User: OK
-User->HPC: Connect to my UCloud account
+Provider-->UCloud: Instructions on how to authenticate/request a user
+UCloud-->User: Forward instructions
 
 
-HPC->Provider: Alice#1234 \nhas connected as \nalice@idp.example.com (UID 1100)
-Provider->UserDB: Insert mapping between: \nAlice#1234 and alice@idp.example.com (UID 1100)
+ref over User, HPC: Establish connection according to instructions
+
+
+HPC->Provider: Alice#1234 (UCloud) \nhas connected as \nalice@idp.example.com (Provider)
+Provider->UserDB: Insert mapping between: \nAlice#1234 and alice@idp.example.com
 UserDB-->Provider: OK
 
 Provider->UCloud: Mapping for Alice#1234 complete
@@ -42,7 +38,7 @@ UCloud->UCloudDB: Mark mapping as complete
 UCloudDB-->UCloud: OK
 UCloud-->Provider: OK
 Provider-->HPC: OK
-HPC-->User: OK
+HPC-->User: Connection complete
 
 
 == Alice#1234 can now consume resources from the provider ==

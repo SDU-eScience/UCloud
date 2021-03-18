@@ -69,7 +69,7 @@ import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import * as UCloud from "UCloud";
 import grantApi = UCloud.grant.grant;
-import {grant, indexing} from "UCloud";
+import {grant} from "UCloud";
 import GrantsRetrieveProductsResponse = grant.GrantsRetrieveProductsResponse;
 import {IconName} from "ui-components/Icon";
 import {AppToolLogo} from "Applications/AppToolLogo";
@@ -328,7 +328,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
         }
 
         reloadProducts = useCallback(() => {
-            if (targetProject) {
+            if (targetProject && targetProject !== "unknown") {
                 fetchProducts(grantApi.retrieveProducts({
                     projectId: targetProject,
                     recipientType: recipient.type,
@@ -343,10 +343,8 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
     }
 
     const reload = useCallback(() => {
-        if (targetProject) {
-            if (targetProject !== "unknown") {
-                fetchTemplates(readTemplates({projectId: targetProject}));
-            }
+        if (targetProject && targetProject !== "unknown") {
+            fetchTemplates(readTemplates({projectId: targetProject}));
             reloadWallets();
             reloadProducts();
         }

@@ -1,0 +1,139 @@
+application: v1
+
+title: All
+name: all
+version: 4
+
+applicationType: WEB
+
+web:
+  port: 6901
+
+tool:
+  name: all
+  version: 1
+
+authors:
+- Dan
+
+container:
+  runAsRoot: true
+ 
+description: >
+  All!
+ 
+invocation:
+- tail
+- -f
+- /dev/null
+
+outputFileGlobs:
+  - "*"
+
+parameters:
+  file:
+    optional:  false
+    title: "file"
+    description: "A description of file"
+    type: input_file
+  file_opt:
+    optional:  true
+    title: "file opt"
+    description: "A description of file"
+    type: input_file
+  directory:
+    optional:  false
+    title: "directory"
+    description: "A description of directory"
+    type: input_directory
+  directory_opt:
+    optional:  true
+    title: "directory opt"
+    description: "A description of directory"
+    type: input_file
+  text:
+    optional:  false
+    title: "text"
+    description: "A description of text"
+    type: text
+  text_opt:
+    optional:  true
+    title: "text opt"
+    description: "A description of text"
+    type: text
+  integer:
+    optional:  false
+    title: "integer"
+    description: "A description of integer"
+    type: integer
+  integer_opt:
+    optional:  true
+    title: "integer opt"
+    description: "A description of integer"
+    type: integer
+  boolean:
+    optional:  false
+    title: "boolean"
+    description: "A description of boolean"
+    type: boolean
+  boolean_opt:
+    optional:  true
+    title: "boolean opt"
+    description: "A description of boolean"
+    type: boolean
+  floating_point:
+    optional:  false
+    title: "floating_point"
+    description: "A description of floating_point"
+    type: floating_point
+  floating_point_opt:
+    optional:  true
+    title: "floating_point opt"
+    description: "A description of floating_point"
+    type: floating_point
+  peer:
+    optional:  true
+    title: "peer"
+    description: "A description of peer"
+    type: peer
+  peeropt:
+    optional:  true
+    title: "peer opt"
+    description: "A description of peer"
+    type: peer
+  license_server:
+    optional:  false
+    title: "license_server"
+    description: "A description of license_server"
+    type: license_server
+    tagged: ["app"]
+  license_server_opt:
+    optional:  true
+    title: "license_server opt"
+    description: "A description of license_server"
+    type: license_server
+    tagged: ["app"]
+  enumeration:
+    optional:  false
+    title: "enumeration"
+    description: "A description of enumeration"
+    type: enumeration
+    options:
+    - name: A
+      value: a
+    - name: B
+      value: b
+    - name: C
+      value: c
+  enumeration_server_opt:
+    optional:  true
+    title: "enumeration opt"
+    description: "A description of enumeration"
+    type: enumeration
+    options:
+    - name: A
+      value: a
+    - name: B
+      value: b
+    - name: C
+      value: c

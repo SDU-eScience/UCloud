@@ -35,7 +35,7 @@ class NotificationController(
                 MarkResponse(
                     service.markAsRead(
                         ctx.securityPrincipal.username,
-                        request.bulkId.normalizedIds
+                        request.normalizedIds
                     )
                 )
             )
@@ -51,7 +51,7 @@ class NotificationController(
         }
 
         implement(NotificationDescriptions.delete) {
-            ok(DeleteResponse(service.deleteNotifications(request.bulkId.normalizedIds)))
+            ok(DeleteResponse(service.deleteNotifications(request.normalizedIds)))
         }
 
         implement(NotificationDescriptions.subscription) {

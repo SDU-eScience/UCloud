@@ -251,7 +251,7 @@ class Server(
                 ).orThrow()
 
                 if (micro.developmentModeEnabled) {
-                    val defaultConfigDir = File(System.getProperty("user.home"), "sducloud")
+                    val defaultConfigDir = File(System.getProperty("user.home"), "ucloud").also { it.mkdirs() }
                     val configFile = File(defaultConfigDir, "ucloud-compute-config.yml")
                     log.warn("Provider configuration is stored at: ${configFile.absolutePath}")
                     configFile.writeText(

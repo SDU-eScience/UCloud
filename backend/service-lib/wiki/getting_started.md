@@ -70,7 +70,7 @@ kubectl --context hyperkit create ns app-kubernetes
 kubectl --context hyperkit create -f /tmp/pvcs.yml
 ```
 
-From `sducloud/backend/launcher` run the following command:
+From `ucloud/backend/launcher` run the following command:
 
 ```
 mkdir -p fs/{home,projects}
@@ -79,7 +79,7 @@ minikube -p hyperkit mount fs/:/hosthome --uid=11042 --gid=11042
    
 ## Preparing Configuration
 
-Create the file `~/sducloud/tokenvalidation.yml` with the following content:
+Create the file `~/ucloud/config.yml` with the following content:
 
 ```yaml
 ---
@@ -87,19 +87,18 @@ refreshToken: theverysecretadmintoken
 tokenValidation:
   jwt:
     sharedSecret: notverysecret
-```
 
-Create the file `~/sducloud/db.yml` with the following content (note: replace credentials to match your postgres):
-
-```yaml
----
-hibernate:
-  database:
-    profile: PERSISTENT_POSTGRES
-    credentials:
-      username: postgres
+database:
+   profile: PERSISTENT_POSTGRES
+   credentials: # Note Replace with your own postgre credentials
+      username: postgres 
       password: postgrespassword
-    logSql: true
+
+rpc:
+   client:
+      host:
+         host: localhost
+         port: 8080
 ```
 
 ## Generating Service Descriptions
@@ -118,7 +117,7 @@ Note: Database migrations on development versions sometimes fail due to checksum
 find issues in the database migrations and correct the version directly, as opposed to creating a new one. One way
 around this is to recreate the affected schema/the entire database. That is, if you don't want to fix it by hand.
 
-From `sducloud/backend` run the following:
+From `ucloud/backend` run the following:
 
 ```
 ./gradlew :launcher:run --args='--dev --run-script migrate-db'
@@ -134,7 +133,7 @@ Then make sure you are currently running Java 11 (`java -version`).
 
 ## Running Elasticsearch Migrations
 
-We still don't have a good solution for this. At the moment the following is required to be run from `sducloud/backend`:
+We still don't have a good solution for this. At the moment the following is required to be run from `ucloud/backend`:
 
 ```
 ./gradlew :contact-book-service:run --args='--dev --createIndex'
@@ -165,13 +164,13 @@ values
 ## Starting UCloud
 
 
-From `sducloud/backend` run the following:
+From `ucloud/backend` run the following:
 
 ```
 ./gradlew :launcher:run --args='--dev'
 ```
 
-From `sducloud/frontend-web/webclient/`
+From `ucloud/frontend-web/webclient/`
 
 ```
 npm run start_use_local_backend
@@ -288,7 +287,7 @@ curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/grant
 curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/grant/request-settings' \
     -H "Authorization: Bearer ${USERTOK}" \
     -H "Project: ${projectId}" \
-    -d '{ "allowRequestsFrom": [{"type": "anyone"}], "automaticApproval": { "from": [], "maxResources": [] } }'
+    -d '{ "allowRequestsFrom": [{"type": "anyone"}], "automaticApproval": { "from": [], "maxResources": [] }, "excludeRequestsFrom": [] }'
 
 curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/files/quota' \
     -H "Authorization: Bearer ${ADMINTOK}" \
@@ -306,3 +305,9 @@ This will create the user:
 - Password: mypassword
 
 Which you should be able to use immediately on your local version of UCloud.
+
+## Next Steps
+
+- Install some applications into the UCloud system, you can find examples [here](../../app-store-service/examples)
+- [Create a new provider](../../provider-service/README.md)
+- [Learn more about UCloud development](./first_service.md)

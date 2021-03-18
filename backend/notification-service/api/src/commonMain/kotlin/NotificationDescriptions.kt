@@ -23,15 +23,9 @@ val FindByNotificationIdBulk.normalizedIds: List<Long>
 
 fun FindByNotificationIdBulk(ids: List<Long>) = FindByNotificationIdBulk(ids.joinToString(","))
 
-@Serializable
-data class MarkAsReadRequest(
-    val bulkId: FindByNotificationIdBulk
-)
+typealias MarkAsReadRequest = FindByNotificationIdBulk
 
-@Serializable
-data class DeleteNotificationRequest(
-    val bulkId: FindByNotificationIdBulk
-)
+typealias DeleteNotificationRequest = FindByNotificationIdBulk
 
 @Serializable
 data class DeleteResponse(val failures: List<Long>)
