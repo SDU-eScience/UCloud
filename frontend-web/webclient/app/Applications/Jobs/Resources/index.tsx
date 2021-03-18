@@ -18,7 +18,7 @@ export interface ResourceHook {
 type ResourcePrefix = "resource";
 type PeerResourceNS = `${ResourcePrefix}Peer`;
 type FolderResourceNS = `${ResourcePrefix}Folder`;
-type ResourceTypes = FolderResourceNS | PeerResourceNS | "ingress";
+type ResourceTypes = FolderResourceNS | PeerResourceNS | "ingress" | "network";
 
 export function useResource(ns: ResourceTypes, provider: string | undefined,
     paramMapper: (name: string) => ApplicationParameter): ResourceHook {

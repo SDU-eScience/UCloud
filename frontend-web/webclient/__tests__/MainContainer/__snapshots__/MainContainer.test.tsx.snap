@@ -18,7 +18,6 @@ exports[`Main container Main container with header 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c4 {
@@ -92,7 +91,6 @@ exports[`Main container Main container with sidebar 1`] = `
   padding-right: 14px;
   width: 240px;
   height: 100%;
-  top: 0;
 }
 
 .c5 {

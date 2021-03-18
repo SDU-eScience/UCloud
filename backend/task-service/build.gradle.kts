@@ -1,9 +1,13 @@
-version = "0.4.0-rc1"
+version = "0.5.1"
 
 application {
     mainClassName = "dk.sdu.cloud.task.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+        }
+    }
 }

@@ -6,7 +6,6 @@ import {
     Box,
     Flex,
     ExternalLink,
-    Image,
     Link,
     Markdown,
     OutlineButton,
@@ -14,7 +13,7 @@ import {
 } from "ui-components";
 import ContainerForText from "ui-components/ContainerForText";
 import * as Heading from "ui-components/Heading";
-import {TextSpan} from "ui-components/Text";
+import {EllipsedText, TextSpan} from "ui-components/Text";
 import {dateToString} from "Utilities/DateUtilities";
 import {capitalized} from "UtilityFunctions";
 import {ApplicationCardContainer, SlimApplicationCard, Tag} from "./Card";
@@ -28,6 +27,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import {compute} from "UCloud";
 import Application = compute.Application;
+import {useTitle} from "Navigation/Redux/StatusActions";
 
 const View: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
@@ -46,6 +46,12 @@ const View: React.FunctionComponent = () => {
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
     }, [appName, appVersion]);
 
+
+    useTitle(applicationResp.data == null ?
+        `${appName}, ${appVersion}` :
+        `${applicationResp.data.metadata.title}, ${applicationResp.data.metadata.version}`);
+
+
     const application = applicationResp.data;
     const previous = previousResp.data;
 
@@ -59,7 +65,7 @@ const View: React.FunctionComponent = () => {
                 <ContainerForText left>
                     <Content
                         application={application!}
-                        previous={previous}
+                        previous={previous.items.filter(it => it.metadata.version !== application.metadata.version)}
                     />
                 </ContainerForText>
             )}
@@ -73,51 +79,31 @@ const View: React.FunctionComponent = () => {
     );
 }
 
-const AppHeaderBase = styled.div`
-    display: flex;
-    flex-direction: row;
-
-    & > ${Image} {
-        //width: 128px;
-        //height: 128px;
-        border-radius: 8px;
-        object-fit: cover;
-        margin-right: 16px;
-    }
-`;
-
-const AppHeaderDetails = styled.div`
-    display: flex;
-    flex-direction: column;
-
-    & > h1, h2 {
-        margin: 0;
-    }
-`;
-
 export const AppHeader: React.FunctionComponent<{application: UCloud.compute.ApplicationWithFavoriteAndTags} & {slim?: boolean}> = props => {
     const isSlim = props.slim === true;
-    const size = isSlim ? "32px" : "128px";
+    const size = isSlim ? "64px" : "128px";
     return (
-        <AppHeaderBase>
+        <Flex flexDirection={"row"} ml={["0px", "0px", "0px", "0px", "0px", "50px"]}  >
             <Box mr={16}>
                 <AppToolLogo type={"APPLICATION"} name={props.application.metadata.name} size={size} />
             </Box>
-            <AppHeaderDetails>
+            {/* minWidth=0 is required for the ellipsed text children to work */}
+            <Flex flexDirection={"column"} minWidth={0}>
                 {isSlim ? (
-                    <Heading.h3>
-                        {props.application.metadata.title} <small>({props.application.metadata.version})</small>
-                    </Heading.h3>
-                ) : (
+                        <>
+                            <Heading.h3>{props.application.metadata.title}</Heading.h3>
+                            <TextSpan>v{props.application.metadata.version}</TextSpan>
+                        </>
+                    ) : (
                         <>
                             <Heading.h2>{props.application.metadata.title}</Heading.h2>
                             <Heading.h3>v{props.application.metadata.version}</Heading.h3>
-                            <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
+                            <EllipsedText>by {props.application.metadata.authors.join(", ")}</EllipsedText>
                             <Tags tags={props.application.tags} />
                         </>
                     )}
-            </AppHeaderDetails>
-        </AppHeaderBase>
+            </Flex>
+        </Flex>
     );
 };
 
@@ -143,42 +129,40 @@ const AppSection = styled(Box)`
 
 const Content: React.FunctionComponent<{
     application: UCloud.compute.ApplicationWithFavoriteAndTags,
-    previous: UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>
-}> = props => {
-    return (
-        <>
-            <AppSection>
-                <Markdown
-                    unwrapDisallowed
-                    source={props.application.metadata.description}
-                    disallowedTypes={[
-                        "image",
-                        "heading"
-                    ]}
-                />
-            </AppSection>
+    previous: UCloud.compute.ApplicationSummaryWithFavorite[]
+}> = props => (
+    <>
+        <AppSection>
+            <Markdown
+                unwrapDisallowed
+                source={props.application.metadata.description}
+                disallowedTypes={[
+                    "image",
+                    "heading"
+                ]}
+            />
+        </AppSection>
 
-            <AppSection>
-                {!props.previous ? null :
-                    (!props.previous.items.length ? null : (
-                        <div>
-                            <Heading.h4>Other Versions</Heading.h4>
-                            <ApplicationCardContainer>
-                                {props.previous.items.map((it, idx) => (
-                                    <SlimApplicationCard app={it} key={idx} tags={it.tags} />
-                                ))}
-                            </ApplicationCardContainer>
-                        </div>
-                    ))
-                }
-            </AppSection>
-
-            <AppSection>
-                <Information application={props.application} />
-            </AppSection>
-        </>
-    );
-}
+        <AppSection>
+            <Information application={props.application} />
+        </AppSection>
+        
+        <AppSection>
+            {!props.previous ? null :
+                (!props.previous.length ? null : (
+                    <div>
+                        <Heading.h4>Other Versions</Heading.h4>
+                        <ApplicationCardContainer>
+                            {props.previous.map((it, idx) => (
+                                <SlimApplicationCard app={it} key={idx} tags={it.tags} />
+                            ))}
+                        </ApplicationCardContainer>
+                    </div>
+                ))
+            }
+        </AppSection>
+    </>
+);
 
 function Tags({tags}: {tags: string[]}): JSX.Element | null {
     if (!tags) return null;
@@ -227,8 +211,6 @@ const Information: React.FunctionComponent<{application: Application}> = ({appli
     const license = tool.description.license;
     return (
         <>
-            <Heading.h4>Information</Heading.h4>
-
             <InfoAttributes>
                 <InfoAttribute
                     name="Release Date"

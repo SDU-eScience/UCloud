@@ -49,14 +49,17 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "Applied Science",
         "Natural Science",
         "Development",
+        "Virtual Machines",
         "Bioinformatics"
     ];
 
+    const [refreshId, setRefreshId] = useState<number>(0);
+
     useTitle("Applications");
     useSidebarPage(SidebarPages.AppStore);
-    const refresh = useCallback(() => {
-        // TODO
-    }, []);
+    const refresh = () => {
+        setRefreshId(refreshId + 1);
+    };
     useRefreshFunction(refresh);
 
     const [loadingCommand, invokeCommand] = useCloudCommand();
@@ -92,6 +95,7 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
                 favoriteStatus={favoriteStatus}
                 onFavorite={onFavorite}
                 linkToRun
+                refreshId={refreshId}
             />
 
             <TagGrid
@@ -100,6 +104,7 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
                 rows={3}
                 favoriteStatus={favoriteStatus}
                 onFavorite={onFavorite}
+                refreshId={refreshId}
             />
 
             {featuredTags.map(tag =>
@@ -111,10 +116,11 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
                     favoriteStatus={favoriteStatus}
                     onFavorite={onFavorite}
                     tagBanList={defaultTools}
+                    refreshId={refreshId}
                 />
             )}
 
-            {defaultTools.map(tag => <ToolGroup key={tag} tag={tag} />)}
+            {defaultTools.map(tag => <ToolGroup refreshId={refreshId} key={tag} tag={tag} />)}
         </>
     );
     return (<MainContainer main={main} />);
@@ -124,7 +130,7 @@ const ScrollBox = styled(Box)`
     overflow-x: auto;
 `;
 
-const ToolGroupWrapper = styled(Flex)`
+const ToolGroupWrapper = styled(Box)`
     width: 100%;
     padding-bottom: 10px;
     padding-left: 10px;
@@ -162,6 +168,25 @@ const ToolImage = styled.div`
 // will have this tag.
 const SPECIAL_FAVORITE_TAG = "\n\nFavorites\n\n";
 
+type TagGridBoxProps = {
+    isFavorite: boolean;
+}
+
+const TagGridTopBox = styled.div<TagGridBoxProps>`
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    background-color: var(${props => props.isFavorite ? "--appStoreFavBg" : "--lightGray"},#f00);
+`;
+
+const TagGridBottomBox = styled.div<TagGridBoxProps>`
+    padding: 0px 10px 15px 10px;
+    ${props => props.isFavorite ? null : "overflow-x: scroll;"}
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    background-color: var(${props => props.isFavorite ? "--appStoreFavBg" : "--lightGray"},#f00);
+`;
+
+
 interface TagGridProps {
     tag: string;
     tagBanList?: string[];
@@ -170,16 +195,16 @@ interface TagGridProps {
     favoriteStatus: FavoriteStatus;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
     linkToRun?: boolean;
+    refreshId: number;
 }
 
 const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, columns, rows, tagBanList = [], favoriteStatus, onFavorite, linkToRun}: TagGridProps
+    {tag, columns, rows, tagBanList = [], favoriteStatus, onFavorite, linkToRun, refreshId}: TagGridProps
 ) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage,
-        {cacheKey: "TagGrid" + tag, cacheTtlMs: TEN_MINUTES_IN_MILLIS}
     );
 
     useEffect(() => {
@@ -188,7 +213,7 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
         } else {
             fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
         }
-    }, [tag]);
+    }, [tag, refreshId]);
 
     let filteredItems = appResp.data.items
         .filter(it => !it.tags.some(_tag => tagBanList.includes(_tag)))
@@ -223,35 +248,35 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
     }
 
     filteredItems = filteredItems.sort((a, b) => a.metadata.title.localeCompare(b.metadata.title));
+    if (filteredItems.length === 0 ) return (null);
 
     return (
         <>
-            {showFavorites && filteredItems.length === 0 ? null : <div>
+            <TagGridTopBox isFavorite={showFavorites}>
                 <Spacer
-                    pt="15px"
+                    mt="15px" px="10px" alignItems={"center"}
                     left={<Heading.h2>{showFavorites ? "Favorites" : tag}</Heading.h2>}
                     right={(
                         showFavorites ? null : (
                             <ShowAllTagItem tag={tag}>
-                                <Heading.h4 pt="15px"><strong>Show All</strong></Heading.h4>
+                                <Heading.h4>Show All</Heading.h4>
                             </ShowAllTagItem>
                         )
                     )}
                 />
-            </div>}
-            <Box pl="10px" style={{overflowX: "scroll"}} pb="15px">
+            </TagGridTopBox>
+            <TagGridBottomBox isFavorite={showFavorites}>
                 <Grid
                     pt="20px"
-                    gridTemplateRows={`repeat(${rows}, 1fr)`}
-                    gridTemplateColumns={`repeat(${columns}}, 1fr)`}
                     gridGap="15px"
-                    style={{gridAutoFlow: "column"}}
+                    gridTemplateRows={showFavorites ? undefined : `repeat(${rows} , 1fr)`}
+                    gridTemplateColumns={showFavorites ? "repeat(auto-fill, minmax(400px, 1fr))" : "repeat(auto-fill, 400px)" }
+                    style={{gridAutoFlow: showFavorites ? "row" : "column"}}
                 >
                     {filteredItems.map(app => (
                         <ApplicationCard
                             key={`${app.metadata.name}-${app.metadata.version}`}
                             onFavorite={() => onFavorite(app)}
-                            colorBySpecificTag={tag}
                             app={app}
                             isFavorite={showFavorites}
                             tags={app.tags}
@@ -259,23 +284,20 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                         />
                     ))}
                 </Grid>
-            </Box>
+            </TagGridBottomBox>
         </>
     );
 };
 
-const TEN_MINUTES_IN_MILLIS = 1_000 * 60 * 10;
-
-const ToolGroup: React.FunctionComponent<{tag: string}> = ({tag}) => {
+const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({tag, refreshId}) => {
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
         {noop: true},
-        emptyPage,
-        {cacheKey: "ToolGroup" + tag, cacheTtlMs: TEN_MINUTES_IN_MILLIS}
+        emptyPage
     );
 
     useEffect(() => {
         fetchApplications(UCloud.compute.apps.searchTags({query: tag, itemsPerPage: 100, page: 0}));
-    }, [tag]);
+    }, [tag, refreshId]);
 
     const page = appResp.data;
     const allTags = page.items.map(it => it.tags);
@@ -284,56 +306,58 @@ const ToolGroup: React.FunctionComponent<{tag: string}> = ({tag}) => {
 
     return (
         <ToolGroupWrapper>
-            <ToolImageWrapper>
-                <ToolImage>
-                    <AppToolLogo size="148px" name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
-                </ToolImage>
-            </ToolImageWrapper>
-            <CardToolContainer>
-                <Spacer
-                    alignItems="center"
-                    left={<Heading.h3>{tag}</Heading.h3>}
-                    right={(
-                        <ShowAllTagItem tag={tag}>
-                            <Heading.h5><strong> Show All</strong></Heading.h5>
-                        </ShowAllTagItem>
-                    )}
-                />
-                <ScrollBox>
-                    <Grid
-                        py="10px"
-                        pl="10px"
-                        gridTemplateRows="repeat(2, 1fr)"
-                        gridTemplateColumns="repeat(9, 1fr)"
-                        gridGap="8px"
-                        gridAutoFlow="column"
-                    >
-                        {page.items.map(application => {
-                            const [first, second, third] = getColorFromName(application.metadata.name);
-                            const withoutTag = removeTagFromTitle(tag, application.metadata.title);
-                            return (
-                                <div key={application.metadata.name}>
-                                    <SmallCard
-                                        title={withoutTag}
-                                        color1={first}
-                                        color2={second}
-                                        color3={third}
-                                        to={Pages.viewApplication(application.metadata)}
-                                        color="white"
-                                    >
-                                        <EllipsedText>{withoutTag}</EllipsedText>
-                                    </SmallCard>
-                                </div>
-                            );
-                        })}
-                    </Grid>
-                </ScrollBox>
-                <Flex flexDirection="row" alignItems="flex-start">
-                    {[...tags].filter(it => it !== tag).map(tag => (
-                        <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
-                    ))}
-                </Flex>
-            </CardToolContainer>
+            <Spacer
+                alignItems="center"
+                left={<Heading.h3>{tag}</Heading.h3>}
+                right={(
+                    <ShowAllTagItem tag={tag}>
+                        <Heading.h5 bold={false} regular={true}>Show All</Heading.h5>
+                    </ShowAllTagItem>
+                )}
+            />
+            <Flex>
+                <ToolImageWrapper>
+                    <ToolImage>
+                        <AppToolLogo size="148px" name={tag.toLowerCase().replace(/\s+/g, "")} type={"TOOL"} />
+                    </ToolImage>
+                </ToolImageWrapper>
+                <CardToolContainer>
+                    <ScrollBox>
+                        <Grid
+                            py="10px"
+                            pl="10px"
+                            gridTemplateRows="repeat(2, 1fr)"
+                            gridTemplateColumns="repeat(9, 1fr)"
+                            gridGap="8px"
+                            gridAutoFlow="column"
+                        >
+                            {page.items.map(application => {
+                                const [first, second, third] = getColorFromName(application.metadata.name);
+                                const withoutTag = removeTagFromTitle(tag, application.metadata.title);
+                                return (
+                                    <div key={application.metadata.name}>
+                                        <SmallCard
+                                            title={withoutTag}
+                                            color1={first}
+                                            color2={second}
+                                            color3={third}
+                                            to={Pages.viewApplication(application.metadata)}
+                                            color="white"
+                                        >
+                                            <EllipsedText>{withoutTag}</EllipsedText>
+                                        </SmallCard>
+                                    </div>
+                                );
+                            })}
+                        </Grid>
+                    </ScrollBox>
+                    <Flex flexDirection="row" alignItems="flex-start">
+                        {[...tags].filter(it => it !== tag).map(tag => (
+                            <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
+                        ))}
+                    </Flex>
+                </CardToolContainer>
+            </Flex>
         </ToolGroupWrapper>
     );
 };

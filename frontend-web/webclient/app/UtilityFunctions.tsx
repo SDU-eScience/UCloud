@@ -13,6 +13,7 @@ import {getStoredProject} from "Project/Redux";
 import {JWT} from "Authentication/lib";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
+import CONF from "../site.config.json";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -379,8 +380,6 @@ export function defaultErrorHandler(
  */
 export function sortByToPrettierString(sortBy: SortBy): string {
     switch (sortBy) {
-        case SortBy.ACL:
-            return "Members";
         case SortBy.FILE_TYPE:
             return "File Type";
         case SortBy.MODIFIED_AT:
@@ -410,7 +409,7 @@ export function requestFullScreen(el: Element, onFailure: () => void): void {
 
 export function timestampUnixMs(): number {
     return window.performance &&
-        window.performance.now &&
+        window.performance["now"] &&
         window.performance.timing &&
         window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
@@ -486,6 +485,7 @@ export function delay(ms: number): Promise<void> {
  * even if the code may be deployed on production.
  */
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
+export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE;
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();

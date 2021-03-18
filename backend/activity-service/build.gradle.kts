@@ -1,15 +1,19 @@
-version = "1.6.0-rc1"
+version = "1.7.2"
 
 application {
     mainClassName = "dk.sdu.cloud.activity.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
-    implementation(project(":storage-service:api"))
-    implementation(project(":file-favorite-service:api"))
-    implementation(project(":app-orchestrator-service:api"))
-    implementation(project(":app-store-service:api"))
-    implementation(project(":share-service:api"))
-    implementation(project(":project-repository-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+            implementation(project(":storage-service:api"))
+            implementation(project(":file-favorite-service:api"))
+            implementation(project(":app-orchestrator-service:api"))
+            implementation(project(":app-store-service:api"))
+            implementation(project(":share-service:api"))
+            implementation(project(":project-repository-service:api"))
+        }
+    }
 }

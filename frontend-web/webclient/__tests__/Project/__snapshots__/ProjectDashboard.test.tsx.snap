@@ -18,7 +18,6 @@ exports[`Mount ProjectDashboard 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c9 {
@@ -38,7 +37,7 @@ exports[`Mount ProjectDashboard 1`] = `
   padding-right: 16px;
   padding-top: 4px;
   padding-bottom: 4px;
-  height: 100%;
+  height: calc(100% - 5px);
 }
 
 .c20 {
@@ -245,9 +244,9 @@ exports[`Mount ProjectDashboard 1`] = `
 }
 
 .c12 > .c13:hover {
-  -webkit-transform: scale(1.02);
-  -ms-transform: scale(1.02);
-  transform: scale(1.02);
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
@@ -332,8 +331,8 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c16 dashboard-card-inner"
-          height="100%"
+          className="c16"
+          height="calc(100% - 5px)"
         >
           <div
             className="c17"
@@ -448,8 +447,8 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c16 dashboard-card-inner"
-          height="100%"
+          className="c16"
+          height="calc(100% - 5px)"
         >
           <div
             className="c17"
@@ -527,8 +526,8 @@ exports[`Mount ProjectDashboard 1`] = `
           }
         />
         <div
-          className="c16 dashboard-card-inner"
-          height="100%"
+          className="c16"
+          height="calc(100% - 5px)"
         >
           <div
             className="c17"

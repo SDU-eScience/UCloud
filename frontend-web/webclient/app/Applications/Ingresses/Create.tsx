@@ -8,7 +8,7 @@ import ProductNS = accounting.ProductNS;
 import {Box, Button, Flex, Input, Label, Select, Text} from "ui-components";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Spacer} from "ui-components/Spacer";
-import {emptyPageV2} from "DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 
 const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinished?: () => void}> = props => {
     const [selectedProvider, setSelectedProvider] = useState(props.computeProvider);
@@ -118,14 +118,14 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
             return;
         }
 
-        const {ids} = await invokeCommand(UCloud.compute.ingresses.create({
+        const {ids} = await invokeCommand(UCloud.compute.ingresses.create(bulkRequestOf({
             domain: ingressSettings.data.domainPrefix + domainRef.current.value + ingressSettings.data.domainSuffix,
             product: {
                 category: selectedProduct.category.id,
                 id: selectedProduct.id,
                 provider: props.computeProvider ?? selectedProvider!
             }
-        }));
+        })));
 
 
         if (ids?.length) {

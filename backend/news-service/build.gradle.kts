@@ -1,9 +1,13 @@
-version = "0.2.0-rc0"
+version = "0.3.1"
 
 application {
     mainClassName = "dk.sdu.cloud.news.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+        }
+    }
 }

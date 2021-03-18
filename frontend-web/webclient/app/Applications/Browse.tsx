@@ -82,7 +82,7 @@ export const Applications: React.FunctionComponent = () => {
                 <Pagination.List
                     loading={appResp.loading}
                     pageRenderer={page =>
-                        <GridCardGroup>
+                        <GridCardGroup gridGap={15}>
                             {page.items.map((it, idx) => (
                                 <ApplicationCard
                                     onFavorite={toggleFavorite}

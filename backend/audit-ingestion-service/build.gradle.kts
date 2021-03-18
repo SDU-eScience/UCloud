@@ -1,9 +1,13 @@
-version = "0.3.0-rc1"
+version = "0.4.1"
 
 application {
     mainClassName = "dk.sdu.cloud.audit.ingestion.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+        }
+    }
 }

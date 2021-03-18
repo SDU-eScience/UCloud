@@ -21,6 +21,7 @@ const JobShell = React.lazy(() => import("Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("Applications/Jobs/Vnc"));
 const ApplicationLicense = React.lazy(() => import("Applications/Licenses/Browse"));
+const NetworkIPs = React.lazy(() => import("Applications/NetworkIP/Browse"));
 const LandingPage = React.lazy(() => import("Project/Grant/LandingPage"));
 const LicenseServers = React.lazy(() => import("Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("Login/Login"));
@@ -45,7 +46,11 @@ const UserCreation = React.lazy(() => import("Admin/UserCreation"));
 const UserSettings = React.lazy(() => import("UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("Login/Wayf"));
 const AppK8Admin = React.lazy(() => import("Admin/AppK8Admin"));
+const AppAauAdmin = React.lazy(() => import("Admin/AppAauAdmin"));
 const Demo = React.lazy(() => import("Playground/Demo"));
+const Providers = React.lazy(() => import("Admin/Providers/Browse"));
+const CreateProvider = React.lazy(() => import("Admin/Providers/Create"));
+const ViewProvider = React.lazy(() => import("Admin/Providers/View"));
 
 // Not React.lazy-able due to how the components are created on demand.
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
@@ -110,6 +115,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/applications/web/:jobId/:rank" component={JobWeb} />
                     <Route exact path="/applications/vnc/:jobId/:rank" component={JobVnc} />
                     <Route exact path="/applications/licenses" component={ApplicationLicense} />
+                    <Route exact path="/applications/publicips" component={NetworkIPs} />
 
                     <Route exact path="/applications/studio" component={requireAuth(Studio)} />
                     <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />
@@ -125,6 +131,10 @@ const Core = (): JSX.Element => (
                     <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)} />
                     <Route exact path="/admin/news" component={requireAuth(NewsManagement)} />
                     <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)} />
+                    <Route exact path="/admin/appaau" component={requireAuth(AppAauAdmin)} />
+                    <Route exact path="/admin/providers" component={requireAuth(Providers)} />
+                    <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
+                    <Route exact path="/admin/providers/:id" component={requireAuth(ViewProvider)} />
 
                     <Route exact path="/news/detailed/:id" component={DetailedNews} />
                     <Route exact path="/news/list/:filter?" component={NewsList} />

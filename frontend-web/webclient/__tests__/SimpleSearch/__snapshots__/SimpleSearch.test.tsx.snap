@@ -25,7 +25,6 @@ exports[`Search mount 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c8 {

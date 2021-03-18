@@ -1,0 +1,21 @@
+---
+tool: v1
+name: aau-ubuntu-vm
+version: 20.04
+
+title: Ubuntu 20.04 (Virtual Machine)
+description: Ubuntu is a Linux distribution based on Debian.
+authors: ["Canonical Ltd."]
+
+backend: VIRTUAL_MACHINE
+
+# Reference to some image available at the provider:
+# For openstack, the provider could assume that this image has been
+# pre-configured by a sysadmin prior to adding this tool in UCloud
+image: ubuntu20-04
+
+# VIRTUAL_MACHINES are by default not supported by any provider
+# DOCKER are by default supported by all providers (which declare support for
+# docker). That is, public repo assumed.
+supportedProviders:
+- aau

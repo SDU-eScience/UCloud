@@ -66,7 +66,7 @@ export const ImportParameters: React.FunctionComponent<{
                         result = {messages: [{type: "error", message: "Corrupt or invalid import file"}]};
                     }
 
-                    result = await cleanupImportResult(application, result);
+                    result = await cleanupImportResult(application, result)
                     setMessages(result.messages);
 
                     if (typeof result.output === undefined) {
@@ -84,7 +84,7 @@ export const ImportParameters: React.FunctionComponent<{
         fileReader.readAsText(file);
     }, []);
 
-    const fetchAndImportParameters = useCallback(async (file: { path: string }) => {
+    const fetchAndImportParameters = useCallback(async (file: {path: string}) => {
         const fileStat = await callAPI(UCloud.file.stat({path: file.path}));
         if (fileStat.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.", false);
@@ -131,9 +131,9 @@ export const ImportParameters: React.FunctionComponent<{
                 <MessageBox>
                     {messages.map((it, i) =>
                         <li key={i}>
-                            {it.type === "error" ? <Icon name={"warning"} color={"red"}/> : null}
-                            {it.type === "warning" ? <Icon name={"warning"} color={"yellow"}/> : null}
-                            {it.type === "info" ? <Icon name={"info"}/> : null}
+                            {it.type === "error" ? <Icon name={"warning"} color={"red"} /> : null}
+                            {it.type === "warning" ? <Icon name={"warning"} color={"yellow"} /> : null}
+                            {it.type === "info" ? <Icon name={"info"} /> : null}
                             {it.message}
                         </li>
                     )}
@@ -192,9 +192,9 @@ export const ImportParameters: React.FunctionComponent<{
 };
 
 type ImportMessage =
-    { type: "info", message: string } |
-    { type: "warning", message: string } |
-    { type: "error", message: string };
+    {type: "info", message: string} |
+    {type: "warning", message: string} |
+    {type: "error", message: string};
 
 interface ImportResult {
     output?: Partial<JobSpecification>;
@@ -225,6 +225,7 @@ async function importVersion1(application: UCloud.compute.Application, json: any
     output.parameters = userInputValues;
     for (const param of application.invocation.parameters) {
         const valueFromFile = parameters[param.name];
+        if (!valueFromFile) continue;
         switch (param.type) {
             case "integer":
                 userInputValues[param.name] = {type: "integer", value: parseInt(valueFromFile.toString(), 10)};
@@ -258,16 +259,17 @@ async function importVersion1(application: UCloud.compute.Application, json: any
                 userInputValues[param.name] = {type: "text", value: valueFromFile};
                 break;
             case "input_directory":
-            case "input_file":
+            case "input_file": {
                 userInputValues[param.name] = {
                     type: "file",
                     path: expandHomeOrProjectFolder(
-                        valueFromFile["source"]?.toString() ?? valueFromFile["ref"]?.toString() ?? "/",
+                        valueFromFile?.["source"]?.toString() ?? valueFromFile?.["ref"]?.toString() ?? "",
                         Client
                     ),
                     readOnly: false
-                };
+                }
                 break;
+            }
         }
     }
 
@@ -327,14 +329,13 @@ async function cleanupImportResult(
     const resources = output.resources ?? [];
 
     const badParam: (paramName: string) => void = (paramName) => {
-       result.messages.push({type: "warning", message: "Corrupt parameter: " + paramName});
-       delete parameters[paramName];
+        result.messages.push({type: "warning", message: "Corrupt parameter: " + paramName});
+        delete parameters[paramName];
     }
 
     for (const paramName of Object.keys(parameters)) {
         const param = parameters[paramName];
         if (typeof param !== "object") {
-            console.log("Not object")
             badParam(paramName);
             continue;
         }
@@ -378,7 +379,8 @@ async function cleanupImportResult(
         }
 
         if (type === "input_file" || type === "input_directory") {
-            if (!await checkIfFileExists(param["path"] as string, Client)) {
+            if (!param["path"]) delete parameters[paramName];
+            else if (!await checkIfFileExists(param["path"] as string, Client)) {
                 result.messages.push({type: "warning", message: "File no longer exists: " + param["path"]});
                 delete parameters[paramName];
             }
@@ -431,7 +433,7 @@ async function cleanupImportResult(
     if (output.replicas !== undefined) {
         // noinspection SuspiciousTypeOfGuard
         if (typeof output.replicas !== "number") {
-            result.messages.push({type: "warning", message: "Corrupt number of replicas"});
+            result.messages.push({type: "warning", message: "Corrupt number of nodes"});
             output.replicas = undefined;
         }
     }

@@ -1,0 +1,22 @@
+---
+application: v1
+name: aau-ubuntu-vm
+version: 20.04
+
+title: Ubuntu 20.04 (Virtual Machine)
+description: Ubuntu is a Linux distribution based on Debian.
+authors: ["Canonical Ltd."]
+
+tool:
+  name: aau-ubuntu-vm
+  version: 20.04
+
+parameters:
+  pubKey:
+    title: Public Key (SSH)
+    type: text
+    description: >
+      Please enter your public key, needed for access, here. It should start with `ssh-rsa ....`.
+    optional: false
+
+invocation: []

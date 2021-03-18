@@ -1,5 +1,3 @@
-import {configure, shallow} from "enzyme";
-import * as Adapter from "enzyme-adapter-react-16";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {create} from "react-test-renderer";
@@ -23,7 +21,6 @@ import {
 } from "../app/UtilityComponents";
 import {iconFromFilePath} from "../app/UtilityFunctions";
 
-configure({adapter: new Adapter()});
 
 describe("PP", () => {
 
@@ -33,12 +30,6 @@ describe("PP", () => {
 
     test("Visible PP-Component", () => {
         expect(create(<PP visible />).toJSON()).toMatchSnapshot();
-    });
-
-    test.skip("Change PP-value", () => {
-        const pP = shallow(<PP visible />);
-        pP.findWhere(it => !!it.props().type().range).simulate("change", {target: {value: "500"}});
-        expect((pP.state() as {duration: number}).duration).toBe(500);
     });
 });
 

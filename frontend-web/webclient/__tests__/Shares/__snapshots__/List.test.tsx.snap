@@ -152,7 +152,6 @@ exports[`Shares List Shares component 1`] = `
   width: 100%;
   height: 55px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c8 {

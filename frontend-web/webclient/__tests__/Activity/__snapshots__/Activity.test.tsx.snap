@@ -36,16 +36,14 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   width: 100%;
   height: 96px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c7 {
   padding-top: 144px;
   padding-left: 14px;
   padding-right: 14px;
-  width: 340px;
+  width: 290px;
   height: 100%;
-  top: 0;
 }
 
 .c10 {
@@ -54,7 +52,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
 
 .c21 {
   padding-top: 96px;
-  padding-right: 340px;
+  padding-right: 290px;
 }
 
 .c3 {
@@ -110,9 +108,9 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
 }
 
 .c36:hover {
-  -webkit-transform: scale(1.03);
-  -ms-transform: scale(1.03);
-  transform: scale(1.03);
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .c16 {
@@ -448,7 +446,7 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
       className="c0 c7 c8 c9"
       data-tag="sidebar"
       height="100%"
-      width={340}
+      width={290}
     >
       <div
         className="c0 c10"

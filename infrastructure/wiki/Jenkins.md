@@ -33,9 +33,7 @@ been marked as FAILURE or UNSTABLE, then the job is marked as FAILED and a
 message is sent to our Slack channel `#devalerts` specifying which services
 are to blame.
 
-.. figure:: JenkinsFlowChart.png
-   :width: 90%
-   :align: center
+![](JenkinsFlowChart.png)
 
 Most of the services run their build and tests straight out of the box.
 However some services require additional work to be able to run.

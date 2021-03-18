@@ -3,12 +3,14 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "provider"
-    version = "0.1.0"
+    version = "0.2.1"
     
-    withAmbassador() {}
+    withAmbassador() {
+        addSimpleMapping("/api/providers")
+    }
     
     val deployment = withDeployment {
-        deploy.spec.replicas = 2
+        deployment.spec.replicas = 2
     }
     
     withPostgresMigration(deployment)

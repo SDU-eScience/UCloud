@@ -283,7 +283,8 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                         </LoginText>
                                     )}
                                 >
-                                    <LoginBox color="red" width="100%">
+                                    {/* add 17px to width to compensate for negative margin */}
+                                    <LoginBox color="red" width="calc(100% + 17px)">
                                         <form onSubmit={preventDefault}>
                                             <Login
                                                 enabled2fa={!!challengeId}
@@ -549,18 +550,19 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
         </Absolute>
         <Absolute top="4vw" left="8vw">
             <LoginBox width={"calc(96px + 10vw)"}>
-                <LoginIcon name={props.selection ? "deiCLogo" : "logoSdu"} size="100%" />
+                <LoginIcon name={"deiCLogo"} size="100%" />
+                <Text textAlign="center" fontSize={"3vw"}>Type 1</Text>
             </LoginBox>
         </Absolute>
 
 
-        <Absolute style={{overflowY: "hidden"}} bottom="0" height="50%" width="100%">
+        <Absolute style={{overflow: "hidden"}} bottom="0" height="50%" width="100%">
             <BG1 selection={props.selection} />
-            {props.selection ? <Absolute bottom={0} left="30px" width="calc(100% - 150px)">
-                <Icon size={"150px"} mr="24px" color="#fff" name="logoSdu" />
-                <Image width={"160px"} src={aarhusu_logo} />
+            <Absolute bottom={0} left="calc(50% - 280px)" width="calc(100% - 150px)">
                 <Image width={"150px"} src={aalborgu_logo} />
-            </Absolute> : null}
+                <Image mx="50px" width={"160px"} src={aarhusu_logo} />
+                <Icon size={"150px"} mr="24px" color="#fff" name="logoSdu" />
+            </Absolute>
         </Absolute>
 
         <BackgroundImage image={bg2}>

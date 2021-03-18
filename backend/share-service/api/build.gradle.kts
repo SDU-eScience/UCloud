@@ -1,3 +1,3 @@
 dependencies {
-    api(project(":storage-service:api"))
+    commonMainApi(project(":storage-service:api"))
 }

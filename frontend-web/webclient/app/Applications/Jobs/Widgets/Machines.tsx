@@ -5,30 +5,20 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
 import {creditFormatter} from "Project/ProjectUsage";
 import Box from "ui-components/Box";
-import {theme} from "ui-components";
+import {Button, Link, theme} from "ui-components";
 import {useEffect, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import {UCLOUD_PROVIDER} from "Accounting";
 import {accounting} from "UCloud";
 import ComputeProductReference = accounting.ProductReference;
 import styled from "styled-components";
+import ProductNS = accounting.ProductNS;
+import {NoResultsCardBody} from "Dashboard/Dashboard";
 
 export const reservationMachine = "reservation-machine";
 
 export const Machines: React.FunctionComponent<{
+    machines: ProductNS.Compute[];
     onMachineChange?: (product: UCloud.accounting.ProductNS.Compute) => void;
 }> = props => {
-    const [machines] = useCloudAPI<UCloud.Page<UCloud.accounting.ProductNS.Compute>>(
-        UCloud.accounting.products.listProductionsByType({
-            itemsPerPage: 100,
-            page: 0,
-            provider: UCLOUD_PROVIDER,
-            area: "COMPUTE"
-        }),
-        emptyPage,
-    );
-
     const [selected, setSelectedOnlyByListener] = useState<UCloud.accounting.ProductNS.Compute | null>(null);
 
     useEffect(() => {
@@ -41,12 +31,11 @@ export const Machines: React.FunctionComponent<{
                     setSelectedOnlyByListener(null);
                 } else {
                     const ref = JSON.parse(value) as ComputeProductReference;
-                    const newMachine = machines.data.items
-                        .find(it =>
-                            it.id === ref.id &&
-                            it.category.id === ref.category &&
-                            it.category.provider === ref.provider
-                        );
+                    const newMachine = props.machines.find(it =>
+                        it.id === ref.id &&
+                        it.category.id === ref.category &&
+                        it.category.provider === ref.provider
+                    );
 
                     if (newMachine) {
                         setSelectedOnlyByListener(newMachine);
@@ -61,7 +50,7 @@ export const Machines: React.FunctionComponent<{
         return () => {
             if (valueInput && listener) valueInput.removeEventListener("change", listener);
         };
-    }, [machines.data.items.length, props.onMachineChange]);
+    }, [props.machines, props.onMachineChange]);
 
     return (
         <ClickableDropdown
@@ -69,26 +58,27 @@ export const Machines: React.FunctionComponent<{
             colorOnHover={false}
             trigger={(
                 <MachineDropdown>
-                    <input type={"hidden"} id={reservationMachine} />
-                    <MachineBox machine={selected} />
+                    <input type={"hidden"} id={reservationMachine}/>
+                    <MachineBox machine={selected}/>
 
-                    <Icon name="chevronDown" />
+                    <Icon name="chevronDown"/>
                 </MachineDropdown>
             )}
         >
             <Wrapper>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHeaderCell pl="6px">Name</TableHeaderCell>
-                            <TableHeaderCell>vCPU</TableHeaderCell>
-                            <TableHeaderCell>RAM (GB)</TableHeaderCell>
-                            <TableHeaderCell>GPU</TableHeaderCell>
-                            <TableHeaderCell>Price</TableHeaderCell>
-                        </TableRow>
-                    </TableHeader>
-                    <tbody>
-                        {machines.data.items.map(machine => {
+                {props.machines.length === 0 ? null :
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHeaderCell pl="6px">Name</TableHeaderCell>
+                                <TableHeaderCell>vCPU</TableHeaderCell>
+                                <TableHeaderCell>RAM (GB)</TableHeaderCell>
+                                <TableHeaderCell>GPU</TableHeaderCell>
+                                <TableHeaderCell>Price</TableHeaderCell>
+                            </TableRow>
+                        </TableHeader>
+                        <tbody>
+                        {props.machines.map(machine => {
                             if (machine === null) return null;
                             return <TableRow key={machine.id} onClick={() => setMachineReservation(machine)}>
                                 <TableCell pl="6px">{machine.id}</TableCell>
@@ -98,42 +88,55 @@ export const Machines: React.FunctionComponent<{
                                 <TableCell>{creditFormatter(machine.pricePerUnit * 60, 3)}/hour</TableCell>
                             </TableRow>;
                         })}
-                    </tbody>
-                </Table>
+                        </tbody>
+                    </Table>
+                }
+
+                {props.machines.length !== 0 ? null : (<>
+                    <NoResultsCardBody title={"No machines available for use"}>
+                        You do not currently have credits for any machine which this application is able to use. If you
+                        are trying to run a virtual machine, please make sure you have applied for the correct credits
+                        in your grant application.
+
+                        <Link to={"/project/grants-landing"}>
+                            <Button fullWidth mb={"4px"}>Apply for resources</Button>
+                        </Link>
+                    </NoResultsCardBody>
+                </>)}
             </Wrapper>
         </ClickableDropdown>
     )
 };
 
 const Wrapper = styled.div`
-    & > table {
-        margin-left: -9px;
-    }
+  & > table {
+    margin-left: -9px;
+  }
 
-    & > table > tbody > ${TableRow}:hover {
-        cursor: pointer;
-        background-color: var(--lightGray, #f00);
-        color: var(--black, #f00);
-    }
+  & > table > tbody > ${TableRow}:hover {
+    cursor: pointer;
+    background-color: var(--lightGray, #f00);
+    color: var(--black, #f00);
+  }
 `;
 
 const MachineBoxWrapper = styled.div`
-    cursor: pointer;
-    padding: 16px;
-    
-    ul {
-        list-style: none;    
-        margin: 0;
-        padding: 0;
-    }
-    
-    li {
-        display: inline-block;
-        margin-right: 16px;
-    }
+  cursor: pointer;
+  padding: 16px;
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  li {
+    display: inline-block;
+    margin-right: 16px;
+  }
 `;
 
-const MachineBox: React.FunctionComponent<{machine: UCloud.accounting.ProductNS.Compute | null}> = ({machine}) => (
+const MachineBox: React.FunctionComponent<{ machine: UCloud.accounting.ProductNS.Compute | null }> = ({machine}) => (
     <MachineBoxWrapper>
         {machine ? null : (
             <b>No machine selected</b>
@@ -141,7 +144,7 @@ const MachineBox: React.FunctionComponent<{machine: UCloud.accounting.ProductNS.
 
         {!machine ? null : (
             <>
-                <b>{machine.id}</b><br />
+                <b>{machine.id}</b><br/>
                 <ul>
                     <li>{machine.cpu ? <>vCPU: {machine.cpu}</> : <>vCPU: Unspecified</>}</li>
                     <li>{machine.memoryInGigs ? <>Memory: {machine.memoryInGigs}GB</> : <>Memory: Unspecified</>}</li>
@@ -154,21 +157,21 @@ const MachineBox: React.FunctionComponent<{machine: UCloud.accounting.ProductNS.
 );
 
 const MachineDropdown = styled(Box)`
-    cursor: pointer;
-    border-radius: 5px;
-    border: ${theme.borderWidth} solid var(--midGray, #f00);
-    width: 100%;
+  cursor: pointer;
+  border-radius: 5px;
+  border: ${theme.borderWidth} solid var(--midGray, #f00);
+  width: 100%;
 
-    & p {
-        margin: 0;
-    }
+  & p {
+    margin: 0;
+  }
 
-    & ${Icon} {
-        position: absolute;
-        bottom: 15px;
-        right: 15px;
-        height: 8px;
-    }
+  & ${Icon} {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    height: 8px;
+  }
 `;
 
 export function setMachineReservation(compute: UCloud.accounting.ProductNS.Compute | null): void {

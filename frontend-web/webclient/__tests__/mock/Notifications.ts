@@ -28,7 +28,6 @@ export const notifications: Page<Notification> = {
             ts: 1535377421247,
             read: true
         }],
-    pagesInTotal: 0
 };
 
 test("Silencer", () => expect(1).toBe(1));

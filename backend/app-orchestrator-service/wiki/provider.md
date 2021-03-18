@@ -49,57 +49,9 @@ contains information about the features supported by the provider.
 
 TODO
 
-### Reference
-
 ---
 
-#### `ProviderManifest`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ProviderManifest:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ProviderManifest
-<!--</editor-fold>-->
-<!-- /typedoc -->
-
----
-
-#### `ManifestFeatureSupport`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport
-<!--</editor-fold>-->
-<!-- /typedoc -->
-
----
-
-#### `Compute`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute
-<!--</editor-fold>-->
-<!-- /typedoc -->
-
----
-
-#### `Docker`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.Docker:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.Docker
-<!--</editor-fold>-->
-<!-- /typedoc -->
-
----
-
-#### `VirtualMachine`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.VirtualMachine:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.VirtualMachine
-<!--</editor-fold>-->
-<!-- /typedoc -->
+__📝 NOTE:__ This section is currently being reworked.
 
 ---
 
@@ -127,6 +79,7 @@ UCloud's [accounting](/backend/accounting-service/README.md) module.
 | `pricePerUnit` | `Long` | No documentation |
 | `category` | `ProductCategoryId` | No documentation |
 | `description` | `String?` | No documentation |
+| `hiddenInGrantApplications` | `Boolean?` | No documentation |
 | `availability` | `ProductAvailability?` | No documentation |
 | `priority` | `Int?` | No documentation |
 | `cpu` | `Int?` | No documentation |
@@ -140,12 +93,6 @@ UCloud's [accounting](/backend/accounting-service/README.md) module.
 <!-- /typedoc -->
 
 ## Communication
-
----
-
-__📝 NOTE:__ Not yet implemented.
-
----
 
 All communication between UCloud and a provider is done via an HTTP(S) API, certain optional endpoints use a WebSocket
 API. Note that the WebSocket protocol is an extension of HTTP, as a result the WebSocket API shares the same security
@@ -168,12 +115,6 @@ self-signed certificate + TLS. This design choice has been made to simplify the 
 deployments.
 
 ## Authentication and Authorization
-
----
-
-__📝 NOTE:__ Not yet implemented.
-
----
 
 UCloud _and_ the provider authenticates and authorizes all ingoing requests. These requests are protected by short-lived
 [JSON Web Tokens (JWT)](https://jwt.io)
@@ -275,6 +216,43 @@ As a provider, you must take the following steps to verify the authenticity of a
 It is absolutely critical that JWT verification is configured correctly. For example, some JWT verifiers are known for
 having too relaxed defaults, which in the worst case will skip all verification. It is important that the verifier is
 configured to _only_ accept the parameters mentioned above.
+
+## Extending the Protocol to Support Verification of Client
+
+---
+
+__📝 NOTE:__ Very informal draft.
+
+---
+
+Some quick thoughts about how we can extend the protocol to support verification of the client sending the message. This
+is extremely useful as it would make UCloud incapable of impersonating a user at a different provider.
+
+1. Extend client-side RPC to include a signature of their message
+   - This message should use public-private keypairs
+   - Keypairs are generated in the browser
+   - The public key is transferred to the provider _by_ the user
+   - This will happen when the user connects to the provider
+   - Possible library: https://github.com/kjur/jsrsasign
+   - This will support keygen and signature we need
+   - The signature should be passed in a header
+2. UCloud receives this message, and extends it with additional information
+3. UCloud includes, verbatim, the original request along with the signature
+   - How do we make this developer friendly?
+4. Provider verifies that the JWT is valid (by UCloud)   
+5. Provider verifies that the original request has been signed
+5. Provider verifies that the original request _also_ matches the additional context that UCloud provided
+
+A possible alternative to signing the entire message is to sign a JWT (or any other document, we don't really need the
+header). This JWT would provide similar security, the document should contain:
+
+- `iat`: Issued at
+- `exp`: Expires at
+- `sub`: Username (UCloud)
+- `project`: Project (UCloud)
+- `callName`: Potentially, this could contain the name of the call we are performing. This would allow the provider to
+   verify that the correct call is also being made.
+
 
 ## Recommended Reading
 

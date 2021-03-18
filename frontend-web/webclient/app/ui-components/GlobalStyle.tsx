@@ -1,9 +1,12 @@
 import theme from "./theme";
 import {device} from "ui-components/Hide";
 
+const useInter = localStorage.getItem("inter") !== null;
+
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
 const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
+const inter = require("Assets/Inter.ttf");
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");
@@ -15,11 +18,21 @@ export function injectFonts(): void {
             font-display: swap;
         }
 
-        @font-face {
-            font-family: 'IBM Plex Sans';
-            src: url('${fontRegular}');
-            font-weight: 400;
-            font-display: swap;
+        ${useInter ?
+            `@font-face {
+                font-family: 'Inter';
+                src: url('${inter}');
+                font-display: swap;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+            }`
+            :
+            `@font-face {
+                font-family: 'IBM Plex Sans';
+                src: url('${fontRegular}');
+                font-weight: 400;
+                font-display: swap;
+            }`
         }
         
         @font-face {
@@ -75,6 +88,7 @@ html {
     --tableRowHighlight: var(--lightBlue, #f00);
     --appCard: #ebeff3;
     --wayfGreen: #66b340;
+    --appStoreFavBg: #e8f1fc
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
     
@@ -98,6 +112,7 @@ html.light {
     --borderGray: var(--midGray, #f00);
     --invertedThemeColor: #000;
     --projectHighlight: #dfffee;
+    --appStoreFavBg: #e8f1fc
 }
 
 html.dark {
@@ -110,10 +125,11 @@ html.dark {
     --midGray: #555;
     --paginationDisabled: #111;
     --paginationHoverColor: #444;
-    --appCard: #060707;
+    --appCard: #131616;
     --borderGray: #111;
     --invertedThemeColor: #fff;
     --projectHighlight: #00c05a;
+    --appStoreFavBg: #00204d
 }
 
 ${device("xxl")} {
@@ -705,7 +721,7 @@ textarea,
  * inoperable elements in all browsers (opinionated).
  */
 
-[aria-disabled],
+[aria-disabled=true],
 [disabled] {
   cursor: not-allowed;
 }

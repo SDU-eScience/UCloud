@@ -173,7 +173,7 @@ export function UpdatePermissionsDialog(props: {
                                 };
 
                                 return (
-                                    <Flex key={g} alignItems={"center"} mb={16}>
+                                    <Flex key={g} alignItems={"center"} my={8}>
                                         <Truncate width={"300px"} mr={16} title={summary.groupTitle}>
                                             {summary.groupTitle}
                                         </Truncate>

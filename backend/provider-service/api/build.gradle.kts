@@ -1,3 +1,3 @@
 dependencies {
-    api(project(":accounting-service:api"))
+    commonMainApi(project(":accounting-service:api"))
 }

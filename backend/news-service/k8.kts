@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "news"
-    version = "0.2.0-rc0"
+    version = "0.3.1"
     
     withAmbassador() {}
     

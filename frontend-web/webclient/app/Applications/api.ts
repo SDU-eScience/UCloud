@@ -58,8 +58,9 @@ export function clearLogo(props: ClearLogoProps): APICallParameters<ClearLogoPro
     return {
         reloadId: Math.random(),
         method: "DELETE",
-        path: `/hpc/${context}/clearLogo/${props.name}`,
-        parameters: props
+        path: `/hpc/${context}/clearLogo`,
+        parameters: props,
+        payload: props
     };
 }
 

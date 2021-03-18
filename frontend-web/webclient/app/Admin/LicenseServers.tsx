@@ -5,7 +5,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip, Card, Grid, TextArea, Select} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip, Card, Grid, TextArea, Select, Checkbox} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
@@ -16,7 +16,7 @@ import {MutableRefObject, useCallback, useEffect, useRef, useState} from "react"
 import {accounting, compute, PageV2} from "UCloud";
 import KubernetesLicense = compute.ucloud.KubernetesLicense;
 import licenseApi = compute.ucloud.licenses.maintenance;
-import {emptyPageV2} from "DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import * as Pagination from "Pagination";
 import ReactModal from "react-modal";
@@ -26,7 +26,7 @@ import {useProjectId} from "Project";
 import {UCLOUD_PROVIDER} from "Accounting";
 import Wallet = accounting.Wallet;
 import {PaymentModel} from "Accounting";
-import {errorMessageOrDefault, prettierString} from "UtilityFunctions";
+import {errorMessageOrDefault, prettierString, stopPropagation} from "UtilityFunctions";
 import {InputLabel} from "ui-components/Input";
 import {creditFormatter} from "Project/ProjectUsage";
 
@@ -111,7 +111,7 @@ const LicenseServerTagsPrompt: React.FunctionComponent<{
                             const newTagList = [...tagList, tagValue]
                             setTagList(newTagList);
                             newTagField.current!.value = "";
-                            await invokeCommand(licenseApi.update({...licenseServer, tags: newTagList}));
+                            await invokeCommand(licenseApi.update(bulkRequestOf({...licenseServer, tags: newTagList})));
                             if (onUpdate) onUpdate();
                         }}
                     >
@@ -155,7 +155,9 @@ const LicenseServerTagsPrompt: React.FunctionComponent<{
                                                     const newTagList = tagList.filter(it => it !== tagEntry);
                                                     setTagList(newTagList);
                                                     await invokeCommand(
-                                                        licenseApi.update({...licenseServer, tags: newTagList})
+                                                        licenseApi.update(
+                                                            bulkRequestOf({...licenseServer, tags: newTagList})
+                                                        )
                                                     );
                                                     if (onUpdate) onUpdate();
                                                 }}
@@ -182,7 +184,7 @@ interface InputHook<T = HTMLInputElement> {
     setHasError: (err: boolean) => void;
 }
 
-function useInput<T = HTMLInputElement>(): InputHook<T> {
+export function useInput<T = HTMLInputElement>(): InputHook<T> {
     const ref = useRef<T>(null);
     const [hasError, setHasError] = useState(false);
     return {ref, hasError, setHasError};
@@ -217,6 +219,7 @@ const LicenseServers: React.FunctionComponent = () => {
     const pricePerUnitInput = useInput();
     const priorityInput = useInput();
     const reasonInput = useInput();
+    const [hiddenInGrantApplicationsInput, setHiddenInGrantApplicationsInput] = useState(false);
     const descriptionTextArea = useInput<HTMLTextAreaElement>();
 
     useTitle("UCloud/Compute: License servers");
@@ -233,6 +236,7 @@ const LicenseServers: React.FunctionComponent = () => {
         const priority = parseInt(priorityInput.ref.current!.value, 10);
         const pricePerUnit = parseInt(pricePerUnitInput.ref.current!.value, 10) * 1_000_000;
         const reason = reasonInput.ref.current?.value ?? "";
+        const hiddenInGrantApplications = hiddenInGrantApplicationsInput;
         const description = descriptionTextArea.ref.current?.value ?? "";
 
         let error = false;
@@ -281,12 +285,13 @@ const LicenseServers: React.FunctionComponent = () => {
                     provider: UCLOUD_PROVIDER
                 },
                 description,
+                hiddenInGrantApplications,
                 paymentModel,
                 pricePerUnit,
                 priority
             };
             try {
-                await invokeCommand(licenseApi.create(request), {defaultErrorHandler: false});
+                await invokeCommand(licenseApi.create(bulkRequestOf(request)), {defaultErrorHandler: false});
                 snackbarStore.addSuccess(`License server '${name}' successfully added`, true);
                 reload();
             } catch (e) {
@@ -396,6 +401,15 @@ const LicenseServers: React.FunctionComponent = () => {
 
                             <TextArea error={descriptionTextArea.hasError} width={1} mb="1em" rows={4} ref={descriptionTextArea.ref} placeholder="License description..." />
 
+                            <Label width="auto" mb="1em">
+                                <Checkbox
+                                    checked={hiddenInGrantApplicationsInput}
+                                    onClick={() => setHiddenInGrantApplicationsInput(!hiddenInGrantApplicationsInput)}
+                                    onChange={stopPropagation}
+                                />
+                                Hide License Server from grant applicants
+                            </Label>
+
                             <Button type="submit" color="green" disabled={loading}>Add License Server</Button>
                         </form>
 
@@ -483,6 +497,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
     const [isAvailable, setIsAvailable] = useState<boolean>(licenseServer.availability.type === "available");
     const unavailableReasonInput = React.useRef<HTMLInputElement>(null);
     const descriptionInput = React.useRef<HTMLTextAreaElement>(null);
+    const [hiddenInGrantApplications, setHiddenInGrantApplications] = useState<boolean>(licenseServer.hiddenInGrantApplications)
     const [paymentModelEdit, setPaymentModelEdit] = React.useState<PaymentModel>(licenseServer.paymentModel);
     const portInput = React.useRef<HTMLInputElement>(null);
     const pricePerUnitInput = React.useRef<HTMLInputElement>(null);
@@ -493,7 +508,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
     /* NOTE(Jonas): Lots of overlap in both branches, but the whole 'isEditing' for each field is cumbersome to  */
     if (isEditing) {
         return (
-            <ExpandingCard height={isAvailable ? "600px" : "670px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
+            <ExpandingCard height={isAvailable ? "650px" : "720px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
                 <Heading.h4 mb="1em">{licenseServer.id}</Heading.h4>
                 <Flex mb="1em">
                     <Input width="75%" ref={addressInput} defaultValue={licenseServer.address} />
@@ -533,6 +548,15 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
                 <Heading.h4>Description</Heading.h4>
                 <TextArea mb="1em" width={1} rows={4} ref={descriptionInput} defaultValue={licenseServer.description} />
 
+                <Label width="auto" mb="1em">
+                    <Checkbox
+                        checked={hiddenInGrantApplications}
+                        onClick={() => setHiddenInGrantApplications(!hiddenInGrantApplications)}
+                        onChange={stopPropagation}
+                    />
+                    Hide License Server from grant applicants
+                </Label>
+
                 <Flex mb="1em">
                     <Box width="42.5%">
                         <Heading.h4>Price per unit</Heading.h4>
@@ -544,9 +568,9 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
 
                     <Box width="42.5%">
                         <Heading.h4>Payment model</Heading.h4>
-                        <Select ml="6px" onChange={e => setPaymentModelEdit(e.target.value as PaymentModel)} defaultValue={prettierString(licenseServer.paymentModel)}>
+                        <Select ml="6px" onChange={e => setPaymentModelEdit(e.target.value as PaymentModel)}>
                             {PaymentModelOptions.map(it =>
-                                <option key={it} value={it}>{prettierString(it)}</option>
+                                <option key={it} selected={it === licenseServer.paymentModel} value={it}>{prettierString(it)}</option>
                             )}
                         </Select>
                     </Box>
@@ -562,7 +586,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
             </ExpandingCard >
         );
     } else {
-        return <ExpandingCard height={isSelected ? (licenseServer.availability.type === "available" ? "416px" : "456px") : "96px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
+        return <ExpandingCard height={isSelected ? (licenseServer.availability.type === "available" ? "466px" : "506px") : "96px"} key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
             <Flex justifyContent="space-between">
                 <Box>
                     <Flex>
@@ -610,27 +634,6 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
                             onClick={() => setEditing(licenseServer)}
                         />
                     </Box>
-
-                    <Box>
-                        <Button
-                            color={"red"}
-                            type={"button"}
-                            px={10}
-
-                            onClick={() => addStandardDialog({
-                                title: `Are you sure?`,
-                                message: `Mark license server '${licenseServer.id}' as inactive?`,
-                                onConfirm: async () => {
-                                    // TODO
-                                    reload();
-                                }
-                            })}
-                        >
-                            <Icon size={16} name="trash" />
-                        TODO
-                    </Button>
-                    </Box>
-
                     {!projectId ? null : (
                         <Box>
                             <Button onClick={() => setGranting(licenseServer)}>
@@ -657,6 +660,15 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
 
             <Heading.h4>Description</Heading.h4>
             <Box height={"4.5ch"}>{licenseServer.description}</Box>
+
+            <Box mb="1em">
+                {licenseServer.hiddenInGrantApplications ?
+                    <><TextSpan italic>Hidden</TextSpan> from </>
+                    :
+                    <><TextSpan italic>Visible</TextSpan> for </>
+                }
+                grant applicants
+            </Box>
 
             <Flex mb="1em">
                 <Box width="40%">
@@ -695,7 +707,7 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
         if (isNaN(pricePerUnit)) return;
 
         try {
-            await invokeCommand(licenseApi.update({
+            await invokeCommand(licenseApi.update(bulkRequestOf({
                 id: licenseServer.id,
                 address,
                 port,
@@ -703,11 +715,12 @@ function LicenseServerCard({openLicenses, licenseServer, reload, setOpenLicenses
                 availability: isAvailable ? {type: "available"} : {type: "unavailable", reason: reason!},
                 category: licenseServer.category,
                 description,
+                hiddenInGrantApplications,
                 license,
                 paymentModel: paymentModelEdit,
                 pricePerUnit,
                 tags: licenseServer.tags
-            }));
+            })));
 
             reload();
         } catch (e) {

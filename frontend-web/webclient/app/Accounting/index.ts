@@ -22,6 +22,7 @@ export function productToArea(product: UCloud.accounting.Product): ProductArea {
         case "ingress": return "INGRESS";
         case "license": return "LICENSE";
         case "storage": return "STORAGE";
+        case "network_ip": return "NETWORK_IP";
     }
 }
 
@@ -32,9 +33,11 @@ export function productAreaTitle(area: ProductArea): string {
         case "STORAGE":
             return "Storage";
         case "INGRESS":
-            return "Ingress";
+            return "Public link";
         case "LICENSE":
             return "Application license";
+        case "NETWORK_IP":
+            return "Public IP";
     }
 }
 
@@ -142,7 +145,8 @@ export interface ListProductsRequest extends PaginationRequest {
 
 export interface ListProductsByAreaRequest extends PaginationRequest {
     provider: string;
-    area: string
+    area: string;
+    showHidden: boolean
 }
 
 export type ListProductsResponse = Product[];

@@ -26,7 +26,7 @@ We have 9 dashboards that can be divided into the following categories:
 system (request time/averages, status codes, number of requests per user) and another to have a more detailed view on 
 a specific request type.
 - Kubernetes dashboards:  
-  Here we have 4 different dashboards. These dashboards are automatically created by the 
+  Here we have 2 different dashboards. These dashboards are automatically created by the 
   [Kubernetes Plugin](https://grafana.com/grafana/plugins/grafana-kubernetes-app). They show cluster, node, deployment 
   and container specific metrics.
 - Memory, disk and CPU usage:  

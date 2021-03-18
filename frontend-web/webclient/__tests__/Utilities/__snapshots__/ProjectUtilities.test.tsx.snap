@@ -6,11 +6,11 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   min-width: 450px;
 }
 
-.c16 {
+.c15 {
   margin-left: auto;
 }
 
-.c15 {
+.c14 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -42,21 +42,21 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c15:disabled {
+.c14:disabled {
   opacity: 0.25;
 }
 
-.c15:focus {
+.c14:focus {
   outline: none;
 }
 
-.c15:hover {
-  -webkit-transform: scale(1.03);
-  -ms-transform: scale(1.03);
-  transform: scale(1.03);
+.c14:hover {
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
-.c17 {
+.c16 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -88,21 +88,21 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c17:disabled {
+.c16:disabled {
   opacity: 0.25;
 }
 
-.c17:focus {
+.c16:focus {
   outline: none;
 }
 
-.c17:hover {
-  -webkit-transform: scale(1.03);
-  -ms-transform: scale(1.03);
-  transform: scale(1.03);
+.c16:hover {
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
-.c11 {
+.c10 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -115,21 +115,15 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  margin-bottom: 16px;
+  margin-top: 512px;
+  margin-bottom: 512px;
   -webkit-align-items: center;
   -webkit-box-align: center;
   -ms-flex-align: center;
   align-items: center;
 }
 
-.c5 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-}
-
-.c14 {
+.c13 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -143,22 +137,19 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   margin-right: 16px;
 }
 
-.c6 {
-  -webkit-flex-wrap: nowrap;
-  -ms-flex-wrap: nowrap;
-  flex-wrap: nowrap;
-  -webkit-box-pack: center;
-  -webkit-justify-content: center;
-  -ms-flex-pack: center;
-  justify-content: center;
+.c5 {
   -webkit-align-items: center;
   -webkit-box-align: center;
   -ms-flex-align: center;
   align-items: center;
-  overflow: hidden;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto);
+  -webkit-column-gap: 5px;
+  column-gap: 5px;
 }
 
-.c10 {
+.c9 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -183,38 +174,36 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   transition: all 300ms ease;
 }
 
-.c7 {
+.c6 {
   position: relative;
   height: 40px;
   width: 40px;
-  margin: 5px;
   -webkit-transition: -webkit-transform 300ms ease;
   -webkit-transition: transform 300ms ease;
   transition: transform 300ms ease;
 }
 
-.c13 {
+.c12 {
   position: relative;
   height: 40px;
   width: 40px;
-  margin: 5px;
   -webkit-transition: -webkit-transform 300ms ease;
   -webkit-transition: transform 300ms ease;
   transition: transform 300ms ease;
 }
 
-.c13:hover {
-  -webkit-transform: scale(1.2,1.2);
-  -ms-transform: scale(1.2,1.2);
-  transform: scale(1.2,1.2);
+.c12:hover {
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
-.c13:hover:hover > .c9 {
+.c12:hover:hover > .c8 {
   color: var(--blue,#f00);
   border: 1px solid var(--blue,#f00);
 }
 
-.c8 {
+.c7 {
   opacity: 0;
   position: absolute;
   top: 0;
@@ -225,16 +214,13 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
   cursor: pointer;
 }
 
-.c8:checked + .c9 {
+.c7:checked + .c8 {
   background-color: var(--blue,#f00);
   border: 0px solid white;
   color: white;
-  -webkit-transform: scale(1.2,1.2);
-  -ms-transform: scale(1.2,1.2);
-  transform: scale(1.2,1.2);
 }
 
-.c12 {
+.c11 {
   text-align: center;
   font-size: 0.5em;
   font-weight: 600;
@@ -280,16 +266,16 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         Group 0
       </div>
       <div
-        className="c5 c6"
+        className="c5"
       >
         <div
           checked={true}
-          className="c7"
+          className="c6"
           height={40}
         >
           <input
             checked={true}
-            className="c8"
+            className="c7"
             id="None"
             name="0"
             onChange={[Function]}
@@ -297,10 +283,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="None"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -315,7 +301,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="None"
             >
@@ -325,12 +311,12 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         </div>
         <div
           checked={false}
-          className="c13"
+          className="c12"
           height={40}
         >
           <input
             checked={false}
-            className="c8"
+            className="c7"
             id="Read"
             name="0"
             onChange={[Function]}
@@ -338,10 +324,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="Read"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               cursor="inherit"
               fill="currentcolor"
               height="65%"
@@ -353,7 +339,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="Read"
             >
@@ -363,12 +349,12 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         </div>
         <div
           checked={false}
-          className="c13"
+          className="c12"
           height={40}
         >
           <input
             checked={false}
-            className="c8"
+            className="c7"
             id="Edit"
             name="0"
             onChange={[Function]}
@@ -376,10 +362,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="Edit"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -399,7 +385,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="Edit"
             >
@@ -421,16 +407,16 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         Group 1
       </div>
       <div
-        className="c5 c6"
+        className="c5"
       >
         <div
           checked={true}
-          className="c7"
+          className="c6"
           height={40}
         >
           <input
             checked={true}
-            className="c8"
+            className="c7"
             id="None"
             name="1"
             onChange={[Function]}
@@ -438,10 +424,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="None"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -456,7 +442,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="None"
             >
@@ -466,12 +452,12 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         </div>
         <div
           checked={false}
-          className="c13"
+          className="c12"
           height={40}
         >
           <input
             checked={false}
-            className="c8"
+            className="c7"
             id="Read"
             name="1"
             onChange={[Function]}
@@ -479,10 +465,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="Read"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               cursor="inherit"
               fill="currentcolor"
               height="65%"
@@ -494,7 +480,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="Read"
             >
@@ -504,12 +490,12 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         </div>
         <div
           checked={false}
-          className="c13"
+          className="c12"
           height={40}
         >
           <input
             checked={false}
-            className="c8"
+            className="c7"
             id="Edit"
             name="1"
             onChange={[Function]}
@@ -517,10 +503,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="Edit"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -540,7 +526,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="Edit"
             >
@@ -562,16 +548,16 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         Group 2
       </div>
       <div
-        className="c5 c6"
+        className="c5"
       >
         <div
           checked={true}
-          className="c7"
+          className="c6"
           height={40}
         >
           <input
             checked={true}
-            className="c8"
+            className="c7"
             id="None"
             name="2"
             onChange={[Function]}
@@ -579,10 +565,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="None"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -597,7 +583,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="None"
             >
@@ -607,12 +593,12 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         </div>
         <div
           checked={false}
-          className="c13"
+          className="c12"
           height={40}
         >
           <input
             checked={false}
-            className="c8"
+            className="c7"
             id="Read"
             name="2"
             onChange={[Function]}
@@ -620,10 +606,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="Read"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               cursor="inherit"
               fill="currentcolor"
               height="65%"
@@ -635,7 +621,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="Read"
             >
@@ -645,12 +631,12 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
         </div>
         <div
           checked={false}
-          className="c13"
+          className="c12"
           height={40}
         >
           <input
             checked={false}
-            className="c8"
+            className="c7"
             id="Edit"
             name="2"
             onChange={[Function]}
@@ -658,10 +644,10 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
             value="Edit"
           />
           <div
-            className="c9 c10"
+            className="c8 c9"
           >
             <svg
-              className="c11"
+              className="c10"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -681,7 +667,7 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
               />
             </svg>
             <label
-              className="c12"
+              className="c11"
               fontSize="0.5em"
               htmlFor="Edit"
             >
@@ -693,20 +679,20 @@ exports[`UpdatePermissionsDialog Mount 1`] = `
     </div>
   </div>
   <div
-    className="c14"
+    className="c13"
   >
     <button
-      className="c15"
+      className="c14"
       color="red"
       onClick={[Function]}
     >
       Cancel
     </button>
     <div
-      className="c16"
+      className="c15"
     />
     <button
-      className="c17"
+      className="c16"
       color="blue"
       disabled={true}
       onClick={[Function]}

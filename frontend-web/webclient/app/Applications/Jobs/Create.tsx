@@ -30,6 +30,8 @@ import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import JobSpecification = compute.JobSpecification;
+import {NetworkIPResource} from "Applications/Jobs/Resources/NetworkIPs";
+import {bulkRequestOf} from "DefaultObjects";
 
 interface InsufficientFunds {
     why?: string;
@@ -38,6 +40,7 @@ interface InsufficientFunds {
 
 export const Create: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
+
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
         {noop: true},
@@ -50,6 +53,8 @@ export const Create: React.FunctionComponent = () => {
 
     const provider = getProviderField();
 
+    const networks = useResource("network", provider,
+        (name) => ({type: "network_ip", description: "", title: "", optional: true, name}));
     const ingress = useResource("ingress", provider,
         (name) => ({type: "ingress", description: "", title: "", optional: true, name}));
     const folders = useResource("resourceFolder", provider,
@@ -102,6 +107,7 @@ export const Create: React.FunctionComponent = () => {
         if (createSpaceForLoadedResources(folders, resources, "file", jobBeingLoaded, importedJob)) return;
         if (createSpaceForLoadedResources(peers, resources, "peer", jobBeingLoaded, importedJob)) return;
         if (createSpaceForLoadedResources(ingress, resources, "ingress", jobBeingLoaded, importedJob)) return;
+        if (createSpaceForLoadedResources(networks, resources, "network", jobBeingLoaded, importedJob)) return;
 
         // Load reservation
         setReservation(importedJob);
@@ -118,6 +124,7 @@ export const Create: React.FunctionComponent = () => {
         injectResources(folders, resources, "file");
         injectResources(peers, resources, "peer");
         injectResources(ingress, resources, "ingress");
+        injectResources(networks, resources, "network");
     }, [application, activeOptParams, folders, peers]);
 
     useLayoutEffect(() => {
@@ -141,6 +148,9 @@ export const Create: React.FunctionComponent = () => {
         const peersValidation = validateWidgets(peers.params);
         peers.setErrors(peersValidation.errors);
 
+        const networkValidation = validateWidgets(networks.params);
+        networks.setErrors(networkValidation.errors);
+
         const ingressValidation = validateWidgets(ingress.params);
         ingress.setErrors(ingressValidation.errors);
 
@@ -155,13 +165,14 @@ export const Create: React.FunctionComponent = () => {
                 parameters: values,
                 resources: Object.values(foldersValidation.values)
                     .concat(Object.values(peersValidation.values))
-                    .concat(Object.values(ingressValidation.values)),
+                    .concat(Object.values(ingressValidation.values))
+                    .concat(Object.values(networkValidation.values)),
                 allowDuplicateJob
             };
 
             try {
                 const response = await invokeCommand<UCloud.compute.JobsCreateResponse>(
-                    UCloud.compute.jobs.create(request),
+                    UCloud.compute.jobs.create(bulkRequestOf(request)),
                     {defaultErrorHandler: false}
                 );
 
@@ -193,12 +204,20 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
         }
-    }, [application, folders, peers, ingress]);
+    }, [application, folders, peers, ingress, networks]);
 
     useSidebarPage(SidebarPages.Runs);
     useTitle(application == null ? `${appName} ${appVersion}` : `${application.metadata.title} ${appVersion}`);
 
-    if (application === null) return <MainContainer main={<LoadingIcon size={36} />} />;
+    if (applicationResp.loading) return <MainContainer main={<LoadingIcon size={36} />} />;
+
+    if (application == null) {
+        return (
+            <MainContainer
+                main={<Heading.h3>Unable to find application &apos;{appName} v{appVersion}&apos;</Heading.h3>}
+            />
+        );
+    }
 
     const mandatoryParameters = application.invocation!.parameters.filter(it =>
         !it.optional
@@ -213,11 +232,9 @@ export const Create: React.FunctionComponent = () => {
     );
 
     return <MainContainer
-        headerSize={48}
+        headerSize={92}
         header={
-            <Flex mx={["0px", "0px", "0px", "0px", "0px", "50px"]}>
-                <AppHeader slim application={application} />
-            </Flex>
+            <AppHeader slim application={application} />
         }
         sidebar={
             <VerticalButtonGroup>
@@ -289,7 +306,7 @@ export const Create: React.FunctionComponent = () => {
                             <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
                                 {mandatoryParameters.map(param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            active />
+                                        active />
                                 ))}
                             </Grid>
                         </Box>
@@ -333,6 +350,11 @@ export const Create: React.FunctionComponent = () => {
 
                     <PeerResource
                         {...peers}
+                        application={application}
+                    />
+
+                    <NetworkIPResource
+                        {...networks}
                         application={application}
                     />
                 </Grid>

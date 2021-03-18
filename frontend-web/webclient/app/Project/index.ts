@@ -13,6 +13,7 @@ import {GroupWithSummary} from "./GroupList";
 import {useCallback, useEffect} from "react";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {usePromiseKeeper} from "PromiseKeeper";
+import * as React from "react";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -131,13 +132,14 @@ export function projectRoleToStringIcon(role: ProjectRole): IconName {
     }
 }
 
-export function groupSummaryRequest(payload: PaginationRequest): APICallParameters<PaginationRequest> {
+export function groupSummaryRequest(payload: PaginationRequest, projectOverride?: string): APICallParameters<PaginationRequest> {
     return {
         path: buildQueryString(`${groupContext}/summary`, payload),
         method: "GET",
         reloadId: Math.random(),
         parameters: payload,
-        payload
+        payload,
+        projectOverride
     };
 }
 
@@ -216,6 +218,7 @@ export interface Project {
     title: string;
     parent?: string;
     archived: boolean;
+    fullPath?: string;
 }
 
 export interface ProjectGroup {
@@ -427,6 +430,14 @@ export function renameProject(request: RenameProjectRequest): APICallParameters<
         payload: request,
         parameters: request
     };
+}
+
+
+export interface ProjectAffiliationSelectorProps {
+    username: string;
+    trigger: React.ReactNode;
+    visible: boolean;
+    onProjectSelect: (project: {project: string} | null) => void;
 }
 
 export const deleteProject = (payload: {projectId: string}): APICallParameters => ({

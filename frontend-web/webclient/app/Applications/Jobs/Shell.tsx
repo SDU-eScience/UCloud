@@ -10,23 +10,28 @@ import {useTitle} from "Navigation/Redux/StatusActions";
 import {compute} from "UCloud";
 import jobs = compute.jobs;
 import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
+import {bulkRequestOf} from "DefaultObjects";
 
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
     const {jobId, rank} = useParams<{jobId: string, rank: string}>();
     const [sessionResp, openSession] = useCloudAPI(
-        jobs.openInteractiveSession({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}),
+        jobs.openInteractiveSession(
+            bulkRequestOf({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"})
+        ),
         {sessions: []},
     );
 
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnect, setReconnect] = useState<number>(0);
     useNoFrame();
-    useTitle(`Job ${shortUUID(jobId)} [Rank: ${parseInt(rank, 10) + 1}]`);
+    useTitle(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
 
     useEffectSkipMount(() => {
-        openSession(jobs.openInteractiveSession({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}));
+        openSession(jobs.openInteractiveSession(
+            bulkRequestOf({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}))
+        );
     }, [jobId, rank]);
 
     const sessionWithProvider = sessionResp.data.sessions.length > 0 ? sessionResp.data.sessions[0] : null;
@@ -41,7 +46,7 @@ export const Shell: React.FunctionComponent = () => {
         setClosed(false);
 
         const wsConnection = WSFactory.open(
-            `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/compute/jobs/shells`,
+            `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket`,
             {
                 reconnect: false,
                 includeAuthentication: false,

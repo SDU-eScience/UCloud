@@ -116,7 +116,7 @@ export function viewGrantApplication(
 ): APICallParameters<ViewGrantApplicationRequest> {
     return {
         method: "GET",
-        path: `/grant/${request.id}`,
+        path: buildQueryString("/grant", request),
         parameters: request,
         reloadId: Math.random()
     };
@@ -193,6 +193,7 @@ export function approveGrantApplication(
 
 export interface RejectGrantApplicationRequest {
     requestId: number;
+    notify?: boolean;
 }
 
 export function rejectGrantApplication(
@@ -209,6 +210,7 @@ export function rejectGrantApplication(
 
 export interface CloseGrantApplicationRequest {
     requestId: number;
+    notify?: boolean;
 }
 
 export function closeGrantApplication(
@@ -399,6 +401,37 @@ export function browseProjects(request: BrowseProjectsRequest): APICallParameter
         method: "GET",
         path: buildQueryString("/grant/browse-projects", request),
         parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface GrantsRetrieveAffiliationsRequest {
+    grantId: number,
+    itemsPerPage: number,
+    page: number
+}
+export type GrantsRetrieveAffiliationsResponse = Page<{projectId: string, title: string}>;
+
+export function findAffiliations(request: GrantsRetrieveAffiliationsRequest): APICallParameters<GrantsRetrieveAffiliationsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/retrieveAffiliations", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface TransferApplicationRequest {
+    applicationId: number;
+    transferToProjectId: string
+}
+
+export function transferApplication(request: TransferApplicationRequest): APICallParameters<TransferApplicationRequest> {
+    return {
+        method: "POST",
+        path:"/grant/transfer",
+        parameters: request,
+        payload: request,
         reloadId: Math.random()
     };
 }

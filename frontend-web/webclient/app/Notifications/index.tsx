@@ -147,6 +147,8 @@ const ContentWrapper = styled(Box)`
     height: 600px;
     overflow-y: auto;
     padding: 5px;
+    // this is to compensate for the negative margin in the dropdown element
+    padding-right: 17px;
 `;
 
 const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;

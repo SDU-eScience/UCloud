@@ -9,11 +9,12 @@ import {useParams} from "react-router";
 import { useEffect } from "react";
 import {compute} from "UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
+import {bulkRequestOf} from "DefaultObjects";
 
 export const Web: React.FunctionComponent = () => {
     const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
     const [sessionResp] = useCloudAPI<JobsOpenInteractiveSessionResponse | null>(
-        jobs.openInteractiveSession({sessionType: "WEB", id: jobId, rank: parseInt(rank, 10)}),
+        jobs.openInteractiveSession(bulkRequestOf({sessionType: "WEB", id: jobId, rank: parseInt(rank, 10)})),
         null
     );
 

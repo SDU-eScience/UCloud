@@ -147,7 +147,7 @@ A floating point value
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `value` | `Float` | No documentation |
+| `value` | `Double` | No documentation |
 | `type` | `("floating_point")` | No documentation |
 
     

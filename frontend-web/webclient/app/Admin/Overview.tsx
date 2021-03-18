@@ -13,7 +13,9 @@ const linkInfo: LinkInfo[] = [
     {to: "/applications/studio", text: "Application Studio", icon: "appStore", color: "white", color2: "blue"},
     {to: "/admin/licenseServers", text: "License Servers", icon: "license", color: "white", color2: "white"},
     {to: "/admin/news", text: "News", icon: "warning", color: "white", color2: "black"},
-    {to: "/admin/appk8", text: "Compute Maintenance", icon: "calendar", color: "white", color2: "black"}
+    {to: "/admin/appk8", text: "Maintenance (UCloud)", icon: "calendar", color: "white", color2: "black"},
+    {to: "/admin/appaau", text: "Maintenance (AAU)", icon: "calendar", color: "white", color2: "black"},
+    {to: "/admin/providers", text: "Providers", icon: "cloudTryingItsBest", color: "white", color2: "white"}
 ];
 
 interface LinkInfo {
@@ -39,7 +41,7 @@ function AdminOverview(): JSX.Element | null {
                         <Box mt="30px">
                             {linkInfo.map(it => (
                                 <Link key={it.to} to={it.to}>
-                                    <Button mb="10px" mx="10px" width="200px">
+                                    <Button mb="10px" mx="10px" width="300px">
                                         {!it.icon ? null :
                                             <Icon
                                                 mr=".5em"

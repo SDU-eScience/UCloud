@@ -1,10 +1,10 @@
 import styled from "styled-components";
-import {margin, MarginProps, padding, PaddingProps, width} from "styled-system";
+import {margin, MarginProps, padding, PaddingProps, width, WidthProps, maxWidth, MaxWidthProps} from "styled-system";
 import {borders} from "./Input";
 import theme from "./theme";
 
-export const TextArea = styled.textarea<{width?: string | number; error?: boolean} & PaddingProps & MarginProps>`
-    ${width}; ${borders};
+export const TextArea = styled.textarea<{error?: boolean} & PaddingProps & MarginProps & WidthProps & MaxWidthProps>`
+    ${maxWidth}; ${width}; ${borders};
     border-radius: 5px;
     border: ${theme.borderWidth} solid var(--borderGray, #f00);
     background-color: var(--white, #f00);

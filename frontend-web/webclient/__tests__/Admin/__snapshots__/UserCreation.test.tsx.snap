@@ -18,7 +18,6 @@ exports[`UserCreation Mount 1`] = `
   width: 100%;
   height: 64px;
   background-color: #fff;
-  top: 48px;
 }
 
 .c5 {
@@ -73,9 +72,9 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c9:hover {
-  -webkit-transform: scale(1.03);
-  -ms-transform: scale(1.03);
-  transform: scale(1.03);
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
 .c4 {

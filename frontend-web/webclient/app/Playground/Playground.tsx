@@ -1,9 +1,7 @@
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {EveryIcon} from "ui-components/Icon";
-import {Grid, Box, Button} from "ui-components";
-import * as PublicLinks from "Applications/PublicLinks/Management";
-import {dialogStore} from "Dialog/DialogStore";
+import {Grid, Box} from "ui-components";
 import {ThemeColor} from "ui-components/theme";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
@@ -30,11 +28,6 @@ export const Playground: React.FunctionComponent = () => {
                 ))}
             </Grid>
 
-            <Button onClick={() => {
-                dialogStore.addDialog(<PublicLinks.PublicLinkManagement onSelect={e => console.log(e)} />, () => 0);
-            }}>
-                Trigger me
-            </Button>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
         </>
     );
