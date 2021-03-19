@@ -1,15 +1,13 @@
 package dk.sdu.cloud.file.orchestrator
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
-import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.PaginationRequestV2Consistency
-import dk.sdu.cloud.service.WithPaginationRequestV2
+import kotlinx.serialization.Serializable
 
 // ---
 
+@Serializable
 data class FileCollectionsBrowseRequest(
     override val includeSupport: Boolean? = null,
     override val itemsPerPage: Int? = null,
@@ -27,6 +25,7 @@ typealias FileCollectionsDeleteResponse = Unit
 
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
 
+@Serializable
 data class FileCollectionsRenameRequestItem(
     val id: String,
     val newTitle: String,
@@ -35,12 +34,14 @@ typealias FileCollectionsRenameResponse = Unit
 
 typealias FileCollectionsUpdateAclRequest = BulkRequest<FileCollectionsUpdateAclRequestItem>
 
+@Serializable
 data class FileCollectionsUpdateAclRequestItem(
     val id: String,
     val newAcl: List<ResourceAclEntry<FilePermission>>,
 )
 typealias FileCollectionsUpdateAclResponse = Unit
 
+@Serializable
 data class FileCollectionsRetrieveRequest(
     val id: String,
     override val includeSupport: Boolean? = null,

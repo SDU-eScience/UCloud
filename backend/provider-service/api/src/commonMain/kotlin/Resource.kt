@@ -16,6 +16,7 @@ interface ResourceBilling {
     @UCloudApiDoc("Amount of credits charged in total for this `Resource`")
     val creditsCharged: Long
 
+    @Serializable
     object Free : ResourceBilling {
         override val creditsCharged: Long = 0L
         override val pricePerUnit: Long = 0L
@@ -28,6 +29,7 @@ interface ResourceOwner {
     val project: String?
 }
 
+@Serializable
 data class SimpleResourceOwner(
     override val createdBy: String,
     override val project: String?,

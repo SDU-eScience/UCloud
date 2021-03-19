@@ -33,7 +33,7 @@ typealias FilesProviderCreateDownloadRequest = FilesCreateDownloadRequest
 typealias FilesProviderCreateDownloadResponse = FilesCreateDownloadResponse
 
 typealias FilesProviderCreateUploadRequest = FilesCreateDownloadRequest
-typealias FilesProviderCreateUploadResponse = FilesUploadResponse
+typealias FilesProviderCreateUploadResponse = FilesCreateUploadResponse
 
 // ---
 

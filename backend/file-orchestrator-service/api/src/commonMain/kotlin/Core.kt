@@ -1,14 +1,16 @@
 package dk.sdu.cloud.file.orchestrator
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiExperimental
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.service.TYPE_PROPERTY
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
+@Serializable
 @UCloudApiDoc("A hint to clients about which icon should be used in user-interfaces when representing a `UFile`")
 enum class FileIconHint {
     @UCloudApiDoc("A generic directory")
@@ -57,6 +59,7 @@ enum class FileIconHint {
     FILE_PDF
 }
 
+@Serializable
 @UCloudApiDoc("The type of a `UFile`")
 enum class FileType {
     @UCloudApiDoc("A regular file")
@@ -72,6 +75,7 @@ enum class FileType {
     DANGLING_METADATA
 }
 
+@Serializable
 @UCloudApiDoc("Represents a permission that a user might have over a `UFile` or `FileCollection`")
 enum class FilePermission {
     @UCloudApiDoc("""The user is allowed to read the contents of the file
@@ -142,6 +146,7 @@ this template defines a document structure for the metadata. User-defined metada
 purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels, and other field specific
 metadata formats.
 """)
+@Serializable
 data class UFile(
     @UCloudApiDoc("""A unique reference to a file
 
@@ -247,6 +252,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
 ) {
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("General system-level stats about a file")
+    @Serializable
     data class Stats(
         @UCloudApiDoc("The size of this file in bytes (Requires `includeSizes`)")
         val sizeInBytes: Long?,
@@ -268,6 +274,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
         val unixGroup: Int?,
     )
 
+    @Serializable
     data class Permissions(
         @UCloudApiDoc("What can the user, who requested this data, do with this file?")
         val myself: List<FilePermission>?,
@@ -277,18 +284,12 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     )
 }
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = TYPE_PROPERTY
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = FileMetadataOrDeleted.Deleted::class, name = "deleted"),
-    JsonSubTypes.Type(value = FileMetadataDocument::class, name = "metadata"),
-)
+@Serializable
 sealed class FileMetadataOrDeleted {
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("Indicates that the metadata document has been deleted is no longer in use")
+    @Serializable
+    @SerialName("deleted")
     data class Deleted(
         @UCloudApiDoc("Reason for this change")
         val changeLog: String,
@@ -301,6 +302,8 @@ sealed class FileMetadataOrDeleted {
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("A metadata document which conforms to a `FileMetadataTemplate`")
+@Serializable
+@SerialName("metadata")
 data class FileMetadataDocument(
     override val id: String,
     override val specification: Spec,
@@ -309,45 +312,48 @@ data class FileMetadataDocument(
     override val updates: List<ResourceUpdate>,
     override val owner: ResourceOwner,
 ) : FileMetadataOrDeleted(), Resource<Nothing?> {
+    @Contextual
     override val acl: Nothing? = null
     override val billing = ResourceBilling.Free
 
+    @Serializable
     data class Spec(
         @UCloudApiDoc("The ID of the `FileMetadataTemplate` that this document conforms to")
         val templateId: String,
         @UCloudApiDoc("The document which fills out the template")
-        val document: Map<String, Any?>,
+        val document: JsonObject,
         @UCloudApiDoc("Reason for this change")
         val changeLog: String,
     ) : ResourceSpecification {
+        @Contextual
         override val product: Nothing? = null
     }
 
+    @Serializable
     data class Status(
         val approval: ApprovalStatus,
     ) : ResourceStatus
 
-    @JsonTypeInfo(
-        use = JsonTypeInfo.Id.NAME,
-        include = JsonTypeInfo.As.PROPERTY,
-        property = TYPE_PROPERTY
-    )
-    @JsonSubTypes(
-        JsonSubTypes.Type(value = ApprovalStatus.Approved::class, name = "approved"),
-        JsonSubTypes.Type(value = ApprovalStatus.Pending::class, name = "pending"),
-        JsonSubTypes.Type(value = ApprovalStatus.Rejected::class, name = "rejected"),
-        JsonSubTypes.Type(value = ApprovalStatus.NotRequired::class, name = "not_required"),
-    )
+    @Serializable
     sealed class ApprovalStatus {
+        @Serializable
+        @SerialName("approved")
         class Approved(val approvedBy: String) : ApprovalStatus()
+        @Serializable
+        @SerialName("pending")
         class Pending() : ApprovalStatus()
+        @Serializable
+        @SerialName("rejected")
         class Rejected(val rejectedBy: String) : ApprovalStatus()
+        @Serializable
+        @SerialName("not_required")
         class NotRequired : ApprovalStatus()
     }
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("A policy for how UCloud should handle potential naming conflicts for certain operations (e.g. copy)")
+@Serializable
 enum class WriteConflictPolicy {
     @UCloudApiDoc("UCloud should handle the conflict by renaming the file")
     RENAME,
@@ -390,6 +396,7 @@ All file collections additionally have a title. This title can be used for a use
 title does not have to be unique, and can with great benefit choose to not reference who it belongs to. For example,
 if every user has exactly one home directory, then it would make sense to give this collection `"Home"` as its title.
 """)
+@Serializable
 data class FileCollection(
     override val id: String, // corresponds to the path prefix
     override val specification: Spec,
@@ -400,22 +407,26 @@ data class FileCollection(
     override val owner: ResourceOwner,
     override val acl: List<ResourceAclEntry<FilePermission>>?,
 ) : Resource<FilePermission> {
+    @Serializable
     data class Spec(
         val title: String,
         // TODO Define which type of product we are dealing with
         override val product: ProductReference,
     ) : ResourceSpecification
 
+    @Serializable
     data class Update(
         override val timestamp: Long,
         override val status: String?,
     ) : ResourceUpdate
 
+    @Serializable
     data class Status(
         val quota: Quota,
         val support: FSSupport?,
     ) : ResourceStatus
 
+    @Serializable
     data class Quota(
         val usedInBytes: Long? = null,
         val capacityInBytes: Long? = null,
@@ -425,6 +436,7 @@ data class FileCollection(
     )
 }
 
+@Serializable
 data class FSSupport(
     val product: ProductReference,
     val stats: FSProductStatsSupport = FSProductStatsSupport(),
@@ -433,6 +445,7 @@ data class FSSupport(
 )
 
 @UCloudApiDoc("Declares which stats a given product supports")
+@Serializable
 data class FSProductStatsSupport(
     val sizeInBytes: Boolean? = null,
     val sizeIncludingChildrenInBytes: Boolean? = null,
@@ -447,6 +460,7 @@ data class FSProductStatsSupport(
 )
 
 @UCloudApiDoc("Declares which `FileCollection` operations are supported for a product")
+@Serializable
 data class FSCollectionSupport(
     val aclSupported: Boolean? = null,
     val aclModifiable: Boolean? = null,
@@ -459,6 +473,7 @@ data class FSCollectionSupport(
 )
 
 @UCloudApiDoc("Declares which file-level operations a product supports")
+@Serializable
 data class FSFileSupport(
     val aclSupported: Boolean? = null,
     val aclModifiable: Boolean? = null,

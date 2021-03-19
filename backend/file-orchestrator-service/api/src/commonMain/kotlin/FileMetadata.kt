@@ -2,11 +2,13 @@ package dk.sdu.cloud.file.orchestrator
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.Serializable
 
 // ---
 
 typealias FileMetadataAddMetadataRequest = BulkRequest<FileMetadataCreateRequestItem>
 
+@Serializable
 data class FileMetadataCreateRequestItem(
     override val path: String,
     val metadata: FileMetadataDocument,
@@ -15,6 +17,7 @@ typealias FileMetadataAddMetadataResponse = Unit
 
 typealias FileMetadataMoveRequest = BulkRequest<FileMetadataMoveRequestItem>
 
+@Serializable
 data class FileMetadataMoveRequestItem(
     override val oldPath: String,
     override val newPath: String,
@@ -23,6 +26,7 @@ typealias FileMetadataMoveResponse = Unit
 
 typealias FileMetadataDeleteRequest = BulkRequest<FileMetadataDeleteRequestItem>
 
+@Serializable
 data class FileMetadataDeleteRequestItem(
     override val path: String,
     val templateId: String,

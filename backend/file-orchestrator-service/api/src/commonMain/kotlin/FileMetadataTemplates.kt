@@ -1,16 +1,12 @@
 package dk.sdu.cloud.file.orchestrator
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.github.fge.jsonschema.main.JsonSchemaFactory
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.PaginationRequestV2Consistency
-import dk.sdu.cloud.service.WithPaginationRequestV2
-import io.ktor.http.*
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 // TODO Most metadata formats are probably XSD which is also annoying. It is probably doable to do a conversion to
 //  json-schema, however, this still leads to annoying cases where we cannot reliably export to valid XML (maybe?)
@@ -22,6 +18,7 @@ import io.ktor.http.*
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @UCloudApiDoc("""A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`""")
+@Serializable
 data class FileMetadataTemplate(
     override val id: String,
     override val specification: Spec,
@@ -33,13 +30,14 @@ data class FileMetadataTemplate(
 ) : Resource<FileMetadataTemplatePermission> {
     override val billing: ResourceBilling = ResourceBilling.Free
 
+    @Serializable
     data class Spec(
         @UCloudApiDoc("The title of this template. It does not have to be unique.")
         val title: String,
         @UCloudApiDoc("Version identifier for this version. It must be unique within a single template group.")
         val version: String,
         @UCloudApiDoc("JSON-Schema for this document")
-        val schema: JsonNode,
+        val schema: JsonObject,
         @UCloudApiDoc("Makes this template inheritable by descendants of the file that the template is attached to")
         val inheritable: Boolean,
         @UCloudApiDoc("If `true` then a user with `ADMINISTRATOR` rights must approve all changes to metadata")
@@ -49,25 +47,31 @@ data class FileMetadataTemplate(
         @UCloudApiDoc("A description of the change since last version. Markdown is supported.")
         val changeLog: String,
     ) : ResourceSpecification {
+        @Contextual
         override val product: Nothing? = null
 
         init {
+            /*
             if (!JsonSchemaFactory.byDefault().syntaxValidator.schemaIsValid(schema)) {
                 throw RPCException("Schema is not a valid JSON-schema", HttpStatusCode.BadRequest)
             }
+             */
         }
     }
 
+    @Serializable
     class Status(
         val oldVersions: List<Spec>,
     ) : ResourceStatus
 
+    @Serializable
     data class Update(
         override val timestamp: Long,
         override val status: String?,
     ) : ResourceUpdate
 }
 
+@Serializable
 enum class FileMetadataTemplatePermission {
     READ,
     WRITE
@@ -78,6 +82,7 @@ enum class FileMetadataTemplatePermission {
 typealias FileMetadataTemplatesCreateRequest = BulkRequest<FileMetadataTemplate.Spec>
 typealias FileMetadataTemplatesCreateResponse = BulkResponse<FindByStringId>
 
+@Serializable
 data class FileMetadataTemplatesBrowseRequest(
     override val itemsPerPage: Int?,
     override val next: String?,

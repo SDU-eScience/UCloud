@@ -1,16 +1,14 @@
 package dk.sdu.cloud.file.orchestrator
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
-import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.PaginationRequestV2Consistency
-import dk.sdu.cloud.service.WithPaginationRequestV2
+import kotlinx.serialization.Serializable
 
 // ---
 
+@Serializable
 data class FileCollectionsProviderBrowseRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -31,6 +29,7 @@ typealias FileCollectionsProviderDeleteResponse = Unit
 
 typealias FileCollectionsProviderRenameRequest = BulkRequest<FileCollectionsProviderRenameRequestItem>
 
+@Serializable
 data class FileCollectionsProviderRenameRequestItem(
     val id: String,
     val newTitle: String,
@@ -39,6 +38,7 @@ typealias FileCollectionsProviderRenameResponse = Unit
 
 typealias FileCollectionsProviderUpdateAclRequest = BulkRequest<FileCollectionsProviderUpdateAclRequestItem>
 
+@Serializable
 data class FileCollectionsProviderUpdateAclRequestItem(
     val id: String,
     val newAcl: List<ResourceAclEntry<FilePermission>>,
@@ -46,6 +46,7 @@ data class FileCollectionsProviderUpdateAclRequestItem(
 typealias FileCollectionsProviderUpdateAclResponse = Unit
 
 typealias FileCollectionsProviderRetrieveManifestRequest = Unit
+@Serializable
 data class FileCollectionsProviderRetrieveManifestResponse(val support: List<FSSupport>)
 
 // ---

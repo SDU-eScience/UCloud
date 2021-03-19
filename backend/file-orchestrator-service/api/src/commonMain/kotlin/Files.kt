@@ -1,16 +1,14 @@
 package dk.sdu.cloud.file.orchestrator
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2Consistency
+import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.provider.api.ResourceAclEntry
-import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.PaginationRequestV2Consistency
-import dk.sdu.cloud.service.TYPE_PROPERTY
-import dk.sdu.cloud.service.WithPaginationRequestV2
 import io.ktor.http.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 interface FilesIncludeFlags {
     val includePermissions: Boolean?
@@ -38,24 +36,22 @@ interface WithPathMoving {
     val newPath: String
 }
 
+@Serializable
 data class FindByPath(override val path: String) : WithPath
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = TYPE_PROPERTY
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = LongRunningTask.Complete::class, name = "complete"),
-    JsonSubTypes.Type(value = LongRunningTask.ContinuesInBackground::class, name = "continues_in_background")
-)
+@Serializable
 sealed class LongRunningTask<V> {
+    @Serializable
+    @SerialName("complete")
     class Complete<V>(val result: V) : LongRunningTask<V>()
+    @Serializable
+    @SerialName("continues_in_background")
     class ContinuesInBackground<V>(val taskId: String) : LongRunningTask<V>()
 }
 
 // ---
 
+@Serializable
 data class FilesBrowseRequest(
     override val path: String,
     override val includePermissions: Boolean? = null,
@@ -71,6 +67,7 @@ data class FilesBrowseRequest(
 ) : WithPaginationRequestV2, FilesIncludeFlags, WithPath
 typealias FilesBrowseResponse = PageV2<UFile>
 
+@Serializable
 data class FilesRetrieveRequest(
     override val path: String,
     override val includePermissions: Boolean? = null,
@@ -83,6 +80,7 @@ data class FilesRetrieveRequest(
 typealias FilesRetrieveResponse = UFile
 
 typealias FilesMoveRequest = BulkRequest<FilesMoveRequestItem>
+@Serializable
 data class FilesMoveRequestItem(
     override val oldPath: String,
     override val newPath: String,
@@ -91,6 +89,7 @@ data class FilesMoveRequestItem(
 typealias FilesMoveResponse = BulkResponse<LongRunningTask<FindByPath>>
 
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
+@Serializable
 data class FilesCopyRequestItem(
     override val oldPath: String,
     override val newPath: String,
@@ -102,6 +101,7 @@ typealias FilesDeleteRequest = BulkRequest<FindByPath>
 typealias FilesDeleteResponse = BulkResponse<LongRunningTask<Unit>>
 
 typealias FilesCreateFolderRequest = BulkRequest<FilesCreateFolderRequestItem>
+@Serializable
 data class FilesCreateFolderRequestItem(
     override val path: String,
     override val conflictPolicy: WriteConflictPolicy,
@@ -109,6 +109,7 @@ data class FilesCreateFolderRequestItem(
 typealias FilesCreateFolderResponse = BulkResponse<FindByPath>
 
 typealias FilesUpdateAclRequest = BulkRequest<FilesUpdateAclRequestItem>
+@Serializable
 data class FilesUpdateAclRequestItem(
     override val path: String,
     val newAcl: List<ResourceAclEntry<FilePermission>>
@@ -119,15 +120,19 @@ typealias FilesTrashRequest = BulkRequest<FindByPath>
 typealias FilesTrashResponse = LongRunningTask<Unit>
 
 typealias FilesCreateUploadRequest = BulkRequest<FilesCreateUploadRequestItem>
+@Serializable
 data class FilesCreateUploadRequestItem(
     override val path: String
 ) : WithPath
 typealias FilesCreateUploadResponse = BulkResponse<FilesCreateUploadResponseItem>
+@Serializable
 data class FilesCreateUploadResponseItem(val endpoint: String)
 
 typealias FilesCreateDownloadRequest = BulkRequest<FilesCreateDownloadRequestItem>
+@Serializable
 data class FilesCreateDownloadRequestItem(override val path: String) : WithPath
 typealias FilesCreateDownloadResponse = BulkResponse<FilesCreateDownloadResponseItem>
+@Serializable
 data class FilesCreateDownloadResponseItem(val endpoint: String)
 
 // ---

@@ -4,11 +4,13 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.Serializable
 
 // ---
 
 typealias FileCollectionsControlUpdateRequest = BulkRequest<FileCollectionsControlUpdateRequestItem>
 
+@Serializable
 data class FileCollectionsControlUpdateRequestItem(
     val id: String,
     val update: FileCollection.Update,
@@ -17,12 +19,14 @@ typealias FileCollectionsControlUpdateResponse = Unit
 
 typealias FileCollectionsControlChargeCreditsRequest = BulkRequest<FileCollectionsControlChargeCreditsRequestItem>
 
+@Serializable
 data class FileCollectionsControlChargeCreditsRequestItem(
     val id: String,
     val chargeId: String,
     val units: Long,
 )
 
+@Serializable
 data class FileCollectionsControlChargeCreditsResponse(
     val insufficientFunds: List<FindByStringId>,
     val duplicateCharges: List<FindByStringId>,
