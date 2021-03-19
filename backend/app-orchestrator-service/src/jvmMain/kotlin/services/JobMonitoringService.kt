@@ -6,12 +6,10 @@ import dk.sdu.cloud.app.orchestrator.api.JobDataIncludeFlags
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobsControlUpdateRequestItem
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
@@ -50,7 +48,7 @@ class JobMonitoringService(
         var nextScan = 0L
 
         while (isActive) {
-            val now = Time.now()
+            val now = Time.now() / 1000
             if (now >= nextScan) {
                 db.withSession { session ->
                     val jobs = session
@@ -128,7 +126,7 @@ class JobMonitoringService(
                     }
                 }
 
-                nextScan = Time.now() + 30_000
+                nextScan = (Time.now() + 30_000) / 1000
             }
 
             if (!lock.renew(90_000)) {
@@ -140,6 +138,6 @@ class JobMonitoringService(
 
     companion object : Loggable {
         override val log = logger()
-        private const val TIME_BETWEEN_SCANS = 1_000 * 60 * 15
+        private const val TIME_BETWEEN_SCANS = 60 * 15
     }
 }
