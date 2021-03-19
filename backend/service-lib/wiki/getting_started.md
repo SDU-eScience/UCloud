@@ -24,6 +24,8 @@ system:
  - Kubernetes
    - Minikube: https://kubernetes.io/docs/tasks/tools/install-minikube/
      - macOS: `minikube start -p hyperkit --kubernetes-version v1.15.5`
+     - __Note: If you are not running macOS you probably shouldn't specify `-p hyperkit`, you should also remove
+       `--context hyperkit` from all commands on this page__
    
 ## Configuring Minikube to Run Applications
 
@@ -76,6 +78,19 @@ From `ucloud/backend/launcher` run the following command:
 mkdir -p fs/{home,projects}
 minikube -p hyperkit mount fs/:/hosthome --uid=11042 --gid=11042
 ```
+
+## Installing Volcano
+
+You will also need to install Volcano for `app-kubernetes-service` to function correctly. This is typically done by the
+deployment scripts in a production environment, but for development purposes you can do the following:
+
+1. Download [this file](./volcano.yml)
+2. Run the following command:
+
+```
+kubectl --context hyperkit create ns volcano-system
+kubectl --context hyperkit create -f volcano.yml
+```
    
 ## Preparing Configuration
 
@@ -90,7 +105,7 @@ tokenValidation:
 
 database:
    profile: PERSISTENT_POSTGRES
-   credentials: # Note Replace with your own postgre credentials
+   credentials: # Note Replace with your own postgres credentials
       username: postgres 
       password: postgrespassword
 
@@ -103,10 +118,11 @@ rpc:
 
 ## Generating Service Descriptions
 
-Every time a new service is added you will to generate service descriptions. You can do this by running:
+Every time a new service is added you will to generate service descriptions. You can do this by running
+(from `backend/`):
 
 ```
-gradle generateBuildConfig
+./gradlew generateBuildConfig
 ```
 
 ## Running Database Migrations
@@ -173,6 +189,7 @@ From `ucloud/backend` run the following:
 From `ucloud/frontend-web/webclient/`
 
 ```
+npm i
 npm run start_use_local_backend
 ```
 
