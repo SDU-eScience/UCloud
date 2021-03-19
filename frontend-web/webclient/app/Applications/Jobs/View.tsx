@@ -831,13 +831,13 @@ const RunningContent: React.FunctionComponent<{
 
     const appInvocation = job.specification.resolvedApplication!.invocation;
     const backendType = appInvocation.tool.tool!.description.backend;
-    const support = job.specification.resolvedSupport!;
-    const supportsExtension =
-        (backendType === "DOCKER" && support.docker.timeExtension) ||
-        (backendType === "VIRTUAL_MACHINE" && support.virtualMachine.timeExtension);
-    const supportsLogs =
-        (backendType === "DOCKER" && support.docker.logs) ||
-        (backendType === "VIRTUAL_MACHINE" && support.virtualMachine.logs);
+    const support = job.specification.resolvedSupport;
+    const supportsExtension = support === null ? false :
+        (backendType === "DOCKER" && support!.docker.timeExtension) ||
+        (backendType === "VIRTUAL_MACHINE" && support!.virtualMachine.timeExtension);
+    const supportsLogs = support === null ? false :
+        (backendType === "DOCKER" && support!.docker.logs) ||
+        (backendType === "VIRTUAL_MACHINE" && support!.virtualMachine.logs);
 
     useEffect(() => {
         setTimeout(() => {
@@ -1140,16 +1140,16 @@ const RunningButtonGroup: React.FunctionComponent<{
 }> = ({job, rank, expanded, toggleExpand}) => {
     const appInvocation = job.specification.resolvedApplication!.invocation;
     const backendType = appInvocation.tool.tool!.description.backend;
-    const support = job.specification.resolvedSupport!;
-    const supportTerminal =
-        backendType === "VIRTUAL_MACHINE" ? support.virtualMachine.terminal :
-        backendType === "DOCKER" ? support.docker.terminal : false;
+    const support = job.specification.resolvedSupport;
+    const supportTerminal = support === null ? false :
+        backendType === "VIRTUAL_MACHINE" ? support!.virtualMachine.terminal :
+        backendType === "DOCKER" ? support!.docker.terminal : false;
 
     const appType = appInvocation.applicationType;
-    const supportsInterface =
-        (appType === "WEB" && backendType === "DOCKER" && support.docker.web) ||
-        (appType === "VNC" && backendType === "DOCKER" && support.docker.vnc) ||
-        (appType === "VNC" && backendType === "VIRTUAL_MACHINE" && support.virtualMachine.vnc);
+    const supportsInterface = support === null ? false :
+        (appType === "WEB" && backendType === "DOCKER" && support!.docker.web) ||
+        (appType === "VNC" && backendType === "DOCKER" && support!.docker.vnc) ||
+        (appType === "VNC" && backendType === "VIRTUAL_MACHINE" && support!.virtualMachine.vnc);
 
     return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
         {!supportTerminal ? null : (
