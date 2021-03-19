@@ -44,14 +44,14 @@ class ProviderService(
             specsToTokens
         }
 
-        return db.withSession { session ->
-            val claims = AuthProviders.claim.call(
-                bulkRequestOf(
-                    claimTokens.map { (_, tokenResp) -> AuthProvidersRegisterResponseItem(tokenResp.claimToken) }
-                ),
-                serviceClient
-            ).orThrow()
+        val claims = AuthProviders.claim.call(
+            bulkRequestOf(
+                claimTokens.map { (_, tokenResp) -> AuthProvidersRegisterResponseItem(tokenResp.claimToken) }
+            ),
+            serviceClient
+        ).orThrow()
 
+        return db.withSession { session ->
             claims.responses.forEach {
                 dao.updateToken(session, actor, it.providerId, it.refreshToken, it.publicKey)
             }

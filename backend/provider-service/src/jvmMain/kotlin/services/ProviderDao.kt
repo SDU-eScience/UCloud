@@ -151,9 +151,14 @@ class ProviderDao(
                 )
                 .rows
                 .map { rowToProvider(it) }
-                .singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                .singleOrNull()
+                ?: run {
+                    println("Could not find $id")
+                    throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                }
 
             if (!hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)) {
+                println("You don't have permissions!")
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         }
@@ -232,6 +237,7 @@ class ProviderDao(
         owner: ProviderOwner,
         aclToVerifyAgainst: List<ResourceAclEntry<ProviderAclPermission>>,
         permission: ProviderAclPermission,
+        canRetry: Boolean = true,
     ): Boolean {
         val project = owner.project ?: return false
         if (actor == Actor.System) return true
@@ -240,16 +246,22 @@ class ProviderDao(
         for (entry in aclToVerifyAgainst) {
             if (!entry.permissions.contains(permission)) continue
 
+            val memberStatus = projects.memberStatus.get(username)
             val entity = entry.entity
             if (entity is AclEntity.ProjectGroup) {
-                val status = projects.groupMembers.get(ProjectAndGroup(entity.projectId, entity.group))
-                if (status != null && status.any { it == username }) {
+                val matches = memberStatus?.groups?.any { it.project == entity.projectId && it.group == entity.group }
+                if (matches == true) {
                     return true
                 }
             }
         }
 
-        return false
+        if (canRetry) {
+            projects.memberStatus.remove(username)
+            return hasPermission(actor, owner, aclToVerifyAgainst, permission, canRetry = false)
+        } else {
+            return false
+        }
     }
 
     suspend fun findUnclaimed(ctx: DBContext): List<InternalProvider> {
