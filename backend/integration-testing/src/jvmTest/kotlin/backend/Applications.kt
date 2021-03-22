@@ -19,6 +19,7 @@ import io.ktor.client.call.*
 import io.ktor.http.*
 import io.ktor.util.*
 import io.ktor.utils.io.*
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -187,6 +188,22 @@ class ApplicationTest : IntegrationTest() {
         return status
     }
 
+    private suspend fun waitForJobRunning(
+        jobId: String,
+        userClient: AuthenticatedClient,
+    ): Job {
+        lateinit var status: Job
+        retrySection(attempts = 300, delay = 10_000) {
+            status = Jobs.retrieve.call(JobsRetrieveRequest(jobId), userClient).orThrow()
+            require(status.status.state == JobState.RUNNING || status.status.state.isFinal()) {
+                "Current job state is: ${status.status.state}"
+            }
+            require(status.output != null) { "output must be non-null" }
+        }
+        return status
+    }
+
+    @Ignore
     @Test
     fun `test accounting with job timeout`() = t {
         UCloudLauncher.requireK8s()
@@ -371,9 +388,9 @@ class ApplicationTest : IntegrationTest() {
         val jobId = Jobs.create.call(
             bulkRequestOf(
                 JobSpecification(
-                    SampleApplications.figlet,
+                    SampleApplications.longRunning,
                     sampleCompute.reference(),
-                    parameters = SampleApplications.figletParams("Hello"),
+                    parameters = emptyMap(),
                     resources = emptyList(),
                 )
             ),
@@ -381,10 +398,11 @@ class ApplicationTest : IntegrationTest() {
         ).orThrow().ids.single()
 
         assert(Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items.isNotEmpty())
+        waitForJobRunning(jobId, user.client)
         Jobs.delete.call(bulkRequestOf(FindByStringId(jobId)), user.client)
         waitForJob(jobId, user.client)
         val result = Jobs.browse.call(JobsBrowseRequest(10), user.client).orThrow().items
-        assert(result.isNotEmpty() && result.first().status.state == JobState.FAILURE)
+        assert(result.isNotEmpty() && result.find { it.id == jobId }!!.status.state == JobState.SUCCESS)
     }
 
     @Test

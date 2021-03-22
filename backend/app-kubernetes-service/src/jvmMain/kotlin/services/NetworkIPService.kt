@@ -215,15 +215,17 @@ class NetworkIPService(
 
     suspend fun addToPool(req: BulkRequest<K8Subnet>) {
         db.withSession { session ->
-            req.items.forEach { (cidr) -> addToPool(session, cidr) }
+            req.items.forEach { addToPool(session, it.externalCidr, it.internalCidr) }
         }
     }
 
-    private suspend fun addToPool(ctx: DBContext, cidr: String) {
+    private suspend fun addToPool(ctx: DBContext, externalCidr: String, internalCidr: String) {
         ctx.withSession { session ->
-            validateCidr(cidr)
+            validateCidr(externalCidr)
+            validateCidr(internalCidr)
             session.insert(NetworkIPPoolTable) {
-                set(NetworkIPPoolTable.externalCidr, cidr)
+                set(NetworkIPPoolTable.externalCidr, externalCidr)
+                set(NetworkIPPoolTable.internalCidr, internalCidr)
             }
         }
     }

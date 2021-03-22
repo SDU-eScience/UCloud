@@ -2,10 +2,10 @@ package dk.sdu.cloud.integration
 
 import com.sun.jna.Platform
 import dk.sdu.cloud.accounting.AccountingService
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.activity.ActivityService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
+import dk.sdu.cloud.app.kubernetes.api.AppK8IntegrationTesting
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
@@ -13,8 +13,8 @@ import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.AvatarService
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.defaultMapper
@@ -34,8 +34,13 @@ import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.ProjectService
+import dk.sdu.cloud.project.api.CreateProjectRequest
+import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.repository.ProjectRepositoryService
 import dk.sdu.cloud.provider.ProviderService
+import dk.sdu.cloud.provider.api.ProviderSpecification
+import dk.sdu.cloud.provider.api.Providers
+import dk.sdu.cloud.provider.api.ProvidersRetrieveRequest
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
@@ -138,11 +143,7 @@ object UCloudLauncher : Loggable {
         private set
     private lateinit var k3sContainer: K3sContainer
 
-    private val tempDir = if (Platform.isMac()) {
-        File(System.getProperty("user.home"), "temp-integration").also { it.deleteOnExit() }
-    } else {
-        Files.createTempDirectory("integration").toFile().also { it.deleteOnExit() }
-    }
+    private val tempDir = File(System.getProperty("user.home"), "temp-integration").also { it.deleteOnExit() }
     val cephfsHome = File(tempDir, "cephfs").absolutePath
     private const val REDIS_PORT = 44231
     lateinit var micro: Micro
@@ -389,13 +390,14 @@ object UCloudLauncher : Loggable {
     }
 
     suspend fun wipeDatabases() {
+        log.info("===== WIPING DATABASE =====")
         File(cephfsHome, "home").apply {
-            require(deleteRecursively())
-            require(mkdirs()) { "Unable to create directories: ${this}" }
+            deleteRecursively()
+            mkdirs()
         }
         File(cephfsHome, "projects").apply {
-            require(deleteRecursively())
-            require(mkdirs())
+            deleteRecursively()
+            mkdirs()
         }
 
         TestDB.dbSessionFactory("public").withSession { session ->
@@ -439,16 +441,53 @@ object UCloudLauncher : Loggable {
                     """
                 )
         }
+        log.info("===== DATABASE IS NOW READY =====")
+    }
+
+    suspend fun runExtraInitializations() {
+        run {
+            AppK8IntegrationTesting.isProviderReady = false
+            // Initialize provider
+            val project = Projects.create.call(
+                CreateProjectRequest("UCloudProviderForDev"),
+                serviceClient
+            ).orThrow()
+
+            Providers.create.call(
+                bulkRequestOf(
+                    ProviderSpecification(
+                        UCLOUD_PROVIDER,
+                        "localhost",
+                        false,
+                        8080
+                    )
+                ),
+                serviceClient.withProject(project.id)
+            ).orRethrowAs {
+                throw IllegalStateException("Could not register a provider for development mode!")
+            }
+
+            val retrievedResponse = Providers.retrieve.call(
+                ProvidersRetrieveRequest(UCLOUD_PROVIDER),
+                serviceClient.withProject(project.id)
+            ).orThrow()
+
+            AppK8IntegrationTesting.providerCertificate = retrievedResponse.publicKey
+            AppK8IntegrationTesting.providerRefreshToken = retrievedResponse.refreshToken
+            AppK8IntegrationTesting.isProviderReady = true
+        }
     }
 
     fun launch() {
         runBlocking {
             if (isRunning) {
                 wipeDatabases()
+                runExtraInitializations()
                 return@runBlocking
             }
 
-            integrationTestingIsKubernetesReady = false
+            AppK8IntegrationTesting.isProviderReady = false
+            AppK8IntegrationTesting.isKubernetesReady = false
             isRunning = true
             Runtime.getRuntime().addShutdownHook(Thread { shutdown() })
 
@@ -563,6 +602,8 @@ object UCloudLauncher : Loggable {
             while (!reg.isRunning) {
                 delay(50)
             }
+
+            runExtraInitializations()
         }
     }
 
@@ -662,8 +703,8 @@ object UCloudLauncher : Loggable {
         }
 
         isK8sRunning = true
-        integrationTestingKubernetesFilePath = target.absolutePath
-        integrationTestingIsKubernetesReady = true
+        AppK8IntegrationTesting.kubernetesConfigFilePath = target.absolutePath
+        AppK8IntegrationTesting.isKubernetesReady = true
     }
 }
 

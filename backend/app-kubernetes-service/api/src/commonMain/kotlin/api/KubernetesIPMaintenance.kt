@@ -34,16 +34,16 @@ object KubernetesNetworkIPMaintenance : CallDescriptionContainer("compute.networ
 
     val create = call<KubernetesIPMaintenanceCreateRequest, KubernetesIPMaintenanceCreateResponse,
         CommonErrorMessage>("create") {
-        httpCreate(baseContext, roles = Roles.PRIVILEGED)
+        httpCreate(baseContext, roles = Roles.PUBLIC)
     }
 
     val browse = call<KubernetesIPMaintenanceBrowseRequest, KubernetesIPMaintenanceBrowseResponse,
         CommonErrorMessage>("browse") {
-        httpBrowse(baseContext, roles = Roles.PRIVILEGED)
+        httpBrowse(baseContext, roles = Roles.PUBLIC)
     }
 
     val retrieveStatus = call<KubernetesIPMaintenanceRetrieveStatusRequest,
         KubernetesIPMaintenanceRetrieveStatusResponse, CommonErrorMessage>("retrieveStatus") {
-        httpRetrieve(baseContext, roles = Roles.PRIVILEGED)
+        httpRetrieve(baseContext, roles = Roles.PUBLIC)
     }
 }

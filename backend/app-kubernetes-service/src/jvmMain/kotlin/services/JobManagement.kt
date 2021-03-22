@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
+import dk.sdu.cloud.app.kubernetes.api.AppK8IntegrationTesting
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
@@ -217,7 +217,7 @@ class JobManagement(
             val lock = distributedLocks.create("app-k8-watcher", duration = 60_000)
             while (isActive) {
                 try {
-                    if (!integrationTestingIsKubernetesReady) {
+                    if (!AppK8IntegrationTesting.isKubernetesReady) {
                         delay(100)
                     }
                     becomeMasterAndListen(lock)
@@ -420,10 +420,18 @@ class JobManagement(
                                         val didChange = k8.addStatus(jobId, statusUpdate)
                                         if (didChange) {
                                             markJobAsComplete(jobId, ev.theObject)
-                                            k8.client.deleteResource(
-                                                KubernetesResources.volcanoJob
-                                                    .withNameAndNamespace(jobName, jobNamespace)
-                                            )
+                                            try {
+                                                k8.client.deleteResource(
+                                                    KubernetesResources.volcanoJob
+                                                        .withNameAndNamespace(jobName, jobNamespace)
+                                                )
+                                            } catch (ex: KubernetesException) {
+                                                if (ex.statusCode == HttpStatusCode.NotFound) {
+                                                    // Ignored
+                                                } else {
+                                                    throw ex
+                                                }
+                                            }
                                         }
                                     } else {
                                         val didChangeState = k8.changeState(

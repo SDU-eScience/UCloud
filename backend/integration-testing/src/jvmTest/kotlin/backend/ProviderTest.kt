@@ -29,8 +29,8 @@ data class CreatedProvider(
 suspend fun createProvider(
     rootProject: String? = null,
     spec: ProviderSpecification = ProviderSpecification(
-        id = "ucloud",
-        domain = "ucloud.dk",
+        id = "testprovider",
+        domain = "provider.example.com",
         https = true,
     ),
 ): CreatedProvider {

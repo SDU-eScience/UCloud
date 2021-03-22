@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.app.orchestrator.api.JobsControlChargeCreditsRequest
 import dk.sdu.cloud.app.orchestrator.api.JobsControlChargeCreditsRequestItem
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -68,19 +69,31 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
         if (timespent > 0L) {
-            val insufficientFunds = JobsControl.chargeCredits.call(
-                bulkRequestOf(
-                    JobsControlChargeCreditsRequestItem(
-                        jobId,
-                        lastTs.toString(),
-                        SimpleDuration.fromMillis(timespent)
-                    )
-                ),
-                k8.serviceClient
-            ).orThrow().insufficientFunds.isNotEmpty()
+            try {
+                val insufficientFunds = JobsControl.chargeCredits.call(
+                    bulkRequestOf(
+                        JobsControlChargeCreditsRequestItem(
+                            jobId,
+                            lastTs.toString(),
+                            SimpleDuration.fromMillis(timespent)
+                        )
+                    ),
+                    k8.serviceClient
+                ).orThrow().insufficientFunds.isNotEmpty()
 
-            if (insufficientFunds) {
-                k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+                if (insufficientFunds) {
+                    k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+                }
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    log.debug("Not all jobs were known to UCloud? Deleting resources since they no longer belong in our" +
+                        "namespace")
+                    runCatching {
+                        k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+                    }
+                } else {
+                    throw ex
+                }
             }
         }
 

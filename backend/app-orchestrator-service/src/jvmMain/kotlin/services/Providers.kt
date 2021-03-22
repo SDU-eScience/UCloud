@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.ProvidersRetrieveSpecificationRequest
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.provider.api.Providers as ProvidersApi
 import io.ktor.http.*
@@ -39,18 +40,18 @@ class Providers(
             val providerSpec = ProvidersApi.retrieveSpecification.call(
                 ProvidersRetrieveSpecificationRequest(provider),
                 serviceClient
-            ).orThrow()
+            ).orRethrowAs {
+                throw RPCException("Unknown service provider: $provider", HttpStatusCode.InternalServerError)
+            }
 
             val hostInfo = HostInfo(providerSpec.domain, if (providerSpec.https) "https" else "http", providerSpec.port)
             val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
             val wsClient = auth.authenticateClient(OutgoingWSCall).withFixedHost(hostInfo)
 
-            // TODO We don't know which are actually valid
             val ingressApi = IngressProvider(provider)
             val licenseApi = LicenseProvider(provider)
             val networkApi = NetworkIPProvider(provider)
             val computeApi = JobsProvider(provider)
-
 
             ProviderCommunication(computeApi, httpClient, wsClient, ingressApi, licenseApi, networkApi, providerSpec)
         }
@@ -82,7 +83,8 @@ class Providers(
         }
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log = logger()
         const val PROVIDER_USERNAME_PREFIX = "#P_"
     }
 }

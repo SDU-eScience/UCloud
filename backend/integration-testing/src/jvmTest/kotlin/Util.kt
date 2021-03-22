@@ -21,6 +21,7 @@ fun t(block: suspend () -> Unit) {
 
     runBlocking {
         UCloudLauncher.wipeDatabases()
+        UCloudLauncher.runExtraInitializations()
         block()
     }
 }

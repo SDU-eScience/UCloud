@@ -358,7 +358,10 @@ class JobOrchestrator(
     ): Map<String, VerifiedJobWithAccessToken> {
         val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
         if (loadedJobs.keys.size != jobIds.size) {
-            throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
+            throw RPCException(
+                "Not all jobs are known to UCloud (Provider is ${comm.provider.id})",
+                HttpStatusCode.NotFound
+            )
         }
 
         val ownsAllJobs = loadedJobs.values.all { (it.job).specification.product.provider == comm.provider.id }
