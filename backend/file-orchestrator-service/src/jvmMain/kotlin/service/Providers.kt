@@ -19,7 +19,7 @@ data class ProviderCommunication(
     val wsClient: AuthenticatedClient,
     val provider: ProviderSpecification,
     val filesApi: FilesProvider,
-    val fileCollectionsApi: FileCollectionsProvider?,
+    val fileCollectionsApi: FileCollectionsProvider,
 )
 
 class Providers(

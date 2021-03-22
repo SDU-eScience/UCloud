@@ -91,8 +91,7 @@ typealias FilesMoveResponse = BulkResponse<LongRunningTask<FindByPath>>
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
 @Serializable
 data class FilesCopyRequestItem(
-    override val oldPath: String,
-    override val newPath: String,
+    override val oldPath: String, override val newPath: String,
     override val conflictPolicy: WriteConflictPolicy
 ) : WithPathMoving, WithConflictPolicy
 typealias FilesCopyResponse = BulkResponse<LongRunningTask<FindByPath>>
@@ -117,7 +116,7 @@ data class FilesUpdateAclRequestItem(
 typealias FilesUpdateAclResponse = Unit
 
 typealias FilesTrashRequest = BulkRequest<FindByPath>
-typealias FilesTrashResponse = LongRunningTask<Unit>
+typealias FilesTrashResponse = BulkResponse<LongRunningTask<Unit>>
 
 typealias FilesCreateUploadRequest = BulkRequest<FilesCreateUploadRequestItem>
 @Serializable

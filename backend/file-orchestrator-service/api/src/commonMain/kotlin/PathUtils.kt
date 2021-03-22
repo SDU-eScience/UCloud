@@ -76,7 +76,7 @@ fun relativize(parentPath: String, childPath: String): String {
 }
 
 data class PathMetadata(val productReference: ProductReference, val collection: String?)
-fun extractProviderAndCollectionFromPath(path: String): PathMetadata {
+fun extractPathMetadata(path: String): PathMetadata {
     val normalizedPath = path.normalize()
     val components = normalizedPath.components()
 

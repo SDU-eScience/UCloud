@@ -11,14 +11,11 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.project.repository.api.ProjectRepository
-import dk.sdu.cloud.project.repository.api.RepositoryListRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.NormalizedScrollRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.ScrollResult
-import kotlinx.coroutines.runBlocking
 
 class ActivityService(
     private val activityEventElasticDao: ActivityEventElasticDao,
@@ -51,6 +48,7 @@ class ActivityService(
         )
 
         val allEvents = if (!projectID.isNullOrBlank()) {
+            /*
             val repos = ProjectRepository.list.call(
                 RepositoryListRequest(
                     user,
@@ -71,12 +69,18 @@ class ActivityService(
 
             val filteredRepos = repos.filterIndexed { index, _ -> withKnowledge[index] }
 
+             */
+
+            /*
             activityEventElasticDao.findProjectEvents(
                 scroll.scrollSize,
                 filter,
                 projectID,
                 filteredRepos
             )
+
+             */
+            TODO()
 
         } else {
             if (filter.user == null) {

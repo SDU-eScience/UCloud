@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.orchestrator
 
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.ExperimentalLevel
 import dk.sdu.cloud.calls.UCloudApiDoc
@@ -436,6 +437,11 @@ data class FileCollection(
     )
 }
 
+data class FSSupportResolved(
+    val product: Product.Storage,
+    val support: FSSupport,
+)
+
 @Serializable
 data class FSSupport(
     val product: ProductReference,
@@ -475,10 +481,12 @@ data class FSCollectionSupport(
 @UCloudApiDoc("Declares which file-level operations a product supports")
 @Serializable
 data class FSFileSupport(
-    val aclSupported: Boolean? = null,
-    val aclModifiable: Boolean? = null,
+    val aclSupported: Boolean = false,
+    val aclModifiable: Boolean = false,
 
     // Nothing about metadata here because it is built-into UCloud as opposed to the file system
 
-    val trashSupported: Boolean? = null,
+    val trashSupported: Boolean = false,
+
+    val isReadOnly: Boolean = false,
 )

@@ -109,6 +109,7 @@ class PasswordResetServiceTest {
             UserDescriptions.lookupUserWithEmail,
             LookupUserWithEmailResponse(
                 TestUsers.user.username,
+                TestUsers.user.username,
                 TestUsers.user.firstName
             )
         )
@@ -146,7 +147,8 @@ class PasswordResetServiceTest {
             UserDescriptions.lookupUserWithEmail,
             LookupUserWithEmailResponse(
                 TestUsers.user.username,
-                TestUsers.user.firstName
+                TestUsers.user.firstName,
+                TestUsers.user.lastName
             )
         )
         ClientMock.mockCallSuccess(

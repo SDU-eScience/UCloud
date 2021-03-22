@@ -3,6 +3,7 @@ package mail.services
 import dk.sdu.cloud.mail.api.EmailSettings
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.MailServiceDescription
+import dk.sdu.cloud.mail.services.SettingsService
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
@@ -74,7 +75,7 @@ class SettingsServiceTest {
             val newSettings = EmailSettings(
                 grantApplicationApproved = false
             )
-            settingsService.updateEmailSettings(newSettings, user.username)
+            settingsService.updateEmailSettings(db, newSettings, user.username)
 
             val updatedSettings = settingsService.getEmailSettings(user.username)
             assertEquals(true, updatedSettings.applicationStatusChange)
@@ -96,8 +97,8 @@ class SettingsServiceTest {
                 grantApplicationApproved = false,
                 grantApplicationWithdrawn = false
             )
-            settingsService.updateEmailSettings(newSettings, TestUsers.user2.username)
-            settingsService.updateEmailSettings(newSettingsAgain, user.username)
+            settingsService.updateEmailSettings(db, newSettings, TestUsers.user2.username)
+            settingsService.updateEmailSettings(db, newSettingsAgain, user.username)
 
             val updatedSettingsAfterConflict = settingsService.getEmailSettings(user.username)
             assertEquals(true, updatedSettingsAfterConflict.applicationStatusChange)
@@ -134,7 +135,7 @@ class SettingsServiceTest {
             "ProjectTitle"
         )
         runBlocking {
-            settingsService.updateEmailSettings(newSettings, user.username)
+            settingsService.updateEmailSettings(db, newSettings, user.username)
 
             val wantVerification = settingsService.wantEmail(user.username, verificationReminderMail)
             assertTrue(wantVerification)

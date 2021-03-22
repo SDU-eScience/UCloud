@@ -20,10 +20,7 @@ import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.StorageService
-import dk.sdu.cloud.file.favorite.FileFavoriteService
-import dk.sdu.cloud.file.stats.FileStatsService
-import dk.sdu.cloud.file.trash.FileTrashService
-import dk.sdu.cloud.filesearch.FileSearchService
+import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.grant.GrantService
 import dk.sdu.cloud.indexing.IndexingService
 import dk.sdu.cloud.integration.backend.sampleStorage
@@ -34,7 +31,6 @@ import dk.sdu.cloud.news.NewsService
 import dk.sdu.cloud.notification.NotificationService
 import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.project.ProjectService
-import dk.sdu.cloud.project.repository.ProjectRepositoryService
 import dk.sdu.cloud.provider.ProviderService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
 import dk.sdu.cloud.service.Loggable
@@ -44,7 +40,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.TestDB
-import dk.sdu.cloud.share.ShareService
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
 import dk.sdu.cloud.webdav.WebdavService
@@ -525,19 +520,14 @@ object UCloudLauncher : Loggable {
                 AvatarService,
                 ContactBookService,
                 ElasticManagementService,
-                FileFavoriteService,
-                FileStatsService,
-                FileTrashService,
-                FileSearchService,
+                FileOrchestratorService,
                 GrantService,
                 IndexingService,
                 MailService,
                 NewsService,
                 NotificationService,
                 PasswordResetService,
-                ProjectRepositoryService,
                 ProjectService,
-                ShareService,
                 StorageService,
                 SupportService,
                 TaskService,

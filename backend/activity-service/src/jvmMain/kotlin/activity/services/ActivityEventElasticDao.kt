@@ -1,7 +1,5 @@
 package dk.sdu.cloud.activity.services
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
@@ -13,13 +11,9 @@ import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
-import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
-import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.share.api.Shares
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -140,6 +134,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
         return query
     }
 
+    /*
     fun findProjectEvents(
         scrollSize: Int,
         filter: ActivityEventFilter,
@@ -194,6 +189,8 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
         return mapEventsBasedOnIndex(searchResponse, isUserSearch = true)
 
     }
+
+     */
 
     fun findUserEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
         val query = applyTimeFilter(filter)
@@ -377,6 +374,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 }
             }
 
+            /*
             object FilesFavoriteToggle : CallWithActivity<ToggleFavoriteAudit>(
                 ActivityEventType.favorite,
                 FileFavoriteDescriptions.toggleFavorite,
@@ -401,6 +399,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     }
                 }
             }
+             */
 
             object FilesMoved : CallWithActivity<SingleFileAudit<MoveRequest>>(
                 ActivityEventType.moved,
@@ -659,6 +658,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                 }
             }
 
+            /*
             object ShareCreated : CallWithActivity<Shares.Create.Request>(
                 ActivityEventType.sharedWith,
                 Shares.create,
@@ -684,6 +684,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                     )
                 }
             }
+             */
 
             companion object {
                 val all by lazy { CallWithActivity::class.sealedSubclasses.map { it.objectInstance!! } }
