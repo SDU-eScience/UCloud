@@ -1,4 +1,4 @@
-version = "0.4.1"
+version = "0.4.2"
 
 application {
     mainClassName = "dk.sdu.cloud.grant.MainKt"

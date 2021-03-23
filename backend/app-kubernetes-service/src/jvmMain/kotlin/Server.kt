@@ -231,7 +231,7 @@ class Server(
                 MaintenanceController(maintenance, micro.tokenValidation),
                 ShellController(k8Dependencies, db, sessions),
                 IngressController(ingressService),
-                LicenseController(licenseService),
+                LicenseController(licenseService, micro.tokenValidation),
                 NetworkIPController(networkIpService, micro.tokenValidation),
             )
         }

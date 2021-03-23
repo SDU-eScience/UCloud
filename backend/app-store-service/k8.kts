@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-store"
-    version = "0.16.1"
+    version = "0.16.2"
 
     withAmbassador(null) {
         addSimpleMapping("/api/hpc")

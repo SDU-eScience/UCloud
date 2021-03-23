@@ -56,14 +56,14 @@ object KubernetesLicenseMaintenance : CallDescriptionContainer("compute.licenses
     val baseContext = KubernetesLicenses.baseContext + "/maintenance"
 
     val create = call<KubernetesLicenseCreateRequest, KubernetesLicenseCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext, roles = Roles.ADMIN)
+        httpCreate(baseContext, roles = Roles.PUBLIC)
     }
 
     val browse = call<KubernetesLicenseBrowseRequest, KubernetesLicenseBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext, roles = Roles.ADMIN)
+        httpBrowse(baseContext, roles = Roles.PUBLIC)
     }
 
     val update = call<KubernetesLicenseUpdateRequest, KubernetesLicenseUpdateResponse, CommonErrorMessage>("update") {
-        httpUpdate(baseContext, "update", roles = Roles.ADMIN)
+        httpUpdate(baseContext, "update", roles = Roles.PUBLIC)
     }
 }

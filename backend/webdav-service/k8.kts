@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "webdav"
-    version = "0.4.1"
+    version = "0.4.2"
 
     val domain: String = config("domain", "The domain to run webdav from (e.g. 'dav.cloud.sdu.dk')")
 

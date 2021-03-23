@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "mail"
-    version = "0.4.1"
+    version = "0.4.2"
 
     withAmbassador(null) {
         services.add(
