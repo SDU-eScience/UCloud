@@ -15,51 +15,49 @@ volumes: [
 ]) {
     node (label) {
         sh label: '', script: 'java -version'
-        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup' || env.BRANCH_NAME == 'accounting') {
-            stage('Checkout') {
-                checkout(
-                    [
-                        $class                           : 'GitSCM',
-                        branches                         : [
-                            [name: env.BRANCH_NAME]
-                        ],
-                        doGenerateSubmoduleConfigurations: false,
-                        extensions                       : [],
-                        submoduleCfg                     : [],
-                        userRemoteConfigs                : [
-                            [
-                                credentialsId: 'github',
-                                url          : 'https://github.com/SDU-eScience/SDUCloud.git'
-                            ]
+        stage('Checkout') {
+            checkout(
+                [
+                    $class                           : 'GitSCM',
+                    branches                         : [
+                        [name: env.BRANCH_NAME]
+                    ],
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions                       : [],
+                    submoduleCfg                     : [],
+                    userRemoteConfigs                : [
+                        [
+                            credentialsId: 'github',
+                            url          : 'https://github.com/SDU-eScience/SDUCloud.git'
                         ]
                     ]
-                )
-            }
-
-            String frontendResult = runBuild("frontend-web/Jenkinsfile")
-            String backendResult = runBuild("backend/Jenkinsfile")
-            boolean hasError = false
-
-            if (frontendResult.startsWith("FAILURE")) {
-                sendAlert(frontendResult)
-                hasError = true
-            }
-
-            if (backendResult.startsWith("FAILURE")) {
-                sendAlert(backendResult)
-                hasError = true
-            }
-
-            junit '**/build/test-results/**/*.xml'
-            jacoco(
-                execPattern: '**/**.exec',
-                exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
-                sourcePattern: '**/src/main/kotlin/**'
+                ]
             )
+        }
 
-            if (hasError) {
-                error('Job failed - message have been sent.')
-            }
+        String frontendResult = runBuild("frontend-web/Jenkinsfile")
+        String backendResult = runBuild("backend/Jenkinsfile")
+        boolean hasError = false
+
+        if (frontendResult.startsWith("FAILURE")) {
+            sendAlert(frontendResult)
+            hasError = true
+        }
+
+        if (backendResult.startsWith("FAILURE")) {
+            sendAlert(backendResult)
+            hasError = true
+        }
+
+        junit '**/build/test-results/**/*.xml'
+        jacoco(
+            execPattern: '**/**.exec',
+            exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
+            sourcePattern: '**/src/main/kotlin/**'
+        )
+
+        if (hasError) {
+            error('Job failed - message have been sent.')
         }
     }
 }
@@ -73,6 +71,6 @@ def sendAlert(String alertMessage) {
     withCredentials(
         [string(credentialsId: "slackToken", variable: "slackToken")]
     ) {
-        slackSend(channel: "devalerts", message: alertMessage, tokenCredentialId: 'slackToken')
+        slackSend(channel: "devalerts", message: alertMessage + "Branch: " + env.BRANCH_NAME, tokenCredentialId: 'slackToken')
     }
 }
