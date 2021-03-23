@@ -4,9 +4,14 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ucloud.data.extraction.api.*
 import org.joda.time.Days
 import org.joda.time.LocalDateTime
+import java.security.MessageDigest
 import kotlin.math.min
 
 class DeicReportService(val postgresDataService: PostgresDataService) {
+
+    private fun hashUsernameInSHA256(username: String): String {
+        return MessageDigest.getInstance("SHA-256").digest(username.toByteArray()).fold("",{ str, it -> str + "%02x".format(it) })
+    }
 
     fun reportCenter(startDate: LocalDateTime, endDate: LocalDateTime) {
         val daysInPeriod = Days.daysBetween(startDate, endDate).days
@@ -51,6 +56,18 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         println("]")
     }
 
+    fun excludeProject(projectTitle: String):Boolean {
+        return when (projectTitle) {
+            "sdukoldby" -> true
+            "sdujk" -> true
+            "sduvarcall" -> true
+            "sdularsen" -> true
+            "sdumembio" -> true
+            "High-Energy" -> true
+            else -> false
+        }
+    }
+
     fun reportCenterDailyDeic(startDate: LocalDateTime, endDate: LocalDateTime) {
         //TODO() NOT correct format - currently a center report for each day. Should perhaps be user specific
         val daysInPeriod = Days.daysBetween(startDate, endDate).days
@@ -70,34 +87,38 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                 val deicProject = project.id
 
                 postgresDataService.findProjectMembers(deicProject).forEach members@ { projectMember ->
-                    if (projectMember.addedToProjectAt.isAfter(start)) return@members
+                    if (projectMember.addedToProjectAt.isAfter(endDate)) return@members
                     val universityId = postgresDataService.getUniversity(projectMember.username)
                     val accessType = AccessType.LOCAL.value
 
                     val cpuUsed = postgresDataService.calculateProductUsageForUserInProjectForDate(
-                        startDate,
+                        start,
                         ProductType.CPU,
                         projectMember.username,
                         deicProject
                     )
                     val gpuUsed = postgresDataService.calculateProductUsageForUserInProjectForDate(
-                        startDate,
+                        start,
                         ProductType.GPU,
                         projectMember.username,
                         deicProject
                     )
-                    val storageUsed = postgresDataService.calculateProductUsageForUserInProjectForDate(
-                        startDate,
-                        ProductType.STORAGE,
-                        projectMember.username,
-                        deicProject
-                    )
+                    val storageUsed = if (excludeProject(project.title)) {
+                        0L
+                    } else {
+                        postgresDataService.calculateProductUsageForUserInProjectForDate(
+                            start,
+                            ProductType.STORAGE,
+                            projectMember.username,
+                            deicProject
+                        )
+                    }
 
                     val centerDaily = CenterDaily(
                         TYPE_1_HPC_CENTER_ID,
                         TYPE_1_HPC_SUB_CENTER_ID_SDU,
                         start.toString().substringBefore("T"),
-                        null,
+                        hashUsernameInSHA256(projectMember.username),
                         deicProject,
                         universityId.value,
                         accessType,
@@ -165,7 +186,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                 )
 
                 val personReport = Person(
-                    null,
+                    hashUsernameInSHA256(projectMember.username),
                     deicProject,
                     TYPE_1_HPC_CENTER_ID,
                     TYPE_1_HPC_SUB_CENTER_ID_SDU,
