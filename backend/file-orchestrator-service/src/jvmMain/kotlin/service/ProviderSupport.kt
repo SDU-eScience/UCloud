@@ -6,8 +6,7 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.orchestrator.FSSupport
-import dk.sdu.cloud.file.orchestrator.FSSupportResolved
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*

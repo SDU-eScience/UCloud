@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.orchestrator
+package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.CallDescriptionContainer

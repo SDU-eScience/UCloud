@@ -773,6 +773,10 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
             return ComputedType.Bool()
         }
 
+        java.lang.Void::class.java -> {
+            return ComputedType.Unknown()
+        }
+
         is Class<*> -> {
             if (type.isEnum) {
                 return ComputedType.Enum(type.enumConstants.map { (it as Enum<*>).name })

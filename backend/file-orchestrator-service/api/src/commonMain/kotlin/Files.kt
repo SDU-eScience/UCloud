@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.orchestrator
+package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.PageV2
@@ -251,6 +251,8 @@ of bytes.
                 
                 This is a long running task. As a result, this operation might respond with a status code which indicate
                 that it will continue in the background. Progress of this job can be followed using the task API.
+                
+                TODO What happens with metadata, acls and extended attributes?
             """.trimIndent()
 
             error {

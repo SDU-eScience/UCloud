@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.ucloud.services.linuxfs
 
-import dk.sdu.cloud.file.services.linuxfs.NativeFS
 import dk.sdu.cloud.service.Loggable
 import java.io.File
 

@@ -2,17 +2,7 @@
 
 package dk.sdu.cloud.file.ucloud.services.linuxfs
 
-import dk.sdu.cloud.file.CephConfiguration
-import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.services.CephFsFastDirectoryStats
-import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.acl.requirePermission
-import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
-import dk.sdu.cloud.file.util.CappedInputStream
-import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
+import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -29,11 +19,14 @@ import kotlin.Comparator
 import kotlin.collections.ArrayList
 import kotlin.math.min
 
+typealias CephConfiguration = Unit
+
 class LinuxFS(
     fsRoot: File,
     private val aclService: AclService,
     private val cephConfiguration: CephConfiguration
-) : LowLevelFileSystemInterface<LinuxFSRunner> {
+) {
+/*
     private val fsRoot = fsRoot.normalize().absoluteFile
 
     override suspend fun requirePermission(ctx: LinuxFSRunner, path: String, permission: AccessRight) {
@@ -738,6 +731,7 @@ class LinuxFS(
     ): String {
         return translateAndCheckFile(fsRoot, internalPath, isDirectory, ctx.user == SERVICE_USER)
     }
+    */
 
     companion object : Loggable {
         override val log = logger()
@@ -766,6 +760,7 @@ class LinuxFS(
     }
 }
 
+/*
 fun translateAndCheckFile(
     fsRoot: File,
     internalPath: String,
@@ -797,3 +792,4 @@ fun translateAndCheckFile(
 
     return path
 }
+ */

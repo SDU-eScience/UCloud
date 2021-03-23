@@ -1,12 +1,23 @@
 package dk.sdu.cloud.file.ucloud.services.acl
 
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.api.FindMetadataRequest
-import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.orchestrator.api.normalize
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.usingSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class FindMetadataRequest(
+    val path: String? = null,
+    val type: String? = null,
+    val username: String? = null,
+) {
+    init {
+        require(path != null || type != null || username != null) { "At least one argument must be non-null!" }
+    }
+}
 
 class MetadataService(
     private val db: AsyncDBSessionFactory,

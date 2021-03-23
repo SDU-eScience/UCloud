@@ -5,8 +5,7 @@ import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.file.orchestrator.FileCollectionsProvider
-import dk.sdu.cloud.file.orchestrator.FilesProvider
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.api.ProvidersRetrieveSpecificationRequest

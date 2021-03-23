@@ -2,7 +2,7 @@
 package dk.sdu.cloud.providers
 
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Mar 16 15:13:16 CET 2021 */
+/* Generated at: Mon Mar 22 13:45:06 CET 2021 */
 
 
 import dk.sdu.cloud.providers.UCloudRpcDispatcher

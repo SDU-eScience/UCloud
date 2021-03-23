@@ -4,7 +4,7 @@ import com.github.jasync.sql.db.RowData
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.orchestrator.api.normalize
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.SQLTable
@@ -86,9 +86,9 @@ class MetadataDao {
                     select *
                     from metadata
                     where
-                        path = ?path and
-                        (?username::text is null or username = ?username) and
-                        (?type::text is null or type = ?type)
+                        path = :path and
+                        (:username::text is null or username = :username) and
+                        (:type::text is null or type = :type)
                 """
             )
             .rows
@@ -114,7 +114,7 @@ class MetadataDao {
                     insert into metadata
                         (path, path_moving_to, last_modified, username, type, data)
                     values 
-                        (?path, ?path_moving_to, now(), ?username, ?type, ?data)
+                        (:path, :path_moving_to, now(), :username, :type, :data)
                 """
                 )
         } catch (ex: GenericDatabaseException) {
@@ -143,7 +143,7 @@ class MetadataDao {
                     insert into metadata
                         (path, path_moving_to, last_modified, username, type, data)
                     values 
-                        (?path, ?path_moving_to, now(), ?username, ?type, ?data)
+                        (:path, :path_moving_to, now(), :username, :type, :data)
                     
                     on conflict (path, type, username) do update set 
                         (data, last_modified, path_moving_to) = 
@@ -169,9 +169,9 @@ class MetadataDao {
                     select *
                     from metadata
                     where
-                        (?paths::text[] is null or path in (select unnest(?paths::text[]))) and
-                        (?username::text is null or username = ?username) and
-                        (?type::text is null or type = ?type)
+                        (:paths::text[] is null or path in (select unnest(:paths::text[]))) and
+                        (:username::text is null or username = :username) and
+                        (:type::text is null or type = :type)
                 """
             )
             .rows
@@ -203,9 +203,9 @@ class MetadataDao {
                 """
                     delete from metadata  
                     where
-                        path = ?path and
-                        (?username::text is null or username = ?username) and
-                        (?type::text is null or type = ?type)
+                        path = :path and
+                        (:username::text is null or username = :username) and
+                        (:type::text is null or type = :type)
                 """
             )
     }
@@ -225,7 +225,7 @@ class MetadataDao {
                         path_moving_to = '/deleted',
                         last_modified = now()
                     where
-                        path in (select unnest(?paths::text[]))
+                        path in (select unnest(:paths::text[]))
                 """
             )
             .rowsAffected
@@ -256,10 +256,10 @@ class MetadataDao {
                 """
                     update metadata
                     set
-                        path_moving_to = ?newPath,
+                        path_moving_to = :newPath,
                         last_modified = now()
                     where
-                        path = ?oldPath
+                        path = :oldPath
                 """
             )
             .rowsAffected
@@ -289,10 +289,10 @@ class MetadataDao {
             """
                 update metadata
                 set 
-                    path = concat(?newPath::text, substr(path, ?startIdx)),
+                    path = concat(:newPath::text, substr(path, :startIdx)),
                     path_moving_to = null,
                     last_modified = now()
-                where path like ?oldPathLike 
+                where path like :oldPathLike 
             """
         )
 
@@ -305,11 +305,11 @@ class MetadataDao {
             """
                 update metadata 
                 set
-                    path = ?newPath,
+                    path = :newPath,
                     path_moving_to = null,
                     last_modified = now()
                 where
-                    path = ?oldPath
+                    path = :oldPath
             """
         )
     }
@@ -328,7 +328,7 @@ class MetadataDao {
                     path_moving_to = null,
                     last_modified = now()
                 where
-                    path in (select unnest(?paths::text[])) and
+                    path in (select unnest(:paths::text[])) and
                     path_moving_to is not null
             """
         )
@@ -348,7 +348,7 @@ class MetadataDao {
                     from metadata p
                     where p.path in (
                         select p.path
-                        from (select unnest(?paths::text[]) as path) as t
+                        from (select unnest(:paths::text[]) as path) as t
                         where 
                             p.path = t.path or
                             p.path like (t.path || '/%')
@@ -391,8 +391,8 @@ class MetadataDao {
                         path_moving_to = null,
                         last_modified = now()
                     where
-                        path = ?oldPath and
-                        path_moving_to = ?newPath and
+                        path = :oldPath and
+                        path_moving_to = :newPath and
                         (path_moving_to, type, username) not in 
                             (select path, type, username from metadata m2 where m.path_moving_to = m2.path)
                 """
@@ -404,7 +404,7 @@ class MetadataDao {
                     setParameter("oldPath", oldPath.normalize())
                 },
                 """
-                    delete from metadata where path = ?oldPath
+                    delete from metadata where path = :oldPath
                 """
             )
     }
@@ -436,12 +436,12 @@ class MetadataDao {
                 delete from metadata
                 where
                     (
-                        path like (?path || '/%') or
-                        (?includeFile and path = ?path)
+                        path like (:path || '/%') or
+                        (:includeFile and path = :path)
                     ) and
                     (
-                        ?type::text is null or
-                        type = ?type
+                        :type::text is null or
+                        type = :type
                     )
             """
         )
@@ -464,9 +464,9 @@ class MetadataDao {
                     select *
                     from metadata
                     where
-                        (path like (?path || '/%') or path = ?path) and
-                        (?type::text is null or type = ?type) and
-                        (?username::text is null or username = ?username)
+                        (path like (:path || '/%') or path = :path) and
+                        (:type::text is null or type = :type) and
+                        (:username::text is null or username = :username)
                 """
             )
             .rows

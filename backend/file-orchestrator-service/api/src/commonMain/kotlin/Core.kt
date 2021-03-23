@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.orchestrator
+package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
@@ -183,13 +183,14 @@ below shows how a UCloud path is structured, and how it can be mapped to an inte
 __Figure:__ At the top, a UCloud path along with the components of it. At the bottom, an example of an internal,
 provider specific, file-system path.
 
-The figure shows how a UCloud path consists of three components:
+The figure shows how a UCloud path consists of four components:
 
 1. The ['Provider ID'](/backend/provider-service/README.md) references the provider who owns and hosts the file
-2. The `FileCollection` ID references the ID of the internal file collection. These are controlled by the provider and
+2. The product reference, this references the product that is hosting the `FileCollection`
+3. The `FileCollection` ID references the ID of the internal file collection. These are controlled by the provider and
    match the different types of file-systems they have available. A single file collection typically maps to a specific
    folder on the provider's file-system.
-3. The internal path, which tells the provider how to find the file within the collection. Providers can typically pass
+4. The internal path, which tells the provider how to find the file within the collection. Providers can typically pass
    this as a one-to-one mapping.
 
 __Rules of a file `name`:__
@@ -239,11 +240,11 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     - Newer versions of Unixes report `PATH_MAX` as 4096
     - Older versions of Windows start failing above 256 characters
 """)
-    val path: String,
+    protected val path: String,
     @UCloudApiDoc("Which type of file this is, see `FileType` for more information.")
     val type: FileType,
     @UCloudApiDoc("A hint to clients about which icon to display next to this file. See `FileIconHint` for details.")
-    val icon: FileIconHint,
+    val icon: FileIconHint?,
     @UCloudApiDoc("General system-level stats about the file. See `UFile.Stats` for details.")
     val stats: Stats?,
     @UCloudApiDoc("System-level permissions for this file. See `UFile.Permissions` for details.")

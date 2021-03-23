@@ -2,7 +2,7 @@ package dk.sdu.cloud.file.ucloud.services.linuxfs
 
 import com.sun.jna.Native
 import com.sun.jna.Platform
-import dk.sdu.cloud.file.orchestrator.FileType
+import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.components
 import dk.sdu.cloud.service.Loggable
 import io.ktor.utils.io.pool.*

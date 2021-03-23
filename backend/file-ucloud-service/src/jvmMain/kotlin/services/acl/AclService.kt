@@ -1,19 +1,15 @@
 package dk.sdu.cloud.file.ucloud.services.acl
 
-import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.orchestrator.FilePermission
+import dk.sdu.cloud.file.orchestrator.api.FilePermission
 import dk.sdu.cloud.file.orchestrator.api.components
 import dk.sdu.cloud.file.orchestrator.api.normalize
 import dk.sdu.cloud.file.orchestrator.api.parents
-import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.ProjectCache
+import dk.sdu.cloud.file.ucloud.services.ProjectCache
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -21,6 +17,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+
+fun homeFolder(username: String): String {
+    return "/home/$username"
+}
+const val PERSONAL_REPOSITORY = "Members' Files"
+val SERVICE_USER = "_storage"
 
 /**
  * UCloud uses Access Control Lists (ACLs) for controlling access to files and directories.
@@ -44,17 +46,17 @@ import kotlinx.serialization.json.encodeToJsonElement
  */
 class AclService(
     private val metadataService: MetadataService,
-    private val homeFolderService: HomeFolderService,
     private val serviceClient: AuthenticatedClient,
-    private val projectCache: ProjectCache
+    private val projectCache: ProjectCache,
 ) {
     @Serializable
-    private data class UserAclMetadata(val permissions: Set<AccessRight>)
+    private data class UserAclMetadata(val permissions: Set<FilePermission>)
     @Serializable
-    private data class ProjectAclEntity(val group: String, val permissions: Set<AccessRight>)
+    private data class ProjectAclEntity(val group: String, val permissions: Set<FilePermission>)
     @Serializable
     private data class ProjectAclMetadata(val entries: List<ProjectAclEntity>)
 
+    /*
     suspend fun updateAcl(request: UpdateAclRequest, user: String) {
         log.debug("Executing ACL update request: $request")
 
@@ -133,10 +135,11 @@ class AclService(
         )
     }
 
+
     suspend fun isOwner(path: String, username: String): Boolean {
         val normalizedPath = path.normalize()
         if (normalizedPath.startsWith("/home/")) {
-            val homeFolder = homeFolderService.findHomeFolder(username).normalize()
+            val homeFolder = homeFolder(username).normalize()
             if (normalizedPath == homeFolder || normalizedPath.startsWith("$homeFolder/")) {
                 return true
             }
@@ -290,6 +293,7 @@ class AclService(
             }
             .toMap()
     }
+     */
 
     companion object : Loggable {
         override val log = logger()
