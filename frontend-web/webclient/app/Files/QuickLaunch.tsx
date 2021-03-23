@@ -10,6 +10,8 @@ import { AppToolLogo } from "Applications/AppToolLogo";
 import { SpaceProps } from "styled-system";
 import { File } from "Files";
 import { Flex } from "ui-components";
+import {callAPI} from "Authentication/DataHook";
+import {bulkRequestOf} from "DefaultObjects";
 
 export async function quickLaunchFromParametersFile(
     fileContent: string,
@@ -80,8 +82,8 @@ export const quickLaunchJob = async (
 
     try {
         setLoading(true);
-        const response = await Client.post<compute.JobsCreateResponse>("/jobs", job);
-        history.push(`/applications/jobs/${response.response.ids[0]}?app=${encodeURIComponent(app.metadata.name)}`);
+        const response = await callAPI<compute.JobsCreateResponse>(compute.jobs.create(bulkRequestOf(job)));
+        history.push(`/applications/jobs/${response.ids[0]}?app=${encodeURIComponent(app.metadata.name)}`);
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred submitting the job."), false);
     } finally {
