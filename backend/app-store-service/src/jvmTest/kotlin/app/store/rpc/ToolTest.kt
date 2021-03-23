@@ -88,7 +88,7 @@ class ToolTest {
             test = {
                 val response = sendRequest(
                     method = HttpMethod.Get,
-                    path = "/api/hpc/tools/?appName=name&itemsPerPage=10&page=0",
+                    path = "/api/hpc/tools/byName?appName=name&itemsPerPage=10&page=0",
                     user = TestUsers.user
                 )
                 response.assertSuccess()
@@ -114,7 +114,7 @@ class ToolTest {
             test = {
                 val response = sendRequest(
                     method = HttpMethod.Get,
-                    path = "/api/hpc/tools?name=name&version=2.2",
+                    path = "/api/hpc/tools/byNameAndVersion?name=name&version=2.2",
                     user = TestUsers.user
                 )
                 response.assertSuccess()

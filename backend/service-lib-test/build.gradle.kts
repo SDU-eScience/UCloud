@@ -10,7 +10,7 @@ repositories {
 
 kotlin {
     val jacksonVersion = "2.10.0.pr3"
-    val ktorVersion = "1.4.0"
+    val ktorVersion = "1.5.2"
     val jasyncVersion = "1.1.3"
 
     jvm {
@@ -46,8 +46,6 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
-                val ktorVersion = "1.4.0"
-
                 api(project(":service-lib"))
                 api(project(":service-lib-server"))
 

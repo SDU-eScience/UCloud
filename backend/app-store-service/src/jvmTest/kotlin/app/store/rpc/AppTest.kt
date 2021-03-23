@@ -485,7 +485,7 @@ class AppTest {
             test = {
                 val request = sendRequest(
                     method = HttpMethod.Get,
-                    path = "/api/hpc/apps/?appName=$name&appVersion=$version&itemsPerPage=10&page=0",
+                    path = "/api/hpc/apps/byNameAndVersion?appName=$name&appVersion=$version&itemsPerPage=10&page=0",
                     user = TestUsers.user
                 )
                 println(request)
@@ -638,7 +638,7 @@ class AppTest {
             test = {
                 sendRequest(
                     method = HttpMethod.Put,
-                    path = "/api/hpc/apps/",
+                    path = "/api/hpc/apps",
                     user = TestUsers.admin
                 ).assertStatus(HttpStatusCode.BadRequest)
             }
@@ -898,7 +898,7 @@ class AppTest {
             test = {
                 val deleteRequest = sendJson(
                     method = HttpMethod.Delete,
-                    path = "api/hpc/apps/",
+                    path = "api/hpc/apps",
                     user = TestUsers.admin,
                     request = DeleteAppRequest(
                         "name",
