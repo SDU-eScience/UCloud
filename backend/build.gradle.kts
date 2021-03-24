@@ -133,6 +133,7 @@ subprojects {
         tasks.withType<KotlinCompile>().configureEach {
             kotlinOptions.freeCompilerArgs += "-progressive"
             kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+            kotlinOptions.freeCompilerArgs += "-Xinline-classes"
         }
 
         tasks.withType<org.gradle.api.tasks.JavaExec>().configureEach {

@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.ucloud.services.linuxfs
+package dk.sdu.cloud.file.ucloud.services
 
 import com.sun.jna.Native
 import com.sun.jna.Platform
@@ -13,6 +13,7 @@ import java.io.OutputStream
 import java.nio.channels.Channels
 import java.nio.file.*
 import java.nio.file.attribute.FileTime
+import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
@@ -232,7 +233,7 @@ object NativeFS : Loggable {
                     Files.newByteChannel(
                         systemPath,
                         options,
-                        PosixFilePermissions.asFileAttribute(LinuxFS.DEFAULT_FILE_MODE)
+                        PosixFilePermissions.asFileAttribute(DEFAULT_POSIX_FILE_MODE)
                     )
                 )
             } catch (ex: FileAlreadyExistsException) {
@@ -375,7 +376,7 @@ object NativeFS : Loggable {
         return if (Platform.isLinux()) {
             val fd = openFile(path.absolutePath)
             if (fd < 0) throw FSException.NotFound()
-            val st = dk.sdu.cloud.file.ucloud.services.linuxfs.stat()
+            val st = stat()
             st.write()
             val err = CLibrary.INSTANCE.__fxstat64(1, fd, st.pointer)
             st.read()
@@ -394,7 +395,7 @@ object NativeFS : Loggable {
         if (Platform.isLinux()) {
             val fd = openFile(path.absolutePath)
             if (fd < 0) throw FSException.NotFound()
-            val st = dk.sdu.cloud.file.ucloud.services.linuxfs.stat()
+            val st = stat()
             st.write()
             val err = CLibrary.INSTANCE.__fxstat64(1, fd, st.pointer)
             st.read()
@@ -463,3 +464,20 @@ object NativeFS : Loggable {
 }
 
 class NativeException(val statusCode: Int) : RuntimeException("Native exception, code: $statusCode")
+
+val DEFAULT_POSIX_FILE_MODE = setOf(
+    PosixFilePermission.OWNER_READ,
+    PosixFilePermission.OWNER_WRITE,
+    PosixFilePermission.GROUP_READ,
+    PosixFilePermission.GROUP_WRITE
+)
+
+val DEFAULT_POSIX_DIRECTORY_MODE = setOf(
+    PosixFilePermission.OWNER_READ,
+    PosixFilePermission.OWNER_WRITE,
+    PosixFilePermission.OWNER_EXECUTE,
+    PosixFilePermission.GROUP_READ,
+    PosixFilePermission.GROUP_WRITE,
+    PosixFilePermission.GROUP_EXECUTE,
+    PosixFilePermission.OTHERS_EXECUTE
+)

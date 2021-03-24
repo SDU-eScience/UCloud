@@ -1,8 +1,6 @@
-package dk.sdu.cloud.file.ucloud.services.linuxfs
+package dk.sdu.cloud.file.ucloud.services
 
 import com.sun.jna.Native
-import dk.sdu.cloud.file.ucloud.services.linuxfs.CLibrary
-import dk.sdu.cloud.file.ucloud.services.linuxfs.DefaultByteArrayPool
 import io.ktor.utils.io.pool.*
 import java.io.InputStream
 import kotlin.math.min

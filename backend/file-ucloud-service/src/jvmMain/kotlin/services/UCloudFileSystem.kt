@@ -1,11 +1,15 @@
-@file:Suppress("BlockingMethodInNonBlockingContext")
+/*@file:Suppress("BlockingMethodInNonBlockingContext")
 
-package dk.sdu.cloud.file.ucloud.services.linuxfs
+package dk.sdu.cloud.file.ucloud.services
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
+import dk.sdu.cloud.file.ucloud.services.acl.PERSONAL_REPOSITORY
+import dk.sdu.cloud.file.ucloud.services.acl.requirePermission
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.task.api.TaskContext
 import kotlinx.coroutines.runBlocking
 import java.io.BufferedOutputStream
@@ -13,6 +17,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.*
+import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import kotlin.Comparator
@@ -21,42 +26,41 @@ import kotlin.math.min
 
 typealias CephConfiguration = Unit
 
-class LinuxFS(
+class UCloudFileSystem(
     fsRoot: File,
     private val aclService: AclService,
     private val cephConfiguration: CephConfiguration
 ) {
-/*
     private val fsRoot = fsRoot.normalize().absoluteFile
 
-    override suspend fun requirePermission(ctx: LinuxFSRunner, path: String, permission: AccessRight) {
-        aclService.requirePermission(path.normalize(), ctx.user, permission)
+    suspend fun requirePermission(actor: Actor, path: String, permission: FilePermission) {
+        aclService.requirePermission(path.normalize(), actor, permission)
     }
 
-    override suspend fun copy(
-        ctx: LinuxFSRunner,
+    suspend fun copy(
+        actor: Actor,
         from: String,
         to: String,
         writeConflictPolicy: WriteConflictPolicy,
         task: TaskContext
-    ) = ctx.submit {
-        translateAndCheckFile(ctx, from)
-        aclService.requirePermission(from, ctx.user, AccessRight.READ)
-        aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
+    ) {
+        translateAndCheckFile(actor, from)
+        aclService.requirePermission(from, actor, FilePermission.READ)
+        aclService.requirePermission(to, actor, FilePermission.WRITE)
 
-        copyPreAuthorized(ctx, from, to, writeConflictPolicy)
+        return copyPreAuthorized(actor, from, to, writeConflictPolicy)
     }
 
     private fun copyPreAuthorized(
-        ctx: LinuxFSRunner,
+        actor: Actor,
         from: String,
         to: String,
         writeConflictPolicy: WriteConflictPolicy
     ) {
-        val systemFrom = File(translateAndCheckFile(ctx, from))
-        val systemTo = File(translateAndCheckFile(ctx, to))
+        val systemFrom = File(translateAndCheckFile(actor, from))
+        val systemTo = File(translateAndCheckFile(actor, to))
 
-        if (from.normalize() == to.normalize() && writeConflictPolicy == WriteConflictPolicy.OVERWRITE) {
+        if (from.normalize() == to.normalize() && writeConflictPolicy == WriteConflictPolicy.REPLACE) {
             // Do nothing (The code below would truncate the file and then copy the remaining 0 bytes)
             return
         }
@@ -87,19 +91,19 @@ class LinuxFS(
         }
     }
 
-    override suspend fun move(
-        ctx: LinuxFSRunner,
+    suspend fun move(
+        actor: Actor,
         from: String,
         to: String,
         writeConflictPolicy: WriteConflictPolicy,
         task: TaskContext
-    ) = ctx.submit {
-        val systemFrom = File(translateAndCheckFile(ctx, from))
-        val systemTo = File(translateAndCheckFile(ctx, to))
+    ) {
+        val systemFrom = File(translateAndCheckFile(actor, from))
+        val systemTo = File(translateAndCheckFile(actor, to))
 
         // We need write permission on from's parent to avoid being able to steal a file by changing the owner.
-        aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
-        aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
+        aclService.requirePermission(from.parent(), actor, FilePermission.WRITE)
+        aclService.requirePermission(to, actor, FilePermission.WRITE)
 
         val fromComponents = from.normalize().components()
         val toComponents = to.normalize().components()
@@ -111,7 +115,7 @@ class LinuxFS(
 
         // We need to record some information from before the move
         val fromStat = stat(
-            ctx,
+            actor,
             systemFrom,
             setOf(StorageFileAttribute.fileType, StorageFileAttribute.path, StorageFileAttribute.fileType),
             hasPerformedPermissionCheck = true
@@ -120,7 +124,7 @@ class LinuxFS(
         val targetType =
             runCatching {
                 stat(
-                    ctx,
+                    actor,
                     systemTo,
                     setOf(StorageFileAttribute.fileType),
                     hasPerformedPermissionCheck = true
@@ -133,23 +137,23 @@ class LinuxFS(
             }
             if (fromStat.fileType == targetType &&
                 fromStat.fileType == FileType.DIRECTORY &&
-                writeConflictPolicy == WriteConflictPolicy.OVERWRITE
+                writeConflictPolicy == WriteConflictPolicy.REPLACE
             ) {
                 throw FSException.BadRequest("Directory is not allowed to overwrite existing directory")
             }
         }
 
-        movePreAuthorized(ctx, from, to, writeConflictPolicy)
+        movePreAuthorized(actor, from, to, writeConflictPolicy)
     }
 
     private suspend fun movePreAuthorized(
-        ctx: LinuxFSRunner,
+        actor: Actor,
         from: String,
         to: String,
         writeConflictPolicy: WriteConflictPolicy
     ) {
-        val systemFrom = File(translateAndCheckFile(ctx, from))
-        val systemTo = File(translateAndCheckFile(ctx, to))
+        val systemFrom = File(translateAndCheckFile(actor, from))
+        val systemTo = File(translateAndCheckFile(actor, to))
         val replaceExisting = writeConflictPolicy.allowsOverwrite()
 
         if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
@@ -175,19 +179,14 @@ class LinuxFS(
         }
     }
 
-    override suspend fun listDirectoryPaginated(
-        ctx: LinuxFSRunner,
-        directory: String,
-        mode: Set<StorageFileAttribute>,
-        sortBy: FileSortBy?,
-        paginationRequest: NormalizedPaginationRequest?,
-        order: SortOrder?,
-        type: FileType?
-    ): Page<StorageFile> = ctx.submit {
-        aclService.requirePermission(directory, ctx.user, AccessRight.READ)
+    suspend fun listDirectoryPaginated(
+        actor: Actor,
+        request: FilesBrowseRequest,
+    ): PageV2<UFile> {
+        aclService.requirePermission(request.path, actor, FilePermission.READ)
 
         val systemFiles = run {
-            val file = File(translateAndCheckFile(ctx, directory))
+            val file = File(translateAndCheckFile(actor, request.path))
             val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
             NativeFS.listFiles(requestedDirectory)
@@ -315,21 +314,21 @@ class LinuxFS(
     }
 
     private suspend fun stat(
-        ctx: LinuxFSRunner,
+        actor: Actor,
         systemFile: File,
         mode: Set<StorageFileAttribute>,
         hasPerformedPermissionCheck: Boolean
-    ): StorageFile {
+    ): UFile {
         return stat(ctx, listOf(systemFile), mode, hasPerformedPermissionCheck).first()
             ?: throw FSException.NotFound()
     }
 
     private suspend fun stat(
-        ctx: LinuxFSRunner,
+        actor: Actor,
         systemFiles: List<File>,
         mode: Set<StorageFileAttribute>,
         hasPerformedPermissionCheck: Boolean
-    ): List<StorageFile?> {
+    ): List<UFile?> {
         // The 'shareLookup' contains a mapping between cloud paths and their ACL
         val shareLookup = if (StorageFileAttribute.acl in mode) {
             aclService.listAcl(systemFiles.map { it.path.toCloudPath().normalize() })
@@ -394,18 +393,18 @@ class LinuxFS(
         }
     }
 
-    override suspend fun delete(
-        ctx: LinuxFSRunner,
+    suspend fun delete(
+        actor: Actor,
         path: String,
         task: TaskContext
-    ) = ctx.submit {
-        aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
-        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+    ) {
+        aclService.requirePermission(path.parent(), actor, FilePermission.WRITE)
+        aclService.requirePermission(path, actor, FilePermission.WRITE)
 
         val systemFile = File(translateAndCheckFile(ctx, path))
 
         if (!Files.exists(systemFile.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FSException.NotFound()
-        traverseAndDelete(ctx, systemFile.toPath())
+        traverseAndDelete(actor, systemFile.toPath())
     }
 
     private fun delete(path: Path) {
@@ -417,7 +416,7 @@ class LinuxFS(
     }
 
     private suspend fun traverseAndDelete(
-        ctx: LinuxFSRunner,
+        actor: Actor,
         path: Path
     ) {
         if (Files.isSymbolicLink(path)) {
@@ -434,14 +433,14 @@ class LinuxFS(
         delete(path)
     }
 
-    override suspend fun openForWriting(
-        ctx: LinuxFSRunner,
+    suspend fun openForWriting(
+        actor: Actor,
         path: String,
         allowOverwrite: Boolean
-    ) = ctx.submit {
+    ) {
         log.debug("${ctx.user} is attempting to open $path")
         val systemFile = File(translateAndCheckFile(ctx, path))
-        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+        aclService.requirePermission(path, actor, FilePermission.WRITE)
         val components = path.normalize().components()
         if (ctx.user != SERVICE_USER) {
             if ((components.size == 3 && components[0] == "projects") ||
@@ -465,12 +464,12 @@ class LinuxFS(
         }
     }
 
-    override suspend fun checkWritePermissions(ctx: LinuxFSRunner, path: String) {
-        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+    suspend fun checkWritePermissions(actor: Actor, path: String) {
+        aclService.requirePermission(path, actor, FilePermission.WRITE)
     }
 
-    override suspend fun write(
-        ctx: LinuxFSRunner,
+    suspend fun write(
+        actor: Actor,
         writer: suspend (OutputStream) -> Unit
     ) = ctx.submit {
         // Note: This function has already checked permissions via openForWriting
@@ -492,18 +491,18 @@ class LinuxFS(
         }
     }
 
-    override suspend fun tree(
-        ctx: LinuxFSRunner,
+    suspend fun tree(
+        actor: Actor,
         path: String,
         mode: Set<StorageFileAttribute>
-    ): List<StorageFile> = ctx.submit {
-        aclService.requirePermission(path, ctx.user, AccessRight.READ)
+    ): List<UFile> {
+        aclService.requirePermission(path, actor, FilePermission.READ)
 
         val systemFile = File(translateAndCheckFile(ctx, path))
         val queue = LinkedList<File>()
         queue.add(systemFile)
 
-        val result = ArrayList<StorageFile>()
+        val result = ArrayList<UFile>()
         if (systemFile.isDirectory) {
             while (queue.isNotEmpty()) {
                 val next = queue.pop()
@@ -515,110 +514,39 @@ class LinuxFS(
                         }
 
                         if (it.isDirectory) queue.add(it)
-                        result.add(stat(ctx, it, mode, hasPerformedPermissionCheck = true))
+                        result.add(stat(actor, it, mode, hasPerformedPermissionCheck = true))
                     }
             }
         }
 
-        result
+        return result
     }
 
-    override suspend fun makeDirectory(
-        ctx: LinuxFSRunner,
+    suspend fun makeDirectory(
+        actor: Actor,
         path: String
-    ) = ctx.submit {
-        val systemFile = File(translateAndCheckFile(ctx, path))
+    ) {
+        val systemFile = File(translateAndCheckFile(actor, path))
 
         val components = path.normalize().components()
-        if (ctx.user != SERVICE_USER && components.size == 3 && components[2] == PERSONAL_REPOSITORY) {
+        if (actor != Actor.System && components.size == 3 && components[2] == PERSONAL_REPOSITORY) {
             // The personal repository and direct children can _only_ be changed by the service user
             throw FSException.PermissionException()
         }
 
-        aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
+        aclService.requirePermission(path.parent(), actor, FilePermission.WRITE)
         NativeFS.createDirectories(systemFile)
         Unit
     }
 
-    private fun getExtendedAttributeInternal(
-        systemFile: File,
-        attribute: String
-    ): String? {
-        return try {
-            NativeFS.getExtendedAttribute(systemFile, "user.$attribute")
-        } catch (ex: NativeException) {
-            if (ex.statusCode == 61) return null
-            if (ex.statusCode == 2) return null
-            throw ex
-        }
+    suspend fun stat(ctx: Actor, path: String, mode: Set<StorageFileAttribute>): UFile {
+        val systemFile = File(translateAndCheckFile(ctx, path))
+        aclService.requirePermission(path, actor, FilePermission.READ)
+        return stat(ctx, systemFile, mode, hasPerformedPermissionCheck = true)
     }
 
-    private suspend fun getExtendedAttribute(
-        ctx: LinuxFSRunner,
-        path: String,
-        attribute: String
-    ): String = ctx.submit {
-        aclService.requirePermission(path, ctx.user, AccessRight.READ)
-        getExtendedAttributeInternal(File(translateAndCheckFile(ctx, path)), attribute) ?: throw FSException.NotFound()
-    }
-
-    private suspend fun setExtendedAttribute(
-        ctx: LinuxFSRunner,
-        path: String,
-        attribute: String,
-        value: String,
-        allowOverwrite: Boolean
-    ) = ctx.submit {
-        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
-
-        val status = NativeFS.setExtendedAttribute(
-            File(translateAndCheckFile(ctx, path)),
-            "user.$attribute",
-            value,
-            allowOverwrite
-        )
-
-        if (status != 0) throw throwExceptionBasedOnStatus(status)
-
-        Unit
-    }
-
-    private suspend fun deleteExtendedAttribute(
-        ctx: LinuxFSRunner,
-        path: String,
-        attribute: String
-    ) = ctx.submit {
-        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
-        NativeFS.removeExtendedAttribute(File(translateAndCheckFile(ctx, path)), "user.$attribute")
-        Unit
-    }
-
-    override suspend fun getSensitivityLevel(ctx: LinuxFSRunner, path: String): SensitivityLevel? {
-        return try {
-            SensitivityLevel.valueOf(getExtendedAttribute(ctx, path, SENSITIVITY_XATTR))
-        } catch (ex: FSException.NotFound) {
-            stat(ctx, path, setOf(StorageFileAttribute.path))
-            return null
-        }
-    }
-
-    override suspend fun setSensitivityLevel(ctx: LinuxFSRunner, path: String, sensitivityLevel: SensitivityLevel?) {
-        if (sensitivityLevel == null) {
-            deleteExtendedAttribute(ctx, path, SENSITIVITY_XATTR)
-        } else {
-            setExtendedAttribute(ctx, path, SENSITIVITY_XATTR, sensitivityLevel.name, true)
-        }
-    }
-
-    override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<StorageFileAttribute>): StorageFile =
-        ctx.submit {
-            val systemFile = File(translateAndCheckFile(ctx, path))
-            aclService.requirePermission(path, ctx.user, AccessRight.READ)
-            stat(ctx, systemFile, mode, hasPerformedPermissionCheck = true)
-        }
-
-    override suspend fun openForReading(ctx: LinuxFSRunner, path: String) = ctx.submit {
-        aclService.requirePermission(path, ctx.user, AccessRight.READ)
+    suspend fun openForReading(actor: Actor, path: String) {
+        aclService.requirePermission(path, actor, FilePermission.READ)
 
         if (ctx.inputStream != null) {
             log.warn("openForReading() called without closing last stream")
@@ -630,8 +558,8 @@ class LinuxFS(
         ctx.inputSystemFile = systemFile
     }
 
-    override suspend fun <R> read(
-        ctx: LinuxFSRunner,
+    suspend fun <R> read(
+        actor: Actor,
         range: LongRange?,
         consumer: suspend (InputStream) -> R
     ): R = ctx.submit {
@@ -660,8 +588,8 @@ class LinuxFS(
         }
     }
 
-    override suspend fun normalizePermissions(ctx: LinuxFSRunner, path: String) {
-        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+    suspend fun normalizePermissions(actor: Actor, path: String) {
+        aclService.requirePermission(path, actor, FilePermission.WRITE)
         val file = File(translateAndCheckFile(ctx, path))
         val stat = NativeFS.stat(file)
         NativeFS.changeFilePermissions(
@@ -672,14 +600,14 @@ class LinuxFS(
         )
     }
 
-    override suspend fun onFileCreated(ctx: LinuxFSRunner, path: String) {
+    suspend fun onFileCreated(actor: Actor, path: String) {
         NativeFS.chown(File(translateAndCheckFile(ctx, path)), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
     }
 
-    override suspend fun calculateRecursiveStorageUsed(ctx: LinuxFSRunner, path: String): Long {
+    suspend fun calculateRecursiveStorageUsed(actor: Actor, path: String): Long {
         if (cephConfiguration.useCephDirectoryStats) return estimateRecursiveStorageUsedMakeItFast(ctx, path)
 
-        aclService.requirePermission(path, ctx.user, AccessRight.READ)
+        aclService.requirePermission(path, actor, FilePermission.READ)
 
         val systemFile = File(translateAndCheckFile(ctx, path))
         val queue = LinkedList<File>()
@@ -710,8 +638,8 @@ class LinuxFS(
         return sum
     }
 
-    override suspend fun estimateRecursiveStorageUsedMakeItFast(ctx: LinuxFSRunner, path: String): Long {
-        aclService.requirePermission(path, ctx.user, AccessRight.READ)
+    suspend fun estimateRecursiveStorageUsedMakeItFast(actor: Actor, path: String): Long {
+        aclService.requirePermission(path, actor, FilePermission.READ)
         return if (!cephConfiguration.useCephDirectoryStats) {
             // Just assume we'll use 30GB. This is a really bad estimate.
             30L * 1000 * 1000 * 1000
@@ -725,19 +653,15 @@ class LinuxFS(
     }
 
     private fun translateAndCheckFile(
-        ctx: LinuxFSRunner,
+        actor: Actor,
         internalPath: String,
         isDirectory: Boolean = false
     ): String {
-        return translateAndCheckFile(fsRoot, internalPath, isDirectory, ctx.user == SERVICE_USER)
+        return translateAndCheckFile(fsRoot, internalPath, isDirectory, actor == Actor.System)
     }
-    */
 
     companion object : Loggable {
         override val log = logger()
-
-        // Setting this to 4096 is too big for us to save files from workspaces. We want to leave a bit of buffer room.
-        const val PATH_MAX = 3700
 
         val DEFAULT_FILE_MODE = setOf(
             PosixFilePermission.OWNER_READ,
@@ -760,7 +684,6 @@ class LinuxFS(
     }
 }
 
-/*
 fun translateAndCheckFile(
     fsRoot: File,
     internalPath: String,
@@ -784,10 +707,6 @@ fun translateAndCheckFile(
     val isOutsideProjectRoot = !path.startsWith(projectRoot) && path.removeSuffix("/") != projectRoot.removeSuffix("/")
     if (isOutsideUserRoot && isOutsideProjectRoot) {
         throw FSException.BadRequest("path is not in user-root")
-    }
-
-    if (path.length >= PATH_MAX) {
-        throw FSException.BadRequest("Path is too long ${path.length} '$path'")
     }
 
     return path

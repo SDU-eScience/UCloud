@@ -1,6 +1,5 @@
-package dk.sdu.cloud.file.ucloud.services.linuxfs
+package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.file.ucloud.services.linuxfs.CLibrary
 import java.io.OutputStream
 
 class LinuxOutputStream(private val fd: Int) : OutputStream() {

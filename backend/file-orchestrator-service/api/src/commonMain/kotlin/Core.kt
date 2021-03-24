@@ -367,7 +367,9 @@ enum class WriteConflictPolicy {
     REPLACE,
 
     @UCloudApiDoc("Attempt to merge the results. This might not be supported for all operations.")
-    MERGE,
+    MERGE;
+
+    fun allowsOverwrite(): Boolean = this == REPLACE || this == MERGE
 }
 
 interface FileCollectionIncludeFlags {

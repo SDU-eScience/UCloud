@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.ucloud.services.linuxfs
+package dk.sdu.cloud.file.ucloud.services
 
 import com.sun.jna.*
 
