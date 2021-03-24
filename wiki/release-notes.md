@@ -29,7 +29,7 @@ For details look in the `k8.kts` folders of each microservice.
 ✅  Deployment(storage, 4.4.2) (UP-TO-DATE)
 ✅  Deployment(grant, 0.4.2) (UP-TO-DATE)
 ✅  Deployment(ucloud-data-extraction, 0.1.6-23) (UP-TO-DATE)
-✅  Deployment(app-kubernetes, 0.21.9) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.21.10) (UP-TO-DATE)
 ✅  Deployment(file-favorite, 1.8.2) (UP-TO-DATE)
 ✅  Deployment(news, 0.3.2) (UP-TO-DATE)
 ✅  Deployment(app-aau, 0.2.6) (UP-TO-DATE)
