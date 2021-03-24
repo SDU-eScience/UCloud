@@ -9,39 +9,39 @@ const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
 const inter = require("Assets/Inter.ttf");
 
 export function injectFonts(): void {
-    const styleTag = document.createElement("style");
-    styleTag.innerHTML = `
-        /* Custom font */
-        @font-face {
-            font-family: 'IBM Plex Sans';
-            src: url('${fontLight}');
-            font-display: swap;
-        }
-
-        ${useInter ?
-            `@font-face {
+    const standardFont = document.createElement("style");
+    standardFont.innerHTML = useInter ? `
+            @font-face {
                 font-family: 'Inter';
                 src: url('${inter}');
                 font-display: swap;
-                -webkit-font-smoothing: antialiased;
-                -moz-osx-font-smoothing: grayscale;
-            }`
-            :
-            `@font-face {
+                font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
+            }
+        ` : `
+            @font-face {
+                font-family: 'IBM Plex Sans';
+                src: url('${fontLight}');
+                font-display: swap;
+            }
+            
+            @font-face {
                 font-family: 'IBM Plex Sans';
                 src: url('${fontRegular}');
                 font-weight: 400;
                 font-display: swap;
-            }`
-        }
-        
+            }
+    `;
+    document.head.appendChild(standardFont);
+
+    const mono = document.createElement("style");
+    mono.innerHTML = `
         @font-face {
             font-family: "Jetbrains Mono";
             src: url("${monoFont}");
             font-display: swap;
         }
     `;
-    document.head.appendChild(styleTag);
+    document.head.appendChild(mono);
 }
 
 const UIGlobalStyle = `

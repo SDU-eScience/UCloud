@@ -77,11 +77,10 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 SELECT units::bigint, DATE(completed_at) as time
                                 FROM "accounting"."transactions"
                                 WHERE account_id = :projectid
-                                  AND completed_at >= :startDate :: timestamp
+                                  AND original_account_id = :projectid
+                                  AND DATE(completed_at) = :startDate::timestamp
                                   AND product_category = :type
                                   AND initiated_by = '_storage'
-                                GROUP BY time, units
-                                ORDER BY time
                             """
                         ).rows
                         .firstOrNull()
@@ -95,24 +94,21 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                     session
                         .sendPreparedStatement(
                             {
-                                setParameter("startDate", startDate.toString().substringBefore("T"))
+                                setParameter("startDate", startDate.toLocalDate().toString())
                                 setParameter("type", productType.catagoryId)
                                 setParameter("username", username)
                                 setParameter("projectid", projectId)
                             },
                             """
-                            SELECT SUM(amount)::bigint
-                            FROM (
-                                SELECT amount::bigint, DATE(completed_at) as time
-                                FROM  "accounting"."transactions"
+                                SELECT SUM(amount)::bigint
+                                FROM accounting.transactions
                                 WHERE account_id = :projectid
+                                    AND original_account_id = :projectid
                                     AND product_category = :type
                                     AND initiated_by = :username
                                     AND DATE(completed_at) = :startDate::timestamp
-                                GROUP BY time, amount
-                                ORDER BY time
-                            ) as amounts;
-                        """
+                                    
+                            """
                         ).rows
                         .firstOrNull()
                         ?.getLong(0) ?: 0L
@@ -154,6 +150,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                             AND product_category = :type
                                             AND initiated_by = '_storage'
                                             AND account_id = :projectId
+                                            AND original_account_id = :projectId
                                         GROUP BY time, units
                                         ORDER BY time
                                     ) AS amount
@@ -184,6 +181,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 AND product_category = :type 
                                 AND initiated_by = :username
                                 AND account_id = :projectid 
+                                AND original_account_id = :projectid
+                                AND transaction_comment NOT LIKE 'Transf%'
                         """
                         ).rows
                         .firstOrNull()
@@ -205,6 +204,14 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
         }
         if (productType == ProductType.STORAGE) {
             //Uses the day with highest storage usage
+            val excludingProjectsIds = listOf(
+                "5057c9d4-a0f5-4d6a-90ed-16061327dd7b", //high energy
+                "5de7b78c-2fa4-4893-beb1-ff5c231d4586", //sdukoldby
+                "1e67f75a-ef63-4489-aeb7-7a0d2039930a", //sdujk
+                "c6eaf989-2705-49aa-8ff3-fd97a5b785c2", //sduvarcall
+                "1e8916f5-2491-4f34-b38e-0356370c7770", //sdularsen
+                "5f7562d3-e77d-4805-a66f-58846397d6b7" // sdumembio
+            )
             val storageInGB = runBlocking {
                 db.withSession { session ->
                     session
@@ -222,6 +229,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 setParameter("itutype1", ITU_TYPE_1_CLOUD_PROJECT_ID)
                                 setParameter("kutype1", KU_TYPE_1_CLOUD_PROJECT_ID)
                                 setParameter("ructype1", RUC_TYPE_1_CLOUD_PROJECT_ID)
+                                setParameter("excludingProjects", excludingProjectsIds)
 
                             },
                             """
@@ -245,6 +253,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                                 OR account_id = :kutype1
                                                 OR account_id = :ructype1
                                             )
+                                            AND original_account_id NOT IN (select unnest(:excludingProjects::text[]) )
+                                            AND transaction_comment NOT LIKE 'Transf%'
                                         GROUP BY time, units
                                         ORDER BY time
                                     ) AS amount
@@ -294,6 +304,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                     OR account_id = :kutype1
                                     OR account_id = :ructype1
                                 )
+                           AND transaction_comment NOT LIKE 'Transf%'
                         """
                         ).rows
                         .firstOrNull()

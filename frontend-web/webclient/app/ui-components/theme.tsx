@@ -1,6 +1,8 @@
 const createMinMediaQuery = (n: number): string => `@media screen and (min-width:${n}px)`;
 const createMaxMediaQuery = (n: number): string => `@media screen and (max-width:${n - 1}px)`;
 
+const useInter = localStorage.getItem("inter") !== null;
+
 const addAliases = (arr: any, al: any[]): void =>
     al.forEach((key, i) =>
         Object.defineProperty(arr, key, {
@@ -26,7 +28,7 @@ addAliases(mediaQueryLT, aliases);
 
 export const space = [0, 4, 8, 16, 32, 64, 128];
 
-export const fontFamily = `'IBM Plex Sans', sans-serif`;
+export const fontFamily = useInter ? "'Inter', sans-serif" : "'IBM Plex Sans', sans-serif";
 
 export const fontSizes = [10, 14, 16, 20, 24, 32, 40, 56, 72];
 

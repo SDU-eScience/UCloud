@@ -288,14 +288,16 @@ class AppStoreAsyncDao(
         appName: String,
         appVersion: String
     ): ApplicationWithFavoriteAndTags {
+        val normalizedAppName = appName.toLowerCase()
+        val normalizedAppVersion = appVersion.toLowerCase()
         if (!ctx.withSession { session ->
                 internalHasPermission(
                     session,
                     user,
                     currentProject,
                     projectGroups,
-                    appName,
-                    appVersion,
+                    normalizedAppName,
+                    normalizedAppVersion,
                     ApplicationAccessRight.LAUNCH,
                     publicAsyncDao,
                     aclDAO
@@ -304,7 +306,7 @@ class AppStoreAsyncDao(
         ) throw ApplicationException.NotFound()
 
         val entity = ctx.withSession { session ->
-            internalByNameAndVersion(session, appName, appVersion)?.toApplicationWithInvocation()
+            internalByNameAndVersion(session, normalizedAppName, normalizedAppVersion)?.toApplicationWithInvocation()
         } ?: throw ApplicationException.NotFound()
 
         return ctx.withSession { session -> preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()}
@@ -421,8 +423,8 @@ class AppStoreAsyncDao(
                 set(ApplicationTable.toolName, existingTool.getField(ToolTable.idName))
                 set(ApplicationTable.toolVersion, existingTool.getField(ToolTable.idVersion))
                 set(ApplicationTable.isPublic, description.metadata.isPublic)
-                set(ApplicationTable.idName, description.metadata.name)
-                set(ApplicationTable.idVersion, description.metadata.version)
+                set(ApplicationTable.idName, description.metadata.name.toLowerCase())
+                set(ApplicationTable.idVersion, description.metadata.version.toLowerCase())
                 set(ApplicationTable.application, defaultMapper.encodeToString(description.invocation))
 
             }
@@ -437,7 +439,9 @@ class AppStoreAsyncDao(
         appName: String,
         appVersion: String
     ) {
-        val existingOwner = ctx.withSession { session -> findOwnerOfApplication(session, appName) }
+        val normalizedAppName = appName.toLowerCase()
+        val normalizedAppVersion = appVersion.toLowerCase()
+        val existingOwner = ctx.withSession { session -> findOwnerOfApplication(session, normalizedAppName) }
         if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
             throw ApplicationException.NotAllowed()
         }
@@ -449,7 +453,7 @@ class AppStoreAsyncDao(
                     user,
                     project,
                     projectGroups,
-                    appName,
+                    normalizedAppName,
                     NormalizedPaginationRequest(25, 0),
                     this
                 ).itemsInTotal <= 1
@@ -459,7 +463,7 @@ class AppStoreAsyncDao(
         }
         ctx.withSession { session ->
             val existingApp =
-                internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
+                internalByNameAndVersion(session, normalizedAppName, normalizedAppVersion) ?: throw ApplicationException.NotFound()
 
             cleanupBeforeDelete(
                 session,
@@ -486,8 +490,8 @@ class AppStoreAsyncDao(
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("appname", appName)
-                        setParameter("appversion", appVersion)
+                        setParameter("appname", appName.toLowerCase())
+                        setParameter("appversion", appVersion.toLowerCase())
                     },
                     """
                         DELETE FROM favorited_by
@@ -506,8 +510,10 @@ class AppStoreAsyncDao(
         newDescription: String?,
         newAuthors: List<String>?
     ) {
+        val normalizedAppName = appName.toLowerCase()
+        val normalizedAppVersion = appVersion.toLowerCase()
         ctx.withSession { session ->
-            val existing = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
+            val existing = internalByNameAndVersion(session, normalizedAppName, normalizedAppVersion) ?: throw ApplicationException.NotFound()
             if (!canUserPerformWriteOperation(
                     existing.getField(ApplicationTable.owner),
                     user
@@ -523,8 +529,8 @@ class AppStoreAsyncDao(
                             "newauthors",
                             defaultMapper.encodeToString(newAuthors ?: existingApplication.metadata.authors)
                         )
-                        setParameter("name", appName)
-                        setParameter("version", appVersion)
+                        setParameter("name", normalizedAppName)
+                        setParameter("version", normalizedAppVersion)
                     },
                     """
                         UPDATE applications
@@ -534,11 +540,11 @@ class AppStoreAsyncDao(
                 )
         }
         // We allow for this to be cached for some time. But this instance might as well clear the cache now.
-        byNameAndVersionCache.remove(NameAndVersion(appName, appVersion))
+        byNameAndVersionCache.remove(NameAndVersion(normalizedAppName, normalizedAppVersion))
     }
 
     suspend fun isOwnerOfApplication(ctx: DBContext, user: SecurityPrincipal, appName: String): Boolean =
-        ctx.withSession {session -> findOwnerOfApplication(session, appName)!! == user.username}
+        ctx.withSession {session -> findOwnerOfApplication(session, appName.toLowerCase())!! == user.username}
 
 
     suspend fun preparePageForUser(
@@ -695,8 +701,8 @@ class AppStoreAsyncDao(
         if (embeddedNameAndVersionList.isEmpty()) {
             return emptyList()
         }
-        val names = embeddedNameAndVersionList.map { it.name }
-        val versions = embeddedNameAndVersionList.map { it.version }
+        val names = embeddedNameAndVersionList.map { it.name.toLowerCase() }
+        val versions = embeddedNameAndVersionList.map { it.version.toLowerCase() }
 
         return ctx.withSession { session ->
             session

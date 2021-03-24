@@ -44,6 +44,12 @@ For details look in the `k8.kts` folders of each microservice.
 ✅  Deployment(webclient, 0.44.8) (UP-TO-DATE)
 ```
 
+## 10-03-21
+
+```
+✅  Deployment(app-kubernetes, 0.21.1) (UP-TO-DATE)
+```
+
 ## 05-03-21
 
 ```

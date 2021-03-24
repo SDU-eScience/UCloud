@@ -138,7 +138,7 @@ class ApplicationSearchService (
             }
 
             val applications = db.withSession { session ->
-                searchDao.multiKeywordsearch(session, user, project, projectGroups, titles.toList(), paging)
+                searchDao.multiKeywordSearch(session, user, project, projectGroups, titles.toList(), paging)
             }
 
             return sortAndCreatePageByScore(applications, results, user, paging)

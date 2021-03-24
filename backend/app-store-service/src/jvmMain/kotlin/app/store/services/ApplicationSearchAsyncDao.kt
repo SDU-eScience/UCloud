@@ -80,18 +80,13 @@ class ApplicationSearchAsyncDao(
         }
         val trimmedNormalizedQuery = normalizeQuery(query).trim()
         val keywords = trimmedNormalizedQuery.split(" ").filter { it.isNotBlank() }
-        if (keywords.size == 1) {
-            return ctx.withSession { session ->
-                doSearch(session, user, currentProject, projectGroups, trimmedNormalizedQuery, paging)
-            }
-        }
         val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
         return ctx.withSession { session ->
             doMultiKeywordSearch(session, user, currentProject, projectGroups, firstTenKeywords, paging)
         }
     }
 
-    suspend fun multiKeywordsearch(
+    suspend fun multiKeywordSearch(
         ctx: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
@@ -102,14 +97,14 @@ class ApplicationSearchAsyncDao(
         val keywordsQuery = createKeywordQuery(keywords)
 
         return ctx.withSession { session ->
-            createMultiKeyWordApplicationEntityQuery(
+            advancedSearch(
                 session,
                 user,
                 currentProject,
                 projectGroups,
                 keywords,
                 keywordsQuery
-            ).map { it.toApplicationWithInvocation() }
+            )
         }
     }
 
@@ -127,14 +122,14 @@ class ApplicationSearchAsyncDao(
         return keywordsQuery
     }
 
-    private suspend fun createMultiKeyWordApplicationEntityQuery(
+    private suspend fun advancedSearch(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         projectGroups: List<String>,
         keywords: List<String>,
         keywordsQuery: String
-    ): ResultSet {
+    ): List<Application> {
         val groups = if (projectGroups.isEmpty()) {
             listOf("")
         } else {
@@ -154,32 +149,31 @@ class ApplicationSearchAsyncDao(
                         setParameter("groups", groups)
                         setParameter("isAdmin", isAdmin)
                     },
-                    """
-                    SELECT *
-                    FROM applications AS A
-                    WHERE (A.created_at) IN (
-                        SELECT MAX(created_at)
-                        FROM applications as B
-                        WHERE A.title = B.title
-                        GROUP BY title
-                    ) AND $keywordsQuery AND (
-                        (A.is_public = TRUE OR (
-                            cast(:project as text) is null AND ?user IN (
-                                SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
-                            )
-                        ) OR (
-                            cast(:project as text) is not null AND exists (
-                                SELECT P2.project_group FROM permissions as P2 WHERE
-                                    P2.application_name = A.name AND
-                                    P2.project = cast(:project as text) AND
-                                    P2.project_group IN (select unnest(:groups::text[]))
-                            ) or :isAdmin
-                        ))
-                    )
-                    ORDER BY A.title
+                    """ 
+                        SELECT *
+                        FROM applications as A 
+                        WHERE $keywordsQuery AND (
+                            (A.is_public = TRUE OR (
+                                cast(:project as text) is null AND ?user IN (
+                                    SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
+                                )
+                            ) OR (
+                                cast(:project as text) is not null AND exists (
+                                    SELECT P2.project_group FROM permissions as P2 WHERE
+                                        P2.application_name = A.name AND
+                                        P2.project = cast(:project as text) AND
+                                        P2.project_group IN (select unnest(:groups::text[]))
+                                ) or :isAdmin
+                            ))
+                        )
+                        ORDER BY A.title ASC , A.created_at DESC 
                     """
                 )
         }.rows
+            .map {
+                it.toApplicationWithInvocation()
+            }
+            .distinctBy { it.metadata.title }
     }
 
     private suspend fun doMultiKeywordSearch(
@@ -199,7 +193,7 @@ class ApplicationSearchAsyncDao(
         val keywordsQuery = createKeywordQuery(keywords)
 
         val items = ctx.withSession { session ->
-            createMultiKeyWordApplicationEntityQuery(
+            advancedSearch(
                 session,
                 user,
                 project,
@@ -207,77 +201,7 @@ class ApplicationSearchAsyncDao(
                 keywords,
                 keywordsQuery
             ).paginate(paging)
-                .mapItems { it.toApplicationWithInvocation() }
         }
-
-        return ctx.withSession { session ->
-            appStoreAsyncDao.preparePageForUser(
-                session,
-                user.username,
-                items
-            ).mapItems { it.withoutInvocation() }
-        }
-    }
-
-    private suspend fun doSearch(
-        ctx: DBContext,
-        user: SecurityPrincipal,
-        currentProject: String?,
-        memberGroups: List<String>,
-        normalizedQuery: String,
-        paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> {
-        val groups = if (memberGroups.isEmpty()) {
-            listOf("")
-        } else {
-            memberGroups
-        }
-        val isAdmin = Roles.PRIVILEGED.contains(user.role)
-        val items = ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("query", normalizedQuery)
-                        setParameter("user", user.username)
-                        setParameter("project", currentProject)
-                        setParameter("groups", groups)
-                        setParameter("isAdmin", isAdmin)
-                    },
-                    """
-                        SELECT * 
-                        FROM applications AS A
-                        WHERE (A.created_at) in (
-                            SELECT max(B.created_at)
-                            FROM applications AS B
-                            WHERE A.title = B.title
-                            GROUP BY title
-                        ) AND LOWER(A.title) LIKE '%' || :query || '%' AND (
-                            (
-                                A.is_public = TRUE
-                            ) OR (
-                                cast(:project as text) is null AND :user IN (
-                                    SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
-                                )
-                            ) OR (
-                                cast(:project as text) is not null AND exists (
-                                    SELECT P2.project_group FROM permissions AS P2 WHERE
-                                        P2.application_name = A.name AND
-                                        P2.project = cast(:project as text) AND
-                                        P2.project_group IN (select unnest(:groups::text[]))
-                                 )
-                            ) OR (
-                                :isAdmin
-                            ) 
-                        )
-                        ORDER BY A.title 
-                    """
-                )
-            }
-            .rows
-            .paginate(paging)
-            .mapItems {
-                it.toApplicationWithInvocation()
-            }
 
         return ctx.withSession { session ->
             appStoreAsyncDao.preparePageForUser(
