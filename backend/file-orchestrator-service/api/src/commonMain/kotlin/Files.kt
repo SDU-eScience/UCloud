@@ -23,6 +23,25 @@ This value is `true` by default """)
     val allowUnsupportedInclude: Boolean?
 }
 
+fun FilesIncludeFlags(
+    includePermissions: Boolean? = null,
+    includeTimestamps: Boolean? = null,
+    includeSizes: Boolean? = null,
+    includeUnixInfo: Boolean? = null,
+    includeMetadata: Boolean? = null,
+    allowUnsupportedInclude: Boolean? = null,
+) = FilesIncludeFlagsImpl(includePermissions, includeTimestamps, includeSizes, includeUnixInfo, includeMetadata,
+    allowUnsupportedInclude)
+
+data class FilesIncludeFlagsImpl(
+    override val includePermissions: Boolean?,
+    override val includeTimestamps: Boolean?,
+    override val includeSizes: Boolean?,
+    override val includeUnixInfo: Boolean?,
+    override val includeMetadata: Boolean?,
+    override val allowUnsupportedInclude: Boolean?
+) : FilesIncludeFlags
+
 interface WithConflictPolicy {
     val conflictPolicy: WriteConflictPolicy
 }

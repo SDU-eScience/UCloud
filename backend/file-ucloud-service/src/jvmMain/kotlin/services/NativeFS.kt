@@ -3,9 +3,7 @@ package dk.sdu.cloud.file.ucloud.services
 import com.sun.jna.Native
 import com.sun.jna.Platform
 import dk.sdu.cloud.file.orchestrator.api.FileType
-import dk.sdu.cloud.file.orchestrator.api.components
 import dk.sdu.cloud.service.Loggable
-import io.ktor.utils.io.pool.*
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -45,9 +43,9 @@ object NativeFS : Loggable {
 
     override val log = logger()
 
-    private fun openFile(path: String, flag: Int = 0): Int {
+    private fun openFile(file: InternalFile, flag: Int = 0): Int {
         with(CLibrary.INSTANCE) {
-            val components = path.components()
+            val components = file.components()
             val fileDescriptors = IntArray(components.size) { -1 }
             try {
                 fileDescriptors[0] = open("/${components[0]}", O_NOFOLLOW, 0)
@@ -76,10 +74,6 @@ object NativeFS : Loggable {
         }
     }
 
-    private fun throwExceptionBasedOnStatus(lastError: Int) {
-        TODO("Not yet implemented")
-    }
-
     private fun IntArray.closeAll() {
         for (descriptor in this) {
             if (descriptor > 0) {
@@ -88,10 +82,10 @@ object NativeFS : Loggable {
         }
     }
 
-    fun createDirectories(path: File, owner: Int? = LINUX_FS_USER_UID) {
+    fun createDirectories(file: InternalFile, owner: Int? = LINUX_FS_USER_UID) {
         if (Platform.isLinux()) {
             with(CLibrary.INSTANCE) {
-                val components = path.absolutePath.components()
+                val components = file.components()
                 if (components.isEmpty()) throw IllegalArgumentException("Path is empty")
 
                 val fileDescriptors = IntArray(components.size - 1) { -1 }
@@ -142,14 +136,14 @@ object NativeFS : Loggable {
                 }
             }
         } else {
-            path.mkdirs()
+            File(file.path).mkdirs()
         }
     }
 
-    fun move(from: File, to: File, replaceExisting: Boolean) {
+    fun move(source: InternalFile, destination: InternalFile, replaceExisting: Boolean) {
         if (Platform.isLinux()) {
-            val fromParent = openFile(from.parentFile.absolutePath)
-            val toParent = openFile(to.parentFile.absolutePath)
+            val fromParent = openFile(source.parent())
+            val toParent = openFile(destination.parent())
 
             try {
                 if (fromParent == -1 || toParent == -1) {
@@ -157,7 +151,7 @@ object NativeFS : Loggable {
                 }
 
                 val doesToExist = if (!replaceExisting) {
-                    val fd = CLibrary.INSTANCE.openat(toParent, to.name, 0, 0)
+                    val fd = CLibrary.INSTANCE.openat(toParent, destination.fileName(), 0, 0)
                     if (fd >= 0) {
                         CLibrary.INSTANCE.close(fd)
                         true
@@ -172,7 +166,7 @@ object NativeFS : Loggable {
                     throw FSException.AlreadyExists()
                 }
 
-                val err = CLibrary.INSTANCE.renameat(fromParent, from.name, toParent, to.name)
+                val err = CLibrary.INSTANCE.renameat(fromParent, source.fileName(), toParent, destination.fileName())
                 if (err < 0) {
                     throwExceptionBasedOnStatus(Native.getLastError())
                 }
@@ -189,32 +183,76 @@ object NativeFS : Loggable {
                 extraOpts + arrayOf(LinkOption.NOFOLLOW_LINKS)
             }
 
-            Files.move(from.toPath(), to.toPath(), *opts)
+            Files.move(File(source.path).toPath(), File(destination.path).toPath(), *opts)
         }
     }
 
-    fun openForWriting(path: File, allowOverwrite: Boolean, owner: Int? = LINUX_FS_USER_UID, permissions: Int?): OutputStream {
+    fun copy(source: InternalFile, destination: InternalFile, replaceExisting: Boolean) {
         if (Platform.isLinux()) {
-            val exists = if (owner != null) runCatching { stat(path) }.isSuccess else null
+            val sourceFd = openFile(source)
+            val destParentFd = openFile(destination.parent())
+            try {
+                if (sourceFd == -1 || destParentFd == -1) throw FSException.NotFound()
+                val sourceStat = nativeStat(sourceFd, autoClose = false)
+                if (sourceStat.fileType == FileType.FILE) {
+                    var opts = O_NOFOLLOW or O_TRUNC or O_CREAT or O_WRONLY
+                    if (!replaceExisting) opts = opts or O_EXCL
+                    val destFd = CLibrary.INSTANCE.openat(destParentFd, destination.fileName(), opts, DEFAULT_FILE_MODE)
+                    if (destFd < 0) {
+                        CLibrary.INSTANCE.close(destFd)
+                        throw FSException.NotFound()
+                    }
 
+                    LinuxInputStream(sourceFd).use { ins ->
+                        LinuxOutputStream(destFd).use { outs ->
+                            ins.copyTo(outs)
+                        }
+                    }
+                } else if (sourceStat.fileType == FileType.DIRECTORY) {
+                    TODO()
+                }
+            } finally {
+                CLibrary.INSTANCE.close(sourceFd)
+                CLibrary.INSTANCE.close(destParentFd)
+            }
+        } else {
+            Files.copy(
+                File(source.path).toPath(),
+                File(destination.path).toPath(),
+                *(if (replaceExisting) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray())
+            )
+        }
+    }
+
+    private fun setMetadataForNewFile(
+        fd: Int,
+        owner: Int? = LINUX_FS_USER_UID,
+        permissions: Int?,
+    ) {
+        require(fd >= 0)
+        if (owner != null) CLibrary.INSTANCE.fchown(fd, owner, owner)
+        if (permissions != null) CLibrary.INSTANCE.fchmod(fd, permissions)
+    }
+
+    fun openForWriting(
+        file: InternalFile,
+        allowOverwrite: Boolean,
+        owner: Int? = LINUX_FS_USER_UID,
+        permissions: Int?,
+    ): OutputStream {
+        if (Platform.isLinux()) {
             var opts = O_TRUNC or O_CREAT or O_WRONLY
             if (!allowOverwrite) {
                 opts = opts or O_EXCL
             }
 
-            val fd = openFile(path.absolutePath, opts)
+            val fd = openFile(file, opts)
             if (fd < 0) {
                 CLibrary.INSTANCE.close(fd)
                 throw FSException.NotFound()
             }
 
-            if (owner != null && exists == false) {
-                CLibrary.INSTANCE.fchown(fd, owner, owner)
-            }
-            if (permissions != null && exists == false) {
-                CLibrary.INSTANCE.fchmod(fd, permissions)
-            }
-
+            setMetadataForNewFile(fd, owner, permissions)
             return LinuxOutputStream(fd)
         } else {
             val options = HashSet<OpenOption>()
@@ -228,7 +266,7 @@ object NativeFS : Loggable {
             }
 
             try {
-                val systemPath = path.toPath()
+                val systemPath = File(file.path).toPath()
                 return Channels.newOutputStream(
                     Files.newByteChannel(
                         systemPath,
@@ -238,7 +276,7 @@ object NativeFS : Loggable {
                 )
             } catch (ex: FileAlreadyExistsException) {
                 throw FSException.AlreadyExists()
-            } catch (ex: java.nio.file.FileSystemException) {
+            } catch (ex: Throwable) {
                 if (ex.message?.contains("Is a directory") == true) {
                     throw FSException.BadRequest("Upload target is a not a directory")
                 } else {
@@ -248,18 +286,18 @@ object NativeFS : Loggable {
         }
     }
 
-    fun openForReading(path: File): InputStream {
+    fun openForReading(file: InternalFile): InputStream {
         return if (Platform.isLinux()) {
-            LinuxInputStream(openFile(path.absolutePath, O_RDONLY)).buffered()
+            LinuxInputStream(openFile(file, O_RDONLY)).buffered()
         } else {
-            FileInputStream(path)
+            FileInputStream(file.path)
         }
     }
 
-    fun listFiles(path: File): List<String> {
+    fun listFiles(file: InternalFile): List<String> {
         if (Platform.isLinux()){
             with(CLibrary.INSTANCE) {
-                val fd = openFile(path.absolutePath)
+                val fd = openFile(file)
                 if (fd < 0) {
                     close(fd)
                     throw FSException.NotFound()
@@ -285,17 +323,17 @@ object NativeFS : Loggable {
                 return result
             }
         } else {
-            return path.list()?.toList() ?: emptyList()
+            return File(file.path).list()?.toList() ?: emptyList()
         }
     }
 
-    fun delete(path: File) {
+    fun delete(file: InternalFile) {
         if (Platform.isLinux()) {
-            val fd = openFile(path.parentFile.absolutePath)
+            val fd = openFile(file.parent())
             if (fd < 0) throw FSException.NotFound()
             try {
-                if (CLibrary.INSTANCE.unlinkat(fd, path.name, AT_REMOVEDIR) < 0) {
-                    if (CLibrary.INSTANCE.unlinkat(fd, path.name, 0) < 0) {
+                if (CLibrary.INSTANCE.unlinkat(fd, file.fileName(), AT_REMOVEDIR) < 0) {
+                    if (CLibrary.INSTANCE.unlinkat(fd, file.fileName(), 0) < 0) {
                         if (Native.getLastError() == ENOTEMPTY) {
                             throw FSException.BadRequest()
                         }
@@ -307,74 +345,13 @@ object NativeFS : Loggable {
                 CLibrary.INSTANCE.close(fd)
             }
         } else {
-            Files.delete(path.toPath())
+            Files.delete(File(file.path).toPath())
         }
     }
 
-    fun getExtendedAttribute(path: File, attribute: String): String {
+    fun readNativeFilePermissons(file: InternalFile): Int {
         return if (Platform.isLinux()) {
-            val fd = openFile(path.absolutePath)
-            try {
-                getExtendedAttribute(fd, attribute)
-            } finally {
-                CLibrary.INSTANCE.close(fd)
-            }
-        } else {
-            DefaultByteArrayPool.useInstance {
-                val read = XAttrOSX.INSTANCE.getxattr(path.absolutePath, attribute, it, it.size, 0, 0)
-                if (read < 0) throw NativeException(Native.getLastError())
-                String(it, 0, read, Charsets.UTF_8)
-            }
-        }
-    }
-
-    private fun getExtendedAttribute(fd: Int, attribute: String): String {
-        require(Platform.isLinux())
-        return DefaultByteArrayPool.useInstance { buf ->
-            val xattrSize = CLibrary.INSTANCE.fgetxattr(fd, attribute, buf, buf.size)
-            if (xattrSize < 0) throw NativeException(Native.getLastError())
-            String(buf, 0, xattrSize, Charsets.UTF_8)
-        }
-    }
-
-    fun setExtendedAttribute(path: File, attribute: String, value: String, allowOverwrite: Boolean): Int {
-        val bytes = value.toByteArray()
-
-        if (Platform.isLinux()) {
-            val fd = openFile(path.absolutePath)
-            try {
-                return CLibrary.INSTANCE.fsetxattr(fd, attribute, bytes, bytes.size, if (!allowOverwrite) 1 else 0)
-            } finally {
-                CLibrary.INSTANCE.close(fd)
-            }
-        } else {
-            return XAttrOSX.INSTANCE.setxattr(
-                path.absolutePath,
-                attribute,
-                bytes,
-                bytes.size,
-                0,
-                if (!allowOverwrite) 2 else 0
-            )
-        }
-    }
-
-    fun removeExtendedAttribute(path: File, attribute: String) {
-        if (Platform.isLinux()) {
-            val fd = openFile(path.absolutePath)
-            try {
-                CLibrary.INSTANCE.fremovexattr(fd, attribute)
-            } finally {
-                CLibrary.INSTANCE.close(fd)
-            }
-        } else {
-            XAttrOSX.INSTANCE.removexattr(path.absolutePath, attribute, 0)
-        }
-    }
-
-    fun readNativeFilePermissons(path: File): Int {
-        return if (Platform.isLinux()) {
-            val fd = openFile(path.absolutePath)
+            val fd = openFile(file)
             if (fd < 0) throw FSException.NotFound()
             val st = stat()
             st.write()
@@ -391,32 +368,17 @@ object NativeFS : Loggable {
         }
     }
 
-    fun stat(path: File): NativeStat {
+    fun stat(file: InternalFile): NativeStat {
         if (Platform.isLinux()) {
-            val fd = openFile(path.absolutePath)
+            val fd = openFile(file)
             if (fd < 0) throw FSException.NotFound()
-            val st = stat()
-            st.write()
-            val err = CLibrary.INSTANCE.__fxstat64(1, fd, st.pointer)
-            st.read()
-
-            CLibrary.INSTANCE.close(fd)
-            if (err < 0) {
-                throw FSException.NotFound()
-            }
-
-            return NativeStat(
-                st.st_size,
-                (st.m_sec * 1000) + (st.m_nsec / 1_000_000),
-                if (st.st_mode and S_ISREG == 0) FileType.DIRECTORY else FileType.FILE,
-                st.st_uid
-            )
+            return nativeStat(fd)
         } else {
-            if (Files.isSymbolicLink(path.toPath())) throw FSException.NotFound()
+            if (Files.isSymbolicLink(File(file.path).toPath())) throw FSException.NotFound()
 
             val basicAttributes = run {
                 val opts = listOf("size", "lastModifiedTime", "isDirectory")
-                Files.readAttributes(path.toPath(), opts.joinToString(","), LinkOption.NOFOLLOW_LINKS)
+                Files.readAttributes(File(file.path).toPath(), opts.joinToString(","), LinkOption.NOFOLLOW_LINKS)
             }
 
             val size = basicAttributes.getValue("size") as Long
@@ -431,9 +393,29 @@ object NativeFS : Loggable {
         }
     }
 
-    fun chmod(path: File, mode: Int) {
+    private fun nativeStat(fd: Int, autoClose: Boolean = true): NativeStat {
+        require(fd >= 0)
+        val st = stat()
+        st.write()
+        val err = CLibrary.INSTANCE.__fxstat64(1, fd, st.pointer)
+        st.read()
+
+        if (autoClose) CLibrary.INSTANCE.close(fd)
+        if (err < 0) {
+            throw FSException.NotFound()
+        }
+
+        return NativeStat(
+            st.st_size,
+            (st.m_sec * 1000) + (st.m_nsec / 1_000_000),
+            if (st.st_mode and S_ISREG == 0) FileType.DIRECTORY else FileType.FILE,
+            st.st_uid
+        )
+    }
+
+    fun chmod(file: InternalFile, mode: Int) {
         if (!Platform.isLinux()) return
-        val fd = openFile(path.absolutePath)
+        val fd = openFile(file)
         try {
             CLibrary.INSTANCE.fchmod(fd, mode)
         } finally {
@@ -441,9 +423,9 @@ object NativeFS : Loggable {
         }
     }
 
-    fun chown(path: File, uid: Int, gid: Int) {
+    fun chown(file: InternalFile, uid: Int, gid: Int) {
         if (!Platform.isLinux() || disableChown) return
-        val fd = openFile(path.absolutePath)
+        val fd = openFile(file)
         try {
             CLibrary.INSTANCE.fchown(fd, uid, gid)
         } finally {
@@ -451,9 +433,9 @@ object NativeFS : Loggable {
         }
     }
 
-    fun changeFilePermissions(path: File, mode: Int, uid: Int, gid: Int) {
+    fun changeFilePermissions(file: InternalFile, mode: Int, uid: Int, gid: Int) {
         if (!Platform.isLinux()) return
-        val fd = openFile(path.absolutePath)
+        val fd = openFile(file)
         try {
             CLibrary.INSTANCE.fchmod(fd, mode)
             CLibrary.INSTANCE.fchown(fd, uid, gid)

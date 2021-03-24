@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import java.nio.file.LinkOption
 import kotlin.coroutines.coroutineContext
 
 // Note: These files are internal
@@ -23,11 +24,13 @@ private data class FileToCopy(
 // Note: These files are internal
 @Serializable
 private data class CopyTaskRequirements(
-    val filesToCopy: List<FileToCopy>,
+    val fileCount: Int?,
     val hardLimitReached: Boolean,
 )
 
 const val COPY_REQUIREMENTS_HARD_LIMIT = 10_000
+const val COPY_REQUIREMENTS_HARD_TIME_LIMIT = 30_000
+const val CHUNK_SIZE = 1024 * 1024 * 4
 
 class CopyTask(
     private val aclService: AclService,
@@ -53,8 +56,8 @@ class CopyTask(
             aclService.requirePermission(reqItem.newPath, actor, FilePermission.WRITE)
         }
 
-        val filesToCopy = ArrayList<FileToCopy>()
-        val deadline = if (maxTime == null) null else Time.now() + maxTime
+        var fileCount = 0
+        val deadline = if (maxTime == null) Time.now() + COPY_REQUIREMENTS_HARD_TIME_LIMIT else Time.now() + maxTime
         // TODO We need to check if the initial files even exist
         val pathStack = ArrayDeque(realRequest.items.map {
             FileToCopy(
@@ -63,10 +66,10 @@ class CopyTask(
             )
         })
 
-        while (coroutineContext.isActive && (deadline == null || Time.now() <= deadline)) {
-            if (filesToCopy.size >= COPY_REQUIREMENTS_HARD_LIMIT) break
+        while (coroutineContext.isActive && (Time.now() <= deadline)) {
+            if (fileCount >= COPY_REQUIREMENTS_HARD_LIMIT) break
             val nextItem = pathStack.removeFirstOrNull() ?: break
-            filesToCopy.add(nextItem)
+            fileCount++
 
             val nestedFiles = queries.listInternalFilesOrNull(Actor.System, InternalFile(nextItem.oldPath)) ?: continue
             nestedFiles.forEach {
@@ -77,16 +80,48 @@ class CopyTask(
             }
         }
 
-        val hardLimitReached = filesToCopy.size >= COPY_REQUIREMENTS_HARD_LIMIT
+        val hardLimitReached = fileCount >= COPY_REQUIREMENTS_HARD_LIMIT
         return defaultMapper.encodeToJsonElement(
-            CopyTaskRequirements(if (hardLimitReached) emptyList() else filesToCopy, hardLimitReached)
+            CopyTaskRequirements(if (hardLimitReached) -1 else fileCount, hardLimitReached)
         ) as JsonObject
     }
 
     override suspend fun execute(actor: Actor, task: StorageTask) {
         val requirements = defaultMapper.decodeFromJsonElement<CopyTaskRequirements>(task.requirements)
+        val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(task.rawRequest)
         if (requirements.hardLimitReached) {
-            // We will try to find the files and copy them ourselves
+            // Spin up tasks in parallel
+        }
+
+        for (reqItem in realRequest.items) {
+            reqItem.oldPath
+        }
+    }
+
+    private fun copyFile(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy) {
+        when (queries.retrieveTypeInternal(Actor.System, source)) {
+            FileType.FILE -> {
+                if (source.normalize() == destination.normalize() && conflictPolicy == WriteConflictPolicy.REPLACE) {
+                    // Do nothing (The code below would truncate the file and then copy the remaining 0 bytes)
+                    return
+                }
+
+                val originalPermission = NativeFS.readNativeFilePermissons(source)
+                NativeFS.openForReading(source).use { ins ->
+                    NativeFS.openForWriting(
+                        destination,
+                        conflictPolicy.allowsOverwrite(),
+                        permissions = originalPermission
+                    ).use { outs ->
+                        ins.copyTo(outs)
+                    }
+                }
+            }
+
+            FileType.DIRECTORY -> {
+
+            }
+            else -> return
         }
     }
 }
