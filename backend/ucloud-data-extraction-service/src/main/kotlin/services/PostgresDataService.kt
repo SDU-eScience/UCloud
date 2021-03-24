@@ -182,6 +182,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                                 AND initiated_by = :username
                                 AND account_id = :projectid 
                                 AND original_account_id = :projectid
+                                AND transaction_comment NOT LIKE 'Transf%'
                         """
                         ).rows
                         .firstOrNull()

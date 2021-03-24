@@ -46,7 +46,12 @@ enum class ProductType(val catagoryId: String) {
                   },
     STORAGE("u1-cephfs") {
         override fun getPricing() = TYPE_1_CEPH_GB_PRICE_PER_DAY
+    },
+    LICENSE_OR_AAU("other") {
+        override fun getPricing() = 0.0
     };
+
+
 
     abstract fun getPricing():Double
     companion object {
@@ -55,7 +60,7 @@ enum class ProductType(val catagoryId: String) {
                 catagoryId == CPU.catagoryId -> CPU;
                 catagoryId == GPU.catagoryId -> GPU;
                 catagoryId == STORAGE.catagoryId -> STORAGE
-                else -> throw Exception("No type for :$catagoryId")
+                else -> LICENSE_OR_AAU
             }
         }
     }
