@@ -7,6 +7,43 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 24-03-21
+
+```
+✅  Deployment(accounting, 1.7.2) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.4.3) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.4.2) (UP-TO-DATE)
+✅  Deployment(mail, 0.4.2) (UP-TO-DATE)
+✅  Deployment(alerting, 1.4.2) (UP-TO-DATE)
+✅  Deployment(activity, 1.7.3) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.4.2) (UP-TO-DATE)
+✅  Deployment(share, 1.10.2) (UP-TO-DATE)
+✅  Deployment(slack, 0.3.2) (UP-TO-DATE)
+✅  Deployment(auth, 1.32.1) (UP-TO-DATE)
+✅  Deployment(support, 1.6.2) (UP-TO-DATE)
+✅  Deployment(task, 0.5.2) (UP-TO-DATE)
+✅  Deployment(notification, 1.5.3) (UP-TO-DATE)
+✅  Deployment(webdav, 0.4.2) (UP-TO-DATE)
+✅  Deployment(provider, 0.2.2) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.4.2) (UP-TO-DATE)
+✅  Deployment(storage, 4.4.2) (UP-TO-DATE)
+✅  Deployment(grant, 0.4.2) (UP-TO-DATE)
+✅  Deployment(ucloud-data-extraction, 0.1.6-23) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.21.9) (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.8.2) (UP-TO-DATE)
+✅  Deployment(news, 0.3.2) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.2.6) (UP-TO-DATE)
+✅  Deployment(project, 3.5.2) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.5.2) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.4.2) (UP-TO-DATE)
+✅  Deployment(app-store, 0.16.2) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.6.1) (UP-TO-DATE)
+✅  Deployment(avatar, 1.6.2) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.2) (UP-TO-DATE)
+✅  Deployment(indexing, 1.19.8) (UP-TO-DATE)
+✅  Deployment(webclient, 0.44.8) (UP-TO-DATE)
+```
+
 ## 05-03-21
 
 ```

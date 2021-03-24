@@ -17,7 +17,7 @@ export const FolderResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove}) => {
-    return !application.invocation.shouldAllowAdditionalMounts ? null : (
+    return application.invocation.allowAdditionalMounts === false || application.invocation.tool.tool!.description.backend === "VIRTUAL_MACHINE" ? null : (
         <Box>
             <Flex alignItems="center">
                 <Box flexGrow={1}>
