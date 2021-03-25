@@ -2,7 +2,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "0.21.1"
+    version = "0.21.10"
 
     val prefix: String = config("prefix", "Application name prefix (e.g. 'app-')", "app-")
     val domain: String = config("domain", "Application domain (e.g. 'cloud.sdu.dk')")
@@ -60,6 +60,7 @@ bundle { ctx ->
 
         injectConfiguration("app-kubernetes")
         injectConfiguration("ceph-fs-config")
+        injectSecret("ucloud-provider-tokens")
     }
 
     withPostgresMigration(deployment)

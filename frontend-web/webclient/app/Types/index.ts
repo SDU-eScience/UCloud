@@ -25,7 +25,6 @@ declare global {
     export interface Page<T> {
         itemsInTotal: number;
         itemsPerPage: number;
-        pagesInTotal: number;
         pageNumber: number;
         items: T[];
     }
@@ -36,7 +35,6 @@ export function singletonToPage<T>(item?: T | null, itemsPerPage = 50): Page<T> 
     return {
         itemsInTotal: 1,
         itemsPerPage,
-        pagesInTotal: 1,
         pageNumber: 0,
         items: [item]
     };
@@ -49,7 +47,6 @@ export function arrayToPage<T>(items: T[], itemsPerPage = 50, page = 0): Page<T>
     return {
         itemsInTotal: items.length,
         itemsPerPage,
-        pagesInTotal: 1,
         pageNumber: page,
         items
     };

@@ -53,7 +53,7 @@ type ReadAction = PayloadAction<typeof NOTIFICATION_READ, {id: number | string}>
  */
 export const notificationRead = async (id: number): Promise<ReadAction | SetNotificationError> => {
     try {
-        if (id >= 0) await Client.post(readNotificationQuery(id));
+        if (id >= 0) await Client.post(readNotificationQuery(), {ids: id});
         return {
             type: NOTIFICATION_READ,
             payload: {id}

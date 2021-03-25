@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-aau"
-    version = "0.1.2"
+    version = "0.2.6"
     
     withAmbassador() {
         addSimpleMapping("/ucloud/aau")
@@ -11,6 +11,7 @@ bundle {
     
     val deployment = withDeployment {
         deployment.spec.replicas = 1
+        injectSecret("ucloud-provider-tokens-aau")
     }
     
     withPostgresMigration(deployment)

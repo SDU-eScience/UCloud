@@ -22,7 +22,7 @@ import {VirtualFileTable} from "Files/VirtualFileTable";
 import {arrayToPage} from "Types";
 import {fileTablePage, mockFile, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {Client, WSFactory} from "Authentication/HttpClientInstance";
-import {compute} from "UCloud";
+import {compute, file} from "UCloud";
 import Job = compute.Job;
 import {dateToString, dateToTimeOfDayString} from "Utilities/DateUtilities";
 import AppParameterValueNS = compute.AppParameterValueNS;
@@ -36,6 +36,7 @@ import {getProjectNames} from "Utilities/ProjectUtilities";
 import {ConfirmationButton} from "ui-components/ConfirmationAction";
 import {File} from "Files";
 import JobSpecification = compute.JobSpecification;
+import {bulkRequestOf} from "DefaultObjects";
 import {retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import {addStandardDialog} from "UtilityComponents";
 
@@ -241,7 +242,8 @@ export const View: React.FunctionComponent = () => {
             includeParameters: true,
             includeProduct: true,
             includeApplication: true,
-            includeUpdates: true
+            includeUpdates: true,
+            includeSupport: true,
         }));
     }, [id]);
 
@@ -343,6 +345,12 @@ export const View: React.FunctionComponent = () => {
             if (t2 != undefined) clearTimeout(t2);
         };
     }, [job]);
+
+    /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
+    useEffect(() => {
+        if (job?.status != null) setStatus(s => s ?? job.status);
+    }, [job]);
+    /* NOTE-END */
 
     useEffect(() => {
         // Used to fetch creditsCharged when job finishes.
@@ -813,10 +821,10 @@ const RunningContent: React.FunctionComponent<{
             if (await confirmExtendAllocation(duration)) {
                 setExpiresAt(expiresAt + (3600 * 1000 * duration));
                 try {
-                    await invokeCommand(compute.jobs.extend({
+                    await invokeCommand(compute.jobs.extend(bulkRequestOf({
                         jobId: job.id,
                         requestedTime: {hours: duration, minutes: 0, seconds: 0}
-                    }));
+                    })));
                 } catch (e) {
                     setExpiresAt(expiresAt);
                 }
@@ -847,6 +855,15 @@ const RunningContent: React.FunctionComponent<{
 
     const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
 
+    const appInvocation = job.specification.resolvedApplication!.invocation;
+    const backendType = appInvocation.tool.tool!.description.backend;
+    const support = job.specification.resolvedSupport;
+    const supportsExtension =
+        (backendType === "DOCKER" && support?.docker.timeExtension) ||
+        (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.timeExtension);
+    const supportsLogs =
+        (backendType === "DOCKER" && support?.docker.logs) ||
+        (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.logs);
 
     useEffect(() => {
         setTimeout(() => {
@@ -892,7 +909,7 @@ const RunningContent: React.FunctionComponent<{
 
                         <Box flexGrow={1} />
 
-                        {!expiresAt ? null :
+                        {!expiresAt || !supportsExtension ? null :
                             <Box>
                                 Extend allocation (hours):
                                 <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
@@ -912,11 +929,13 @@ const RunningContent: React.FunctionComponent<{
             </DashboardCard>
         </RunningInfoWrapper>
 
-        <RunningJobsWrapper>
-            {Array(job.specification.replicas).fill(0).map((_, i) => {
-                return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners} />;
-            })}
-        </RunningJobsWrapper>
+        {!supportsLogs ? null :
+            <RunningJobsWrapper>
+                {Array(job.specification.replicas).fill(0).map((_, i) => {
+                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
+                })}
+            </RunningJobsWrapper>
+        }
     </>;
 };
 
@@ -1145,9 +1164,21 @@ const RunningButtonGroup: React.FunctionComponent<{
     expanded?: boolean | false,
     toggleExpand?: () => void | undefined
 }> = ({job, rank, expanded, toggleExpand}) => {
+    const appInvocation = job.specification.resolvedApplication!.invocation;
+    const backendType = appInvocation.tool.tool!.description.backend;
+    const support = job.specification.resolvedSupport;
+    const supportTerminal = !support ? false :
+        backendType === "VIRTUAL_MACHINE" ? support?.virtualMachine.terminal :
+        backendType === "DOCKER" ? support?.docker.terminal : false;
+
+    const appType = appInvocation.applicationType;
+    const supportsInterface =
+        (appType === "WEB" && backendType === "DOCKER" && support?.docker.web) ||
+        (appType === "VNC" && backendType === "DOCKER" && support?.docker.vnc) ||
+        (appType === "VNC" && backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.vnc);
+
     return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
-        {job.specification.resolvedApplication?.invocation?.tool?.tool?.description?.backend ===
-            "VIRTUAL_MACHINE" ? null : (
+        {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
 
@@ -1162,12 +1193,12 @@ const RunningButtonGroup: React.FunctionComponent<{
                 </Button>
             </Link>
         )}
-        {job.specification.resolvedApplication?.invocation.applicationType !== "WEB" ? null : (
+        {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
                 <Button>Open interface</Button>
             </Link>
         )}
-        {job.specification.resolvedApplication?.invocation.applicationType !== "VNC" ? null : (
+        {appType !== "VNC" || !supportsInterface ? null : (
             <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
                 e.preventDefault();
 
@@ -1197,7 +1228,7 @@ const CancelButton: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
-            await invokeCommand(compute.jobs.remove({id: job.id}));
+            await invokeCommand(compute.jobs.remove(bulkRequestOf({id: job.id})));
         }
     }, [loading]);
 

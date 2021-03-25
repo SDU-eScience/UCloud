@@ -1,0 +1,36 @@
+application: v1
+
+title: File
+name: file
+version: 1
+
+tool:
+  name: all
+  version: 1
+
+authors:
+- Dan
+
+container:
+  runAsRoot: true
+ 
+description: >
+  File!
+ 
+invocation:
+- tail
+- -f
+- /dev/null
+- type: var
+  vars: file
+
+outputFileGlobs:
+  - "*"
+
+parameters:
+  file:
+    optional:  false
+    title: "file"
+    description: "A description of file"
+    type: input_file
+

@@ -4,12 +4,12 @@ import {AppToolLogo} from "Applications/AppToolLogo";
 import {AsyncWorker, callAPI, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
-import {emptyPage, KeyCode, SensitivityLevelMap} from "DefaultObjects";
+import {emptyPage, emptyPageV2, KeyCode, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileType, SortBy, SortOrder} from "Files";
 import {
     defaultFileOperations, FileOperation, FileOperationCallback, FileOperationRepositoryMode
 } from "Files/FileOperations";
-import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
+import {QuickLaunchApp, QuickLaunchApps, quickLaunchJob} from "Files/QuickLaunch";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
@@ -48,6 +48,13 @@ import {getCssVar} from "Utilities/StyledComponentsUtilities";
 import {useAppQuickLaunch} from "Utilities/ApplicationUtilities";
 import {MOCK_REPO_CREATE_TAG} from "Utilities/FileUtilities";
 import {fakeProjectListPath} from "Files/FileSelector";
+import ReactModal from "react-modal";
+import { defaultModalStyle } from "Utilities/ModalUtilities";
+import { accounting, compute, PageV2 } from "UCloud";
+import { snackbarStore } from "Snackbar/SnackbarStore";
+import { Machines } from "Applications/Jobs/Widgets/Machines";
+import { productCategoryEquals } from "Accounting";
+import { joinToString } from "UtilityFunctions";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -202,8 +209,7 @@ function useApiForComponent(
         const loading = pageLoading;
 
         const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
-            let sortByToUse = sortBy;
-            if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
+            const sortByToUse = sortBy;
 
             if (updateColumn) {
                 setSortingColumn(sortBy);
@@ -252,6 +258,19 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
     const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
+    const [selectProduct, setSelectProduct] = useState<boolean>(false);
+    const [selectedQuickLaunchApp, setSelectedQuickLaunchApp] = useState<QuickLaunchApp | null>(null);
+    const [availableProducts, setAvailableProducts] = useState<accounting.ProductNS.Compute[]>([]);
+    const [selectedMachine, setSelectedMachine] = useState<accounting.ProductNS.Compute | null>(null);
+    const [quickLaunchApp, fetchQuickLaunchApp] = useCloudAPI<compute.ApplicationWithFavoriteAndTags | null>(
+        {noop: true},
+        null
+    );
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<compute.JobsRetrieveProductsResponse | null>(
+        {noop: true},
+        null
+    );
+    const [wallet, fetchWallet] = useCloudAPI<PageV2<accounting.ProductNS.Compute>>({noop: true}, emptyPageV2);
     const [workLoading, , invokeWork] = useAsyncWork();
     const favorites = useFavoriteStatus();
     const projects = useProjectStatus();
@@ -267,6 +286,8 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
     }, [Client.projectId]);
 
     const history = useHistory();
+
+    ReactModal.setAppElement("#app");
 
     const activeUploadCount = useSelector<ReduxObject, number>(redux =>
         redux.uploader.uploads.filter(upload =>
@@ -397,6 +418,101 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
         setInjectedViaState([]);
         setFileBeingRenamed(null);
     }, [Client.projectId]);
+
+    React.useEffect(() => {
+        if (wallet.data.items.length > 0) {
+            const s = new Set<string>();
+            wallet.data.items.forEach(it => s.add(it.category.provider));
+
+            fetchMachineSupport(
+                compute.jobs.retrieveProducts({
+                    providers: joinToString(Array.from(s), ",")
+            }));
+        }
+    }, [wallet]);
+
+    React.useEffect(() => {
+        if (selectedQuickLaunchApp !== null) {
+            fetchQuickLaunchApp(
+                compute.apps.findByNameAndVersion({
+                    appName: selectedQuickLaunchApp.metadata.name,
+                    appVersion: selectedQuickLaunchApp.metadata.version
+            }));
+        }
+    }, [selectedQuickLaunchApp])
+
+
+    React.useEffect(() => {
+        if (quickLaunchApp.data !== null && props.path && machineSupport.data !== null) {
+            const allProducts: accounting.ProductNS.Compute[] = [];
+
+            Object.values(machineSupport.data.productsByProvider).forEach(products => {
+                const providerProducts = products.filter(product => {
+                    const tool = quickLaunchApp.data!.invocation.tool.tool!;
+                    const backend = tool.description.backend;
+                    switch (backend) {
+                        case "DOCKER":
+                            return product.support.docker.enabled;
+                        case "SINGULARITY":
+                            return false;
+                        case "VIRTUAL_MACHINE":
+                            return product.support.virtualMachine.enabled &&
+                                (tool.description.supportedProviders ?? [])
+                                    .some(p => p === product.product.category.provider);
+                    }
+                })
+                .filter(product =>
+                    wallet.data.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
+                )
+                .map(it => it.product)
+
+                providerProducts.forEach(it => allProducts.push(it));
+            });
+
+            setAvailableProducts(allProducts);
+        }
+    }, [quickLaunchApp, machineSupport]);
+
+    React.useEffect(() => {
+        if (quickLaunchApp.data !== null && props.path) {
+            if (availableProducts.length === 1) {
+                quickLaunchJob(
+                    quickLaunchApp.data,
+                    {
+                        id: availableProducts[0].id,
+                        category: availableProducts[0].category.id,
+                        provider: availableProducts[0].category.provider
+                    },
+                    props.path,
+                    history
+                )
+            } else if (availableProducts.length > 1) {
+                setSelectProduct(true);
+            }
+        }
+    }, [availableProducts]);
+
+    const onQuickLaunch = React.useCallback((app: QuickLaunchApp) => {
+        fetchWallet(accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250, includeBalance: true}));
+        setSelectedQuickLaunchApp(app);
+    }, []);
+
+    const quickLaunchOnSelectedMachine = React.useCallback(() => {
+        if (selectedMachine !== null && quickLaunchApp.data !== null && props.path) {
+            quickLaunchJob(
+                quickLaunchApp.data,
+                {
+                    id: selectedMachine.id,
+                    category: selectedMachine.category.id,
+                    provider: selectedMachine.category.provider
+                },
+                props.path,
+                history
+            )
+        } else {
+            snackbarStore.addFailure("Please select a machine type", true)
+        }
+    }, [selectedMachine, quickLaunchApp, props.path]);
 
     return (
         <Shell
@@ -575,6 +691,22 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                             />
                         </StickyBox>
                     )}
+                    <ReactModal isOpen={selectProduct}
+                        onRequestClose={() => setSelectProduct(false)}
+                        shouldCloseOnEsc
+                        ariaHideApp={false}
+                        style={defaultModalStyle}
+                    >
+                        <Box height="300px" width="800px">
+                            <Label>Please select a machine for this job</Label>
+                            <Machines machines={availableProducts} onMachineChange={setSelectedMachine}/>
+                        </Box>
+                        <Box textAlign="right">
+                            <Button color="red" mr="5px" onClick={() => setSelectProduct(false)}>Cancel</Button>
+                            <Button color="green" onClick={() => quickLaunchOnSelectedMachine()}>Launch</Button>
+                        </Box>
+                    </ReactModal>
+
                     <Pagination.List
                         loading={pageLoading}
                         customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ?
@@ -750,7 +882,7 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                                 </Tooltip>
                                             )}
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
-                                        ((applications.get(f.path) ?? []).length < 1) ? null : (
+                                        ((applications.get(f.path) ?? []).length < 1) || (applications.get(f.path) === undefined) ? null : (
                                             <ClickableDropdown
                                                 width="auto"
                                                 minWidth="175px"
@@ -768,7 +900,8 @@ export const LowLevelFileTable: React.FunctionComponent<LowLevelFileTableProps> 
                                             >
                                                 <QuickLaunchApps
                                                     file={f}
-                                                    applications={applications.get(f.path)}
+                                                    applications={applications.get(f.path)!}
+                                                    quickLaunchCallback={onQuickLaunch}
                                                 />
                                             </ClickableDropdown>
                                         )
@@ -1195,34 +1328,6 @@ interface QuickLaunchApps extends SpaceProps {
     file: File;
     applications: QuickLaunchApp[] | undefined;
 }
-
-const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.Element | null => {
-
-    const history = useHistory();
-    if (applications === undefined) return null;
-    if (applications.length < 1) return null;
-
-    const Operation = ({quickLaunchApp}: {quickLaunchApp: QuickLaunchApp}): React.ReactElement => {
-        return (
-            <Flex
-                cursor="pointer"
-                alignItems="center"
-                onClick={() => quickLaunchCallback(quickLaunchApp, FUtils.getParentPath(file.path), history)}
-                width="auto"
-                {...props}
-            >
-                <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
-                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}</span>
-            </Flex>
-        );
-    };
-
-    return (
-        <>
-            {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={i} />)}
-        </>
-    );
-};
 
 function getSortingColumn(): SortBy {
     const sortingColumn = window.localStorage.getItem("filesSorting");

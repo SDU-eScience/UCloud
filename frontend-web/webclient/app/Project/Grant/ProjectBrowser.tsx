@@ -21,6 +21,7 @@ import {GridCardGroup} from "ui-components/Grid";
 import {useState} from "react";
 import {Client} from "Authentication/HttpClientInstance";
 import {AppLogo, hashF} from "Applications/Card";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 export const ProjectBrowser: React.FunctionComponent = () => {
     const {action} = useParams<{action: string}>();
@@ -84,7 +85,7 @@ export const Logo: React.FunctionComponent<LogoProps> = props => {
     const [hasLoadedImage, setLoadedImage] = useState(true);
     const size = props.size !== undefined ? props.size : "40px";
 
-    const url = Client.computeURL("/api", `/grant/logo/${props.projectId}`);
+    const url = Client.computeURL("/api", buildQueryString(`/grant/logo`, props));
 
     return (
         <>

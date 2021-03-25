@@ -16,7 +16,6 @@ export const shares: Page<SharesByPath> = {
                 state: ShareState.ACCEPTED
             }]
         }],
-    pagesInTotal: 0
 };
 
 test("", () => undefined);

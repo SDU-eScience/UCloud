@@ -19,7 +19,7 @@ A `Resource` is the core data model used to synchronize tasks between UCloud and
 | `specification` | `ResourceSpecification` | No documentation |
 | `billing` | `ResourceBilling` | Contains information related to billing information for this `Resource` |
 | `owner` | `ResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
-| `acl` | `Array<ResourceAclEntry>` | An ACL for this `Resource` |
+| `acl` | `Array<ResourceAclEntry>?` | An ACL for this `Resource` |
 
 
 `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`

@@ -840,7 +840,6 @@ export const applicationsPage: UCloud.Page<UCloud.compute.ApplicationSummaryWith
             ]
         }
     ],
-    pagesInTotal: 1
 };
 
 test("Error silencer", () =>

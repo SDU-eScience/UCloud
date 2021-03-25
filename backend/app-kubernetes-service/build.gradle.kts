@@ -1,10 +1,15 @@
-version = "0.21.1"
+version = "0.21.10"
 
 application {
     mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
-    implementation(project(":app-orchestrator-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+            implementation(project(":app-orchestrator-service:api"))
+            implementation(project(":project-service:api"))
+        }
+    }
 }

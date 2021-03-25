@@ -1,0 +1,23 @@
+---
+tool: v1
+
+title: Alpine
+name: alpine
+version: 1
+
+container: alpine:3
+
+authors:
+- Dan
+  
+defaultTimeAllocation:
+  hours: 1
+  minutes: 0
+  seconds: 0
+
+description: All
+           
+defaultNumberOfNodes: 1 
+defaultTasksPerNode: 1
+
+backend: DOCKER

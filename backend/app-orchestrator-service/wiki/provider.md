@@ -49,57 +49,9 @@ contains information about the features supported by the provider.
 
 TODO
 
-### Reference
-
 ---
 
-#### `ProviderManifest`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ProviderManifest:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ProviderManifest
-<!--</editor-fold>-->
-<!-- /typedoc -->
-
----
-
-#### `ManifestFeatureSupport`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport
-<!--</editor-fold>-->
-<!-- /typedoc -->
-
----
-
-#### `Compute`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute
-<!--</editor-fold>-->
-<!-- /typedoc -->
-
----
-
-#### `Docker`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.Docker:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.Docker
-<!--</editor-fold>-->
-<!-- /typedoc -->
-
----
-
-#### `VirtualMachine`
-
-<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.VirtualMachine:includeProps=true -->
-<!--<editor-fold desc="Generated documentation">-->
-UNKNOWN TYPE: dk.sdu.cloud.app.orchestrator.api.ManifestFeatureSupport.Compute.VirtualMachine
-<!--</editor-fold>-->
-<!-- /typedoc -->
+__📝 NOTE:__ This section is currently being reworked.
 
 ---
 
@@ -142,12 +94,6 @@ UCloud's [accounting](/backend/accounting-service/README.md) module.
 
 ## Communication
 
----
-
-__📝 NOTE:__ Not yet implemented.
-
----
-
 All communication between UCloud and a provider is done via an HTTP(S) API, certain optional endpoints use a WebSocket
 API. Note that the WebSocket protocol is an extension of HTTP, as a result the WebSocket API shares the same security
 aspects as the HTTP API.
@@ -169,12 +115,6 @@ self-signed certificate + TLS. This design choice has been made to simplify the 
 deployments.
 
 ## Authentication and Authorization
-
----
-
-__📝 NOTE:__ Not yet implemented.
-
----
 
 UCloud _and_ the provider authenticates and authorizes all ingoing requests. These requests are protected by short-lived
 [JSON Web Tokens (JWT)](https://jwt.io)

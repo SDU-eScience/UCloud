@@ -1,9 +1,13 @@
-version = "0.2.0"
+version = "0.3.2"
 
 application {
     mainClassName = "dk.sdu.cloud.slack.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+        }
+    }
 }

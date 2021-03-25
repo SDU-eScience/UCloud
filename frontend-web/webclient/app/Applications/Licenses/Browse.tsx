@@ -1,12 +1,12 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import * as UCloud from "UCloud";
-import {accounting, compute, PageV2, provider} from "UCloud";
+import {accounting, compute, PageV2} from "UCloud";
 import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {groupSummaryRequest, useProjectId} from "Project";
-import {emptyPage, emptyPageV2} from "DefaultObjects";
+import {useProjectId} from "Project";
+import {emptyPageV2} from "DefaultObjects";
 import List, {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
-import {Box, Button, Flex, Icon, RadioTile, RadioTilesContainer, Text, Truncate} from "ui-components";
+import {Box, Button, Icon, Text} from "ui-components";
 import {doNothing, prettierString, shortUUID} from "UtilityFunctions";
 import {creditFormatter} from "Project/ProjectUsage";
 import HexSpin from "LoadingIcon/LoadingIcon";
@@ -26,21 +26,14 @@ import equal from "fast-deep-equal";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {useHistory} from "react-router";
 import {History} from 'history';
-import {dateToString} from "Utilities/DateUtilities";
-import {ShakingBox} from "UtilityComponents";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
 import {Client} from "Authentication/HttpClientInstance";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {GroupWithSummary} from "Project/GroupList";
-import * as Pagination from "Pagination";
-import {AclPermission} from "Applications/Licenses/index";
-import {TextSpan} from "ui-components/Text";
 import LicensesCreateResponse = compute.LicensesCreateResponse;
 import {PaymentModelExplainer} from "Accounting/PaymentModelExplainer";
 import {StickyBox} from "ui-components/StickyBox";
 import {useScrollStatus} from "Utilities/ScrollStatus";
-import ResourceAclEntry = provider.ResourceAclEntry;
-import Table, {TableCell, TableRow} from "ui-components/Table";
+import {ResourcePage} from "ui-components/ResourcePage";
 
 interface LicenseGroup {
     product: ProductNS.License;
@@ -256,65 +249,19 @@ export const Browse: React.FunctionComponent<{
             </List>
         </>;
     } else {
-        const product = inspecting.product;
-        const license = inspecting.license;
         main = <>
-            <Icon name={"arrowDown"} rotation={90} size={"32px"} cursor={"pointer"}
-                  onClick={() => setInspecting(null)}/>
-            <Box width={"500px"} margin={"0 auto"} marginTop={"-32px"}>
-                <Box textAlign={"center"}>
-                    <AppToolLogo
-                        name={product.tags.length > 1 ? product.tags[0] : product.id}
-                        type={"TOOL"}
-                        size={"128px"}
-                    />
-                </Box>
+            <ResourcePage
+                entityName={entityName}
+                aclOptions={[{icon: "search", name: "USE", title: "Use"}]}
+                entity={inspecting.license}
+                reload={reload}
+                updateAclEndpoint={licenseApi.updateAcl}
+                showProduct={true}
 
-                <Flex>
-                    <Heading.h4 flexGrow={1}>ID</Heading.h4>
-                    {shortUUID(license.id)}
-                </Flex>
 
-                <Flex>
-                    <Heading.h4 flexGrow={1}>License</Heading.h4>
-                    {product.id}
-                </Flex>
-
-                <Flex>
-                    <Heading.h4 flexGrow={1}>State</Heading.h4>
-                    {prettierString(license.status.state)}
-                </Flex>
-
-                {license.owner.project === undefined ? null : (
-                    <Box mt={"32px"}>
-                        <Heading.h4>Permissions</Heading.h4>
-                        <LicensePermissions license={license} reload={reload}/>
-                    </Box>
-                )}
-
-                <Box mt={"32px"}>
-                    <Heading.h4>Updates</Heading.h4>
-                    <Table>
-                        <tbody>
-                        {inspecting.license.updates.map((update, idx) => {
-                            return <TableRow key={idx}>
-                                <TableCell>{dateToString(update.timestamp)}</TableCell>
-                                <TableCell>
-                                    {!update.state ? null :
-                                        <>
-                                            {prettierString(update.state)}
-                                        </>
-                                    }
-                                </TableCell>
-                                <TableCell>
-                                    {update.status ? <TextSpan mr={"10px"}>{update.status}</TextSpan> : null}
-                                </TableCell>
-                            </TableRow>
-                        })}
-                        </tbody>
-                    </Table>
-                </Box>
-            </Box>
+                beforeStats={<Icon name={"arrowDown"} rotation={90} size={"32px"} cursor={"pointer"}
+                                   onClick={() => setInspecting(null)}/>}
+            />
         </>;
     }
 
@@ -595,108 +542,5 @@ const licenseInstanceOperations: Operation<License, LicenseOpCallback>[] = [
         }
     }
 ];
-
-const LicensePermissions: React.FunctionComponent<{ license: License, reload: () => void }> = ({license, reload}) => {
-    const projectId = useProjectId();
-    const [projectGroups, fetchProjectGroups, groupParams] =
-        useCloudAPI<Page<GroupWithSummary>>({noop: true}, emptyPage);
-
-    const [commandLoading, invokeCommand] = useCloudCommand();
-
-    const [acl, setAcl] = useState<ResourceAclEntry<AclPermission>[]>(license.acl ?? []);
-
-    useEffect(() => {
-        fetchProjectGroups(UCloud.project.group.listGroupsWithSummary({itemsPerPage: 50, page: 0}));
-    }, [projectId]);
-
-    useEffect(() => {
-        setAcl(license.acl ?? []);
-    }, [license]);
-
-    const updateAcl = useCallback(async (group: string, permissions: AclPermission[]) => {
-        if (!projectId) return;
-        if (commandLoading) return;
-
-        const newAcl = acl
-            .filter(it => !(it.entity.projectId === projectId && it.entity.group === group));
-        newAcl.push({entity: {projectId, group, type: "project_group"}, permissions});
-
-        setAcl(newAcl);
-
-        await invokeCommand(licenseApi.updateAcl({acl: newAcl, id: license.id}))
-        reload();
-    }, [acl, projectId, commandLoading]);
-
-    const anyGroupHasPermission = acl.some(it => it.permissions.indexOf("USE") !== -1);
-
-    return <Pagination.List
-        loading={projectGroups.loading}
-        page={projectGroups.data}
-        onPageChanged={(page) => fetchProjectGroups(groupSummaryRequest({
-            ...groupParams.parameters,
-            page
-        }))}
-        customEmptyPage={(
-            <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
-                  flexDirection={"column"}>
-                <ShakingBox shaking mb={"10px"}>
-                    No groups exist for this project.{" "}
-                    <TextSpan bold>As a result, this license can only be used by project admins!</TextSpan>
-                </ShakingBox>
-
-                <Link to={"/project/members"} target={"_blank"}><Button fullWidth>Create group</Button></Link>
-            </Flex>
-        )}
-        pageRenderer={() => (
-            <>
-                {anyGroupHasPermission ? null :
-                    <ShakingBox shaking mb={16}>
-                        <Text bold>This license can only be used by project admins</Text>
-                        <Text>
-                            You must assign permissions to one or more group, if your collaborators need access to this
-                            software.
-                        </Text>
-                    </ShakingBox>
-                }
-                {projectGroups.data.items.map(summary => {
-                    const g = summary.groupId;
-                    const permissions = acl.find(it =>
-                        it.entity.group === g &&
-                        it.entity.projectId === projectId
-                    )?.permissions ?? [];
-
-                    return (
-                        <Flex key={g} alignItems={"center"} mb={16}>
-                            <Truncate width={"300px"} mr={16} title={summary.groupTitle}>
-                                {summary.groupTitle}
-                            </Truncate>
-
-                            <RadioTilesContainer>
-                                <RadioTile
-                                    label={"None"}
-                                    onChange={() => updateAcl(g, [])}
-                                    icon={"close"}
-                                    name={summary.groupId}
-                                    checked={permissions.length === 0}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
-                                <RadioTile
-                                    label={"Use"}
-                                    onChange={() => updateAcl(g, ["USE"])}
-                                    icon={"search"}
-                                    name={summary.groupId}
-                                    checked={permissions.indexOf("USE") !== -1 && permissions.length === 1}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
-                            </RadioTilesContainer>
-                        </Flex>
-                    );
-                })}
-            </>
-        )}
-    />;
-};
 
 export default BrowseStandalone;

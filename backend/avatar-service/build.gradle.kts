@@ -1,9 +1,13 @@
-version = "1.5.0"
+version = "1.6.2"
 
 application {
     mainClassName = "dk.sdu.cloud.avatar.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+        }
+    }
 }

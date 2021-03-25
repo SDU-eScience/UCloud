@@ -10,6 +10,7 @@ interface CallParameters {
     context?: string;
     withCredentials?: boolean;
     projectOverride?: string;
+    accessTokenOverride?: string;
 }
 
 /**
@@ -117,11 +118,22 @@ export default class HttpClient {
         body,
         context = this.apiContext,
         withCredentials = false,
-        projectOverride
+        projectOverride,
+        accessTokenOverride,
     }: CallParameters): Promise<any> {
         await this.waitForCloudReady();
 
         if (path.indexOf("/") !== 0) path = "/" + path;
+        const queryBegin = path.indexOf("?");
+        const beforeQuery = queryBegin === -1 ? path : path.substring(0, queryBegin);
+        const afterQuery = queryBegin === -1 ? null : path.substring(queryBegin);
+        if (beforeQuery.length > 1 && beforeQuery[beforeQuery.length - 1] === '/') {
+            path = beforeQuery.substring(0, beforeQuery.length - 1);
+            if (afterQuery !== null) {
+                path += afterQuery;
+            }
+        }
+
         return this.receiveAccessTokenOrRefreshIt()
             .catch(it => {
                 console.warn(it);
@@ -131,7 +143,10 @@ export default class HttpClient {
                 return new Promise((resolve, reject) => {
                     const req = new XMLHttpRequest();
                     req.open(method, this.computeURL(context, path));
-                    req.setRequestHeader("Authorization", `Bearer ${token}`);
+                    req.setRequestHeader(
+                        "Authorization",
+                        accessTokenOverride === undefined ? `Bearer ${token}` : `Bearer ${accessTokenOverride}`
+                    );
                     req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
                     const projectId = projectOverride ?? this.projectId;
                     if (projectId) req.setRequestHeader("Project", projectId);
@@ -373,7 +388,7 @@ export default class HttpClient {
     public createOneTimeTokenWithPermission(permission): Promise<any> {
         return this.receiveAccessTokenOrRefreshIt()
             .then(token => {
-                const oneTimeToken = this.computeURL(this.authContext, `/request/?audience=${permission}`);
+                const oneTimeToken = this.computeURL(this.authContext, `/request?audience=${permission}`);
                 return new Promise((resolve, reject) => {
                     const req = new XMLHttpRequest();
                     req.open("POST", oneTimeToken);

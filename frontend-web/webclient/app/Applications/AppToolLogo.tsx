@@ -9,7 +9,6 @@ interface AppToolLogoProps {
     name: string;
     size?: string;
     type: AppOrTool;
-    cacheBust?: string;
 }
 
 export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
@@ -18,6 +17,8 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
     const [dataUrl, setDataUrl] = useState<string | null | "loading">("loading");
     useEffect(() => {
         let didCancel = false;
+        /* NOTE(jonas): `props.name` is sometimes an empty string, why? */
+        if (!props.name) return;
         (async () => {
             const fetchedLogo = props.type === "APPLICATION" ?
                 await appLogoCache.fetchLogo(props.name) :
@@ -49,6 +50,7 @@ class LogoCache {
         this.context = context;
         (async () => {
             const now = window.performance &&
+                window.performance["now"] &&
                 window.performance.timing &&
                 window.performance.timing.navigationStart ?
                 window.performance.now() + window.performance.timing.navigationStart : Date.now();
@@ -67,7 +69,7 @@ class LogoCache {
         const retrievedItem = await localForage.getItem<Blob | false>(itemKey);
         if (retrievedItem === null) {
             // No cache entry at all
-            const url = Client.computeURL("/api", `/hpc/${this.context}/logo/${name}`);
+            const url = Client.computeURL("/api", `/hpc/${this.context}/logo?name=${encodeURIComponent(name)}`);
             try {
                 const blob = await (await fetch(url)).blob();
                 if (blob.type.indexOf("image/") === 0) {

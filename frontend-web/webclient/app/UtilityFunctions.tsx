@@ -380,8 +380,6 @@ export function defaultErrorHandler(
  */
 export function sortByToPrettierString(sortBy: SortBy): string {
     switch (sortBy) {
-        case SortBy.ACL:
-            return "Members";
         case SortBy.FILE_TYPE:
             return "File Type";
         case SortBy.MODIFIED_AT:
@@ -411,6 +409,7 @@ export function requestFullScreen(el: Element, onFailure: () => void): void {
 
 export function timestampUnixMs(): number {
     return window.performance &&
+        window.performance["now"] &&
         window.performance.timing &&
         window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :

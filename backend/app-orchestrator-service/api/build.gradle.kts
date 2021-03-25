@@ -1,6 +1,6 @@
 dependencies {
-    api(project(":app-store-service:api"))
-    api(project(":accounting-service:api"))
-    api(project(":storage-service:api"))
-    api(project(":provider-service:api"))
+    commonMainApi(project(":app-store-service:api"))
+    commonMainApi(project(":accounting-service:api"))
+    commonMainApi(project(":storage-service:api"))
+    commonMainApi(project(":provider-service:api"))
 }

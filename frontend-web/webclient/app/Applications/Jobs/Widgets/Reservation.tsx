@@ -34,28 +34,35 @@ export const ReservationParameter: React.FunctionComponent<{
         0 :
         wallet.data.items.find(it => productCategoryEquals(it.category, selectedMachine.category))?.balance ?? 0;
 
-    const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsTemporaryResponse>(
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
         {productsByProvider: {}}
     );
 
     const projectId = useProjectId();
     useEffect(() => {
-        fetchWallet(UCloud.accounting.products.browse({filterUsable: true, filterArea: "COMPUTE", itemsPerPage: 250, includeBalance: true}));
+        fetchWallet(UCloud.accounting.products.browse({
+            filterUsable: true,
+            filterArea: "COMPUTE",
+            itemsPerPage: 250,
+            includeBalance: true
+        }));
     }, [projectId]);
     useEffect(() => {
         const s = new Set<string>();
         wallet.data.items.forEach(it => s.add(it.category.provider));
 
-        fetchMachineSupport(UCloud.compute.jobs.retrieveProductsTemporary({
-            providers: joinToString(Array.from(s), ",")
-        }));
+        if (s.size > 0) {
+            fetchMachineSupport(UCloud.compute.jobs.retrieveProducts({
+                providers: joinToString(Array.from(s), ",")
+            }));
+        }
     }, [wallet]);
 
     const allMachines = ([] as ProductNS.Compute[]).concat.apply(
         [],
-        Object.values(machineSupport.data.productsByProvider).map(it => {
-            return it.products
+        Object.values(machineSupport.data.productsByProvider).map(products => {
+            return products
                 .filter(it => {
                     const tool = application.invocation.tool.tool!;
                     const backend = tool.description.backend;
@@ -124,13 +131,13 @@ export const ReservationParameter: React.FunctionComponent<{
                     />
                 </Label>
             </Flex>
-        : null}
+            : null}
         {toolBackend === "VIRTUAL_MACHINE" ?
             <>
                 <input type={"hidden"} id={reservationHours} value={"1"}/>
                 <input type={"hidden"} id={reservationMinutes} value={"0"}/>
             </>
-        : null}
+            : null}
         {errors["timeAllocation"] ? <TextP color={"red"}>{errors["timeAllocation"]}</TextP> : null}
 
         {!application.invocation.allowMultiNode ? null : (

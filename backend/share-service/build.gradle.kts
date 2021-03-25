@@ -1,12 +1,16 @@
-version = "1.9.0"
+version = "1.10.3"
 
 application {
     mainClassName = "dk.sdu.cloud.share.MainKt"
 }
 
-dependencies {
-    implementation(project(":auth-service:api"))
-    implementation(project(":storage-service:api"))
-    implementation(project(":notification-service:api"))
-    implementation(project(":contact-book-service:api"))
+kotlin.sourceSets {
+    val jvmMain by getting {
+        dependencies {
+            implementation(project(":auth-service:api"))
+            implementation(project(":storage-service:api"))
+            implementation(project(":notification-service:api"))
+            implementation(project(":contact-book-service:api"))
+        }
+    }
 }

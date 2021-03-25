@@ -13,6 +13,7 @@ import RFB from "@novnc/novnc/core/rfb";
 import * as VncLog from '@novnc/novnc/core/util/logging.js';
 import {Box, Button} from "ui-components";
 import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
+import {bulkRequestOf} from "DefaultObjects";
 
 interface ConnectionDetails {
     url: string;
@@ -23,7 +24,7 @@ export const Vnc: React.FunctionComponent = () => {
     const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
     const [isConnected, setConnected] = React.useState(false);
     const [sessionResp] = useCloudAPI<JobsOpenInteractiveSessionResponse | null>(
-        jobs.openInteractiveSession({sessionType: "VNC", id: jobId, rank: parseInt(rank, 10)}),
+        jobs.openInteractiveSession(bulkRequestOf({sessionType: "VNC", id: jobId, rank: parseInt(rank, 10)})),
         null
     );
 

@@ -51,7 +51,7 @@ export const Tool: React.FunctionComponent<RouteComponentProps<{name: string}>> 
         <MainContainer
             header={(
                 <Heading.h1>
-                    <AppToolLogo type={"TOOL"} name={name} cacheBust={logoCacheBust} size={"64px"} />
+                    <AppToolLogo type={"TOOL"} name={name} size={"64px"} />
                     {" "}
                     {toolTitle}
                 </Heading.h1>
@@ -115,8 +115,7 @@ export const Tool: React.FunctionComponent<RouteComponentProps<{name: string}>> 
                                         to={`/applications/studio/a/${metadata.name}`}
                                     >
                                         <Flex>
-                                            <AppToolLogo name={metadata.name} type={"APPLICATION"}
-                                                cacheBust={logoCacheBust} />
+                                            <AppToolLogo name={metadata.name} type={"APPLICATION"} />
                                             <Box ml={8}>
                                                 <Truncate width={300} cursor={"pointer"}>
                                                     <b>

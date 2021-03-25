@@ -9,7 +9,7 @@ import ProductNS = accounting.ProductNS;
 import {Box, Button, Input, Label, Select} from "ui-components";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Spacer} from "ui-components/Spacer";
-import {emptyPageV2} from "DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "DefaultObjects";
 import NetworkIPsCreateResponse = compute.NetworkIPsCreateResponse;
 import NetworkIP = compute.NetworkIP;
 
@@ -90,13 +90,13 @@ const Create: React.FunctionComponent<{computeProvider?: string; onCreateFinishe
             return;
         }
 
-        const resp = await invokeCommand<NetworkIPsCreateResponse>(networkApi.create({
+        const resp = await invokeCommand<NetworkIPsCreateResponse>(networkApi.create(bulkRequestOf({
             product: {
                 category: selectedProduct.category.id,
                 id: selectedProduct.id,
                 provider: props.computeProvider ?? selectedProvider!
             }
-        }));
+        })));
 
 
         if (resp?.ids?.length) {

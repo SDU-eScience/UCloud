@@ -1,0 +1,5 @@
+headers = jwt.h
+staticLibraries = libjwt.a
+libraryPaths = vendor/libjwt/linux
+linkerOpts = -L/usr/lib/x86_64-linux-gnu -lssl -lcrypto -ljansson
+
