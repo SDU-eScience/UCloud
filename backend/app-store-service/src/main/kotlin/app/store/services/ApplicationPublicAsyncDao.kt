@@ -18,8 +18,8 @@ class ApplicationPublicAsyncDao() {
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("name", appName.toLowerCase())
-                        setParameter("version", appVersion.toLowerCase())
+                        setParameter("name", appName)
+                        setParameter("version", appVersion)
                     },
                     """
                         SELECT *
@@ -41,11 +41,9 @@ class ApplicationPublicAsyncDao() {
         appVersion: String,
         public: Boolean
     ) {
-        val normalizedAppName = appName.toLowerCase()
-        val normalizedAppVersion = appVersion.toLowerCase()
         if (user.role !in Roles.PRIVILEGED) throw ApplicationException.NotAllowed()
         val existing = ctx.withSession { session ->
-            internalByNameAndVersion(session, normalizedAppName, normalizedAppVersion) ?: throw ApplicationException.NotFound()
+            internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
         }
         if (!canUserPerformWriteOperation(existing.getField(ApplicationTable.owner), user)) throw ApplicationException.NotAllowed()
 
@@ -54,8 +52,8 @@ class ApplicationPublicAsyncDao() {
                 .sendPreparedStatement(
                     {
                         setParameter("public", public)
-                        setParameter("name", normalizedAppName)
-                        setParameter("version", normalizedAppVersion)
+                        setParameter("name", appName)
+                        setParameter("version", appVersion)
                     },
                     """
                         UPDATE applications

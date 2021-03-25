@@ -45,7 +45,7 @@ class AppStoreAsyncDao(
                         setParameter("groups", memberGroups)
                         setParameter("tags", tags)
                         setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
-                        setParameter("exclude", excludeTools?.map { it.toLowerCase() } ?: emptyList())
+                        setParameter("exclude", excludeTools?.map { it } ?: emptyList())
                     },
                     """
                     SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
@@ -90,7 +90,7 @@ class AppStoreAsyncDao(
         excludeTools: List<String>?
     ): Pair<List<Application>, Int> {
         val items = ctx.withSession { session ->
-            val excludeNormalized = excludeTools?.map {it.toLowerCase()} ?: emptyList()
+            val excludeNormalized = excludeTools?.map {it} ?: emptyList()
             session
                 .sendPreparedStatement(
                     {
@@ -286,16 +286,14 @@ class AppStoreAsyncDao(
         appName: String,
         appVersion: String
     ): ApplicationWithFavoriteAndTags {
-        val normalizedAppName = appName.toLowerCase()
-        val normalizedAppVersion = appVersion.toLowerCase()
         if (!ctx.withSession { session ->
                 internalHasPermission(
                     session,
                     user,
                     currentProject,
                     projectGroups,
-                    normalizedAppName,
-                    normalizedAppVersion,
+                    appName,
+                    appVersion,
                     ApplicationAccessRight.LAUNCH,
                     publicAsyncDao,
                     aclDAO
@@ -304,7 +302,7 @@ class AppStoreAsyncDao(
         ) throw ApplicationException.NotFound()
 
         val entity = ctx.withSession { session ->
-            internalByNameAndVersion(session, normalizedAppName, normalizedAppVersion)?.toApplicationWithInvocation()
+            internalByNameAndVersion(session, appName, appVersion)?.toApplicationWithInvocation()
         } ?: throw ApplicationException.NotFound()
 
         return ctx.withSession { session -> preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()}
@@ -421,8 +419,8 @@ class AppStoreAsyncDao(
                 set(ApplicationTable.toolName, existingTool.getField(ToolTable.idName))
                 set(ApplicationTable.toolVersion, existingTool.getField(ToolTable.idVersion))
                 set(ApplicationTable.isPublic, description.metadata.isPublic)
-                set(ApplicationTable.idName, description.metadata.name.toLowerCase())
-                set(ApplicationTable.idVersion, description.metadata.version.toLowerCase())
+                set(ApplicationTable.idName, description.metadata.name)
+                set(ApplicationTable.idVersion, description.metadata.version)
                 set(ApplicationTable.application, defaultMapper.writeValueAsString(description.invocation))
 
             }
@@ -437,9 +435,7 @@ class AppStoreAsyncDao(
         appName: String,
         appVersion: String
     ) {
-        val normalizedAppName = appName.toLowerCase()
-        val normalizedAppVersion = appVersion.toLowerCase()
-        val existingOwner = ctx.withSession { session -> findOwnerOfApplication(session, normalizedAppName) }
+        val existingOwner = ctx.withSession { session -> findOwnerOfApplication(session, appName) }
         if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
             throw ApplicationException.NotAllowed()
         }
@@ -451,7 +447,7 @@ class AppStoreAsyncDao(
                     user,
                     project,
                     projectGroups,
-                    normalizedAppName,
+                    appName,
                     NormalizedPaginationRequest(25, 0),
                     this
                 ).itemsInTotal <= 1
@@ -461,7 +457,7 @@ class AppStoreAsyncDao(
         }
         ctx.withSession { session ->
             val existingApp =
-                internalByNameAndVersion(session, normalizedAppName, normalizedAppVersion) ?: throw ApplicationException.NotFound()
+                internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
 
             cleanupBeforeDelete(
                 session,
@@ -488,8 +484,8 @@ class AppStoreAsyncDao(
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("appname", appName.toLowerCase())
-                        setParameter("appversion", appVersion.toLowerCase())
+                        setParameter("appname", appName)
+                        setParameter("appversion", appVersion)
                     },
                     """
                         DELETE FROM favorited_by
@@ -508,10 +504,8 @@ class AppStoreAsyncDao(
         newDescription: String?,
         newAuthors: List<String>?
     ) {
-        val normalizedAppName = appName.toLowerCase()
-        val normalizedAppVersion = appVersion.toLowerCase()
         ctx.withSession { session ->
-            val existing = internalByNameAndVersion(session, normalizedAppName, normalizedAppVersion) ?: throw ApplicationException.NotFound()
+            val existing = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
             if (!canUserPerformWriteOperation(
                     existing.getField(ApplicationTable.owner),
                     user
@@ -524,8 +518,8 @@ class AppStoreAsyncDao(
                     {
                         setParameter("newdesc", newDescription)
                         setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors ?: existingApplication.metadata.authors))
-                        setParameter("name", normalizedAppName)
-                        setParameter("version", normalizedAppVersion)
+                        setParameter("name", appName)
+                        setParameter("version", appVersion)
                     },
                     """
                         UPDATE applications
@@ -535,11 +529,11 @@ class AppStoreAsyncDao(
                 )
         }
         // We allow for this to be cached for some time. But this instance might as well clear the cache now.
-        byNameAndVersionCache.remove(NameAndVersion(normalizedAppName, normalizedAppVersion))
+        byNameAndVersionCache.remove(NameAndVersion(appName, appVersion))
     }
 
     suspend fun isOwnerOfApplication(ctx: DBContext, user: SecurityPrincipal, appName: String): Boolean =
-        ctx.withSession {session -> findOwnerOfApplication(session, appName.toLowerCase())!! == user.username}
+        ctx.withSession {session -> findOwnerOfApplication(session, appName)!! == user.username}
 
 
     suspend fun preparePageForUser(
@@ -705,11 +699,34 @@ class AppStoreAsyncDao(
                     {
                         setParameter("names", names)
                         setParameter("versions", versions)
+                        setParameter("username", user.username)
+                        setParameter("project", project)
+                        setParameter("groups", projectGroups)
+                        setParameter("isAdmin", user.role.name == "ADMIN")
                     },
                     """
                         SELECT *
-                        FROM app_store.applications
-                        WHERE (name, version) IN (select unnest(:names::text[]), unnest(:versions::text[]))
+                        FROM app_store.applications as A LEFT JOIN app_store.permissions as P on A.name = P.application_name
+                        WHERE (lower(name), lower(version)) IN (select unnest(:names::text[]), unnest(:versions::text[]))
+                            AND (
+                                    (
+                                        is_public
+                                    )
+                                OR
+                                    (
+                                        cast(:project as text) is null AND username = :username
+                                    )
+                                OR
+                                    (
+                                        cast(:project as text) is not null
+                                            AND project = cast(:project as text)
+                                            AND project_group in (:groups)
+                                    )
+                                OR  
+                                    (
+                                        :isAdmin
+                                    )
+                            )
                     """
                 )
                 .rows

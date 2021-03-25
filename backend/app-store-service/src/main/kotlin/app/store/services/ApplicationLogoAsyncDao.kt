@@ -15,22 +15,21 @@ class ApplicationLogoAsyncDao(
 ) {
 
     suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, appName: String, imageBytes: ByteArray) {
-        val normalizedAppName = appName.toLowerCase()
         val applicationOwner = ctx.withSession { session ->
-            findOwnerOfApplication(session, normalizedAppName) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            findOwnerOfApplication(session, appName) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
 
         if (user != null && applicationOwner != user.username && user.role != Role.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        val exists = fetchLogo(ctx, normalizedAppName)
+        val exists = fetchLogo(ctx, appName)
         if (exists != null) {
             ctx.withSession { session ->
                 session.sendPreparedStatement(
                     {
                         setParameter("bytes", imageBytes)
-                        setParameter("appname", normalizedAppName)
+                        setParameter("appname", appName)
                     },
                     """
                         UPDATE application_logos
@@ -42,7 +41,7 @@ class ApplicationLogoAsyncDao(
         } else {
             ctx.withSession { session ->
                 session.insert(ApplicationLogosTable) {
-                    set(ApplicationLogosTable.application, normalizedAppName)
+                    set(ApplicationLogosTable.application, appName)
                     set(ApplicationLogosTable.data, imageBytes)
                 }
             }
