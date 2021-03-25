@@ -20,8 +20,15 @@ data class NativeStat(
     val size: Long,
     val modifiedAt: Long,
     val fileType: FileType,
-    val ownerUid: Int
+    val ownerUid: Int,
+    val mode: Int
 )
+
+enum class CopyResult {
+    CREATED_FILE,
+    CREATED_DIRECTORY,
+    NOTHING_TO_CREATE,
+}
 
 const val LINUX_FS_USER_UID = 11042
 
@@ -187,40 +194,73 @@ object NativeFS : Loggable {
         }
     }
 
-    fun copy(source: InternalFile, destination: InternalFile, replaceExisting: Boolean) {
+    fun copy(
+        source: InternalFile,
+        destination: InternalFile,
+        replaceExisting: Boolean,
+        owner: Int? = LINUX_FS_USER_UID,
+    ): CopyResult {
         if (Platform.isLinux()) {
-            val sourceFd = openFile(source)
-            val destParentFd = openFile(destination.parent())
-            try {
-                if (sourceFd == -1 || destParentFd == -1) throw FSException.NotFound()
-                val sourceStat = nativeStat(sourceFd, autoClose = false)
-                if (sourceStat.fileType == FileType.FILE) {
-                    var opts = O_NOFOLLOW or O_TRUNC or O_CREAT or O_WRONLY
-                    if (!replaceExisting) opts = opts or O_EXCL
-                    val destFd = CLibrary.INSTANCE.openat(destParentFd, destination.fileName(), opts, DEFAULT_FILE_MODE)
-                    if (destFd < 0) {
-                        CLibrary.INSTANCE.close(destFd)
-                        throw FSException.NotFound()
-                    }
-
-                    LinuxInputStream(sourceFd).use { ins ->
-                        LinuxOutputStream(destFd).use { outs ->
-                            ins.copyTo(outs)
+            with(CLibrary.INSTANCE) {
+                val sourceFd = openFile(source)
+                val destParentFd = openFile(destination.parent())
+                try {
+                    if (sourceFd == -1 || destParentFd == -1) throw FSException.NotFound()
+                    val sourceStat = nativeStat(sourceFd, autoClose = false)
+                    val fileName = destination.fileName()
+                    if (sourceStat.fileType == FileType.FILE) {
+                        var opts = O_NOFOLLOW or O_TRUNC or O_CREAT or O_WRONLY
+                        if (!replaceExisting) opts = opts or O_EXCL
+                        val destFd = openat(destParentFd, fileName, opts, DEFAULT_FILE_MODE)
+                        if (destFd < 0) {
+                            close(destFd)
+                            throw FSException.NotFound()
                         }
+
+                        LinuxInputStream(sourceFd).use { ins ->
+                            val outs = LinuxOutputStream(destFd)
+                            ins.copyTo(outs)
+                            fchmod(destFd, sourceStat.mode)
+                            outs.close()
+                        }
+                        return CopyResult.CREATED_FILE
+                    } else if (sourceStat.fileType == FileType.DIRECTORY) {
+                        val destFd = openat(destParentFd, fileName, O_NOFOLLOW, 0)
+                        if (destFd >= 0 || Native.getLastError() != ENOENT) {
+                            val destStat = nativeStat(destFd)
+                            if (destStat.fileType == FileType.DIRECTORY) return CopyResult.CREATED_DIRECTORY
+                            throw FSException.IsDirectoryConflict()
+                        }
+
+                        mkdirat(destParentFd, fileName, DEFAULT_DIR_MODE)
+                        if (owner != null) {
+                            val fd = openat(destParentFd, fileName, O_NOFOLLOW, 0)
+                            if (fd < 0) {
+                                throw FSException.CriticalException("Directory disappeared after creation")
+                            }
+
+                            fchown(fd, owner, owner)
+                            close(fd)
+                        }
+
+                        return CopyResult.CREATED_DIRECTORY
+                    } else {
+                        return CopyResult.NOTHING_TO_CREATE
                     }
-                } else if (sourceStat.fileType == FileType.DIRECTORY) {
-                    TODO()
+                } finally {
+                    close(sourceFd)
+                    close(destParentFd)
                 }
-            } finally {
-                CLibrary.INSTANCE.close(sourceFd)
-                CLibrary.INSTANCE.close(destParentFd)
             }
         } else {
+            val file = File(source.path)
             Files.copy(
-                File(source.path).toPath(),
+                file.toPath(),
                 File(destination.path).toPath(),
                 *(if (replaceExisting) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray())
             )
+            return if (file.isDirectory) CopyResult.CREATED_DIRECTORY
+            else CopyResult.CREATED_FILE
         }
     }
 
@@ -295,7 +335,7 @@ object NativeFS : Loggable {
     }
 
     fun listFiles(file: InternalFile): List<String> {
-        if (Platform.isLinux()){
+        if (Platform.isLinux()) {
             with(CLibrary.INSTANCE) {
                 val fd = openFile(file)
                 if (fd < 0) {
@@ -389,7 +429,7 @@ object NativeFS : Loggable {
             }
 
             val modifiedAt = (basicAttributes.getValue("lastModifiedTime") as FileTime).toMillis()
-            return NativeStat(size, modifiedAt, fileType, LINUX_FS_USER_UID)
+            return NativeStat(size, modifiedAt, fileType, LINUX_FS_USER_UID, DEFAULT_FILE_MODE)
         }
     }
 
@@ -409,7 +449,8 @@ object NativeFS : Loggable {
             st.st_size,
             (st.m_sec * 1000) + (st.m_nsec / 1_000_000),
             if (st.st_mode and S_ISREG == 0) FileType.DIRECTORY else FileType.FILE,
-            st.st_uid
+            st.st_uid,
+            st.st_mode
         )
     }
 
