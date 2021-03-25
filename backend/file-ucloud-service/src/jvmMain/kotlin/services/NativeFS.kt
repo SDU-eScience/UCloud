@@ -4,6 +4,7 @@ import com.sun.jna.Native
 import com.sun.jna.Platform
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.service.Loggable
+import io.ktor.utils.io.pool.*
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
@@ -24,10 +25,10 @@ data class NativeStat(
     val mode: Int
 )
 
-enum class CopyResult {
-    CREATED_FILE,
-    CREATED_DIRECTORY,
-    NOTHING_TO_CREATE,
+sealed class CopyResult {
+    object CreatedFile : CopyResult()
+    class CreatedDirectory(val outputFile: InternalFile) : CopyResult()
+    object NothingToCreate : CopyResult()
 }
 
 const val LINUX_FS_USER_UID = 11042
@@ -200,6 +201,7 @@ object NativeFS : Loggable {
         replaceExisting: Boolean,
         owner: Int? = LINUX_FS_USER_UID,
     ): CopyResult {
+        println("Copy $source -> $destination")
         if (Platform.isLinux()) {
             with(CLibrary.INSTANCE) {
                 val sourceFd = openFile(source)
@@ -223,12 +225,12 @@ object NativeFS : Loggable {
                             fchmod(destFd, sourceStat.mode)
                             outs.close()
                         }
-                        return CopyResult.CREATED_FILE
+                        return CopyResult.CreatedFile
                     } else if (sourceStat.fileType == FileType.DIRECTORY) {
                         val destFd = openat(destParentFd, fileName, O_NOFOLLOW, 0)
                         if (destFd >= 0 || Native.getLastError() != ENOENT) {
                             val destStat = nativeStat(destFd)
-                            if (destStat.fileType == FileType.DIRECTORY) return CopyResult.CREATED_DIRECTORY
+                            if (destStat.fileType == FileType.DIRECTORY) return CopyResult.CreatedDirectory(destination)
                             throw FSException.IsDirectoryConflict()
                         }
 
@@ -243,9 +245,9 @@ object NativeFS : Loggable {
                             close(fd)
                         }
 
-                        return CopyResult.CREATED_DIRECTORY
+                        return CopyResult.CreatedDirectory(destination)
                     } else {
-                        return CopyResult.NOTHING_TO_CREATE
+                        return CopyResult.NothingToCreate
                     }
                 } finally {
                     close(sourceFd)
@@ -259,8 +261,8 @@ object NativeFS : Loggable {
                 File(destination.path).toPath(),
                 *(if (replaceExisting) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray())
             )
-            return if (file.isDirectory) CopyResult.CREATED_DIRECTORY
-            else CopyResult.CREATED_FILE
+            return if (file.isDirectory) CopyResult.CreatedDirectory(destination)
+            else CopyResult.CreatedFile
         }
     }
 
@@ -388,6 +390,70 @@ object NativeFS : Loggable {
             Files.delete(File(file.path).toPath())
         }
     }
+
+    fun getExtendedAttribute(file: InternalFile, attribute: String): String {
+        return if (Platform.isLinux()) {
+            val fd = openFile(file)
+            try {
+                getExtendedAttribute(fd, attribute)
+            } finally {
+                CLibrary.INSTANCE.close(fd)
+            }
+        } else {
+            DefaultByteArrayPool.useInstance {
+                val read = XAttrOSX.INSTANCE.getxattr(file.path, attribute, it, it.size, 0, 0)
+                if (read < 0) throw NativeException(Native.getLastError())
+                String(it, 0, read, Charsets.UTF_8)
+            }
+        }
+    }
+
+    private fun getExtendedAttribute(fd: Int, attribute: String): String {
+        require(Platform.isLinux())
+        return DefaultByteArrayPool.useInstance { buf ->
+            val xattrSize = CLibrary.INSTANCE.fgetxattr(fd, attribute, buf, buf.size)
+            if (xattrSize < 0) throw NativeException(Native.getLastError())
+            String(buf, 0, xattrSize, Charsets.UTF_8)
+        }
+    }
+
+    /*
+    fun setExtendedAttribute(path: File, attribute: String, value: String, allowOverwrite: Boolean): Int {
+        val bytes = value.toByteArray()
+
+        if (Platform.isLinux()) {
+            val fd = openFile(path.absolutePath)
+            try {
+                return CLibrary.INSTANCE.fsetxattr(fd, attribute, bytes, bytes.size, if (!allowOverwrite) 1 else 0)
+            } finally {
+                CLibrary.INSTANCE.close(fd)
+            }
+        } else {
+            return XAttrOSX.INSTANCE.setxattr(
+                path.absolutePath,
+                attribute,
+                bytes,
+                bytes.size,
+                0,
+                if (!allowOverwrite) 2 else 0
+            )
+        }
+    }
+
+    fun removeExtendedAttribute(path: File, attribute: String) {
+        if (Platform.isLinux()) {
+            val fd = openFile(path.absolutePath)
+            try {
+                CLibrary.INSTANCE.fremovexattr(fd, attribute)
+            } finally {
+                CLibrary.INSTANCE.close(fd)
+            }
+        } else {
+            XAttrOSX.INSTANCE.removexattr(path.absolutePath, attribute, 0)
+        }
+    }
+     */
+
 
     fun readNativeFilePermissons(file: InternalFile): Int {
         return if (Platform.isLinux()) {

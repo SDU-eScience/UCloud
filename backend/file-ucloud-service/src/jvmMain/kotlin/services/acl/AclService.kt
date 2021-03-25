@@ -24,6 +24,10 @@ fun homeFolder(username: String): String {
 const val PERSONAL_REPOSITORY = "Members' Files"
 val SERVICE_USER = "_storage"
 
+interface AclService {
+
+}
+
 /**
  * UCloud uses Access Control Lists (ACLs) for controlling access to files and directories.
  *
@@ -44,7 +48,7 @@ val SERVICE_USER = "_storage"
  *
  * All users are implicitly granted full permissions to their own home directory.
  */
-class AclService(
+class AclServiceImpl(
     private val metadataService: MetadataService,
     private val serviceClient: AuthenticatedClient,
     private val projectCache: ProjectCache,

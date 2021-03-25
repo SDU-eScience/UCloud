@@ -85,9 +85,10 @@ class BackgroundScope : CoroutineScope {
         if (executor != null) {
             log.info("Resetting BackgroundScope")
             stop()
-            while (!executor.isShutdown) {
+            while (!executor.isShutdown && !executor.isTerminated) {
                 Thread.sleep(10)
             }
+            log.debug("BackgroundScope is ready")
         }
 
         init()
