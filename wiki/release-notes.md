@@ -10,6 +10,7 @@ For details look in the `k8.kts` folders of each microservice.
 ## 25-03-21
 
 ```
+✅  Deployment(webclient, 0.44.9) (UP-TO-DATE)
 ✅  Deployment(share, 1.10.3) (UP-TO-DATE)
 ```
 
