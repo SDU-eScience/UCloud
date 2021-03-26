@@ -120,16 +120,16 @@ class CopyTaskTest {
 
     @Test
     fun `test copy of directory, with nesting, with concurrency`() = t {
-        val numberOfDirs = 10
-        val numberOfFilesPerDir = 10
+        val numberOfDirs = 100
+        val numberOfFilesPerDir = 1_000
         val sourceFile: InternalFile
         val destinationFile: InternalFile
         createHome(TestUsers.user.username).apply {
             sourceFile = createDirectory("source").apply {
-                repeat(numberOfDirs) {
-                    createDirectory("dir-$it").apply {
+                repeat(numberOfDirs) { outer ->
+                    createDirectory("dir-$outer").apply {
                         repeat(numberOfFilesPerDir) {
-                            createFile("file-$it")
+                            createFile("file-$outer-$it")
                         }
                     }
                 }
