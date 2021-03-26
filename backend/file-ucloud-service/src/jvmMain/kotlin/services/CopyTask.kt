@@ -38,7 +38,7 @@ const val COPY_REQUIREMENTS_HARD_TIME_LIMIT = 2000
 class CopyTask(
     private val aclService: AclService,
     private val queries: FileQueries,
-    private val scope: BackgroundScope,
+    private val backgroundScope: BackgroundScope,
 ) : TaskHandler {
     override fun canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
         return name == Files.copy.fullName && runCatching {
@@ -109,65 +109,67 @@ class CopyTask(
 
         val idleCount = AtomicInteger(0)
         val numberOfCoroutines = if (requirements.hardLimitReached) 10 else 1
-        (0 until numberOfCoroutines).map {
-            scope.launch {
-                var didReportIdle = false
-                while (isActive) {
-                    val nextItem = channel.poll()
-                    if (nextItem == null) {
-                        // NOTE(Dan): We don't know if we have run out of files or if there are simply no more work
-                        // right now. To deal with this, we keep a count of idle workers. If all workers report that
-                        // they are idle, then we must have run out of work.
-                        val newIdleCount =
-                            if (!didReportIdle) {
-                                didReportIdle = true
-                                idleCount.incrementAndGet()
-                            } else {
-                                idleCount.get()
+        coroutineScope {
+            (0 until numberOfCoroutines).map {
+                launch(backgroundScope.dispatcher) {
+                    var didReportIdle = false
+                    while (isActive) {
+                        val nextItem = channel.poll()
+                        if (nextItem == null) {
+                            // NOTE(Dan): We don't know if we have run out of files or if there are simply no more work
+                            // right now. To deal with this, we keep a count of idle workers. If all workers report that
+                            // they are idle, then we must have run out of work.
+                            val newIdleCount =
+                                if (!didReportIdle) {
+                                    didReportIdle = true
+                                    idleCount.incrementAndGet()
+                                } else {
+                                    idleCount.get()
+                                }
+
+                            if (newIdleCount == numberOfCoroutines) {
+                                break // break before the delay
+                            }
+                            delay(10)
+                            continue
+                        }
+
+                        if (didReportIdle) {
+                            didReportIdle = false
+                            idleCount.decrementAndGet()
+                        }
+                        val result = try {
+                            NativeFS.copy(
+                                InternalFile(nextItem.oldPath),
+                                InternalFile(nextItem.newPath),
+                                nextItem.conflictPolicy
+                            )
+                        } catch (ex: FSException) {
+                            if (log.isDebugEnabled) {
+                                log.debug("Caught an exception while copying files: ${ex.printStackTrace()}")
+                            }
+                            continue
+                        }
+
+                        // TODO We need to rename if needed
+
+                        if (result is CopyResult.CreatedDirectory) {
+                            val outputFile = result.outputFile
+                            val childrenFileNames = try {
+                                NativeFS.listFiles(InternalFile(nextItem.oldPath))
+                            } catch (ex: FSException) {
+                                emptyList()
                             }
 
-                        if (newIdleCount == numberOfCoroutines) {
-                            break // break before the delay
-                        }
-                        delay(10)
-                        continue
-                    }
-
-                    if (didReportIdle) {
-                        didReportIdle = false
-                        idleCount.decrementAndGet()
-                    }
-                    val result = try {
-                        NativeFS.copy(
-                            InternalFile(nextItem.oldPath),
-                            InternalFile(nextItem.newPath),
-                            nextItem.conflictPolicy.allowsOverwrite()
-                        )
-                    } catch (ex: FSException) {
-                        if (log.isDebugEnabled) {
-                            log.debug("Caught an exception while copying files: ${ex.printStackTrace()}")
-                        }
-                        continue
-                    }
-
-                    // TODO We need to rename if needed
-
-                    if (result is CopyResult.CreatedDirectory) {
-                        val outputFile = result.outputFile
-                        val childrenFileNames = try {
-                            NativeFS.listFiles(InternalFile(nextItem.oldPath))
-                        } catch (ex: FSException) {
-                            emptyList()
-                        }
-
-                        for (childFileName in childrenFileNames) {
-                            channel.send(
-                                FileToCopy(
-                                    nextItem.oldPath + "/" + childFileName,
-                                    outputFile.path + "/" + childFileName,
-                                    nextItem.conflictPolicy
+                            for (childFileName in childrenFileNames) {
+                                channel.send(
+                                    FileToCopy(
+                                        nextItem.oldPath + "/" + childFileName,
+                                        outputFile.path + "/" + childFileName,
+                                        nextItem.conflictPolicy
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }

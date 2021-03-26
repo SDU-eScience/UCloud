@@ -116,9 +116,7 @@ object NativeFS : Loggable {
                             conflictPolicy,
                             isDirectory = false
                         )
-                        if (destFd < 0) {
-                            throw FSException.NotFound()
-                        }
+                        if (destFd < 0) throw FSException.CriticalException("Unable to create file")
 
                         val ins = LinuxInputStream(sourceFd) // Closed later
                         LinuxOutputStream(destFd).use { outs ->
@@ -136,7 +134,7 @@ object NativeFS : Loggable {
                         }
 
                         return CopyResult.CreatedDirectory(
-                            InternalFile(joinPath(parentFile.path.removeSuffix("/"), result.first))
+                            InternalFile(joinPath(parentFile.path.removeSuffix("/"), result.first).removeSuffix("/"))
                         )
                     } else {
                         return CopyResult.NothingToCreate
@@ -151,7 +149,8 @@ object NativeFS : Loggable {
             Files.copy(
                 file.toPath(),
                 File(destination.path).toPath(),
-                *(if (conflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray())
+                *(if (conflictPolicy == WriteConflictPolicy.REPLACE) arrayOf(StandardCopyOption.REPLACE_EXISTING)
+                else emptyArray())
             )
             return if (file.isDirectory) CopyResult.CreatedDirectory(destination)
             else CopyResult.CreatedFile
@@ -225,7 +224,7 @@ object NativeFS : Loggable {
         fun createDirAndOpen(name: String): Pair<String, Int>? {
             // If it doesn't exist everything is good. Create the directory and return the name + fd.
             val status = CLibrary.INSTANCE.mkdirat(parentFd, name, DEFAULT_DIR_MODE)
-            if (status > 0) {
+            if (status >= 0) {
                 val fd = CLibrary.INSTANCE.openat(parentFd, name, O_NOFOLLOW, DEFAULT_DIR_MODE)
                 if (fd >= 0) return Pair(name, fd)
 
@@ -239,7 +238,7 @@ object NativeFS : Loggable {
         var oflags = O_NOFOLLOW
         if (!isDirectory) {
             oflags = oflags or O_TRUNC or O_CREAT or O_WRONLY
-            if (!conflictPolicy.allowsOverwrite()) oflags = oflags or O_EXCL
+            if (conflictPolicy != WriteConflictPolicy.REPLACE) oflags = oflags or O_EXCL
         } else {
             oflags = oflags or O_DIRECTORY
         }
@@ -249,18 +248,23 @@ object NativeFS : Loggable {
             if (desiredFd >= 0) return Pair(desiredFileName, desiredFd)
         } else {
             // If it exists and we allow overwrite then just return the open directory
-            if (conflictPolicy.allowsOverwrite() && desiredFd >= 0) {
+            if (
+                (conflictPolicy == WriteConflictPolicy.REPLACE || conflictPolicy == WriteConflictPolicy.MERGE_RENAME) &&
+                desiredFd >= 0
+            ) {
                 return Pair(desiredFileName, desiredFd)
             } else if (desiredFd < 0) {
                 val result = createDirAndOpen(desiredFileName)
                 if (result != null) return result
+            } else {
+                CLibrary.INSTANCE.close(desiredFd) // We don't need this one
             }
 
             // We need to create a differently named directory (see below)
         }
 
         if (conflictPolicy == WriteConflictPolicy.REJECT) throw FSException.AlreadyExists()
-        check(conflictPolicy == WriteConflictPolicy.RENAME)
+        check(conflictPolicy == WriteConflictPolicy.RENAME || conflictPolicy == WriteConflictPolicy.MERGE_RENAME)
 
         for (attempt in 1 until 10_000) { // NOTE(Dan): We put an upper-limit to avoid looping 'forever'
             val filenameWithoutExtension = desiredFileName.substringBeforeLast('.')
@@ -279,7 +283,7 @@ object NativeFS : Loggable {
             }
             val attemptedFd = CLibrary.INSTANCE.openat(parentFd, newName, oflags, mode)
             if (!isDirectory) {
-                if (attemptedFd >= 0) return Pair(newName, desiredFd)
+                if (attemptedFd >= 0) return Pair(newName, attemptedFd)
             } else {
                 val result = createDirAndOpen(newName)
                 if (result != null) return result

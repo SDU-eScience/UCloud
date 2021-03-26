@@ -56,9 +56,9 @@ fun InternalFile.pointerToFile(relativeFile: String): InternalFile {
     return InternalFile(file.absolutePath)
 }
 
-fun InternalFile.createFile(relativeFile: String): InternalFile {
+fun InternalFile.createFile(relativeFile: String, content: ByteArray = ByteArray(1)): InternalFile {
     val file = File(path, relativeFile)
-    file.writeBytes(ByteArray(1))
+    file.writeBytes(content)
     return InternalFile(file.absolutePath)
 }
 

@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.Files
@@ -12,6 +13,7 @@ import dk.sdu.cloud.file.ucloud.*
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatInstance
+import io.ktor.http.*
 import io.mockk.InternalPlatformDsl.toStr
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -156,5 +158,84 @@ class CopyTaskTest {
             assertThatInstance(dir, "Should contain a directory (dir-$it)") { dir.exists() }
             assertThatInstance(dirList, "Should contain $numberOfFilesPerDir files") { it.size == numberOfFilesPerDir }
         }
+    }
+
+    @Test
+    fun `test copy with conflict and rejection`() = t {
+        val sourceFile: InternalFile
+        val destinationFile: InternalFile
+        val file1Payload = "original fie".encodeToByteArray()
+        val file2Payload = "original fie2".encodeToByteArray()
+        createHome(TestUsers.user.username).apply {
+            sourceFile = createFile("fie", file1Payload)
+            destinationFile = createFile("fie2", file2Payload)
+        }
+
+        val task = createStorageTask(
+            bulkRequestOf(
+                FilesCopyRequestItem(
+                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
+                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    WriteConflictPolicy.REJECT
+                )
+            )
+        )
+
+        copyTask.execute(Actor.System, task)
+        assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
+        assertTrue(File(destinationFile.path).readBytes().contentEquals(file2Payload))
+    }
+
+    @Test
+    fun `test copy with conflict and replace`() = t {
+        val sourceFile: InternalFile
+        val destinationFile: InternalFile
+        val file1Payload = "original fie".encodeToByteArray()
+        val file2Payload = "original fie2".encodeToByteArray()
+        createHome(TestUsers.user.username).apply {
+            sourceFile = createFile("fie", file1Payload)
+            destinationFile = createFile("fie2", file2Payload)
+        }
+
+        val task = createStorageTask(
+            bulkRequestOf(
+                FilesCopyRequestItem(
+                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
+                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    WriteConflictPolicy.REPLACE
+                )
+            )
+        )
+
+        copyTask.execute(Actor.System, task)
+        assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
+        assertTrue(File(destinationFile.path).readBytes().contentEquals(file1Payload))
+    }
+
+    @Test
+    fun `test copy with conflict and rename`() = t {
+        val sourceFile: InternalFile
+        val destinationFile: InternalFile
+        val file1Payload = "original fie".encodeToByteArray()
+        val file2Payload = "original fie2".encodeToByteArray()
+        val home = createHome(TestUsers.user.username).apply {
+            sourceFile = createFile("fie", file1Payload)
+            destinationFile = createFile("fie2", file2Payload)
+        }
+
+        val task = createStorageTask(
+            bulkRequestOf(
+                FilesCopyRequestItem(
+                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
+                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    WriteConflictPolicy.RENAME
+                )
+            )
+        )
+
+        copyTask.execute(Actor.System, task)
+        assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
+        assertTrue(File(destinationFile.path).readBytes().contentEquals(file2Payload))
+        assertTrue(File(home.path, "fie2(1)").readBytes().contentEquals(file1Payload))
     }
 }

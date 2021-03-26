@@ -366,10 +366,14 @@ enum class WriteConflictPolicy {
     @UCloudApiDoc("UCloud should replace the existing file")
     REPLACE,
 
-    @UCloudApiDoc("Attempt to merge the results. This might not be supported for all operations.")
-    MERGE;
+    @UCloudApiDoc(""""Attempt to merge the results
+        
+This will result in the merging of folders. Concretely this means that _directory_ conflicts will be resolved by
+re-using the existing directory. If there any file conflicts in the operation then this will act identical to `RENAME`.
 
-    fun allowsOverwrite(): Boolean = this == REPLACE || this == MERGE
+Note: This mode is not supported for all operations.
+"""")
+    MERGE_RENAME
 }
 
 interface FileCollectionIncludeFlags {
