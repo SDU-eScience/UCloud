@@ -30,7 +30,10 @@ class CopyTaskTest {
         return StorageTask(
             UUID.randomUUID().toStr(),
             Files.copy.fullName,
-            defaultMapper.encodeToJsonElement(CopyTaskRequirements(1, hardLimitReached)) as JsonObject,
+            TaskRequirements(
+                hardLimitReached,
+                defaultMapper.encodeToJsonElement(CopyTaskRequirements(1)) as JsonObject
+            ),
             defaultMapper.encodeToJsonElement(request) as JsonObject,
             JsonObject(emptyMap()),
             TestUsers.user.username,

@@ -29,7 +29,6 @@ private data class FileToCopy(
 @Serializable
 data class CopyTaskRequirements(
     val fileCount: Int?,
-    val hardLimitReached: Boolean,
 )
 
 const val COPY_REQUIREMENTS_HARD_LIMIT = 10_000
@@ -51,7 +50,7 @@ class CopyTask(
         name: String,
         request: JsonObject,
         maxTime: Long?,
-    ): JsonObject {
+    ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(request)
 
         // Check permissions
@@ -86,14 +85,16 @@ class CopyTask(
         }
 
         val hardLimitReached = fileCount >= COPY_REQUIREMENTS_HARD_LIMIT
-        return defaultMapper.encodeToJsonElement(
-            CopyTaskRequirements(if (hardLimitReached) -1 else fileCount, hardLimitReached)
-        ) as JsonObject
+        return TaskRequirements(
+            hardLimitReached,
+            defaultMapper.encodeToJsonElement(
+                CopyTaskRequirements(if (hardLimitReached) -1 else fileCount)
+            ) as JsonObject
+        )
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun execute(actor: Actor, task: StorageTask) {
-        val requirements = defaultMapper.decodeFromJsonElement<CopyTaskRequirements>(task.requirements)
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(task.rawRequest)
 
         val channel = Channel<FileToCopy>(Channel.UNLIMITED)
@@ -108,7 +109,7 @@ class CopyTask(
         }
 
         val idleCount = AtomicInteger(0)
-        val numberOfCoroutines = if (requirements.hardLimitReached) 10 else 1
+        val numberOfCoroutines = if (task.requirements.scheduleInBackground) 10 else 1
         coroutineScope {
             (0 until numberOfCoroutines).map {
                 launch(backgroundScope.dispatcher) {
