@@ -3,6 +3,8 @@ package dk.sdu.cloud.file.ucloud.services
 import com.sun.jna.Native
 import com.sun.jna.Platform
 import dk.sdu.cloud.file.orchestrator.api.FileType
+import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
+import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.service.Loggable
 import io.ktor.utils.io.pool.*
 import java.io.File
@@ -14,7 +16,6 @@ import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
@@ -41,6 +42,7 @@ object NativeFS : Loggable {
     private const val O_EXCL = 0x80
     private const val O_WRONLY = 0x1
     private const val O_RDONLY = 0x0
+    private const val O_DIRECTORY = 0x10000
     private const val ENOENT = 2
     private const val ENOTEMPTY = 39
     const val DEFAULT_DIR_MODE = 488 // 0750
@@ -95,54 +97,47 @@ object NativeFS : Loggable {
     fun copy(
         source: InternalFile,
         destination: InternalFile,
-        replaceExisting: Boolean,
+        conflictPolicy: WriteConflictPolicy,
         owner: Int? = LINUX_FS_USER_UID,
     ): CopyResult {
         if (Platform.isLinux()) {
             with(CLibrary.INSTANCE) {
                 val sourceFd = openFile(source)
-                val destParentFd = openFile(destination.parent())
+                val parentFile = destination.parent()
+                val destParentFd = openFile(parentFile)
                 try {
                     if (sourceFd == -1 || destParentFd == -1) throw FSException.NotFound()
                     val sourceStat = nativeStat(sourceFd, autoClose = false)
                     val fileName = destination.fileName()
                     if (sourceStat.fileType == FileType.FILE) {
-                        var opts = O_NOFOLLOW or O_TRUNC or O_CREAT or O_WRONLY
-                        if (!replaceExisting) opts = opts or O_EXCL
-                        val destFd = openat(destParentFd, fileName, opts, DEFAULT_FILE_MODE)
+                        val (destFilename, destFd) = createAccordingToPolicy(
+                            destParentFd,
+                            fileName,
+                            conflictPolicy,
+                            isDirectory = false
+                        )
                         if (destFd < 0) {
                             throw FSException.NotFound()
                         }
 
                         val ins = LinuxInputStream(sourceFd) // Closed later
-                        val outs = LinuxOutputStream(destFd)
-                        try {
+                        LinuxOutputStream(destFd).use { outs ->
                             ins.copyTo(outs)
                             fchmod(destFd, sourceStat.mode)
-                        } finally {
-                            outs.close()
                         }
                         return CopyResult.CreatedFile
                     } else if (sourceStat.fileType == FileType.DIRECTORY) {
-                        val destFd = openat(destParentFd, fileName, O_NOFOLLOW, 0)
-                        if (destFd >= 0 || Native.getLastError() != ENOENT) {
-                            val destStat = nativeStat(destFd)
-                            if (destStat.fileType == FileType.DIRECTORY) return CopyResult.CreatedDirectory(destination)
-                            throw FSException.IsDirectoryConflict()
+                        val result = createAccordingToPolicy(destParentFd, fileName, conflictPolicy, isDirectory = true)
+
+                        try {
+                            if (owner != null) fchown(result.second, owner, owner)
+                        } finally {
+                            close(result.second)
                         }
 
-                        mkdirat(destParentFd, fileName, DEFAULT_DIR_MODE)
-                        if (owner != null) {
-                            val fd = openat(destParentFd, fileName, O_NOFOLLOW, 0)
-                            if (fd < 0) {
-                                throw FSException.CriticalException("Directory disappeared after creation")
-                            }
-
-                            fchown(fd, owner, owner)
-                            close(fd)
-                        }
-
-                        return CopyResult.CreatedDirectory(destination)
+                        return CopyResult.CreatedDirectory(
+                            InternalFile(joinPath(parentFile.path.removeSuffix("/"), result.first))
+                        )
                     } else {
                         return CopyResult.NothingToCreate
                     }
@@ -156,7 +151,7 @@ object NativeFS : Loggable {
             Files.copy(
                 file.toPath(),
                 File(destination.path).toPath(),
-                *(if (replaceExisting) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray())
+                *(if (conflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray())
             )
             return if (file.isDirectory) CopyResult.CreatedDirectory(destination)
             else CopyResult.CreatedFile
@@ -183,7 +178,7 @@ object NativeFS : Loggable {
                     val ent = readdir(dir) ?: break
                     // Read unsized string at end of struct. The ABI for this function leaves the size completely
                     // undefined.
-                    val name = ent.pointer.getString(19)
+                    val name = ent.pointer.getString(19) // 19 (bytes) is the offset in the struct
                     if (name == "." || name == "..") continue
                     result.add(name)
                 }
@@ -217,6 +212,81 @@ object NativeFS : Loggable {
             st.st_uid,
             st.st_mode
         )
+    }
+
+    private fun createAccordingToPolicy(
+        parentFd: Int,
+        desiredFileName: String,
+        conflictPolicy: WriteConflictPolicy,
+        isDirectory: Boolean,
+    ): Pair<String, Int> {
+        val mode = if (isDirectory) DEFAULT_DIR_MODE else DEFAULT_FILE_MODE
+
+        fun createDirAndOpen(name: String): Pair<String, Int>? {
+            // If it doesn't exist everything is good. Create the directory and return the name + fd.
+            val status = CLibrary.INSTANCE.mkdirat(parentFd, name, DEFAULT_DIR_MODE)
+            if (status > 0) {
+                val fd = CLibrary.INSTANCE.openat(parentFd, name, O_NOFOLLOW, DEFAULT_DIR_MODE)
+                if (fd >= 0) return Pair(name, fd)
+
+                // Very unexpected, but technically possible. Fall through to the naming step.
+            }
+
+            // The name was taken before we could complete our operation. Fall through to naming step.
+            return null
+        }
+
+        var oflags = O_NOFOLLOW
+        if (!isDirectory) {
+            oflags = oflags or O_TRUNC or O_CREAT or O_WRONLY
+            if (!conflictPolicy.allowsOverwrite()) oflags = oflags or O_EXCL
+        } else {
+            oflags = oflags or O_DIRECTORY
+        }
+
+        val desiredFd = CLibrary.INSTANCE.openat(parentFd, desiredFileName, oflags, mode)
+        if (!isDirectory) {
+            if (desiredFd >= 0) return Pair(desiredFileName, desiredFd)
+        } else {
+            // If it exists and we allow overwrite then just return the open directory
+            if (conflictPolicy.allowsOverwrite() && desiredFd >= 0) {
+                return Pair(desiredFileName, desiredFd)
+            } else if (desiredFd < 0) {
+                val result = createDirAndOpen(desiredFileName)
+                if (result != null) return result
+            }
+
+            // We need to create a differently named directory (see below)
+        }
+
+        if (conflictPolicy == WriteConflictPolicy.REJECT) throw FSException.AlreadyExists()
+        check(conflictPolicy == WriteConflictPolicy.RENAME)
+
+        for (attempt in 1 until 10_000) { // NOTE(Dan): We put an upper-limit to avoid looping 'forever'
+            val filenameWithoutExtension = desiredFileName.substringBeforeLast('.')
+            val extension = desiredFileName.substringAfterLast('.')
+            val hasExtension = desiredFileName.length != filenameWithoutExtension.length
+
+            val newName = buildString {
+                append(filenameWithoutExtension)
+                append("(")
+                append(attempt)
+                append(")")
+                if (hasExtension) {
+                    append('.')
+                    append(extension)
+                }
+            }
+            val attemptedFd = CLibrary.INSTANCE.openat(parentFd, newName, oflags, mode)
+            if (!isDirectory) {
+                if (attemptedFd >= 0) return Pair(newName, desiredFd)
+            } else {
+                val result = createDirAndOpen(newName)
+                if (result != null) return result
+            }
+        }
+
+        throw FSException.BadRequest("Too many files with this name exist: '$desiredFileName'")
     }
 
     private fun setMetadataForNewFile(
