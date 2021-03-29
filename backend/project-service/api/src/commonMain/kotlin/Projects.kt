@@ -282,7 +282,7 @@ object Projects : CallDescriptionContainer("project") {
     val viewMemberInProject =
         call<ViewMemberInProjectRequest, ViewMemberInProjectResponse, CommonErrorMessage>("viewMemberInProject") {
             auth {
-                roles = Roles.PRIVILEGED
+                roles = Roles.PRIVILEGED + Role.PROVIDER
                 access = AccessRight.READ
             }
 
