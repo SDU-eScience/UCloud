@@ -36,7 +36,7 @@ const val COPY_REQUIREMENTS_HARD_TIME_LIMIT = 2000
 
 class CopyTask(
     private val aclService: AclService,
-    private val queries: FileQueries,
+    private val queries: PathConverter,
     private val backgroundScope: BackgroundScope,
 ) : TaskHandler {
     override fun canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
@@ -55,8 +55,8 @@ class CopyTask(
 
         // Check permissions
         for (reqItem in realRequest.items) {
-            aclService.requirePermission(reqItem.oldPath, actor, FilePermission.READ)
-            aclService.requirePermission(reqItem.newPath, actor, FilePermission.WRITE)
+            aclService.requirePermission(actor, UCloudFile.create(reqItem.oldPath), FilePermission.READ)
+            aclService.requirePermission(actor, UCloudFile.create(reqItem.newPath), FilePermission.WRITE)
         }
 
         var fileCount = 0
@@ -64,8 +64,8 @@ class CopyTask(
         // TODO We need to check if the initial files even exist
         val pathStack = ArrayDeque(realRequest.items.map {
             FileToCopy(
-                queries.convertUCloudPathToInternalFile(UCloudFile(it.oldPath.normalize())).path,
-                queries.convertUCloudPathToInternalFile(UCloudFile(it.newPath.normalize())).path,
+                queries.ucloudToInternal(UCloudFile.create(it.oldPath)).path,
+                queries.ucloudToInternal(UCloudFile.create(it.newPath)).path,
                 it.conflictPolicy
             )
         })
@@ -75,10 +75,11 @@ class CopyTask(
             val nextItem = pathStack.removeFirstOrNull() ?: break
             fileCount++
 
-            val nestedFiles = queries.listInternalFilesOrNull(Actor.System, InternalFile(nextItem.oldPath)) ?: continue
-            nestedFiles.forEach {
-                val oldPath = it.path
-                val newPath = nextItem.newPath + "/" + it.path.removePrefix(nextItem.oldPath + "/")
+
+            val nestedFiles = runCatching { NativeFS.listFiles(InternalFile(nextItem.oldPath)) }.getOrNull() ?: continue
+            nestedFiles.forEach { fileName ->
+                val oldPath = nextItem.oldPath + "/" + fileName
+                val newPath = nextItem.newPath + "/" + fileName
 
                 pathStack.add(FileToCopy(oldPath, newPath, WriteConflictPolicy.REPLACE))
             }
@@ -101,8 +102,8 @@ class CopyTask(
         for (reqItem in realRequest.items) {
             channel.send(
                 FileToCopy(
-                    queries.convertUCloudPathToInternalFile(UCloudFile(reqItem.oldPath.normalize())).path,
-                    queries.convertUCloudPathToInternalFile(UCloudFile(reqItem.newPath.normalize())).path,
+                    queries.ucloudToInternal(UCloudFile.create(reqItem.oldPath)).path,
+                    queries.ucloudToInternal(UCloudFile.create(reqItem.newPath)).path,
                     reqItem.conflictPolicy,
                 )
             )
@@ -151,8 +152,6 @@ class CopyTask(
                             }
                             continue
                         }
-
-                        // TODO We need to rename if needed
 
                         if (result is CopyResult.CreatedDirectory) {
                             val outputFile = result.outputFile

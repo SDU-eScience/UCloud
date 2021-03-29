@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.Files
@@ -13,9 +12,7 @@ import dk.sdu.cloud.file.ucloud.*
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.*
 import io.mockk.InternalPlatformDsl.toStr
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import java.io.File
@@ -52,8 +49,8 @@ class CopyTaskTest {
 
         val task = createStorageTask(bulkRequestOf(
             FilesCopyRequestItem(
-                fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
-                fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                pathConverter.internalToUCloud(sourceFile).path,
+                pathConverter.internalToUCloud(destinationFile).path,
                 WriteConflictPolicy.REPLACE
             )
         ))
@@ -84,8 +81,8 @@ class CopyTaskTest {
         val task = createStorageTask(
             bulkRequestOf(
                 FilesCopyRequestItem(
-                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
-                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    pathConverter.internalToUCloud(sourceFile).path,
+                    pathConverter.internalToUCloud(destinationFile).path,
                     WriteConflictPolicy.REPLACE
                 )
             )
@@ -111,8 +108,8 @@ class CopyTaskTest {
         val task = createStorageTask(
             bulkRequestOf(
                 FilesCopyRequestItem(
-                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
-                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    pathConverter.internalToUCloud(sourceFile).path,
+                    pathConverter.internalToUCloud(destinationFile).path,
                     WriteConflictPolicy.REPLACE
                 )
             ),
@@ -145,8 +142,8 @@ class CopyTaskTest {
         val task = createStorageTask(
             bulkRequestOf(
                 FilesCopyRequestItem(
-                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
-                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    pathConverter.internalToUCloud(sourceFile).path,
+                    pathConverter.internalToUCloud(destinationFile).path,
                     WriteConflictPolicy.REPLACE
                 )
             ),
@@ -177,8 +174,8 @@ class CopyTaskTest {
         val task = createStorageTask(
             bulkRequestOf(
                 FilesCopyRequestItem(
-                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
-                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    pathConverter.internalToUCloud(sourceFile).path,
+                    pathConverter.internalToUCloud(destinationFile).path,
                     WriteConflictPolicy.REJECT
                 )
             )
@@ -203,8 +200,8 @@ class CopyTaskTest {
         val task = createStorageTask(
             bulkRequestOf(
                 FilesCopyRequestItem(
-                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
-                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    pathConverter.internalToUCloud(sourceFile).path,
+                    pathConverter.internalToUCloud(destinationFile).path,
                     WriteConflictPolicy.REPLACE
                 )
             )
@@ -229,8 +226,8 @@ class CopyTaskTest {
         val task = createStorageTask(
             bulkRequestOf(
                 FilesCopyRequestItem(
-                    fileQueries.convertInternalFileToUCloudPath(sourceFile).path,
-                    fileQueries.convertInternalFileToUCloudPath(destinationFile).path,
+                    pathConverter.internalToUCloud(sourceFile).path,
+                    pathConverter.internalToUCloud(destinationFile).path,
                     WriteConflictPolicy.RENAME
                 )
             )

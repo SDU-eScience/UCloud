@@ -62,7 +62,7 @@ data class FindByPath(override val path: String) : WithPath
 sealed class LongRunningTask<V> {
     @Serializable
     @SerialName("complete")
-    class Complete<V>(val result: V) : LongRunningTask<V>()
+    class Complete<V>/* (val result: V) */ : LongRunningTask<V>()
     @Serializable
     @SerialName("continues_in_background")
     class ContinuesInBackground<V>(val taskId: String) : LongRunningTask<V>()

@@ -74,6 +74,10 @@ sealed class AclEntity {
         val projectId: String,
         val group: String
     ) : AclEntity()
+
+    @Serializable
+    @SerialName("user")
+    data class User(val username: String) : AclEntity()
 }
 
 @UCloudApiDoc("""Describes the current state of the `Resource`

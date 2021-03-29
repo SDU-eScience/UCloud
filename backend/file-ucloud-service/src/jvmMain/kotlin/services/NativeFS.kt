@@ -24,6 +24,7 @@ data class NativeStat(
     val modifiedAt: Long,
     val fileType: FileType,
     val ownerUid: Int,
+    val ownerGid: Int,
     val mode: Int,
 )
 
@@ -209,6 +210,7 @@ object NativeFS : Loggable {
             (st.m_sec * 1000) + (st.m_nsec / 1_000_000),
             if (st.st_mode and S_ISREG == 0) FileType.DIRECTORY else FileType.FILE,
             st.st_uid,
+            st.st_gid,
             st.st_mode
         )
     }
@@ -489,7 +491,7 @@ object NativeFS : Loggable {
             }
 
             val modifiedAt = (basicAttributes.getValue("lastModifiedTime") as FileTime).toMillis()
-            return NativeStat(size, modifiedAt, fileType, LINUX_FS_USER_UID, DEFAULT_FILE_MODE)
+            return NativeStat(size, modifiedAt, fileType, LINUX_FS_USER_UID, LINUX_FS_USER_UID, DEFAULT_FILE_MODE)
         }
     }
 

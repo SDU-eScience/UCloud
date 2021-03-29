@@ -12,6 +12,7 @@ import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
+import dk.sdu.cloud.file.ucloud.FileUcloudService
 import dk.sdu.cloud.grant.GrantService
 import dk.sdu.cloud.indexing.IndexingService
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
@@ -53,6 +54,7 @@ val services = setOf(
     ProjectService,
     // StorageService,
     FileOrchestratorService,
+    FileUcloudService,
     SupportService,
     TaskService,
     ProviderService,

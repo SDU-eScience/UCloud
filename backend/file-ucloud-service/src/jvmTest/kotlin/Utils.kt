@@ -1,19 +1,30 @@
 package dk.sdu.cloud.file.ucloud
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.file.orchestrator.api.FilePermission
+import dk.sdu.cloud.file.orchestrator.api.FilesUpdateAclRequest
 import dk.sdu.cloud.file.ucloud.services.CopyTask
-import dk.sdu.cloud.file.ucloud.services.FileQueries
+import dk.sdu.cloud.file.ucloud.services.PathConverter
 import dk.sdu.cloud.file.ucloud.services.InternalFile
+import dk.sdu.cloud.file.ucloud.services.UCloudFile
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.micro.BackgroundScopeFeature
-import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Files
 
-object ApprovingAclService : AclService
+object ApprovingAclService : AclService {
+    override suspend fun isAdmin(actor: Actor, file: UCloudFile): Boolean = true
+    override suspend fun updateAcl(actor: Actor, request: FilesUpdateAclRequest) {
+        // Do nothing
+    }
+
+    override suspend fun fetchMyPermissions(actor: Actor, file: UCloudFile): Set<FilePermission> =
+        FilePermission.values().toSet()
+}
 
 var keepDirectory = true
 
@@ -26,17 +37,17 @@ fun prepareFileSystem(): InternalFile {
         }
 
     }
-    File(rootDir, FileQueries.HOME_DIRECTORY).mkdir()
-    File(rootDir, FileQueries.PROJECT_DIRECTORY).mkdir()
+    File(rootDir, PathConverter.HOME_DIRECTORY).mkdir()
+    File(rootDir, PathConverter.PROJECT_DIRECTORY).mkdir()
 
     return InternalFile(rootDir.absolutePath)
 }
 
 fun cleanFileSystem() {
-    File(fs.path, FileQueries.HOME_DIRECTORY).deleteRecursively()
-    File(fs.path, FileQueries.PROJECT_DIRECTORY).deleteRecursively()
-    File(fs.path, FileQueries.HOME_DIRECTORY).mkdir()
-    File(fs.path, FileQueries.PROJECT_DIRECTORY).mkdir()
+    File(fs.path, PathConverter.HOME_DIRECTORY).deleteRecursively()
+    File(fs.path, PathConverter.PROJECT_DIRECTORY).deleteRecursively()
+    File(fs.path, PathConverter.HOME_DIRECTORY).mkdir()
+    File(fs.path, PathConverter.PROJECT_DIRECTORY).mkdir()
 }
 
 fun createHome(username: String): InternalFile {
@@ -70,13 +81,13 @@ fun InternalFile.createDirectory(relativeFile: String): InternalFile {
 
 val micro by lazy { initializeMicro().also { it.install(BackgroundScopeFeature) } }
 val fs by lazy { prepareFileSystem() }
-val fileQueries by lazy { FileQueries(ApprovingAclService, fs) }
+val pathConverter by lazy { PathConverter(fs) }
 val aclService by lazy { ApprovingAclService }
 val backgroundScope by lazy {
     val scope = BackgroundScope()
     scope
 }
-val copyTask by lazy { CopyTask(aclService, fileQueries, backgroundScope) }
+val copyTask by lazy { CopyTask(aclService, pathConverter, backgroundScope) }
 
 fun t(block: suspend () -> Unit): Unit {
     cleanFileSystem()

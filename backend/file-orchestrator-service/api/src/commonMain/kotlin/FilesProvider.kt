@@ -1,38 +1,39 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 
 // ---
 
-typealias FilesProviderBrowseRequest = FilesBrowseRequest
+typealias FilesProviderBrowseRequest = ProxiedRequest<FilesBrowseRequest>
 typealias FilesProviderBrowseResponse = FilesBrowseResponse
 
-typealias FilesProviderRetrieveRequest = FilesRetrieveRequest
+typealias FilesProviderRetrieveRequest = ProxiedRequest<FilesRetrieveRequest>
 typealias FilesProviderRetrieveResponse = FilesRetrieveResponse
 
-typealias FilesProviderMoveRequest = FilesMoveRequest
+typealias FilesProviderMoveRequest = ProxiedRequest<FilesMoveRequest>
 typealias FilesProviderMoveResponse = FilesMoveResponse
 
-typealias FilesProviderCopyRequest = FilesCopyRequest
+typealias FilesProviderCopyRequest = ProxiedRequest<FilesCopyRequest>
 typealias FilesProviderCopyResponse = FilesCopyResponse
 
-typealias FilesProviderDeleteRequest = FilesDeleteRequest
+typealias FilesProviderDeleteRequest = ProxiedRequest<FilesDeleteRequest>
 typealias FilesProviderDeleteResponse = FilesDeleteResponse
 
-typealias FilesProviderCreateFolderRequest = FilesCreateFolderRequest
+typealias FilesProviderCreateFolderRequest = ProxiedRequest<FilesCreateFolderRequest>
 typealias FilesProviderCreateFolderResponse = FilesCreateFolderResponse
 
-typealias FilesProviderUpdateAclRequest = FilesUpdateAclRequest
+typealias FilesProviderUpdateAclRequest = ProxiedRequest<FilesUpdateAclRequest>
 typealias FilesProviderUpdateAclResponse = FilesUpdateAclResponse
 
-typealias FilesProviderTrashRequest = FilesTrashRequest
+typealias FilesProviderTrashRequest = ProxiedRequest<FilesTrashRequest>
 typealias FilesProviderTrashResponse = FilesTrashResponse
 
-typealias FilesProviderCreateDownloadRequest = FilesCreateDownloadRequest
+typealias FilesProviderCreateDownloadRequest = ProxiedRequest<FilesCreateDownloadRequest>
 typealias FilesProviderCreateDownloadResponse = FilesCreateDownloadResponse
 
-typealias FilesProviderCreateUploadRequest = FilesCreateUploadRequest
+typealias FilesProviderCreateUploadRequest = ProxiedRequest<FilesCreateUploadRequest>
 typealias FilesProviderCreateUploadResponse = FilesCreateUploadResponse
 
 // ---
@@ -41,46 +42,46 @@ open class FilesProvider(namespace: String) : CallDescriptionContainer("files.pr
     val baseContext = "/ucloud/$namespace/files"
 
     val browse = call<FilesProviderBrowseRequest, FilesProviderBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
+        httpUpdate(baseContext, "browse", roles = Roles.SERVICE) // TODO FIXME
     }
 
     val retrieve = call<FilesProviderRetrieveRequest, FilesProviderRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
+        httpUpdate(baseContext, "retrieve", roles = Roles.SERVICE) // TODO FIXME
     }
 
     val move = call<FilesProviderMoveRequest, FilesProviderMoveResponse, CommonErrorMessage>("move") {
-        httpUpdate(baseContext, "move")
+        httpUpdate(baseContext, "move", roles = Roles.SERVICE)
     }
 
     val copy = call<FilesProviderCopyRequest, FilesProviderCopyResponse, CommonErrorMessage>("copy") {
-        httpUpdate(baseContext, "copy")
+        httpUpdate(baseContext, "copy", roles = Roles.SERVICE)
     }
 
     val delete = call<FilesProviderDeleteRequest, FilesProviderDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
+        httpDelete(baseContext, roles = Roles.SERVICE)
     }
 
     val createFolder = call<FilesProviderCreateFolderRequest, FilesProviderCreateFolderResponse,
         CommonErrorMessage>("createFolder") {
-        httpCreate(baseContext, "folder")
+        httpCreate(baseContext, "folder", roles = Roles.SERVICE)
     }
 
     val updateAcl = call<FilesProviderUpdateAclRequest, FilesProviderUpdateAclResponse,
         CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "updateAcl")
+        httpUpdate(baseContext, "updateAcl", roles = Roles.SERVICE)
     }
 
     val trash = call<FilesProviderTrashRequest, FilesProviderTrashResponse, CommonErrorMessage>("trash") {
-        httpUpdate(baseContext, "trash")
+        httpUpdate(baseContext, "trash", roles = Roles.SERVICE)
     }
 
     val createUpload = call<FilesProviderCreateUploadRequest, FilesProviderCreateUploadResponse,
         CommonErrorMessage>("createUpload") {
-        httpCreate(baseContext, "upload")
+        httpCreate(baseContext, "upload", roles = Roles.SERVICE)
     }
 
     val createDownload = call<FilesProviderCreateDownloadRequest, FilesProviderCreateDownloadResponse,
         CommonErrorMessage>("createDownload") {
-        httpCreate(baseContext, "download")
+        httpCreate(baseContext, "download", roles = Roles.SERVICE)
     }
 }

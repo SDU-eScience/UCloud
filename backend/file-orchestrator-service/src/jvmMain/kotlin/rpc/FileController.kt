@@ -2,48 +2,50 @@ package dk.sdu.cloud.file.orchestrator.rpc
 
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.orchestrator.api.Files
+import dk.sdu.cloud.file.orchestrator.service.FilesService
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 
-class FileController : Controller {
+class FileController(private val files: FilesService) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Files.browse) {
-            TODO()
+            ok(files.browse(actorAndProject.actor, request))
         }
 
         implement(Files.copy) {
-            TODO()
+            ok(files.copy(actorAndProject.actor, request))
         }
 
         implement(Files.createDownload) {
-            TODO()
+            ok(files.createDownload(actorAndProject.actor, request))
         }
 
         implement(Files.createUpload) {
-            TODO()
+            ok(files.createUpload(actorAndProject.actor, request))
         }
 
         implement(Files.createFolder) {
-            TODO()
+            ok(files.createFolder(actorAndProject.actor, request))
         }
 
         implement(Files.delete) {
-            TODO()
+            ok(files.delete(actorAndProject.actor, request))
         }
 
         implement(Files.move) {
-            TODO()
+            ok(files.move(actorAndProject.actor, request))
         }
 
         implement(Files.retrieve) {
-            TODO()
+            ok(files.retrieve(actorAndProject.actor, request))
         }
 
         implement(Files.trash) {
-            TODO()
+            ok(files.trash(actorAndProject.actor, request))
         }
 
         implement(Files.updateAcl) {
-            TODO()
+            ok(files.updateAcl(actorAndProject.actor, request))
         }
         return@with
     }

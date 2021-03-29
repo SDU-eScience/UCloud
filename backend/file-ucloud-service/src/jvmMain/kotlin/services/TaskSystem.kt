@@ -4,6 +4,7 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.LongRunningTask
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import io.ktor.http.*
 import kotlinx.serialization.json.JsonObject
@@ -22,7 +23,7 @@ data class StorageTask(
 
 data class TaskRequirements(
     val scheduleInBackground: Boolean,
-    val requirements: JsonObject
+    val requirements: JsonObject,
 )
 
 class TaskSystem {
@@ -33,8 +34,10 @@ class TaskSystem {
     }
 
     suspend fun submitTask(actor: Actor, name: String, request: JsonObject): LongRunningTask<Unit> {
-        val handler = handlers.find { it.canHandle(actor, name, request) }
-            ?: throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
+        val handler = handlers.find { it.canHandle(actor, name, request) } ?: run {
+            log.warn("Unable to handle request: $name $request")
+            throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
+        }
 
         val requirements = handler.collectRequirements(actor, name, request, REQUIREMENT_MAX_TIME_MS)
         if (requirements == null || requirements.scheduleInBackground) {
@@ -45,7 +48,7 @@ class TaskSystem {
                 actor,
                 StorageTask(taskId, name, requirements, request, null, actor.safeUsername(), Time.now())
             )
-            return LongRunningTask.Complete(Unit)
+            return LongRunningTask.Complete()// (Unit)
         }
     }
 
@@ -58,7 +61,8 @@ class TaskSystem {
         return LongRunningTask.ContinuesInBackground(UUID.randomUUID().toString()) // TODO schedule it
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log = logger()
         const val REQUIREMENT_MAX_TIME_MS = 2000L
     }
 }

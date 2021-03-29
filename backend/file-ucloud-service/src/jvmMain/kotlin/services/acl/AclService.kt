@@ -1,18 +1,19 @@
 package dk.sdu.cloud.file.ucloud.services.acl
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.FilePermission
-import dk.sdu.cloud.file.orchestrator.api.components
+import dk.sdu.cloud.file.orchestrator.api.FilesUpdateAclRequest
 import dk.sdu.cloud.file.orchestrator.api.normalize
-import dk.sdu.cloud.file.orchestrator.api.parents
-import dk.sdu.cloud.file.ucloud.services.ProjectCache
-import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.file.ucloud.services.*
+import dk.sdu.cloud.provider.api.AclEntity
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
+import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -21,134 +22,71 @@ import kotlinx.serialization.json.encodeToJsonElement
 fun homeFolder(username: String): String {
     return "/home/$username"
 }
+
 const val PERSONAL_REPOSITORY = "Members' Files"
 val SERVICE_USER = "_storage"
 
 interface AclService {
-
+    suspend fun isAdmin(actor: Actor, file: UCloudFile): Boolean
+    suspend fun updateAcl(actor: Actor, request: FilesUpdateAclRequest)
+    suspend fun fetchMyPermissions(actor: Actor, file: UCloudFile): Set<FilePermission>
 }
 
 /**
- * UCloud uses Access Control Lists (ACLs) for controlling access to files and directories.
+ * UCloud/Storage uses Access Control Lists (ACLs) for controlling access to files and directories.
  *
  * All files and directories in UCloud have an associated ACL. The ACL contains a set of permissions for a given user.
  *
- * The permissions that a user can be granted for a single file is documented in [AccessRight].
+ * The permissions that a user can be granted for a single file is documented in [FilePermission].
  *
  * The ACLs of UCloud apply to _all_ children of a file. This means that a user do not need permissions on a
  * specific file but can instead rely on permissions given by a parent. Consider the following example:
  *
- * Alice is the owner of /home/alice/shared and shares it with Bob by granting Bob [AccessRight.READ] to
+ * Alice is the owner of /home/alice/shared and shares it with Bob by granting Bob [FilePermission.READ] to
  * /home/alice/shared.
  *
  * If Bob wants to read /home/alice/shared he is allowed to do so because of permissions granted by the ACL in
  * /home/alice/shared. Bob is also allowed to read files in /home/alice/shared/going/deeper/into/fs because of
  * permissions granted by /home/alice/shared. Bob is not allowed to read files in /home/alice because he does not
- * have [AccessRight.READ] in /home/alice or /home.
+ * have [FilePermission.READ] in /home/alice or /home.
  *
  * All users are implicitly granted full permissions to their own home directory.
  */
 class AclServiceImpl(
-    private val metadataService: MetadataService,
     private val serviceClient: AuthenticatedClient,
     private val projectCache: ProjectCache,
-) {
+    private val pathConverter: PathConverter,
+    private val db: DBContext,
+    private val metadataDao: MetadataDao,
+) : AclService {
     @Serializable
     private data class UserAclMetadata(val permissions: Set<FilePermission>)
+
     @Serializable
     private data class ProjectAclEntity(val group: String, val permissions: Set<FilePermission>)
+
     @Serializable
     private data class ProjectAclMetadata(val entries: List<ProjectAclEntity>)
 
-    /*
-    suspend fun updateAcl(request: UpdateAclRequest, user: String) {
-        log.debug("Executing ACL update request: $request")
+    private fun isPersonalWorkspace(file: RelativeInternalFile): Boolean =
+        file.path.startsWith("/${PathConverter.HOME_DIRECTORY}/")
 
-        if (!isOwner(request.path, user)) {
-            throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
-        }
+    private fun isProjectWorkspace(file: RelativeInternalFile): Boolean =
+        file.path.startsWith("/${PathConverter.PROJECT_DIRECTORY}/")
 
-        val bulkChanges = ArrayList<AclEntryRequest>()
-        request.changes.forEach { change ->
-            if (change.revoke) {
-                revokePermission(request.path, change.entity)
-            } else {
-                bulkChanges.add(change)
-            }
-        }
+    override suspend fun isAdmin(actor: Actor, file: UCloudFile): Boolean {
+        if (actor == Actor.System) return true
 
-        updateUserPermissions(request.path, bulkChanges)
-    }
+        val normalizedFile = pathConverter.ucloudToRelative(file).normalize()
+        val username = actor.safeUsername()
 
-    private suspend fun updateUserPermissions(path: String, entries: List<AclEntryRequest>) {
-        val normalizedPath = path.normalize()
-        log.debug("updateUserPermissions($normalizedPath, $entries)")
-
-        for (entry in entries) {
-            require(!entry.revoke)
-
-            val entity = entry.entity
-            val permissions = entry.rights
-            metadataService.updateMetadata(
-                Metadata(
-                    normalizedPath,
-                    USER_METADATA_TYPE,
-                    entity.username,
-                    defaultMapper.encodeToJsonElement(UserAclMetadata(permissions)) as JsonObject
-                )
-            )
-        }
-    }
-
-    private suspend fun revokePermission(path: String, entity: ACLEntity.User) {
-        val normalizedPath = path.normalize()
-        metadataService.removeEntries(
-            listOf(
-                FindMetadataRequest(
-                    normalizedPath,
-                    USER_METADATA_TYPE,
-                    entity.username
-                )
-            )
-        )
-    }
-
-    suspend fun updateProjectAcl(request: UpdateProjectAclRequest, username: String) {
-        if (!isOwner(request.path, username)) {
-            throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
-        }
-
-        val pathComponents = request.path.components()
-        if (pathComponents.size == 3 && pathComponents[0] == "projects" && pathComponents[2] == PERSONAL_REPOSITORY) {
-            throw RPCException("Cannot update permissions of '${PERSONAL_REPOSITORY}' repository", HttpStatusCode.Forbidden)
-        }
-
-        metadataService.updateMetadata(
-            Metadata(
-                request.path.normalize(),
-                PROJECT_METADATA_TYPE,
-                request.project,
-                defaultMapper.encodeToJsonElement(
-                    ProjectAclMetadata(
-                        request.newAcl.map { entry ->
-                            ProjectAclEntity(entry.group, entry.rights)
-                        }
-                    )
-                ) as JsonObject
-            )
-        )
-    }
-
-
-    suspend fun isOwner(path: String, username: String): Boolean {
-        val normalizedPath = path.normalize()
-        if (normalizedPath.startsWith("/home/")) {
+        if (isPersonalWorkspace(normalizedFile)) {
             val homeFolder = homeFolder(username).normalize()
-            if (normalizedPath == homeFolder || normalizedPath.startsWith("$homeFolder/")) {
+            if (normalizedFile.path == homeFolder || normalizedFile.path.startsWith("$homeFolder/")) {
                 return true
             }
-        } else if (normalizedPath.startsWith("/projects/")) {
-            val components = normalizedPath.components()
+        } else if (isProjectWorkspace(normalizedFile)) {
+            val components = normalizedFile.components()
             if (components.size < 2) return false
             val projectId = components[1]
             val viewMember = projectCache.viewMember(projectId, username) ?: return false
@@ -165,61 +103,134 @@ class AclServiceImpl(
         return false
     }
 
-    suspend fun hasPermission(path: String, username: String, permission: FilePermission): Boolean {
-        if (username == SERVICE_USER) return true
+    override suspend fun updateAcl(actor: Actor, request: FilesUpdateAclRequest) {
+        log.debug("Executing ACL update request: $request")
 
-        val normalizedPath = path.normalize()
+        for (reqItem in request.items) {
+            val ucloudFile = UCloudFile.create(reqItem.path)
+            val relativeFile = pathConverter.ucloudToRelative(ucloudFile)
 
-        if (isOwner(normalizedPath, username)) return true
-        val relevantPaths = normalizedPath.parents().map { it.normalize() } + listOf(normalizedPath)
-
-        val hasPermissionAsUser = metadataService
-            .listMetadata(relevantPaths, username, USER_METADATA_TYPE)
-            .flatMap { it.value }
-            .any { data ->
-                val aclMetadata = defaultMapper.decodeFromJsonElement<UserAclMetadata>(data.payload)
-                permission in aclMetadata.permissions
+            if (!isAdmin(actor, ucloudFile)) {
+                throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
             }
 
-        if (hasPermissionAsUser) return true
+            if (isPersonalWorkspace(relativeFile)) {
+                db.withSession { session ->
+                    metadataDao.removeEntry(session, relativeFile, null, ACL_USER_METADATA_TYPE)
+                    reqItem.newAcl.forEach { aclEntry ->
+                        val entity = aclEntry.entity
+                        if (entity !is AclEntity.User) {
+                            throw RPCException("Unsupported entity type", HttpStatusCode.BadRequest)
+                        }
 
-        val queries = metadataService
-            .listMetadata(relevantPaths, null, PROJECT_METADATA_TYPE)
-            .flatMap { it.value }
-            .flatMap { data ->
-                defaultMapper.decodeFromJsonElement<ProjectAclMetadata>(data.payload).entries.map {
-                    data.username to it
+                        metadataDao.createMetadata(session, Metadata(
+                            relativeFile,
+                            ACL_USER_METADATA_TYPE,
+                            entity.username,
+                            defaultMapper.encodeToJsonElement(
+                                UserAclMetadata(aclEntry.permissions.toSet())
+                            ) as JsonObject
+                        ))
+                    }
+                }
+            } else if (isProjectWorkspace(relativeFile)) {
+                val pathComponents = relativeFile.components()
+                val projectId = pathComponents[1]
+                if (pathComponents.size == 3 && pathComponents[2] == PERSONAL_REPOSITORY) {
+                    throw RPCException(
+                        "Cannot update permissions of '${PERSONAL_REPOSITORY}' repository",
+                        HttpStatusCode.Forbidden
+                    )
+                }
+
+                db.withSession { session ->
+                    metadataDao.updateMetadata(
+                        session,
+                        Metadata(
+                            relativeFile,
+                            ACL_PROJECT_METADATA_TYPE,
+                            projectId,
+                            defaultMapper.encodeToJsonElement(
+                                ProjectAclMetadata(
+                                    reqItem.newAcl.map { entry ->
+                                        val entity = entry.entity
+                                        if (entity !is AclEntity.ProjectGroup) {
+                                            throw RPCException("Unsupported entity type", HttpStatusCode.BadRequest)
+                                        }
+
+                                        if (entity.projectId != projectId) {
+                                            throw RPCException("Invalid project supplied", HttpStatusCode.BadRequest)
+                                        }
+
+                                        ProjectAclEntity(entity.group, entry.permissions.toSet())
+                                    }
+                                )
+                            ) as JsonObject
+                        )
+                    )
+                }
+            } else {
+                throw FSException.NotFound()
+            }
+        }
+    }
+
+    override suspend fun fetchMyPermissions(actor: Actor, file: UCloudFile): Set<FilePermission> {
+        if (actor == Actor.System || isAdmin(actor, file)) {
+            return setOf(FilePermission.READ, FilePermission.WRITE, FilePermission.ADMINISTRATOR)
+        }
+
+        val relativeFile = pathConverter.ucloudToRelative(file)
+        val username = actor.safeUsername()
+
+        val relevantPaths = relativeFile.parents().map { it.normalize() } + listOf(relativeFile)
+
+        return db.withSession { session ->
+            when {
+                isPersonalWorkspace(relativeFile) -> {
+                    metadataDao
+                        .listMetadata(session, relevantPaths, actor.username, ACL_USER_METADATA_TYPE)
+                        .flatMap { entry ->
+                            entry.value.flatMap {
+                                defaultMapper.decodeFromJsonElement<UserAclMetadata>(it.payload).permissions
+                            }
+                        }
+                        .toSet()
+                }
+                isProjectWorkspace(relativeFile) -> {
+                    val components = relativeFile.components()
+                    val projectId = components[1]
+
+                    val relevantEntries = metadataDao
+                        .listMetadata(session, relevantPaths, projectId, ACL_PROJECT_METADATA_TYPE)
+                        .flatMap { it.value }
+                        .flatMap { data ->
+                            defaultMapper.decodeFromJsonElement<ProjectAclMetadata>(data.payload).entries
+                        }
+
+                    val memberStatus = projectCache.memberStatus.get(username)
+                    val relevantGroups = (memberStatus?.groups?.filter { it.project == projectId }?.map { it.group }
+                        ?: emptySet()).toSet()
+
+                    val permissions = HashSet<FilePermission>()
+                    relevantEntries.forEach { entry ->
+                        if (entry.group in relevantGroups) {
+                            permissions.addAll(entry.permissions)
+                        }
+                    }
+
+                    permissions
+                }
+                else -> {
+                    throw FSException.NotFound()
                 }
             }
-            .filter { (project, entry) -> project != null && permission in entry.permissions }
-            .map { (project, entry) -> IsMemberQuery(project!!, entry.group, username) }
-
-        if (queries.isEmpty()) {
-            return false
         }
-
-        for (projectId in queries.map { it.project }.toSet()) {
-            val isAdmin = projectCache.viewMember(projectId, username)?.role?.isAdmin() == true
-            if (isAdmin) {
-                return true
-            }
-        }
-
-        val responses = ProjectGroups.isMember
-            .call(
-                IsMemberRequest(queries),
-                serviceClient
-            )
-            .orRethrowAs {
-                throw RPCException(
-                    "Permission denied - Projects unavailable",
-                    HttpStatusCode.Forbidden
-                )
-            }
-            .responses
-
-        return responses.any { it }
     }
+
+    /*
+
+
 
     suspend fun listAcl(
         paths: List<String>
@@ -302,7 +313,7 @@ class AclServiceImpl(
     companion object : Loggable {
         override val log = logger()
 
-        const val USER_METADATA_TYPE = "acl"
-        const val PROJECT_METADATA_TYPE = "project-acl"
+        const val ACL_USER_METADATA_TYPE = "acl"
+        const val ACL_PROJECT_METADATA_TYPE = "project-acl"
     }
 }

@@ -41,7 +41,7 @@ object UCloudApi {
  *
  * @example [httpCreateExample]
  */
-inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpCreate(
+inline fun <reified R : Any> CallDescription<R, *, *>.httpCreate(
     baseContext: String,
     subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
@@ -339,7 +339,7 @@ private fun CallDescriptionContainer.httpSearchExample() {
  *
  * @example [httpUpdateExample]
  */
-inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpUpdate(
+inline fun <reified R : Any> CallDescription<R, *, *>.httpUpdate(
     baseContext: String,
     operation: String,
     roles: Set<Role> = Roles.END_USER,
@@ -401,7 +401,7 @@ private fun CallDescriptionContainer.httpUpdateExample() {
  *
  * @example [httpDeleteExample]
  */
-inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpDelete(
+inline fun <reified R : Any> CallDescription<R, *, *>.httpDelete(
     baseContext: String,
     roles: Set<Role> = Roles.END_USER,
 ) {
@@ -453,7 +453,7 @@ private fun CallDescriptionContainer.httpDeleteExample() {
  *
  * @example [httpVerifyExample]
  */
-inline fun <reified R : Any> CallDescription<BulkRequest<R>, *, *>.httpVerify(
+inline fun <reified R : Any> CallDescription<R, *, *>.httpVerify(
     baseContext: String,
     informationToVerify: String? = null,
     roles: Set<Role> = Roles.PRIVILEGED,

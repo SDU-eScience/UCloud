@@ -3,173 +3,148 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
-import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.file.orchestrator.api.FilePermission
+import dk.sdu.cloud.file.orchestrator.api.FileType
+import dk.sdu.cloud.file.orchestrator.api.FilesIncludeFlags
+import dk.sdu.cloud.file.orchestrator.api.UFile
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
-
-interface PathLike<T> {
-    val path: String
-    fun withNewPath(path: String): T
-}
-
-inline class InternalFile(override val path: String) : PathLike<InternalFile> {
-    override fun withNewPath(path: String): InternalFile = InternalFile(path)
-}
-
-inline class UCloudFile(override val path: String) : PathLike<UCloudFile> {
-    override fun withNewPath(path: String): UCloudFile = UCloudFile(path)
-}
-
-fun <T : PathLike<T>> T.parent(): T = withNewPath(path.parent())
-fun <T : PathLike<T>> T.parents(): List<T> = path.parents().map { withNewPath(it) }
-fun <T : PathLike<T>> T.normalize(): T = withNewPath(path.normalize())
-fun <T : PathLike<T>> T.components(): List<String> = path.components()
-fun <T : PathLike<T>> T.fileName(): String = path.fileName()
+import dk.sdu.cloud.service.DistributedStateFactory
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequestV2
+import dk.sdu.cloud.service.create
+import io.ktor.http.*
+import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.ArrayList
 
 class FileQueries(
     private val aclService: AclService,
-    private val rootDirectory: InternalFile,
+    private val pathConverter: PathConverter,
+    private val distributedStateFactory: DistributedStateFactory,
 ) {
-    fun convertUCloudPathToInternalFile(file: UCloudFile): InternalFile {
-        // TODO Deal with backwards-compatible paths
-        val withoutMetadata = file.normalize().components().drop(3)
-        if (withoutMetadata.isEmpty()) {
-            throw FSException.NotFound()
-        }
+    suspend fun retrieve(actor: Actor, file: UCloudFile, flags: FilesIncludeFlags): UFile {
+        val myself = aclService.fetchMyPermissions(actor, file)
+        if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
 
-        val collection = withoutMetadata[0]
-        if (collection.startsWith(COLLECTION_HOME_PREFIX)) {
-            return InternalFile(
-                buildString {
-                    append(rootDirectory.path)
-                    append('/')
-                    append(HOME_DIRECTORY)
-                    append('/')
-                    append(collection.removePrefix(COLLECTION_HOME_PREFIX))
-                    for ((idx, component) in withoutMetadata.withIndex()) {
-                        if (idx == 0) continue
-                        append('/')
-                        append(component)
-                    }
-                }
-            )
-        } else if (collection.startsWith(COLLECTION_PROJECT_PREFIX)) {
-            val withoutPrefix = collection.removePrefix(COLLECTION_PROJECT_PREFIX)
-            val splitterIdx = withoutPrefix.indexOfLast { it == '-' }
-            if (splitterIdx == -1) throw FSException.NotFound()
-            if (splitterIdx == withoutPrefix.length) throw FSException.NotFound()
-            val projectId = withoutPrefix.substring(0, splitterIdx)
-            val repository = withoutPrefix.substring(splitterIdx + 1)
-
-            return InternalFile(
-                buildString {
-                    append(rootDirectory.path)
-                    append('/')
-                    append(PROJECT_DIRECTORY)
-                    append('/')
-                    append(projectId)
-                    append('/')
-                    append(repository)
-                    append('/')
-                    for ((idx, component) in withoutMetadata.withIndex()) {
-                        if (idx == 0) continue
-                        append('/')
-                        append(component)
-                    }
-                }
-            )
-        } else {
-            throw FSException.NotFound()
-        }
+        val internalFile = pathConverter.ucloudToInternal(file)
+        val nativeStat = NativeFS.stat(internalFile)
+        return convertNativeStatToUFile(file, nativeStat, myself)
     }
 
-    fun convertInternalFileToUCloudPath(file: InternalFile): UCloudFile {
-        val components = file.path.removePrefix(rootDirectory.path).normalize().components()
-        if (components.size <= 1) throw FSException.CriticalException("Not a valid UCloud file")
-
-        return UCloudFile(
-            buildString {
-                append('/')
-                append(PRODUCT_REFERENCE.provider)
-                append('/')
-                append(PRODUCT_REFERENCE.category)
-                append('/')
-                append(PRODUCT_REFERENCE.id)
-                append('/')
-
-                val startIdx: Int
-                when (components[0]) {
-                    HOME_DIRECTORY -> {
-                        append(COLLECTION_HOME_PREFIX)
-                        append(components[1])
-                        startIdx = 2
-                    }
-
-                    PROJECT_DIRECTORY -> {
-                        if (components.size <= 2) throw FSException.CriticalException("Not a valid UCloud file")
-
-                        append(COLLECTION_PROJECT_PREFIX)
-                        append(components[1])
-                        append(components[2])
-                        startIdx = 3
-                    }
-
-                    else -> throw FSException.CriticalException("Not a valid UCloud file")
-                }
-
-                for ((idx, component) in components.withIndex()) {
-                    if (idx < startIdx) continue
-                    append('/')
-                    append(component)
-                }
-            }
+    private fun convertNativeStatToUFile(
+        file: UCloudFile,
+        nativeStat: NativeStat,
+        myself: Set<FilePermission>,
+    ): UFile {
+        return UFile(
+            file.path,
+            nativeStat.fileType,
+            null,
+            UFile.Stats(
+                nativeStat.size,
+                null, // TODO
+                nativeStat.modifiedAt,
+                null, // TODO Not supported
+                nativeStat.modifiedAt,
+                nativeStat.mode,
+                nativeStat.ownerUid,
+                nativeStat.ownerGid
+            ),
+            UFile.Permissions(
+                myself.toList(),
+                null // TODO
+            ),
+            null
         )
     }
 
-    fun retrieve(actor: Actor, file: UCloudFile, flags: FilesIncludeFlags): UFile {
-        TODO()
-    }
-
-    fun retrieveTypeInternal(actor: Actor, file: InternalFile): FileType {
-        TODO()
-    }
-
-    fun retrieveInternal(actor: Actor, file: InternalFile, flags: FilesIncludeFlags): UFile {
-        TODO()
-    }
-
-    fun fileExists(actor: Actor, file: UCloudFile): Boolean {
-        TODO()
-    }
-
-    fun fileExistsInternal(actor: Actor, file: InternalFile): Boolean {
-        TODO()
-    }
-
-    fun listInternalFilesOrNull(actor: Actor, file: InternalFile): List<InternalFile>? {
-        TODO()
-    }
-
-    fun browseFiles(
+    suspend fun browseFiles(
         actor: Actor,
-        path: String,
+        file: UCloudFile,
         flags: FilesIncludeFlags,
-        pagination: PaginationRequestV2,
+        pagination: NormalizedPaginationRequestV2,
     ): PageV2<UFile> {
-        TODO()
+        // NOTE(Dan): The next token consists of two parts. These two parts are separated by a single underscore:
+        //
+        // 1. The first part contains the current offset in the list. This allows a user to restart the search.
+        // 2. The second part contains a unique ID.
+        //
+        // This token is used for storing state in Redis which contains a complete list of files found in this
+        // directory. This allows the user to search a consistent snapshot of the files. If any files are removed
+        // between calls then this endpoint will simply skip it.
+
+        val myself = aclService.fetchMyPermissions(actor, file)
+        if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
+
+        val next = pagination.next
+        var foundFiles: List<InternalFile>? = null
+
+        if (next != null) {
+            val initialState = distributedStateFactory.create<List<String>>(next)
+            foundFiles = initialState.get()?.map { InternalFile(it) }
+        }
+
+        if (foundFiles == null) {
+            val internalFile = pathConverter.ucloudToInternal(file)
+            foundFiles = NativeFS.listFiles(internalFile).map {
+                InternalFile(internalFile.path + "/" + it)
+            }
+        }
+
+        val offset = pagination.next?.substringBefore('_')?.toIntOrNull() ?: 0
+        if (offset < 0) throw RPCException("Bad next token supplied", HttpStatusCode.BadRequest)
+        val items = ArrayList<UFile>()
+        var i = offset
+        var didSkipFiles = false
+        while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+            try {
+                val nextInternalFile = foundFiles[i++]
+                items.add(
+                    convertNativeStatToUFile(
+                        pathConverter.internalToUCloud(nextInternalFile),
+                        NativeFS.stat(nextInternalFile),
+                        myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
+                    )
+                )
+            } catch (ex: FSException.NotFound) {
+                // NOTE(Dan): File might have gone away between these two calls
+                didSkipFiles = true
+            }
+        }
+
+        if (items.isEmpty() && didSkipFiles) {
+            // NOTE(Dan): The directory might not even exist anymore. We perform a check if we are about to return no
+            // results and expected some. The call below will throw if the file does not exist.
+            val isDir = NativeFS.stat(pathConverter.ucloudToInternal(file)).fileType == FileType.DIRECTORY
+            if (!isDir) throw FSException.IsDirectoryConflict()
+        }
+
+        val didWeCoverEverything = i == foundFiles.size
+        val newNext = if (!didWeCoverEverything) {
+            val nextId = sessionIdCounter.getAndIncrement()
+            val newToken = "${i}_${cachedFilesPrefix}${nextId}"
+
+            val state = distributedStateFactory.create<List<String>>(newToken, DIR_CACHE_EXPIRATION)
+            state.set(foundFiles.map { it.path })
+
+            newToken
+        } else {
+            null
+        }
+
+        return PageV2(pagination.itemsPerPage, items, newNext)
     }
 
-    fun renameAccordingToPolicy(desiredPath: String, policy: WriteConflictPolicy): String {
-        TODO()
-    }
+    companion object : Loggable {
+        override val log = logger()
 
-    companion object {
-        const val COLLECTION_HOME_PREFIX = "h-"
-        const val COLLECTION_PROJECT_PREFIX = "p-"
-        const val HOME_DIRECTORY = "home"
-        const val PROJECT_DIRECTORY = "projects"
-
-        val PRODUCT_REFERENCE = ProductReference("cephfs", "cephfs", UCLOUD_PROVIDER)
+        // NOTE(Dan): This ID is used for avoiding caching conflicts across restarts of a single service. That way every
+        // started service will generate unique caching keys. This allows us to use a more cheap way of generating new
+        // IDs. The IDs don't need to be secret since we always perform a permission check.
+        private val sessionIdForCaching = UUID.randomUUID().toString()
+        private val cachedFilesPrefix = "file-ucloud-dir-cache-$sessionIdForCaching-"
+        private val sessionIdCounter = AtomicInteger(0)
+        private const val DIR_CACHE_EXPIRATION = 1000L * 60 * 5
     }
 }

@@ -94,7 +94,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             appStoreCache
         ).init()
 
-        runBlocking { jobMonitoring.initialize() }
+        if (!micro.developmentModeEnabled) runBlocking { jobMonitoring.initialize() }
 
         val ingressDao = IngressDao(productCache)
         val ingressService = IngressService(db, ingressDao, providers, projectCache, productCache,

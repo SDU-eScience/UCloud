@@ -5,6 +5,7 @@ import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.file.ucloud.services.RelativeInternalFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.SQLTable
@@ -21,11 +22,11 @@ import kotlinx.serialization.json.JsonObject
 data class FileInMovement(val path: String, val pathMovingTo: String)
 
 data class Metadata(
-    val path: String,
+    val file: RelativeInternalFile,
     val type: String,
     val username: String?,
     val payload: JsonObject,
-    val movingTo: String? = null
+    val movingTo: RelativeInternalFile? = null
 )
 
 object MetadataTable : SQLTable("metadata") {
@@ -71,14 +72,14 @@ object MetadataTable : SQLTable("metadata") {
 class MetadataDao {
     suspend fun findMetadata(
         session: AsyncDBConnection,
-        path: String,
+        file: RelativeInternalFile,
         username: String?,
         type: String?
     ): Metadata? {
         return session
             .sendPreparedStatement(
                 {
-                    setParameter("path", path.normalize())
+                    setParameter("path", file.path.normalize())
                     setParameter("username", username)
                     setParameter("type", type)
                 },
@@ -104,8 +105,8 @@ class MetadataDao {
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("path", metadata.path.normalize())
-                        setParameter("path_moving_to", metadata.movingTo)
+                        setParameter("path", metadata.file.path.normalize())
+                        setParameter("path_moving_to", metadata.movingTo?.path)
                         setParameter("username", metadata.username ?: "")
                         setParameter("type", metadata.type)
                         setParameter("data", defaultMapper.encodeToString(metadata.payload))
@@ -133,8 +134,8 @@ class MetadataDao {
         session
             .sendPreparedStatement(
                 {
-                    setParameter("path", metadata.path.normalize())
-                    setParameter("path_moving_to", metadata.movingTo)
+                    setParameter("path", metadata.file.path.normalize())
+                    setParameter("path_moving_to", metadata.movingTo?.path)
                     setParameter("username", metadata.username ?: "")
                     setParameter("type", metadata.type)
                     setParameter("data", defaultMapper.encodeToString(metadata.payload))
@@ -154,14 +155,14 @@ class MetadataDao {
 
     suspend fun listMetadata(
         session: AsyncDBConnection,
-        paths: List<String>?,
+        paths: List<RelativeInternalFile>?,
         username: String?,
         type: String?
     ): Map<String, List<Metadata>> {
         return session
             .sendPreparedStatement(
                 {
-                    setParameter("paths", paths?.map { it.normalize() })
+                    setParameter("paths", paths?.map { it.path.normalize() })
                     setParameter("username", username)
                     setParameter("type", type)
                 },
@@ -176,11 +177,11 @@ class MetadataDao {
             )
             .rows
             .map { it.toMetadata() }
-            .groupBy { it.path }
+            .groupBy { it.file.path }
     }
 
     /**
-     * Removes one or more entries for a [username]/[path]
+     * Removes one or more entries for a [username]/[file]
      *
      * If [type] == null then this will remove all entries for this file.
      *
@@ -188,15 +189,15 @@ class MetadataDao {
      */
     suspend fun removeEntry(
         session: AsyncDBConnection,
-        path: String,
+        file: RelativeInternalFile,
         username: String?,
         type: String?
     ) {
-        log.debug("removeEntry $path $username $type")
+        log.debug("removeEntry $file $username $type")
         session
             .sendPreparedStatement(
                 {
-                    setParameter("path", path.normalize())
+                    setParameter("path", file.path.normalize())
                     setParameter("username", username)
                     setParameter("type", type)
                 },
@@ -212,12 +213,12 @@ class MetadataDao {
 
     suspend fun writeFilesAreDeleting(
         session: AsyncDBConnection,
-        paths: List<String>
+        paths: List<RelativeInternalFile>
     ) {
         val updatedRows = session
             .sendPreparedStatement(
                 {
-                    setParameter("paths", paths.map { it.normalize() })
+                    setParameter("paths", paths.map { it.path.normalize() })
                 },
                 """
                     update metadata
@@ -235,7 +236,7 @@ class MetadataDao {
 
             val payload = defaultMapper.decodeFromString<JsonObject>("{}")
             for (path in paths) {
-                updateMetadata(session, Metadata(path, "moving", null, payload, "/deleted"))
+                updateMetadata(session, Metadata(path, "moving", null, payload, RelativeInternalFile("/deleted")))
             }
         } else {
             log.debug("Existing metadata was updated ($updatedRows)")
@@ -244,14 +245,14 @@ class MetadataDao {
 
     suspend fun writeFileIsMoving(
         session: AsyncDBConnection,
-        oldPath: String,
-        newPath: String
+        oldFile: RelativeInternalFile,
+        newFile: RelativeInternalFile,
     ) {
         val updatedRows = session
             .sendPreparedStatement(
                 {
-                    setParameter("newPath", newPath.normalize())
-                    setParameter("oldPath", oldPath.normalize())
+                    setParameter("newPath", newFile.path.normalize())
+                    setParameter("oldPath", oldFile.path.normalize())
                 },
                 """
                     update metadata
@@ -266,7 +267,7 @@ class MetadataDao {
 
         if (updatedRows == 0L) {
             log.debug("No metadata found. Inserting special entry.")
-            updateMetadata(session, Metadata(oldPath, "moving", null, defaultMapper.decodeFromString("{}"), newPath))
+            updateMetadata(session, Metadata(oldFile, "moving", null, defaultMapper.decodeFromString("{}"), newFile))
         } else {
             log.debug("Existing metadata was updated ($updatedRows)")
         }
@@ -274,17 +275,17 @@ class MetadataDao {
 
     suspend fun handleFilesMoved(
         session: AsyncDBConnection,
-        oldPath: String,
-        newPath: String
+        oldFile: RelativeInternalFile,
+        newFile: RelativeInternalFile,
     ) {
         // The first query will update all children
         session.sendPreparedStatement(
             {
-                setParameter("newPath", newPath.normalize())
-                setParameter("oldPathLike", "${newPath.normalize()}/%")
+                setParameter("newPath", newFile.path.normalize())
+                setParameter("oldPathLike", "${newFile.path.normalize()}/%")
 
                 // add one for the forward-slash and another for offsetting substr
-                setParameter("startIdx", newPath.length + 2)
+                setParameter("startIdx", newFile.path.length + 2)
             },
             """
                 update metadata
@@ -299,8 +300,8 @@ class MetadataDao {
         // The second will update just the root
         session.sendPreparedStatement(
             {
-                setParameter("newPath", newPath.normalize())
-                setParameter("oldPath", oldPath.normalize())
+                setParameter("newPath", newFile.path.normalize())
+                setParameter("oldPath", oldFile.path.normalize())
             },
             """
                 update metadata 
@@ -316,11 +317,11 @@ class MetadataDao {
 
     suspend fun cancelMovement(
         session: AsyncDBConnection,
-        paths: List<String>
+        paths: List<RelativeInternalFile>,
     ) {
         session.sendPreparedStatement(
             {
-                setParameter("paths", paths)
+                setParameter("paths", paths.map { it.path })
             },
             """
                 update metadata
@@ -336,12 +337,12 @@ class MetadataDao {
 
     suspend fun handleFilesDeleted(
         session: AsyncDBConnection,
-        paths: List<String>
+        paths: List<RelativeInternalFile>
     ) {
         session
             .sendPreparedStatement(
                 {
-                    setParameter("paths", paths.map { it.normalize() })
+                    setParameter("paths", paths.map { it.path.normalize() })
                 },
                 """
                     delete
@@ -377,12 +378,12 @@ class MetadataDao {
             }
     }
 
-    suspend fun moveMetadata(session: AsyncDBConnection, oldPath: String, newPath: String) {
+    suspend fun moveMetadata(session: AsyncDBConnection, oldFile: RelativeInternalFile, newFile: RelativeInternalFile) {
         session
             .sendPreparedStatement(
                 {
-                    setParameter("oldPath", oldPath.normalize())
-                    setParameter("newPath", newPath.normalize())
+                    setParameter("oldPath", oldFile.path.normalize())
+                    setParameter("newPath", newFile.path.normalize())
                 },
                 """
                     update metadata m
@@ -401,7 +402,7 @@ class MetadataDao {
         session
             .sendPreparedStatement(
                 {
-                    setParameter("oldPath", oldPath.normalize())
+                    setParameter("oldPath", oldFile.path.normalize())
                 },
                 """
                     delete from metadata where path = :oldPath
@@ -422,13 +423,13 @@ class MetadataDao {
 
     suspend fun deleteByPrefix(
         session: AsyncDBConnection,
-        path: String,
+        file: RelativeInternalFile,
         includeFile: Boolean = true,
         type: String? = null
     ) {
         session.sendPreparedStatement(
             {
-                setParameter("path", path.normalize())
+                setParameter("path", file.path.normalize())
                 setParameter("includeFile", includeFile)
                 setParameter("type", type)
             },
@@ -449,14 +450,14 @@ class MetadataDao {
 
     suspend fun findByPrefix(
         session: AsyncDBConnection,
-        pathPrefix: String,
+        file: RelativeInternalFile,
         type: String?,
         username: String?
     ): List<Metadata> {
         return session
             .sendPreparedStatement(
                 {
-                    setParameter("path", pathPrefix.normalize())
+                    setParameter("path", file.path.normalize())
                     setParameter("type", type)
                     setParameter("username", username)
                 },
@@ -475,7 +476,7 @@ class MetadataDao {
 
     private fun RowData.toMetadata(): Metadata {
         return Metadata(
-            getField(MetadataTable.path),
+            RelativeInternalFile(getField(MetadataTable.path)),
             getField(MetadataTable.type),
             getField(MetadataTable.username).takeIf { it.isNotEmpty() },
             runCatching {

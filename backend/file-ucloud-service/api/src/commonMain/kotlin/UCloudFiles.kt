@@ -4,5 +4,5 @@ import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
 
-class UCloudFiles : FilesProvider(UCLOUD_PROVIDER)
-class UCloudFileCollections : FileCollectionsProvider(UCLOUD_PROVIDER)
+object UCloudFiles : FilesProvider(UCLOUD_PROVIDER)
+object UCloudFileCollections : FileCollectionsProvider(UCLOUD_PROVIDER)

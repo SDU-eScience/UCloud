@@ -9,6 +9,12 @@ import kotlinx.serialization.Serializable
 // ---
 
 @Serializable
+data class ProxiedRequest<T>(
+    val username: String,
+    val request: T
+)
+
+@Serializable
 data class FileCollectionsProviderBrowseRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -18,16 +24,16 @@ data class FileCollectionsProviderBrowseRequest(
 
 typealias FileCollectionsProviderBrowseResponse = PageV2<FileCollection>
 
-typealias FileCollectionsProviderRetrieveRequest = FindByStringId
+typealias FileCollectionsProviderRetrieveRequest = ProxiedRequest<FindByStringId>
 typealias FileCollectionsProviderRetrieveResponse = FileCollection
 
-typealias FileCollectionsProviderCreateRequest = BulkRequest<FileCollection>
+typealias FileCollectionsProviderCreateRequest = ProxiedRequest<BulkRequest<FileCollection>>
 typealias FileCollectionsProviderCreateResponse = BulkResponse<FindByStringId>
 
-typealias FileCollectionsProviderDeleteRequest = BulkRequest<FindByStringId>
+typealias FileCollectionsProviderDeleteRequest = ProxiedRequest<BulkRequest<FindByStringId>>
 typealias FileCollectionsProviderDeleteResponse = Unit
 
-typealias FileCollectionsProviderRenameRequest = BulkRequest<FileCollectionsProviderRenameRequestItem>
+typealias FileCollectionsProviderRenameRequest = ProxiedRequest<BulkRequest<FileCollectionsProviderRenameRequestItem>>
 
 @Serializable
 data class FileCollectionsProviderRenameRequestItem(
@@ -36,7 +42,7 @@ data class FileCollectionsProviderRenameRequestItem(
 )
 typealias FileCollectionsProviderRenameResponse = Unit
 
-typealias FileCollectionsProviderUpdateAclRequest = BulkRequest<FileCollectionsProviderUpdateAclRequestItem>
+typealias FileCollectionsProviderUpdateAclRequest = ProxiedRequest<BulkRequest<FileCollectionsProviderUpdateAclRequestItem>>
 
 @Serializable
 data class FileCollectionsProviderUpdateAclRequestItem(
@@ -56,38 +62,38 @@ open class FileCollectionsProvider(
 ) : CallDescriptionContainer("files.collections.provider.$namespace") {
     val baseContext = "/ucloud/$namespace/files/collections"
 
-    val browse = call<FileCollectionsProviderBrowseRequest, FileCollectionsProviderBrowseResponse,
+    val browse = call<ProxiedRequest<FileCollectionsProviderBrowseRequest>, FileCollectionsProviderBrowseResponse,
         CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
+        httpBrowse(baseContext, roles = Roles.SERVICE)
     }
 
     val retrieve = call<FileCollectionsProviderRetrieveRequest, FileCollectionsProviderRetrieveResponse,
         CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
+        httpRetrieve(baseContext, roles = Roles.SERVICE)
     }
 
     val retrieveManifest = call<FileCollectionsProviderRetrieveManifestRequest,
         FileCollectionsProviderRetrieveManifestResponse, CommonErrorMessage>("retrieveManifest") {
-        httpRetrieve(baseContext, "manifest")
+        httpRetrieve(baseContext, "manifest", roles = Roles.SERVICE)
     }
 
     val create = call<FileCollectionsProviderCreateRequest, FileCollectionsProviderCreateResponse,
         CommonErrorMessage>("create") {
-        httpCreate(baseContext)
+        httpCreate(baseContext, roles = Roles.SERVICE)
     }
 
     val delete = call<FileCollectionsProviderDeleteRequest, FileCollectionsProviderDeleteResponse,
         CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
+        httpDelete(baseContext, roles = Roles.SERVICE)
     }
 
     val rename = call<FileCollectionsProviderRenameRequest, FileCollectionsProviderRenameResponse,
         CommonErrorMessage>("rename") {
-        httpUpdate(baseContext, "rename")
+        httpUpdate(baseContext, "rename", roles = Roles.SERVICE)
     }
 
     val updateAcl = call<FileCollectionsProviderUpdateAclRequest, FileCollectionsProviderUpdateAclResponse,
         CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "updateAcl")
+        httpUpdate(baseContext, "updateAcl", roles = Roles.SERVICE)
     }
 }
