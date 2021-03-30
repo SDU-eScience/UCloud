@@ -1,8 +1,9 @@
-package dk.sdu.cloud.file.ucloud.services
+package dk.sdu.cloud.file.ucloud.services.tasks
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.file.ucloud.services.acl.requirePermission
 import dk.sdu.cloud.micro.BackgroundScope
@@ -36,7 +37,7 @@ const val COPY_REQUIREMENTS_HARD_TIME_LIMIT = 2000
 
 class CopyTask(
     private val aclService: AclService,
-    private val queries: PathConverter,
+    private val pathConverter: PathConverter,
     private val backgroundScope: BackgroundScope,
 ) : TaskHandler {
     override fun canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
@@ -64,8 +65,8 @@ class CopyTask(
         // TODO We need to check if the initial files even exist
         val pathStack = ArrayDeque(realRequest.items.map {
             FileToCopy(
-                queries.ucloudToInternal(UCloudFile.create(it.oldPath)).path,
-                queries.ucloudToInternal(UCloudFile.create(it.newPath)).path,
+                pathConverter.ucloudToInternal(UCloudFile.create(it.oldPath)).path,
+                pathConverter.ucloudToInternal(UCloudFile.create(it.newPath)).path,
                 it.conflictPolicy
             )
         })
@@ -98,83 +99,51 @@ class CopyTask(
     override suspend fun execute(actor: Actor, task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(task.rawRequest)
 
-        val channel = Channel<FileToCopy>(Channel.UNLIMITED)
-        for (reqItem in realRequest.items) {
-            channel.send(
+        val numberOfCoroutines = if (task.requirements?.scheduleInBackground == true) 10 else 1
+        runWork(
+            backgroundScope.dispatcher,
+            numberOfCoroutines,
+            realRequest.items.map { reqItem ->
                 FileToCopy(
-                    queries.ucloudToInternal(UCloudFile.create(reqItem.oldPath)).path,
-                    queries.ucloudToInternal(UCloudFile.create(reqItem.newPath)).path,
+                    pathConverter.ucloudToInternal(UCloudFile.create(reqItem.oldPath)).path,
+                    pathConverter.ucloudToInternal(UCloudFile.create(reqItem.newPath)).path,
                     reqItem.conflictPolicy,
                 )
-            )
-        }
+            },
+            doWork = doWork@{ nextItem ->
+                val result = try {
+                    NativeFS.copy(
+                        InternalFile(nextItem.oldPath),
+                        InternalFile(nextItem.newPath),
+                        nextItem.conflictPolicy
+                    )
+                } catch (ex: FSException) {
+                    if (log.isDebugEnabled) {
+                        log.debug("Caught an exception while copying files: ${ex.stackTraceToString()}")
+                    }
+                    return@doWork
+                }
 
-        val idleCount = AtomicInteger(0)
-        val numberOfCoroutines = if (task.requirements?.scheduleInBackground == true) 10 else 1
-        coroutineScope {
-            (0 until numberOfCoroutines).map {
-                launch(backgroundScope.dispatcher) {
-                    var didReportIdle = false
-                    while (isActive) {
-                        val nextItem = channel.poll()
-                        if (nextItem == null) {
-                            // NOTE(Dan): We don't know if we have run out of files or if there are simply no more work
-                            // right now. To deal with this, we keep a count of idle workers. If all workers report that
-                            // they are idle, then we must have run out of work.
-                            val newIdleCount =
-                                if (!didReportIdle) {
-                                    didReportIdle = true
-                                    idleCount.incrementAndGet()
-                                } else {
-                                    idleCount.get()
-                                }
+                if (result is CopyResult.CreatedDirectory) {
+                    val outputFile = result.outputFile
+                    val childrenFileNames = try {
+                        NativeFS.listFiles(InternalFile(nextItem.oldPath))
+                    } catch (ex: FSException) {
+                        emptyList()
+                    }
 
-                            if (newIdleCount == numberOfCoroutines) {
-                                break // break before the delay
-                            }
-                            delay(10)
-                            continue
-                        }
-
-                        if (didReportIdle) {
-                            didReportIdle = false
-                            idleCount.decrementAndGet()
-                        }
-                        val result = try {
-                            NativeFS.copy(
-                                InternalFile(nextItem.oldPath),
-                                InternalFile(nextItem.newPath),
+                    for (childFileName in childrenFileNames) {
+                        channel.send(
+                            FileToCopy(
+                                nextItem.oldPath + "/" + childFileName,
+                                outputFile.path + "/" + childFileName,
                                 nextItem.conflictPolicy
                             )
-                        } catch (ex: FSException) {
-                            if (log.isDebugEnabled) {
-                                log.debug("Caught an exception while copying files: ${ex.printStackTrace()}")
-                            }
-                            continue
-                        }
-
-                        if (result is CopyResult.CreatedDirectory) {
-                            val outputFile = result.outputFile
-                            val childrenFileNames = try {
-                                NativeFS.listFiles(InternalFile(nextItem.oldPath))
-                            } catch (ex: FSException) {
-                                emptyList()
-                            }
-
-                            for (childFileName in childrenFileNames) {
-                                channel.send(
-                                    FileToCopy(
-                                        nextItem.oldPath + "/" + childFileName,
-                                        outputFile.path + "/" + childFileName,
-                                        nextItem.conflictPolicy
-                                    )
-                                )
-                            }
-                        }
+                        )
                     }
                 }
             }
-        }.joinAll()
+        )
     }
 
     companion object : Loggable {

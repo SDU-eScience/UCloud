@@ -8,6 +8,7 @@ import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.acl.AclServiceImpl
 import dk.sdu.cloud.file.ucloud.services.acl.MetadataDao
+import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -48,8 +49,13 @@ class Server(
         val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath))
         val aclService = AclServiceImpl(authenticatedClient, projectCache, pathConverter, db, metadataDao)
         val fileQueries = FileQueries(aclService, pathConverter, distributedStateFactory)
+        val trashService = TrashService(pathConverter)
         val taskSystem = TaskSystem(db).apply {
             install(CopyTask(aclService, pathConverter, micro.backgroundScope))
+            install(DeleteTask(aclService, pathConverter, micro.backgroundScope))
+            install(MoveTask(aclService, pathConverter, micro.backgroundScope))
+            install(CreateFolderTask(aclService, pathConverter, micro.backgroundScope))
+            install(TrashTask(aclService, pathConverter, micro.backgroundScope, trashService))
         }
 
         taskSystem.launchScheduler(micro.backgroundScope)

@@ -124,7 +124,7 @@ data class FilesCreateFolderRequestItem(
     override val path: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPath, WithConflictPolicy
-typealias FilesCreateFolderResponse = BulkResponse<FindByPath>
+typealias FilesCreateFolderResponse = BulkResponse<LongRunningTask<FindByPath>>
 
 typealias FilesUpdateAclRequest = BulkRequest<FilesUpdateAclRequestItem>
 @Serializable

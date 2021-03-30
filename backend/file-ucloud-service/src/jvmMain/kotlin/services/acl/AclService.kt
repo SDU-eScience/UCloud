@@ -24,7 +24,6 @@ fun homeFolder(username: String): String {
 }
 
 const val PERSONAL_REPOSITORY = "Members' Files"
-val SERVICE_USER = "_storage"
 
 interface AclService {
     suspend fun isAdmin(actor: Actor, file: UCloudFile): Boolean

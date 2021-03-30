@@ -140,6 +140,10 @@ class PathConverter(
         return RelativeInternalFile(file.path.removePrefix(rootDirectory.path))
     }
 
+    fun relativeToInternal(file: RelativeInternalFile): InternalFile {
+        return InternalFile(rootDirectory.path + file.path)
+    }
+
     companion object {
         const val COLLECTION_HOME_PREFIX = "h-"
         const val COLLECTION_PROJECT_PREFIX = "p-"

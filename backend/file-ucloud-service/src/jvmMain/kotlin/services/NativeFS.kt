@@ -585,50 +585,71 @@ object NativeFS : Loggable {
         }
     }
 
-    fun move(source: InternalFile, destination: InternalFile, replaceExisting: Boolean) {
+    data class MoveShouldContinue(val needsToRecurse: Boolean)
+    fun move(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy): MoveShouldContinue {
         if (Platform.isLinux()) {
-            val fromParent = openFile(source.parent())
-            val toParent = openFile(destination.parent())
+            val sourceParent = openFile(source.parent())
+            val destinationParent = openFile(destination.parent())
 
             try {
-                if (fromParent == -1 || toParent == -1) {
+                if (sourceParent == -1 || destinationParent == -1) {
                     throw FSException.NotFound()
                 }
 
-                val doesToExist = if (!replaceExisting) {
-                    val fd = CLibrary.INSTANCE.openat(toParent, destination.fileName(), 0, 0)
-                    if (fd >= 0) {
-                        CLibrary.INSTANCE.close(fd)
-                        true
-                    } else {
-                        false
+                val sourceFd = CLibrary.INSTANCE.openat(sourceParent, source.fileName(), 0, DEFAULT_FILE_MODE)
+                val sourceStat = nativeStat(sourceFd, autoClose = true)
+                var shouldContinue = false
+
+                val desiredFileName = destination.fileName()
+                if (conflictPolicy == WriteConflictPolicy.MERGE_RENAME && sourceStat.fileType == FileType.DIRECTORY) {
+                    val destFd = CLibrary.INSTANCE.openat(destinationParent, desiredFileName, 0, 0)
+                    if (destFd >= 0) {
+                        shouldContinue = true
+                        CLibrary.INSTANCE.close(destFd)
                     }
+                }
+
+                // NOTE(Dan): This call will create the file if it doesn't already exist. This is typically not a
+                // problem, since it will be replaced by the `renameat` call.
+                val (destinationName, destinationFd) = createAccordingToPolicy(
+                    destinationParent,
+                    desiredFileName,
+                    conflictPolicy,
+                    sourceStat.fileType == FileType.DIRECTORY
+                )
+                CLibrary.INSTANCE.close(destinationFd)
+
+                if (conflictPolicy == WriteConflictPolicy.MERGE_RENAME && desiredFileName == destinationName &&
+                    sourceStat.fileType == FileType.DIRECTORY) {
+                    // NOTE(Dan): Do nothing. The function above has potentially re-used an existing directory which
+                    // might not be empty. The `renameat` call will fail for non-empty directories which is not what we
+                    // want in this specific instance.
                 } else {
-                    false
-                }
+                    val err = CLibrary.INSTANCE.renameat(
+                        sourceParent,
+                        source.fileName(),
+                        destinationParent,
+                        destinationName
+                    )
 
-                if (doesToExist) {
-                    throw FSException.AlreadyExists()
+                    if (err < 0) throwExceptionBasedOnStatus(Native.getLastError())
                 }
-
-                val err = CLibrary.INSTANCE.renameat(fromParent, source.fileName(), toParent, destination.fileName())
-                if (err < 0) {
-                    throwExceptionBasedOnStatus(Native.getLastError())
-                }
+                return MoveShouldContinue(shouldContinue)
             } finally {
-                CLibrary.INSTANCE.close(fromParent)
-                CLibrary.INSTANCE.close(toParent)
+                CLibrary.INSTANCE.close(sourceParent)
+                CLibrary.INSTANCE.close(destinationParent)
             }
         } else {
             val opts = run {
                 val extraOpts: Array<CopyOption> =
-                    if (replaceExisting) arrayOf(StandardCopyOption.REPLACE_EXISTING)
+                    if (conflictPolicy == WriteConflictPolicy.REPLACE) arrayOf(StandardCopyOption.REPLACE_EXISTING)
                     else emptyArray()
 
                 extraOpts + arrayOf(LinkOption.NOFOLLOW_LINKS)
             }
 
             Files.move(File(source.path).toPath(), File(destination.path).toPath(), *opts)
+            return MoveShouldContinue(false)
         }
     }
 }
