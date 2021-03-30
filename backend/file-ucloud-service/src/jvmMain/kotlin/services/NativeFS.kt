@@ -50,6 +50,9 @@ object NativeFS : Loggable {
     const val DEFAULT_FILE_MODE = 416 // 0640
     private const val AT_REMOVEDIR = 0x200
     private const val S_ISREG = 0x8000
+    private const val SEEK_SET = 0
+    private const val SEEK_CUR = 1
+    private const val SEEK_END = 2
 
     var disableChown = false
 
@@ -220,6 +223,7 @@ object NativeFS : Loggable {
         desiredFileName: String,
         conflictPolicy: WriteConflictPolicy,
         isDirectory: Boolean,
+        truncate: Boolean = true,
     ): Pair<String, Int> {
         val mode = if (isDirectory) DEFAULT_DIR_MODE else DEFAULT_FILE_MODE
 
@@ -239,7 +243,8 @@ object NativeFS : Loggable {
 
         var oflags = O_NOFOLLOW
         if (!isDirectory) {
-            oflags = oflags or O_TRUNC or O_CREAT or O_WRONLY
+            oflags = oflags or O_CREAT or O_WRONLY
+            if (truncate) oflags = oflags or O_TRUNC
             if (conflictPolicy != WriteConflictPolicy.REPLACE) oflags = oflags or O_EXCL
         } else {
             oflags = oflags or O_DIRECTORY
@@ -307,30 +312,47 @@ object NativeFS : Loggable {
 
     fun openForWriting(
         file: InternalFile,
-        allowOverwrite: Boolean,
+        conflictPolicy: WriteConflictPolicy,
         owner: Int? = LINUX_FS_USER_UID,
-        permissions: Int?,
-    ): OutputStream {
+        permissions: Int? = DEFAULT_FILE_MODE,
+        truncate: Boolean = true,
+        offset: Long? = null
+    ): Pair<String, OutputStream> {
         if (Platform.isLinux()) {
-            var opts = O_TRUNC or O_CREAT or O_WRONLY
-            if (!allowOverwrite) {
-                opts = opts or O_EXCL
-            }
+            val parentFd = openFile(file.parent())
+            try {
+                if (parentFd < 0) throw FSException.NotFound()
+                val (targetName, targetFd) = createAccordingToPolicy(
+                    parentFd,
+                    file.fileName(),
+                    conflictPolicy,
+                    isDirectory = false,
+                    truncate
+                )
 
-            val fd = openFile(file, opts)
-            if (fd < 0) {
-                CLibrary.INSTANCE.close(fd)
-                throw FSException.NotFound()
-            }
+                if (offset != null) {
+                    if (!truncate) {
+                        CLibrary.INSTANCE.lseek(targetFd, offset, SEEK_SET)
+                    } else {
+                        error("truncate = true with offset != null")
+                    }
+                } else {
+                    if (!truncate) {
+                        CLibrary.INSTANCE.lseek(targetFd, 0, SEEK_END)
+                    }
+                }
 
-            setMetadataForNewFile(fd, owner, permissions)
-            return LinuxOutputStream(fd)
+                setMetadataForNewFile(targetFd, owner, permissions)
+                return Pair(targetName, LinuxOutputStream(targetFd))
+            } finally {
+                CLibrary.INSTANCE.close(parentFd)
+            }
         } else {
             val options = HashSet<OpenOption>()
             options.add(StandardOpenOption.TRUNCATE_EXISTING)
             options.add(StandardOpenOption.WRITE)
             options.add(LinkOption.NOFOLLOW_LINKS)
-            if (!allowOverwrite) {
+            if (conflictPolicy != WriteConflictPolicy.REPLACE) {
                 options.add(StandardOpenOption.CREATE_NEW)
             } else {
                 options.add(StandardOpenOption.CREATE)
@@ -338,13 +360,17 @@ object NativeFS : Loggable {
 
             try {
                 val systemPath = File(file.path).toPath()
-                return Channels.newOutputStream(
+                return Pair(file.fileName(), Channels.newOutputStream(
                     Files.newByteChannel(
                         systemPath,
                         options,
                         PosixFilePermissions.asFileAttribute(DEFAULT_POSIX_FILE_MODE)
-                    )
-                )
+                    ).also {
+                        if (offset != null) {
+                            it.position(offset)
+                        }
+                    }
+                ))
             } catch (ex: FileAlreadyExistsException) {
                 throw FSException.AlreadyExists()
             } catch (ex: Throwable) {
@@ -586,6 +612,7 @@ object NativeFS : Loggable {
     }
 
     data class MoveShouldContinue(val needsToRecurse: Boolean)
+
     fun move(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy): MoveShouldContinue {
         if (Platform.isLinux()) {
             val sourceParent = openFile(source.parent())
@@ -620,7 +647,8 @@ object NativeFS : Loggable {
                 CLibrary.INSTANCE.close(destinationFd)
 
                 if (conflictPolicy == WriteConflictPolicy.MERGE_RENAME && desiredFileName == destinationName &&
-                    sourceStat.fileType == FileType.DIRECTORY) {
+                    sourceStat.fileType == FileType.DIRECTORY
+                ) {
                     // NOTE(Dan): Do nothing. The function above has potentially re-used an existing directory which
                     // might not be empty. The `renameat` call will fail for non-empty directories which is not what we
                     // want in this specific instance.

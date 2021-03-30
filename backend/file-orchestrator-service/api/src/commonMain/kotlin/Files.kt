@@ -140,11 +140,21 @@ typealias FilesTrashResponse = BulkResponse<LongRunningTask<Unit>>
 typealias FilesCreateUploadRequest = BulkRequest<FilesCreateUploadRequestItem>
 @Serializable
 data class FilesCreateUploadRequestItem(
-    override val path: String
+    override val path: String,
+    val supportedProtocols: List<UploadProtocol>,
+    val conflictPolicy: WriteConflictPolicy,
 ) : WithPath
 typealias FilesCreateUploadResponse = BulkResponse<FilesCreateUploadResponseItem>
 @Serializable
-data class FilesCreateUploadResponseItem(val endpoint: String)
+data class FilesCreateUploadResponseItem(
+    val endpoint: String,
+    val protocol: UploadProtocol,
+    val token: String,
+)
+
+enum class UploadProtocol {
+    CHUNKED
+}
 
 typealias FilesCreateDownloadRequest = BulkRequest<FilesCreateDownloadRequestItem>
 @Serializable
