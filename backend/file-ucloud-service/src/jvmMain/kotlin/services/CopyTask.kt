@@ -110,7 +110,7 @@ class CopyTask(
         }
 
         val idleCount = AtomicInteger(0)
-        val numberOfCoroutines = if (task.requirements.scheduleInBackground) 10 else 1
+        val numberOfCoroutines = if (task.requirements?.scheduleInBackground == true) 10 else 1
         coroutineScope {
             (0 until numberOfCoroutines).map {
                 launch(backgroundScope.dispatcher) {

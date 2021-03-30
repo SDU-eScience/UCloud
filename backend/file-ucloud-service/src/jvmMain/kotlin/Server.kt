@@ -38,7 +38,6 @@ class Server(
         val authenticatedClient = authenticator.authenticateClient(OutgoingHttpCall)
         val db = AsyncDBSessionFactory(micro.databaseConfig)
 
-
         val fsRootFile =
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
@@ -49,9 +48,11 @@ class Server(
         val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath))
         val aclService = AclServiceImpl(authenticatedClient, projectCache, pathConverter, db, metadataDao)
         val fileQueries = FileQueries(aclService, pathConverter, distributedStateFactory)
-        val taskSystem = TaskSystem()
+        val taskSystem = TaskSystem(db).apply {
+            install(CopyTask(aclService, pathConverter, micro.backgroundScope))
+        }
 
-        taskSystem.install(CopyTask(aclService, pathConverter, micro.backgroundScope))
+        taskSystem.launchScheduler(micro.backgroundScope)
 
         configureControllers(
             FilesController(fileQueries, taskSystem),
