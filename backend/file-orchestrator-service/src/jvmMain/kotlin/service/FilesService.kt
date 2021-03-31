@@ -1,6 +1,6 @@
 package dk.sdu.cloud.file.orchestrator.service
 
-import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -12,26 +12,60 @@ import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.safeUsername
 import io.ktor.http.*
 
+suspend fun <T> proxiedRequest(
+    projectCache: ProjectCache,
+    actorAndProject: ActorAndProject,
+    request: T,
+): ProxiedRequest<T> {
+    val project = actorAndProject.project
+    if (project != null) {
+        projectCache.retrieveRole(actorAndProject.actor.safeUsername(), project)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+    }
+
+    return ProxiedRequest.createIPromiseToHaveVerifiedTheProjectBeforeCreating(
+        actorAndProject.actor.safeUsername(),
+        project,
+        request
+    )
+}
+
 class FilesService(
     private val providers: Providers,
     private val providerSupport: ProviderSupport,
+    private val projectCache: ProjectCache,
 ) {
-    suspend fun browse(actor: Actor, request: FilesBrowseRequest): FilesBrowseResponse {
+
+    suspend fun browse(actorAndProject: ActorAndProject, request: FilesBrowseRequest): FilesBrowseResponse {
         val pathMetadata = extractPathMetadata(request.path)
         val comms = providers.prepareCommunication(pathMetadata.productReference.provider)
         val (product, support) = providerSupport.retrieveProductSupport(pathMetadata.productReference)
         verifyReadRequest(request, support)
 
-        return comms.filesApi.browse.call(ProxiedRequest(actor.safeUsername(), request), comms.client).orThrow()
+        return comms.filesApi.browse.call(
+            proxiedRequest(
+                projectCache,
+                actorAndProject,
+                request
+            ),
+            comms.client
+        ).orThrow()
     }
 
-    suspend fun retrieve(actor: Actor, request: FilesRetrieveRequest): FilesRetrieveResponse {
+    suspend fun retrieve(actorAndProject: ActorAndProject, request: FilesRetrieveRequest): FilesRetrieveResponse {
         val pathMetadata = extractPathMetadata(request.path)
         val comms = providers.prepareCommunication(pathMetadata.productReference.provider)
         val (product, support) = providerSupport.retrieveProductSupport(pathMetadata.productReference)
         verifyReadRequest(request, support)
 
-        return comms.filesApi.retrieve.call(ProxiedRequest(actor.safeUsername(), request), comms.client).orThrow()
+        return comms.filesApi.retrieve.call(
+            proxiedRequest(
+                projectCache,
+                actorAndProject,
+                request
+            ),
+            comms.client
+        ).orThrow()
     }
 
     private fun verifyReadRequest(request: FilesIncludeFlags, support: FSSupport) {
@@ -61,7 +95,7 @@ class FilesService(
         }
     }
 
-    suspend fun move(actor: Actor, request: FilesMoveRequest): FilesMoveResponse {
+    suspend fun move(actorAndProject: ActorAndProject, request: FilesMoveRequest): FilesMoveResponse {
         val requestsByProvider = prepareCopyOrMove(request)
 
         val responses = ArrayList<LongRunningTask<FindByPath>>()
@@ -69,8 +103,9 @@ class FilesService(
             val comms = providers.prepareCommunication(provider)
             responses.addAll(
                 comms.filesApi.move.call(
-                    ProxiedRequest(
-                        actor.safeUsername(),
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
                         bulkRequestOf(requestItems)
                     ),
                     comms.client
@@ -82,7 +117,7 @@ class FilesService(
         return FilesMoveResponse(responses)
     }
 
-    suspend fun copy(actor: Actor, request: FilesCopyRequest): FilesCopyResponse {
+    suspend fun copy(actorAndProject: ActorAndProject, request: FilesCopyRequest): FilesCopyResponse {
         val requestsByProvider = prepareCopyOrMove(request)
 
         val responses = ArrayList<LongRunningTask<FindByPath>>()
@@ -90,7 +125,11 @@ class FilesService(
             val comms = providers.prepareCommunication(provider)
             responses.addAll(
                 comms.filesApi.copy.call(
-                    ProxiedRequest(actor.safeUsername(), bulkRequestOf(requestItems)),
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
+                        bulkRequestOf(requestItems)
+                    ),
                     comms.client
                 ).orThrow().responses
             )
@@ -123,7 +162,7 @@ class FilesService(
         return requestsByProvider
     }
 
-    suspend fun delete(actor: Actor, request: FilesDeleteRequest): FilesDeleteResponse {
+    suspend fun delete(actorAndProject: ActorAndProject, request: FilesDeleteRequest): FilesDeleteResponse {
         return proxyRequest(
             request,
             verifyRequest = { support, _ ->
@@ -136,14 +175,21 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.delete.call(
-                    ProxiedRequest(actor.safeUsername(), bulkRequestOf(requestItems)),
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
+                        bulkRequestOf(requestItems)
+                    ),
                     comms.client
                 ).orThrow()
             }
         )
     }
 
-    suspend fun createUpload(actor: Actor, request: FilesCreateUploadRequest): FilesCreateUploadResponse {
+    suspend fun createUpload(
+        actorAndProject: ActorAndProject,
+        request: FilesCreateUploadRequest,
+    ): FilesCreateUploadResponse {
         return proxyRequest(
             request,
             verifyRequest = { support, _ ->
@@ -156,27 +202,41 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.createUpload.call(
-                    ProxiedRequest(actor.safeUsername(), bulkRequestOf(requestItems)),
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
+                        bulkRequestOf(requestItems)
+                    ),
                     comms.client
                 ).orThrow()
             }
         )
     }
 
-    suspend fun createDownload(actor: Actor, request: FilesCreateDownloadRequest): FilesCreateDownloadResponse {
+    suspend fun createDownload(
+        actorAndProject: ActorAndProject,
+        request: FilesCreateDownloadRequest,
+    ): FilesCreateDownloadResponse {
         return proxyRequest(
             request,
             verifyRequest = { support, _ -> },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.createDownload.call(
-                    ProxiedRequest(actor.safeUsername(), bulkRequestOf(requestItems)),
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
+                        bulkRequestOf(requestItems)
+                    ),
                     comms.client
                 ).orThrow()
             }
         )
     }
 
-    suspend fun createFolder(actor: Actor, request: FilesCreateFolderRequest): FilesCreateFolderResponse {
+    suspend fun createFolder(
+        actorAndProject: ActorAndProject,
+        request: FilesCreateFolderRequest,
+    ): FilesCreateFolderResponse {
         return proxyRequest(
             request,
             verifyRequest = { support, _ ->
@@ -189,14 +249,18 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.createFolder.call(
-                    ProxiedRequest(actor.safeUsername(), bulkRequestOf(requestItems)),
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
+                        bulkRequestOf(requestItems)
+                    ),
                     comms.client
                 ).orThrow()
             }
         )
     }
 
-    suspend fun trash(actor: Actor, request: FilesTrashRequest): FilesTrashResponse {
+    suspend fun trash(actorAndProject: ActorAndProject, request: FilesTrashRequest): FilesTrashResponse {
         return proxyRequest(
             request,
             verifyRequest = { support, _ ->
@@ -209,14 +273,18 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.trash.call(
-                    ProxiedRequest(actor.safeUsername(), bulkRequestOf(requestItems)),
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
+                        bulkRequestOf(requestItems)
+                    ),
                     comms.client
                 ).orThrow()
             }
         )
     }
 
-    suspend fun updateAcl(actor: Actor, request: FilesUpdateAclRequest): FilesUpdateAclResponse {
+    suspend fun updateAcl(actorAndProject: ActorAndProject, request: FilesUpdateAclRequest): FilesUpdateAclResponse {
         proxyRequest(
             request,
             verifyRequest = { support, _ ->
@@ -226,7 +294,11 @@ class FilesService(
             },
             proxyRequest = { comms, requestItems ->
                 comms.filesApi.updateAcl.call(
-                    ProxiedRequest(actor.safeUsername(), bulkRequestOf(requestItems)),
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
+                        bulkRequestOf(requestItems)
+                    ),
                     comms.client
                 ).orThrow()
                 BulkResponse<Unit>(emptyList())

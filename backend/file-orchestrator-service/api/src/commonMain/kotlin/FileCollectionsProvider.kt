@@ -1,7 +1,6 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import kotlinx.serialization.Serializable
@@ -9,10 +8,21 @@ import kotlinx.serialization.Serializable
 // ---
 
 @Serializable
-data class ProxiedRequest<T>(
+data class ProxiedRequest<T> internal constructor(
     val username: String,
-    val request: T
-)
+    val project: String?,
+    val request: T,
+) {
+    companion object {
+        fun <T> createIPromiseToHaveVerifiedTheProjectBeforeCreating(
+            username: String,
+            project: String?,
+            request: T,
+        ): ProxiedRequest<T> {
+            return ProxiedRequest(username, project, request)
+        }
+    }
+}
 
 @Serializable
 data class FileCollectionsProviderBrowseRequest(
@@ -27,7 +37,7 @@ typealias FileCollectionsProviderBrowseResponse = PageV2<FileCollection>
 typealias FileCollectionsProviderRetrieveRequest = ProxiedRequest<FindByStringId>
 typealias FileCollectionsProviderRetrieveResponse = FileCollection
 
-typealias FileCollectionsProviderCreateRequest = ProxiedRequest<BulkRequest<FileCollection>>
+typealias FileCollectionsProviderCreateRequest = ProxiedRequest<BulkRequest<FileCollection.Spec>>
 typealias FileCollectionsProviderCreateResponse = BulkResponse<FindByStringId>
 
 typealias FileCollectionsProviderDeleteRequest = ProxiedRequest<BulkRequest<FindByStringId>>

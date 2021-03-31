@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.orchestrator.api.FilesCopyRequestItem
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.ucloud.createHome
 import dk.sdu.cloud.file.ucloud.*
+import dk.sdu.cloud.file.ucloud.services.tasks.CopyTaskRequirements
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatInstance

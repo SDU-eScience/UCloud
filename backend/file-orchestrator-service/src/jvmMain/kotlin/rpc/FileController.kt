@@ -9,43 +9,43 @@ import dk.sdu.cloud.service.actorAndProject
 class FileController(private val files: FilesService) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Files.browse) {
-            ok(files.browse(actorAndProject.actor, request))
+            ok(files.browse(actorAndProject, request))
         }
 
         implement(Files.copy) {
-            ok(files.copy(actorAndProject.actor, request))
+            ok(files.copy(actorAndProject, request))
         }
 
         implement(Files.createDownload) {
-            ok(files.createDownload(actorAndProject.actor, request))
+            ok(files.createDownload(actorAndProject, request))
         }
 
         implement(Files.createUpload) {
-            ok(files.createUpload(actorAndProject.actor, request))
+            ok(files.createUpload(actorAndProject, request))
         }
 
         implement(Files.createFolder) {
-            ok(files.createFolder(actorAndProject.actor, request))
+            ok(files.createFolder(actorAndProject, request))
         }
 
         implement(Files.delete) {
-            ok(files.delete(actorAndProject.actor, request))
+            ok(files.delete(actorAndProject, request))
         }
 
         implement(Files.move) {
-            ok(files.move(actorAndProject.actor, request))
+            ok(files.move(actorAndProject, request))
         }
 
         implement(Files.retrieve) {
-            ok(files.retrieve(actorAndProject.actor, request))
+            ok(files.retrieve(actorAndProject, request))
         }
 
         implement(Files.trash) {
-            ok(files.trash(actorAndProject.actor, request))
+            ok(files.trash(actorAndProject, request))
         }
 
         implement(Files.updateAcl) {
-            ok(files.updateAcl(actorAndProject.actor, request))
+            ok(files.updateAcl(actorAndProject, request))
         }
         return@with
     }

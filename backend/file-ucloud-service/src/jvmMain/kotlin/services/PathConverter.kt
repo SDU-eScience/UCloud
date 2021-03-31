@@ -31,6 +31,7 @@ inline class UCloudFile private constructor(override val path: String) : PathLik
         fun createFromPreNormalizedString(path: String) = UCloudFile(path)
     }
 }
+
 fun <T : PathLike<T>> T.parent(): T = withNewPath(path.parent())
 fun <T : PathLike<T>> T.parents(): List<T> = path.parents().map { withNewPath(it) }
 fun <T : PathLike<T>> T.normalize(): T = withNewPath(path.normalize())
@@ -64,12 +65,8 @@ class PathConverter(
                 }
             )
         } else if (collection.startsWith(COLLECTION_PROJECT_PREFIX)) {
-            val withoutPrefix = collection.removePrefix(COLLECTION_PROJECT_PREFIX)
-            val splitterIdx = withoutPrefix.indexOfLast { it == '-' }
-            if (splitterIdx == -1) throw FSException.NotFound()
-            if (splitterIdx == withoutPrefix.length) throw FSException.NotFound()
-            val projectId = withoutPrefix.substring(0, splitterIdx)
-            val repository = withoutPrefix.substring(splitterIdx + 1)
+            val (projectId, repository) = collectionToProjectRepositoryOrNull(collection)
+                ?: throw FSException.NotFound()
 
             return InternalFile(
                 buildString {
@@ -91,6 +88,42 @@ class PathConverter(
         } else {
             throw FSException.NotFound()
         }
+    }
+
+    fun projectRepositoryLocation(projectId: String, repository: String): InternalFile {
+        return InternalFile(
+            buildString {
+                append(rootDirectory.path)
+                append('/')
+                append(PROJECT_DIRECTORY)
+                append('/')
+                append(projectId)
+                append('/')
+                append(repository)
+            }
+        )
+    }
+
+    fun projectRepositoryToCollection(projectId: String, repository: String): String {
+        return buildString {
+            append(COLLECTION_PROJECT_PREFIX)
+            append(projectId)
+            append('-')
+            append(repository)
+        }
+    }
+
+    data class ProjectRepository(val projectId: String, val repository: String)
+    fun collectionToProjectRepositoryOrNull(collection: String): ProjectRepository? {
+        if (!collection.startsWith(COLLECTION_PROJECT_PREFIX)) return null
+        val withoutPrefix = collection.removePrefix(COLLECTION_PROJECT_PREFIX)
+        val splitterIdx = withoutPrefix.indexOfLast { it == '-' }
+        if (splitterIdx == -1) throw FSException.NotFound()
+        if (splitterIdx == withoutPrefix.length) throw FSException.NotFound()
+        val projectId = withoutPrefix.substring(0, splitterIdx)
+        val repository = withoutPrefix.substring(splitterIdx + 1)
+
+        return ProjectRepository(projectId, repository)
     }
 
     fun internalToUCloud(file: InternalFile): UCloudFile {
@@ -156,4 +189,8 @@ class PathConverter(
 
 fun PathConverter.ucloudToRelative(file: UCloudFile): RelativeInternalFile {
     return internalToRelative(ucloudToInternal(file))
+}
+
+fun PathConverter.relativeToUCloud(file: RelativeInternalFile): UCloudFile {
+    return internalToUCloud(relativeToInternal(file))
 }

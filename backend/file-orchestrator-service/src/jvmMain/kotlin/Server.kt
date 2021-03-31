@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.orchestrator.rpc.FileController
 import dk.sdu.cloud.file.orchestrator.rpc.FileMetadataController
 import dk.sdu.cloud.file.orchestrator.rpc.FileMetadataTemplateController
 import dk.sdu.cloud.file.orchestrator.service.FilesService
+import dk.sdu.cloud.file.orchestrator.service.ProjectCache
 import dk.sdu.cloud.file.orchestrator.service.ProviderSupport
 import dk.sdu.cloud.file.orchestrator.service.Providers
 import dk.sdu.cloud.micro.Micro
@@ -21,7 +22,8 @@ class Server(override val micro: Micro) : CommonServer {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val providers = Providers(serviceClient)
         val providerSupport = ProviderSupport(providers, serviceClient)
-        val filesService = FilesService(providers, providerSupport)
+        val projectCache = ProjectCache(serviceClient)
+        val filesService = FilesService(providers, providerSupport, projectCache)
 
         configureControllers(
             FileMetadataController(),

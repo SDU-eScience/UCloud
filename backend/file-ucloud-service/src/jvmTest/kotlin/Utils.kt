@@ -3,7 +3,7 @@ package dk.sdu.cloud.file.ucloud
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.file.orchestrator.api.FilePermission
 import dk.sdu.cloud.file.orchestrator.api.FilesUpdateAclRequest
-import dk.sdu.cloud.file.ucloud.services.CopyTask
+import dk.sdu.cloud.file.ucloud.services.tasks.CopyTask
 import dk.sdu.cloud.file.ucloud.services.PathConverter
 import dk.sdu.cloud.file.ucloud.services.InternalFile
 import dk.sdu.cloud.file.ucloud.services.UCloudFile

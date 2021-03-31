@@ -50,6 +50,7 @@ class Server(
         val aclService = AclServiceImpl(authenticatedClient, projectCache, pathConverter, db, metadataDao)
         val fileQueries = FileQueries(aclService, pathConverter, distributedStateFactory)
         val trashService = TrashService(pathConverter)
+        val chunkedUploadService = ChunkedUploadService(db, aclService, pathConverter)
         val taskSystem = TaskSystem(db).apply {
             install(CopyTask(aclService, pathConverter, micro.backgroundScope))
             install(DeleteTask(aclService, pathConverter, micro.backgroundScope))
@@ -57,12 +58,13 @@ class Server(
             install(CreateFolderTask(aclService, pathConverter, micro.backgroundScope))
             install(TrashTask(aclService, pathConverter, micro.backgroundScope, trashService))
         }
+        val fileCollectionService = FileCollectionsService(aclService, pathConverter, db, projectCache, taskSystem)
 
         taskSystem.launchScheduler(micro.backgroundScope)
 
         configureControllers(
-            FilesController(fileQueries, taskSystem),
-            FileCollectionsController(),
+            FilesController(fileQueries, taskSystem, chunkedUploadService),
+            FileCollectionsController(fileCollectionService),
         )
 
         startServices()
