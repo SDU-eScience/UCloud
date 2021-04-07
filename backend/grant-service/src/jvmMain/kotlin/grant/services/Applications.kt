@@ -488,7 +488,7 @@ class ApplicationService(
                 .singleOrNull()
                 ?.getField(ApplicationTable.status) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            if (currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.CLOSED.name) {
+            if (currentStatus == ApplicationStatus.CLOSED.name || currentStatus == ApplicationStatus.APPROVED.name || currentStatus == ApplicationStatus.REJECTED.name) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Not able to change status of finished application")
             }
 
@@ -641,11 +641,13 @@ class ApplicationService(
         actor: Actor,
         application: Application
     ) {
+        val sourceProject = application.resourcesOwnedBy
+        val requestedResources = application.requestedResources
         when (val grantRecipient = application.grantRecipient) {
             is GrantRecipient.PersonalProject -> {
                 grantResourcesToProject(
-                    application.resourcesOwnedBy,
-                    application.requestedResources,
+                    sourceProject,
+                    requestedResources,
                     grantRecipient.username,
                     WalletOwnerType.USER,
                     serviceClient,
@@ -656,8 +658,8 @@ class ApplicationService(
 
             is GrantRecipient.ExistingProject -> {
                 grantResourcesToProject(
-                    application.resourcesOwnedBy,
-                    application.requestedResources,
+                    sourceProject,
+                    requestedResources,
                     grantRecipient.projectId,
                     WalletOwnerType.PROJECT,
                     serviceClient,
@@ -669,11 +671,24 @@ class ApplicationService(
             is GrantRecipient.NewProject -> {
                 //Check that grant receiver has enough resources before creating project
                 checkBalance(
-                    application.requestedResources,
-                    application.resourcesOwnedBy,
+                    requestedResources,
+                    sourceProject,
                     serviceClient,
                     TransactionType.TRANSFERRED_TO_PROJECT
                 )
+
+                val usage = FileDescriptions.retrieveQuota.call(
+                    RetrieveQuotaRequest(projectHomeDirectory(sourceProject)),
+                    serviceClient
+                ).orThrow()
+
+                val quotaRequested = requestedResources.asSequence()
+                    .map { resource -> resource.quotaRequested ?: 0L }
+                    .sum()
+
+                if (usage.quotaInBytes - quotaRequested < 0L) {
+                    throw RPCException("Insufficient quota available from source project", HttpStatusCode.PaymentRequired)
+                }
 
                 val (newProjectId) = Projects.create.call(
                     CreateProjectRequest(
