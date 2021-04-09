@@ -10,9 +10,9 @@ repositories {
 }
 
 kotlin {
-    val jacksonVersion = "2.10.4"
+    val jacksonVersion = "2.12.2"
     val ktorVersion = "1.5.2"
-    val jasyncVersion = "1.1.3"
+    val jasyncVersion = "1.1.7"
 
     jvm {
         withJava()
@@ -49,7 +49,7 @@ kotlin {
                 api("com.github.jasync-sql:jasync-common:$jasyncVersion")
                 api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
                 api("io.lettuce:lettuce-core:5.1.6.RELEASE")
-                api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.11.1")
+                api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.12.0")
                 api("com.google.guava:guava:27.0.1-jre")
             }
         }
