@@ -234,7 +234,6 @@ class ProductService(
     ): List<Product> {
         return ctx.withSession { session ->
             requirePermission(session, actor, provider, readOnly = true)
-
             session
                 .sendPreparedStatement(
                     {

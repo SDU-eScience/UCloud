@@ -158,7 +158,6 @@ class ProviderDao(
                 }
 
             if (!hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)) {
-                println("You don't have permissions!")
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         }
@@ -241,6 +240,7 @@ class ProviderDao(
     ): Boolean {
         val project = owner.project ?: return false
         if (actor == Actor.System) return true
+        if (actor.username == owner.createdBy) return true
         val username = actor.safeUsername()
         if (projects.isAdminOfProject(project, actor)) return true
         for (entry in aclToVerifyAgainst) {
