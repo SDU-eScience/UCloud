@@ -44,7 +44,7 @@ kotlin {
                 api("com.auth0:java-jwt:3.15.0")
 
                 api("org.postgresql:postgresql:42.2.19")
-                api("org.flywaydb:flyway-core:5.2.4")
+                api("org.flywaydb:flyway-core:7.7.3")
 
                 api("com.github.jasync-sql:jasync-common:$jasyncVersion")
                 api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
