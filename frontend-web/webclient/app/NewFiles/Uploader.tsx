@@ -68,6 +68,7 @@ async function processUpload(upload: Upload) {
             request.upload.onprogress = (ev) => {
                 upload.progressInBytes = progressStart + ev.loaded;
                 if (upload.terminationRequested) {
+                    upload.state = UploadState.DONE;
                     request.abort();
                 }
             };
@@ -86,7 +87,6 @@ async function processUpload(upload: Upload) {
     while (!reader.isEof() && !upload.terminationRequested) {
         await sendChunk(await reader.readChunk(maxChunkSize));
     }
-    upload.state = UploadState.DONE;
 }
 
 const Uploader: React.FunctionComponent = props => {
