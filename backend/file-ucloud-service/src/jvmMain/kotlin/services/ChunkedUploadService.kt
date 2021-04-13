@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.file.ucloud.services.acl.requirePermission
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -102,5 +103,9 @@ class ChunkedUploadService(
                     "update file_ucloud.upload_sessions set last_update = now() where id = :id"
                 )
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

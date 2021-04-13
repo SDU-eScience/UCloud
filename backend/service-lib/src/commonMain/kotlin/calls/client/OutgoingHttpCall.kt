@@ -89,8 +89,12 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                 // If a beforeHook has attached a body, don't change it
                 body = http.serializeBody(request, call)
             }
-            http.serializeHeaders(request).forEach { (name, value) ->
-                header(name, base64Encode(value.encodeToByteArray()))
+            http.serializeHeaders(request).forEach { (name, value, encode) ->
+                if(encode) {
+                    header(name, base64Encode(value.encodeToByteArray()))
+                } else {
+                    header(name, value)
+                }
             }
 
             // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
@@ -190,15 +194,16 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         }
     }
 
+    data class SerializedHeader(val name: String, val value: String, val base64Encode: Boolean)
     private fun <R : Any> HttpRequest<R, *, *>.serializeHeaders(
         request: R,
-    ): List<Pair<String, String>> {
+    ): List<SerializedHeader> {
         if (headers == null) return emptyList()
 
         return headers.parameters.mapNotNull {
             when (it) {
-                is HttpHeaderParameter.Simple -> it.header to it.value
-                is HttpHeaderParameter.Present -> it.header to "true"
+                is HttpHeaderParameter.Simple -> SerializedHeader(it.header, it.value, true)
+                is HttpHeaderParameter.Present -> SerializedHeader(it.header, "true", true)
 
                 is HttpHeaderParameter.Property<R, *> -> {
                     @Suppress("UNCHECKED_CAST")
@@ -206,7 +211,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
                     val value = it.property.get(request) ?: return@mapNotNull null
 
-                    it.header to value.toString()
+                    SerializedHeader(it.header, value.toString(), it.base64Encoded)
                 }
             }
         }

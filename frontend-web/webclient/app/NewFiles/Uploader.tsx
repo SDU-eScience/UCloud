@@ -1,17 +1,348 @@
 import * as React from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 import styled from "styled-components";
 import ReactModal from "react-modal";
-import {Spacer} from "ui-components/Spacer";
-import {Divider, FtIcon, Heading, Icon, List, Truncate} from "ui-components";
+import {Box, Divider, Flex, FtIcon, Icon, List, Truncate} from "ui-components";
 import {TextSpan} from "ui-components/Text";
-import {useCallback, useEffect, useMemo} from "react";
-import {extensionFromPath, preventDefault} from "UtilityFunctions";
+import {
+    errorMessageOrDefault,
+    extensionFromPath,
+    inSuccessRange,
+    preventDefault
+} from "UtilityFunctions";
 import {fetcherFromDropOrSelectEvent} from "NewFiles/HTML5FileSelector";
-import {Upload, UploadState} from "NewFiles/Upload";
-import {ListRow} from "ui-components/List";
+import {supportedProtocols, Upload, UploadState} from "NewFiles/Upload";
+import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {Operation, Operations} from "ui-components/Operation";
+import * as UCloud from "UCloud";
+import FileApi = UCloud.file.orchestrator;
+import {callAPI} from "Authentication/DataHook";
+import {bulkRequestOf} from "DefaultObjects";
+import {BulkResponse} from "UCloud";
+import {ChunkedFileReader} from "NewFiles/ChunkedFileReader";
+import {sizeToString} from "Utilities/FileUtilities";
+
+const maxConcurrentUploads = 5;
+const entityName = "Upload";
+const maxChunkSize = 32 * 1000 * 1000;
+
+async function processUpload(upload: Upload) {
+    const strategy = upload.uploadResponse;
+    if (!strategy) {
+        upload.error = "Internal client error";
+        upload.state = UploadState.DONE;
+        return;
+    }
+
+    const files = await upload.row.fetcher();
+    if (files.length === 0) return;
+    if (files.length > 1) {
+        upload.error = "Folder uploads not yet supported";
+        upload.state = UploadState.DONE;
+        return;
+    }
+
+    if (strategy.protocol !== "CHUNKED") {
+        upload.error = "Upload not supported for this provider";
+        upload.state = UploadState.DONE;
+        return;
+    }
+
+    const theFile = files[0];
+
+    const reader = new ChunkedFileReader(theFile.fileObject);
+    upload.fileSizeInBytes = reader.fileSize();
+
+    function sendChunk(chunk: ArrayBuffer): Promise<void> {
+        return new Promise(((resolve, reject) => {
+            const progressStart = upload.progressInBytes;
+            const request = new XMLHttpRequest();
+            request.open("POST", strategy!.endpoint);
+            request.setRequestHeader("Chunked-Upload-Token", strategy!.token);
+            request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
+            request.setRequestHeader("Content-Type", "application/octet-stream");
+            request.responseType = "text";
+
+            request.upload.onprogress = (ev) => {
+                upload.progressInBytes = progressStart + ev.loaded;
+                if (upload.terminationRequested) {
+                    request.abort();
+                }
+            };
+
+            request.onreadystatechange = () => {
+                if (request.status === 0) return;
+                if (inSuccessRange(request.status)) resolve();
+
+                reject(errorMessageOrDefault({request, response: request.response}, "Upload failed"));
+            };
+
+            request.send(chunk);
+        }))
+    }
+
+    while (!reader.isEof() && !upload.terminationRequested) {
+        await sendChunk(await reader.readChunk(maxChunkSize));
+    }
+    upload.state = UploadState.DONE;
+}
+
+const Uploader: React.FunctionComponent = props => {
+    const [uploadPath] = useGlobal("uploadPath", "/");
+    const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
+    const [uploads, setUploads] = useGlobal("uploads", []);
+    const [lookForNewUploads, setLookForNewUploads] = useState(false);
+
+    const closeModal = useCallback(() => {
+        setUploaderVisible(false);
+    }, []);
+
+    const toggleSet = useToggleSet(uploads);
+    const startUploads = useCallback(async (batch: Upload[]) => {
+        let activeUploads = 0;
+        for (const u of uploads) {
+            if (u.state === UploadState.UPLOADING) activeUploads++;
+        }
+
+        const maxUploadsToUse = maxConcurrentUploads - activeUploads;
+        if (maxUploadsToUse > 0) {
+            const creationRequests: FileApi.FilesCreateUploadRequestItem[] = [];
+            const actualUploads: Upload[] = [];
+            for (const upload of batch) {
+                if (upload.state !== UploadState.PENDING) continue;
+                if (creationRequests.length >= maxUploadsToUse) break;
+
+                upload.state = UploadState.UPLOADING;
+                creationRequests.push({
+                    supportedProtocols,
+                    conflictPolicy: upload.conflictPolicy,
+                    path: upload.targetPath + "/" + upload.row.rootEntry.name
+                });
+
+                actualUploads.push(upload);
+            }
+
+            if (actualUploads.length === 0) return;
+
+            try {
+                const responses = (await callAPI<BulkResponse<FileApi.FilesCreateUploadResponseItem>>(
+                    FileApi.files.createUpload(bulkRequestOf(...creationRequests))
+                )).responses;
+
+                let i = 0;
+                for (const response of responses) {
+                    const upload = actualUploads[i];
+                    upload.uploadResponse = response;
+                    i++;
+
+                    processUpload(upload)
+                        .then(() => {
+                            upload.state = UploadState.DONE;
+                            setLookForNewUploads(true);
+                        })
+                        .catch(e => {
+                            if (typeof e === "string") {
+                                upload.error = e;
+                                upload.state = UploadState.DONE;
+                            }
+                        });
+                }
+            } catch (e) {
+                const errorMessage = errorMessageOrDefault(e, "Unable to start upload");
+                for (let i = 0; i < creationRequests.length; i++) {
+                    actualUploads[i].state = UploadState.DONE;
+                    actualUploads[i].error = errorMessage;
+                }
+                return;
+            }
+        }
+    }, [uploads]);
+
+    const stopUploads = useCallback((batch: Upload[]) => {
+        for (const upload of batch) {
+            upload.terminationRequested = true;
+        }
+    }, []);
+
+    const callbacks: UploadCallback = useMemo(() => {
+        return {startUploads, stopUploads};
+    }, [startUploads, stopUploads]);
+
+    const onSelectedFile = useCallback(async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const fileFetcher = fetcherFromDropOrSelectEvent(e);
+        const newUploads: Upload[] = fileFetcher.map(it => ({
+            row: it,
+            progressInBytes: 0,
+            state: UploadState.PENDING,
+            conflictPolicy: "RENAME",
+            targetPath: uploadPath
+        }));
+
+        setUploads(uploads.concat(newUploads));
+        startUploads(newUploads);
+    }, [uploads]);
+
+    useEffect(() => {
+        const oldOnDrop = document.ondrop;
+        const oldOnDragOver = document.ondragover;
+        const oldOnDragEnter = document.ondragenter;
+        const oldOnDragLeave = document.ondragleave;
+
+        if (uploaderVisible) {
+            document.ondrop = onSelectedFile;
+            document.ondragover = preventDefault;
+            document.ondragenter = preventDefault;
+            document.ondragleave = preventDefault;
+        }
+
+        return () => {
+            document.ondrop = oldOnDrop;
+            document.ondragover = oldOnDragOver;
+            document.ondragenter = oldOnDragEnter;
+            document.ondragleave = oldOnDragLeave;
+        };
+    }, [onSelectedFile, uploaderVisible]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setUploads([...uploads]);
+        }, 500);
+
+        return () => {
+            clearInterval(interval);
+        }
+    }, [uploads]);
+
+    useEffect(() => {
+        if (lookForNewUploads) {
+            setLookForNewUploads(false);
+            startUploads(uploads);
+        }
+    }, [lookForNewUploads, startUploads]);
+
+    return <>
+        <ReactModal
+            isOpen={uploaderVisible}
+            style={modalStyle}
+            shouldCloseOnEsc
+            ariaHideApp={false}
+            onRequestClose={closeModal}
+        >
+            <div data-tag={"uploadModal"}>
+                <Operations
+                    location={"TOPBAR"}
+                    operations={operations}
+                    selected={toggleSet.checked.items}
+                    extra={callbacks}
+                    entityNameSingular={entityName}
+                />
+                <Divider/>
+
+                <label htmlFor={"fileUploadBrowse"}>
+                    <DropZoneBox onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
+                                 onDragOver={preventDefault} slim={uploads.length > 0}>
+                        <Flex width={320} alignItems={"center"} flexDirection={"column"}>
+                            {uploads.length > 0 ? null : <UploaderArt/>}
+                            <Box ml={"-1.5em"}>
+                                <TextSpan mr="0.5em"><Icon name="upload"/></TextSpan>
+                                <TextSpan mr="0.3em">Drop files here or</TextSpan>
+                                <i>browse</i>
+                                <input
+                                    id={"fileUploadBrowse"}
+                                    type={"file"}
+                                    style={{display: "none"}}
+                                    onChange={onSelectedFile}
+                                />
+                            </Box>
+                        </Flex>
+                    </DropZoneBox>
+                </label>
+
+                <List>
+                    {uploads.map((upload, idx) => (
+                        <ListRow
+                            key={`${upload.row.rootEntry.name}-${idx}`}
+                            isSelected={toggleSet.checked.has(upload)}
+                            select={() => toggleSet.toggle(upload)}
+                            icon={
+                                <FtIcon
+                                    fileIcon={{
+                                        type: upload.row.rootEntry.isDirectory ? "DIRECTORY" : "FILE",
+                                        ext: extensionFromPath(upload.row.rootEntry.name)
+                                    }}
+                                    size={"42px"}
+                                />
+                            }
+                            left={
+                                <Truncate
+                                    title={upload.row.rootEntry.name}
+                                    width={["320px", "320px", "320px", "320px", "440px", "560px"]}
+                                    fontSize={20}
+                                    children={upload.row.rootEntry.name}
+                                />
+                            }
+                            leftSub={
+                                <ListStatContainer>
+                                    {!upload.fileSizeInBytes ? null :
+                                        <ListRowStat icon={"upload"} color={"iconColor"} color2={"iconColor2"}>
+                                            {sizeToString(upload.progressInBytes)}
+                                            {" / "}
+                                            {sizeToString(upload.fileSizeInBytes)}
+                                        </ListRowStat>
+                                    }
+                                </ListStatContainer>
+                            }
+                            right={
+                                <Operations
+                                    row={upload}
+                                    location={"IN_ROW"}
+                                    operations={operations}
+                                    selected={toggleSet.checked.items}
+                                    extra={callbacks}
+                                    entityNameSingular={entityName}
+                                />
+                            }
+                        />
+                    ))}
+                </List>
+            </div>
+        </ReactModal>
+    </>;
+};
+
+interface UploadCallback {
+    startUploads: (batch: Upload[]) => void;
+    stopUploads: (batch: Upload[]) => void;
+}
+
+const operations: Operation<Upload, UploadCallback>[] = [
+    {
+        enabled: selected => selected.length > 0 &&
+            selected.every(it => it.state === UploadState.PENDING || it.state === UploadState.UPLOADING),
+        onClick: (selected, cb) => cb.stopUploads(selected),
+        text: "Cancel",
+        color: "red",
+        icon: "trash",
+        confirm: true,
+        primary: true,
+    }
+];
+
+const UploaderArt: React.FunctionComponent = props => {
+    return <UploadArtWrapper>
+        <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"}/>
+        <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"}/>
+        <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"}/>
+        <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"}/>
+        <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"}/>
+    </UploadArtWrapper>;
+};
+
+// Styles
 
 const modalStyle = {
     // https://github.com/reactjs/react-modal/issues/62
@@ -53,7 +384,10 @@ const DropZoneBox = styled.div<{ slim?: boolean }>`
 const UploadArtWrapper = styled.div`
   svg:nth-child(1) {
     margin-top: -32px;
-    margin-right: -32px;
+  }
+
+  svg:nth-child(2) {
+    margin-left: -32px;
   }
 
   svg:nth-child(5) {
@@ -63,190 +397,5 @@ const UploadArtWrapper = styled.div`
     z-index: -100;
   }
 `;
-
-const UploaderArt: React.FunctionComponent = props => {
-    return <UploadArtWrapper>
-        <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"}/>
-    </UploadArtWrapper>;
-};
-
-const Uploader: React.FunctionComponent = props => {
-    const [uploadPath, setUploadPath] = useGlobal("uploadPath", "/");
-    const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
-    const [uploads, setUploads] = useGlobal("uploads", []);
-
-    const closeModal = useCallback(() => {
-        setUploaderVisible(false);
-    }, []);
-
-    const onSelectedFile = useCallback(async (e) => {
-        e.preventDefault();
-        const fileFetcher = fetcherFromDropOrSelectEvent(e);
-        setUploads(uploads.concat(fileFetcher.map(it => ({
-            row: it,
-            progressInBytes: 0,
-            state: UploadState.NOT_STARTED,
-            conflictPolicy: "RENAME",
-            targetPath: uploadPath
-        }))));
-    }, [uploads]);
-
-    useEffect(() => {
-        const oldOnDrop = document.ondrop;
-        const oldOnDragOver = document.ondragover;
-        const oldOnDragEnter = document.ondragenter;
-        const oldOnDragLeave = document.ondragleave;
-
-        if (uploaderVisible) {
-            document.ondrop = onSelectedFile;
-            document.ondragover = preventDefault;
-            document.ondragenter = preventDefault;
-            document.ondragleave = preventDefault;
-        }
-
-        return () => {
-            document.ondrop = oldOnDrop;
-            document.ondragover = oldOnDragOver;
-            document.ondragenter = oldOnDragEnter;
-            document.ondragleave = oldOnDragLeave;
-        };
-    }, [onSelectedFile, uploaderVisible]);
-
-    const toggleSet = useToggleSet(uploads);
-    const callbacks: UploadCallback = useMemo(() => {
-        return {};
-    }, []);
-
-    return <>
-        <ReactModal
-            isOpen={uploaderVisible}
-            style={modalStyle}
-            shouldCloseOnEsc
-            ariaHideApp={false}
-            onRequestClose={closeModal}
-        >
-            <div data-tag={"uploadModal"}>
-                <Spacer
-                    left={<Heading>Upload Files</Heading>}
-                    right={(
-                        <>
-                            <Icon
-                                name="close"
-                                cursor="pointer"
-                                data-tag="modalCloseButton"
-                                onClick={closeModal}
-                            />
-                        </>
-                    )}
-                />
-
-                <Divider/>
-
-                <label htmlFor={"fileUploadBrowse"}>
-                    <DropZoneBox onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                                 onDragOver={preventDefault} slim={uploads.length > 0}>
-                        <p>
-                            {uploads.length > 0 ? null : <UploaderArt/>}
-                            <TextSpan mr="0.5em"><Icon name="upload"/></TextSpan>
-                            <TextSpan mr="0.3em">Drop files here or</TextSpan>
-                            <a href="#">browse</a>
-                            <input
-                                id={"fileUploadBrowse"}
-                                type={"file"}
-                                style={{display: "none"}}
-                                onChange={onSelectedFile}
-                            />
-                        </p>
-                    </DropZoneBox>
-                </label>
-
-                {uploads.length === 0 ? null : <>
-                    <Operations
-                        location={"TOPBAR"}
-                        operations={operations}
-                        selected={toggleSet.checked.items}
-                        extra={callbacks}
-                        entityNameSingular={entityName}
-                    />
-                    <Divider/>
-
-                    <List>
-                        {uploads.map((upload, idx) => (
-                            <ListRow
-                                key={`${upload.row.rootEntry.name}-${idx}`}
-                                isSelected={toggleSet.checked.has(upload)}
-                                select={() => toggleSet.toggle(upload)}
-                                left={
-                                    <>
-                                        <FtIcon
-                                            fileIcon={{
-                                                type: upload.row.rootEntry.isDirectory ? "DIRECTORY" : "FILE",
-                                                ext: extensionFromPath(upload.row.rootEntry.name)
-                                            }}
-                                            size={"42px"}
-                                        />
-
-                                        <Truncate
-                                            title={upload.row.rootEntry.name}
-                                            width={["320px", "320px", "320px", "320px", "440px", "560px"]}
-                                            ml={"8px"}
-                                            fontSize={20}
-                                            children={upload.row.rootEntry.name}
-                                        />
-                                    </>
-                                }
-                                right={
-                                    <>
-                                        <Operations
-                                            row={upload}
-                                            location={"IN_ROW"}
-                                            operations={operations}
-                                            selected={toggleSet.checked.items}
-                                            extra={callbacks}
-                                            entityNameSingular={entityName}
-                                        />
-                                    </>
-                                }
-                            />
-                        ))}
-                    </List>
-                </>}
-            </div>
-        </ReactModal>
-    </>;
-};
-
-interface UploadCallback {
-
-}
-
-const entityName = "Upload";
-const operations: Operation<Upload, UploadCallback>[] = [
-    {
-        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.NOT_STARTED),
-        onClick: (selected, cb) => {
-
-        },
-        text: "Start",
-        color: "green",
-        icon: "upload",
-        primary: true,
-    },
-    {
-        enabled: selected => selected.length > 0 && selected.every(it => it.state !== UploadState.NOT_STARTED),
-        onClick: (selected, cb) => {
-
-        },
-        text: "Cancel",
-        color: "red",
-        icon: "trash",
-        confirm: true,
-        primary: true,
-    }
-];
 
 export default Uploader;

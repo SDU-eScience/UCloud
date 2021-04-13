@@ -29,8 +29,8 @@ class ChunkedUploadProtocol(namespace: String, val endpoint: String) : CallDescr
             path { using(endpoint) }
 
             headers {
-                +boundTo("Chunked-Upload-Token", ChunkedUploadProtocolUploadChunkRequest::token)
-                +boundTo("Chunked-Upload-Offset", ChunkedUploadProtocolUploadChunkRequest::offset)
+                +boundTo("Chunked-Upload-Token", ChunkedUploadProtocolUploadChunkRequest::token, false)
+                +boundTo("Chunked-Upload-Offset", ChunkedUploadProtocolUploadChunkRequest::offset, false)
             }
         }
 

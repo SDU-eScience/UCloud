@@ -112,8 +112,9 @@ class HttpCallHeadersBuilder<R : Any> internal constructor() {
     fun <T> boundTo(
         header: String,
         property: KProperty1<R, T>,
+        base64Encoded: Boolean = true
     ): HttpHeaderParameter.Property<R, T> {
-        return HttpHeaderParameter.Property(header, property)
+        return HttpHeaderParameter.Property(header, property, base64Encoded)
     }
 
     fun build(): HttpHeaderDescription<R> {

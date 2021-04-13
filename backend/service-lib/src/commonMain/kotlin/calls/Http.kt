@@ -78,6 +78,7 @@ sealed class HttpHeaderParameter<Request : Any> {
     data class Property<Request : Any, Property>(
         val header: String,
         val property: KProperty1<Request, Property>,
+        val base64Encoded: Boolean
     ) : HttpHeaderParameter<Request>()
 }
 

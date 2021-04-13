@@ -68,8 +68,8 @@ const OperationComponent: React.FunctionComponent<{
     location: OperationLocation;
     onAction: () => void;
 }> = ({As, op, selected, extra, reasonDisabled, location, onAction}) => {
-    const onClick = useCallback((e: React.SyntheticEvent) => {
-        if (op.primary === true) e.stopPropagation();
+    const onClick = useCallback((e?: React.SyntheticEvent) => {
+        if (op.primary === true) e?.stopPropagation();
         if (reasonDisabled !== undefined) return;
         op.onClick(selected, extra);
         onAction();

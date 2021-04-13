@@ -7,9 +7,9 @@ export type WriteConflictPolicy = NonNullable<PropType<FileApi.FilesCreateUpload
 export type UploadProtocol = NonNullable<GetElementType<PropType<FileApi.FilesCreateUploadRequestItem, "supportedProtocols">>>;
 
 export enum UploadState {
-    NOT_STARTED,
     PENDING,
-    UPLOADING
+    UPLOADING,
+    DONE
 }
 
 export interface Upload {
@@ -20,7 +20,8 @@ export interface Upload {
     error?: string;
     targetPath: string;
     conflictPolicy: WriteConflictPolicy;
-    protocol?: UploadProtocol;
+    uploadResponse?: FileApi.FilesCreateUploadResponseItem;
+    terminationRequested?: true;
 }
 
-export const supportedUploadProtocols: UploadProtocol[] = ["CHUNKED"];
+export const supportedProtocols: UploadProtocol[] = ["CHUNKED"];
