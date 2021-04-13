@@ -10,6 +10,7 @@ import {SimpleSearchStateProps} from "Search";
 import {SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
+import {Upload as NewUpload} from "NewFiles/Upload";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
 import {APICallStateWithParams} from "Authentication/DataHook";
@@ -135,6 +136,10 @@ interface LegacyReducers {
  * Global state created via useGlobal() similar to ReduxObject
  */
 export interface HookStore {
+    uploaderVisible?: boolean;
+    uploads?: NewUpload[];
+    uploadPath?: string;
+
     fileFavoriteCache?: Record<string, boolean>;
     projectCache?: ProjectCache;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;

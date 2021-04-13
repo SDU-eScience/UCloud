@@ -388,7 +388,8 @@ function hasPermissionsToUseLicense(projectStatus: ProjectStatus, instance: Lice
     const isInAcl = instance.acl?.some(entry => {
         if (!entry.permissions.some(p => p === "USE")) return false;
         return status.groups.some(group => {
-            return group.project === entry.entity.projectId && group.group === entry.entity.group;
+            return "projectId" in entry.entity &&
+                group.project === entry.entity.projectId && group.group === entry.entity.group;
         });
     }) === true;
 

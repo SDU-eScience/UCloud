@@ -411,8 +411,8 @@ data class FileCollection(
     override val createdAt: Long,
     override val status: Status,
     override val updates: List<Update>,
-    override val billing: ResourceBilling,
-    override val owner: ResourceOwner,
+    override val billing: Billing,
+    override val owner: SimpleResourceOwner,
     override val acl: List<ResourceAclEntry<FilePermission>>?,
 ) : Resource<FilePermission> {
     @Serializable
@@ -442,6 +442,12 @@ data class FileCollection(
         // NOTE: If this FS shares quota between several other FS then this is not simply "capacity - used"
         val availableInBytes: Long? = null,
     )
+
+    @Serializable
+    data class Billing(
+        override val pricePerUnit: Long,
+        override val creditsCharged: Long,
+    ) : ResourceBilling
 }
 
 data class FSSupportResolved(

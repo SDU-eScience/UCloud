@@ -76,7 +76,7 @@ class FileCollectionsService(
                 productSupport
             ),
             emptyList(),
-            ResourceBilling.Free,
+            FileCollection.Billing(0L, 0L),
             SimpleResourceOwner(actorAndProject.actor.safeUsername(), null),
             null
         )
@@ -98,7 +98,7 @@ class FileCollectionsService(
             productSupport
         ),
         emptyList(),
-        ResourceBilling.Free,
+        FileCollection.Billing(0L, 0L),
         SimpleResourceOwner(it.getString("created_by")!!, it.getString("project_id")!!),
         emptyList()
     )

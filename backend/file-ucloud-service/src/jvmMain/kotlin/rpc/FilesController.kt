@@ -57,7 +57,7 @@ class FilesController(
                             Actor.SystemOnBehalfOfUser(request.username),
                             Files.copy.fullName,
                             defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
-                        ) as LongRunningTask<FindByPath> // TODO That is not true
+                        )
                     }
                 )
             )
@@ -83,6 +83,62 @@ class FilesController(
             }
 
             ok(BulkResponse(responses))
+        }
+
+        implement(UCloudFiles.move) {
+            ok(
+                BulkResponse(
+                    request.request.items.map { reqItem ->
+                        taskSystem.submitTask(
+                            Actor.SystemOnBehalfOfUser(request.username),
+                            Files.move.fullName,
+                            defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
+                        )
+                    }
+                )
+            )
+        }
+
+        implement(UCloudFiles.delete) {
+            ok(
+                BulkResponse(
+                    request.request.items.map { reqItem ->
+                        taskSystem.submitTask(
+                            Actor.SystemOnBehalfOfUser(request.username),
+                            Files.delete.fullName,
+                            defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
+                        )
+                    }
+                )
+            )
+        }
+
+        implement(UCloudFiles.trash) {
+            ok(
+                BulkResponse(
+                    request.request.items.map { reqItem ->
+                        taskSystem.submitTask(
+                            Actor.SystemOnBehalfOfUser(request.username),
+                            Files.trash.fullName,
+                            defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
+                        )
+                    }
+                )
+            )
+        }
+
+        implement(UCloudFiles.createFolder) {
+            ok(
+                BulkResponse(
+                    request.request.items.map { reqItem ->
+                        taskSystem.submitTask(
+                            Actor.SystemOnBehalfOfUser(request.username),
+                            Files.createFolder.fullName,
+                            defaultMapper.encodeToJsonElement(bulkRequestOf(reqItem)) as JsonObject
+                        )
+                    }
+                )
+            )
         }
 
         implement(chunkedProtocol.uploadChunk) {

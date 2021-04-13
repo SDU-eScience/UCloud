@@ -45,9 +45,12 @@ export const ImportParameters: React.FunctionComponent<{
 
     const [messages, setMessages] = useState<ImportMessage[]>([]);
 
+    /*
+    TODO
     useEffect(() => {
         fetchPreviousRuns(UCloud.file.listAtPath({path, sortBy: "CREATED_AT", order: "DESCENDING"}));
     }, [path]);
+     */
 
     const importParameters = useCallback((file: File) => {
         const fileReader = new FileReader();
@@ -85,6 +88,8 @@ export const ImportParameters: React.FunctionComponent<{
     }, []);
 
     const fetchAndImportParameters = useCallback(async (file: {path: string}) => {
+        /*
+        TODO
         const fileStat = await callAPI(UCloud.file.stat({path: file.path}));
         if (fileStat.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.", false);
@@ -92,6 +97,7 @@ export const ImportParameters: React.FunctionComponent<{
         }
         const response = await fetchFileContent(file.path, Client);
         if (response.ok) importParameters(new File([await response.blob()], "params"));
+         */
     }, []);
 
     return <Box>

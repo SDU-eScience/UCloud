@@ -220,11 +220,11 @@ This entrypoint allows the user to access all the files they have access to with
 note that a file collection is not the same as a directory! Common real-world examples of a file collection is listed
 below:
 
-| Name | Typical path | Comment |
-|------|--------------|---------|
-| Home directory | `/home/$username/` | The home folder is typically the main collection for a user |
-| Work directory | `/work/$projectId/` | The project 'home' folder |
-| Scratch directory | `/scratch/$projectId/` | Temporary storage for a project |
+| Name              | Typical path                | Comment                                                     |
+|-------------------|-----------------------------|-------------------------------------------------------------|
+| Home directory    | `/home/$username/`     | The home folder is typically the main collection for a user |
+| Work directory    | `/work/$projectId/`    | The project 'home' folder                                   |
+| Scratch directory | `/scratch/$projectId/` | Temporary storage for a project                             |
 
 The provider of storage manages a 'database' of these file collections and who they belong to. The file collections also
 play an important role in accounting and resource management. A file collection can have a quota attached to it and

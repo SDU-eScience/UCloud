@@ -79,6 +79,11 @@ class ProviderSupport(
             } ?: throw RPCException("Unknown product requested $product", HttpStatusCode.InternalServerError)
     }
 
+    suspend fun retrieveProviderSupport(provider: String): List<FSSupportResolved> {
+        return providerProductCache.get(provider)
+            ?: throw RPCException("Unknown provider: $provider", HttpStatusCode.BadRequest)
+    }
+
     companion object : Loggable {
         override val log = logger()
     }

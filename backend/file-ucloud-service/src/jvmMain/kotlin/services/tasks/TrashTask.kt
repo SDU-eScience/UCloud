@@ -37,7 +37,7 @@ class TrashTask(
         }
 
         return if (realRequest.items.size >= 20) TaskRequirements(true, JsonObject(emptyMap()))
-        else TaskRequirements(true, JsonObject(emptyMap()))
+        else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
     override suspend fun execute(actor: Actor, task: StorageTask) {

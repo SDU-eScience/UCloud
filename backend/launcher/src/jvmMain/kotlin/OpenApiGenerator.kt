@@ -127,7 +127,7 @@ fun main() {
         knownCalls,
         File("/tmp/swagger/combined"),
         subtitle = "Full API",
-        writeMarkdown = true,
+        isFullApi = true,
     )
 
     run {
@@ -200,7 +200,7 @@ private fun writeSpecification(
     output: File,
     subtitle: String? = null,
     documentation: String? = null,
-    writeMarkdown: Boolean = false
+    isFullApi: Boolean = false
 ) {
     val typeRegistry = LinkedHashMap<String, ComputedType>()
     val doc = OpenAPI().apply {
@@ -415,9 +415,9 @@ private fun writeSpecification(
 
     println("UCloud has ${typeRegistry.size} number of types")
     output.mkdirs()
-    generateTypeScriptCode(output, doc, typeRegistry)
+    if (isFullApi) generateTypeScriptCode(output, doc, typeRegistry)
     generateSpringMvcCode()
-    if (writeMarkdown) injectMarkdownDocs(doc, typeRegistry)
+    if (isFullApi) injectMarkdownDocs(doc, typeRegistry)
     File(output, "swagger.yaml").writeText(Yaml.pretty(doc))
     File(output, "swagger.json").writeText(Json.pretty(doc))
 }

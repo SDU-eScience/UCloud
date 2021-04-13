@@ -46,7 +46,7 @@ class TaskSystem(
         handlers.add(handler)
     }
 
-    suspend fun submitTask(actor: Actor, name: String, request: JsonObject): LongRunningTask<Unit> {
+    suspend fun submitTask(actor: Actor, name: String, request: JsonObject): LongRunningTask {
         val handler = handlers.find { it.canHandle(actor, name, request) } ?: run {
             log.warn("Unable to handle request: $name $request")
             throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)

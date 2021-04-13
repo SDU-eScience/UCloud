@@ -49,7 +49,10 @@ export function ResourcePermissionEditor<T extends ResourceDoc>(
         if (commandLoading) return;
 
         const newAcl = acl
-            .filter(it => !(it.entity.projectId === projectId && it.entity.group === group));
+            .filter(it => !(
+                "projectId" in it.entity &&
+                it.entity.projectId === projectId && it.entity.group === group
+            ));
         newAcl.push({entity: {projectId, group, type: "project_group"}, permissions});
 
         setAcl(newAcl);
@@ -92,6 +95,7 @@ export function ResourcePermissionEditor<T extends ResourceDoc>(
                 {projectGroups.data.items.map(summary => {
                     const g = summary.groupId;
                     const permissions = acl.find(it =>
+                        "projectId" in it.entity &&
                         it.entity.group === g &&
                         it.entity.projectId === projectId
                     )?.permissions ?? [];

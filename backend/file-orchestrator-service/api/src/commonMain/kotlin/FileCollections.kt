@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class FileCollectionsBrowseRequest(
+    val provider: String,
     override val includeSupport: Boolean? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -44,6 +45,7 @@ typealias FileCollectionsUpdateAclResponse = Unit
 @Serializable
 data class FileCollectionsRetrieveRequest(
     val id: String,
+    val provider: String,
     override val includeSupport: Boolean? = null,
 ) : FileCollectionIncludeFlags
 typealias FileCollectionsRetrieveResponse = FileCollection

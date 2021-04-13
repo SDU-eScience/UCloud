@@ -1,18 +1,39 @@
 import * as React from "react";
 import styled from "styled-components";
 import {
-    alignItems, AlignItemsProps, color, ColorProps,
-    gridAutoFlow, GridAutoFlowProps, gridGap,
-    GridGapProps, gridTemplateColumns,
-    GridTemplateColumnsProps, gridTemplateRows, GridTemplateRowsProps,
-    height, HeightProps, justifyItems,
-    JustifyItemsProps, space, SpaceProps, width, WidthProps
+    alignItems,
+    AlignItemsProps,
+    color,
+    ColorProps,
+    gridAutoFlow,
+    GridAutoFlowProps,
+    gridGap,
+    GridGapProps,
+    gridTemplateColumns,
+    GridTemplateColumnsProps,
+    gridTemplateRows,
+    GridTemplateRowsProps,
+    height,
+    HeightProps,
+    justifyItems,
+    JustifyItemsProps,
+    maxHeight,
+    MaxHeightProps,
+    maxWidth,
+    MaxWidthProps, overflow,
+    OverflowProps,
+    space,
+    SpaceProps,
+    width,
+    WidthProps
 } from "styled-system";
 
 export type GridProps =
     SpaceProps &
     WidthProps &
     HeightProps &
+    MaxHeightProps &
+    MaxWidthProps &
     ColorProps &
     AlignItemsProps &
     JustifyItemsProps &
@@ -27,6 +48,7 @@ const Grid = styled.div<GridProps>`
     ${space} ${width} ${height} ${color}
     ${alignItems} ${justifyItems} ${gridGap}
     ${gridTemplateColumns} ${gridTemplateRows}
+    ${maxHeight} ${maxWidth}
 `;
 
 export const GridCardGroup = ({

@@ -59,13 +59,13 @@ interface WithPathMoving {
 data class FindByPath(override val path: String) : WithPath
 
 @Serializable
-sealed class LongRunningTask<V> {
+sealed class LongRunningTask {
     @Serializable
     @SerialName("complete")
-    class Complete<V>/* (val result: V) */ : LongRunningTask<V>()
+    class Complete/* (val result: V) */ : LongRunningTask()
     @Serializable
     @SerialName("continues_in_background")
-    class ContinuesInBackground<V>(val taskId: String) : LongRunningTask<V>()
+    class ContinuesInBackground<V>(val taskId: String) : LongRunningTask()
 }
 
 // ---
@@ -105,7 +105,7 @@ data class FilesMoveRequestItem(
     override val newPath: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPathMoving, WithConflictPolicy
-typealias FilesMoveResponse = BulkResponse<LongRunningTask<FindByPath>>
+typealias FilesMoveResponse = BulkResponse<LongRunningTask>
 
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
 @Serializable
@@ -113,10 +113,10 @@ data class FilesCopyRequestItem(
     override val oldPath: String, override val newPath: String,
     override val conflictPolicy: WriteConflictPolicy
 ) : WithPathMoving, WithConflictPolicy
-typealias FilesCopyResponse = BulkResponse<LongRunningTask<FindByPath>>
+typealias FilesCopyResponse = BulkResponse<LongRunningTask>
 
 typealias FilesDeleteRequest = BulkRequest<FindByPath>
-typealias FilesDeleteResponse = BulkResponse<LongRunningTask<Unit>>
+typealias FilesDeleteResponse = BulkResponse<LongRunningTask>
 
 typealias FilesCreateFolderRequest = BulkRequest<FilesCreateFolderRequestItem>
 @Serializable
@@ -124,7 +124,7 @@ data class FilesCreateFolderRequestItem(
     override val path: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPath, WithConflictPolicy
-typealias FilesCreateFolderResponse = BulkResponse<LongRunningTask<FindByPath>>
+typealias FilesCreateFolderResponse = BulkResponse<LongRunningTask>
 
 typealias FilesUpdateAclRequest = BulkRequest<FilesUpdateAclRequestItem>
 @Serializable
@@ -135,7 +135,7 @@ data class FilesUpdateAclRequestItem(
 typealias FilesUpdateAclResponse = Unit
 
 typealias FilesTrashRequest = BulkRequest<FindByPath>
-typealias FilesTrashResponse = BulkResponse<LongRunningTask<Unit>>
+typealias FilesTrashResponse = BulkResponse<LongRunningTask>
 
 typealias FilesCreateUploadRequest = BulkRequest<FilesCreateUploadRequestItem>
 @Serializable

@@ -24,8 +24,11 @@ fun generateTypeScriptCode(
     api: OpenAPI,
     typeRegistry: Map<String, ComputedType>,
 ) {
-    val outputFile = File(outputDir, "Applications/index.ts")
-    outputFile.parentFile.mkdirs()
+    val outputFile = File("../frontend-web/webclient/app/UCloud/index.ts")
+    if (!outputFile.exists()) {
+        println("WARN: Could not find controllers file at ${outputFile.absolutePath}")
+        return
+    }
 
     val ctx = GenerationContext()
     with(ctx) {

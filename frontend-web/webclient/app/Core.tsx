@@ -10,9 +10,7 @@ const App = React.lazy(() => import("Applications/Studio/Applications"));
 const AvataaarModification = React.lazy(() => import("UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
-const Files = React.lazy(() => import("Files/Files"));
-const FileInfo = React.lazy(() => import("Files/FileInfo"));
-const FilePreview = React.lazy(() => import("Files/FilePreview"));
+const Files = React.lazy(() => import("NewFiles/FileBrowser"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
 const JobBrowse = React.lazy(() => import("Applications/Jobs/Browse"));
 const JobCreate = React.lazy(() => import("Applications/Jobs/Create"));
@@ -57,7 +55,7 @@ import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicat
 
 // Always load.
 import Sidebar from "ui-components/Sidebar";
-import Uploader from "Uploader/Uploader";
+import Uploader from "NewFiles/Uploader";
 import Snackbars from "Snackbar/Snackbars";
 import Dialog from "Dialog/Dialog";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
@@ -92,8 +90,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/" component={requireAuth(Dashboard)} />
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
 
-                    <Route exact path="/files/info" component={requireAuth(FileInfo)} />
-                    <Route exact path="/files/preview" component={requireAuth(FilePreview)} />
                     <Route exact path="/files" component={requireAuth(Files)} />
 
                     <Route exact path="/activity" component={requireAuth(Activity)} />

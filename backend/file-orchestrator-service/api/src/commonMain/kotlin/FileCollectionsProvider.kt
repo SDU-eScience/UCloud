@@ -79,7 +79,7 @@ open class FileCollectionsProvider(
 
     val retrieve = call<FileCollectionsProviderRetrieveRequest, FileCollectionsProviderRetrieveResponse,
         CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext, roles = Roles.SERVICE)
+        httpUpdate(baseContext, "retrieve", roles = Roles.SERVICE)
     }
 
     val retrieveManifest = call<FileCollectionsProviderRetrieveManifestRequest,

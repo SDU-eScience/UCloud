@@ -624,6 +624,7 @@ object NativeFS : Loggable {
                 }
 
                 val sourceFd = CLibrary.INSTANCE.openat(sourceParent, source.fileName(), 0, DEFAULT_FILE_MODE)
+                if (sourceFd < 0) throw FSException.NotFound()
                 val sourceStat = nativeStat(sourceFd, autoClose = true)
                 var shouldContinue = false
 

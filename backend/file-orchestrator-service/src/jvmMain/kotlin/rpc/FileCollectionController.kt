@@ -2,12 +2,16 @@ package dk.sdu.cloud.file.orchestrator.rpc
 
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.orchestrator.api.FileCollections
+import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 
-class FileCollectionController : Controller {
+class FileCollectionController(
+    private val fileCollections: FileCollectionService
+) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileCollections.browse) {
-            TODO()
+            ok(fileCollections.browse(actorAndProject, request))
         }
 
         implement(FileCollections.create) {
@@ -23,7 +27,7 @@ class FileCollectionController : Controller {
         }
 
         implement(FileCollections.retrieve) {
-            TODO()
+            ok(fileCollections.retrieve(actorAndProject, request))
         }
 
         implement(FileCollections.updateAcl) {

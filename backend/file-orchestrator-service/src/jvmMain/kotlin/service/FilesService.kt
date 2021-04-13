@@ -98,7 +98,7 @@ class FilesService(
     suspend fun move(actorAndProject: ActorAndProject, request: FilesMoveRequest): FilesMoveResponse {
         val requestsByProvider = prepareCopyOrMove(request)
 
-        val responses = ArrayList<LongRunningTask<FindByPath>>()
+        val responses = ArrayList<LongRunningTask>()
         for ((provider, requestItems) in requestsByProvider) {
             val comms = providers.prepareCommunication(provider)
             responses.addAll(
@@ -120,7 +120,7 @@ class FilesService(
     suspend fun copy(actorAndProject: ActorAndProject, request: FilesCopyRequest): FilesCopyResponse {
         val requestsByProvider = prepareCopyOrMove(request)
 
-        val responses = ArrayList<LongRunningTask<FindByPath>>()
+        val responses = ArrayList<LongRunningTask>()
         for ((provider, requestItems) in requestsByProvider) {
             val comms = providers.prepareCommunication(provider)
             responses.addAll(

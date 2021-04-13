@@ -46,7 +46,7 @@ class MoveTask(
         // TODO It might be beneficial to go into the background if the policy is MERGE and the destination exists
 
         return if (realRequest.items.size >= 20) TaskRequirements(true, JsonObject(emptyMap()))
-        else TaskRequirements(true, JsonObject(emptyMap()))
+        else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
     override suspend fun execute(actor: Actor, task: StorageTask) {

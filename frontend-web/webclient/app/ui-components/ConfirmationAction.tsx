@@ -106,6 +106,7 @@ const Wrapper = styled(Button)<{ align?: "left" | "center", hoverColor?: string 
     }) : ({
       textAlign: "left",
     })}
+    ${p => p.align === "left" && p.asSquare ? ({ marginLeft: "34px"}) : ({})}
     pointer-events: none;
     list-style: none;
     min-width: 80%;
