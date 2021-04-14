@@ -67,12 +67,6 @@ class AclServiceImpl(
     @Serializable
     private data class ProjectAclMetadata(val entries: List<ProjectAclEntity>)
 
-    private fun isPersonalWorkspace(file: RelativeInternalFile): Boolean =
-        file.path.startsWith("/${PathConverter.HOME_DIRECTORY}/")
-
-    private fun isProjectWorkspace(file: RelativeInternalFile): Boolean =
-        file.path.startsWith("/${PathConverter.PROJECT_DIRECTORY}/")
-
     override suspend fun isAdmin(actor: Actor, file: UCloudFile): Boolean {
         if (actor == Actor.System) return true
 

@@ -19,6 +19,7 @@ class ChunkedUploadService(
     private val db: DBContext,
     private val aclService: AclService,
     private val pathConverter: PathConverter,
+    private val nativeFS: NativeFS,
 ) {
     suspend fun createSession(
         actor: Actor,
@@ -30,7 +31,7 @@ class ChunkedUploadService(
         val relativeFile = pathConverter.internalToRelative(internalFile)
         val id = UUID.randomUUID().toString()
 
-        val (fileName, outs) = NativeFS.openForWriting(internalFile, conflictPolicy)
+        val (fileName, outs) = nativeFS.openForWriting(internalFile, conflictPolicy)
         @Suppress("BlockingMethodInNonBlockingContext")
         outs.close()
 
@@ -82,7 +83,7 @@ class ChunkedUploadService(
 
         val internalFile = pathConverter.relativeToInternal(relativeFile)
 
-        val (_, outs) = NativeFS.openForWriting(
+        val (_, outs) = nativeFS.openForWriting(
             internalFile,
             WriteConflictPolicy.REPLACE,
             truncate = false,

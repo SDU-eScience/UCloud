@@ -13,18 +13,14 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
-class DeleteTask(
-    private val aclService: AclService,
-    private val pathConverter: PathConverter,
-    private val backgroundScope: BackgroundScope,
-) : TaskHandler {
-    override fun canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
+class DeleteTask : TaskHandler {
+    override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
         return name == Files.delete.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesDeleteRequest>(request)
         }.isSuccess
     }
 
-    override suspend fun collectRequirements(
+    override suspend fun TaskContext.collectRequirements(
         actor: Actor,
         name: String,
         request: JsonObject,
@@ -41,7 +37,7 @@ class DeleteTask(
         else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
-    override suspend fun execute(actor: Actor, task: StorageTask) {
+    override suspend fun TaskContext.execute(actor: Actor, task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesDeleteRequest>(task.rawRequest)
 
         val numberOfCoroutines = if (realRequest.items.size >= 1000) 10 else 1
@@ -52,7 +48,7 @@ class DeleteTask(
             doWork = doWork@{ nextItem ->
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
                 try {
-                    NativeFS.delete(internalFile)
+                    nativeFs.delete(internalFile)
                 } catch (ex: FSException) {
                     if (log.isDebugEnabled) {
                         log.debug("Caught an exception while deleting files: ${ex.stackTraceToString()}")

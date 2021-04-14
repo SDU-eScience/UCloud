@@ -2,10 +2,12 @@ package dk.sdu.cloud.file.ucloud.services
 
 import com.sun.jna.Native
 import com.sun.jna.Platform
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.service.Loggable
+import io.ktor.http.*
 import io.ktor.utils.io.pool.*
 import java.io.File
 import java.io.FileInputStream
@@ -36,27 +38,10 @@ sealed class CopyResult {
 
 const val LINUX_FS_USER_UID = 11042
 
-object NativeFS : Loggable {
-    private const val O_NOFOLLOW = 0x20000
-    private const val O_TRUNC = 0x200
-    private const val O_CREAT = 0x40
-    private const val O_EXCL = 0x80
-    private const val O_WRONLY = 0x1
-    private const val O_RDONLY = 0x0
-    private const val O_DIRECTORY = 0x10000
-    private const val ENOENT = 2
-    private const val ENOTEMPTY = 39
-    const val DEFAULT_DIR_MODE = 488 // 0750
-    const val DEFAULT_FILE_MODE = 416 // 0640
-    private const val AT_REMOVEDIR = 0x200
-    private const val S_ISREG = 0x8000
-    private const val SEEK_SET = 0
-    private const val SEEK_CUR = 1
-    private const val SEEK_END = 2
-
+class NativeFS(
+    private val pathConverter: PathConverter,
+) {
     var disableChown = false
-
-    override val log = logger()
 
     private fun openFile(file: InternalFile, flag: Int = 0): Int {
         with(CLibrary.INSTANCE) {
@@ -118,6 +103,7 @@ object NativeFS : Loggable {
                             destParentFd,
                             fileName,
                             conflictPolicy,
+                            internalDestination = destination,
                             isDirectory = false
                         )
                         if (destFd < 0) throw FSException.CriticalException("Unable to create file")
@@ -129,7 +115,13 @@ object NativeFS : Loggable {
                         }
                         return CopyResult.CreatedFile
                     } else if (sourceStat.fileType == FileType.DIRECTORY) {
-                        val result = createAccordingToPolicy(destParentFd, fileName, conflictPolicy, isDirectory = true)
+                        val result = createAccordingToPolicy(
+                            destParentFd,
+                            fileName,
+                            conflictPolicy,
+                            internalDestination = destination,
+                            isDirectory = true
+                        )
 
                         try {
                             if (owner != null) fchown(result.second, owner, owner)
@@ -223,9 +215,38 @@ object NativeFS : Loggable {
         desiredFileName: String,
         conflictPolicy: WriteConflictPolicy,
         isDirectory: Boolean,
+        internalDestination: InternalFile,
         truncate: Boolean = true,
     ): Pair<String, Int> {
         val mode = if (isDirectory) DEFAULT_DIR_MODE else DEFAULT_FILE_MODE
+        val fixedConflictPolicy = run {
+            if (conflictPolicy != WriteConflictPolicy.RENAME) {
+                conflictPolicy
+            } else {
+                val relativeFile = pathConverter.internalToRelative(internalDestination)
+                if (isPersonalWorkspace(relativeFile)) {
+                    // /home/$USERNAME should never be renamed
+                    if (relativeFile.components().size == 2) {
+                        WriteConflictPolicy.REJECT
+                    } else {
+                        conflictPolicy
+                    }
+                } else if (isProjectWorkspace(relativeFile)) {
+                    // /projects/$PROJECT/$REPO
+                    // /projects/$PROJECT
+                    // Neither should be renamed
+
+                    val components = relativeFile.components()
+                    if (components.size == 2 || components.size == 3) {
+                        WriteConflictPolicy.REJECT
+                    } else {
+                        conflictPolicy
+                    }
+                } else {
+                    throw RPCException("Unexpected file", HttpStatusCode.InternalServerError)
+                }
+            }
+        }
 
         fun createDirAndOpen(name: String): Pair<String, Int>? {
             // If it doesn't exist everything is good. Create the directory and return the name + fd.
@@ -245,7 +266,7 @@ object NativeFS : Loggable {
         if (!isDirectory) {
             oflags = oflags or O_CREAT or O_WRONLY
             if (truncate) oflags = oflags or O_TRUNC
-            if (conflictPolicy != WriteConflictPolicy.REPLACE) oflags = oflags or O_EXCL
+            if (fixedConflictPolicy != WriteConflictPolicy.REPLACE) oflags = oflags or O_EXCL
         } else {
             oflags = oflags or O_DIRECTORY
         }
@@ -256,7 +277,7 @@ object NativeFS : Loggable {
         } else {
             // If it exists and we allow overwrite then just return the open directory
             if (
-                (conflictPolicy == WriteConflictPolicy.REPLACE || conflictPolicy == WriteConflictPolicy.MERGE_RENAME) &&
+                (fixedConflictPolicy == WriteConflictPolicy.REPLACE || fixedConflictPolicy == WriteConflictPolicy.MERGE_RENAME) &&
                 desiredFd >= 0
             ) {
                 return Pair(desiredFileName, desiredFd)
@@ -270,8 +291,8 @@ object NativeFS : Loggable {
             // We need to create a differently named directory (see below)
         }
 
-        if (conflictPolicy == WriteConflictPolicy.REJECT) throw FSException.AlreadyExists()
-        check(conflictPolicy == WriteConflictPolicy.RENAME || conflictPolicy == WriteConflictPolicy.MERGE_RENAME)
+        if (fixedConflictPolicy == WriteConflictPolicy.REJECT) throw FSException.AlreadyExists()
+        check(fixedConflictPolicy == WriteConflictPolicy.RENAME || fixedConflictPolicy == WriteConflictPolicy.MERGE_RENAME)
 
         for (attempt in 1 until 10_000) { // NOTE(Dan): We put an upper-limit to avoid looping 'forever'
             val filenameWithoutExtension = desiredFileName.substringBeforeLast('.')
@@ -316,7 +337,7 @@ object NativeFS : Loggable {
         owner: Int? = LINUX_FS_USER_UID,
         permissions: Int? = DEFAULT_FILE_MODE,
         truncate: Boolean = true,
-        offset: Long? = null
+        offset: Long? = null,
     ): Pair<String, OutputStream> {
         if (Platform.isLinux()) {
             val parentFd = openFile(file.parent())
@@ -326,8 +347,9 @@ object NativeFS : Loggable {
                     parentFd,
                     file.fileName(),
                     conflictPolicy,
+                    internalDestination = file,
                     isDirectory = false,
-                    truncate
+                    truncate = truncate
                 )
 
                 if (offset != null) {
@@ -643,7 +665,8 @@ object NativeFS : Loggable {
                     destinationParent,
                     desiredFileName,
                     conflictPolicy,
-                    sourceStat.fileType == FileType.DIRECTORY
+                    sourceStat.fileType == FileType.DIRECTORY,
+                    internalDestination = destination
                 )
                 CLibrary.INSTANCE.close(destinationFd)
 
@@ -680,6 +703,27 @@ object NativeFS : Loggable {
             Files.move(File(source.path).toPath(), File(destination.path).toPath(), *opts)
             return MoveShouldContinue(false)
         }
+    }
+
+    companion object : Loggable {
+        private const val O_NOFOLLOW = 0x20000
+        private const val O_TRUNC = 0x200
+        private const val O_CREAT = 0x40
+        private const val O_EXCL = 0x80
+        private const val O_WRONLY = 0x1
+        private const val O_RDONLY = 0x0
+        private const val O_DIRECTORY = 0x10000
+        private const val ENOENT = 2
+        private const val ENOTEMPTY = 39
+        const val DEFAULT_DIR_MODE = 488 // 0750
+        const val DEFAULT_FILE_MODE = 416 // 0640
+        private const val AT_REMOVEDIR = 0x200
+        private const val S_ISREG = 0x8000
+        private const val SEEK_SET = 0
+        private const val SEEK_CUR = 1
+        private const val SEEK_END = 2
+
+        override val log = logger()
     }
 }
 

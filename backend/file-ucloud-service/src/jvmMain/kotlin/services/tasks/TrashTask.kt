@@ -14,18 +14,15 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
 class TrashTask(
-    private val aclService: AclService,
-    private val pathConverter: PathConverter,
-    private val backgroundScope: BackgroundScope,
     private val trashService: TrashService,
 ) : TaskHandler {
-    override fun canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
+    override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
         return name == Files.move.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesTrashRequest>(request)
         }.isSuccess
     }
 
-    override suspend fun collectRequirements(
+    override suspend fun TaskContext.collectRequirements(
         actor: Actor,
         name: String,
         request: JsonObject,
@@ -40,7 +37,7 @@ class TrashTask(
         else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
-    override suspend fun execute(actor: Actor, task: StorageTask) {
+    override suspend fun TaskContext.execute(actor: Actor, task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesTrashRequest>(task.rawRequest)
 
         val numberOfCoroutines = if (realRequest.items.size >= 1000) 10 else 1
@@ -53,7 +50,7 @@ class TrashTask(
                     val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
                     val targetDirectory = trashService.findTrashDirectory(actor.safeUsername(), internalFile)
                     val targetFile = InternalFile(targetDirectory.path + "/" + internalFile.fileName())
-                    NativeFS.move(
+                    nativeFs.move(
                         internalFile,
                         targetFile,
                         WriteConflictPolicy.RENAME

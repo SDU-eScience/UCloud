@@ -10,12 +10,10 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.coroutineContext
 
 // Note: These files are internal
@@ -35,18 +33,14 @@ data class CopyTaskRequirements(
 const val COPY_REQUIREMENTS_HARD_LIMIT = 10_000
 const val COPY_REQUIREMENTS_HARD_TIME_LIMIT = 2000
 
-class CopyTask(
-    private val aclService: AclService,
-    private val pathConverter: PathConverter,
-    private val backgroundScope: BackgroundScope,
-) : TaskHandler {
-    override fun canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
+class CopyTask : TaskHandler {
+    override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
         return name == Files.copy.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesCopyRequest>(request)
         }.isSuccess
     }
 
-    override suspend fun collectRequirements(
+    override suspend fun TaskContext.collectRequirements(
         actor: Actor,
         name: String,
         request: JsonObject,
@@ -77,7 +71,7 @@ class CopyTask(
             fileCount++
 
 
-            val nestedFiles = runCatching { NativeFS.listFiles(InternalFile(nextItem.oldPath)) }.getOrNull() ?: continue
+            val nestedFiles = runCatching { nativeFs.listFiles(InternalFile(nextItem.oldPath)) }.getOrNull() ?: continue
             nestedFiles.forEach { fileName ->
                 val oldPath = nextItem.oldPath + "/" + fileName
                 val newPath = nextItem.newPath + "/" + fileName
@@ -96,7 +90,7 @@ class CopyTask(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun execute(actor: Actor, task: StorageTask) {
+    override suspend fun TaskContext.execute(actor: Actor, task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(task.rawRequest)
 
         val numberOfCoroutines = if (task.requirements?.scheduleInBackground == true) 10 else 1
@@ -112,7 +106,7 @@ class CopyTask(
             },
             doWork = doWork@{ nextItem ->
                 val result = try {
-                    NativeFS.copy(
+                    nativeFs.copy(
                         InternalFile(nextItem.oldPath),
                         InternalFile(nextItem.newPath),
                         nextItem.conflictPolicy
@@ -127,7 +121,7 @@ class CopyTask(
                 if (result is CopyResult.CreatedDirectory) {
                     val outputFile = result.outputFile
                     val childrenFileNames = try {
-                        NativeFS.listFiles(InternalFile(nextItem.oldPath))
+                        nativeFs.listFiles(InternalFile(nextItem.oldPath))
                     } catch (ex: FSException) {
                         emptyList()
                     }

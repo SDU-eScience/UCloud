@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.PaginationRequestV2
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.FilePermission
 import dk.sdu.cloud.file.orchestrator.api.FileType
@@ -22,13 +21,14 @@ class FileQueries(
     private val aclService: AclService,
     private val pathConverter: PathConverter,
     private val distributedStateFactory: DistributedStateFactory,
+    private val nativeFs: NativeFS
 ) {
     suspend fun retrieve(actor: Actor, file: UCloudFile, flags: FilesIncludeFlags): UFile {
         val myself = aclService.fetchMyPermissions(actor, file)
         if (!myself.contains(FilePermission.READ)) throw FSException.PermissionException()
 
         val internalFile = pathConverter.ucloudToInternal(file)
-        val nativeStat = NativeFS.stat(internalFile)
+        val nativeStat = nativeFs.stat(internalFile)
         return convertNativeStatToUFile(file, nativeStat, myself)
     }
 
@@ -87,7 +87,7 @@ class FileQueries(
 
         if (foundFiles == null) {
             val internalFile = pathConverter.ucloudToInternal(file)
-            foundFiles = NativeFS.listFiles(internalFile).map {
+            foundFiles = nativeFs.listFiles(internalFile).map {
                 InternalFile(internalFile.path + "/" + it)
             }
         }
@@ -103,7 +103,7 @@ class FileQueries(
                 items.add(
                     convertNativeStatToUFile(
                         pathConverter.internalToUCloud(nextInternalFile),
-                        NativeFS.stat(nextInternalFile),
+                        nativeFs.stat(nextInternalFile),
                         myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
                     )
                 )
@@ -116,7 +116,7 @@ class FileQueries(
         if (items.isEmpty() && didSkipFiles) {
             // NOTE(Dan): The directory might not even exist anymore. We perform a check if we are about to return no
             // results and expected some. The call below will throw if the file does not exist.
-            val isDir = NativeFS.stat(pathConverter.ucloudToInternal(file)).fileType == FileType.DIRECTORY
+            val isDir = nativeFs.stat(pathConverter.ucloudToInternal(file)).fileType == FileType.DIRECTORY
             if (!isDir) throw FSException.IsDirectoryConflict()
         }
 

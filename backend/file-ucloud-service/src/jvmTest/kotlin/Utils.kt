@@ -3,10 +3,8 @@ package dk.sdu.cloud.file.ucloud
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.file.orchestrator.api.FilePermission
 import dk.sdu.cloud.file.orchestrator.api.FilesUpdateAclRequest
+import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.CopyTask
-import dk.sdu.cloud.file.ucloud.services.PathConverter
-import dk.sdu.cloud.file.ucloud.services.InternalFile
-import dk.sdu.cloud.file.ucloud.services.UCloudFile
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.micro.BackgroundScopeFeature
@@ -82,12 +80,14 @@ fun InternalFile.createDirectory(relativeFile: String): InternalFile {
 val micro by lazy { initializeMicro().also { it.install(BackgroundScopeFeature) } }
 val fs by lazy { prepareFileSystem() }
 val pathConverter by lazy { PathConverter(fs) }
+val nativeFs by lazy { NativeFS(pathConverter) }
 val aclService by lazy { ApprovingAclService }
 val backgroundScope by lazy {
     val scope = BackgroundScope()
     scope
 }
-val copyTask by lazy { CopyTask(aclService, pathConverter, backgroundScope) }
+val copyTask by lazy { CopyTask() }
+val taskContext by lazy { TaskContext(aclService, pathConverter, nativeFs, backgroundScope) }
 
 fun t(block: suspend () -> Unit): Unit {
     cleanFileSystem()

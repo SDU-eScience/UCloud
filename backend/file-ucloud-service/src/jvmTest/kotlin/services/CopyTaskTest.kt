@@ -41,202 +41,217 @@ class CopyTaskTest {
 
     @Test
     fun `test copy of single file`() = t {
-        val sourceFile: InternalFile
-        val destinationFile: InternalFile
-        createHome(TestUsers.user.username).apply {
-            sourceFile = createFile("fie.txt")
-            destinationFile = pointerToFile("fie2.txt")
-        }
+        with(copyTask) {
+            val sourceFile: InternalFile
+            val destinationFile: InternalFile
+            createHome(TestUsers.user.username).apply {
+                sourceFile = createFile("fie.txt")
+                destinationFile = pointerToFile("fie2.txt")
+            }
 
-        val task = createStorageTask(bulkRequestOf(
-            FilesCopyRequestItem(
-                pathConverter.internalToUCloud(sourceFile).path,
-                pathConverter.internalToUCloud(destinationFile).path,
-                WriteConflictPolicy.REPLACE
+            val task = createStorageTask(bulkRequestOf(
+                FilesCopyRequestItem(
+                    pathConverter.internalToUCloud(sourceFile).path,
+                    pathConverter.internalToUCloud(destinationFile).path,
+                    WriteConflictPolicy.REPLACE
+                )
+            ))
+
+            assertTrue(taskContext.canHandle(Actor.System, Files.copy.fullName, task.rawRequest))
+
+            taskContext.execute(
+                Actor.System,
+                task
             )
-        ))
 
-        assertTrue(copyTask.canHandle(Actor.System, Files.copy.fullName, task.rawRequest))
-
-        copyTask.execute(
-            Actor.System,
-            task
-        )
-
-        // TODO Assert that the files were created (Missing API for this right now)
+            // TODO Assert that the files were created (Missing API for this right now)
+        }
     }
 
     @Test
     fun `test copy of directory, no nesting, no concurrency`() = t {
-        val sourceFile: InternalFile
-        val destinationFile: InternalFile
-        createHome(TestUsers.user.username).apply {
-            sourceFile = createDirectory("source").apply {
-                repeat(10_000) {
-                    createFile("file-$it")
+        with(copyTask) {
+            val sourceFile: InternalFile
+            val destinationFile: InternalFile
+            createHome(TestUsers.user.username).apply {
+                sourceFile = createDirectory("source").apply {
+                    repeat(10_000) {
+                        createFile("file-$it")
+                    }
                 }
+                destinationFile = pointerToFile("destination")
             }
-            destinationFile = pointerToFile("destination")
-        }
 
-        val task = createStorageTask(
-            bulkRequestOf(
-                FilesCopyRequestItem(
-                    pathConverter.internalToUCloud(sourceFile).path,
-                    pathConverter.internalToUCloud(destinationFile).path,
-                    WriteConflictPolicy.REPLACE
+            val task = createStorageTask(
+                bulkRequestOf(
+                    FilesCopyRequestItem(
+                        pathConverter.internalToUCloud(sourceFile).path,
+                        pathConverter.internalToUCloud(destinationFile).path,
+                        WriteConflictPolicy.REPLACE
+                    )
                 )
             )
-        )
 
-        assertTrue(copyTask.canHandle(Actor.System, Files.copy.fullName, task.rawRequest))
-        copyTask.execute(Actor.System, task)
+            assertTrue(taskContext.canHandle(Actor.System, Files.copy.fullName, task.rawRequest))
+            taskContext.execute(Actor.System, task)
+        }
     }
 
     @Test
     fun `test copy of directory, no nesting, with concurrency`() = t {
-        val sourceFile: InternalFile
-        val destinationFile: InternalFile
-        createHome(TestUsers.user.username).apply {
-            sourceFile = createDirectory("source").apply {
-                repeat(10_000) {
-                    createFile("file-$it")
+        with(copyTask) {
+            val sourceFile: InternalFile
+            val destinationFile: InternalFile
+            createHome(TestUsers.user.username).apply {
+                sourceFile = createDirectory("source").apply {
+                    repeat(10_000) {
+                        createFile("file-$it")
+                    }
                 }
+                destinationFile = pointerToFile("destination")
             }
-            destinationFile = pointerToFile("destination")
+
+            val task = createStorageTask(
+                bulkRequestOf(
+                    FilesCopyRequestItem(
+                        pathConverter.internalToUCloud(sourceFile).path,
+                        pathConverter.internalToUCloud(destinationFile).path,
+                        WriteConflictPolicy.REPLACE
+                    )
+                ),
+                hardLimitReached = true
+            )
+
+            assertTrue(taskContext.canHandle(Actor.System, Files.copy.fullName, task.rawRequest))
+            taskContext.execute(Actor.System, task)
         }
-
-        val task = createStorageTask(
-            bulkRequestOf(
-                FilesCopyRequestItem(
-                    pathConverter.internalToUCloud(sourceFile).path,
-                    pathConverter.internalToUCloud(destinationFile).path,
-                    WriteConflictPolicy.REPLACE
-                )
-            ),
-            hardLimitReached = true
-        )
-
-        assertTrue(copyTask.canHandle(Actor.System, Files.copy.fullName, task.rawRequest))
-        copyTask.execute(Actor.System, task)
     }
 
     @Test
     fun `test copy of directory, with nesting, with concurrency`() = t {
-        val numberOfDirs = 100
-        val numberOfFilesPerDir = 1_000
-        val sourceFile: InternalFile
-        val destinationFile: InternalFile
-        createHome(TestUsers.user.username).apply {
-            sourceFile = createDirectory("source").apply {
-                repeat(numberOfDirs) { outer ->
-                    createDirectory("dir-$outer").apply {
-                        repeat(numberOfFilesPerDir) {
-                            createFile("file-$outer-$it")
+        with(copyTask) {
+            val numberOfDirs = 100
+            val numberOfFilesPerDir = 1_000
+            val sourceFile: InternalFile
+            val destinationFile: InternalFile
+            createHome(TestUsers.user.username).apply {
+                sourceFile = createDirectory("source").apply {
+                    repeat(numberOfDirs) { outer ->
+                        createDirectory("dir-$outer").apply {
+                            repeat(numberOfFilesPerDir) {
+                                createFile("file-$outer-$it")
+                            }
                         }
                     }
                 }
+                destinationFile = pointerToFile("destination")
             }
-            destinationFile = pointerToFile("destination")
-        }
 
-        val task = createStorageTask(
-            bulkRequestOf(
-                FilesCopyRequestItem(
-                    pathConverter.internalToUCloud(sourceFile).path,
-                    pathConverter.internalToUCloud(destinationFile).path,
-                    WriteConflictPolicy.REPLACE
-                )
-            ),
-            hardLimitReached = true
-        )
+            val task = createStorageTask(
+                bulkRequestOf(
+                    FilesCopyRequestItem(
+                        pathConverter.internalToUCloud(sourceFile).path,
+                        pathConverter.internalToUCloud(destinationFile).path,
+                        WriteConflictPolicy.REPLACE
+                    )
+                ),
+                hardLimitReached = true
+            )
 
-        assertTrue(copyTask.canHandle(Actor.System, Files.copy.fullName, task.rawRequest))
-        copyTask.execute(Actor.System, task)
-        repeat(numberOfDirs) {
-            val dir = File(destinationFile.path, "dir-$it")
-            val dirList = dir.list()
-            assertThatInstance(dir, "Should contain a directory (dir-$it)") { dir.exists() }
-            assertThatInstance(dirList, "Should contain $numberOfFilesPerDir files") { it.size == numberOfFilesPerDir }
+            assertTrue(taskContext.canHandle(Actor.System, Files.copy.fullName, task.rawRequest))
+            taskContext.execute(Actor.System, task)
+            repeat(numberOfDirs) {
+                val dir = File(destinationFile.path, "dir-$it")
+                val dirList = dir.list()
+                assertThatInstance(dir, "Should contain a directory (dir-$it)") { dir.exists() }
+                assertThatInstance(dirList,
+                    "Should contain $numberOfFilesPerDir files") { it.size == numberOfFilesPerDir }
+            }
         }
     }
 
     @Test
     fun `test copy with conflict and rejection`() = t {
-        val sourceFile: InternalFile
-        val destinationFile: InternalFile
-        val file1Payload = "original fie".encodeToByteArray()
-        val file2Payload = "original fie2".encodeToByteArray()
-        createHome(TestUsers.user.username).apply {
-            sourceFile = createFile("fie", file1Payload)
-            destinationFile = createFile("fie2", file2Payload)
-        }
+        with(copyTask) {
+            val sourceFile: InternalFile
+            val destinationFile: InternalFile
+            val file1Payload = "original fie".encodeToByteArray()
+            val file2Payload = "original fie2".encodeToByteArray()
+            createHome(TestUsers.user.username).apply {
+                sourceFile = createFile("fie", file1Payload)
+                destinationFile = createFile("fie2", file2Payload)
+            }
 
-        val task = createStorageTask(
-            bulkRequestOf(
-                FilesCopyRequestItem(
-                    pathConverter.internalToUCloud(sourceFile).path,
-                    pathConverter.internalToUCloud(destinationFile).path,
-                    WriteConflictPolicy.REJECT
+            val task = createStorageTask(
+                bulkRequestOf(
+                    FilesCopyRequestItem(
+                        pathConverter.internalToUCloud(sourceFile).path,
+                        pathConverter.internalToUCloud(destinationFile).path,
+                        WriteConflictPolicy.REJECT
+                    )
                 )
             )
-        )
 
-        copyTask.execute(Actor.System, task)
-        assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
-        assertTrue(File(destinationFile.path).readBytes().contentEquals(file2Payload))
+            taskContext.execute(Actor.System, task)
+            assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
+            assertTrue(File(destinationFile.path).readBytes().contentEquals(file2Payload))
+        }
     }
 
     @Test
     fun `test copy with conflict and replace`() = t {
-        val sourceFile: InternalFile
-        val destinationFile: InternalFile
-        val file1Payload = "original fie".encodeToByteArray()
-        val file2Payload = "original fie2".encodeToByteArray()
-        createHome(TestUsers.user.username).apply {
-            sourceFile = createFile("fie", file1Payload)
-            destinationFile = createFile("fie2", file2Payload)
-        }
+        with(copyTask) {
+            val sourceFile: InternalFile
+            val destinationFile: InternalFile
+            val file1Payload = "original fie".encodeToByteArray()
+            val file2Payload = "original fie2".encodeToByteArray()
+            createHome(TestUsers.user.username).apply {
+                sourceFile = createFile("fie", file1Payload)
+                destinationFile = createFile("fie2", file2Payload)
+            }
 
-        val task = createStorageTask(
-            bulkRequestOf(
-                FilesCopyRequestItem(
-                    pathConverter.internalToUCloud(sourceFile).path,
-                    pathConverter.internalToUCloud(destinationFile).path,
-                    WriteConflictPolicy.REPLACE
+            val task = createStorageTask(
+                bulkRequestOf(
+                    FilesCopyRequestItem(
+                        pathConverter.internalToUCloud(sourceFile).path,
+                        pathConverter.internalToUCloud(destinationFile).path,
+                        WriteConflictPolicy.REPLACE
+                    )
                 )
             )
-        )
 
-        copyTask.execute(Actor.System, task)
-        assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
-        assertTrue(File(destinationFile.path).readBytes().contentEquals(file1Payload))
+            taskContext.execute(Actor.System, task)
+            assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
+            assertTrue(File(destinationFile.path).readBytes().contentEquals(file1Payload))
+        }
     }
 
     @Test
     fun `test copy with conflict and rename`() = t {
-        val sourceFile: InternalFile
-        val destinationFile: InternalFile
-        val file1Payload = "original fie".encodeToByteArray()
-        val file2Payload = "original fie2".encodeToByteArray()
-        val home = createHome(TestUsers.user.username).apply {
-            sourceFile = createFile("fie", file1Payload)
-            destinationFile = createFile("fie2", file2Payload)
-        }
+        with(copyTask) {
+            val sourceFile: InternalFile
+            val destinationFile: InternalFile
+            val file1Payload = "original fie".encodeToByteArray()
+            val file2Payload = "original fie2".encodeToByteArray()
+            val home = createHome(TestUsers.user.username).apply {
+                sourceFile = createFile("fie", file1Payload)
+                destinationFile = createFile("fie2", file2Payload)
+            }
 
-        val task = createStorageTask(
-            bulkRequestOf(
-                FilesCopyRequestItem(
-                    pathConverter.internalToUCloud(sourceFile).path,
-                    pathConverter.internalToUCloud(destinationFile).path,
-                    WriteConflictPolicy.RENAME
+            val task = createStorageTask(
+                bulkRequestOf(
+                    FilesCopyRequestItem(
+                        pathConverter.internalToUCloud(sourceFile).path,
+                        pathConverter.internalToUCloud(destinationFile).path,
+                        WriteConflictPolicy.RENAME
+                    )
                 )
             )
-        )
 
-        copyTask.execute(Actor.System, task)
-        assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
-        assertTrue(File(destinationFile.path).readBytes().contentEquals(file2Payload))
-        assertTrue(File(home.path, "fie2(1)").readBytes().contentEquals(file1Payload))
+            taskContext.execute(Actor.System, task)
+            assertTrue(File(sourceFile.path).readBytes().contentEquals(file1Payload))
+            assertTrue(File(destinationFile.path).readBytes().contentEquals(file2Payload))
+            assertTrue(File(home.path, "fie2(1)").readBytes().contentEquals(file1Payload))
+        }
     }
 }

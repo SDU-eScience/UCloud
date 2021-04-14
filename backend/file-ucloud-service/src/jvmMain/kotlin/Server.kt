@@ -43,22 +43,30 @@ class Server(
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
+        val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath))
+        val nativeFs = NativeFS(pathConverter)
         val distributedStateFactory = RedisDistributedStateFactory(micro)
         val metadataDao = MetadataDao()
         val projectCache = ProjectCache(authenticatedClient)
-        val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath))
         val aclService = AclServiceImpl(authenticatedClient, projectCache, pathConverter, db, metadataDao)
-        val fileQueries = FileQueries(aclService, pathConverter, distributedStateFactory)
+        val fileQueries = FileQueries(aclService, pathConverter, distributedStateFactory, nativeFs)
         val trashService = TrashService(pathConverter)
-        val chunkedUploadService = ChunkedUploadService(db, aclService, pathConverter)
-        val taskSystem = TaskSystem(db).apply {
-            install(CopyTask(aclService, pathConverter, micro.backgroundScope))
-            install(DeleteTask(aclService, pathConverter, micro.backgroundScope))
-            install(MoveTask(aclService, pathConverter, micro.backgroundScope))
-            install(CreateFolderTask(aclService, pathConverter, micro.backgroundScope))
-            install(TrashTask(aclService, pathConverter, micro.backgroundScope, trashService))
+        val chunkedUploadService = ChunkedUploadService(db, aclService, pathConverter, nativeFs)
+        val taskSystem = TaskSystem(db, aclService, pathConverter, nativeFs, micro.backgroundScope).apply {
+            install(CopyTask())
+            install(DeleteTask())
+            install(MoveTask())
+            install(CreateFolderTask())
+            install(TrashTask(trashService))
         }
-        val fileCollectionService = FileCollectionsService(aclService, pathConverter, db, projectCache, taskSystem)
+        val fileCollectionService = FileCollectionsService(
+            aclService,
+            pathConverter,
+            db,
+            projectCache,
+            taskSystem,
+            nativeFs
+        )
 
         taskSystem.launchScheduler(micro.backgroundScope)
 

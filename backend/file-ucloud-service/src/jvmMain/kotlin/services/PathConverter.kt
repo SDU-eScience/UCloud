@@ -194,3 +194,10 @@ fun PathConverter.ucloudToRelative(file: UCloudFile): RelativeInternalFile {
 fun PathConverter.relativeToUCloud(file: RelativeInternalFile): UCloudFile {
     return internalToUCloud(relativeToInternal(file))
 }
+
+fun isPersonalWorkspace(file: RelativeInternalFile): Boolean =
+    file.path.startsWith("/${PathConverter.HOME_DIRECTORY}/")
+
+fun isProjectWorkspace(file: RelativeInternalFile): Boolean =
+    file.path.startsWith("/${PathConverter.PROJECT_DIRECTORY}/")
+

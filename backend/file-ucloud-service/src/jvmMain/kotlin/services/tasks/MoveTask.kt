@@ -20,18 +20,14 @@ private data class FileToMove(
     val conflictPolicy: WriteConflictPolicy,
 ) : WithPathMoving
 
-class MoveTask(
-    private val aclService: AclService,
-    private val pathConverter: PathConverter,
-    private val backgroundScope: BackgroundScope,
-) : TaskHandler {
-    override fun canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
+class MoveTask : TaskHandler {
+    override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
         return name == Files.move.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesMoveRequest>(request)
         }.isSuccess
     }
 
-    override suspend fun collectRequirements(
+    override suspend fun TaskContext.collectRequirements(
         actor: Actor,
         name: String,
         request: JsonObject,
@@ -49,7 +45,7 @@ class MoveTask(
         else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
-    override suspend fun execute(actor: Actor, task: StorageTask) {
+    override suspend fun TaskContext.execute(actor: Actor, task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesMoveRequest>(task.rawRequest)
 
         val numberOfCoroutines = if (realRequest.items.size >= 1000) 10 else 1
@@ -65,14 +61,14 @@ class MoveTask(
             },
             doWork = doWork@{ nextItem ->
                 try {
-                    val needsToRecurse = NativeFS.move(
+                    val needsToRecurse = nativeFs.move(
                         InternalFile(nextItem.oldPath),
                         InternalFile(nextItem.newPath),
                         nextItem.conflictPolicy
                     ).needsToRecurse
 
                     if (needsToRecurse) {
-                        val childrenFileNames = runCatching { NativeFS.listFiles(InternalFile(nextItem.oldPath)) }
+                        val childrenFileNames = runCatching { nativeFs.listFiles(InternalFile(nextItem.oldPath)) }
                             .getOrDefault(emptyList())
 
                         for (childFileName in childrenFileNames) {

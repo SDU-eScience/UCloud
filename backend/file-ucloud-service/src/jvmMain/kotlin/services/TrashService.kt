@@ -5,7 +5,9 @@ import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.file.ucloud.services.acl.PERSONAL_REPOSITORY
 import io.ktor.http.*
 
-class TrashService(private val pathConverter: PathConverter) {
+class TrashService(
+    private val pathConverter: PathConverter,
+) {
     private fun findPersonalTrash(username: String): InternalFile {
         return pathConverter.relativeToInternal(
             RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/$username/$TRASH_FOLDER")

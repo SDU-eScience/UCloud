@@ -14,18 +14,14 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
-class CreateFolderTask(
-    private val aclService: AclService,
-    private val pathConverter: PathConverter,
-    private val backgroundScope: BackgroundScope,
-) : TaskHandler {
-    override fun canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
+class CreateFolderTask : TaskHandler {
+    override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
         return name == Files.createFolder.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesCreateFolderRequest>(request)
         }.isSuccess
     }
 
-    override suspend fun collectRequirements(
+    override suspend fun TaskContext.collectRequirements(
         actor: Actor,
         name: String,
         request: JsonObject,
@@ -42,7 +38,7 @@ class CreateFolderTask(
         else TaskRequirements(false, JsonObject(emptyMap()))
     }
 
-    override suspend fun execute(actor: Actor, task: StorageTask) {
+    override suspend fun TaskContext.execute(actor: Actor, task: StorageTask) {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCreateFolderRequest>(task.rawRequest)
 
         val numberOfCoroutines = if (realRequest.items.size >= 1000) 10 else 1
@@ -53,7 +49,7 @@ class CreateFolderTask(
             doWork = doWork@{ nextItem ->
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
                 try {
-                    NativeFS.createDirectories(internalFile)
+                    nativeFs.createDirectories(internalFile)
                 } catch (ex: FSException) {
                     if (log.isDebugEnabled) {
                         log.debug("Caught an exception while creating folders: ${ex.stackTraceToString()}")

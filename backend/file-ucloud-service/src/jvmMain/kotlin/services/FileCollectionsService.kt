@@ -10,7 +10,6 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_REFERENCE
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
-import dk.sdu.cloud.provider.api.ResourceBilling
 import dk.sdu.cloud.provider.api.SimpleResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -31,6 +30,7 @@ class FileCollectionsService(
     private val db: DBContext,
     private val projectCache: ProjectCache,
     private val taskSystem: TaskSystem,
+    private val nativeFs: NativeFS,
 ) {
     // NOTE(Dan): This code only covers project repositories. It does not cover anything in the normal workspace.
 
@@ -132,7 +132,7 @@ class FileCollectionsService(
         db.withSession { session ->
             for (spec in specs.items) {
                 val id = UUID.randomUUID().toString()
-                NativeFS.createDirectories(pathConverter.projectRepositoryLocation(project, id))
+                nativeFs.createDirectories(pathConverter.projectRepositoryLocation(project, id))
                 responses.add(FindByStringId(pathConverter.projectRepositoryToCollection(project, id)))
 
                 session.sendPreparedStatement(

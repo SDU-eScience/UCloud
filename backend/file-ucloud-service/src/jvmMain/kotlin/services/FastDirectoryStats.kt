@@ -2,12 +2,12 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.service.Loggable
 
-object CephFsFastDirectoryStats : Loggable {
+class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable {
     override val log = logger()
 
     fun getRecursiveSize(file: InternalFile): Long {
         return try {
-            NativeFS.getExtendedAttribute(file, "ceph.dir.rbytes").toLong()
+            nativeFs.getExtendedAttribute(file, "ceph.dir.rbytes").toLong()
         } catch (ex: Throwable) {
             log.info(ex.stackTraceToString())
             return -1
@@ -16,7 +16,7 @@ object CephFsFastDirectoryStats : Loggable {
 
     fun getRecursiveEntryCount(file: InternalFile): Long {
         return try {
-            NativeFS.getExtendedAttribute(file, "ceph.dir.rentries").toLong()
+            nativeFs.getExtendedAttribute(file, "ceph.dir.rentries").toLong()
         } catch (ex: Throwable) {
             -1
         }
@@ -24,7 +24,7 @@ object CephFsFastDirectoryStats : Loggable {
 
     fun getRecursiveFileCount(file: InternalFile): Long {
         return try {
-            NativeFS.getExtendedAttribute(file, "ceph.dir.rfiles").toLong()
+            nativeFs.getExtendedAttribute(file, "ceph.dir.rfiles").toLong()
         } catch (ex: Throwable) {
             -1
         }
@@ -32,13 +32,13 @@ object CephFsFastDirectoryStats : Loggable {
 
     fun getRecursiveDirectoryCount(file: InternalFile): Long {
         return try {
-            NativeFS.getExtendedAttribute(file, "ceph.dir.rsubdirs").toLong()
+            nativeFs.getExtendedAttribute(file, "ceph.dir.rsubdirs").toLong()
         } catch (ex: Throwable) {
             -1
         }
     }
 
     fun getRecursiveTime(file: InternalFile): String {
-        return NativeFS.getExtendedAttribute(file, "ceph.dir.rctime")
+        return nativeFs.getExtendedAttribute(file, "ceph.dir.rctime")
     }
 }
