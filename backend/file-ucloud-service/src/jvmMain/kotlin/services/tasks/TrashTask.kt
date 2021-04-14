@@ -17,7 +17,7 @@ class TrashTask(
     private val trashService: TrashService,
 ) : TaskHandler {
     override fun TaskContext.canHandle(actor: Actor, name: String, request: JsonObject): Boolean {
-        return name == Files.move.fullName && runCatching {
+        return name == Files.trash.fullName && runCatching {
             defaultMapper.decodeFromJsonElement<FilesTrashRequest>(request)
         }.isSuccess
     }
@@ -50,6 +50,13 @@ class TrashTask(
                     val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
                     val targetDirectory = trashService.findTrashDirectory(actor.safeUsername(), internalFile)
                     val targetFile = InternalFile(targetDirectory.path + "/" + internalFile.fileName())
+
+                    try {
+                        nativeFs.stat(targetDirectory)
+                    } catch (ex: FSException.NotFound) {
+                        nativeFs.createDirectories(targetDirectory)
+                    }
+
                     nativeFs.move(
                         internalFile,
                         targetFile,

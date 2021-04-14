@@ -264,9 +264,9 @@ class FilesService(
         return proxyRequest(
             request,
             verifyRequest = { support, _ ->
-                if (support.files.trashSupported) {
+                if (!support.files.trashSupported) {
                     throw RPCException(
-                        "Cannot create files at this location (read-only system)",
+                        "Trash not supported by this system",
                         HttpStatusCode.BadRequest
                     )
                 }

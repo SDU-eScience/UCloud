@@ -22,10 +22,8 @@ import {Operation, Operations} from "ui-components/Operation";
 import {FtIcon, List} from "ui-components";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {
-    getFilenameFromPath,
     getParentPath,
     pathComponents, resolvePath,
-    sizeToHumanReadableWithUnit,
     sizeToString
 } from "Utilities/FileUtilities";
 import {dateToString} from "Utilities/DateUtilities";
@@ -139,6 +137,7 @@ const Files: React.FunctionComponent<CommonProps & {
     const [renaming, setRenaming] = useState<string | null>(null);
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const creatingFolderRef = useRef<HTMLInputElement>(null);
 
     const reload = useCallback(() => {
@@ -167,9 +166,15 @@ const Files: React.FunctionComponent<CommonProps & {
         setRenaming(file.path);
     }, []);
 
+    const trash = useCallback(async (batch: UFile[]) => {
+        if (commandLoading) return;
+        await invokeCommand(filesApi.trash(bulkRequestOf(...(batch.map(it => ({path: it.path}))))));
+        reload();
+    }, [commandLoading, reload]);
+
     const callbacks: FilesCallbacks = useMemo(
-        () => ({...props, reload, startRenaming, startFolderCreation, openUploader}),
-        [reload, startRenaming, props]
+        () => ({...props, reload, startRenaming, startFolderCreation, openUploader, trash}),
+        [reload, startRenaming, trash, props]
     );
 
     const renameRef = useRef<HTMLInputElement>(null);
@@ -321,6 +326,7 @@ interface FilesCallbacks extends CommonProps {
     startRenaming: (file: UFile) => void;
     startFolderCreation: () => void;
     openUploader: () => void;
+    trash: (batch: UFile[]) => void;
 }
 
 const filesOperations: Operation<UFile, FilesCallbacks>[] = [
@@ -374,7 +380,7 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         confirm: true,
         color: "red",
         primary: false,
-        onClick: () => 42,
+        onClick: (selected, cb) => cb.trash(selected),
         enabled: selected => selected.length > 0,
     },
     {
