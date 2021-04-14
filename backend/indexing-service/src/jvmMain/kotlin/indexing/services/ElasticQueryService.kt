@@ -20,12 +20,11 @@ import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import io.ktor.http.HttpStatusCode
-import mbuhot.eskotlin.query.compound.bool
-import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
-import mbuhot.eskotlin.query.term.range
-import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilder
+import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.query.RangeQueryBuilder
+import org.elasticsearch.index.query.TermsQueryBuilder
 import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.Aggregations
 import org.elasticsearch.search.aggregations.metrics.Avg
@@ -105,35 +104,33 @@ class ElasticQueryService(
 
     private fun searchBasedOnQuery(fileQuery: FileQuery): QueryBuilder {
         return with(fileQuery) {
-            bool {
-                should = ArrayList<QueryBuilder>().apply {
+            QueryBuilders.boolQuery().apply {
+                should().apply {
                     fileNameQuery?.forEach { q ->
                         if (!q.isBlank()) {
-                            add(match_phrase_prefix {
-                                ElasticIndexedFileConstants.FILE_NAME_FIELD to {
-                                    this.query = q
-                                    max_expansions = FILE_NAME_QUERY_MAX_EXPANSIONS
-                                }
-                            })
+                            add(
+                                QueryBuilders.matchPhrasePrefixQuery(
+                                    ElasticIndexedFileConstants.FILE_NAME_FIELD,
+                                    q
+                                ).maxExpansions(FILE_NAME_QUERY_MAX_EXPANSIONS)
+                            )
                         }
                     }
-                }
-
-                filter = ArrayList<QueryBuilder>().also { list ->
-                    val filteredRoots = roots.asSequence().filter { it != "/" }.map { it.removeSuffix("/") }.toList()
-                    if (filteredRoots.isNotEmpty()) {
-                        list.add(terms { ElasticIndexedFileConstants.PATH_FIELD to filteredRoots })
+                    filter().apply {
+                        val filteredRoots =
+                            roots.asSequence().filter { it != "/" }.map { it.removeSuffix("/") }.toList()
+                        if (filteredRoots.isNotEmpty()) {
+                            add(TermsQueryBuilder(ElasticIndexedFileConstants.PATH_FIELD, filteredRoots))
+                        }
+                        fileNameExact.addClausesIfExists(this, ElasticIndexedFileConstants.FILE_NAME_FIELD)
+                        extensions.addClausesIfExists(this, ElasticIndexedFileConstants.FILE_NAME_EXTENSION)
+                        fileTypes.addClausesIfExists(this, ElasticIndexedFileConstants.FILE_TYPE_FIELD)
+                        fileDepth.addClausesIfExists(this, ElasticIndexedFileConstants.FILE_DEPTH_FIELD)
+                        fileSize.addClausesIfExists(this, ElasticIndexedFileConstants.SIZE_FIELD)
                     }
-
-                    fileNameExact.addClausesIfExists(list, ElasticIndexedFileConstants.FILE_NAME_FIELD)
-                    extensions.addClausesIfExists(list, ElasticIndexedFileConstants.FILE_NAME_EXTENSION)
-                    fileTypes.addClausesIfExists(list, ElasticIndexedFileConstants.FILE_TYPE_FIELD)
-                    fileDepth.addClausesIfExists(list, ElasticIndexedFileConstants.FILE_DEPTH_FIELD)
-                    size.addClausesIfExists(list, ElasticIndexedFileConstants.SIZE_FIELD)
-                }
-            }.also {
-                if (it.should().isNotEmpty()) {
-                    it.minimumShouldMatch(1)
+                    if (should().isNotEmpty()) {
+                        minimumShouldMatch(1)
+                    }
                 }
             }
         }
@@ -162,12 +159,12 @@ class ElasticQueryService(
     }
 
     private fun <P : Any> AnyOf<P>.toQuery(fieldName: String): QueryBuilder {
-        val termsQuery = terms { fieldName to anyOf }
+        println(anyOf)
+        println(fieldName)
+        val termsQuery = TermsQueryBuilder(fieldName, anyOf.map { it.toString() })
 
         return if (negate) {
-            bool {
-                must_not = listOf(termsQuery)
-            }
+            QueryBuilders.boolQuery().mustNot(termsQuery)
         } else {
             termsQuery
         }
@@ -177,29 +174,25 @@ class ElasticQueryService(
         val equalsTerm = anyOf.find { it.operator == ComparisonOperator.EQUALS }
 
         val query = if (equalsTerm != null) {
-            terms {
-                fieldName to listOf(equalsTerm.value)
-            }
+            TermsQueryBuilder(
+                fieldName, listOf(equalsTerm.value)
+            )
         } else {
-            range {
-                fieldName to {
-                    anyOf.forEach {
-                        when (it.operator) {
-                            ComparisonOperator.GREATER_THAN -> gt = it.value
-                            ComparisonOperator.GREATER_THAN_EQUALS -> gte = it.value
-                            ComparisonOperator.LESS_THAN -> lt = it.value
-                            ComparisonOperator.LESS_THAN_EQUALS -> lte = it.value
-                            ComparisonOperator.EQUALS -> throw IllegalStateException("Assertion error")
-                        }
+            RangeQueryBuilder(fieldName).apply {
+                anyOf.forEach {
+                    when (it.operator) {
+                        ComparisonOperator.GREATER_THAN -> gt(it.value)
+                        ComparisonOperator.GREATER_THAN_EQUALS -> gte(it.value)
+                        ComparisonOperator.LESS_THAN -> lt(it.value)
+                        ComparisonOperator.LESS_THAN_EQUALS -> lte(it.value)
+                        ComparisonOperator.EQUALS -> throw IllegalStateException("Assertion error")
                     }
                 }
             }
         }
 
         return if (negate) {
-            bool {
-                must_not = listOf(query)
-            }
+            QueryBuilders.boolQuery().mustNot(query)
         } else {
             query
         }
