@@ -125,6 +125,7 @@ interface OperationProps<T, R = undefined> {
     dropdownTag?: string;
     row?: T;
     showSelectedCount?: boolean;
+    displayTitle?: boolean;
 }
 
 type OperationsType = <T, R = undefined>(props: PropsWithChildren<OperationProps<T, R>>, context?: any) =>
@@ -241,13 +242,15 @@ export const Operations: OperationsType = props => {
         case "TOPBAR":
             return <>
                 <Flex alignItems={"center"}>
-                    <Heading.h3 flexGrow={1}>
-                        {entityNamePlural}
-                        {" "}
-                        {props.selected.length === 0 ? null :
-                            <TextSpan color={"gray"} fontSize={"80%"}>{props.selected.length} selected</TextSpan>
-                        }
-                    </Heading.h3>
+                    {props.displayTitle === false ? null :
+                        <Heading.h3 flexGrow={1}>
+                            {entityNamePlural}
+                            {" "}
+                            {props.selected.length === 0 ? null :
+                                <TextSpan color={"gray"} fontSize={"80%"}>{props.selected.length} selected</TextSpan>
+                            }
+                        </Heading.h3>
+                    }
                     {primaryContent}
                     <Box mr={"10px"}/>
                     {content.length === 0 ? <Box ml={"30px"}/> :
