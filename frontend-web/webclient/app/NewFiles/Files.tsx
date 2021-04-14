@@ -179,7 +179,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
 
         {props.embedded ? null : breadcrumbsComponent}
 
-        <List childPadding={"8px"} bordered={false}>
+        <List childPadding={"8px"} bordered={true}>
             {!isCreatingFolder ? null : (
                 <ListRow
                     icon={<FtIcon fileIcon={{type: "DIRECTORY"}} size={"42px"}/>}
@@ -197,7 +197,13 @@ export const Files: React.FunctionComponent<CommonFileProps & {
             {props.files.data.items.map(it =>
                 <ListRow
                     key={it.path}
-                    icon={<FtIcon fileIcon={{type: it.type, ext: extensionFromPath(it.path)}} size={"42px"}/>}
+                    icon={
+                        <FtIcon
+                            iconHint={it.icon}
+                            fileIcon={{type: it.type, ext: extensionFromPath(it.path)}}
+                            size={"42px"}
+                        />
+                    }
                     left={
                         renaming === it.path ?
                             <NamingField

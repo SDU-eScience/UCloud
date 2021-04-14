@@ -49,8 +49,8 @@ class Server(
         val metadataDao = MetadataDao()
         val projectCache = ProjectCache(authenticatedClient)
         val aclService = AclServiceImpl(authenticatedClient, projectCache, pathConverter, db, metadataDao)
-        val fileQueries = FileQueries(aclService, pathConverter, distributedStateFactory, nativeFs)
         val trashService = TrashService(pathConverter)
+        val fileQueries = FileQueries(aclService, pathConverter, distributedStateFactory, nativeFs, trashService)
         val chunkedUploadService = ChunkedUploadService(db, aclService, pathConverter, nativeFs)
         val taskSystem = TaskSystem(db, aclService, pathConverter, nativeFs, micro.backgroundScope).apply {
             install(CopyTask())

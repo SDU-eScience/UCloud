@@ -255,7 +255,7 @@ export function isExtPreviewSupported(ext: string): boolean {
 }
 
 export interface FtIconProps {
-    type: FileType;
+    type: string;
     ext?: string;
     name?: string;
 }

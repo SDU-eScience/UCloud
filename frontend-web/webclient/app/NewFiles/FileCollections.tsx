@@ -24,7 +24,7 @@ export const FileCollections: React.FunctionComponent<CommonFileProps & {
     const callbacks: CollectionsCallbacks = useMemo(() => ({...props, reload}), [reload, props]);
 
     const main = <>
-        <List childPadding={"8px"} bordered={false}>
+        <List childPadding={"8px"} bordered={true}>
             {props.collections.data.items.map(it =>
                 <ListRow
                     key={it.id}

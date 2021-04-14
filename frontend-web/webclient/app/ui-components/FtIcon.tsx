@@ -5,9 +5,8 @@ import {extensionType, FtIconProps as UFFtIconProps} from "UtilityFunctions";
 import Icon from "./Icon";
 import theme from "./theme";
 import {Cursor} from "./Types";
-import {AppToolLogo} from "Applications/AppToolLogo";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
-
+import {FileIconHint} from "NewFiles";
 
 const ftColor = (fType: string): string => {
     switch (fType) {
@@ -210,13 +209,25 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element => (
     </svg>
 );
 
-const FtIconBase = ({fileIcon, size, ...props}): JSX.Element => {
+interface FtIconBaseProps {
+    fileIcon: UFFtIconProps;
+    size?: string | number;
+    iconHint?: FileIconHint;
+}
+const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, ...props}) => {
     const hasExt = fileIcon.ext ? true : false;
-    const ext4 = hasExt ? fileIcon.ext.substring(0, 4) : undefined;
-    const type = hasExt ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
+    const ext4 = fileIcon?.ext?.substring(0, 4);
+    const type = fileIcon.ext ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
 
-    if (type === "application") {
-        return <AppToolLogo name={fileIcon.name} type={"APPLICATION"} size={size} />;
+    switch (props.iconHint) {
+        case "DIRECTORY_JOBS":
+            return (<Icon name="ftResultsFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+        case "DIRECTORY_SHARES":
+            return (<Icon name="ftSharesFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+        case "DIRECTORY_STAR":
+            return (<Icon name="ftFavFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+        case "DIRECTORY_TRASH":
+            return (<Icon name="trash" size={size} color={"red"} color2={"lightRed"} />);
     }
 
     switch (fileIcon.type) {
@@ -230,8 +241,6 @@ const FtIconBase = ({fileIcon, size, ...props}): JSX.Element => {
             return (<Icon name="ftResultsFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
         case "FSFOLDER":
             return (<Icon name="ftFsFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
-        case "SHARED_FS":
-            return (<Icon name="ftFileSystem" size={size} color={"FtFolderColor"} color2={"white"} />);
         case "DIRECTORY":
             return (<Icon name="ftFolder" size={size} color={"FtFolderColor"} color2={("FtFolderColor2")} />);
     }
@@ -252,7 +261,6 @@ const FtIconBase = ({fileIcon, size, ...props}): JSX.Element => {
 };
 
 export interface FtIconProps extends SpaceProps, ColorProps {
-    fileIcon: UFFtIconProps;
     cursor?: Cursor;
 }
 

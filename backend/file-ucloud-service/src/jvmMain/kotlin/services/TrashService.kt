@@ -37,12 +37,13 @@ class TrashService(
         }
     }
 
-    fun isTrashFolder(username: String, file: InternalFile): Boolean {
+    fun isTrashFolder(username: String?, file: InternalFile): Boolean {
         val components = pathConverter.internalToRelative(file).components()
         if (components.size < 2) return false
         return when {
-            components[0] == "home" -> file == findPersonalTrash(username)
-            components[0] == "projects" -> components.size >= 5 && components[4] == TRASH_FOLDER
+            components[0] == "home" -> (username != null && file == findPersonalTrash(username)) ||
+                (username == null && components.size == 3 && components[2] == TRASH_FOLDER)
+            components[0] == "projects" -> components.size == 5 && components[4] == TRASH_FOLDER
             else -> false
         }
     }

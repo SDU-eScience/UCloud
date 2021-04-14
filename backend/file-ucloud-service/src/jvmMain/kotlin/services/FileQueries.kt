@@ -3,11 +3,9 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.orchestrator.api.FilePermission
-import dk.sdu.cloud.file.orchestrator.api.FileType
-import dk.sdu.cloud.file.orchestrator.api.FilesIncludeFlags
-import dk.sdu.cloud.file.orchestrator.api.UFile
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.acl.AclService
+import dk.sdu.cloud.file.ucloud.services.acl.PERSONAL_REPOSITORY
 import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -21,7 +19,8 @@ class FileQueries(
     private val aclService: AclService,
     private val pathConverter: PathConverter,
     private val distributedStateFactory: DistributedStateFactory,
-    private val nativeFs: NativeFS
+    private val nativeFs: NativeFS,
+    private val fileTrashService: TrashService,
 ) {
     suspend fun retrieve(actor: Actor, file: UCloudFile, flags: FilesIncludeFlags): UFile {
         val myself = aclService.fetchMyPermissions(actor, file)
@@ -29,18 +28,33 @@ class FileQueries(
 
         val internalFile = pathConverter.ucloudToInternal(file)
         val nativeStat = nativeFs.stat(internalFile)
-        return convertNativeStatToUFile(file, nativeStat, myself)
+        return convertNativeStatToUFile(internalFile, nativeStat, myself)
+    }
+
+    private fun findIcon(file: InternalFile): FileIconHint? {
+        val components = pathConverter.internalToRelative(file).components()
+        return if (fileTrashService.isTrashFolder(null, file)) {
+            FileIconHint.DIRECTORY_TRASH
+        } else if (
+            (components.size == 3 && components[0] == "home" && components[2] == "Jobs") ||
+            (components.size == 5 && components[0] == "projects" &&
+                components[2] == PERSONAL_REPOSITORY && components[4] == "Jobs")
+        ) {
+            FileIconHint.DIRECTORY_JOBS
+        } else {
+            null
+        }
     }
 
     private fun convertNativeStatToUFile(
-        file: UCloudFile,
+        file: InternalFile,
         nativeStat: NativeStat,
         myself: Set<FilePermission>,
     ): UFile {
         return UFile(
-            file.path,
+            pathConverter.internalToUCloud(file).path,
             nativeStat.fileType,
-            null,
+            findIcon(file),
             UFile.Stats(
                 nativeStat.size,
                 null, // TODO
@@ -102,7 +116,7 @@ class FileQueries(
                 val nextInternalFile = foundFiles[i++]
                 items.add(
                     convertNativeStatToUFile(
-                        pathConverter.internalToUCloud(nextInternalFile),
+                        nextInternalFile,
                         nativeFs.stat(nextInternalFile),
                         myself // NOTE(Dan): This is always true for all parts of the UCloud/Storage system
                     )
