@@ -217,6 +217,9 @@ data class AllowsRenamingResponse(
     val allowed: Boolean
 )
 
+typealias RetrieveSubProjectRenamingSettingRequest = AllowsRenamingRequest
+typealias RetrieveSubProjectRenamingSettingResponse = AllowsRenamingResponse
+
 @Serializable
 data class UpdateDataManagementPlanRequest(val id: String, val dmp: String? = null)
 typealias UpdateDataManagementPlanResponse = Unit
@@ -893,7 +896,7 @@ object Projects : CallDescriptionContainer("project") {
         }
     }
 
-    val allowsSubProjectRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("allowsSubProjectRenaming") {
+    val retrieveSubProjectRenamingSetting = call<RetrieveSubProjectRenamingSettingRequest, RetrieveSubProjectRenamingSettingResponse, CommonErrorMessage>("allowsSubProjectRenaming") {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED

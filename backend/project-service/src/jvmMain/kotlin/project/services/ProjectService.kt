@@ -768,10 +768,13 @@ class ProjectService(
         ctx: DBContext,
         actor: Actor,
         projectId: String,
-        newTitle: String
+        newTitle: String,
+        subProject: Boolean = false
     ) {
         ctx.withSession { session ->
-            requireAdmin(session, projectId, actor)
+            if (!subProject) {
+                requireAdmin(session, projectId, actor)
+            }
             try {
                 session.sendPreparedStatement(
                     {

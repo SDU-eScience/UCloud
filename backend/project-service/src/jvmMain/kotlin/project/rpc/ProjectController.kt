@@ -273,9 +273,10 @@ class ProjectController(
             )
         }
 
-        implement(Projects.allowsSubProjectRenaming) {
+        implement(Projects.retrieveSubProjectRenamingSetting) {
+            val allowed = projects.allowsSubProjectsRenaming(db, request.projectId, ctx.securityPrincipal.toActor())
             ok(
-                AllowsRenamingResponse(projects.allowsSubProjectsRenaming(db, request.projectId, ctx.securityPrincipal.toActor()))
+                RetrieveSubProjectRenamingSettingResponse(allowed)
             )
         }
 
@@ -285,14 +286,32 @@ class ProjectController(
         }
 
         implement(Projects.rename) {
-            ok(
+            val requestedProject = queries.lookupById(db, request.id) ?: throw RPCException(
+                "No project with that id",
+                HttpStatusCode.BadRequest
+            )
+            if (requestedProject.parent != null && requestedProject.parent == ctx.project) {
+                val isAdmin = queries.isAdminOrPIOfProject(db, ctx.securityPrincipal.username, requestedProject.parent!!)
+                if (isAdmin) {
+                    projects.renameProject(
+                        db,
+                        ctx.securityPrincipal.toActor(),
+                        request.id,
+                        request.newTitle,
+                        subProject = true
+                    )
+                } else {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not admin")
+                }
+            } else {
                 projects.renameProject(
                     db,
                     ctx.securityPrincipal.toActor(),
                     request.id,
                     request.newTitle
                 )
-            )
+            }
+            ok(Unit)
         }
 
         implement(Projects.updateDataManagementPlan) {
