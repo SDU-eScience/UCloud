@@ -75,6 +75,7 @@ export const quickLaunchJob = async (
         resources: [
             { path: mountPath, readOnly: false, type: "file" }
         ],
+        timeAllocation: { hours: 1, minutes: 0, seconds: 0 },
         replicas: 1,
         allowDuplicateJob: true,
         parameters: {}
