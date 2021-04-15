@@ -13,7 +13,7 @@ kotlin.sourceSets {
             implementation(project(":storage-service:api"))
             implementation(project(":project-service:api"))
             implementation(project(":mail-service:api"))
-            implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
+            implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.10.4")
         }
     }
 }
