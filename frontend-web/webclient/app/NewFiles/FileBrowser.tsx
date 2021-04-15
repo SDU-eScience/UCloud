@@ -107,7 +107,7 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
     };
 
     if (path === "/") {
-        return <FileCollections collections={collections} {...commonProps} />;
+        return <FileCollections provider={UCLOUD_PROVIDER} collections={collections} {...commonProps} />;
     } else {
         return <Files files={files} {...commonProps} />;
     }

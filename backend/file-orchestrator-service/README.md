@@ -211,8 +211,8 @@ A `FileCollection` is an entrypoint to a user's files
 | `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
 | `status` | `Status` | Holds the current status of the `Resource` |
 | `updates` | `Array<Update>` | Contains a list of updates from the provider as well as UCloud |
-| `billing` | `ResourceBilling` | Contains information related to billing information for this `Resource` |
-| `owner` | `ResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
+| `billing` | `Billing` | Contains information related to billing information for this `Resource` |
+| `owner` | `SimpleResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
 | `acl` | `Array<ResourceAclEntry_enum_READ_WRITE_ADMINISTRATOR)_ >` | An ACL for this `Resource` |
 
 

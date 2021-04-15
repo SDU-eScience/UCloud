@@ -1,7 +1,12 @@
 import * as React from "react";
 
 const SvgEye = (props: any) => (
-  <svg viewBox="0 0 60 20" fill="currentcolor" {...props}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 60 20"
+    fill="currentcolor"
+    {...props}
+  >
     <path
       d="M2 10c8 10 38 10 48 0M2 10c8-10 38-10 48 0"
       stroke="currentcolor"

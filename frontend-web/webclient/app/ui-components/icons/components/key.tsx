@@ -1,7 +1,12 @@
 import * as React from "react";
 
 const SvgKey = (props: any) => (
-  <svg viewBox="0 0 5.959 6.339" fill="currentcolor" {...props}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 5.959 6.339"
+    fill="currentcolor"
+    {...props}
+  >
     <g transform="translate(-102.276 -65.342)" paintOrder="stroke markers fill">
       <circle
         cx={106.591}

@@ -32,7 +32,21 @@ class FileCollectionsService(
     private val taskSystem: TaskSystem,
     private val nativeFs: NativeFS,
 ) {
-    // NOTE(Dan): This code only covers project repositories. It does not cover anything in the normal workspace.
+    private fun homeCollection(actorAndProject: ActorAndProject): FileCollection {
+        return FileCollection(
+            "${PathConverter.COLLECTION_HOME_PREFIX}${actorAndProject.actor.safeUsername()}",
+            FileCollection.Spec("Home", PRODUCT_REFERENCE),
+            Time.now(),
+            FileCollection.Status(
+                FileCollection.Quota(), // TODO
+                productSupport
+            ),
+            emptyList(),
+            FileCollection.Billing(0L, 0L),
+            SimpleResourceOwner(actorAndProject.actor.safeUsername(), null),
+            null
+        )
+    }
 
     suspend fun browse(
         actorAndProject: ActorAndProject,
@@ -66,22 +80,6 @@ class FileCollectionsService(
         )
     }
 
-    private fun homeCollection(actorAndProject: ActorAndProject): FileCollection {
-        return FileCollection(
-            "${PathConverter.COLLECTION_HOME_PREFIX}${actorAndProject.actor.safeUsername()}",
-            FileCollection.Spec("Home", PRODUCT_REFERENCE),
-            Time.now(),
-            FileCollection.Status(
-                FileCollection.Quota(), // TODO
-                productSupport
-            ),
-            emptyList(),
-            FileCollection.Billing(0L, 0L),
-            SimpleResourceOwner(actorAndProject.actor.safeUsername(), null),
-            null
-        )
-    }
-
     private fun mapFileCollectionFromRow(it: RowData) = FileCollection(
         pathConverter.projectRepositoryToCollection(
             it.getString("project_id")!!,
@@ -108,10 +106,16 @@ class FileCollectionsService(
         id: String,
     ): FileCollection {
         if (actorAndProject.project == null) return homeCollection(actorAndProject)
+        println("hi!")
+        val projectRepo = pathConverter.collectionToProjectRepositoryOrNull(id)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        println(projectRepo)
+        if (projectRepo.projectId != actorAndProject.project) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         return db.withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("id", id)
+                    setParameter("id", projectRepo.repository)
+                    println("Looking for $projectRepo")
                     setParameter("project_id", actorAndProject.project)
                 },
                 "select * from file_ucloud.project_repositories where id = :id and project_id = :project_id"

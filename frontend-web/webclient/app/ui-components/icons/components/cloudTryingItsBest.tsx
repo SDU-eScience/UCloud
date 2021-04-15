@@ -1,7 +1,12 @@
 import * as React from "react";
 
 const SvgCloudTryingItsBest = (props: any) => (
-  <svg viewBox="0 0 400 200" fill="currentcolor" {...props}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 400 200"
+    fill="currentcolor"
+    {...props}
+  >
     <path
       fill="currentcolor"
       stroke="#000"

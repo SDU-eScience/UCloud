@@ -3,6 +3,7 @@ import * as React from "react";
 const SvgExtract = (props: any) => (
   <svg
     viewBox="-2 0 20 25"
+    xmlns="http://www.w3.org/2000/svg"
     fillRule="evenodd"
     clipRule="evenodd"
     fill="currentcolor"

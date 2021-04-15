@@ -77,7 +77,6 @@ class PathConverter(
                     append(projectId)
                     append('/')
                     append(repository)
-                    append('/')
                     for ((idx, component) in withoutMetadata.withIndex()) {
                         if (idx == 0) continue
                         append('/')
@@ -108,7 +107,7 @@ class PathConverter(
         return buildString {
             append(COLLECTION_PROJECT_PREFIX)
             append(projectId)
-            append('-')
+            append('_')
             append(repository)
         }
     }
@@ -117,7 +116,7 @@ class PathConverter(
     fun collectionToProjectRepositoryOrNull(collection: String): ProjectRepository? {
         if (!collection.startsWith(COLLECTION_PROJECT_PREFIX)) return null
         val withoutPrefix = collection.removePrefix(COLLECTION_PROJECT_PREFIX)
-        val splitterIdx = withoutPrefix.indexOfLast { it == '-' }
+        val splitterIdx = withoutPrefix.indexOfLast { it == '_' }
         if (splitterIdx == -1) throw FSException.NotFound()
         if (splitterIdx == withoutPrefix.length) throw FSException.NotFound()
         val projectId = withoutPrefix.substring(0, splitterIdx)
@@ -153,6 +152,7 @@ class PathConverter(
 
                         append(COLLECTION_PROJECT_PREFIX)
                         append(components[1])
+                        append("_")
                         append(components[2])
                         startIdx = 3
                     }

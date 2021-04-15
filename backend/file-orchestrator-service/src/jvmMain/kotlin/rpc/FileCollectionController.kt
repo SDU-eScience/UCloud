@@ -15,23 +15,30 @@ class FileCollectionController(
         }
 
         implement(FileCollections.create) {
-            TODO()
+            ok(fileCollections.create(actorAndProject, request))
         }
 
         implement(FileCollections.delete) {
-            TODO()
+            fileCollections.delete(actorAndProject, request)
+            ok(Unit)
         }
 
         implement(FileCollections.rename) {
-            TODO()
+            fileCollections.rename(actorAndProject, request)
+            ok(Unit)
         }
 
         implement(FileCollections.retrieve) {
             ok(fileCollections.retrieve(actorAndProject, request))
         }
 
+        implement(FileCollections.retrieveManifest) {
+            ok(fileCollections.retrieveManifest(request))
+        }
+
         implement(FileCollections.updateAcl) {
-            TODO()
+            fileCollections.updateAcl(actorAndProject, request)
+            ok(Unit)
         }
 
         return@with

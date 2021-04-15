@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Wed Mar 31 12:59:18 CEST 2021 */
+/* Generated at: Thu Apr 15 08:00:25 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -521,11 +521,11 @@ export interface FileCollection {
     /**
      * Contains information related to billing information for this `Resource`
      */
-    billing: provider.ResourceBilling,
+    billing: FileCollectionNS.Billing,
     /**
      * Contains information about the original creator of the `Resource` along with project association
      */
-    owner: provider.ResourceOwner,
+    owner: provider.SimpleResourceOwner,
     /**
      * An ACL for this `Resource`
      */
@@ -624,8 +624,13 @@ export interface FileCollectionsBrowseRequest {
      */
     itemsToSkip?: number /* int64 */,
 }
+export interface FileCollectionsDeleteRequestItem {
+    id: string,
+    provider: string,
+}
 export interface FileCollectionsRenameRequestItem {
     id: string,
+    provider: string,
     newTitle: string,
 }
 export interface FileCollectionsRetrieveRequest {
@@ -633,8 +638,15 @@ export interface FileCollectionsRetrieveRequest {
     provider: string,
     includeSupport?: boolean,
 }
+export interface FileCollectionsProviderRetrieveManifestResponse {
+    support: FSSupport[],
+}
+export interface FileCollectionsRetrieveManifestRequest {
+    provider: string,
+}
 export interface FileCollectionsUpdateAclRequestItem {
     id: string,
+    provider: string,
     newAcl: provider.ResourceAclEntry<"READ" | "WRITE" | "ADMINISTRATOR">[],
 }
 /**
@@ -729,9 +741,6 @@ export interface ProxiedRequest<T = unknown> {
     username: string,
     project?: string,
     request: T,
-}
-export interface FileCollectionsProviderRetrieveManifestResponse {
-    support: FSSupport[],
 }
 /**
  * The base type for requesting paginated content.
@@ -949,6 +958,23 @@ export interface Update {
      * A generic text message describing the current status of the `Resource`
      */
     status?: string,
+}
+/**
+ * Contains information related to the accounting/billing of a `Resource`
+ * 
+ * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+ * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+ * to be charged a different price than newly launched products.
+ */
+export interface Billing {
+    /**
+     * The price per unit. This can differ from current price of `Product`
+     */
+    pricePerUnit: number /* int64 */,
+    /**
+     * Amount of credits charged in total for this `Resource`
+     */
+    creditsCharged: number /* int64 */,
 }
 }
 export namespace FileMetadataDocumentNS {
@@ -1474,8 +1500,8 @@ export function create(
     };
 }
 export function remove(
-    request: BulkRequest<FindByStringId>
-): APICallParameters<BulkRequest<FindByStringId>, any /* unknown */> {
+    request: BulkRequest<FileCollectionsDeleteRequestItem>
+): APICallParameters<BulkRequest<FileCollectionsDeleteRequestItem>, any /* unknown */> {
     return {
         context: "",
         method: "DELETE",
@@ -1504,6 +1530,17 @@ export function retrieve(
         context: "",
         method: "GET",
         path: buildQueryString("/api/files/collections" + "/retrieve", {id: request.id, provider: request.provider, includeSupport: request.includeSupport}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function retrieveManifest(
+    request: FileCollectionsRetrieveManifestRequest
+): APICallParameters<FileCollectionsRetrieveManifestRequest, FileCollectionsProviderRetrieveManifestResponse> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/collections" + "/retrieveManifest", {provider: request.provider}),
         parameters: request,
         reloadId: Math.random(),
     };
@@ -1573,6 +1610,54 @@ export function createUpload(
         payload: request,
     };
 }
+export function move(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesMoveRequestItem>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesMoveRequestItem>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/move",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function remove(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FindByPath>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FindByPath>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "DELETE",
+        path: "/ucloud/ucloud/files",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function trash(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FindByPath>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FindByPath>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/trash",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function createFolder(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesCreateFolderRequestItem>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesCreateFolderRequestItem>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/folder",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
 }
 export namespace filecollections {
 export function retrieveManifest(): APICallParameters<{}, orchestrator.FileCollectionsProviderRetrieveManifestResponse> {
@@ -1599,10 +1684,11 @@ export function retrieve(
 ): APICallParameters<orchestrator.ProxiedRequest<FindByStringId>, orchestrator.FileCollection> {
     return {
         context: "",
-        method: "GET",
-        path: buildQueryString("/ucloud/ucloud/files/collections" + "/retrieve", {username: request.username, project: request.project, request: request.request}),
+        method: "POST",
+        path: "/ucloud/ucloud/files/collections" + "/retrieve",
         parameters: request,
         reloadId: Math.random(),
+        payload: request,
     };
 }
 export function create(
@@ -5343,6 +5429,13 @@ export interface ResourceOwner {
     project?: string,
 }
 /**
+ * The owner of a `Resource`
+ */
+export interface SimpleResourceOwner {
+    createdBy: string,
+    project?: string,
+}
+/**
  * Contains information related to the accounting/billing of a `Resource`
  * 
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
@@ -5358,13 +5451,6 @@ export interface ResourceBilling {
      * The price per unit. This can differ from current price of `Product`
      */
     pricePerUnit: number /* int64 */,
-}
-/**
- * The owner of a `Resource`
- */
-export interface SimpleResourceOwner {
-    createdBy: string,
-    project?: string,
 }
 /**
  * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).

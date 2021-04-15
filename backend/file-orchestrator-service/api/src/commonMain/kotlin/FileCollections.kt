@@ -21,7 +21,9 @@ typealias FileCollectionsBrowseResponse = PageV2<FileCollection>
 typealias FileCollectionsCreateRequest = BulkRequest<FileCollection.Spec>
 typealias FileCollectionsCreateResponse = BulkResponse<FindByStringId>
 
-typealias FileCollectionsDeleteRequest = BulkRequest<FindByStringId>
+typealias FileCollectionsDeleteRequest = BulkRequest<FileCollectionsDeleteRequestItem>
+@Serializable
+data class FileCollectionsDeleteRequestItem(val id: String, val provider: String)
 typealias FileCollectionsDeleteResponse = Unit
 
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
@@ -29,6 +31,7 @@ typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameReques
 @Serializable
 data class FileCollectionsRenameRequestItem(
     val id: String,
+    val provider: String,
     val newTitle: String,
 )
 typealias FileCollectionsRenameResponse = Unit
@@ -38,6 +41,7 @@ typealias FileCollectionsUpdateAclRequest = BulkRequest<FileCollectionsUpdateAcl
 @Serializable
 data class FileCollectionsUpdateAclRequestItem(
     val id: String,
+    val provider: String,
     val newAcl: List<ResourceAclEntry<FilePermission>>,
 )
 typealias FileCollectionsUpdateAclResponse = Unit
@@ -50,6 +54,9 @@ data class FileCollectionsRetrieveRequest(
 ) : FileCollectionIncludeFlags
 typealias FileCollectionsRetrieveResponse = FileCollection
 
+@Serializable
+data class FileCollectionsRetrieveManifestRequest(val provider: String)
+typealias FileCollectionsRetrieveManifestResponse = FileCollectionsProviderRetrieveManifestResponse
 // ---
 
 object FileCollections : CallDescriptionContainer("files.collections") {
@@ -79,6 +86,11 @@ object FileCollections : CallDescriptionContainer("files.collections") {
     val retrieve = call<FileCollectionsRetrieveRequest, FileCollectionsRetrieveResponse,
         CommonErrorMessage>("retrieve") {
         httpRetrieve(baseContext)
+    }
+
+    val retrieveManifest = call<FileCollectionsRetrieveManifestRequest, FileCollectionsRetrieveManifestResponse,
+        CommonErrorMessage>("retrieveManifest") {
+        httpRetrieve(baseContext, "manifest")
     }
 
     /*

@@ -3,6 +3,7 @@ import * as React from "react";
 const SvgSensitivity = (props: any) => (
   <svg
     viewBox="-2 0 21 24"
+    xmlns="http://www.w3.org/2000/svg"
     fillRule="evenodd"
     clipRule="evenodd"
     fill="currentcolor"

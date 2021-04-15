@@ -601,7 +601,10 @@ class NativeFS(
 
                         if (fileDescriptors[i] < 0 && Native.getLastError() == ENOENT) {
                             val err = mkdirat(fileDescriptors[i - 1], components[i], DEFAULT_DIR_MODE)
-                            if (err < 0) throw FSException.NotFound()
+                            if (err < 0) {
+                                log.debug("Could not create directories at $file")
+                                throw FSException.NotFound()
+                            }
                         } else {
                             i++
                         }

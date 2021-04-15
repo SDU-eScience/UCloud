@@ -28,8 +28,8 @@ export type OperationEnabled = boolean | string;
 
 export interface Operation<T, R = undefined> {
     text: string;
-    onClick: (selected: T[], extra: R) => void;
-    enabled: (selected: T[], extra: R) => OperationEnabled;
+    onClick: (selected: T[], extra: R, all?: T[]) => void;
+    enabled: (selected: T[], extra: R, all?: T[]) => OperationEnabled;
     icon?: IconName;
     color?: ThemeColor;
     hoverColor?: ThemeColor;
@@ -64,14 +64,15 @@ const OperationComponent: React.FunctionComponent<{
     op: Operation<unknown, unknown>;
     extra: unknown;
     selected: unknown[];
+    all?: unknown[];
     reasonDisabled?: string;
     location: OperationLocation;
     onAction: () => void;
-}> = ({As, op, selected, extra, reasonDisabled, location, onAction}) => {
+}> = ({As, op, selected, all, extra, reasonDisabled, location, onAction}) => {
     const onClick = useCallback((e?: React.SyntheticEvent) => {
         if (op.primary === true) e?.stopPropagation();
         if (reasonDisabled !== undefined) return;
-        op.onClick(selected, extra);
+        op.onClick(selected, extra, all);
         onAction();
     }, [op, selected, extra, reasonDisabled, onAction]);
 
@@ -126,6 +127,7 @@ interface OperationProps<T, R = undefined> {
     row?: T;
     showSelectedCount?: boolean;
     displayTitle?: boolean;
+    all?: T[];
 }
 
 type OperationsType = <T, R = undefined>(props: PropsWithChildren<OperationProps<T, R>>, context?: any) =>
@@ -150,9 +152,9 @@ export const Operations: OperationsType = props => {
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
     const operations: { elem: JSX.Element, priority: number, primary: boolean }[] = props.operations
-        .filter(op => op.enabled(selected, props.extra) !== false && op.canAppearInLocation?.(props.location) !== false)
+        .filter(op => op.enabled(selected, props.extra, props.all) !== false && op.canAppearInLocation?.(props.location) !== false)
         .map(op => {
-            const enabled = op.enabled(selected, props.extra);
+            const enabled = op.enabled(selected, props.extra, props.all);
             let reasonDisabled: string | undefined = undefined;
             if (typeof enabled === "string") {
                 reasonDisabled = enabled;
@@ -163,7 +165,7 @@ export const Operations: OperationsType = props => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const As = opTypeFn(props.location, props.operations) as StyledComponent<any, any>;
             const elem = <OperationComponent key={op.text} As={As} op={op} extra={props.extra} selected={selected}
-                                             reasonDisabled={reasonDisabled} location={props.location}
+                                             reasonDisabled={reasonDisabled} location={props.location} all={props.all}
                                              onAction={closeDropdown}/>;
             const priority = As === OutlineButton ? 0 : As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};
