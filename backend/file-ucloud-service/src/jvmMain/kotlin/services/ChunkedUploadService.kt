@@ -14,6 +14,8 @@ import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 class ChunkedUploadService(
     private val db: DBContext,
@@ -92,7 +94,7 @@ class ChunkedUploadService(
 
         outs.use {
             // NOTE(Dan): We require at least 20KB/s transfer from clients to avoid denial-of-service attacks
-            withTimeoutOrNull(contentLength / 20_000 * 1000) {
+            withTimeoutOrNull(max(10_000, contentLength / 20_000 * 1000)) {
                 payload.copyTo(outs, limit = contentLength)
             }
         }
