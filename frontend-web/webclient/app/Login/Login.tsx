@@ -301,13 +301,11 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                                 Login
                                                 </LoginButton>
                                         </form>
-                                        {!inDevEnvironment ? null : (
-                                            <Box mt={20}>
-                                                <Link to="/login?password-reset=true" mt={20}>
-                                                    <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
-                                                </Link>
-                                            </Box>
-                                        )}
+                                        <Box mt={20}>
+                                            <Link to="/login?password-reset=true" mt={20}>
+                                                <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
+                                            </Link>
+                                        </Box>
                                     </LoginBox>
                                 </ClickableDropdown>
                             </DropdownContentWrapper>
@@ -335,15 +333,13 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                                         ref={resetEmailInput}
                                                         autoFocus required
                                                     />
-                                                    {!inDevEnvironment ? null : (
-                                                        <Button
-                                                            fullWidth
-                                                            disabled={loading}
-                                                            marginTop={10}
-                                                        >
-                                                            Reset password
-                                                        </Button>
-                                                    )}
+                                                    <Button
+                                                        fullWidth
+                                                        disabled={loading}
+                                                        marginTop={10}
+                                                    >
+                                                        Reset password
+                                                    </Button>
                                                 </form>
                                                 <Box mt={20}>
                                                     <Link to="/login">
