@@ -18,6 +18,7 @@ import {useGlobal} from "Utilities/ReduxHooks";
 import {FileCollections} from "NewFiles/FileCollections";
 import {Files} from "NewFiles/Files";
 import {FileType} from "NewFiles/index";
+import * as H from 'history';
 
 interface FileBrowserProps {
     initialPath?: string;
@@ -30,6 +31,7 @@ export interface CommonFileProps {
     path: string;
     reload: () => void;
     loadMore: () => void;
+    history: H.History;
     navigateTo: (path: string) => void;
     generation: number;
     embedded: boolean;
@@ -104,6 +106,7 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
         path,
         onSelect: props.onSelect,
         selectFileRequirement: props.selectFileRequirement,
+        history,
     };
 
     if (path === "/") {

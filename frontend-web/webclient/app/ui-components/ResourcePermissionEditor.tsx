@@ -75,7 +75,7 @@ export function ResourcePermissionEditor<T extends ResourceDoc>(
                   flexDirection={"column"}>
                 <ShakingBox shaking mb={"10px"}>
                     No groups exist for this project.{" "}
-                    <TextSpan bold>As a result, this {entityName} can only be used by project admins!</TextSpan>
+                    <TextSpan bold>As a result, this {entityName.toLowerCase()} can only be used by project admins!</TextSpan>
                 </ShakingBox>
 
                 <Link to={"/project/members"} target={"_blank"}><Button fullWidth>Create group</Button></Link>
@@ -85,10 +85,10 @@ export function ResourcePermissionEditor<T extends ResourceDoc>(
             <>
                 {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
                     <ShakingBox shaking mb={16}>
-                        <Text bold>This {entityName} can only be used by project admins</Text>
+                        <Text bold>This {entityName.toLowerCase()} can only be used by project admins</Text>
                         <Text>
                             You must assign permissions to one or more group, if your collaborators need to use this
-                            {entityName}.
+                            {" "}{entityName.toLowerCase()}.
                         </Text>
                     </ShakingBox>
                 }

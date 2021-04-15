@@ -3,12 +3,11 @@ import {APICallState, useCloudAPI} from "Authentication/DataHook";
 import {accounting, file, PageV2} from "UCloud";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {MutableRefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {Box, Button, Divider, Flex, FtIcon, Icon, Input, Label, List, Select} from "ui-components";
+import {Box, Button, Divider, Flex, Icon, Input, Label, List, Select, Text} from "ui-components";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {creditFormatter} from "Project/ProjectUsage";
 import {Operation, Operations} from "ui-components/Operation";
 import MainContainer from "MainContainer/MainContainer";
-import {IconName} from "ui-components/Icon";
 import FileCollection = file.orchestrator.FileCollection;
 import {CommonFileProps} from "NewFiles/FileBrowser";
 import collectionsApi = file.orchestrator.collections;
@@ -20,13 +19,9 @@ import {dialogStore} from "Dialog/DialogStore";
 import {doNothing} from "UtilityFunctions";
 import {bulkRequestOf} from "DefaultObjects";
 import {NamingField} from "UtilityComponents";
+import {buildQueryString} from "Utilities/URIUtilities";
 
-const entityName = "Drive";
-
-const aclOptions: { icon: IconName; name: string, title?: string }[] = [
-    {icon: "search", name: "READ", title: "Read"},
-    {icon: "edit", name: "WRITE", title: "Write"},
-];
+export const entityName = "Drive";
 
 function productRefKey(ref: ProductReference): string {
     return `${ref.id}/${ref.category}/${ref.category}`;
@@ -92,7 +87,6 @@ export const FileCollections: React.FunctionComponent<CommonFileProps & {
         reload();
     }, [reload, renaming, renameRef]);
 
-
     const callbacks: CollectionsCallbacks = useMemo(() => ({
         ...props,
         reload,
@@ -112,6 +106,11 @@ export const FileCollections: React.FunctionComponent<CommonFileProps & {
                     <List childPadding={"8px"} bordered={true}>
                         {group.map(collectionWithSupport => {
                             const {collection, support} = collectionWithSupport;
+
+                            const hasAcl = support.collection.aclSupported && support.collection.aclModifiable &&
+                                collection.acl != null;
+                            const shouldShowPermissionWarning = hasAcl && collection.acl?.length === 0;
+
                             return <React.Fragment key={collection.id}>
                                 <ListRow
                                     icon={<Icon name={"hdd"} size={"42px"}/>}
@@ -137,6 +136,31 @@ export const FileCollections: React.FunctionComponent<CommonFileProps & {
                                             <ListRowStat>
                                                 {creditFormatter(collection.billing.pricePerUnit)}
                                             </ListRowStat>
+                                            {!shouldShowPermissionWarning ? null :
+                                                <ListRowStat
+                                                    icon={"warning"}
+                                                    color={"red"}
+                                                    textColor={"red"}
+                                                    cursor={"pointer"}
+                                                    onClick={() => {
+                                                        callbacks.history.push(collectionPropertiesPage(collection))
+                                                    }}
+                                                >
+                                                    Admins only
+                                                </ListRowStat>
+                                            }
+                                            {!hasAcl || shouldShowPermissionWarning ? null :
+                                                <ListRowStat
+                                                    icon={"user"}
+                                                    cursor={"pointer"}
+                                                    onClick={() => {
+                                                        callbacks.history.push(collectionPropertiesPage(collection))
+                                                    }}
+                                                >
+                                                    {collection.acl?.length ?? 0} group
+                                                    {collection.acl?.length === 1 ? null : "s"}
+                                                </ListRowStat>
+                                            }
                                         </ListStatContainer>
                                     }
                                     right={
@@ -222,36 +246,36 @@ const collectionOperations: Operation<CollectionWithSupport, CollectionsCallback
             dialogStore.addDialog(
                 <Box width={"600px"}>
                     <div>
-                        <Heading.h3>New collection</Heading.h3>
+                        <Heading.h3>New {entityName.toLowerCase()}</Heading.h3>
                         <Divider/>
 
                         <form onSubmit={onCreate}>
-                        {options.length === 1 ? null :
-                            <Label>
-                                Product
-                                <Select selectRef={productRef}>
-                                    {options.map(it => {
-                                        if (!it.collection.usersCanCreate) return null;
-                                        return (
-                                            <option key={productRefKey(it.product)}>
-                                                {it.product.category} / {it.product.id}
-                                            </option>
-                                        );
-                                    })}
-                                </Select>
-                            </Label>
-                        }
+                            {options.length === 1 ? null :
+                                <Label>
+                                    Product
+                                    <Select selectRef={productRef}>
+                                        {options.map(it => {
+                                            if (!it.collection.usersCanCreate) return null;
+                                            return (
+                                                <option key={productRefKey(it.product)}>
+                                                    {it.product.category} / {it.product.id}
+                                                </option>
+                                            );
+                                        })}
+                                    </Select>
+                                </Label>
+                            }
 
-                        <Label>
-                            Name
-                            <Input ref={nameRef} autoFocus={true}/>
-                        </Label>
+                            <Label>
+                                Name
+                                <Input ref={nameRef} autoFocus={true}/>
+                            </Label>
                         </form>
                     </div>
                     <Flex mt="20px">
                         <Button onClick={dialogStore.failure} color={"red"} mr="5px">Cancel</Button>
                         <Button onClick={onCreate} color={"green"}>
-                            Create collection
+                            Create {entityName.toLowerCase()}
                         </Button>
                     </Flex>
                 </Box>,
@@ -289,8 +313,15 @@ const collectionOperations: Operation<CollectionWithSupport, CollectionsCallback
         text: "Properties",
         icon: "properties",
         primary: false,
-        onClick: () => 42,
-        enabled: selected => selected.length > 0,
+        onClick: (selected, cb) =>
+            cb.history.push(collectionPropertiesPage(selected[0].collection)),
+        enabled: selected => selected.length === 1,
     },
 ];
 
+function collectionPropertiesPage(collection: FileCollection) {
+    return buildQueryString(
+        "/files/driveProperties",
+        {id: collection.id, provider: collection.specification.product.provider}
+    );
+}

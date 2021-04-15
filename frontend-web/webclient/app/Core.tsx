@@ -11,6 +11,7 @@ const AvataaarModification = React.lazy(() => import("UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
 const Files = React.lazy(() => import("NewFiles/FileBrowser"));
+const FileCollectionProperties = React.lazy(() => import("NewFiles/FileCollectionProperties"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
 const JobBrowse = React.lazy(() => import("Applications/Jobs/Browse"));
 const JobCreate = React.lazy(() => import("Applications/Jobs/Create"));
@@ -91,6 +92,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
 
                     <Route exact path="/files" component={requireAuth(Files)} />
+                    <Route exact path="/files/driveProperties" component={requireAuth(FileCollectionProperties)} />
 
                     <Route exact path="/activity" component={requireAuth(Activity)} />
 

@@ -80,42 +80,43 @@ class FileCollectionsService(
         )
     }
 
-    private fun mapFileCollectionFromRow(it: RowData) = FileCollection(
-        pathConverter.projectRepositoryToCollection(
-            it.getString("project_id")!!,
-            it.getString("id")!!,
-        ),
-        FileCollection.Spec(
-            it.getString("title")!!,
-            PRODUCT_REFERENCE,
-        ),
-        it.getAs<LocalDateTime?>("created_at")
-            ?.toDateTime(DateTimeZone.UTC)?.millis ?: 0L,
-        FileCollection.Status(
-            FileCollection.Quota(), // TODO
-            productSupport
-        ),
-        emptyList(),
-        FileCollection.Billing(0L, 0L),
-        SimpleResourceOwner(it.getString("created_by")!!, it.getString("project_id")!!),
-        emptyList()
-    )
+    private suspend fun mapFileCollectionFromRow(it: RowData): FileCollection {
+        val repoFile =
+            pathConverter.projectRepositoryLocation(it.getString("project_id")!!, it.getString("id")!!)
+        return FileCollection(
+            pathConverter.projectRepositoryToCollection(
+                it.getString("project_id")!!,
+                it.getString("id")!!,
+            ),
+            FileCollection.Spec(
+                it.getString("title")!!,
+                PRODUCT_REFERENCE,
+            ),
+            it.getAs<LocalDateTime?>("created_at")
+                ?.toDateTime(DateTimeZone.UTC)?.millis ?: 0L,
+            FileCollection.Status(
+                FileCollection.Quota(), // TODO
+                productSupport
+            ),
+            emptyList(),
+            FileCollection.Billing(0L, 0L),
+            SimpleResourceOwner(it.getString("created_by")!!, it.getString("project_id")!!),
+            aclService.fetchOtherPermissions(pathConverter.internalToUCloud(repoFile))
+        )
+    }
 
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         id: String,
     ): FileCollection {
         if (actorAndProject.project == null) return homeCollection(actorAndProject)
-        println("hi!")
         val projectRepo = pathConverter.collectionToProjectRepositoryOrNull(id)
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        println(projectRepo)
         if (projectRepo.projectId != actorAndProject.project) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         return db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("id", projectRepo.repository)
-                    println("Looking for $projectRepo")
                     setParameter("project_id", actorAndProject.project)
                 },
                 "select * from file_ucloud.project_repositories where id = :id and project_id = :project_id"

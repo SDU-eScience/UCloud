@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.orchestrator.api.FilesUpdateAclRequest
 import dk.sdu.cloud.file.orchestrator.api.normalize
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.provider.api.AclEntity
+import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
@@ -29,6 +30,17 @@ interface AclService {
     suspend fun isAdmin(actor: Actor, file: UCloudFile): Boolean
     suspend fun updateAcl(actor: Actor, request: FilesUpdateAclRequest)
     suspend fun fetchMyPermissions(actor: Actor, file: UCloudFile): Set<FilePermission>
+    suspend fun fetchOtherPermissions(file: UCloudFile): List<ResourceAclEntry<FilePermission>>
+}
+
+fun Collection<FilePermission>.normalize(): Set<FilePermission> {
+    val result = HashSet<FilePermission>()
+    result.addAll(this)
+    if (contains(FilePermission.WRITE)) {
+        result.add(FilePermission.READ)
+        result.add(FilePermission.WRITE)
+    }
+    return result
 }
 
 /**
@@ -188,7 +200,7 @@ class AclServiceImpl(
                                 defaultMapper.decodeFromJsonElement<UserAclMetadata>(it.payload).permissions
                             }
                         }
-                        .toSet()
+                        .normalize()
                 }
                 isProjectWorkspace(relativeFile) -> {
                     val components = relativeFile.components()
@@ -212,8 +224,43 @@ class AclServiceImpl(
                         }
                     }
 
-                    permissions
+                    permissions.normalize()
                 }
+                else -> {
+                    throw FSException.NotFound()
+                }
+            }
+        }
+    }
+
+    override suspend fun fetchOtherPermissions(file: UCloudFile): List<ResourceAclEntry<FilePermission>> {
+        val relativeFile = pathConverter.ucloudToRelative(file)
+
+        return db.withSession { session ->
+            when {
+                isPersonalWorkspace(relativeFile) -> {
+                    emptyList() // TODO
+                }
+
+                isProjectWorkspace(relativeFile) -> {
+                    val components = relativeFile.components()
+                    val projectId = components[1]
+
+                    val relevantEntries = metadataDao
+                        .listMetadata(session, listOf(relativeFile), projectId, ACL_PROJECT_METADATA_TYPE)
+                        .flatMap { it.value }
+                        .flatMap { data ->
+                            defaultMapper.decodeFromJsonElement<ProjectAclMetadata>(data.payload).entries
+                        }
+
+                    relevantEntries.map {
+                        ResourceAclEntry(
+                            AclEntity.ProjectGroup(projectId, it.group),
+                            it.permissions.normalize().toList()
+                        )
+                    }
+                }
+
                 else -> {
                     throw FSException.NotFound()
                 }

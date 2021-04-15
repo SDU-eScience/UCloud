@@ -36,11 +36,6 @@ object AppKubernetesService : Service {
         val configuration = micro.configuration.requestChunkAtOrNull("app", "kubernetes") ?: Configuration()
         val cephConfig = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
 
-        if (configuration.networkInterface == null) {
-            println("No 'networkInterface' has been configured. Public IPs will not work!")
-            println("Expected a string config at 'app/kubernetes/networkInterface'.")
-        }
-
         return Server(micro, configuration, cephConfig)
     }
 }

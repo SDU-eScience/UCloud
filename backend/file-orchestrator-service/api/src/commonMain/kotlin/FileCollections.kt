@@ -57,6 +57,7 @@ typealias FileCollectionsRetrieveResponse = FileCollection
 @Serializable
 data class FileCollectionsRetrieveManifestRequest(val provider: String)
 typealias FileCollectionsRetrieveManifestResponse = FileCollectionsProviderRetrieveManifestResponse
+
 // ---
 
 object FileCollections : CallDescriptionContainer("files.collections") {
