@@ -327,7 +327,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                             visible
                                         >
                                             <LoginBox width="100%">
-                                                <form onSubmit={(e) => submitResetPassword(e)}>
+                                                <form autoComplete="off" onSubmit={(e) => submitResetPassword(e)}>
                                                     <Input
                                                         placeholder="Email address"
                                                         name="email"
