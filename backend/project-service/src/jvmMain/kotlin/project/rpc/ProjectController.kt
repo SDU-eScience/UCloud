@@ -286,10 +286,7 @@ class ProjectController(
         }
 
         implement(Projects.rename) {
-            val requestedProject = queries.lookupById(db, request.id) ?: throw RPCException(
-                "No project with that id",
-                HttpStatusCode.BadRequest
-            )
+            val requestedProject = queries.lookupById(db, request.id) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             if (requestedProject.parent != null && requestedProject.parent == ctx.project) {
                 val isAdmin = queries.isAdminOrPIOfProject(db, ctx.securityPrincipal.username, requestedProject.parent!!)
                 if (isAdmin) {
@@ -301,7 +298,7 @@ class ProjectController(
                         subProject = true
                     )
                 } else {
-                    throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not admin")
+                    throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                 }
             } else {
                 projects.renameProject(

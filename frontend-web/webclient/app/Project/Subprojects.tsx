@@ -556,7 +556,10 @@ const SubprojectRow: React.FunctionComponent<{
             left={
                 isEditingName && allowManagement ? (
                     <>
-                        <Input ref={subprojectRenamingRef} fontSize="large" defaultValue={subproject.title} />
+                        <Button pr={8} pl={8} disabled={isEditingName}>
+                            <Icon name="edit" size={14} />
+                        </Button>
+                        <Input ml={10} ref={subprojectRenamingRef} fontSize="large" defaultValue={subproject.title} />
                         <ButtonGroup ml="8px" width="130px">
                             <Button width="45px" color="green" onClick={renameSubproject} attached><Icon name="check" /></Button>
                             <Button width="45px" color="red" onClick={() => setEditingName(false)}><Icon name="close" /></Button>
