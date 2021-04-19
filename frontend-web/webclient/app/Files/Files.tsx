@@ -5,7 +5,7 @@ import {useToggleSet} from "Utilities/ToggleSet";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {bulkRequestOf} from "DefaultObjects";
-import {getFilenameFromPath, getParentPath, pathComponents, resolvePath, sizeToString} from "Utilities/FileUtilities";
+import {getParentPath, pathComponents, resolvePath, sizeToString} from "Utilities/FileUtilities";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import {extensionFromPath, joinToString} from "UtilityFunctions";
@@ -16,15 +16,15 @@ import {dateToString} from "Utilities/DateUtilities";
 import {Operation, Operations} from "ui-components/Operation";
 import MainContainer from "MainContainer/MainContainer";
 import {IconName} from "ui-components/Icon";
-import FileBrowser, {CommonFileProps} from "NewFiles/FileBrowser";
+import FileBrowser, {CommonFileProps} from "Files/FileBrowser";
 import UFile = file.orchestrator.UFile;
 import filesApi = file.orchestrator.files;
 import collectionsApi = file.orchestrator.collections;
 import FileCollection = file.orchestrator.FileCollection;
 import ReactModal from "react-modal";
-import {FileType} from "NewFiles/index";
+import {FileType} from "./";
 import FilesMoveRequestItem = file.orchestrator.FilesMoveRequestItem;
-import {EmbeddedShareCard} from "NewFiles/Shares";
+import {EmbeddedShareCard} from "Files/Shares";
 
 function fileName(path: string): string {
     const lastSlash = path.lastIndexOf("/");

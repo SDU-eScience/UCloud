@@ -44,7 +44,7 @@ import {dialogStore} from "Dialog/DialogStore";
 import {ArchiveProject, LeaveProject} from "./ProjectSettings";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "./cache";
-import {ShareCardBase} from "NewFiles/Shares";
+import {ShareCardBase} from "Files/Shares";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {

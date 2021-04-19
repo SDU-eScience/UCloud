@@ -11,8 +11,8 @@ import {
     inSuccessRange,
     preventDefault
 } from "UtilityFunctions";
-import {fetcherFromDropOrSelectEvent} from "NewFiles/HTML5FileSelector";
-import {supportedProtocols, Upload, UploadState} from "NewFiles/Upload";
+import {fetcherFromDropOrSelectEvent} from "Files/HTML5FileSelector";
+import {supportedProtocols, Upload, UploadState} from "Files/Upload";
 import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
 import {useToggleSet} from "Utilities/ToggleSet";
 import {Operation, Operations} from "ui-components/Operation";
@@ -21,7 +21,7 @@ import FileApi = UCloud.file.orchestrator;
 import {callAPI} from "Authentication/DataHook";
 import {bulkRequestOf} from "DefaultObjects";
 import {BulkResponse} from "UCloud";
-import {ChunkedFileReader} from "NewFiles/ChunkedFileReader";
+import {ChunkedFileReader} from "Files/ChunkedFileReader";
 import {sizeToString} from "Utilities/FileUtilities";
 
 const maxConcurrentUploads = 5;

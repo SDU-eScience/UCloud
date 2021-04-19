@@ -8,7 +8,7 @@ import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
 import {SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
-import {Upload as NewUpload} from "NewFiles/Upload";
+import {Upload} from "Files/Upload";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
 import {APICallStateWithParams} from "Authentication/DataHook";
@@ -134,7 +134,7 @@ interface LegacyReducers {
  */
 export interface HookStore {
     uploaderVisible?: boolean;
-    uploads?: NewUpload[];
+    uploads?: Upload[];
     uploadPath?: string;
 
     projectCache?: ProjectCache;

@@ -9,7 +9,7 @@ import {creditFormatter} from "Project/ProjectUsage";
 import {Operation, Operations} from "ui-components/Operation";
 import MainContainer from "MainContainer/MainContainer";
 import FileCollection = file.orchestrator.FileCollection;
-import {CommonFileProps} from "NewFiles/FileBrowser";
+import {CommonFileProps} from "Files/FileBrowser";
 import collectionsApi = file.orchestrator.collections;
 import FileCollectionsProviderRetrieveManifestResponse = file.orchestrator.FileCollectionsProviderRetrieveManifestResponse;
 import ProductReference = accounting.ProductReference;

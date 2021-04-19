@@ -1,4 +1,4 @@
-import {FileUploadEvent} from "NewFiles/HTML5FileSelector";
+import {FileUploadEvent} from "Files/HTML5FileSelector";
 import * as UCloud from "UCloud";
 import {GetElementType, PropType} from "UtilityFunctions";
 import FileApi = UCloud.file.orchestrator;

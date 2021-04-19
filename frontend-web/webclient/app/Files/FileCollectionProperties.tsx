@@ -2,7 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {ResourcePage} from "ui-components/ResourcePage";
 import {IconName} from "ui-components/Icon";
-import {entityName} from "NewFiles/FileCollections";
+import {entityName} from "./FileCollections";
 import {useCloudAPI} from "Authentication/DataHook";
 import {BulkRequest, file, provider} from "UCloud";
 import {useLocation} from "react-router";

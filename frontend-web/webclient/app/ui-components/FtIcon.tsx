@@ -6,7 +6,7 @@ import Icon from "./Icon";
 import theme from "./theme";
 import {Cursor} from "./Types";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {FileIconHint} from "NewFiles";
+import {FileIconHint} from "Files";
 
 const ftColor = (fType: string): string => {
     switch (fType) {

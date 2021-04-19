@@ -28,7 +28,7 @@ import {PageRenderer} from "Pagination/PaginationV2";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import {getFilenameFromPath} from "Utilities/FileUtilities";
-import {FilePermission} from "NewFiles/index";
+import {FilePermission} from "./";
 import Input from "../ui-components/Input";
 import Button from "../ui-components/Button";
 import {defaultErrorHandler, extensionFromPath, preventDefault, useDidMount} from "UtilityFunctions";

@@ -15,9 +15,9 @@ import {buildQueryString, getQueryParam} from "Utilities/URIUtilities";
 import {UCLOUD_PROVIDER} from "Accounting";
 import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {useGlobal} from "Utilities/ReduxHooks";
-import {FileCollections} from "NewFiles/FileCollections";
-import {Files} from "NewFiles/Files";
-import {FileType} from "NewFiles/index";
+import {FileCollections} from "Files/FileCollections";
+import {Files} from "Files/Files";
+import {FileType} from "Files/index";
 import * as H from 'history';
 
 interface FileBrowserProps {

@@ -10,9 +10,9 @@ const App = React.lazy(() => import("Applications/Studio/Applications"));
 const AvataaarModification = React.lazy(() => import("UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
-const Files = React.lazy(() => import("NewFiles/FileBrowser"));
-const FileCollectionProperties = React.lazy(() => import("NewFiles/FileCollectionProperties"));
-const Shares = React.lazy(() => import("NewFiles/Shares"));
+const Files = React.lazy(() => import("Files/FileBrowser"));
+const FileCollectionProperties = React.lazy(() => import("Files/FileCollectionProperties"));
+const Shares = React.lazy(() => import("Files/Shares"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
 const JobBrowse = React.lazy(() => import("Applications/Jobs/Browse"));
 const JobCreate = React.lazy(() => import("Applications/Jobs/Create"));
@@ -57,7 +57,7 @@ import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicat
 
 // Always load.
 import Sidebar from "ui-components/Sidebar";
-import Uploader from "NewFiles/Uploader";
+import Uploader from "Files/Uploader";
 import Snackbars from "Snackbar/Snackbars";
 import Dialog from "Dialog/Dialog";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
