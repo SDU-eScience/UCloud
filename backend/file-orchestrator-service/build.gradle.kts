@@ -9,6 +9,7 @@ kotlin.sourceSets {
         dependencies {
             implementation(project(":auth-service:api"))
             implementation(project(":project-service:api"))
+            implementation(project(":notification-service:api"))
         }
     }
 }

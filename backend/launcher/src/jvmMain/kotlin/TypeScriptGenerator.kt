@@ -374,7 +374,9 @@ private fun Appendable.buildType(
         }
 
         is ComputedType.Enum -> {
+            append("(")
             append(computedType.options.joinToString(" | ") { '"' + it + '"' })
+            append(")")
         }
 
         is ComputedType.CustomSchema -> {

@@ -12,6 +12,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
 import dk.sdu.cloud.file.ucloud.services.*
+import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.actorAndProject
 import io.ktor.application.*
@@ -24,6 +25,7 @@ class FilesController(
     private val fileQueries: FileQueries,
     private val taskSystem: TaskSystem,
     private val chunkedUploadService: ChunkedUploadService,
+    private val aclService: AclService,
 ) : Controller {
     private val chunkedProtocol = ChunkedUploadProtocol(UCLOUD_PROVIDER, "/ucloud/ucloud/chunked")
 
@@ -141,6 +143,11 @@ class FilesController(
             )
         }
 
+        implement(UCloudFiles.updateAcl) {
+            aclService.updateAcl(Actor.SystemOnBehalfOfUser(request.username), request.request)
+            ok(Unit)
+        }
+
         implement(chunkedProtocol.uploadChunk) {
             withContext<HttpCall> {
                 val contentLength = ctx.call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
@@ -153,4 +160,5 @@ class FilesController(
         }
         return@with
     }
+
 }

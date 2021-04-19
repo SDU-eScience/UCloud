@@ -4,6 +4,7 @@ import {PropsWithChildren, useEffect, useState} from "react";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import * as Heading from "ui-components/Heading";
 import {Box, Button} from "ui-components";
+import {useDidMount, useEffectSkipMount} from "UtilityFunctions";
 
 export type PageRenderer<T> = (page: T[]) => React.ReactNode;
 
@@ -21,13 +22,13 @@ interface ListV2Props<T> {
 type ListV2Type = <T>(props: PropsWithChildren<ListV2Props<T>>, context?: any) => JSX.Element;
 export const ListV2: ListV2Type = props => {
     // eslint-disable-next-line
-    const [allItems, setAllItems] = useState<any[]>([]);
+    const [allItems, setAllItems] = useState<any[]>(props.page.items);
 
-    useEffect(() => {
+    useEffectSkipMount(() => {
         setAllItems([]);
     }, [props.infiniteScrollGeneration]);
 
-    useEffect(() => {
+    useEffectSkipMount(() => {
         setAllItems(oldItems => {
             return Array.prototype.concat(oldItems, props.page.items);
         });

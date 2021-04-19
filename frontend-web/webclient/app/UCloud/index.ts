@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Apr 15 08:00:25 CEST 2021 */
+/* Generated at: Fri Apr 16 12:50:32 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -135,7 +135,7 @@ export interface PaginationRequestV2 {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -143,20 +143,20 @@ export interface PaginationRequestV2 {
 }
 export namespace file {
 export interface StorageFile {
-    fileType?: "FILE" | "DIRECTORY",
+    fileType?: ("FILE" | "DIRECTORY"),
     path?: string,
     createdAt?: number /* int64 */,
     modifiedAt?: number /* int64 */,
     ownerName?: string,
     size?: number /* int64 */,
     acl?: AccessEntry[],
-    sensitivityLevel?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
-    ownSensitivityLevel?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
+    sensitivityLevel?: ("PRIVATE" | "CONFIDENTIAL" | "SENSITIVE"),
+    ownSensitivityLevel?: ("PRIVATE" | "CONFIDENTIAL" | "SENSITIVE"),
     permissionAlert: boolean,
 }
 export interface AccessEntry {
     entity: ACLEntity,
-    rights: "READ" | "WRITE"[],
+    rights: ("READ" | "WRITE")[],
 }
 export type ACLEntity = ACLEntityNS.User | ACLEntityNS.ProjectAndGroup
 export namespace orchestrator {
@@ -196,7 +196,7 @@ export interface FileMetadataDocument {
     owner: provider.ResourceOwner,
     acl?: any /* unknown */,
     billing: provider.ResourceBillingNS.Free,
-    type: "metadata",
+    type: ("metadata"),
 }
 export interface FileMetadataDeleteRequestItem {
     path: string,
@@ -336,11 +336,11 @@ export interface UFile {
     /**
      * Which type of file this is, see `FileType` for more information.
      */
-    type: "FILE" | "DIRECTORY" | "SOFT_LINK" | "DANGLING_METADATA",
+    type: ("FILE" | "DIRECTORY" | "SOFT_LINK" | "DANGLING_METADATA"),
     /**
      * A hint to clients about which icon to display next to this  See `FileIconHint` for details.
      */
-    icon?: "DIRECTORY_GENERIC" | "DIRECTORY_STAR" | "DIRECTORY_SHARES" | "DIRECTORY_TRASH" | "DIRECTORY_JOBS" | "FILE_GENERIC" | "FILE_CODE" | "FILE_IMAGE" | "FILE_TEXT" | "FILE_AUDIO" | "FILE_VIDEO" | "FILE_ARCHIVE" | "FILE_DOCUMENT" | "FILE_BINARY" | "FILE_PDF",
+    icon?: ("DIRECTORY_GENERIC" | "DIRECTORY_STAR" | "DIRECTORY_SHARES" | "DIRECTORY_TRASH" | "DIRECTORY_JOBS" | "FILE_GENERIC" | "FILE_CODE" | "FILE_IMAGE" | "FILE_TEXT" | "FILE_AUDIO" | "FILE_VIDEO" | "FILE_ARCHIVE" | "FILE_DOCUMENT" | "FILE_BINARY" | "FILE_PDF"),
     /**
      * General system-level stats about the  See `UFile.Stats` for details.
      */
@@ -413,7 +413,7 @@ export interface FilesBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -423,7 +423,7 @@ export type LongRunningTask = LongRunningTaskNS.Complete | LongRunningTaskNS.Con
 export interface FilesCopyRequestItem {
     oldPath: string,
     newPath: string,
-    conflictPolicy: "RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME",
+    conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
 }
 export interface FilesCreateDownloadResponseItem {
     endpoint: string,
@@ -433,17 +433,17 @@ export interface FilesCreateDownloadRequestItem {
 }
 export interface FilesCreateUploadResponseItem {
     endpoint: string,
-    protocol: "CHUNKED",
+    protocol: ("CHUNKED"),
     token: string,
 }
 export interface FilesCreateUploadRequestItem {
     path: string,
-    supportedProtocols: "CHUNKED"[],
-    conflictPolicy: "RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME",
+    supportedProtocols: ("CHUNKED")[],
+    conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
 }
 export interface FilesCreateFolderRequestItem {
     path: string,
-    conflictPolicy: "RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME",
+    conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
 }
 export interface FindByPath {
     path: string,
@@ -451,7 +451,7 @@ export interface FindByPath {
 export interface FilesMoveRequestItem {
     oldPath: string,
     newPath: string,
-    conflictPolicy: "RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME",
+    conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
 }
 export interface FilesRetrieveRequest {
     path: string,
@@ -469,7 +469,7 @@ export interface FilesRetrieveRequest {
 }
 export interface FilesUpdateAclRequestItem {
     path: string,
-    newAcl: provider.ResourceAclEntry<"READ" | "WRITE" | "ADMINISTRATOR">[],
+    newAcl: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
 }
 /**
  * A `FileCollection` is an entrypoint to a user's files
@@ -529,7 +529,7 @@ export interface FileCollection {
     /**
      * An ACL for this `Resource`
      */
-    acl?: provider.ResourceAclEntry<"READ" | "WRITE" | "ADMINISTRATOR">[],
+    acl?: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
 }
 export interface FSSupport {
     product: accounting.ProductReference,
@@ -618,7 +618,7 @@ export interface FileCollectionsBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -647,7 +647,7 @@ export interface FileCollectionsRetrieveManifestRequest {
 export interface FileCollectionsUpdateAclRequestItem {
     id: string,
     provider: string,
-    newAcl: provider.ResourceAclEntry<"READ" | "WRITE" | "ADMINISTRATOR">[],
+    newAcl: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
 }
 /**
  * A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`
@@ -678,7 +678,7 @@ export interface FileMetadataTemplate {
     /**
      * An ACL for this `Resource`
      */
-    acl?: provider.ResourceAclEntry<"READ" | "WRITE">[],
+    acl?: provider.ResourceAclEntry<("READ" | "WRITE")>[],
     /**
      * Timestamp referencing when the request for creation was received by UCloud
      */
@@ -731,11 +731,85 @@ export interface FileMetadataTemplatesBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
     itemsToSkip?: number /* int64 */,
+}
+export interface Share {
+    path: string,
+    sharedBy: string,
+    sharedWith: string,
+    approved: boolean,
+}
+export interface SharesRetrieveRequest {
+    path: string,
+}
+/**
+ * The base type for requesting paginated content.
+ * 
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ * 
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ * 
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ * 
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ * 
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ * 
+ * ---
+ * 
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ * 
+ * ---
+ * 
+ */
+export interface SharesBrowseRequest {
+    sharedByMe: boolean,
+    filterPath?: string,
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: ("PREFER" | "REQUIRE"),
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+}
+export interface SharesCreateRequestItem {
+    path: string,
+    sharedWith: string,
+}
+export interface SharesDeleteRequestItem {
+    path: string,
+    sharedWith?: string,
+}
+export interface SharesApproveRequestItem {
+    path: string,
 }
 export interface ProxiedRequest<T = unknown> {
     username: string,
@@ -788,7 +862,7 @@ export interface FileCollectionsProviderBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -800,7 +874,7 @@ export interface FileCollectionsProviderRenameRequestItem {
 }
 export interface FileCollectionsProviderUpdateAclRequestItem {
     id: string,
-    newAcl: provider.ResourceAclEntry<"READ" | "WRITE" | "ADMINISTRATOR">[],
+    newAcl: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
 }
 export namespace ucloud {
 /**
@@ -1012,27 +1086,27 @@ export type ApprovalStatus = ApprovalStatusNS.Approved | ApprovalStatusNS.Pendin
 export namespace ApprovalStatusNS {
 export interface Approved {
     approvedBy: string,
-    type: "approved",
+    type: ("approved"),
 }
 export interface Pending {
-    type: "pending",
+    type: ("pending"),
 }
 export interface Rejected {
     rejectedBy: string,
-    type: "rejected",
+    type: ("rejected"),
 }
 export interface NotRequired {
-    type: "not_required",
+    type: ("not_required"),
 }
 }
 }
 export namespace LongRunningTaskNS {
 export interface Complete {
-    type: "complete",
+    type: ("complete"),
 }
 export interface ContinuesInBackground {
     taskId: string,
-    type: "continues_in_background",
+    type: ("continues_in_background"),
 }
 }
 export namespace FileMetadataTemplateNS {
@@ -1124,7 +1198,7 @@ export interface Deleted {
      * A reference to the user who made this change
      */
     createdBy: string,
-    type: "deleted",
+    type: ("deleted"),
 }
 }
 export namespace files {
@@ -1426,6 +1500,66 @@ export function moveMetadata(
     };
 }
 }
+export namespace shares {
+export function retrieve(
+    request: SharesRetrieveRequest
+): APICallParameters<SharesRetrieveRequest, Share> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/shares" + "/retrieve", {path: request.path}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function browse(
+    request: SharesBrowseRequest
+): APICallParameters<SharesBrowseRequest, PageV2<Share>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/shares" + "/browse", {sharedByMe: request.sharedByMe, filterPath: request.filterPath, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function create(
+    request: BulkRequest<SharesCreateRequestItem>
+): APICallParameters<BulkRequest<SharesCreateRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files/shares",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function remove(
+    request: BulkRequest<SharesDeleteRequestItem>
+): APICallParameters<BulkRequest<SharesDeleteRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "DELETE",
+        path: "/api/files/shares",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function approve(
+    request: BulkRequest<SharesApproveRequestItem>
+): APICallParameters<BulkRequest<SharesApproveRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files/shares" + "/approve",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
 export namespace UFileNS {
 /**
  * General system-level stats about a file
@@ -1468,11 +1602,11 @@ export interface Permissions {
     /**
      * What can the user, who requested this data, do with this file?
      */
-    myself?: "READ" | "WRITE" | "ADMINISTRATOR"[],
+    myself?: ("READ" | "WRITE" | "ADMINISTRATOR")[],
     /**
      * Information about what other users and entities can do with this file
      */
-    others?: provider.ResourceAclEntry<"READ" | "WRITE" | "ADMINISTRATOR">[],
+    others?: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
 }
 }
 export namespace collections {
@@ -1658,6 +1792,18 @@ export function createFolder(
         payload: request,
     };
 }
+export function updateAcl(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesUpdateAclRequestItem>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesUpdateAclRequestItem>>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/updateAcl",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
 }
 export namespace filecollections {
 export function retrieveManifest(): APICallParameters<{}, orchestrator.FileCollectionsProviderRetrieveManifestResponse> {
@@ -1744,12 +1890,12 @@ export function updateAcl(
 export namespace ACLEntityNS {
 export interface User {
     username: string,
-    type: "user",
+    type: ("user"),
 }
 export interface ProjectAndGroup {
     projectId: string,
     group: string,
-    type: "project_group",
+    type: ("project_group"),
 }
 }
 }
@@ -1871,7 +2017,7 @@ export interface ApplicationInvocationDescription {
     invocation: InvocationParameter[],
     parameters: ApplicationParameter[],
     outputFileGlobs: string[],
-    applicationType: "BATCH" | "VNC" | "WEB",
+    applicationType: ("BATCH" | "VNC" | "WEB"),
     vnc?: VncDescription,
     web?: WebDescription,
     container?: ContainerDescription,
@@ -1904,7 +2050,7 @@ export interface NormalizedToolDescription {
     authors: string[],
     title: string,
     description: string,
-    backend: "SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE",
+    backend: ("SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE"),
     license: string,
     image?: string,
     supportedProviders?: string[],
@@ -1912,11 +2058,11 @@ export interface NormalizedToolDescription {
 export type InvocationParameter = EnvironmentVariableParameter | WordInvocationParameter | VariableInvocationParameter | BooleanFlagParameter
 export interface EnvironmentVariableParameter {
     variable: string,
-    type: "env",
+    type: ("env"),
 }
 export interface WordInvocationParameter {
     word: string,
-    type: "word",
+    type: ("word"),
 }
 export interface VariableInvocationParameter {
     variableNames: string[],
@@ -1926,12 +2072,12 @@ export interface VariableInvocationParameter {
     suffixVariable: string,
     isPrefixVariablePartOfArg: boolean,
     isSuffixVariablePartOfArg: boolean,
-    type: "var",
+    type: ("var"),
 }
 export interface BooleanFlagParameter {
     variableName: string,
     flag: string,
-    type: "bool_flag",
+    type: ("bool_flag"),
 }
 export type ApplicationParameter = ApplicationParameterNS.InputFile | ApplicationParameterNS.InputDirectory | ApplicationParameterNS.Text | ApplicationParameterNS.Integer | ApplicationParameterNS.FloatingPoint | ApplicationParameterNS.Bool | ApplicationParameterNS.Enumeration | ApplicationParameterNS.Peer | ApplicationParameterNS.Ingress | ApplicationParameterNS.LicenseServer | ApplicationParameterNS.NetworkIP
 export interface VncDescription {
@@ -2070,7 +2216,7 @@ export interface JobUpdate {
      * A timestamp referencing when UCloud received this update
      */
     timestamp: number /* int64 */,
-    state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     /**
      * A generic text message describing the current status of the `Resource`
      */
@@ -2112,7 +2258,7 @@ export interface JobStatus {
      * 
      * This will match the latest state set in the `updates`
      */
-    state: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    state: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     /**
      * Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.
      * 
@@ -2214,7 +2360,7 @@ export interface JobsBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -2239,10 +2385,10 @@ export interface JobsBrowseRequest {
      * Includes `specification.resolvedSupport`
      */
     includeSupport?: boolean,
-    sortBy?: "CREATED_AT" | "STATE" | "APPLICATION",
+    sortBy?: ("CREATED_AT" | "STATE" | "APPLICATION"),
     filterApplication?: string,
     filterLaunchedBy?: string,
-    filterState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    filterState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     filterTitle?: string,
     filterBefore?: number /* int64 */,
     filterAfter?: number /* int64 */,
@@ -2263,7 +2409,7 @@ export type OpenSession = OpenSessionNS.Shell | OpenSessionNS.Web | OpenSessionN
 export interface JobsOpenInteractiveSessionRequestItem {
     id: string,
     rank: number /* int32 */,
-    sessionType: "WEB" | "VNC" | "SHELL",
+    sessionType: ("WEB" | "VNC" | "SHELL"),
 }
 export interface JobsRetrieveProductsResponse {
     productsByProvider: Record<string, ComputeProductSupportResolved[]>,
@@ -2277,12 +2423,12 @@ export interface JobsRetrieveProductsRequest {
 }
 export interface JobsControlUpdateRequestItem {
     jobId: string,
-    state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     status?: string,
     /**
      * Indicates that this request should be ignored if the current state does not match the expected state
      */
-    expectedState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    expectedState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     /**
      * Indicates that this request should be ignored if the current state equals `state`
      */
@@ -2404,7 +2550,7 @@ export interface IngressStatus {
      * The ID of the `Job` that this `Ingress` is currently bound to
      */
     boundTo?: string,
-    state: "PREPARING" | "READY" | "UNAVAILABLE",
+    state: ("PREPARING" | "READY" | "UNAVAILABLE"),
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
@@ -2445,7 +2591,7 @@ export interface IngressUpdate {
     /**
      * The new state that the `Ingress` transitioned to (if any)
      */
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     /**
      * A new status message for the `Ingress` (if any)
      */
@@ -2507,7 +2653,7 @@ export interface IngressesBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -2538,7 +2684,7 @@ export interface IngressSettings {
 }
 export interface IngressControlUpdateRequestItem {
     id: string,
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     status?: string,
     clearBindingToJob?: boolean,
 }
@@ -2606,7 +2752,7 @@ export interface License {
     /**
      * An ACL for this `Resource`
      */
-    acl?: provider.ResourceAclEntry<"USE">[],
+    acl?: provider.ResourceAclEntry<("USE")>[],
 }
 export interface LicenseSpecification {
     /**
@@ -2633,7 +2779,7 @@ export interface LicenseOwner {
  * The status of an `License`
  */
 export interface LicenseStatus {
-    state: "PREPARING" | "READY" | "UNAVAILABLE",
+    state: ("PREPARING" | "READY" | "UNAVAILABLE"),
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
@@ -2674,7 +2820,7 @@ export interface LicenseUpdate {
     /**
      * The new state that the `License` transitioned to (if any)
      */
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     /**
      * A new status message for the `License` (if any)
      */
@@ -2738,7 +2884,7 @@ export interface LicensesBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -2769,11 +2915,11 @@ export interface LicenseRetrieveWithFlags {
 }
 export interface LicensesUpdateAclRequestItem {
     id: string,
-    acl: provider.ResourceAclEntry<"USE">[],
+    acl: provider.ResourceAclEntry<("USE")>[],
 }
 export interface LicenseControlUpdateRequestItem {
     id: string,
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     status?: string,
 }
 export interface LicenseControlChargeCreditsResponse {
@@ -2840,7 +2986,7 @@ export interface NetworkIP {
     /**
      * An ACL for this `Resource`
      */
-    acl?: provider.ResourceAclEntry<"USE">[],
+    acl?: provider.ResourceAclEntry<("USE")>[],
 }
 export interface NetworkIPSpecification {
     /**
@@ -2852,7 +2998,7 @@ export interface NetworkIPSpecification {
 export interface PortRangeAndProto {
     start: number /* int32 */,
     end: number /* int32 */,
-    protocol: "TCP" | "UDP",
+    protocol: ("TCP" | "UDP"),
 }
 /**
  * The owner of a `Resource`
@@ -2873,7 +3019,7 @@ export interface NetworkIPOwner {
  * The status of an `NetworkIP`
  */
 export interface NetworkIPStatus {
-    state: "PREPARING" | "READY" | "UNAVAILABLE",
+    state: ("PREPARING" | "READY" | "UNAVAILABLE"),
     /**
      * The ID of the `Job` that this `NetworkIP` is currently bound to
      */
@@ -2922,7 +3068,7 @@ export interface NetworkIPUpdate {
     /**
      * The new state that the `NetworkIP` transitioned to (if any)
      */
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     /**
      * A new status message for the `NetworkIP` (if any)
      */
@@ -2990,7 +3136,7 @@ export interface NetworkIPsBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -3020,7 +3166,7 @@ export interface NetworkIPRetrieveWithFlags {
 }
 export interface NetworkIPsUpdateAclRequestItem {
     id: string,
-    acl: provider.ResourceAclEntry<"USE">[],
+    acl: provider.ResourceAclEntry<("USE")>[],
 }
 export interface FirewallAndId {
     id: string,
@@ -3028,7 +3174,7 @@ export interface FirewallAndId {
 }
 export interface NetworkIPControlUpdateRequestItem {
     id: string,
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     status?: string,
     clearBindingToJob?: boolean,
     changeIpAddress?: boolean,
@@ -3076,11 +3222,11 @@ export interface FindApplicationAndOptionalDependencies {
 export interface HasPermissionRequest {
     appName: string,
     appVersion: string,
-    permission: "LAUNCH"[],
+    permission: ("LAUNCH")[],
 }
 export interface DetailedEntityWithPermission {
     entity: DetailedAccessEntity,
-    permission: "LAUNCH",
+    permission: ("LAUNCH"),
 }
 export interface DetailedAccessEntity {
     user?: string,
@@ -3100,7 +3246,7 @@ export interface UpdateAclRequest {
 }
 export interface ACLEntryRequest {
     entity: AccessEntity,
-    rights: "LAUNCH",
+    rights: ("LAUNCH"),
     revoke: boolean,
 }
 export interface AccessEntity {
@@ -3198,7 +3344,7 @@ export interface JobsProviderOpenInteractiveSessionResponse {
 export interface JobsProviderOpenInteractiveSessionRequestItem {
     job: Job,
     rank: number /* int32 */,
-    sessionType: "WEB" | "VNC" | "SHELL",
+    sessionType: ("WEB" | "VNC" | "SHELL"),
 }
 export interface JobsProviderUtilizationResponse {
     capacity: CpuAndMemory,
@@ -3299,7 +3445,7 @@ export interface File {
      * 
      */
     readOnly: boolean,
-    type: "file",
+    type: ("file"),
 }
 /**
  * A boolean value (true or false)
@@ -3312,7 +3458,7 @@ export interface File {
  */
 export interface Bool {
     value: boolean,
-    type: "boolean",
+    type: ("boolean"),
 }
 /**
  * A textual value
@@ -3327,7 +3473,7 @@ export interface Bool {
  */
 export interface Text {
     value: string,
-    type: "text",
+    type: ("text"),
 }
 /**
  * An integral value
@@ -3342,7 +3488,7 @@ export interface Text {
  */
 export interface Integer {
     value: number /* int64 */,
-    type: "integer",
+    type: ("integer"),
 }
 /**
  * A floating point value
@@ -3357,7 +3503,7 @@ export interface Integer {
  */
 export interface FloatingPoint {
     value: number /* float64 */,
-    type: "floating_point",
+    type: ("floating_point"),
 }
 /**
  * A reference to a separate UCloud `Job`
@@ -3372,7 +3518,7 @@ export interface FloatingPoint {
 export interface Peer {
     hostname: string,
     jobId: string,
-    type: "peer",
+    type: ("peer"),
 }
 /**
  * A reference to a software license, registered locally at the provider
@@ -3386,21 +3532,21 @@ export interface Peer {
  */
 export interface License {
     id: string,
-    type: "license_server",
+    type: ("license_server"),
 }
 /**
  * A reference to block storage (Not yet implemented)
  */
 export interface BlockStorage {
     id: string,
-    type: "block_storage",
+    type: ("block_storage"),
 }
 /**
  * A reference to block storage (Not yet implemented)
  */
 export interface Network {
     id: string,
-    type: "network",
+    type: ("network"),
 }
 /**
  * A reference to an HTTP ingress, registered locally at the provider
@@ -3414,7 +3560,7 @@ export interface Network {
  */
 export interface Ingress {
     id: string,
-    type: "ingress",
+    type: ("ingress"),
 }
 }
 export namespace tools {
@@ -3831,7 +3977,7 @@ export namespace ucloud {
 export interface AauComputeSendUpdateRequest {
     id: string,
     update: string,
-    newState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    newState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
 }
 export interface AauComputeRetrieveRequest {
     id: string,
@@ -3860,7 +4006,7 @@ export interface KubernetesLicense {
     hiddenInGrantApplications: boolean,
     availability: accounting.ProductAvailability,
     priority: number /* int32 */,
-    paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+    paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
 }
 /**
  * The base type for requesting paginated content.
@@ -3909,7 +4055,7 @@ export interface KubernetesLicenseBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -3965,7 +4111,7 @@ export interface KubernetesIPMaintenanceBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -4862,20 +5008,20 @@ export interface Shell {
     jobId: string,
     rank: number /* int32 */,
     sessionIdentifier: string,
-    type: "shell",
+    type: ("shell"),
 }
 export interface Web {
     jobId: string,
     rank: number /* int32 */,
     redirectClientTo: string,
-    type: "web",
+    type: ("web"),
 }
 export interface Vnc {
     jobId: string,
     rank: number /* int32 */,
     url: string,
     password?: string,
-    type: "vnc",
+    type: ("vnc"),
 }
 }
 export namespace aau {
@@ -5063,7 +5209,7 @@ export interface InputFile {
     defaultValue?: kotlinx.serialization.json.JsonElement,
     title: string,
     description: string,
-    type: "input_file",
+    type: ("input_file"),
 }
 export interface InputDirectory {
     name: string,
@@ -5071,7 +5217,7 @@ export interface InputDirectory {
     defaultValue?: kotlinx.serialization.json.JsonElement,
     title: string,
     description: string,
-    type: "input_directory",
+    type: ("input_directory"),
 }
 export interface Text {
     name: string,
@@ -5079,7 +5225,7 @@ export interface Text {
     defaultValue?: kotlinx.serialization.json.JsonElement,
     title: string,
     description: string,
-    type: "text",
+    type: ("text"),
 }
 export interface Integer {
     name: string,
@@ -5091,7 +5237,7 @@ export interface Integer {
     max?: number /* int64 */,
     step?: number /* int64 */,
     unitName?: string,
-    type: "integer",
+    type: ("integer"),
 }
 export interface FloatingPoint {
     name: string,
@@ -5103,7 +5249,7 @@ export interface FloatingPoint {
     max?: number /* float64 */,
     step?: number /* float64 */,
     unitName?: string,
-    type: "floating_point",
+    type: ("floating_point"),
 }
 export interface Bool {
     name: string,
@@ -5113,7 +5259,7 @@ export interface Bool {
     description: string,
     trueValue: string,
     falseValue: string,
-    type: "boolean",
+    type: ("boolean"),
 }
 export interface Enumeration {
     name: string,
@@ -5122,7 +5268,7 @@ export interface Enumeration {
     title: string,
     description: string,
     options: EnumOption[],
-    type: "enumeration",
+    type: ("enumeration"),
 }
 export interface EnumOption {
     name: string,
@@ -5135,7 +5281,7 @@ export interface Peer {
     suggestedApplication?: string,
     defaultValue?: kotlinx.serialization.json.JsonElement,
     optional: boolean,
-    type: "peer",
+    type: ("peer"),
 }
 export interface Ingress {
     name: string,
@@ -5143,7 +5289,7 @@ export interface Ingress {
     description: string,
     defaultValue?: kotlinx.serialization.json.JsonElement,
     optional: boolean,
-    type: "ingress",
+    type: ("ingress"),
 }
 export interface LicenseServer {
     name: string,
@@ -5152,7 +5298,7 @@ export interface LicenseServer {
     description: string,
     tagged: string[],
     defaultValue?: kotlinx.serialization.json.JsonElement,
-    type: "license_server",
+    type: ("license_server"),
 }
 export interface NetworkIP {
     name: string,
@@ -5160,7 +5306,7 @@ export interface NetworkIP {
     description: string,
     defaultValue?: kotlinx.serialization.json.JsonElement,
     optional: boolean,
-    type: "network_ip",
+    type: ("network_ip"),
 }
 }
 }
@@ -5271,75 +5417,75 @@ export interface TransferApplicationMail {
     receiverProject: string,
     applicationProjectTitle: string,
     subject: string,
-    type: "transferApplication",
+    type: ("transferApplication"),
 }
 export interface LowFundsMail {
     category: string,
     provider: string,
     projectTitle: string,
     subject: string,
-    type: "lowFunds",
+    type: ("lowFunds"),
 }
 export interface StillLowFundsMail {
     category: string,
     provider: string,
     projectTitle: string,
     subject: string,
-    type: "stillLowFunds",
+    type: ("stillLowFunds"),
 }
 export interface UserRoleChangeMail {
     subjectToChange: string,
     roleChange: string,
     projectTitle: string,
     subject: string,
-    type: "userRoleChange",
+    type: ("userRoleChange"),
 }
 export interface UserLeftMail {
     leavingUser: string,
     projectTitle: string,
     subject: string,
-    type: "userLeft",
+    type: ("userLeft"),
 }
 export interface UserRemovedMail {
     leavingUser: string,
     projectTitle: string,
     subject: string,
-    type: "userRemoved",
+    type: ("userRemoved"),
 }
 export interface UserRemovedMailToUser {
     projectTitle: string,
     subject: string,
-    type: "userRemovedToUser",
+    type: ("userRemovedToUser"),
 }
 export interface ProjectInviteMail {
     projectTitle: string,
     subject: string,
-    type: "invitedToProject",
+    type: ("invitedToProject"),
 }
 export interface NewGrantApplicationMail {
     sender: string,
     projectTitle: string,
     subject: string,
-    type: "newGrantApplication",
+    type: ("newGrantApplication"),
 }
 export interface GrantAppAutoApproveToAdminsMail {
     sender: string,
     projectTitle: string,
     subject: string,
-    type: "autoApproveGrant",
+    type: ("autoApproveGrant"),
 }
 export interface GrantApplicationUpdatedMail {
     projectTitle: string,
     sender: string,
     subject: string,
-    type: "applicationUpdated",
+    type: ("applicationUpdated"),
 }
 export interface GrantApplicationUpdatedMailToAdmins {
     projectTitle: string,
     sender: string,
     receivingProjectTitle: string,
     subject: string,
-    type: "applicationUpdatedToAdmins",
+    type: ("applicationUpdatedToAdmins"),
 }
 export interface GrantApplicationStatusChangedToAdmin {
     status: string,
@@ -5347,47 +5493,47 @@ export interface GrantApplicationStatusChangedToAdmin {
     sender: string,
     receivingProjectTitle: string,
     subject: string,
-    type: "applicationStatusChangedToAdmins",
+    type: ("applicationStatusChangedToAdmins"),
 }
 export interface GrantApplicationApproveMail {
     projectTitle: string,
     subject: string,
-    type: "applicationApproved",
+    type: ("applicationApproved"),
 }
 export interface GrantApplicationApproveMailToAdmins {
     sender: string,
     projectTitle: string,
     subject: string,
-    type: "applicationApprovedToAdmins",
+    type: ("applicationApprovedToAdmins"),
 }
 export interface GrantApplicationRejectedMail {
     projectTitle: string,
     subject: string,
-    type: "applicationRejected",
+    type: ("applicationRejected"),
 }
 export interface GrantApplicationWithdrawnMail {
     projectTitle: string,
     sender: string,
     subject: string,
-    type: "applicationWithdrawn",
+    type: ("applicationWithdrawn"),
 }
 export interface NewCommentOnApplicationMail {
     sender: string,
     projectTitle: string,
     receivingProjectTitle: string,
     subject: string,
-    type: "newComment",
+    type: ("newComment"),
 }
 export interface ResetPasswordMail {
     token: string,
     subject: string,
-    type: "resetPassword",
+    type: ("resetPassword"),
 }
 export interface VerificationReminderMail {
     projectTitle: string,
     role: string,
     subject: string,
-    type: "verificationReminder",
+    type: ("verificationReminder"),
 }
 }
 }
@@ -5539,7 +5685,7 @@ export interface ProviderSpecification {
 }
 export interface ProvidersUpdateAclRequestItem {
     id: string,
-    acl: ResourceAclEntry<"EDIT">[],
+    acl: ResourceAclEntry<("EDIT")>[],
 }
 export interface ProvidersRenewRefreshTokenRequestItem {
     id: string,
@@ -5599,7 +5745,7 @@ export interface Provider {
     /**
      * An ACL for this `Resource`
      */
-    acl: ResourceAclEntry<"EDIT">[],
+    acl: ResourceAclEntry<("EDIT")>[],
 }
 /**
  * Describes the current state of the `Resource`
@@ -5709,7 +5855,7 @@ export interface ProvidersBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -5815,11 +5961,11 @@ export namespace AclEntityNS {
 export interface ProjectGroup {
     projectId: string,
     group: string,
-    type: "project_group",
+    type: ("project_group"),
 }
 export interface User {
     username: string,
-    type: "user",
+    type: ("user"),
 }
 }
 export namespace ResourceBillingNS {
@@ -5982,7 +6128,7 @@ export interface CreateSingleUserRequest {
     username: string,
     password?: string,
     email?: string,
-    role?: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role?: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
 }
 export interface UpdateUserInfoRequest {
     email?: string,
@@ -5998,15 +6144,15 @@ export type Principal = Person | ServicePrincipal | ProviderPrincipal
 export type Person = PersonNS.ByWAYF | PersonNS.ByPassword
 export interface ServicePrincipal {
     id: string,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
     uid: number /* int64 */,
-    type: "service",
+    type: ("service"),
 }
 export interface ProviderPrincipal {
     id: string,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
     uid: number /* int64 */,
-    type: "provider",
+    type: ("provider"),
 }
 export interface GetPrincipalRequest {
     username: string,
@@ -6025,7 +6171,7 @@ export interface LookupUsersResponse {
 export interface UserLookup {
     subject: string,
     uid: number /* int64 */,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
 }
 export interface LookupUsersRequest {
     users: string[],
@@ -6385,7 +6531,7 @@ export function twoFactorStatus(): APICallParameters<{}, TwoFactorStatusResponse
 export namespace PersonNS {
 export interface ByWAYF {
     id: string,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
     title?: string,
     firstNames: string,
     lastName: string,
@@ -6398,11 +6544,11 @@ export interface ByWAYF {
     wayfId: string,
     displayName: string,
     twoFactorAuthentication: boolean,
-    type: "wayf",
+    type: ("wayf"),
 }
 export interface ByPassword {
     id: string,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
     title?: string,
     firstNames: string,
     lastName: string,
@@ -6413,7 +6559,7 @@ export interface ByPassword {
     twoFactorAuthentication: boolean,
     serviceLicenseAgreement: number /* int32 */,
     displayName: string,
-    type: "password",
+    type: ("password"),
 }
 }
 }
@@ -6785,7 +6931,7 @@ export interface ViewMemberInProjectResponse {
 }
 export interface ProjectMember {
     username: string,
-    role: "PI" | "ADMIN" | "USER",
+    role: ("PI" | "ADMIN" | "USER"),
     memberOfAnyGroup?: boolean,
 }
 export interface ViewMemberInProjectRequest {
@@ -6801,7 +6947,7 @@ export interface ExistsRequest {
 export interface ChangeUserRoleRequest {
     projectId: string,
     member: string,
-    newRole: "PI" | "ADMIN" | "USER",
+    newRole: ("PI" | "ADMIN" | "USER"),
 }
 export interface UserProjectSummary {
     projectId: string,
@@ -6956,7 +7102,7 @@ export interface ProjectSearchByPathRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -7316,7 +7462,7 @@ export interface AddToBalanceRequest {
 }
 export interface Wallet {
     id: string,
-    type: "USER" | "PROJECT",
+    type: ("USER" | "PROJECT"),
     paysFor: ProductCategoryId,
 }
 export interface ProductCategoryId {
@@ -7338,7 +7484,7 @@ export interface ReserveCreditsRequest {
     chargeImmediately: boolean,
     skipIfExists: boolean,
     skipLimitCheck: boolean,
-    transactionType: "GIFTED" | "TRANSFERRED_TO_PERSONAL" | "TRANSFERRED_TO_PROJECT" | "PAYMENT",
+    transactionType: ("GIFTED" | "TRANSFERRED_TO_PERSONAL" | "TRANSFERRED_TO_PROJECT" | "PAYMENT"),
 }
 export interface ReserveCreditsBulkRequest {
     reservations: ReserveCreditsRequest[],
@@ -7365,11 +7511,11 @@ export interface WalletBalance {
     balance: number /* int64 */,
     allocated: number /* int64 */,
     used: number /* int64 */,
-    area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
 }
 export interface RetrieveBalanceRequest {
     id?: string,
-    type?: "USER" | "PROJECT",
+    type?: ("USER" | "PROJECT"),
     includeChildren?: boolean,
     showHidden?: boolean,
 }
@@ -7395,7 +7541,7 @@ export interface ListProductsRequest {
 }
 export interface ListProductsByAreaRequest {
     provider: string,
-    area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     showHidden: boolean,
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
@@ -7450,13 +7596,13 @@ export interface ProductsBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
     itemsToSkip?: number /* int64 */,
     filterProvider?: string,
-    filterArea?: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
+    filterArea?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     filterUsable?: boolean,
     filterCategory?: string,
     includeBalance?: boolean,
@@ -7469,7 +7615,7 @@ export interface UsageChart {
     lines: UsageLine[],
 }
 export interface UsageLine {
-    area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     category: string,
     projectPath?: string,
     projectId?: string,
@@ -7584,11 +7730,11 @@ export function browse(
 }
 export namespace ProductAvailabilityNS {
 export interface Available {
-    type: "available",
+    type: ("available"),
 }
 export interface Unavailable {
     reason: string,
-    type: "unavailable",
+    type: ("unavailable"),
 }
 }
 export namespace visualization {
@@ -7726,7 +7872,7 @@ export interface Storage {
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "storage",
+    type: ("storage"),
 }
 export interface Compute {
     id: string,
@@ -7743,7 +7889,7 @@ export interface Compute {
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "compute",
+    type: ("compute"),
 }
 export interface Ingress {
     id: string,
@@ -7753,12 +7899,12 @@ export interface Ingress {
     hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
-    paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+    paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "ingress",
+    type: ("ingress"),
 }
 export interface License {
     id: string,
@@ -7769,12 +7915,12 @@ export interface License {
     availability: ProductAvailability,
     priority: number /* int32 */,
     tags: string[],
-    paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+    paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "license",
+    type: ("license"),
 }
 export interface NetworkIP {
     id: string,
@@ -7784,12 +7930,12 @@ export interface NetworkIP {
     hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
-    paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+    paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "network_ip",
+    type: ("network_ip"),
 }
 }
 }
@@ -7853,7 +7999,7 @@ export function activityFeed(
     };
 }
 export interface ActivityForFrontend {
-    type: "download" | "deleted" | "favorite" | "moved" | "copy" | "usedInApp" | "directoryCreated" | "reclassify" | "upload" | "updatedACL" | "sharedWith" | "allUsedInApp",
+    type: ("download" | "deleted" | "favorite" | "moved" | "copy" | "usedInApp" | "directoryCreated" | "reclassify" | "upload" | "updatedACL" | "sharedWith" | "allUsedInApp"),
     timestamp: number /* int64 */,
     activityEvent: ActivityEvent,
 }
@@ -7873,7 +8019,7 @@ export interface Response {
 }
 export interface Request {
     user?: string,
-    type?: "download" | "deleted" | "favorite" | "moved" | "copy" | "usedInApp" | "directoryCreated" | "reclassify" | "upload" | "updatedACL" | "sharedWith" | "allUsedInApp",
+    type?: ("download" | "deleted" | "favorite" | "moved" | "copy" | "usedInApp" | "directoryCreated" | "reclassify" | "upload" | "updatedACL" | "sharedWith" | "allUsedInApp"),
     minTimestamp?: number /* int64 */,
     maxTimestamp?: number /* int64 */,
     offset?: number /* int32 */,
@@ -7887,42 +8033,42 @@ export interface Reclassify {
     timestamp: number /* int64 */,
     filePath: string,
     newSensitivity: string,
-    type: "reclassify",
+    type: ("reclassify"),
 }
 export interface DirectoryCreated {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "directory_created",
+    type: ("directory_created"),
 }
 export interface Download {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "download",
+    type: ("download"),
 }
 export interface Copy {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
     copyFilePath: string,
-    type: "copy",
+    type: ("copy"),
 }
 export interface Uploaded {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "uploaded",
+    type: ("uploaded"),
 }
 export interface UpdatedAcl {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
     rightsAndUser: RightsAndUser[],
-    type: "updated_acl",
+    type: ("updated_acl"),
 }
 export interface RightsAndUser {
-    rights: "READ" | "WRITE"[],
+    rights: ("READ" | "WRITE")[],
     user: string,
 }
 export interface UpdateProjectAcl {
@@ -7931,31 +8077,31 @@ export interface UpdateProjectAcl {
     filePath: string,
     project: string,
     acl: ProjectAclEntry[],
-    type: "update_project_acl",
+    type: ("update_project_acl"),
 }
 export interface ProjectAclEntry {
     group: string,
-    rights: "READ" | "WRITE"[],
+    rights: ("READ" | "WRITE")[],
 }
 export interface Favorite {
     username: string,
     isFavorite: boolean,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "favorite",
+    type: ("favorite"),
 }
 export interface Moved {
     username: string,
     newName: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "moved",
+    type: ("moved"),
 }
 export interface Deleted {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "deleted",
+    type: ("deleted"),
 }
 export interface SingleFileUsedByApplication {
     username: string,
@@ -7963,7 +8109,7 @@ export interface SingleFileUsedByApplication {
     filePath: string,
     applicationName: string,
     applicationVersion: string,
-    type: "single_file_used_by_application",
+    type: ("single_file_used_by_application"),
 }
 export interface AllFilesUsedByApplication {
     username: string,
@@ -7971,15 +8117,15 @@ export interface AllFilesUsedByApplication {
     filePath: string,
     applicationName: string,
     applicationVersion: string,
-    type: "all_files_used_by_application",
+    type: ("all_files_used_by_application"),
 }
 export interface SharedWith {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
     sharedWith: string,
-    status: "READ" | "WRITE"[],
-    type: "shared_with",
+    status: ("READ" | "WRITE")[],
+    type: ("shared_with"),
 }
 }
 }
@@ -8129,7 +8275,7 @@ export interface ReadTemplatesRequest {
     projectId: string,
 }
 export interface Application {
-    status: "APPROVED" | "REJECTED" | "CLOSED" | "IN_PROGRESS",
+    status: ("APPROVED" | "REJECTED" | "CLOSED" | "IN_PROGRESS"),
     resourcesOwnedBy: string,
     requestedBy: string,
     grantRecipient: GrantRecipient,
@@ -8146,12 +8292,12 @@ export interface Application {
 export interface IngoingApplicationsRequest {
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
-    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE",
+    filter: ("SHOW_ALL" | "ACTIVE" | "INACTIVE"),
 }
 export interface OutgoingApplicationsRequest {
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
-    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE",
+    filter: ("SHOW_ALL" | "ACTIVE" | "INACTIVE"),
 }
 export interface ApplicationWithComments {
     application: Application,
@@ -8241,15 +8387,15 @@ export interface ListGiftsResponse {
 }
 export namespace UserCriteriaNS {
 export interface Anyone {
-    type: "anyone",
+    type: ("anyone"),
 }
 export interface EmailDomain {
     domain: string,
-    type: "email",
+    type: ("email"),
 }
 export interface WayfOrganization {
     org: string,
-    type: "wayf",
+    type: ("wayf"),
 }
 }
 export namespace grant {
@@ -8530,15 +8676,15 @@ export function retrieveProducts(
 export namespace GrantRecipientNS {
 export interface PersonalProject {
     username: string,
-    type: "personal",
+    type: ("personal"),
 }
 export interface ExistingProject {
     projectId: string,
-    type: "existing_project",
+    type: ("existing_project"),
 }
 export interface NewProject {
     projectTitle: string,
-    type: "new_project",
+    type: ("new_project"),
 }
 }
 export namespace gifts {
@@ -8728,17 +8874,17 @@ export interface JsonLiteral {
     body: any /* unknown */,
     isString: boolean,
     content: string,
-    type: "JsonLiteral",
+    type: ("JsonLiteral"),
 }
 export interface JsonNull {
     content: string,
     isString: boolean,
-    type: "JsonNull",
+    type: ("JsonNull"),
 }
 export interface JsonArray {
     content: JsonElement[],
     size: number /* int32 */,
-    type: "JsonArray",
+    type: ("JsonArray"),
 }
 }
 }
@@ -8922,7 +9068,7 @@ export interface FileQuery {
     fileNameQuery?: string[],
     fileNameExact?: AllOf<string>,
     extensions?: AllOf<string>,
-    fileTypes?: AllOf<"FILE" | "DIRECTORY">,
+    fileTypes?: AllOf<("FILE" | "DIRECTORY")>,
     fileDepth?: AllOf<Comparison<number /* int32 */>>,
     size?: AllOf<Comparison<number /* int64 */>>,
 }
@@ -8937,11 +9083,11 @@ export interface AnyOf<Pred> {
 }
 export interface Comparison<Value = unknown> {
     value: Value,
-    operator: "GREATER_THAN" | "GREATER_THAN_EQUALS" | "LESS_THAN" | "LESS_THAN_EQUALS" | "EQUALS",
+    operator: ("GREATER_THAN" | "GREATER_THAN_EQUALS" | "LESS_THAN" | "LESS_THAN_EQUALS" | "EQUALS"),
 }
 export interface SortRequest {
-    field: "FILE_NAME" | "FILE_TYPE" | "SIZE",
-    direction: "ASCENDING" | "DESCENDING",
+    field: ("FILE_NAME" | "FILE_TYPE" | "SIZE"),
+    direction: ("ASCENDING" | "DESCENDING"),
 }
 export interface StatisticsResponse {
     count: number /* int64 */,
@@ -9087,21 +9233,21 @@ export function listAllContactsForUser(
 export interface InsertRequest {
     fromUser: string,
     toUser: string[],
-    serviceOrigin: "SHARE_SERVICE" | "PROJECT_SERVICE",
+    serviceOrigin: ("SHARE_SERVICE" | "PROJECT_SERVICE"),
 }
 export interface DeleteRequest {
     fromUser: string,
     toUser: string,
-    serviceOrigin: "SHARE_SERVICE" | "PROJECT_SERVICE",
+    serviceOrigin: ("SHARE_SERVICE" | "PROJECT_SERVICE"),
 }
 export interface QueryContactsResponse {
     contacts: string[],
 }
 export interface QueryContactsRequest {
     query: string,
-    serviceOrigin: "SHARE_SERVICE" | "PROJECT_SERVICE",
+    serviceOrigin: ("SHARE_SERVICE" | "PROJECT_SERVICE"),
 }
 export interface AllContactsForUserRequest {
-    serviceOrigin: "SHARE_SERVICE" | "PROJECT_SERVICE",
+    serviceOrigin: ("SHARE_SERVICE" | "PROJECT_SERVICE"),
 }
 }

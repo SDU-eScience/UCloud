@@ -71,7 +71,7 @@ class Server(
         taskSystem.launchScheduler(micro.backgroundScope)
 
         configureControllers(
-            FilesController(fileQueries, taskSystem, chunkedUploadService),
+            FilesController(fileQueries, taskSystem, chunkedUploadService, aclService),
             FileCollectionsController(fileCollectionService),
         )
 

@@ -119,63 +119,67 @@ class AclServiceImpl(
                 throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
             }
 
-            if (isPersonalWorkspace(relativeFile)) {
-                db.withSession { session ->
-                    metadataDao.removeEntry(session, relativeFile, null, ACL_USER_METADATA_TYPE)
-                    reqItem.newAcl.forEach { aclEntry ->
-                        val entity = aclEntry.entity
-                        if (entity !is AclEntity.User) {
-                            throw RPCException("Unsupported entity type", HttpStatusCode.BadRequest)
-                        }
+            when {
+                isPersonalWorkspace(relativeFile) -> {
+                    db.withSession { session ->
+                        metadataDao.removeEntry(session, relativeFile, null, ACL_USER_METADATA_TYPE)
+                        reqItem.newAcl.forEach { aclEntry ->
+                            val entity = aclEntry.entity
+                            if (entity !is AclEntity.User) {
+                                throw RPCException("Unsupported entity type", HttpStatusCode.BadRequest)
+                            }
 
-                        metadataDao.createMetadata(session, Metadata(
-                            relativeFile,
-                            ACL_USER_METADATA_TYPE,
-                            entity.username,
-                            defaultMapper.encodeToJsonElement(
-                                UserAclMetadata(aclEntry.permissions.toSet())
-                            ) as JsonObject
-                        ))
+                            metadataDao.createMetadata(session, Metadata(
+                                relativeFile,
+                                ACL_USER_METADATA_TYPE,
+                                entity.username,
+                                defaultMapper.encodeToJsonElement(
+                                    UserAclMetadata(aclEntry.permissions.toSet())
+                                ) as JsonObject
+                            ))
+                        }
                     }
                 }
-            } else if (isProjectWorkspace(relativeFile)) {
-                val pathComponents = relativeFile.components()
-                val projectId = pathComponents[1]
-                if (pathComponents.size == 3 && pathComponents[2] == PERSONAL_REPOSITORY) {
-                    throw RPCException(
-                        "Cannot update permissions of '${PERSONAL_REPOSITORY}' repository",
-                        HttpStatusCode.Forbidden
-                    )
-                }
-
-                db.withSession { session ->
-                    metadataDao.updateMetadata(
-                        session,
-                        Metadata(
-                            relativeFile,
-                            ACL_PROJECT_METADATA_TYPE,
-                            projectId,
-                            defaultMapper.encodeToJsonElement(
-                                ProjectAclMetadata(
-                                    reqItem.newAcl.map { entry ->
-                                        val entity = entry.entity
-                                        if (entity !is AclEntity.ProjectGroup) {
-                                            throw RPCException("Unsupported entity type", HttpStatusCode.BadRequest)
-                                        }
-
-                                        if (entity.projectId != projectId) {
-                                            throw RPCException("Invalid project supplied", HttpStatusCode.BadRequest)
-                                        }
-
-                                        ProjectAclEntity(entity.group, entry.permissions.toSet())
-                                    }
-                                )
-                            ) as JsonObject
+                isProjectWorkspace(relativeFile) -> {
+                    val pathComponents = relativeFile.components()
+                    val projectId = pathComponents[1]
+                    if (pathComponents.size == 3 && pathComponents[2] == PERSONAL_REPOSITORY) {
+                        throw RPCException(
+                            "Cannot update permissions of '${PERSONAL_REPOSITORY}' repository",
+                            HttpStatusCode.Forbidden
                         )
-                    )
+                    }
+
+                    db.withSession { session ->
+                        metadataDao.updateMetadata(
+                            session,
+                            Metadata(
+                                relativeFile,
+                                ACL_PROJECT_METADATA_TYPE,
+                                projectId,
+                                defaultMapper.encodeToJsonElement(
+                                    ProjectAclMetadata(
+                                        reqItem.newAcl.map { entry ->
+                                            val entity = entry.entity
+                                            if (entity !is AclEntity.ProjectGroup) {
+                                                throw RPCException("Unsupported entity type", HttpStatusCode.BadRequest)
+                                            }
+
+                                            if (entity.projectId != projectId) {
+                                                throw RPCException("Invalid project supplied", HttpStatusCode.BadRequest)
+                                            }
+
+                                            ProjectAclEntity(entity.group, entry.permissions.toSet())
+                                        }
+                                    )
+                                ) as JsonObject
+                            )
+                        )
+                    }
                 }
-            } else {
-                throw FSException.NotFound()
+                else -> {
+                    throw FSException.NotFound()
+                }
             }
         }
     }
@@ -239,7 +243,21 @@ class AclServiceImpl(
         return db.withSession { session ->
             when {
                 isPersonalWorkspace(relativeFile) -> {
-                    emptyList() // TODO
+                    val relevantPaths = relativeFile.parents() + relativeFile
+                    metadataDao
+                        .listMetadata(session, relevantPaths, null, ACL_USER_METADATA_TYPE)
+                        .flatMap { entry ->
+                            entry.value.mapNotNull {
+                                ResourceAclEntry(
+                                    AclEntity.User(it.username ?: return@mapNotNull null),
+                                    defaultMapper
+                                        .decodeFromJsonElement<UserAclMetadata>(it.payload)
+                                        .permissions
+                                        .normalize()
+                                        .toList()
+                                )
+                            }
+                        }
                 }
 
                 isProjectWorkspace(relativeFile) -> {
@@ -267,88 +285,6 @@ class AclServiceImpl(
             }
         }
     }
-
-    /*
-
-
-
-    suspend fun listAcl(
-        paths: List<String>
-    ): Map<String, List<UserWithPermissions>> {
-        val normalizedPaths = paths.map { it to it.normalize() }
-
-        return normalizedPaths
-            .chunked(200)
-            .flatMap { normalizedChunk ->
-                val flatPermissions = HashMap<String, List<UserWithPermissions>>()
-                val allParents = normalizedChunk.flatMap { it.second.parents() }.map { it.normalize() }.toSet()
-                metadataService
-                    .listMetadata(
-                        normalizedChunk.map { it.second } + allParents,
-                        null,
-                        USER_METADATA_TYPE
-                    )
-                    .forEach { dataList ->
-                        dataList.value.forEach { data ->
-                            if (data.username == null) {
-                                log.warn("ACL metadata with null user detected!")
-                            } else {
-                                val aclMetadata = defaultMapper.decodeFromJsonElement<UserAclMetadata>(data.payload)
-                                flatPermissions[data.path] = (flatPermissions[data.path] ?: emptyList()) +
-                                        listOf(
-                                            UserWithPermissions(
-                                                ACLEntity.User(data.username),
-                                                aclMetadata.permissions
-                                            )
-                                        )
-                            }
-                        }
-                    }
-
-                metadataService
-                    .listMetadata(
-                        normalizedChunk.map { it.second } + allParents,
-                        null,
-                        PROJECT_METADATA_TYPE
-                    )
-                    .forEach { dataList ->
-                        dataList.value.forEach { data ->
-                            if (data.username == null) {
-                                log.warn("Project ACL metadata with null project detected!")
-                            } else {
-                                val aclMetadata = defaultMapper.decodeFromJsonElement<ProjectAclMetadata>(data.payload)
-                                flatPermissions[data.path] = (flatPermissions[data.path] ?: emptyList()) +
-                                        aclMetadata.entries.map {
-                                            UserWithPermissions(
-                                                ACLEntity.ProjectAndGroup(data.username, it.group),
-                                                it.permissions
-                                            )
-                                        }
-                            }
-                        }
-                    }
-
-                normalizedChunk.map { (originalPath, path) ->
-                    val acl = flatPermissions[path] ?: emptyList()
-                    val aclEntriesFromParents = path
-                        .parents()
-                        .flatMap { flatPermissions[it.normalize()] ?: emptyList() }
-
-                    val unmergedAcl = acl + aclEntriesFromParents
-
-                    Pair(
-                        originalPath,
-                        unmergedAcl
-                            .groupBy { it.entity }
-                            .map { (username, entries) ->
-                                UserWithPermissions(username, entries.flatMap { it.permissions }.toSet())
-                            }
-                    )
-                }
-            }
-            .toMap()
-    }
-     */
 
     companion object : Loggable {
         override val log = logger()

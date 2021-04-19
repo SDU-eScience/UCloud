@@ -12,6 +12,7 @@ const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
 const Files = React.lazy(() => import("NewFiles/FileBrowser"));
 const FileCollectionProperties = React.lazy(() => import("NewFiles/FileCollectionProperties"));
+const Shares = React.lazy(() => import("NewFiles/Shares"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
 const JobBrowse = React.lazy(() => import("Applications/Jobs/Browse"));
 const JobCreate = React.lazy(() => import("Applications/Jobs/Create"));
@@ -60,7 +61,6 @@ import Uploader from "NewFiles/Uploader";
 import Snackbars from "Snackbar/Snackbars";
 import Dialog from "Dialog/Dialog";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
-import * as Share from "Shares";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import {inDevEnvironment} from "UtilityFunctions";
 import {History} from "history";
@@ -93,6 +93,7 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/files" component={requireAuth(Files)} />
                     <Route exact path="/files/driveProperties" component={requireAuth(FileCollectionProperties)} />
+                    <Route exact path="/shares" component={requireAuth(Shares)} />
 
                     <Route exact path="/activity" component={requireAuth(Activity)} />
 
@@ -121,8 +122,6 @@ const Core = (): JSX.Element => (
 
                     {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
                     {!inDevEnvironment() ? null : <Route exact path={"/playground/demo"} component={Demo} />}
-
-                    <Route exact path="/shares" component={requireAuth(Share.List)} />
 
                     <Route exact path="/admin" component={requireAuth(AdminOverview)} />
                     <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />

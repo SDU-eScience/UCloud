@@ -46,7 +46,7 @@ class FileQueries(
         }
     }
 
-    private fun convertNativeStatToUFile(
+    private suspend fun convertNativeStatToUFile(
         file: InternalFile,
         nativeStat: NativeStat,
         myself: Set<FilePermission>,
@@ -67,7 +67,7 @@ class FileQueries(
             ),
             UFile.Permissions(
                 myself.toList(),
-                null // TODO
+                aclService.fetchOtherPermissions(pathConverter.internalToUCloud(file))
             ),
             null
         )

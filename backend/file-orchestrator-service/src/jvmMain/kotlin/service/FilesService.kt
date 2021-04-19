@@ -288,7 +288,7 @@ class FilesService(
         proxyRequest(
             request,
             verifyRequest = { support, _ ->
-                if (support.files.aclSupported && support.files.aclModifiable) {
+                if (!support.files.aclSupported || !support.files.aclModifiable) {
                     throw RPCException("Cannot update permissions on this system", HttpStatusCode.BadRequest)
                 }
             },

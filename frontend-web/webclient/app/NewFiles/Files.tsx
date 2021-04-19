@@ -2,7 +2,7 @@ import * as React from "react";
 import {APICallState, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {file, PageV2} from "UCloud";
 import {useToggleSet} from "Utilities/ToggleSet";
-import {useCallback, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {bulkRequestOf} from "DefaultObjects";
 import {getFilenameFromPath, getParentPath, pathComponents, resolvePath, sizeToString} from "Utilities/FileUtilities";
@@ -24,6 +24,7 @@ import FileCollection = file.orchestrator.FileCollection;
 import ReactModal from "react-modal";
 import {FileType} from "NewFiles/index";
 import FilesMoveRequestItem = file.orchestrator.FilesMoveRequestItem;
+import {EmbeddedShareCard} from "NewFiles/Shares";
 
 function fileName(path: string): string {
     const lastSlash = path.lastIndexOf("/");
@@ -49,6 +50,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     const [selectFileRequirement, setSelectFileRequirement] = useState<FileType | undefined>(undefined);
     const [onSelectFile, setOnSelectFile] = useState<((file: UFile | null) => void) | null>(null);
+    const [sharing, setSharing] = useState<UFile | null>(null);
 
     const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
 
@@ -64,6 +66,14 @@ export const Files: React.FunctionComponent<CommonFileProps & {
         setRenaming(null);
         toggleSet.uncheckAll();
     }, [props.navigateTo]);
+
+    const startShare = useCallback((batch: UFile) => {
+        setSharing(batch);
+    }, []);
+
+    const closeShare = useCallback(() => {
+        setSharing(null);
+    }, []);
 
     const openUploader = useCallback(() => {
         setUploaderVisible(true);
@@ -99,7 +109,7 @@ export const Files: React.FunctionComponent<CommonFileProps & {
     }, [onSelectFile, setOnSelectFile]);
 
     const callbacks: FilesCallbacks = {
-        ...props, reload, startRenaming, startFolderCreation, openUploader, trash, selectFile
+        ...props, reload, startRenaming, startFolderCreation, openUploader, trash, selectFile, startShare
     };
 
     const renameFile = useCallback(async () => {
@@ -128,39 +138,47 @@ export const Files: React.FunctionComponent<CommonFileProps & {
         reload();
     }, [isCreatingFolder, reload, creatingFolderRef, props.path]);
 
-    const components = pathComponents(props.path);
-    let breadcrumbs: string[] = [];
-    let breadcrumbOffset = 0;
-    if (components.length >= 4) {
-        const provider = components[0];
-        const collectionId = components[3];
+    useEffect(() => {
+        const components = pathComponents(props.path);
+        if (components.length >= 4) {
+            const provider = components[0];
+            const collectionId = components[3];
 
-        if (collection.data?.id !== collectionId && !collection.loading) {
-            console.log(collection.data?.id, collectionId, collection);
-            fetchCollection(collectionsApi.retrieve({id: collectionId, provider}));
-        } else if (collection.data !== null) {
-            breadcrumbs.push(collection.data.specification.title)
-            for (let i = 4; i < components.length; i++) {
-                breadcrumbs.push(components[i]);
+            if (collection.data?.id !== collectionId && !collection.loading) {
+                fetchCollection(collectionsApi.retrieve({id: collectionId, provider}));
             }
-            breadcrumbOffset = 3;
         }
-    } else {
-        breadcrumbs = components;
-    }
+    }, [props.path]);
 
-    const breadcrumbsComponent = <>
-        <BreadCrumbsBase embedded={props.embedded}>
-            {breadcrumbs.length === 0 ? <HexSpin size={42}/> : null}
-            {breadcrumbs.map((it, idx) => (
-                <span key={it} test-tag={it} title={it}
-                      onClick={() =>
-                          navigateTo("/" + joinToString(components.slice(0, idx + breadcrumbOffset + 1), "/"))}>
+    const breadcrumbsComponent = useMemo((): JSX.Element => {
+        const components = pathComponents(props.path);
+        let breadcrumbs: string[] = [];
+        let breadcrumbOffset = 0;
+        if (components.length >= 4) {
+            if (collection.data !== null) {
+                breadcrumbs.push(collection.data.specification.title)
+                for (let i = 4; i < components.length; i++) {
+                    breadcrumbs.push(components[i]);
+                }
+                breadcrumbOffset = 3;
+            }
+        } else {
+            breadcrumbs = components;
+        }
+
+        return <>
+            <BreadCrumbsBase embedded={props.embedded}>
+                {breadcrumbs.length === 0 ? <HexSpin size={42}/> : null}
+                {breadcrumbs.map((it, idx) => (
+                    <span key={it} test-tag={it} title={it}
+                          onClick={() =>
+                              navigateTo("/" + joinToString(components.slice(0, idx + breadcrumbOffset + 1), "/"))}>
                     {it}
                 </span>
-            ))}
-        </BreadCrumbsBase>
-    </>;
+                ))}
+            </BreadCrumbsBase>
+        </>;
+    }, [props.path, props.embedded, collection.data]);
 
     const main = <>
         {!props.embedded ? null :
@@ -266,19 +284,30 @@ export const Files: React.FunctionComponent<CommonFileProps & {
                 />
             </>}
             additional={
-                <ReactModal
-                    isOpen={onSelectFile !== null}
-                    style={FileSelectorModalStyle}
-                    onRequestClose={closeFileSelector}
-                    ariaHideApp={false}
-                >
-                    <FileBrowser
-                        initialPath={props.path}
-                        embedded={true}
-                        onSelect={onSelectFile!}
-                        selectFileRequirement={selectFileRequirement}
-                    />
-                </ReactModal>
+                <>
+                    <ReactModal
+                        isOpen={onSelectFile !== null}
+                        style={FileSelectorModalStyle}
+                        onRequestClose={closeFileSelector}
+                        ariaHideApp={false}
+                    >
+                        <FileBrowser
+                            initialPath={props.path}
+                            embedded={true}
+                            onSelect={onSelectFile!}
+                            selectFileRequirement={selectFileRequirement}
+                        />
+                    </ReactModal>
+
+                    <ReactModal
+                        isOpen={sharing != null}
+                        style={FileSelectorModalStyle}
+                        onRequestClose={closeShare}
+                        ariaHideApp={false}
+                    >
+                        {!sharing ? null : <EmbeddedShareCard path={sharing.path}/>}
+                    </ReactModal>
+                </>
             }
         />;
     }
@@ -291,6 +320,7 @@ interface FilesCallbacks extends CommonFileProps {
     openUploader: () => void;
     trash: (batch: UFile[]) => void;
     selectFile: (requiredType: FileType | null) => Promise<UFile | null>;
+    startShare: (batch: UFile) => void;
 }
 
 const filesOperations: Operation<UFile, FilesCallbacks>[] = [
@@ -377,6 +407,14 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
             cb.reload();
         },
         enabled: selected => selected.length > 0,
+    },
+    {
+        text: "Share with...",
+        icon: "share",
+        enabled: (selected, cb) => selected.length === 1 && cb.onSelect == null,
+        onClick: (selected, cb) => {
+            cb.startShare(selected[0]);
+        }
     },
     {
         text: "Move to trash",
