@@ -454,7 +454,6 @@ const SubprojectRow: React.FunctionComponent<{
     const subprojectRenamingRef = useRef<HTMLInputElement>(null);
     const quotaRef = useRef<HTMLInputElement>(null);
     const [loading, runCommand] = useCloudCommand();
-    const [canRename, fetchCanRename] = useCloudAPI<{allowed: boolean}>({noop: true}, {allowed: false});
     const [quota, fetchQuota, quotaParams] = useCloudAPI<RetrieveQuotaResponse>(
         getRenamingStatusForSubProject({projectId: subproject.id}),
         {quotaInBytes: 0, quotaInTotal: 0}
@@ -466,8 +465,6 @@ const SubprojectRow: React.FunctionComponent<{
         if (walletBalance && isQuotaSupported(walletBalance.wallet.paysFor)) {
             fetchQuota(retrieveQuota({path: `/projects/${subproject.id}`}));
         }
-
-        fetchCanRename(getRenamingStatusForSubProject({projectId: subproject.id}));
     }, [subproject.id, walletBalance?.wallet?.paysFor?.id, walletBalance?.wallet?.paysFor?.provider]);
 
     const onSubmit = useCallback(async (e) => {
@@ -557,16 +554,26 @@ const SubprojectRow: React.FunctionComponent<{
     return <>
         <ListRow
             left={
-                isEditingName && allowManagement ?
+                isEditingName && allowManagement ? (
                     <>
-                        <Input ref={subprojectRenamingRef} fontSize="large" defaultValue={subproject.title} />
+                        <Button pr={8} pl={8} disabled>
+                            <Icon name="edit" size={14} />
+                        </Button>
+                        <Input ml={10} ref={subprojectRenamingRef} fontSize="large" defaultValue={subproject.title} />
                         <ButtonGroup ml="8px" width="130px">
                             <Button width="45px" color="green" onClick={renameSubproject} attached><Icon name="check" /></Button>
                             <Button width="45px" color="red" onClick={() => setEditingName(false)}><Icon name="close" /></Button>
                         </ButtonGroup>
                     </>
-                    : <Text>{subproject.title}</Text>
-
+                    )
+                    : (
+                    <>
+                        <Button pr={8} pl={8} onClick={() => setEditingName(true)}>
+                            <Icon name="edit" size={14} />
+                        </Button>
+                        <Text ml={10}>{subproject.title}</Text>
+                    </>
+                    )
             }
             right={!allowManagement || isEditingName ? null : (
                 <>
