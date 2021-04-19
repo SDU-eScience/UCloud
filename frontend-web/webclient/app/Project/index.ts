@@ -474,21 +474,6 @@ export function transferPiRole(request: TransferPiRoleRequest): APICallParameter
     };
 }
 
-export type ListRepositoryRequest = PaginationRequest;
-
-export function listRepositoryFiles(
-    request: ListRepositoryRequest,
-    projectOverride?: string
-): APICallParameters<ListRepositoryRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/projects/repositories/list-files", request),
-        parameters: request,
-        reloadId: Math.random(),
-        projectOverride
-    };
-}
-
 export interface ArchiveProjectRequest {
     archiveStatus: boolean;
 }

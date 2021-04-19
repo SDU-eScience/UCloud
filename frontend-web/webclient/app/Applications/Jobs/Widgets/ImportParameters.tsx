@@ -6,13 +6,9 @@ import {Box, Button, Flex, Icon, Label} from "ui-components";
 import {HiddenInputField} from "ui-components/Input";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
-import FileSelector from "Files/FileSelector";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useState} from "react";
 import BaseLink from "ui-components/BaseLink";
 import {
-    checkIfFileExists,
-    expandHomeOrProjectFolder,
-    fetchFileContent,
     getFilenameFromPath
 } from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
@@ -147,6 +143,7 @@ export const ImportParameters: React.FunctionComponent<{
             </Box>
         )}
 
+        {/*
         <FileSelector
             onFileSelect={(f) => {
                 if (f) fetchAndImportParameters(f);
@@ -155,6 +152,7 @@ export const ImportParameters: React.FunctionComponent<{
             trigger={null}
             visible={fsShown}
         />
+        */}
 
         <ReactModal
             isOpen={importDialogOpen}
@@ -268,10 +266,7 @@ async function importVersion1(application: UCloud.compute.Application, json: any
             case "input_file": {
                 userInputValues[param.name] = {
                     type: "file",
-                    path: expandHomeOrProjectFolder(
-                        valueFromFile?.["source"]?.toString() ?? valueFromFile?.["ref"]?.toString() ?? "",
-                        Client
-                    ),
+                    path: valueFromFile?.["source"]?.toString() ?? valueFromFile?.["ref"]?.toString() ?? "",
                     readOnly: false
                 }
                 break;
@@ -386,10 +381,13 @@ async function cleanupImportResult(
 
         if (type === "input_file" || type === "input_directory") {
             if (!param["path"]) delete parameters[paramName];
+            /*
+            TODO
             else if (!await checkIfFileExists(param["path"] as string, Client)) {
                 result.messages.push({type: "warning", message: "File no longer exists: " + param["path"]});
                 delete parameters[paramName];
             }
+             */
         }
     }
 
@@ -404,10 +402,13 @@ async function cleanupImportResult(
                 continue;
             }
 
+            /*
+            TODO
             if (!await checkIfFileExists(param.path, Client)) {
                 result.messages.push({type: "warning", message: "File no longer exists: " + param.path});
                 resources.splice(i, 1);
             }
+             */
         }
     }
 

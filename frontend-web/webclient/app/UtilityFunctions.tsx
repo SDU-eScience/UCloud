@@ -1,12 +1,6 @@
-import {Client as currentClient} from "Authentication/HttpClientInstance";
-import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Notification} from "Notifications";
 import {History} from "history";
-import {
-    getFilenameFromPath, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
-    isSharesFolder, isTrashFolder
-} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import {ProjectName} from "Project";
 import {getStoredProject} from "Project/Redux";
@@ -57,22 +51,6 @@ export function isLightThemeStored(): boolean {
  * @return {string}
  */
 export const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-
-/**
- * Returns a string based on the amount of users associated with the ACL
- * @param {Acl[]} acls - the list of access controls
- * @return {string}
- */
-export const getMembersString = (acls: Acl[]): string => {
-    const withoutProjectAcls = acls.filter(it => typeof it.entity === "string" || "username" in it.entity);
-    const filteredAcl = withoutProjectAcls
-        .filter(it => (it.entity as UserEntity).username !== currentClient.activeUsername);
-    if (filteredAcl.length > 0) {
-        return `${acls.length + 1} members`;
-    } else {
-        return "Only You";
-    }
-};
 
 export const extensionTypeFromPath = (path: string): ExtensionType => extensionType(extensionFromPath(path));
 export const extensionFromPath = (path: string): string => {
@@ -254,51 +232,6 @@ export function isExtPreviewSupported(ext: string): boolean {
     }
 }
 
-export interface FtIconProps {
-    type: string;
-    ext?: string;
-    name?: string;
-}
-
-export function iconFromFilePath(
-    filePath: string,
-    type: FileType
-): FtIconProps {
-    const icon: FtIconProps = {type: "FILE", name: getFilenameFromPath(filePath, [])};
-
-    switch (type) {
-        case "DIRECTORY":
-            if (isSharesFolder(filePath)) {
-                icon.type = "SHARESFOLDER";
-            } else if (isTrashFolder(filePath)) {
-                icon.type = "TRASHFOLDER";
-            } else if (isJobsFolder(filePath)) {
-                icon.type = "RESULTFOLDER";
-            } else if (isFavoritesFolder(filePath)) {
-                icon.type = "FAVFOLDER";
-            } else if (isMyPersonalFolder(filePath)) {
-                icon.type = "SHARESFOLDER";
-            } else if (isPersonalRootFolder(filePath)) {
-                icon.type = "SHARESFOLDER";
-            } else {
-                icon.type = "DIRECTORY";
-            }
-
-            return icon;
-
-        case "FILE":
-        default: {
-            const filename = getFilenameFromPath(filePath, []);
-            if (!filename.includes(".")) {
-                return icon;
-            }
-            icon.ext = extensionFromPath(filePath);
-
-            return icon;
-        }
-    }
-}
-
 /**
  * Calculates if status number is in a given range.
  * @param params: { status, min, max } (both inclusive)
@@ -321,8 +254,6 @@ export const blankOrUndefined = (value?: string): boolean => value == null || va
 export function ifPresent<T>(f: T | undefined, handler: (f: T) => void): void {
     if (f) handler(f);
 }
-
-export const downloadAllowed = (files: File[]): boolean => files.every(f => f.sensitivityLevel !== "SENSITIVE");
 
 /**
  * Capitalizes the input string and replaces _ (underscores) with whitespace.
@@ -372,27 +303,6 @@ export function defaultErrorHandler(
         return request.status;
     }
     return 500;
-}
-
-/**
- * Returns a prettier version of the enum value
- * @param sortBy the enum value to be formatted
- */
-export function sortByToPrettierString(sortBy: SortBy): string {
-    switch (sortBy) {
-        case SortBy.FILE_TYPE:
-            return "File Type";
-        case SortBy.MODIFIED_AT:
-            return "Modified at";
-        case SortBy.PATH:
-            return "Filename";
-        case SortBy.SIZE:
-            return "Size";
-        case SortBy.SENSITIVITY_LEVEL:
-            return "File sensitivity";
-        default:
-            return prettierString(sortBy);
-    }
 }
 
 /**

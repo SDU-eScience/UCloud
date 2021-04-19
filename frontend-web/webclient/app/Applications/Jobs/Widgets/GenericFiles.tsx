@@ -2,13 +2,10 @@ import * as React from "react";
 import * as UCloud from "UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "ui-components";
-import FileSelector from "Files/FileSelector";
 import {useLayoutEffect, useState} from "react";
 import styled from "styled-components";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "Project/cache";
-import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
 import {compute} from "UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 
@@ -38,7 +35,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         const visual = visualInput();
         const listener = () => {
             if (value && visual) {
-                visual.value = replaceHomeOrProjectFolder(value!.value, Client, projects);
+                visual.value = value!.value;
             }
         };
         value!.addEventListener("change", listener);
@@ -48,6 +45,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     }, []);
 
     const error = props.errors[props.parameter.name] != null;
+    return null;
+    /*
+    TODO
     return <FileSelector
         visible={isOpen}
 
@@ -72,6 +72,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             </>
         }
     />;
+     */
 };
 
 const FileSelectorInput = styled(Input)`

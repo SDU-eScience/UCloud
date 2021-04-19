@@ -2,29 +2,28 @@ import * as Module from "Activity";
 import {Client} from "Authentication/HttpClientInstance";
 import {format, formatDistanceToNow} from "date-fns/esm";
 import * as React from "react";
-import {Link as ReactRouterLink} from "react-router-dom";
 import styled from "styled-components";
 import {Flex, Text} from "ui-components";
 import Icon, {IconName} from "ui-components/Icon";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {fileInfoPage, getFilenameFromPath, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
+import {getFilenameFromPath} from "Utilities/FileUtilities";
 import {useProjectStatus} from "Project/cache";
 import {getProjectNames} from "Utilities/ProjectUtilities";
 import {GroupWithSummary} from "Project/GroupList";
 
-export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTableSectionElement>}> = props => {
+export const ActivityFeedFrame: React.FC<{ containerRef?: React.RefObject<HTMLTableSectionElement> }> = props => {
     return (
         <Table>
             <TableHeader>
                 <TFRow>
-                    <TableHeaderCell width="12em" />
-                    <TableHeaderCell width="99%" />
+                    <TableHeaderCell width="12em"/>
+                    <TableHeaderCell width="99%"/>
                 </TFRow>
             </TableHeader>
             <tbody ref={props.containerRef}>
-                {props.children}
+            {props.children}
             </tbody>
-        </Table >
+        </Table>
     );
 };
 
@@ -32,10 +31,10 @@ export const ActivityFeed = ({activity, groups}: {
     activity: Module.ActivityForFrontend[];
     groups: Page<GroupWithSummary>;
 }): JSX.Element => (
-        <ActivityFeedFrame>
-            {activity.map((a, i) => <ActivityFeedItem key={i} activity={a} groups={groups} />)}
-        </ActivityFeedFrame>
-    );
+    <ActivityFeedFrame>
+        {activity.map((a, i) => <ActivityFeedItem key={i} activity={a} groups={groups}/>)}
+    </ActivityFeedFrame>
+);
 
 // Performance note: Don't use styled components here.
 const ActivityEvent: React.FunctionComponent<{
@@ -48,17 +47,15 @@ const ActivityEvent: React.FunctionComponent<{
     return (
         <div>
             <b>
-                <ReactRouterLink to={fileInfoPage(props.event.activityEvent.filePath)}>
-                    <div className="ellipsis">
-                        <Text
-                            title={getFilenameFromPath(props.event.activityEvent.filePath, projects)}
-                            color="black"
-                        >{shorten(getFilenameFromPath(props.event.activityEvent.filePath, projects))}</Text>
-                    </div>
-                </ReactRouterLink>
+                <div className="ellipsis">
+                    <Text
+                        title={getFilenameFromPath(props.event.activityEvent.filePath, projects)}
+                        color="black"
+                    >{shorten(getFilenameFromPath(props.event.activityEvent.filePath, projects))}</Text>
+                </div>
             </b>
             {" "}
-            <OperationText event={props.event} groups={props.groups} />
+            <OperationText event={props.event} groups={props.groups}/>
         </div>
     );
 }
@@ -82,14 +79,12 @@ const OperationText: React.FunctionComponent<{
                     was moved to
                     {" "}
                     <b>
-                        <ReactRouterLink to={fileInfoPage((props.event.activityEvent as Module.MovedActivity).newName)}>
-                            <div className="ellipsis">
-                                <Text color="black">
-                                    {replaceHomeOrProjectFolder((props.event.activityEvent as Module.MovedActivity).newName, Client, projectNames)}
-                                </Text>
-                            </div>
-                        </ReactRouterLink>
-                    </b>  {byUser}
+                        <div className="ellipsis">
+                            <Text color="black">
+                                {(props.event.activityEvent as Module.MovedActivity).newName}
+                            </Text>
+                        </div>
+                    </b> {byUser}
                 </span>
             );
         }
@@ -159,8 +154,7 @@ const OperationText: React.FunctionComponent<{
                 } else {
                     return <span> No files were used in {used.applicationName} v{used.applicationVersion} </span>
                 }
-            }
-            else {
+            } else {
                 if (Client.hasActiveProject) {
                     return <span> were used in {used.applicationName} v{used.applicationVersion} by {used.username}</span>;
                 } else {
@@ -175,7 +169,7 @@ const OperationText: React.FunctionComponent<{
 
         case Module.ActivityType.COPIED: {
             const copy = (props.event.activityEvent as Module.CopyActivity);
-            const replaced = replaceHomeOrProjectFolder(copy.copyFilePath, Client, projectNames);
+            const replaced = copy.copyFilePath;
             if (Client.hasActiveProject) {
                 return <span> was copied to {replaced} by {copy.username}</span>;
             } else {
@@ -193,8 +187,8 @@ const OperationText: React.FunctionComponent<{
     }
 };
 
-export const ActivityFeedSpacer = (props: {height: number}): JSX.Element => (
-    <tr style={{height: `${props.height}px`}} />
+export const ActivityFeedSpacer = (props: { height: number }): JSX.Element => (
+    <tr style={{height: `${props.height}px`}}/>
 );
 
 interface ActivityFeedProps {
@@ -214,14 +208,14 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
                 <TableCell>
                     <Text fontSize={1} color="text">
                         {formatDistanceToNow(new Date(activity.timestamp))}
-                        <br />
+                        <br/>
                         {format(new Date(activity.timestamp), "d LLL yyyy HH:mm")}
                     </Text>
                 </TableCell>
                 <TableCell>
                     <Flex>
-                        <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
-                        <ActivityEvent key={activity.type} groups={this.props.groups} event={activity} />
+                        <Icon mr="0.5em" name={eventIcon(activity.type).icon}/>
+                        <ActivityEvent key={activity.type} groups={this.props.groups} event={activity}/>
                     </Flex>
                 </TableCell>
             </TFRow>
@@ -296,22 +290,22 @@ const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
 };
 
 const TFRow = styled(TableRow)`
-    vertical-align: top;
+  vertical-align: top;
 
-    & a {
-        color: var(--text, #f00);
-    }
+  & a {
+    color: var(--text, #f00);
+  }
 
-    & a:hover {
-        color: var(--text, #f00);
-    }
+  & a:hover {
+    color: var(--text, #f00);
+  }
 
-    & div.ellipsis {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        display: inline-block;
-        vertical-align: bottom;
-    }
+  & div.ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: bottom;
+  }
 `;
 
 function shorten(path: string): string {

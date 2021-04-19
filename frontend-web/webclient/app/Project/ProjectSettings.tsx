@@ -30,7 +30,6 @@ import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
 import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {useHistory, useParams} from "react-router";
-import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -141,7 +140,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             />
                             <Divider/>
                             <LeaveProject
-                                onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
+                                onSuccess={() => history.push("/")}
                                 projectDetails={projectDetails.data}
                                 projectId={projectId}
                                 projectRole={projectRole}

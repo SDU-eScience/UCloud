@@ -12,7 +12,6 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {UserInProject, ListProjectsRequest, listProjects} from "Project";
 import {useHistory} from "react-router";
 import {History} from "history";
-import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {useProjectStatus} from "Project/cache";
 
@@ -96,17 +95,10 @@ const HoverIcon = styled(Icon)`
     }
 `;
 
-const filesPathname = "/app/files/";
-const filesSearch = "?path=";
-
 function onProjectUpdated(history: History, runThisFunction: () => void, refresh?: () => void): void {
     const {pathname, search} = window.location;
     runThisFunction();
-    if (addTrailingSlash(pathname) === filesPathname && search.startsWith(filesSearch)) {
-        history.push(fileTablePage(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder));
-    } else {
-        refresh?.();
-    }
+    refresh?.();
 }
 
 const HoverBox = styled.div`

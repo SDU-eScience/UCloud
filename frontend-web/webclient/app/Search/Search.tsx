@@ -1,17 +1,12 @@
-import {emptyPage, HeaderSearchType} from "DefaultObjects";
-import {AdvancedSearchRequest, DetailedFileSearchReduxState, FileType} from "Files";
-import DetailedFileSearch from "Files/DetailedFileSearch";
-import {EmbeddedFileTable} from "Files/FileTable";
-import {setFilename, toggleFilesSearchHidden} from "Files/Redux/DetailedFileSearchActions";
+import {HeaderSearchType} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setPrioritizedSearch, setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, useTitle} from "Navigation/Redux/StatusActions";
-import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation, useRouteMatch} from "react-router";
 import {Dispatch} from "redux";
-import {Box, SelectableText, SelectableTextWrapper} from "ui-components";
+import {SelectableText, SelectableTextWrapper} from "ui-components";
 import Hide from "ui-components/Hide";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
@@ -23,7 +18,6 @@ import * as SSActions from "./Redux/SearchActions";
 import * as Applications from "Applications";
 
 function Search(props: SearchProps): JSX.Element {
-
     const match = useRouteMatch<{priority: string}>();
     const history = useHistory();
     const location = useLocation();
@@ -52,23 +46,8 @@ function Search(props: SearchProps): JSX.Element {
     const setPath = (text: string): void => history.push(searchPage(text.toLocaleLowerCase(), props.search));
 
     function fetchAll(itemsPerPage?: number): void {
-        props.searchFiles(fileSearchBody(
-            props.fileSearch,
-            props.search,
-            itemsPerPage || props.files.itemsPerPage,
-            props.files.pageNumber
-        ));
         history.push(searchPage(match.params.priority, props.search));
     }
-
-    const refreshFiles = (): void => props.searchFiles(fileSearchBody(
-        props.fileSearch,
-        props.search,
-        props.files.itemsPerPage,
-        props.files.pageNumber
-    ));
-
-    const {files} = props;
 
     const Tab = ({searchType}: {searchType: HeaderSearchType}): JSX.Element => (
         <SelectableText
@@ -86,41 +65,8 @@ function Search(props: SearchProps): JSX.Element {
 
     let main: React.ReactNode = null;
     const {priority} = match.params;
-    const entriesPerPage = priority === "files" ? (
-        <Box my="8px">
-            <Spacer
-                left={null}
-                right={(
-                    <Pagination.EntriesPerPageSelector
-                        onChange={itemsPerPage => fetchAll(itemsPerPage)}
-                        content={`${prettierString(priority)} per page`}
-                        entriesPerPage={
-                            props.files.itemsPerPage
-                        }
-                    />
-                )}
-            />
-        </Box>
-    ) : null;
-    if (priority === "files") {
-        main = (
-            <>
-                <Hide xxl xl lg>
-                    <DetailedFileSearch cantHide />
-                    {entriesPerPage}
-                </Hide>
-                <EmbeddedFileTable
-                    disableNavigationButtons
-                    onPageChanged={page => props.searchFiles(
-                        fileSearchBody(props.fileSearch, props.search, props.files.itemsPerPage, page)
-                    )}
-                    page={files ?? emptyPage}
-                    onReloadRequested={refreshFiles}
-                    includeVirtualFolders={false}
-                />
-            </>
-        );
-    } else if (priority === "applications") {
+    const entriesPerPage =  null;
+    if (priority === "applications") {
         main = <>
             <Hide xxl xl lg>
                 <Applications.SearchWidget partOfResults />
@@ -147,74 +93,21 @@ function Search(props: SearchProps): JSX.Element {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
-    setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
-    clear: () => dispatch(SSActions.receiveFiles(emptyPage)),
-    searchFiles: async body => {
-        dispatch(SSActions.setFilesLoading(true));
-        dispatch(await SSActions.searchFiles(body));
-        dispatch(setFilename(body.fileName || ""));
-    },
-    setFilesPage: page => dispatch(SSActions.receiveFiles(page)),
+    clear: () => {},
     setSearch: search => dispatch(SSActions.setSearch(search)),
     setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
-    toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden()),
+    toggleAdvancedSearch: () => {},
     setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
 });
 
 const mapStateToProps = ({
     simpleSearch,
-    detailedFileSearch,
 }: ReduxObject): SimpleSearchStateProps => ({
     ...simpleSearch,
-    fileSearch: detailedFileSearch,
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Search);
-
-export function fileSearchBody(
-    fileSearch: DetailedFileSearchReduxState,
-    fileName: string,
-    itemsPerPage: number,
-    page: number
-): AdvancedSearchRequest {
-    const fileTypes: [FileType?, FileType?] = [];
-    if (fileSearch.allowFiles) fileTypes.push("FILE");
-    if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
-    const modifiedAt = {
-        after: fileSearch.modifiedAfter?.valueOf(),
-        before: fileSearch.modifiedBefore?.valueOf(),
-    };
-
-    return {
-        fileName,
-        extensions: [...fileSearch.extensions],
-        fileTypes,
-        modifiedAt: typeof modifiedAt.after === "number" ||
-            typeof modifiedAt.before === "number" ? modifiedAt : undefined,
-        includeShares: fileSearch.includeShares,
-        itemsPerPage,
-        page
-    };
-}
-
-/*
-export function applicationSearchBody(
-    body: DetailedApplicationSearchReduxState,
-    appName: string,
-    itemsPerPage: number,
-    page: number
-): AppSearchRequest {
-    const {tags, showAllVersions} = body;
-    return {
-        query: appName,
-        tags: tags.size > 0 ? [...tags] : undefined,
-        showAllVersions,
-        itemsPerPage,
-        page
-    };
-}
- */
 
 function query(props: RouterLocationProps): string {
     return queryFromProps(props);

@@ -1,6 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage, emptyPageV2} from "DefaultObjects";
-import {File} from "Files";
 import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -17,13 +16,11 @@ import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
 import {EllipsedText} from "ui-components/Text";
-import {fileTablePage, getFilenameFromPath, getParentPath, isDirectory, sizeToString} from "Utilities/FileUtilities";
-import {FileIcon} from "UtilityComponents";
+import {sizeToString} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
 import {IconName} from "ui-components/Icon";
-import {listFavorites, useFavoriteStatus} from "Files/favorite";
 import {APICallState, useCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {GridCardGroup} from "ui-components/Grid";
@@ -69,7 +66,19 @@ export const DashboardCard: React.FunctionComponent<{
     width?: string,
     minWidth?: string,
     onClick?: () => void;
-}> = ({title, subtitle, onClick, color, isLoading = false, icon = undefined, children, height = "auto", minHeight, width = "100%", minWidth}) => (
+}> = ({
+          title,
+          subtitle,
+          onClick,
+          color,
+          isLoading = false,
+          icon = undefined,
+          children,
+          height = "auto",
+          minHeight,
+          width = "100%",
+          minWidth
+      }) => (
     <Card
         onClick={onClick}
         overflow="hidden"
@@ -81,8 +90,8 @@ export const DashboardCard: React.FunctionComponent<{
         borderRadius={6}
         minHeight={minHeight}
     >
-        <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
-        <Box px={3} py={1} height={"calc(100% - 5px)"} >
+        <Box style={{borderTop: `5px solid var(--${color}, #f00)`}}/>
+        <Box px={3} py={1} height={"calc(100% - 5px)"}>
             <Flex alignItems="center">
                 {icon !== undefined ? (
                     <Icon
@@ -94,21 +103,15 @@ export const DashboardCard: React.FunctionComponent<{
                     />
                 ) : null}
                 {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
-                <Box flexGrow={1} />
+                <Box flexGrow={1}/>
                 {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
             </Flex>
-            {!isLoading ? children : <Spinner />}
+            {!isLoading ? children : <Spinner/>}
         </Box>
     </Card>
 );
 
-function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
-    const favorites = useFavoriteStatus();
-    const [favoritePage, setFavoriteParams] = useCloudAPI<Page<File>>(
-        {noop: true},
-        emptyPage
-    );
-
+function Dashboard(props: DashboardProps & { history: History }): JSX.Element {
     const projectNames = getProjectNames(useProjectStatus());
 
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -151,7 +154,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             path: Client.activeHomeFolder,
             includeUsage: true
         }));
-        setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
         fetchProducts(UCloud.accounting.products.browse({
             itemsPerPage: 250,
             filterUsable: true,
@@ -170,11 +172,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         fetchJobs(UCloud.compute.jobs.browse({itemsPerPage: 10, includeApplication: true}));
     }
 
-    const favoriteOrUnfavorite = async (file: File): Promise<void> => {
-        await favorites.toggle(file.path);
-        setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
-    };
-
     const {
         notifications,
     } = props;
@@ -184,15 +181,10 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     const main = (
         <GridCardGroup minmax={435} gridGap={16}>
-            <DashboardNews news={news.data.items} loading={news.loading} />
-            <DashboardFavoriteFiles
-                error={favoritePage.error?.why}
-                files={favoritePage.data.items}
-                isLoading={favoritePage.loading}
-                favorite={favoriteOrUnfavorite}
-            />
+            <DashboardNews news={news.data.items} loading={news.loading}/>
+            <DashboardFavoriteFiles/>
 
-            <DashboardAnalyses runs={jobs} />
+            <DashboardAnalyses runs={jobs}/>
 
             <DashboardNotifications
                 onNotificationAction={onNotificationAction}
@@ -205,41 +197,39 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 quota={quota.data}
                 loading={products.loading || quota.loading}
             />
-            <DashboardProjectUsage />
-            <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
+            <DashboardProjectUsage/>
+            <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps}/>
         </GridCardGroup>
     );
 
-    return (<MainContainer main={main} />);
+    return (<MainContainer main={main}/>);
 }
 
-const DashboardFavoriteFiles = ({files, isLoading, favorite, error}: {
-    files: File[];
-    isLoading: boolean;
-    favorite: (file: File) => void;
-    error?: string
-}): JSX.Element => (
+const DashboardFavoriteFiles: React.FunctionComponent = () => (
+    null
+    /*
+    TODO
     <DashboardCard
-        title={<Link to={fileTablePage(Client.favoritesFolder)}><Heading.h3>Favorite Files</Heading.h3></Link>}
+        title={<Link to={"/files/"}><Heading.h3>Favorite Files</Heading.h3></Link>}
         color="blue"
-        isLoading={isLoading}
+        isLoading={false}
         icon={"starFilled"}
     >
         {files.length || error ? null : (
             <NoResultsCardBody title="No favorite files">
                 <Text>
-                    Click the <Icon name="starEmpty" /> next to one of your files to mark it as a favorite.
+                    Click the <Icon name="starEmpty"/> next to one of your files to mark it as a favorite.
                     <Link to={fileTablePage(Client.activeHomeFolder)}>
                         <Button fullWidth mt={16}>Explore files</Button>
                     </Link>
                 </Text>
             </NoResultsCardBody>
         )}
-        <Error error={error} />
+        <Error error={error}/>
         <List>
             {files.slice(0, 7).map(file => (
                 <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
-                    <ListFileContent file={file} pixelsWide={200} />
+                    <ListFileContent file={file} pixelsWide={200}/>
                     <Icon
                         ml="auto"
                         size="1em"
@@ -252,24 +242,10 @@ const DashboardFavoriteFiles = ({files, isLoading, favorite, error}: {
             ))}
         </List>
     </DashboardCard>
+     */
 );
 
-const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): JSX.Element => {
-    const iconType = UF.iconFromFilePath(file.path, file.fileType);
-    const projects = getProjectNames(useProjectStatus());
-    return (
-        <Flex alignItems="center">
-            <FileIcon fileIcon={iconType} />
-            <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
-                <EllipsedText fontSize={2} width={pixelsWide}>
-                    {getFilenameFromPath(file.path, projects)}
-                </EllipsedText>
-            </Link>
-        </Flex>
-    );
-};
-
-const DashboardAnalyses: React.FunctionComponent<{runs: APICallState<PageV2<UCloud.compute.Job>>}> = ({runs}) => (
+const DashboardAnalyses: React.FunctionComponent<{ runs: APICallState<PageV2<UCloud.compute.Job>> }> = ({runs}) => (
     <DashboardCard
         title={<Link to={"/applications/results"}><Heading.h3>Recent Runs</Heading.h3></Link>}
         color="purple"
@@ -287,7 +263,7 @@ const DashboardAnalyses: React.FunctionComponent<{runs: APICallState<PageV2<UClo
                 </Text>
             </NoResultsCardBody>
         )}
-        <Error error={runs.error?.why} />
+        <Error error={runs.error?.why}/>
         <List>
             {runs.data.items.slice(0, 7).map((run: UCloud.compute.Job, index: number) => (
                 <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
@@ -303,7 +279,7 @@ const DashboardAnalyses: React.FunctionComponent<{runs: APICallState<PageV2<UClo
                             {jobTitle(run)} ({jobAppTitle(run)})
                         </EllipsedText>
                     </Link>
-                    <Box ml="auto" />
+                    <Box ml="auto"/>
                     <Text fontSize={1} color="grey">
                         {formatDistanceToNow(
                             new Date(
@@ -355,7 +331,7 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
         <List>
             {props.notifications.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
-                    <NotificationEntry notification={n} onAction={props.onNotificationAction} />
+                    <NotificationEntry notification={n} onAction={props.onNotificationAction}/>
                 </Flex>
             ))}
         </List>
@@ -387,7 +363,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props => (
+export const NoResultsCardBody: React.FunctionComponent<{ title: string }> = props => (
     <Flex
         alignItems="center"
         justifyContent="center"
@@ -426,35 +402,36 @@ function DashboardProjectUsage(): JSX.Element | null {
 
     return (
         <DashboardCard title={<Link to={"/project/usage"}><Heading.h3>Usage</Heading.h3></Link>}
-            icon="hourglass"
-            color="yellow"
-            isLoading={false}
+                       icon="hourglass"
+                       color="yellow"
+                       isLoading={false}
         >
             <Text color="darkGray" fontSize={1}>Past 30 days</Text>
             <Table>
                 <tbody>
-                    <TableRow>
-                        <TableCell>Storage</TableCell>
-                        <TableCell
-                            textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableCell>Compute</TableCell>
-                        <TableCell
-                            textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
-                    </TableRow>
+                <TableRow>
+                    <TableCell>Storage</TableCell>
+                    <TableCell
+                        textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
+                </TableRow>
+                <TableRow>
+                    <TableCell>Compute</TableCell>
+                    <TableCell
+                        textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
+                </TableRow>
                 </tbody>
             </Table>
         </DashboardCard>
     );
 }
+
 function DashboardResources({products, loading, quota}: {
     products: Product[];
     quota: RetrieveQuotaResponse,
     loading: boolean
 }): JSX.Element | null {
     const productsByCategory = groupBy(products, it => `${it.category.id}-${it.category.provider}`);
-    const wallets: {category: string, provider: string, balance: number, isFreeWithBalanceCheck: boolean}[] = [];
+    const wallets: { category: string, provider: string, balance: number, isFreeWithBalanceCheck: boolean }[] = [];
     Object.values(productsByCategory).forEach(group => {
         if (group.length === 0) return;
         const category = group[0].category.id;
@@ -478,51 +455,51 @@ function DashboardResources({products, loading, quota}: {
             icon={"grant"}
         >
             {products.length === 0 ? (
-                <NoResultsCardBody title={"No available resources"}>
-                    <Text>
-                        Apply for resources to use storage and compute on UCloud.
+                    <NoResultsCardBody title={"No available resources"}>
+                        <Text>
+                            Apply for resources to use storage and compute on UCloud.
                             {applyLinkButton}
-                    </Text>
-                </NoResultsCardBody>
-            ) :
+                        </Text>
+                    </NoResultsCardBody>
+                ) :
                 <>
                     {/* height is 100% - height of Heading 36px  */}
                     <Flex flexDirection="column" height={"calc(100% - 36px)"}>
                         <Box mx="8px" my="5px">
                             <Table>
                                 <tbody>
-                                    {wallets.slice(0, 7).map((n, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell>{n.provider} / {n.category}</TableCell>
-                                            <TableCell textAlign={"right"}>
-                                                {!n.isFreeWithBalanceCheck ? null :
-                                                    n.balance > 0 ? <Icon name={"check"} color={"green"} /> : null
-                                                }
-                                                {n.isFreeWithBalanceCheck ? null :
-                                                    <Balance
-                                                        amount={n.balance}
-                                                        productCategory={{id: n.category, provider: n.provider}}
-                                                    />
-                                                }
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    <TableRow>
-                                        {/* This is hardcoded for now (pending issue #1246) */}
-                                        <TableCell>ucloud / u1-cephfs (Quota)</TableCell>
+                                {wallets.slice(0, 7).map((n, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell>{n.provider} / {n.category}</TableCell>
                                         <TableCell textAlign={"right"}>
-                                            {sizeToString(quota.quotaUsed ?? 0)}
-                                            {" "}of{" "}
-                                            {sizeToString(quota.quotaInBytes)}
-                                            {" "}({(100 * (quota.quotaInBytes !== 0 ?
-                                                ((quota.quotaUsed ?? 0) / quota.quotaInBytes) : 1
-                                            )).toFixed(2)}%)
+                                            {!n.isFreeWithBalanceCheck ? null :
+                                                n.balance > 0 ? <Icon name={"check"} color={"green"}/> : null
+                                            }
+                                            {n.isFreeWithBalanceCheck ? null :
+                                                <Balance
+                                                    amount={n.balance}
+                                                    productCategory={{id: n.category, provider: n.provider}}
+                                                />
+                                            }
                                         </TableCell>
                                     </TableRow>
+                                ))}
+                                <TableRow>
+                                    {/* This is hardcoded for now (pending issue #1246) */}
+                                    <TableCell>ucloud / u1-cephfs (Quota)</TableCell>
+                                    <TableCell textAlign={"right"}>
+                                        {sizeToString(quota.quotaUsed ?? 0)}
+                                        {" "}of{" "}
+                                        {sizeToString(quota.quotaInBytes)}
+                                        {" "}({(100 * (quota.quotaInBytes !== 0 ?
+                                            ((quota.quotaUsed ?? 0) / quota.quotaInBytes) : 1
+                                    )).toFixed(2)}%)
+                                    </TableCell>
+                                </TableRow>
                                 </tbody>
                             </Table>
                         </Box>
-                        <Box flexGrow={1} />
+                        <Box flexGrow={1}/>
                         {applyLinkButton}
                     </Flex>
                 </>
@@ -540,10 +517,10 @@ const DashboardGrantApplications: React.FunctionComponent<{
     const anyOutgoing = outgoingApps.data.items.length > 0;
 
     const title = (none ? <Link to={"/project/grants/outgoing"}><Heading.h3>Grant Applications</Heading.h3></Link>
-        : both ? <Heading.h3>Grant Applications</Heading.h3>
-            : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
-                <Heading.h3>Grant Applications</Heading.h3>
-            </Link>
+            : both ? <Heading.h3>Grant Applications</Heading.h3>
+                : <Link to={`/project/grants/${anyOutgoing ? "outgoing" : "ingoing"}`}>
+                    <Heading.h3>Grant Applications</Heading.h3>
+                </Link>
     );
 
     return <DashboardCard
@@ -554,14 +531,14 @@ const DashboardGrantApplications: React.FunctionComponent<{
         icon="mail"
     >
         {ingoingApps.error !== undefined ? null : (
-            <Error error={ingoingApps.error} />
+            <Error error={ingoingApps.error}/>
         )}
 
         {outgoingApps.error !== undefined ? null : (
-            <Error error={outgoingApps.error} />
+            <Error error={outgoingApps.error}/>
         )}
         {ingoingApps.data.items.length ? <Heading.h5 color="gray" my="4px">Ingoing</Heading.h5> : null}
-        {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim />)}
+        {ingoingApps.error ? null : (<GrantApplicationList applications={ingoingApps.data.items.slice(0, 5)} slim/>)}
 
         {both ? <Heading.h5 color="gray" my="4px">Outgoing</Heading.h5> : null}
         {outgoingApps.error ? null : (
@@ -577,13 +554,13 @@ const DashboardGrantApplications: React.FunctionComponent<{
                         </Text>
                     </>
                 )}
-                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
+                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim/>
             </>
         )}
     </DashboardCard>;
 };
 
-function DashboardNews({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
+function DashboardNews({news, loading}: { news: NewsPost[]; loading: boolean }): JSX.Element | null {
     return (
         <DashboardCard
             title={<Link to="/news/list/"><Heading.h3>News</Heading.h3></Link>}

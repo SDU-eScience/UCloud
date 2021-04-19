@@ -15,18 +15,12 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import Flex from "ui-components/Flex";
 import IndeterminateProgressBar from "ui-components/IndeterminateProgress";
 import ProgressBar from "ui-components/Progress";
-import {Upload} from "Uploader";
-import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
-import {calculateUploadSpeed} from "Uploader/Uploader";
 import {sizeToHumanReadableWithUnit} from "Utilities/FileUtilities";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 
 interface BackgroundTaskProps {
-    activeUploads: number;
-    uploads: Upload[];
-    showUploader: () => void;
     tasks?: Record<string, TaskUpdate>;
     onTaskUpdate: (update: TaskUpdate) => void;
     loadInitialTasks: () => void;
@@ -62,53 +56,7 @@ const BackgroundTasks = (props: BackgroundTaskProps): JSX.Element | null => {
         setTaskInFocus(null);
     }, []);
 
-    const [uploadInterval, setUploadInterval] = React.useState(-1);
-    const [uploadTask, setUploadTask] = React.useState<TaskComponentProps>(calculateUploadTask());
-
-    useEffect(() => {
-        if (props.activeUploads > 0 && uploadInterval === -1) {
-            setUploadInterval(setInterval(() => setUploadTask(calculateUploadTask()), 500));
-        } else if (props.activeUploads === 0 && uploadInterval !== -1) {
-            clearInterval(uploadInterval);
-            setUploadInterval(-1);
-        }
-    }, [props.activeUploads]);
-
-    function calculateUploadTask(): TaskComponentProps {
-        let speedSum = 0;
-        let uploadedSize = 0;
-        let targetUploadSize = 0;
-
-        props.uploads.forEach(upload => {
-            if (upload.isUploading) {
-                speedSum += calculateUploadSpeed(upload);
-                targetUploadSize += upload.uploadSize;
-                if (upload.uploadEvents.length > 0) {
-                    uploadedSize += upload.uploadEvents[upload.uploadEvents.length - 1].progressInBytes;
-                }
-            }
-        });
-
-        const humanReadable = sizeToHumanReadableWithUnit(speedSum);
-
-        return {
-            title: "File uploads",
-            progress: {
-                title: "Bytes uploaded",
-                maximum: targetUploadSize,
-                current: uploadedSize
-            },
-            jobId: "upload-task",
-            speed: {
-                title: "Transfer speed",
-                speed: humanReadable.size,
-                unit: humanReadable.unit + "/s",
-                asText: `${(humanReadable.size).toFixed(2)} ${humanReadable.unit}/s`
-            }
-        };
-    }
-
-    if (props.activeUploads <= 0 && (props.tasks === undefined || (Object.keys(props.tasks).length === 0))) {
+    if ((props.tasks === undefined || (Object.keys(props.tasks).length === 0))) {
         return null;
     }
 
@@ -121,7 +69,6 @@ const BackgroundTasks = (props: BackgroundTaskProps): JSX.Element | null => {
                 top="37px"
                 trigger={<TasksIcon />}
             >
-                {props.activeUploads <= 0 ? null : <TaskComponent onClick={props.showUploader} {...uploadTask} />}
                 {!props.tasks ? null :
                     Object.values(props.tasks).map(update => (
                         <TaskComponent
@@ -211,14 +158,10 @@ const TasksIconBase = styled(Icon)`
 `;
 
 const mapStateToProps = (state: ReduxObject) => ({
-    uploads: state.uploader.uploads,
-    activeUploads: state.uploader.uploads.filter(it => it.uploadXHR &&
-        it.uploadXHR.readyState > XMLHttpRequest.UNSENT && it.uploadXHR.readyState < XMLHttpRequest.DONE).length,
     tasks: state.tasks
 });
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: () => dispatch(setUploaderVisible(true, Client.activeHomeFolder)),
     onTaskUpdate: (update: TaskUpdate) => dispatch(taskUpdateAction(update)),
     loadInitialTasks: async () => {
         try {

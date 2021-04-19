@@ -3,8 +3,6 @@ import * as UCloud from "UCloud"
 import {Box, Button, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import Link from "ui-components/Link";
-import {fileTablePage} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
 import BaseLink from "ui-components/BaseLink";
 import {Widget} from "Applications/Jobs/Widgets";
 import {compute} from "UCloud";
@@ -36,7 +34,7 @@ export const FolderResource: React.FunctionComponent<{
                     <>
                         If you need to use your {" "}
                         <Link
-                            to={fileTablePage(Client.homeFolder)}
+                            to={"/files/"}
                             target="_blank"
                         >
                             files

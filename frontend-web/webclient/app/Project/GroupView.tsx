@@ -1,10 +1,9 @@
 import * as React from "react";
-import Spinner from "LoadingIcon/LoadingIcon";
 import {Text, Link, Truncate, Flex, Button, Input, Box, Icon} from "ui-components";
 import * as Pagination from "Pagination";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useCloudCommand} from "Authentication/DataHook";
 import {
-    listGroupMembersRequest, listRepositoryFiles,
+    listGroupMembersRequest,
     removeGroupMemberRequest,
     updateGroupName,
 } from "Project";
@@ -14,12 +13,6 @@ import {useProjectManagementStatus} from "Project/index";
 import {MembersList} from "Project/MembersList";
 import * as Heading from "ui-components/Heading";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {File} from "Files";
-import {emptyPage} from "DefaultObjects";
-import {useEffect} from "react";
-import {Client} from "Authentication/HttpClientInstance";
-import {fileTablePage} from "Utilities/FileUtilities";
-import {EmbeddedFileTable} from "Files/FileTable";
 
 const GroupView: React.FunctionComponent = () => {
     const {
@@ -29,7 +22,7 @@ const GroupView: React.FunctionComponent = () => {
     const activeGroup = groupMembers;
     const renameRef = React.useRef<HTMLInputElement>(null);
     const fetchActiveGroup = fetchGroupMembers;
-    const [, runCommand] = useAsyncCommand();
+    const [, runCommand] = useCloudCommand();
     const [renamingGroup, setRenamingGroup] = React.useState<boolean>(false);
 
     async function renameGroup(): Promise<void> {
@@ -167,6 +160,8 @@ const GroupView: React.FunctionComponent = () => {
 
 const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: string}> = props => {
     const {allowManagement} = useProjectManagementStatus({isRootComponent: false});
+    /*
+    TODO
     const [repoFiles, fetchRepoFiles, repoParams] = useCloudAPI<Page<File>>(
         {noop: true},
         emptyPage
@@ -190,9 +185,12 @@ const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: str
             continue outer;
         }
     }
+     */
 
     return <Box mt={32}>
         {!allowManagement ? null : <Heading.h4>File Permissions</Heading.h4>}
+        {/*
+        TODO
         {repoFiles.loading && allowManagement ? <Spinner /> : null}
         {reposWithPermissions.length > 0 || repoFiles.loading || repoParams.noop || !allowManagement ? null : (
             <>
@@ -211,7 +209,7 @@ const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: str
                     </li>
                 </ul>
 
-                <Link to={fileTablePage(Client.activeHomeFolder)}>
+                <Link to={"/files/"}>
                     <Button fullWidth>Start assigning permissions</Button>
                 </Link>
             </>
@@ -232,6 +230,7 @@ const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: str
                 />
             </>
         )}
+        */}
     </Box>;
 };
 

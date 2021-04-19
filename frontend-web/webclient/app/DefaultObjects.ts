@@ -1,7 +1,6 @@
 import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
-import {DetailedFileSearchReduxState} from "Files";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
@@ -9,7 +8,6 @@ import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
 import {SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
-import {Upload} from "Uploader";
 import {Upload as NewUpload} from "NewFiles/Upload";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
@@ -113,7 +111,6 @@ export type ActivityReduxObject = ComponentWithScroll<ActivityForFrontend, numbe
 export type HeaderSearchType = "files" | "applications" | "projects";
 
 export interface UploaderReduxObject {
-    uploads: Upload[];
     visible: boolean;
     path: string;
     allowMultiple: boolean;
@@ -140,7 +137,6 @@ export interface HookStore {
     uploads?: NewUpload[];
     uploadPath?: string;
 
-    fileFavoriteCache?: Record<string, boolean>;
     projectCache?: ProjectCache;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
     projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
@@ -157,15 +153,12 @@ export interface HookStore {
 interface LegacyReduxObject {
     hookStore: HookStore;
     dashboard: DashboardStateProps;
-    uploader: UploaderReduxObject;
     status: StatusReduxObject;
     notifications: NotificationsReduxObject;
     header: HeaderSearchReduxObject;
     sidebar: SidebarReduxObject;
     activity: ActivityReduxObject;
     simpleSearch: SimpleSearchStateProps;
-    detailedFileSearch: DetailedFileSearchReduxState;
-    fileInfo: FileInfoReduxObject;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
@@ -211,11 +204,8 @@ export function initObject(): ReduxObject {
         header: initHeader(),
         notifications: initNotifications(),
         sidebar: initSidebar(),
-        uploader: initUploads(),
         activity: initActivity(),
         simpleSearch: initSimpleSearch(),
-        detailedFileSearch: initFilesDetailedSearch(),
-        fileInfo: initFileInfo(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         responsive: undefined,
@@ -226,45 +216,13 @@ export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
-    files: emptyPage,
-    filesLoading: false,
     errors: [],
     search: "",
-    fileSearch: initFilesDetailedSearch()
 });
 
 export const initSidebar = (): SidebarReduxObject => ({
     pp: false,
     kcCount: 0,
     options: []
-});
-
-export const initUploads = (): UploaderReduxObject => ({
-    path: "",
-    uploads: [],
-    visible: false,
-    allowMultiple: false,
-    error: undefined,
-    onFilesUploaded: () => null,
-    loading: false
-});
-
-export const initFileInfo = (): FileInfoReduxObject => ({
-    activity: emptyPage,
-    loading: false
-});
-
-export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
-    hidden: true,
-    allowFolders: true,
-    allowFiles: true,
-    extensions: new Set(),
-    tags: new Set(),
-    sensitivities: new Set(),
-    modifiedBefore: undefined,
-    modifiedAfter: undefined,
-    includeShares: false,
-    error: undefined,
-    loading: false
 });
 

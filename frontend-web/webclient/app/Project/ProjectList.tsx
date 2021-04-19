@@ -37,7 +37,6 @@ import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Toggle} from "ui-components/Toggle";
 import {Spacer} from "ui-components/Spacer";
-import {ShareCardBase} from "Shares/List";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {useAvatars} from "AvataaarLib/hook";
@@ -45,6 +44,7 @@ import {dialogStore} from "Dialog/DialogStore";
 import {ArchiveProject, LeaveProject} from "./ProjectSettings";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "./cache";
+import {ShareCardBase} from "NewFiles/Shares";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {

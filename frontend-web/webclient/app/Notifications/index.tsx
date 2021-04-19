@@ -1,4 +1,4 @@
-import {Client, WSFactory} from "Authentication/HttpClientInstance";
+import {WSFactory} from "Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
 import {NotificationsReduxObject} from "DefaultObjects";
 import * as React from "react";
@@ -13,8 +13,6 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
 import theme, {Theme, ThemeColor} from "ui-components/theme";
-import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
-import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import * as UF from "UtilityFunctions";
 import {
     fetchNotifications,
@@ -184,7 +182,7 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
                 </TextSpan>
-                <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client, [])}</TextSpan>
+                <TextSpan fontSize={1}>{notification.message}</TextSpan>
             </Flex>
         </NotificationWrapper>
     );
@@ -238,7 +236,6 @@ interface NotificationsOperations {
     receiveNotification: (notification: Notification) => void;
     fetchNotifications: () => void;
     notificationRead: (id: number) => void;
-    showUploader: () => void;
     readAll: () => void;
     setActiveProject: (projectId?: string) => void;
 }
@@ -247,7 +244,6 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
     receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
-    showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
     readAll: async () => dispatch(await readAllNotifications()),
     setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId)
 });

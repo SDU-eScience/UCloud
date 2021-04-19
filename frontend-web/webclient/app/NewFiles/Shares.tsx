@@ -403,7 +403,7 @@ const GroupedShareCard: React.FunctionComponent<{
     />;
 };
 
-const ShareCardBase: React.FunctionComponent<{
+export const ShareCardBase: React.FunctionComponent<{
     title?: JSX.Element | string | null;
     body?: JSX.Element | null;
     bottom?: JSX.Element | null;

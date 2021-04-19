@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import {color, ColorProps, space, SpaceProps} from "styled-system";
-import {extensionType, FtIconProps as UFFtIconProps} from "UtilityFunctions";
+import {extensionType} from "UtilityFunctions";
 import Icon from "./Icon";
 import theme from "./theme";
 import {Cursor} from "./Types";
@@ -209,8 +209,14 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element => (
     </svg>
 );
 
+export interface FileIconProps {
+    type: string;
+    ext?: string;
+    name?: string;
+}
+
 interface FtIconBaseProps {
-    fileIcon: UFFtIconProps;
+    fileIcon: FileIconProps;
     size?: string | number;
     iconHint?: FileIconHint;
 }

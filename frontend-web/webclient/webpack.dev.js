@@ -32,14 +32,6 @@ module.exports = env => merge(commonConfig, {
         // Copies individual files or entire directories to the build directory
         new webpack.DefinePlugin({
             DEVELOPMENT_ENV: JSON.stringify(true)
-        }),
-        new CopyWebpackPlugin({
-            patterns: [{
-                from: "mock-api",
-                to: "mock-api",
-                context: path.join(__dirname, "app")
-            }],
-            options: {}
         })
     ],
 

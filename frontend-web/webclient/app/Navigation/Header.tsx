@@ -2,9 +2,6 @@ import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import {HeaderSearchType, KeyCode} from "DefaultObjects";
-import {AdvancedSearchRequest, DetailedFileSearchReduxState, File} from "Files";
-import DetailedFileSearch from "Files/DetailedFileSearch";
-import {setFilename} from "Files/Redux/DetailedFileSearchActions";
 import {HeaderStateToProps} from "Navigation";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
 import Notification from "Notifications";
@@ -14,7 +11,6 @@ import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
 import * as SearchActions from "Search/Redux/SearchActions";
-import {fileSearchBody} from "Search/Search";
 import styled from "styled-components";
 import * as ui from "ui-components";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
@@ -288,14 +284,11 @@ const SearchInput = styled(ui.Flex)`
 
 interface SearchStateProps {
     prioritizedSearch: HeaderSearchType;
-    fileSearch: DetailedFileSearchReduxState;
-    files: Page<File>;
     search: string;
 }
 
 interface SearchOperations {
     setSearchType: (st: HeaderSearchType) => void;
-    searchFiles: (body: AdvancedSearchRequest) => void;
     setSearch: (search: string) => void;
 }
 
@@ -362,7 +355,6 @@ const _Search = (props: SearchProps): JSX.Element => {
                         ))}
                         <ui.Box mr="auto" />
                     </ui.SelectableTextWrapper>
-                    {prioritizedSearch !== "files" ? null : <DetailedFileSearch cantHide />}
                     {prioritizedSearch !== "applications" ? null : <Applications.SearchWidget />}
                 </ClickableDropdown>
             </SearchInput>
@@ -370,36 +362,20 @@ const _Search = (props: SearchProps): JSX.Element => {
     );
 
     function fetchAll(itemsPerPage?: number): void {
-        props.searchFiles({
-            ...fileSearchBody(
-                props.fileSearch,
-                props.search,
-                itemsPerPage ?? props.files.itemsPerPage,
-                props.files.pageNumber
-            ), fileName: props.search
-        });
         history.push(searchPage(prioritizedSearch, props.search));
     }
 };
 
 const mapSearchStateToProps = ({
     header,
-    detailedFileSearch,
     simpleSearch
 }: ReduxObject): SearchStateProps => ({
     prioritizedSearch: header.prioritizedSearch,
-    fileSearch: detailedFileSearch,
-    files: simpleSearch.files,
     search: simpleSearch.search,
 });
 
 const mapSearchDispatchToProps = (dispatch: Dispatch): SearchOperations => ({
     setSearchType: (st: HeaderSearchType) => dispatch(setPrioritizedSearch(st)),
-    searchFiles: async (body: AdvancedSearchRequest) => {
-        dispatch(SearchActions.setFilesLoading(true));
-        dispatch(await SearchActions.searchFiles(body));
-        dispatch(setFilename(body.fileName || ""));
-    },
     setSearch: search => dispatch(SearchActions.setSearch(search))
 });
 
@@ -424,7 +400,6 @@ const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToP
 });
 
 const isAnyLoading = (rO: ReduxObject): boolean =>
-    rO.loading === true || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
-    || rO.activity.loading;
+    rO.loading === true || rO.notifications.loading || rO.activity.loading;
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(Header);

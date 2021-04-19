@@ -10,8 +10,8 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {addStandardDialog} from "UtilityComponents";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {RemoveButton} from "Files/FileInputSelector";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {ConfirmationButton} from "ui-components/ConfirmationAction";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
@@ -130,7 +130,11 @@ export function MembersList(props: Readonly<{
 
                     <Flex alignItems={"center"}>
                         {!props.onAddToGroup ? !allowManagement || member.role === ProjectRole.PI ? null :
-                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveMember(member.username)} /> :
+                            <ConfirmationButton
+                                icon={"close"}
+                                actionText={"Remove"}
+                                onAction={() => props.onRemoveMember(member.username)}
+                            /> :
                             <Button ml="8px" color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
                                 <Icon
                                     color="white"
