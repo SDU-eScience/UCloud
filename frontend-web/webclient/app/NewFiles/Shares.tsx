@@ -31,7 +31,7 @@ import {getFilenameFromPath} from "Utilities/FileUtilities";
 import {FilePermission} from "NewFiles/index";
 import Input from "../ui-components/Input";
 import Button from "../ui-components/Button";
-import {defaultErrorHandler, doNothing, extensionFromPath, preventDefault, useDidMount} from "UtilityFunctions";
+import {defaultErrorHandler, extensionFromPath, preventDefault, useDidMount} from "UtilityFunctions";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {getCssVar} from "Utilities/StyledComponentsUtilities";
@@ -56,7 +56,7 @@ const Tab: React.FunctionComponent<{ selected: boolean, onClick: () => void }> =
     </SelectableText>
 };
 
-const Shares: React.FunctionComponent = props => {
+const Shares: React.FunctionComponent = () => {
     const [scrollGeneration, setScrollGeneration] = useState(0);
     const [shares, fetchShares] = useCloudAPI<PageV2<Share> | null>({noop: true}, null);
     const projectId = useProjectId();
@@ -79,7 +79,7 @@ const Shares: React.FunctionComponent = props => {
         return Object.values(sharesByPath).map(it => (
             <GroupedShareCard key={it[0].path} path={it[0].path} sharedByMe={sharedByMe} shares={it} reload={reload}/>
         ));
-    }, []);
+    }, [sharedByMe, reload]);
 
     useEffect(() => {
         reload();
@@ -425,6 +425,23 @@ const ShareCardBase: React.FunctionComponent<{
     </Card>
 );
 
+function simplifyPermission(permissions: FilePermission[]): FilePermission | undefined {
+    if (permissions.indexOf("WRITE") !== -1) {
+        return "WRITE";
+    } else if (permissions.indexOf("READ") !== -1) {
+        return "READ";
+    } else {
+        return undefined;
+    }
+}
+
+function unsimplifyPermissions(permission?: FilePermission): FilePermission[] {
+    if (!permission) return [];
+    else if (permission === "WRITE") return ["READ", "WRITE"];
+    else if (permission === "READ") return ["READ"];
+    else return [];
+}
+
 const BorderedFlex = styled(Flex)`
   border-radius: 6px 6px 0 0;
 `;
@@ -442,10 +459,7 @@ const ShareRow: React.FunctionComponent<{
     const [commandLoading, invokeCommand] = useCloudCommand();
 
     const permissions = aclEntry?.permissions;
-    const simplePermission = !permissions ? undefined :
-        permissions.indexOf("WRITE") !== -1 ? "WRITE" :
-            permissions.indexOf("READ") !== -1 ? "READ" :
-                undefined;
+    const simplePermission = !permissions ? undefined : simplifyPermission(permissions);
 
     const accept = useCallback(async () => {
         if (commandLoading) return;
@@ -463,7 +477,6 @@ const ShareRow: React.FunctionComponent<{
         if (sharedByMe && aclEntry) {
             const acl = file.permissions?.others;
             if (acl == null) {
-                console.log(file);
                 snackbarStore.addFailure("Unable to revoke share. Try reloading the page.", false);
                 return;
             }
@@ -482,6 +495,34 @@ const ShareRow: React.FunctionComponent<{
             path: file.path,
             sharedWith: sharedByMe ? share?.sharedWith : undefined
         })));
+
+        reload();
+    }, [commandLoading, share, aclEntry, sharedByMe, file, reload]);
+
+    const updatePermission = useCallback(async (newPermission: FilePermission) => {
+        if (commandLoading) return;
+        if (sharedByMe && aclEntry) {
+            const acl = file.permissions?.others;
+            if (acl == null) {
+                snackbarStore.addFailure("Unable to update share. Try reloading the page.", false);
+                return;
+            }
+
+            const success = await invokeCommand(filesApi.updateAcl(bulkRequestOf({
+                path: file.path,
+                newAcl: acl.filter(it =>
+                    it.entity.type === "user" && it.entity.username !== aclEntry.entity["username"]
+                ).concat([{
+                    entity: {
+                        type: "user",
+                        username: aclEntry.entity["username"]
+                    },
+                    permissions: unsimplifyPermissions(newPermission)
+                }])
+            }))) != null;
+
+            if (!success) return;
+        }
 
         reload();
     }, [commandLoading, share, aclEntry, sharedByMe, file, reload]);
@@ -533,9 +574,8 @@ const ShareRow: React.FunctionComponent<{
             </Box>
         </> : null}
 
-        {(console.log(sharedWith, simplePermission), null)}
         {sharedByMe || (!simplePermission) || (!share) || (!sharedByMe && share.approved) ? <>
-            {simplePermission ? <FilePermissionTiles selected={simplePermission} onChange={doNothing}/> : null}
+            {simplePermission ? <FilePermissionTiles selected={simplePermission} onChange={updatePermission}/> : null}
             <ConfirmationButton
                 actionText={"Revoke"}
                 icon={"close"}
