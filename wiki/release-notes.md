@@ -7,6 +7,12 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 19-04-21
+Issue fix for trailing / in invocation
+```
+✅  Deployment(app-kubernetes, 0.21.12-1) (UP-TO-DATE)
+```
+
 
 ## 25-03-21
 
