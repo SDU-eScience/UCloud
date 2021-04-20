@@ -216,6 +216,10 @@ USERTOK=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/
     -H "Authorization: Bearer ${ADMINTOK}" \
     -d '[{"username": "'"${USERNAME}"'", "password": "'"${PASSWORD}"'", "role": "ADMIN", "email": "user@example.com"}]' | jq .[0].accessToken -r`
 
+ADMINTOK=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/auth/users/register' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '[{ "username":  "user1",  "password": "temppass", "role": "ADMIN", "email": "user1@example.com" }]' | jq .[0].accessToken -r`
+
 FIGLET_TOOL='
 ---
 tool: v1
@@ -287,11 +291,25 @@ projectId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:808
     -H "Authorization: Bearer ${ADMINTOK}" \
     -d '{ "title": "UCloud" , "principalInvestigator": "'"${USERNAME}"'" }' | jq .id -r`
 
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/invites' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${projectId}" \
+    -d '{ "projectId": "'"${projectId}"'", "usernames": ["user1"] }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/invites/accept' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "projectId": "'"${projectId}"'" }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/members/change-role' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${projectId}" \
+    -d '{ "projectId": "'"${projectId}"'", "member": "user1", "newRole": "ADMIN"}'
+
+
 providerId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/providers' \
     -H "Authorization: Bearer ${ADMINTOK}" \
     -H "Project: ${projectId}" \
-    -d '{ "items": [{ "id": "ucloud", "domain": "localhost", "https": false, "port": 8080 }],
-    "type": "bulk"}' | jq ".responses[0].id" -r`
+    -d '{ "items": [{ "id": "ucloud", "domain": "localhost", "https": false, "port": 8080 }], "type": "bulk"}' | jq .responses[0].id -r`
 
 provider=`curl -H 'Content-Type: application/json' "http://localhost:8080/api/providers/retrieve?id=${providerId}" \
     -H "Authorization: Bearer ${ADMINTOK}" \
@@ -306,17 +324,36 @@ app:
     providerRefreshToken: ${refreshToken}
     ucloudCertificate: ${publicKey}"
 
+mkdir -p $HOME/ucloud
 echo "$providerConfig" > $HOME/ucloud/$providerId-compute-config.yml
+
+curl -XDELETE -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/members' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${projectId}" \
+    -d '{ "projectId": "'"${projectId}"'", "member": "user1"}'
 
 aauProjectId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects' \
     -H "Authorization: Bearer ${ADMINTOK}" \
     -d '{ "title": "Aau" , "principalInvestigator": "'"${USERNAME}"'" }' | jq .id -r`
 
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/invites' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${aauProjectId}" \
+    -d '{ "projectId": "'"${aauProjectId}"'", "usernames": ["user1"] }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/invites/accept' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "projectId": "'"${aauProjectId}"'" }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/members/change-role' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${aauProjectId}" \
+    -d '{ "projectId": "'"${aauProjectId}"'", "member": "user1", "newRole": "ADMIN"}'
+
 aauProviderId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/providers' \
     -H "Authorization: Bearer ${ADMINTOK}" \
     -H "Project: ${aauProjectId}" \
-    -d '{ "items": [{ "id": "aau", "domain": "localhost", "https": false, "port": 8080 }],
-    "type": "bulk"}' | jq ".responses[0].id" -r`
+    -d '{ "items": [{ "id": "aau", "domain": "localhost", "https": false, "port": 8080 }], "type": "bulk"}' | jq ".responses[0].id" -r`
 
 aauProvider=`curl -H 'Content-Type: application/json' "http://localhost:8080/api/providers/retrieve?id=${aauProviderId}" \
     -H "Authorization: Bearer ${ADMINTOK}" \
@@ -332,6 +369,11 @@ app:
     ucloudCertificate: ${aauPublicKey}"
 
 echo "$aauProviderConfig" > $HOME/ucloud/ucloud-$aauProviderId-compute-config.yml
+
+curl -XDELETE -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/members' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${aauProjectId}" \
+    -d '{ "projectId": "'"${aauProjectId}"'", "member": "user1"}'
 
 curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/accounting/wallets/set-balance' \
     -H "Authorization: Bearer ${ADMINTOK}" \

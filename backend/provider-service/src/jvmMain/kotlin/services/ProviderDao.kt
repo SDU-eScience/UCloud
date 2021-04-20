@@ -240,7 +240,6 @@ class ProviderDao(
     ): Boolean {
         val project = owner.project ?: return false
         if (actor == Actor.System) return true
-        if (actor.username == owner.createdBy) return true
         val username = actor.safeUsername()
         if (projects.isAdminOfProject(project, actor)) return true
         for (entry in aclToVerifyAgainst) {
