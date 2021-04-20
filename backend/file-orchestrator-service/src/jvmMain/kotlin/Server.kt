@@ -24,12 +24,13 @@ class Server(override val micro: Micro) : CommonServer {
         val filesService = FilesService(providers, providerSupport, projectCache)
         val fileCollections = FileCollectionService(providers, providerSupport, projectCache)
         val shares = ShareService(db, serviceClient, micro.backgroundScope)
+        val metadataTemplates = MetadataTemplates(db, projectCache)
 
         configureControllers(
             FileMetadataController(),
             FileController(filesService),
             FileCollectionController(fileCollections),
-            FileMetadataTemplateController(),
+            FileMetadataTemplateController(metadataTemplates),
             ShareController(shares)
         )
 

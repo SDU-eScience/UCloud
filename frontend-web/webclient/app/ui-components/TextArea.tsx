@@ -7,7 +7,7 @@ export const TextArea = styled.textarea<{error?: boolean} & PaddingProps & Margi
     ${maxWidth}; ${width}; ${borders};
     border-radius: 5px;
     border: ${theme.borderWidth} solid var(--borderGray, #f00);
-    background-color: var(--white, #f00);
+    background-color: transparent;
     color: var(--black, #f00);
     padding: 5px;
     resize: none;

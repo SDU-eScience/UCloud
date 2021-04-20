@@ -12,6 +12,9 @@ const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
 const Files = React.lazy(() => import("Files/FileBrowser"));
 const FileCollectionProperties = React.lazy(() => import("Files/FileCollectionProperties"));
+const FileMetadataTemplatesBrowse = React.lazy(() => import("Files/Metadata/Templates/Browse"));
+const FileMetadataTemplatesCreate = React.lazy(() => import("Files/Metadata/Templates/Create"));
+const FileMetadataTemplatesProperties = React.lazy(() => import("Files/Metadata/Templates/Properties"));
 const Shares = React.lazy(() => import("Files/Shares"));
 const IngoingApplications = React.lazy(() => import("Project/Grant/IngoingApplications"));
 const JobBrowse = React.lazy(() => import("Applications/Jobs/Browse"));
@@ -93,6 +96,11 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/files" component={requireAuth(Files)} />
                     <Route exact path="/files/driveProperties" component={requireAuth(FileCollectionProperties)} />
+                    <Route exact path="/files/metadata/templates/" component={requireAuth(FileMetadataTemplatesBrowse)} />
+                    <Route exact path="/files/metadata/templates/create/"
+                           component={requireAuth(FileMetadataTemplatesCreate)} />
+                    <Route exact path="/files/metadata/templates/properties/"
+                           component={requireAuth(FileMetadataTemplatesProperties)} />
                     <Route exact path="/shares" component={requireAuth(Shares)} />
 
                     <Route exact path="/activity" component={requireAuth(Activity)} />

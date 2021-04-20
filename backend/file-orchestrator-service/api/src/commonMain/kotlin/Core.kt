@@ -14,9 +14,6 @@ import kotlinx.serialization.json.JsonObject
 @Serializable
 @UCloudApiDoc("A hint to clients about which icon should be used in user-interfaces when representing a `UFile`")
 enum class FileIconHint {
-    @UCloudApiDoc("A generic directory")
-    DIRECTORY_GENERIC,
-
     @UCloudApiDoc("A directory containing 'starred' items")
     DIRECTORY_STAR,
 
@@ -28,36 +25,6 @@ enum class FileIconHint {
 
     @UCloudApiDoc("A directory which contains items that are related to job results")
     DIRECTORY_JOBS,
-
-    @UCloudApiDoc("A generic file")
-    FILE_GENERIC,
-
-    @UCloudApiDoc("A file containing source code")
-    FILE_CODE,
-
-    @UCloudApiDoc("A file containing an image")
-    FILE_IMAGE,
-
-    @UCloudApiDoc("A file containing text")
-    FILE_TEXT,
-
-    @UCloudApiDoc("A file containing audio")
-    FILE_AUDIO,
-
-    @UCloudApiDoc("A file containing video")
-    FILE_VIDEO,
-
-    @UCloudApiDoc("A file containing an archive of files, for example `zip` and `.tar.gz`")
-    FILE_ARCHIVE,
-
-    @UCloudApiDoc("A file containing a document")
-    FILE_DOCUMENT,
-
-    @UCloudApiDoc("A file containing binary data")
-    FILE_BINARY,
-
-    @UCloudApiDoc("A file containing a PDF document")
-    FILE_PDF
 }
 
 @Serializable
@@ -316,7 +283,7 @@ data class FileMetadataDocument(
 ) : FileMetadataOrDeleted(), Resource<Nothing?> {
     @Contextual
     override val acl: Nothing? = null
-    override val billing = ResourceBilling.Free
+    override val billing: ResourceBilling.Free = ResourceBilling.Free
 
     @Serializable
     data class Spec(

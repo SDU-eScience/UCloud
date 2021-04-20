@@ -12,7 +12,7 @@ A `UFile` is a resource for storing, retrieving and organizing data in UCloud
 |----------|------|-------------|
 | `path` | `String` | A unique reference to a file |
 | `type` | `("FILE" or "DIRECTORY" or "SOFT_LINK" or "DANGLING_METADATA")` | Which type of file this is, see `FileType` for more information. |
-| `icon` | `("DIRECTORY_GENERIC" or "DIRECTORY_STAR" or "DIRECTORY_SHARES" or "DIRECTORY_TRASH" or "DIRECTORY_JOBS" or "FILE_GENERIC" or "FILE_CODE" or "FILE_IMAGE" or "FILE_TEXT" or "FILE_AUDIO" or "FILE_VIDEO" or "FILE_ARCHIVE" or "FILE_DOCUMENT" or "FILE_BINARY" or "FILE_PDF")` | A hint to clients about which icon to display next to this file. See `FileIconHint` for details. |
+| `icon` | `("DIRECTORY_STAR" or "DIRECTORY_SHARES" or "DIRECTORY_TRASH" or "DIRECTORY_JOBS")` | A hint to clients about which icon to display next to this file. See `FileIconHint` for details. |
 | `stats` | `Stats` | General system-level stats about the file. See `UFile.Stats` for details. |
 | `permissions` | `Permissions` | System-level permissions for this file. See `UFile.Permissions` for details. |
 | `metadata` | `Map<String, Array<FileMetadataOrDeleted>>` | User-defined metadata for this file. See `FileMetadataTemplate` for details. |
@@ -447,6 +447,7 @@ A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UF
 | `owner` | `SimpleResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
 | `acl` | `Array<ResourceAclEntry_enum_READ_WRITE)_ >` | An ACL for this `Resource` |
 | `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
+| `public` | `Boolean` | No documentation |
 | `billing` | `ResourceBilling` | No documentation |
 
 
@@ -461,6 +462,7 @@ A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UF
 <!--<editor-fold desc="Generated documentation">-->
 | Property | Type | Description |
 |----------|------|-------------|
+| `id` | `String` | The unique ID for this template |
 | `title` | `String` | The title of this template. It does not have to be unique. |
 | `version` | `String` | Version identifier for this version. It must be unique within a single template group. |
 | `schema` | `Map<String, Any>` | JSON-Schema for this document |
@@ -468,6 +470,8 @@ A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UF
 | `requireApproval` | `Boolean` | If `true` then a user with `ADMINISTRATOR` rights must approve all changes to metadata |
 | `description` | `String` | Description of this template. Markdown is supported. |
 | `changeLog` | `String` | A description of the change since last version. Markdown is supported. |
+| `namespaceType` | `("COLLABORATORS" or "PER_USER")` | Determines how this metadata template is namespaces |
+| `uiSchema` | `Map<String, Any>?` | No documentation |
 | `product` | `Any` | No documentation |
 
 
@@ -482,7 +486,7 @@ Describes the current state of the `Resource`
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `oldVersions` | `Array<Spec>` | No documentation |
+| `oldVersions` | `Array<String>` | No documentation |
 
 
 The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,

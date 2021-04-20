@@ -12,6 +12,8 @@ import {dateToString} from "Utilities/DateUtilities";
 import {prettierString, shortUUID} from "UtilityFunctions";
 import {TextSpan} from "ui-components/Text";
 import {creditFormatter} from "Project/ProjectUsage";
+import {Section} from "ui-components/Section";
+import Grid from "ui-components/Grid";
 
 interface ResourcePageProps<T extends ResourceDoc> {
     entityName: string;
@@ -44,63 +46,65 @@ export function ResourcePage<T extends ResourceDoc>(props: ResourcePageProps<T>)
     const filteredUpdates = props.entity.updates.filter((update) => !(update["state"] === null && !update.status));
     return <>
         {props.beforeStats}
-        <Box width={"500px"} margin={"0 auto"}>
-            {!(props.showId ?? true) ? null :
-                <Flex>
-                    <Heading.h4 flexGrow={1}>ID</Heading.h4>
-                    {shortUUID(props.entity.id)}
-                </Flex>
-            }
-
-            {!(props.showState ?? true) || !props.entity.status["state"] ? null :
-                <Flex>
-                    <Heading.h4 flexGrow={1}>State</Heading.h4>
-                    {prettierString(props.entity.status["state"])}
-                </Flex>
-            }
-
-            {props.stats?.map(stat =>
-                <React.Fragment key={stat.property?.toString() ?? stat.title ?? "unknown"}>
+        <Grid width={"500px"} margin={"0 auto"} gridGap={"32px"}>
+            <Section>
+                {!(props.showId ?? true) ? null :
                     <Flex>
-                        <Heading.h4 flexGrow={1}>{stat.title}</Heading.h4>
-                        {!(stat.inline ?? true) ? null :
-                            stat.render?.(props.entity) ?? (stat.property ? props.entity[stat.property] : null)}
+                        <Heading.h4 flexGrow={1}>ID</Heading.h4>
+                        {shortUUID(props.entity.id)}
                     </Flex>
-                    {(stat.inline ?? true) ? null :
-                        stat.render?.(props.entity) ?? (stat.property ? props.entity[stat.property] : null)}
-                </React.Fragment>
-            )}
+                }
 
-            {props.showProduct !== true ? null :
-                <Flex>
-                    <Heading.h4 flexGrow={1}>Product</Heading.h4>
-                    {props.entity.specification.product?.provider} / {props.entity.specification.product?.id}
-                </Flex>
-            }
+                {!(props.showState ?? true) || !props.entity.status["state"] ? null :
+                    <Flex>
+                        <Heading.h4 flexGrow={1}>State</Heading.h4>
+                        {prettierString(props.entity.status["state"])}
+                    </Flex>
+                }
 
-            {props.showBilling !== true ? null :
-                <Flex>
-                    <Heading.h4 flexGrow={1}>Balance charged</Heading.h4>
-                    {creditFormatter(props.entity.billing.creditsCharged)}
-                </Flex>
-            }
+                {props.stats?.map(stat =>
+                    <React.Fragment key={stat.property?.toString() ?? stat.title ?? "unknown"}>
+                        <Flex>
+                            <Heading.h4 flexGrow={1}>{stat.title}</Heading.h4>
+                            {!(stat.inline ?? true) ? null :
+                                stat.render?.(props.entity) ?? (stat.property ? props.entity[stat.property] : null)}
+                        </Flex>
+                        {(stat.inline ?? true) ? null :
+                            stat.render?.(props.entity) ?? (stat.property ? props.entity[stat.property] : null)}
+                    </React.Fragment>
+                )}
+
+                {props.showProduct !== true ? null :
+                    <Flex>
+                        <Heading.h4 flexGrow={1}>Product</Heading.h4>
+                        {props.entity.specification.product?.provider} / {props.entity.specification.product?.id}
+                    </Flex>
+                }
+
+                {props.showBilling !== true ? null :
+                    <Flex>
+                        <Heading.h4 flexGrow={1}>Balance charged</Heading.h4>
+                        {creditFormatter(props.entity.billing.creditsCharged)}
+                    </Flex>
+                }
+            </Section>
 
             {props.beforePermissions}
 
             {props.entity.owner.project === undefined ? null : (
-                <Box mt={"32px"}>
+                <Section>
                     <Heading.h4 mb={8}>Permissions</Heading.h4>
                     <ResourcePermissionEditor entityName={props.entityName} options={props.aclOptions}
                                               entity={props.entity} reload={props.reload}
                                               showMissingPermissionHelp={props.showMissingPermissionHelp}
                                               updateAclEndpoint={props.updateAclEndpoint}/>
-                </Box>
+                </Section>
             )}
 
             {props.beforeUpdates}
 
             {filteredUpdates.length === 0 ? null : <>
-                <Box mt={"32px"}>
+                <Section>
                     <Heading.h4>Updates</Heading.h4>
                     <Table>
                         <tbody>
@@ -117,10 +121,10 @@ export function ResourcePage<T extends ResourceDoc>(props: ResourcePageProps<T>)
                         })}
                         </tbody>
                     </Table>
-                </Box>
+                </Section>
             </>}
 
             {props.beforeEnd}
-        </Box>
+        </Grid>
     </>;
 }

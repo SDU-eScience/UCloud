@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Fri Apr 16 12:50:32 CEST 2021 */
+/* Generated at: Tue Apr 20 07:49:44 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -340,7 +340,7 @@ export interface UFile {
     /**
      * A hint to clients about which icon to display next to this  See `FileIconHint` for details.
      */
-    icon?: ("DIRECTORY_GENERIC" | "DIRECTORY_STAR" | "DIRECTORY_SHARES" | "DIRECTORY_TRASH" | "DIRECTORY_JOBS" | "FILE_GENERIC" | "FILE_CODE" | "FILE_IMAGE" | "FILE_TEXT" | "FILE_AUDIO" | "FILE_VIDEO" | "FILE_ARCHIVE" | "FILE_DOCUMENT" | "FILE_BINARY" | "FILE_PDF"),
+    icon?: ("DIRECTORY_STAR" | "DIRECTORY_SHARES" | "DIRECTORY_TRASH" | "DIRECTORY_JOBS"),
     /**
      * General system-level stats about the  See `UFile.Stats` for details.
      */
@@ -678,11 +678,12 @@ export interface FileMetadataTemplate {
     /**
      * An ACL for this `Resource`
      */
-    acl?: provider.ResourceAclEntry<("READ" | "WRITE")>[],
+    acl: provider.ResourceAclEntry<("READ" | "WRITE")>[],
     /**
      * Timestamp referencing when the request for creation was received by UCloud
      */
     createdAt: number /* int64 */,
+    public: boolean,
     billing: provider.ResourceBilling,
 }
 /**
@@ -736,6 +737,10 @@ export interface FileMetadataTemplatesBrowseRequest {
      * Items to skip ahead
      */
     itemsToSkip?: number /* int64 */,
+}
+export interface FileMetadataTemplatesRetrieveRequest {
+    id: string,
+    version?: string,
 }
 export interface Share {
     path: string,
@@ -954,12 +959,12 @@ export function browse(
     };
 }
 export function retrieve(
-    request: FindByStringId
-): APICallParameters<FindByStringId, FileMetadataTemplate> {
+    request: FileMetadataTemplatesRetrieveRequest
+): APICallParameters<FileMetadataTemplatesRetrieveRequest, FileMetadataTemplate> {
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/files/metadataTemplate" + "/retrieve", {id: request.id}),
+        path: buildQueryString("/api/files/metadataTemplate" + "/retrieve", {id: request.id, version: request.version}),
         parameters: request,
         reloadId: Math.random(),
     };
@@ -1112,6 +1117,10 @@ export interface ContinuesInBackground {
 export namespace FileMetadataTemplateNS {
 export interface Spec {
     /**
+     * The unique ID for this template
+     */
+    id: string,
+    /**
      * The title of this template. It does not have to be unique.
      */
     title: string,
@@ -1139,6 +1148,13 @@ export interface Spec {
      * A description of the change since last version. Markdown is supported.
      */
     changeLog: string,
+    /**
+     * Determines how this metadata template is namespaces
+     * 
+     * NOTE: This is required to not change between versions
+     */
+    namespaceType: ("COLLABORATORS" | "PER_USER"),
+    uiSchema?: Record<string, any /* unknown */>,
     product?: any /* unknown */,
 }
 /**
@@ -1154,7 +1170,7 @@ export interface Spec {
  * 
  */
 export interface Status {
-    oldVersions: Spec[],
+    oldVersions: string[],
 }
 /**
  * Describes an update to the `Resource`

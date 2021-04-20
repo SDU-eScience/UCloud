@@ -52,16 +52,6 @@ export function arrayToPage<T>(items: T[], itemsPerPage = 50, page = 0): Page<T>
     };
 }
 
-export enum AccessRight {
-    READ = "READ",
-    WRITE = "WRITE"
-}
-
-export class AccessRights {
-    public static READ_RIGHTS = [AccessRight.READ];
-    public static WRITE_RIGHTS = [AccessRight.READ, AccessRight.WRITE];
-}
-
 export interface ClearRefresh {
     clearRefresh: () => void;
 }

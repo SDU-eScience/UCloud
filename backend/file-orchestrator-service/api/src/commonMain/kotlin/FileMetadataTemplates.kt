@@ -25,13 +25,16 @@ data class FileMetadataTemplate(
     override val status: Status,
     override val updates: List<Update>,
     override val owner: SimpleResourceOwner,
-    override val acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>?,
+    override val acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>,
     override val createdAt: Long,
+    val public: Boolean,
 ) : Resource<FileMetadataTemplatePermission> {
-    override val billing: ResourceBilling = ResourceBilling.Free
+    override val billing: ResourceBilling.Free = ResourceBilling.Free
 
     @Serializable
     data class Spec(
+        @UCloudApiDoc("The unique ID for this template")
+        val id: String,
         @UCloudApiDoc("The title of this template. It does not have to be unique.")
         val title: String,
         @UCloudApiDoc("Version identifier for this version. It must be unique within a single template group.")
@@ -46,22 +49,18 @@ data class FileMetadataTemplate(
         val description: String,
         @UCloudApiDoc("A description of the change since last version. Markdown is supported.")
         val changeLog: String,
+        @UCloudApiDoc("Determines how this metadata template is namespaces\n\n" +
+            "NOTE: This is required to not change between versions")
+        val namespaceType: FileMetadataTemplateNamespaceType,
+        val uiSchema: JsonObject? = null,
     ) : ResourceSpecification {
         @Contextual
         override val product: Nothing? = null
-
-        init {
-            /*
-            if (!JsonSchemaFactory.byDefault().syntaxValidator.schemaIsValid(schema)) {
-                throw RPCException("Schema is not a valid JSON-schema", HttpStatusCode.BadRequest)
-            }
-             */
-        }
     }
 
     @Serializable
     class Status(
-        val oldVersions: List<Spec>,
+        val oldVersions: List<String>,
     ) : ResourceStatus
 
     @Serializable
@@ -69,6 +68,20 @@ data class FileMetadataTemplate(
         override val timestamp: Long,
         override val status: String?,
     ) : ResourceUpdate
+}
+
+@Serializable
+@UCloudApiDoc("Determines how the metadata template is namespaces")
+enum class FileMetadataTemplateNamespaceType {
+    @UCloudApiDoc("""The template is namespaced to all collaborators
+        
+This means at most one metadata document can exist per file.""")
+    COLLABORATORS,
+
+    @UCloudApiDoc("""The template is namespaced to a single user
+        
+This means that a metadata document might exist for every user who has/had access to the file.""")
+    PER_USER
 }
 
 @Serializable
@@ -84,14 +97,15 @@ typealias FileMetadataTemplatesCreateResponse = BulkResponse<FindByStringId>
 
 @Serializable
 data class FileMetadataTemplatesBrowseRequest(
-    override val itemsPerPage: Int?,
-    override val next: String?,
-    override val consistency: PaginationRequestV2Consistency?,
-    override val itemsToSkip: Long?,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
 typealias FileMetadataTemplatesBrowseResponse = PageV2<FileMetadataTemplate>
 
-typealias FileMetadataTemplatesRetrieveRequest = FindByStringId
+@Serializable
+data class FileMetadataTemplatesRetrieveRequest(val id: String, val version: String? = null)
 typealias FileMetadataTemplatesRetrieveResponse = FileMetadataTemplate
 
 typealias FileMetadataTemplatesDeprecateRequest = BulkRequest<FindByStringId>
