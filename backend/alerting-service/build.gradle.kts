@@ -1,4 +1,4 @@
-version = "1.4.2"
+version = "1.4.3"
 
 application {
     mainClassName = "dk.sdu.cloud.alerting.MainKt"
@@ -8,7 +8,7 @@ kotlin.sourceSets {
     val jvmMain by getting {
         dependencies {
             implementation(project(":auth-service:api"))
-            implementation("io.fabric8:kubernetes-client:4.1.3")
+            implementation("io.fabric8:kubernetes-client:5.2.1")
             implementation(project(":slack-service:api"))
         }
     }

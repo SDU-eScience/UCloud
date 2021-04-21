@@ -17,7 +17,6 @@ import org.elasticsearch.index.reindex.ReindexRequest
 import org.slf4j.Logger
 import java.io.IOException
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 class ReindexService(
     private val elastic: RestHighLevelClient

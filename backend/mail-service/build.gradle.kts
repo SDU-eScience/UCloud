@@ -1,4 +1,4 @@
-version = "0.4.2"
+version = "0.4.3"
 
 application {
     mainClassName = "dk.sdu.cloud.mail.MainKt"
@@ -8,7 +8,7 @@ kotlin.sourceSets {
     val jvmMain by getting {
         dependencies {
             implementation(project(":auth-service:api"))
-            implementation("com.sun.mail:javax.mail:1.5.5")
+            implementation("com.sun.mail:javax.mail:1.6.2")
             implementation(project(":slack-service:api"))
         }
     }

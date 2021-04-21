@@ -70,7 +70,7 @@ necessary parameters. For more details on the tool and app format see:
 
 - [End-user Documentation](https://docs.cloud.sdu.dk/user/)
 - [UCloud Application Development](/backend/app-store-service/README.md)
-- [Getting Started Guide for Developers](/backend/service-common/wiki/getting_started.md)
+- [Getting Started Guide for Developers](/backend/service-lib/wiki/getting_started.md)
 - [Procedures](/infrastructure/wiki/README.md)
     - [Deployment Checklist]((/backend/service-common/wiki/deployment.md))
     - [CI/CD](/infrastructure/wiki/Jenkins.md)

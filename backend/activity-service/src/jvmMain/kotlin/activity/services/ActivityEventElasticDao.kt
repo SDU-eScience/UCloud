@@ -1,7 +1,5 @@
 package dk.sdu.cloud.activity.services
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
@@ -29,13 +27,12 @@ import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.BoolQueryBuilder
+import org.elasticsearch.index.query.MultiMatchQueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.index.search.MatchQuery
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import java.util.*
 import kotlin.collections.ArrayList
 
 @Serializable
@@ -72,7 +69,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                             QueryBuilders.multiMatchQuery(
                                 parent,
                                 "requestJson.$jsonPath"
-                            ).type(MatchQuery.Type.PHRASE_PREFIX)
+                            ).type(MultiMatchQueryBuilder.Type.PHRASE_PREFIX)
                         )
                     }
                 }
@@ -211,7 +208,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) {
                                     QueryBuilders.multiMatchQuery(
                                         userHome,
                                         "requestJson.$jsonPath"
-                                    ).type(MatchQuery.Type.PHRASE_PREFIX)
+                                    ).type(MultiMatchQueryBuilder.Type.PHRASE_PREFIX)
                                 )
                             }
                         }

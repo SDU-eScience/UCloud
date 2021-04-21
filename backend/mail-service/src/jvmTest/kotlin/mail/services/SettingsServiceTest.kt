@@ -76,7 +76,6 @@ class SettingsServiceTest {
                 val newSettings = EmailSettings(
                     grantApplicationApproved = false
                 )
-
                 settingsService.updateEmailSettings(ctx, newSettings, user.username)
 
                 val updatedSettings = settingsService.getEmailSettings(user.username)
