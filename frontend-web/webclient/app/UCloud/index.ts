@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Apr 20 07:49:44 CEST 2021 */
+/* Generated at: Wed Apr 21 12:44:50 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -160,7 +160,18 @@ export interface AccessEntry {
 }
 export type ACLEntity = ACLEntityNS.User | ACLEntityNS.ProjectAndGroup
 export namespace orchestrator {
-export interface FileMetadataCreateRequestItem {
+export interface FileMetadataAddRequestItem {
+    path: string,
+    metadata: FileMetadataDocumentNS.Spec,
+}
+export interface FileMetadataDeleteRequestItem {
+    path: string,
+    templateId: string,
+}
+export interface FileMetadataRetrieveAllResponse {
+    metadata: FileMetadataAttached[],
+}
+export interface FileMetadataAttached {
     path: string,
     metadata: FileMetadataDocument,
 }
@@ -198,9 +209,8 @@ export interface FileMetadataDocument {
     billing: provider.ResourceBillingNS.Free,
     type: ("metadata"),
 }
-export interface FileMetadataDeleteRequestItem {
-    path: string,
-    templateId: string,
+export interface FileMetadataRetrieveAllRequest {
+    parentPath: string,
 }
 export interface FileMetadataMoveRequestItem {
     oldPath: string,
@@ -684,7 +694,7 @@ export interface FileMetadataTemplate {
      */
     createdAt: number /* int64 */,
     public: boolean,
-    billing: provider.ResourceBilling,
+    billing: provider.ResourceBillingNS.Free,
 }
 /**
  * The base type for requesting paginated content.
@@ -1480,8 +1490,8 @@ export function updateAcl(
 }
 export namespace metadata {
 export function create(
-    request: BulkRequest<FileMetadataCreateRequestItem>
-): APICallParameters<BulkRequest<FileMetadataCreateRequestItem>, any /* unknown */> {
+    request: BulkRequest<FileMetadataAddRequestItem>
+): APICallParameters<BulkRequest<FileMetadataAddRequestItem>, any /* unknown */> {
     return {
         context: "",
         method: "POST",
@@ -1501,6 +1511,17 @@ export function remove(
         parameters: request,
         reloadId: Math.random(),
         payload: request,
+    };
+}
+export function retrieveAll(
+    request: FileMetadataRetrieveAllRequest
+): APICallParameters<FileMetadataRetrieveAllRequest, FileMetadataRetrieveAllResponse> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/metadata" + "/retrieveAll", {parentPath: request.parentPath}),
+        parameters: request,
+        reloadId: Math.random(),
     };
 }
 export function moveMetadata(
@@ -5598,23 +5619,6 @@ export interface SimpleResourceOwner {
     project?: string,
 }
 /**
- * Contains information related to the accounting/billing of a `Resource`
- * 
- * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
- * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
- * to be charged a different price than newly launched products.
- */
-export interface ResourceBilling {
-    /**
-     * Amount of credits charged in total for this `Resource`
-     */
-    creditsCharged: number /* int64 */,
-    /**
-     * The price per unit. This can differ from current price of `Product`
-     */
-    pricePerUnit: number /* int64 */,
-}
-/**
  * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
  * 
  * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
@@ -5691,6 +5695,23 @@ export interface ResourceSpecification {
      * consume the backing `Product` should simply have a `pricePerUnit` of 0.
      */
     product?: accounting.ProductReference,
+}
+/**
+ * Contains information related to the accounting/billing of a `Resource`
+ * 
+ * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+ * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+ * to be charged a different price than newly launched products.
+ */
+export interface ResourceBilling {
+    /**
+     * Amount of credits charged in total for this `Resource`
+     */
+    creditsCharged: number /* int64 */,
+    /**
+     * The price per unit. This can differ from current price of `Product`
+     */
+    pricePerUnit: number /* int64 */,
 }
 export interface ProviderSpecification {
     id: string,

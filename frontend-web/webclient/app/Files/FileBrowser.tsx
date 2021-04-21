@@ -1,12 +1,13 @@
 import * as React from "react";
 import {useHistory, useLocation} from "react-router";
 import {useProjectId} from "Project";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {InvokeCommand, useCloudAPI, useCloudCommand} from "Authentication/DataHook";
 import {file, PageV2} from "UCloud";
 import UFile = file.orchestrator.UFile;
 import {emptyPageV2} from "DefaultObjects";
 import FileCollection = file.orchestrator.FileCollection;
+import metadataApi = file.orchestrator.metadata;
 import filesApi = file.orchestrator.files;
 import collectionsApi = file.orchestrator.collections;
 import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
@@ -19,6 +20,9 @@ import {FileCollections} from "Files/FileCollections";
 import {Files} from "Files/Files";
 import {FileType} from "Files/index";
 import * as H from 'history';
+import FileMetadataRetrieveAllResponse = file.orchestrator.FileMetadataRetrieveAllResponse;
+import FileMetadataAttached = file.orchestrator.FileMetadataAttached;
+import {associateBy, groupBy} from "Utilities/CollectionUtilities";
 
 interface FileBrowserProps {
     initialPath?: string;
@@ -38,6 +42,7 @@ export interface CommonFileProps {
     invokeCommand: InvokeCommand;
     onSelect?: (file: UFile) => void;
     selectFileRequirement?: FileType;
+    metadata: Record<string, FileMetadataAttached[]>;
 }
 
 const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
@@ -52,9 +57,15 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
 
     const [files, fetchFiles] = useCloudAPI<PageV2<UFile>>({noop: true}, emptyPageV2);
     const [collections, fetchCollections] = useCloudAPI<PageV2<FileCollection>>({noop: true}, emptyPageV2);
+    const [metadata, fetchMetadata] = useCloudAPI<FileMetadataRetrieveAllResponse>({noop: true}, {metadata: []});
     const [generation, setGeneration] = useState(0);
 
+    const groupedMetadata = useMemo(() => {
+        return groupBy(metadata.data.metadata, it => it.path);
+    }, [metadata.data]);
+
     const reload = useCallback((): void => {
+        fetchMetadata(metadataApi.retrieveAll({parentPath: path}));
         if (path === "/") {
             fetchCollections(collectionsApi.browse({provider: UCLOUD_PROVIDER, itemsPerPage: 50}));
         } else {
@@ -107,6 +118,7 @@ const FileBrowser: React.FunctionComponent<FileBrowserProps> = props => {
         onSelect: props.onSelect,
         selectFileRequirement: props.selectFileRequirement,
         history,
+        metadata: groupedMetadata
     };
 
     if (path === "/") {

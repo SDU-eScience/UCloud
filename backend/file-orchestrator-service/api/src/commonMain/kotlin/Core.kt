@@ -279,7 +279,7 @@ data class FileMetadataDocument(
     override val createdAt: Long,
     override val status: Status,
     override val updates: List<ResourceUpdate>,
-    override val owner: ResourceOwner,
+    override val owner: SimpleResourceOwner,
 ) : FileMetadataOrDeleted(), Resource<Nothing?> {
     @Contextual
     override val acl: Nothing? = null

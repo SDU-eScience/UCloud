@@ -448,7 +448,7 @@ A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UF
 | `acl` | `Array<ResourceAclEntry_enum_READ_WRITE)_ >` | An ACL for this `Resource` |
 | `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
 | `public` | `Boolean` | No documentation |
-| `billing` | `ResourceBilling` | No documentation |
+| `billing` | `Free` | No documentation |
 
 
 

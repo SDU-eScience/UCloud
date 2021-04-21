@@ -6,12 +6,12 @@ import kotlinx.serialization.Serializable
 
 // ---
 
-typealias FileMetadataAddMetadataRequest = BulkRequest<FileMetadataCreateRequestItem>
+typealias FileMetadataAddMetadataRequest = BulkRequest<FileMetadataAddRequestItem>
 
 @Serializable
-data class FileMetadataCreateRequestItem(
+data class FileMetadataAddRequestItem(
     override val path: String,
-    val metadata: FileMetadataDocument,
+    val metadata: FileMetadataDocument.Spec,
 ) : WithPath
 typealias FileMetadataAddMetadataResponse = Unit
 
@@ -33,6 +33,19 @@ data class FileMetadataDeleteRequestItem(
 ) : WithPath
 typealias FileMetadataDeleteResponse = Unit
 
+@Serializable
+data class FileMetadataRetrieveAllRequest(
+    val parentPath: String,
+)
+
+@Serializable
+data class FileMetadataRetrieveAllResponse(
+    val metadata: List<FileMetadataAttached>
+)
+
+@Serializable
+data class FileMetadataAttached(val path: String, val metadata: FileMetadataDocument)
+
 // ---
 
 object FileMetadata : CallDescriptionContainer("files.metadata") {
@@ -51,6 +64,11 @@ object FileMetadata : CallDescriptionContainer("files.metadata") {
     val delete = call<FileMetadataDeleteRequest, FileMetadataDeleteResponse,
         CommonErrorMessage>("delete") {
         httpDelete(baseContext)
+    }
+
+    val retrieveAll = call<FileMetadataRetrieveAllRequest, FileMetadataRetrieveAllResponse,
+        CommonErrorMessage>("retrieveAll") {
+        httpRetrieve(baseContext, "all")
     }
 
     /*

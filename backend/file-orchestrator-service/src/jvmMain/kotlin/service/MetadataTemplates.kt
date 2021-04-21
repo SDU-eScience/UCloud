@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.github.fge.jsonschema.main.JsonSchemaFactory
 import com.github.jasync.sql.db.RowData
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.calls.RPCException
@@ -16,10 +17,7 @@ import dk.sdu.cloud.provider.api.SimpleResourceOwner
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.paginateV2
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -193,26 +191,27 @@ class MetadataTemplates(
         db: DBContext = this.db,
     ) {
         val projectStatus = projects.retrieveProjectStatus(actorAndProject.actor.safeUsername())
-        db.withSession { session ->
-            for (reqItem in request.items) {
-                @Suppress("BlockingMethodInNonBlockingContext")
-                val jacksonNode = jacksonMapper.readTree(defaultMapper.encodeToString(reqItem.schema))
-                if (!JsonSchemaFactory.byDefault().syntaxValidator.schemaIsValid(jacksonNode)) {
-                    throw RPCException("Schema is not a valid JSON-schema", HttpStatusCode.BadRequest)
+        try {
+            db.withSession { session ->
+                for (reqItem in request.items) {
+                    @Suppress("BlockingMethodInNonBlockingContext")
+                    val jacksonNode = jacksonMapper.readTree(defaultMapper.encodeToString(reqItem.schema))
+                    if (!JsonSchemaFactory.byDefault().syntaxValidator.schemaIsValid(jacksonNode)) {
+                        throw RPCException("Schema is not a valid JSON-schema", HttpStatusCode.BadRequest)
+                    }
                 }
-            }
 
-            for (reqItem in request.items) {
-                val templateManifest = session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("id", reqItem.id)
-                            setParameter("version", reqItem.version)
-                            setParameter("created_by", actorAndProject.actor.safeUsername())
-                            setParameter("project", actorAndProject.project)
-                            setParameter("namespace_type", reqItem.namespaceType.name)
-                        },
-                        """
+                for (reqItem in request.items) {
+                    val templateManifest = session
+                        .sendPreparedStatement(
+                            {
+                                setParameter("id", reqItem.id)
+                                setParameter("version", reqItem.version)
+                                setParameter("created_by", actorAndProject.actor.safeUsername())
+                                setParameter("project", actorAndProject.project)
+                                setParameter("namespace_type", reqItem.namespaceType.name)
+                            },
+                            """
                             insert into file_orchestrator.metadata_templates values
                             (
                                 :id,
@@ -233,52 +232,52 @@ class MetadataTemplates(
                                 modified_at = excluded.modified_at
                             returning created_by, project, acl, namespace_type
                         """
+                        )
+                        .rows
+                        .single()
+
+                    val isAllowedToWrite = hasPermission(
+                        actorAndProject,
+                        FileMetadataTemplatePermission.WRITE,
+                        projectStatus,
+                        SimpleResourceOwner(
+                            templateManifest.getString("created_by")!!,
+                            templateManifest.getString("project")
+                        ),
+                        false,
+                        defaultMapper.decodeFromString(templateManifest.getString("acl")!!)
                     )
-                    .rows
-                    .single()
 
-                val isAllowedToWrite = hasPermission(
-                    actorAndProject,
-                    FileMetadataTemplatePermission.WRITE,
-                    projectStatus,
-                    SimpleResourceOwner(
-                        templateManifest.getString("created_by")!!,
-                        templateManifest.getString("project")
-                    ),
-                    false,
-                    defaultMapper.decodeFromString(templateManifest.getString("acl")!!)
-                )
+                    if (!isAllowedToWrite) {
+                        throw RPCException("Already exists or permission denied", HttpStatusCode.Forbidden)
+                    }
 
-                if (!isAllowedToWrite) {
-                    throw RPCException("Already exists or permission denied", HttpStatusCode.Forbidden)
-                }
-
-                val existingNamespace = FileMetadataTemplateNamespaceType.valueOf(
-                    templateManifest.getString("namespace_type")!!
-                )
-
-                if (existingNamespace != reqItem.namespaceType) {
-                    throw RPCException(
-                        "The namespaceType of a template is not allowed to change",
-                        HttpStatusCode.BadRequest
+                    val existingNamespace = FileMetadataTemplateNamespaceType.valueOf(
+                        templateManifest.getString("namespace_type")!!
                     )
-                }
 
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("id", reqItem.id)
-                            setParameter("title", reqItem.title)
-                            setParameter("version", reqItem.version)
-                            setParameter("schema", defaultMapper.encodeToString(reqItem.schema))
-                            setParameter("inheritable", reqItem.inheritable)
-                            setParameter("require_approval", reqItem.requireApproval)
-                            setParameter("description", reqItem.description)
-                            setParameter("change_log", reqItem.changeLog)
-                            setParameter("namespace_type", reqItem.namespaceType.name)
-                            setParameter("ui_schema", reqItem.uiSchema?.let { defaultMapper.encodeToString(it) })
-                        },
-                        """
+                    if (existingNamespace != reqItem.namespaceType) {
+                        throw RPCException(
+                            "The namespaceType of a template is not allowed to change",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    session
+                        .sendPreparedStatement(
+                            {
+                                setParameter("id", reqItem.id)
+                                setParameter("title", reqItem.title)
+                                setParameter("version", reqItem.version)
+                                setParameter("schema", defaultMapper.encodeToString(reqItem.schema))
+                                setParameter("inheritable", reqItem.inheritable)
+                                setParameter("require_approval", reqItem.requireApproval)
+                                setParameter("description", reqItem.description)
+                                setParameter("change_log", reqItem.changeLog)
+                                setParameter("namespace_type", reqItem.namespaceType.name)
+                                setParameter("ui_schema", reqItem.uiSchema?.let { defaultMapper.encodeToString(it) })
+                            },
+                            """
                             insert into file_orchestrator.metadata_template_specs
                             values (
                                 :id,
@@ -294,8 +293,14 @@ class MetadataTemplates(
                                 now()
                             )
                         """
-                    )
+                        )
+                }
             }
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            }
+            throw ex
         }
     }
 
