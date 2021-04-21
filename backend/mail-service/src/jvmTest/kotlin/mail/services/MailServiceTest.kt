@@ -24,7 +24,6 @@ import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.just
-import mail.services.SettingsService
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.sql.Timestamp
