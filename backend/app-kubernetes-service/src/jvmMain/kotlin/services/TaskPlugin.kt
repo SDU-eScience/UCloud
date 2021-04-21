@@ -79,6 +79,8 @@ class TaskPlugin(
 
                         if (reservation.gpu != null) {
                             resources += "nvidia.com/gpu" to JsonPrimitive("${reservation.gpu!!}")
+
+                            vSpec.queue = "gpu-queue"
                         }
 
                         if (resources.isNotEmpty()) {
