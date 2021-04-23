@@ -35,11 +35,13 @@ class CronJobs(
                         setParameter("sent", false)
                         setParameter("limit", config.notificationLimit)
                         setParameter("type", WalletOwnerType.PROJECT.toString())
+                        setParameter("licenses", config.licenses)
                     },
                     """
                         DECLARE curs NO SCROLL CURSOR WITH HOLD
                         FOR SELECT * FROM wallets 
-                        WHERE low_funds_notifications_send = :sent AND balance < :limit AND account_type = :type
+                        WHERE low_funds_notifications_send = :sent AND balance < :limit AND account_type = :type 
+                            AND product_category != 'public-ip' AND product_category NOT IN (select unnest (:licenses::text[]))
                         GROUP BY account_id, account_type, product_provider, product_category
                     """
                 )
