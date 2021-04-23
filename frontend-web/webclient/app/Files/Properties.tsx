@@ -15,6 +15,11 @@ import collectionsApi = file.orchestrator.collections;
 import metadataApi = file.orchestrator.metadata;
 import filesApi = file.orchestrator.files;
 import MainContainer from "MainContainer/MainContainer";
+import {Box, Flex, Grid} from "ui-components";
+import {Section} from "ui-components/Section";
+import * as Heading from "ui-components/Heading";
+import HexSpin from "LoadingIcon/LoadingIcon";
+import {Browse} from "Files/Metadata/Documents/Browse";
 
 const Properties: React.FunctionComponent = () => {
     const history = useHistory();
@@ -55,11 +60,55 @@ const Properties: React.FunctionComponent = () => {
     useRefreshFunction(reload);
     useLoading(collection.loading || file.loading || commandLoading);
 
-    return <MainContainer
-        main={
-            
+    let main: JSX.Element;
+    if (collection.data == null || file.data == null) {
+        if (collection.loading || file.loading) {
+            main = <HexSpin/>;
+        } else if (collection.error) {
+            main = <>{collection.error.statusCode}: {collection.error.why}</>;
+        } else if (file.error) {
+            main = <>{file.error.statusCode}: {file.error.why}</>;
+        } else {
+            main = <>Unknown Error</>;
         }
-    />;
+    } else {
+        main = <Grid gridGap={32}>
+            <Section>
+                <Heading.h3>Information</Heading.h3>
+            </Section>
+
+            {file.data.metadata == null ? null :
+                <Section>
+                    <Box maxHeight={"800px"} overflow={"auto"}>
+                        <Browse path={file.data.path} metadata={file.data.metadata} reload={reload}/>
+                    </Box>
+                </Section>
+            }
+
+            {file.data.permissions == null ? null :
+                <Section>
+                    <Heading.h3>Shares and Permissions</Heading.h3>
+                    {file.data.permissions.myself == null ? null :
+                        <>Permissions for me goes here</>
+                    }
+
+                    {file.data.permissions.others == null ? null :
+                        <>Permissions for others go here</>
+                    }
+
+                    {collection.data.owner.project == null ? null :
+                        <>Share info goes here</>
+                    }
+                </Section>
+            }
+
+            <Section>
+                <Heading.h3>Activity</Heading.h3>
+            </Section>
+        </Grid>;
+    }
+
+    return <MainContainer main={main}/>;
 };
 
 export default Properties;

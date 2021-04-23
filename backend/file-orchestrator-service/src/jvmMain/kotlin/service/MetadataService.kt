@@ -22,7 +22,7 @@ import java.util.*
 class MetadataService(
     private val db: DBContext,
     private val projects: ProjectCache,
-    private val templates: MetadataTemplates,
+    private val templateService: MetadataTemplates,
 ) {
     @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun create(
@@ -41,7 +41,7 @@ class MetadataService(
 
         ctx.withSession { session ->
             for (reqItem in request.items) {
-                val template = templates.retrieve(
+                val template = templateService.retrieve(
                     actorAndProject,
                     FileMetadataTemplatesRetrieveRequest(reqItem.metadata.templateId),
                     session
@@ -155,71 +155,115 @@ class MetadataService(
                         setParameter("project", actorAndProject.project)
                     },
                     """
-                        select *
-                        from file_orchestrator.metadata_documents
+                        select d.path, file_orchestrator.metadata_document_to_json(d) as json
+                        from file_orchestrator.metadata_documents d
                         where
                             is_deletion = false and
                             (
-                                parent_path = :parent_path and
-                                latest = true and
-                                workspace = :username and
-                                is_workspace_project = false
-                            ) or
-                            (
-                                :project::text is not null and
-                                parent_path = :parent_path and
-                                latest = true and
-                                workspace = :project and
-                                is_workspace_project = false
+                                (
+                                    parent_path = :parent_path and
+                                    latest = true and
+                                    workspace = :username and
+                                    is_workspace_project = false
+                                ) or
+                                (
+                                    :project::text is not null and
+                                    parent_path = :parent_path and
+                                    latest = true and
+                                    workspace = :project and
+                                    is_workspace_project = false
+                                )
                             )
                         limit 10000
                     """
                 )
                 .rows
-                .map { rowToDocument(it) }
+                .map {
+                    FileMetadataAttached(
+                        it.getString("path")!!,
+                        defaultMapper.decodeFromString(it.getString("json")!!)
+                    )
+                }
         }
     }
 
-    private fun rowToDocument(row: RowData): FileMetadataAttached {
-        return FileMetadataAttached(
-            row.getString("path")!!,
-            FileMetadataDocument(
-                row.getString("id")!!,
-                FileMetadataDocument.Spec(
-                    row.getString("template_id")!!,
-                    defaultMapper.decodeFromString(row.getString("document")!!),
-                    row.getString("change_log")!!
-                ),
-                (row["created_at"] as LocalDateTime).toDateTime().millis,
-                FileMetadataDocument.Status(
-                    when (val approvalType = row.getString("approval_type")!!) {
-                        "pending" -> FileMetadataDocument.ApprovalStatus.Pending()
-                        "not_required" -> FileMetadataDocument.ApprovalStatus.NotRequired()
-                        "approved" -> FileMetadataDocument.ApprovalStatus.Approved(
-                            row.getString("approval_updated_by")!!
-                        )
-                        "rejected" -> FileMetadataDocument.ApprovalStatus.Rejected(
-                            row.getString("approval_updated_by")!!
-                        )
-                        else -> {
-                            throw RPCException(
-                                "Unknown approval type $approvalType",
-                                HttpStatusCode.InternalServerError
+    data class RetrieveWithHistory(
+        val templates: Map<String, FileMetadataTemplate>,
+        val metadataByFile: Map<String, Map<String, List<FileMetadataOrDeleted>>>,
+    )
+
+    suspend fun retrieveWithHistory(
+        actorAndProject: ActorAndProject,
+        parentPath: String,
+        fileNames: List<String>? = null,
+        ctx: DBContext = this.db,
+    ): RetrieveWithHistory {
+        val parent = parentPath.normalize()
+        val normalizedParentPath = parent.removeSuffix("/") + "/"
+        return ctx.withSession { session ->
+            val metadata = HashMap<String, HashMap<String, ArrayList<FileMetadataOrDeleted>>>()
+            val templates = HashMap<String, FileMetadataTemplate>()
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("paths", fileNames?.map { normalizedParentPath + it })
+                        setParameter("parent_path", parent)
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                    },
+                    """
+                        select 
+                            d.path,
+                            file_orchestrator.metadata_document_to_json(d) as document,
+                            file_orchestrator.metadata_template_to_json(mt, mts) as template
+                        from 
+                            file_orchestrator.metadata_documents d join 
+                            metadata_template_specs mts on 
+                                mts.template_id = d.template_id and 
+                                mts.version = d.template_version join 
+                            metadata_templates mt on mt.id = d.template_id
+                        where
+                            (
+                                :paths::text[] is null or 
+                                d.path in (select unnest(:paths::text[]))
+                            ) and
+                            (
+                                (
+                                    d.parent_path = :parent_path and
+                                    d.workspace = :username and
+                                    d.is_workspace_project = false
+                                ) or
+                                (
+                                    :project::text is not null and
+                                    d.parent_path = :parent_path and
+                                    d.workspace = :project and
+                                    d.is_workspace_project = true
+                                )
                             )
-                        }
-                    }
-                ),
-                emptyList(),
-                SimpleResourceOwner(
-                    row.getString("created_by")!!,
-                    if (row.getBoolean("is_workspace_project")!!) {
-                        row.getString("workspace")!!
-                    } else {
-                        null
-                    }
+                            
+                        order by d.created_at desc
+                    """
                 )
-            )
-        )
+                .rows
+                .forEach { row ->
+                    val path = row.getString("path")!!
+                    val metadataOrDeleted =
+                        defaultMapper.decodeFromString<FileMetadataOrDeleted>(row.getString("document")!!)
+                    val template = defaultMapper.decodeFromString<FileMetadataTemplate>(row.getString("template")!!)
+
+                    templates[template.id] = template
+
+                    val existing = metadata[path] ?: HashMap()
+                    val existingHistory = existing[template.id] ?: ArrayList()
+
+                    existingHistory.add(metadataOrDeleted)
+                    existing[template.id] = existingHistory
+                    metadata[path] = existing
+                }
+
+            RetrieveWithHistory(templates, metadata)
+        }
     }
 
     companion object {

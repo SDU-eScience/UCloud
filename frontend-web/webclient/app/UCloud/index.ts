@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Wed Apr 21 12:44:50 CEST 2021 */
+/* Generated at: Thu Apr 22 12:11:34 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -204,7 +204,7 @@ export interface FileMetadataDocument {
     /**
      * Contains information about the original creator of the `Resource` along with project association
      */
-    owner: provider.ResourceOwner,
+    owner: provider.SimpleResourceOwner,
     acl?: any /* unknown */,
     billing: provider.ResourceBillingNS.Free,
     type: ("metadata"),
@@ -362,7 +362,48 @@ export interface UFile {
     /**
      * User-defined metadata for this  See `FileMetadataTemplate` for details.
      */
-    metadata?: Record<string, FileMetadataOrDeleted[]>,
+    metadata?: FileMetadataHistory,
+}
+export interface FileMetadataHistory {
+    templates: Record<string, FileMetadataTemplate>,
+    metadata: Record<string, FileMetadataOrDeleted[]>,
+}
+/**
+ * A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`
+ */
+export interface FileMetadataTemplate {
+    /**
+     * A unique identifier referencing the `Resource`
+     * 
+     * This ID is assigned by UCloud and is globally unique across all providers.
+     */
+    id: string,
+    specification: FileMetadataTemplateNS.Spec,
+    /**
+     * Holds the current status of the `Resource`
+     */
+    status: FileMetadataTemplateNS.Status,
+    /**
+     * Contains a list of updates from the provider as well as UCloud
+     * 
+     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+     * resource.
+     */
+    updates: FileMetadataTemplateNS.Update[],
+    /**
+     * Contains information about the original creator of the `Resource` along with project association
+     */
+    owner: provider.SimpleResourceOwner,
+    /**
+     * An ACL for this `Resource`
+     */
+    acl: provider.ResourceAclEntry<("READ" | "WRITE")>[],
+    /**
+     * Timestamp referencing when the request for creation was received by UCloud
+     */
+    createdAt: number /* int64 */,
+    public: boolean,
+    billing: provider.ResourceBillingNS.Free,
 }
 export type FileMetadataOrDeleted = FileMetadataDocument | FileMetadataOrDeletedNS.Deleted
 /**
@@ -658,43 +699,6 @@ export interface FileCollectionsUpdateAclRequestItem {
     id: string,
     provider: string,
     newAcl: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
-}
-/**
- * A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`
- */
-export interface FileMetadataTemplate {
-    /**
-     * A unique identifier referencing the `Resource`
-     * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
-     */
-    id: string,
-    specification: FileMetadataTemplateNS.Spec,
-    /**
-     * Holds the current status of the `Resource`
-     */
-    status: FileMetadataTemplateNS.Status,
-    /**
-     * Contains a list of updates from the provider as well as UCloud
-     * 
-     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
-     * resource.
-     */
-    updates: FileMetadataTemplateNS.Update[],
-    /**
-     * Contains information about the original creator of the `Resource` along with project association
-     */
-    owner: provider.SimpleResourceOwner,
-    /**
-     * An ACL for this `Resource`
-     */
-    acl: provider.ResourceAclEntry<("READ" | "WRITE")>[],
-    /**
-     * Timestamp referencing when the request for creation was received by UCloud
-     */
-    createdAt: number /* int64 */,
-    public: boolean,
-    billing: provider.ResourceBillingNS.Free,
 }
 /**
  * The base type for requesting paginated content.
@@ -5607,13 +5611,6 @@ export interface ResourceUpdate {
 /**
  * The owner of a `Resource`
  */
-export interface ResourceOwner {
-    createdBy: string,
-    project?: string,
-}
-/**
- * The owner of a `Resource`
- */
 export interface SimpleResourceOwner {
     createdBy: string,
     project?: string,
@@ -5712,6 +5709,13 @@ export interface ResourceBilling {
      * The price per unit. This can differ from current price of `Product`
      */
     pricePerUnit: number /* int64 */,
+}
+/**
+ * The owner of a `Resource`
+ */
+export interface ResourceOwner {
+    createdBy: string,
+    project?: string,
 }
 export interface ProviderSpecification {
     id: string,

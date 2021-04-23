@@ -10,7 +10,10 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 suspend fun <T> proxiedRequest(
     projectCache: ProjectCache,
@@ -34,7 +37,13 @@ class FilesService(
     private val providers: Providers,
     private val providerSupport: ProviderSupport,
     private val projectCache: ProjectCache,
+    private val metadataService: MetadataService,
 ) {
+    private val metadataCache = SimpleCache<Pair<ActorAndProject, String>, MetadataService.RetrieveWithHistory>(
+        lookup = { (actorAndProject, parentPath) ->
+            metadataService.retrieveWithHistory(actorAndProject, parentPath)
+        }
+    )
 
     suspend fun browse(actorAndProject: ActorAndProject, request: FilesBrowseRequest): FilesBrowseResponse {
         val pathMetadata = extractPathMetadata(request.path)
@@ -42,14 +51,33 @@ class FilesService(
         val (product, support) = providerSupport.retrieveProductSupport(pathMetadata.productReference)
         verifyReadRequest(request, support)
 
-        return comms.filesApi.browse.call(
-            proxiedRequest(
-                projectCache,
-                actorAndProject,
-                request
-            ),
-            comms.client
-        ).orThrow()
+        return coroutineScope {
+            val browseJob = async {
+                comms.filesApi.browse.call(
+                    proxiedRequest(projectCache, actorAndProject, request),
+                    comms.client
+                ).orThrow()
+            }
+
+            val metadataJob = async {
+                if (request.includeMetadata == true) {
+                    metadataCache.get(Pair(actorAndProject, request.path))
+                } else {
+                    null
+                }
+            }
+
+            val files = browseJob.await()
+            val metadata = metadataJob.await()
+
+            files.copy(
+                items = files.items.map { file ->
+                    val metadataForFile = metadata?.metadataByFile?.get(file.path) ?: emptyMap()
+                    val templates = metadata?.templates ?: emptyMap()
+                    file.copy(metadata = FileMetadataHistory(templates, metadataForFile))
+                }
+            )
+        }
     }
 
     suspend fun retrieve(actorAndProject: ActorAndProject, request: FilesRetrieveRequest): FilesRetrieveResponse {
@@ -58,14 +86,35 @@ class FilesService(
         val (product, support) = providerSupport.retrieveProductSupport(pathMetadata.productReference)
         verifyReadRequest(request, support)
 
-        return comms.filesApi.retrieve.call(
-            proxiedRequest(
-                projectCache,
-                actorAndProject,
-                request
-            ),
-            comms.client
-        ).orThrow()
+        return coroutineScope {
+            val retrieveJob = async {
+                comms.filesApi.retrieve.call(
+                    proxiedRequest(
+                        projectCache,
+                        actorAndProject,
+                        request
+                    ),
+                    comms.client
+                ).orThrow()
+            }
+
+            val metadataJob = async {
+                if (request.includeMetadata == true) {
+                    val r = metadataService.retrieveWithHistory(actorAndProject,
+                        request.path.parent(),
+                        listOf(request.path.fileName())
+                    )
+                    FileMetadataHistory(r.templates, r.metadataByFile.values.singleOrNull() ?: emptyMap())
+                } else {
+                    null
+                }
+            }
+
+            val retrieved = retrieveJob.await()
+            val metadata = metadataJob.await()
+
+            retrieved.copy(metadata = metadata)
+        }
     }
 
     private fun verifyReadRequest(request: FilesIncludeFlags, support: FSSupport) {

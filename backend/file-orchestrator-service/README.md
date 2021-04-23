@@ -15,7 +15,7 @@ A `UFile` is a resource for storing, retrieving and organizing data in UCloud
 | `icon` | `("DIRECTORY_STAR" or "DIRECTORY_SHARES" or "DIRECTORY_TRASH" or "DIRECTORY_JOBS")` | A hint to clients about which icon to display next to this file. See `FileIconHint` for details. |
 | `stats` | `Stats` | General system-level stats about the file. See `UFile.Stats` for details. |
 | `permissions` | `Permissions` | System-level permissions for this file. See `UFile.Permissions` for details. |
-| `metadata` | `Map<String, Array<FileMetadataOrDeleted>>` | User-defined metadata for this file. See `FileMetadataTemplate` for details. |
+| `metadata` | `FileMetadataHistory` | User-defined metadata for this file. See `FileMetadataTemplate` for details. |
 
     
 A file in UCloud (`UFile`) closely follows the concept of a computer file you might already be familiar with. The
@@ -542,7 +542,7 @@ A metadata document which conforms to a `FileMetadataTemplate`
 | `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
 | `status` | `Status` | Holds the current status of the `Resource` |
 | `updates` | `Array<ResourceUpdate>` | Contains a list of updates from the provider as well as UCloud |
-| `owner` | `ResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
+| `owner` | `SimpleResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
 | `acl` | `Any` | No documentation |
 | `billing` | `Free` | No documentation |
 | `type` | `("metadata")` | No documentation |

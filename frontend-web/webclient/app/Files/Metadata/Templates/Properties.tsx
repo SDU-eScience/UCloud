@@ -14,10 +14,10 @@ import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import MainContainer from "MainContainer/MainContainer";
 import {Section} from "ui-components/Section";
 import * as Heading from "ui-components/Heading";
-import Form from "@rjsf/core";
 import HexSpin from "LoadingIcon/LoadingIcon";
 import {ResourcePage} from "ui-components/ResourcePage";
 import {prettierString} from "UtilityFunctions";
+import { JsonSchemaForm } from "../JsonSchemaForm";
 
 const Properties: React.FunctionComponent = props => {
     const history = useHistory();
@@ -95,7 +95,7 @@ const Properties: React.FunctionComponent = props => {
             beforeEnd={
                 <Section>
                     <Heading.h3>Form preview</Heading.h3>
-                    <Form
+                    <JsonSchemaForm
                         schema={t.specification.schema}
                         uiSchema={t.specification.uiSchema}
                     />

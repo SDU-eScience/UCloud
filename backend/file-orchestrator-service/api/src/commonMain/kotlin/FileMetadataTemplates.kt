@@ -90,6 +90,12 @@ enum class FileMetadataTemplatePermission {
     WRITE
 }
 
+@Serializable
+data class FileMetadataHistory(
+    val templates: Map<String, FileMetadataTemplate>,
+    val metadata: Map<String, List<FileMetadataOrDeleted>>
+)
+
 // ---
 
 typealias FileMetadataTemplatesCreateRequest = BulkRequest<FileMetadataTemplate.Spec>

@@ -13,14 +13,13 @@ import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
 import MainContainer from "MainContainer/MainContainer";
 import {FormBuilder} from "@ginkgo-bioworks/react-json-schema-form-builder";
-import 'bootstrap/dist/css/bootstrap.min.css';
 import {Text, TextArea, Box, Input, Label, Select, SelectableText, SelectableTextWrapper, Grid} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {Operation, Operations} from "ui-components/Operation";
-import Form from "@rjsf/core";
 import {Section} from "ui-components/Section";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {bulkRequestOf} from "DefaultObjects";
+import {JsonSchemaForm} from "../JsonSchemaForm";
 
 enum Stage {
     INFO,
@@ -303,7 +302,7 @@ const Create: React.FunctionComponent = props => {
                         </Section>
                         <Section>
                             <Heading.h3>Form preview</Heading.h3>
-                            <Form
+                            <JsonSchemaForm
                                 schema={JSON.parse(schema)}
                                 uiSchema={JSON.parse(uiSchema)}
                             />

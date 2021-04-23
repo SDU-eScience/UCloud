@@ -28,6 +28,7 @@ import {EmbeddedShareCard} from "Files/Shares";
 import FileMetadataAttached = file.orchestrator.FileMetadataAttached;
 import {associateBy} from "Utilities/CollectionUtilities";
 import metadataApi = file.orchestrator.metadata;
+import {buildQueryString} from "Utilities/URIUtilities";
 
 function fileName(path: string): string {
     const lastSlash = path.lastIndexOf("/");
@@ -488,7 +489,7 @@ const filesOperations: Operation<UFile, FilesCallbacks>[] = [
         text: "Properties",
         icon: "properties",
         primary: false,
-        onClick: () => 42,
+        onClick: (selected, cb) => cb.history.push(buildQueryString("/files/properties/", { path: selected[0].path })),
         enabled: selected => selected.length === 1,
     },
 ];

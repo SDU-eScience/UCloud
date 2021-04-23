@@ -11,6 +11,7 @@ const AvataaarModification = React.lazy(() => import("UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("NewsPost/DetailedNews"));
 const Files = React.lazy(() => import("Files/FileBrowser"));
+const FileProperties = React.lazy(() => import("Files/Properties"));
 const FileCollectionProperties = React.lazy(() => import("Files/FileCollectionProperties"));
 const FileMetadataTemplatesBrowse = React.lazy(() => import("Files/Metadata/Templates/Browse"));
 const FileMetadataTemplatesCreate = React.lazy(() => import("Files/Metadata/Templates/Create"));
@@ -95,6 +96,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
 
                     <Route exact path="/files" component={requireAuth(Files)} />
+                    <Route exact path="/files/properties" component={requireAuth(FileProperties)} />
                     <Route exact path="/files/driveProperties" component={requireAuth(FileCollectionProperties)} />
                     <Route exact path="/files/metadata/templates/" component={requireAuth(FileMetadataTemplatesBrowse)} />
                     <Route exact path="/files/metadata/templates/create/"

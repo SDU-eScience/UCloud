@@ -207,7 +207,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     - Newer versions of Unixes report `PATH_MAX` as 4096
     - Older versions of Windows start failing above 256 characters
 """)
-    protected val path: String,
+    val path: String,
     @UCloudApiDoc("Which type of file this is, see `FileType` for more information.")
     val type: FileType,
     @UCloudApiDoc("A hint to clients about which icon to display next to this file. See `FileIconHint` for details.")
@@ -217,7 +217,7 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     @UCloudApiDoc("System-level permissions for this file. See `UFile.Permissions` for details.")
     val permissions: Permissions?,
     @UCloudApiDoc("User-defined metadata for this file. See `FileMetadataTemplate` for details.")
-    val metadata: Map<String, List<FileMetadataOrDeleted>>?,
+    val metadata: FileMetadataHistory?,
 ) {
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("General system-level stats about a file")
