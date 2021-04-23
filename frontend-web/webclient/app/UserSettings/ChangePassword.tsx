@@ -70,6 +70,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                         Current Password
                         <Input
                             ref={currentPassword}
+                            style={{maxWidth: "700px"}}
                             type="password"
                             placeholder={"Current password"}
                         />
@@ -82,6 +83,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                         New Password
                         <Input
                             ref={newPassword}
+                            style={{maxWidth: "700px"}}
                             type="password"
                             placeholder="New password"
                         />
@@ -95,6 +97,7 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                         Repeat new password
                         <Input
                             ref={repeatedPassword}
+                            style={{maxWidth: "700px"}}
                             type="password"
                             placeholder="Repeat password"
                         />
