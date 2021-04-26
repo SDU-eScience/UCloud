@@ -142,6 +142,7 @@ config("app-kubernetes") { ctx ->
             configure("prefix", "app-")
             configure("domain", "cloud.sdu.dk")
             configure("networkInterface", "bond0.20")
+            configure("useMachineSelector", true)
         }
     }
 

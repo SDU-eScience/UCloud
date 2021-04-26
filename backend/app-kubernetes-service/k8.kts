@@ -2,10 +2,15 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "0.21.12-2"
+    version = "0.21.13"
 
     val prefix: String = config("prefix", "Application name prefix (e.g. 'app-')", "app-")
     val domain: String = config("domain", "Application domain (e.g. 'cloud.sdu.dk')")
+    val useMachineSelector: Boolean = config(
+        "useMachineSelector",
+        "Should the machine selector: ucloud.dk/machine=\$type be used?",
+        false
+    )
     val networkInterface: String = config("networkInterface", "Network interface for public IPs")
     val internalEgressWhiteList: List<String> = config(
         "internalEgressWhitelist",
@@ -163,6 +168,7 @@ bundle { ctx ->
                     prefix: "$prefix"
                     domain: $domain
                     networkInterface: $networkInterface
+                    useMachineSelector: $useMachineSelector
                     toleration:
                       key: sducloud
                       value: apps

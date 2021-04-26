@@ -21,6 +21,7 @@ import kotlinx.serialization.json.JsonPrimitive
 class TaskPlugin(
     private val toleration: TolerationKeyAndValue?,
     private val useSmallReservation: Boolean,
+    private val useMachineSelector: Boolean,
 ) : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val jobResources = resources.findResources(job)
@@ -54,6 +55,12 @@ class TaskPlugin(
                         )
                     }
 
+                    if (useMachineSelector) {
+                        pSpec.nodeSelector = JsonObject(mapOf(
+                            "ucloud.dk/machine" to JsonPrimitive(job.specification.product.category)
+                        ))
+                    }
+
                     container.name = "user-job"
                     container.image = tool.container
                     container.imagePullPolicy = "IfNotPresent"
@@ -79,8 +86,6 @@ class TaskPlugin(
 
                         if (reservation.gpu != null) {
                             resources += "nvidia.com/gpu" to JsonPrimitive("${reservation.gpu!!}")
-
-                            vSpec.queue = "gpu-queue"
                         }
 
                         if (resources.isNotEmpty()) {

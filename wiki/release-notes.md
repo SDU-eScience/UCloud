@@ -7,6 +7,12 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 26-04-21
+
+```
+✅  Deployment(app-kubernetes, 0.21.13) (UP-TO-DATE)
+```
+
 ## 21-04-21
 
 ```
