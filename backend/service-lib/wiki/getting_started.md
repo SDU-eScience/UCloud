@@ -203,10 +203,8 @@ Run the following bash script in your terminal, feel free to change the username
 #!/usr/bin/env bash
 ADMINTOK=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c2VyMSIsInVpZCI6MTAsImxhc3ROYW1lIjoiVXNlciIsImF1ZCI6ImFsbDp3cml0ZSIsInJvbGUiOiJBRE1JTiIsImlzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJVc2VyIiwiZXhwIjozNTUxNDQyMjIzLCJleHRlbmRlZEJ5Q2hhaW4iOltdLCJpYXQiOjE1NTE0NDE2MjMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsInB1YmxpY1Nlc3Npb25SZWZlcmVuY2UiOiJyZWYifQ.BNVLnnWoxfE1YG-9u3oqZVUypbbnF4BX3BNb6T1KYquGaCkMgN_fpo63y7Tmh6NYjf3do2j4lf4d6L94f-3d-g
 
-
 USERNAME=user
 PASSWORD=mypassword
-
 
 if ! command -v jq &> /dev/null
 then
@@ -217,6 +215,10 @@ fi
 USERTOK=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/auth/users/register' \
     -H "Authorization: Bearer ${ADMINTOK}" \
     -d '[{"username": "'"${USERNAME}"'", "password": "'"${PASSWORD}"'", "role": "ADMIN", "email": "user@example.com"}]' | jq .[0].accessToken -r`
+
+ADMINTOK=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/auth/users/register' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '[{ "username":  "user1",  "password": "temppass", "role": "ADMIN", "email": "user1@example.com" }]' | jq .[0].accessToken -r`
 
 FIGLET_TOOL='
 ---
@@ -289,6 +291,90 @@ projectId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:808
     -H "Authorization: Bearer ${ADMINTOK}" \
     -d '{ "title": "UCloud" , "principalInvestigator": "'"${USERNAME}"'" }' | jq .id -r`
 
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/invites' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${projectId}" \
+    -d '{ "projectId": "'"${projectId}"'", "usernames": ["user1"] }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/invites/accept' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "projectId": "'"${projectId}"'" }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/members/change-role' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${projectId}" \
+    -d '{ "projectId": "'"${projectId}"'", "member": "user1", "newRole": "ADMIN"}'
+
+
+providerId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/providers' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -H "Project: ${projectId}" \
+    -d '{ "items": [{ "id": "ucloud", "domain": "localhost", "https": false, "port": 8080 }], "type": "bulk"}' | jq .responses[0].id -r`
+
+provider=`curl -H 'Content-Type: application/json' "http://localhost:8080/api/providers/retrieve?id=${providerId}" \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -H "Project: ${projectId}"`
+
+refreshToken=`echo "${provider}" | jq .refreshToken -r`
+publicKey=`echo "${provider}" | jq .publicKey -r`
+
+providerConfig="---
+app:
+  kubernetes:
+    providerRefreshToken: ${refreshToken}
+    ucloudCertificate: ${publicKey}"
+
+mkdir -p $HOME/ucloud
+echo "$providerConfig" > $HOME/ucloud/$providerId-compute-config.yml
+
+curl -XDELETE -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/members' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${projectId}" \
+    -d '{ "projectId": "'"${projectId}"'", "member": "user1"}'
+
+aauProjectId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "title": "Aau" , "principalInvestigator": "'"${USERNAME}"'" }' | jq .id -r`
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/invites' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${aauProjectId}" \
+    -d '{ "projectId": "'"${aauProjectId}"'", "usernames": ["user1"] }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/invites/accept' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -d '{ "projectId": "'"${aauProjectId}"'" }'
+
+curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/members/change-role' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${aauProjectId}" \
+    -d '{ "projectId": "'"${aauProjectId}"'", "member": "user1", "newRole": "ADMIN"}'
+
+aauProviderId=`curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/providers' \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -H "Project: ${aauProjectId}" \
+    -d '{ "items": [{ "id": "aau", "domain": "localhost", "https": false, "port": 8080 }], "type": "bulk"}' | jq ".responses[0].id" -r`
+
+aauProvider=`curl -H 'Content-Type: application/json' "http://localhost:8080/api/providers/retrieve?id=${aauProviderId}" \
+    -H "Authorization: Bearer ${ADMINTOK}" \
+    -H "Project: ${aauProjectId}"`
+
+aauRefreshToken=`echo "${aauProvider}" | jq .refreshToken -r`
+aauPublicKey=`echo "${aauProvider}" | jq .publicKey -r`
+
+aauProviderConfig="---
+app:
+  aau:
+    providerRefreshToken: ${aauRefreshToken}
+    ucloudCertificate: ${aauPublicKey}"
+
+echo "$aauProviderConfig" > $HOME/ucloud/ucloud-$aauProviderId-compute-config.yml
+
+curl -XDELETE -H 'Content-Type: application/json' 'http://localhost:8080/api/projects/members' \
+    -H "Authorization: Bearer ${USERTOK}" \
+    -H "Project: ${aauProjectId}" \
+    -d '{ "projectId": "'"${aauProjectId}"'", "member": "user1"}'
+
 curl -XPOST -H 'Content-Type: application/json' 'http://localhost:8080/api/accounting/wallets/set-balance' \
     -H "Authorization: Bearer ${ADMINTOK}" \
     -d '{ "wallet": { "id": "'"${projectId}"'", "type": "PROJECT", "paysFor": { "id": "u1-cephfs", "provider": "ucloud" } }, "lastKnownBalance": 0, "newBalance": 1000000000000000 }'
@@ -316,7 +402,13 @@ curl 'http://localhost:8080/api/hpc/apps/createTag' \
     -d '{"applicationName":"figlet","tags":["Featured"]}'
 ```
 
-This will create the user:
+Then restart the UCloud backend service by closing the process and starting it again from `ucloud/backend`:
+
+```
+./gradlew :launcher:run --args='--dev'
+```
+
+The script will create the user:
 
 - Username: user
 - Password: mypassword
