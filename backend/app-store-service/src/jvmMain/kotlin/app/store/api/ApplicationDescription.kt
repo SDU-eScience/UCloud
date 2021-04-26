@@ -2,22 +2,19 @@ package dk.sdu.cloud.app.store.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import dk.sdu.cloud.app.store.api.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.reflect.KProperty0
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.EXISTING_PROPERTY,
-    property = "application"
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = ApplicationDescription.V1::class, name = "v1")
-)
+@Serializable
 sealed class ApplicationDescription(val application: String) {
     abstract fun normalize(): Application
 
-    class V1(
+    @Serializable
+    data class V1(
         val name: String,
         val version: String,
 
@@ -25,14 +22,14 @@ sealed class ApplicationDescription(val application: String) {
         val authors: List<String>,
         val title: String,
         val description: String,
-        invocation: List<Any>,
+        val invocation: List<JsonElement>,
         val parameters: Map<String, ApplicationParameter> = emptyMap(),
-        outputFileGlobs: List<String> = emptyList(),
-        applicationType: String? = null,
+        val outputFileGlobs: List<String> = emptyList(),
+        val applicationType: String? = null,
         val vnc: VncDescription? = null,
         val web: WebDescription? = null,
         val container: ContainerDescription? = null,
-        environment: Map<String, Any>? = null,
+        val environment: Map<String, JsonElement>? = null,
         val allowAdditionalMounts: Boolean? = null,
         val allowAdditionalPeers: Boolean? = null,
         val allowMultiNode: Boolean? = false,
@@ -40,11 +37,6 @@ sealed class ApplicationDescription(val application: String) {
         var licenseServers: List<String> = emptyList(),
         val website: String? = null
     ) : ApplicationDescription("v1") {
-        val invocation: List<InvocationParameter>
-        val environment: Map<String, InvocationParameter>?
-
-        val outputFileGlobs: List<String>
-        val applicationType: ApplicationType
         init {
             ::title.requireNotBlank()
             ::title.disallowCharacters('\n', '/')
@@ -65,91 +57,53 @@ sealed class ApplicationDescription(val application: String) {
                 throw ApplicationVerificationException.BadValue("author[$badAuthorIndex]", "Cannot contain new lines")
             }
 
-            val duplicateGlobs = outputFileGlobs.groupBy { it }.filter { it.value.size > 1 }.keys
-            if (duplicateGlobs.isNotEmpty()) {
-                throw ApplicationVerificationException.DuplicateDefinition("outputFileGlobs", duplicateGlobs.toList())
-            }
 
-            this.outputFileGlobs = outputFileGlobs.let {
-                val result = it.toMutableSet()
 
-                // Add default list
-                result.add("stdout.txt")
-                result.add("stderr.txt")
-
-                result
-            }.toList()
-
-            this.applicationType = applicationType?.let { ApplicationType.valueOf(it) } ?: ApplicationType.BATCH
 
             parameters.forEach { name, parameter -> parameter.name = name }
 
-            this.invocation = invocation.mapIndexed { index, it ->
-                val parameterName = "invocation[$index]"
-                parseInvocationParameter(it, parameterName)
-            }
-
-            this.invocation.forEachIndexed { index, it ->
-                val parameterName = "invocation[$index]"
-                val variables = when (it) {
-                    is VariableInvocationParameter -> {
-                        it.variableNames
-                    }
-
-                    is BooleanFlagParameter -> {
-                        listOf(it.variableName)
-                    }
-
-                    else -> return@forEachIndexed
-                }
-                val missingVariable = variables.find { !parameters.containsKey(it) }
-                if (missingVariable != null) {
-                    throw ApplicationVerificationException.BadVariableReference(parameterName, missingVariable)
-                }
-            }
-
-            this.environment = environment?.map { (name, param) ->
-                name to parseInvocationParameter(param, name)
-            }?.toMap()
         }
 
         private fun parseInvocationParameter(
-            param: Any,
+            param: JsonElement,
             parameterName: String
         ): InvocationParameter {
             return when (param) {
-                is String -> {
-                    WordInvocationParameter(param)
-                }
+                is JsonPrimitive -> WordInvocationParameter(param.content)
 
-                is Int, is Long, is Boolean, is Double, is Float, is Short -> {
-                    WordInvocationParameter(param.toString())
-                }
-
-                is Map<*, *> -> {
-                    @Suppress("UNCHECKED_CAST")
-                    val map = param as Map<String, Any?>
-
-                    val type = map["type"] ?: throw ApplicationVerificationException.BadValue(
+                is JsonObject -> {
+                    val map = param
+                    val type = map["type"] as? JsonPrimitive ?: throw ApplicationVerificationException.BadValue(
                         parameterName,
                         "Missing 'type' tag"
                     )
 
-                    when (type) {
+                    when (type.content) {
                         "var" -> {
                             val vars = (map["vars"] ?: throw ApplicationVerificationException.BadValue(
                                 parameterName,
                                 "missing 'vars'"
                             ))
 
-                            val variableNames =
-                                (vars as? List<*>)?.map { it.toString() } ?: listOf(vars.toString())
-                            val prefixGlobal = map["prefixGlobal"]?.toString() ?: ""
-                            val suffixGlobal = map["suffixGlobal"]?.toString() ?: ""
-                            val prefixVariable = map["prefixVariable"]?.toString() ?: ""
-                            val suffixVariable = map["suffixVariable"]?.toString() ?: ""
-                            val isPrefixVariablePartOfArg = map["isPrefixVariablePartOfArg"] as? Boolean ?: false
-                            val isSuffixVariablePartOfArg = map["isSuffixVariablePartOfArg"] as? Boolean ?: false
+                            val variableNames = (vars as? JsonArray)?.mapNotNull {
+                                (it as? JsonPrimitive)?.content
+                            } ?: run {
+                                listOf(
+                                    (vars as? JsonPrimitive)?.content
+                                        ?: throw ApplicationVerificationException.BadValue(
+                                            parameterName,
+                                            "bad value given for vars"
+                                        )
+                                )
+                            }
+                            val prefixGlobal = (map["prefixGlobal"] as? JsonPrimitive)?.content ?: ""
+                            val suffixGlobal = (map["suffixGlobal"] as? JsonPrimitive)?.content ?: ""
+                            val prefixVariable = (map["prefixVariable"] as? JsonPrimitive)?.content ?: ""
+                            val suffixVariable = (map["suffixVariable"] as? JsonPrimitive)?.content ?: ""
+                            val isPrefixVariablePartOfArg =
+                                (map["isPrefixVariablePartOfArg"] as? JsonPrimitive)?.content?.equals("true") ?: false
+                            val isSuffixVariablePartOfArg =
+                                (map["isSuffixVariablePartOfArg"] as? JsonPrimitive)?.content?.equals("true") ?: false
 
                             VariableInvocationParameter(
                                 variableNames,
@@ -163,26 +117,20 @@ sealed class ApplicationDescription(val application: String) {
                         }
 
                         "flag" -> {
-                            val variable = map["var"] ?: throw ApplicationVerificationException.BadValue(
-                                parameterName,
-                                "missing 'var'"
-                            )
+                            val variable = map["var"] as? JsonPrimitive
+                                ?: throw ApplicationVerificationException.BadValue(parameterName, "missing 'var'")
 
-                            val flag = map["flag"] ?: throw ApplicationVerificationException.BadValue(
-                                parameterName,
-                                "Missing 'flag'"
-                            )
+                            val flag = map["flag"] as? JsonPrimitive
+                                ?: throw ApplicationVerificationException.BadValue(parameterName, "Missing 'flag'")
 
-                            BooleanFlagParameter(variable.toString(), flag.toString())
+                            BooleanFlagParameter(variable.content, flag.content)
                         }
 
                         "env" -> {
-                            val variable = map["var"] ?: throw ApplicationVerificationException.BadValue(
-                                parameterName,
-                                "missing 'var'"
-                            )
+                            val variable = map["var"] as? JsonPrimitive
+                                ?: throw ApplicationVerificationException.BadValue(parameterName, "missing 'var'")
 
-                            EnvironmentVariableParameter(variable.toString())
+                            EnvironmentVariableParameter(variable.content)
                         }
 
                         else -> throw ApplicationVerificationException.BadValue(parameterName, "Unknown type")
@@ -230,16 +178,61 @@ sealed class ApplicationDescription(val application: String) {
                 false
             )
 
+            val duplicateGlobs = outputFileGlobs.groupBy { it }.filter { it.value.size > 1 }.keys
+            if (duplicateGlobs.isNotEmpty()) {
+                throw ApplicationVerificationException.DuplicateDefinition("outputFileGlobs", duplicateGlobs.toList())
+            }
+
+            val newOutputFileGlobs = outputFileGlobs.let {
+                val result = it.toMutableSet()
+
+                // Add default list
+                result.add("stdout.txt")
+                result.add("stderr.txt")
+
+                result
+            }.toList()
+
+
+            val newInvocation = invocation.mapIndexed { index, it ->
+                val parameterName = "invocation[$index]"
+                parseInvocationParameter(it, parameterName)
+            }
+
+            newInvocation.forEachIndexed { index, it ->
+                val parameterName = "invocation[$index]"
+                val variables = when (it) {
+                    is VariableInvocationParameter -> {
+                        it.variableNames
+                    }
+
+                    is BooleanFlagParameter -> {
+                        listOf(it.variableName)
+                    }
+
+                    else -> return@forEachIndexed
+                }
+                val missingVariable = variables.find { !parameters.containsKey(it) }
+                if (missingVariable != null) {
+                    throw ApplicationVerificationException.BadVariableReference(parameterName, missingVariable)
+                }
+            }
+
+            val newApplicationType = applicationType?.let { ApplicationType.valueOf(it) } ?: ApplicationType.BATCH
+            val newEnvironment = environment?.map { (name, param) ->
+                name to parseInvocationParameter(param, name)
+            }?.toMap()
+
             val invocation = ApplicationInvocationDescription(
                 ToolReference(tool.name, tool.version, null),
-                invocation,
+                newInvocation,
                 parameters.values.toList(),
-                outputFileGlobs,
-                applicationType,
+                newOutputFileGlobs,
+                newApplicationType,
                 vnc = vnc,
                 web = web,
                 container = container,
-                environment = environment,
+                environment = newEnvironment,
                 allowAdditionalMounts = allowAdditionalMounts,
                 allowAdditionalPeers = allowAdditionalPeers,
                 allowMultiNode = allowMultiNode ?: false,

@@ -97,42 +97,6 @@ class Server(override val micro: Micro) : CommonServer {
             )
         }
 
-        if (micro.developmentModeEnabled) {
-            runBlocking {
-                val listOfApps = db.withTransaction {
-                    applicationDAO.listLatestVersion(it, null, null, emptyList(), NormalizedPaginationRequest(null, null))
-                }
-
-                if (listOfApps.itemsInTotal == 0) {
-                    val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
-                    @Suppress("TooGenericExceptionCaught")
-                    db.withTransaction { session ->
-                        val tools = File("yaml", "tools")
-                        tools.listFiles()?.forEach {
-                            try {
-                                val description = yamlMapper.readValue<ToolDescription>(it)
-                                toolDAO.create(session, dummyUser, description.normalize(), "original")
-                            } catch (ex: Exception) {
-                                log.info("Could not create tool: $it")
-                                log.info(ex.stackTraceToString())
-                            }
-                        }
-
-                        val apps = File("yaml", "apps")
-                        apps.listFiles()?.forEach {
-                            try {
-                                val description = yamlMapper.readValue<ApplicationDescription>(it)
-                                applicationDAO.create(session, dummyUser, description.normalize(), "original")
-                            } catch (ex: Exception) {
-                                log.info("Could not create app: $it")
-                                log.info(ex.stackTraceToString())
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         if (micro.commandLineArguments.contains("--migrate-apps-to-elastic")) {
             @Suppress("TooGenericExceptionCaught")
             try {
