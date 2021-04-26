@@ -13,16 +13,14 @@ object AccountingService : Service {
         micro.install(AuthenticatorFeature)
         val config = micro.configuration.requestChunkAtOrNull<Configuration>("accounting") ?:
             Configuration(
-                notificationLimit =  5000000,
-                licenses = listOf("AAU-MATLAB", "STATA16-CBS-TEST", "tek-ansys", "tek-comsol")
+                notificationLimit =  5000000
             )
         return Server(micro, config)
     }
 }
 
 data class Configuration(
-    val notificationLimit: Long,
-    val licenses: List<String>
+    val notificationLimit: Long
 )
 
 fun main(args: Array<String>) {
