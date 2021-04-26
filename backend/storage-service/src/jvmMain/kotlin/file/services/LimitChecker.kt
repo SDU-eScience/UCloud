@@ -126,11 +126,25 @@ class LimitChecker<Ctx : FSUserContext>(
                 .singleOrNull()
                 ?.getLong(0)
                 ?: 0
-            if (projectAllocationInBytes > quotaInBytes) {
+
+            val totalQuotaInBytes = if (additive) {
+                (session.sendPreparedStatement(
+                    {
+                        setParameter("projectPath", path)
+                    },
+                    """
+                        SELECT quota_in_bytes::bigint FROM quotas WHERE path = :projectPath
+                    """
+                ).rows.singleOrNull()?.getLong(0) ?: 0) + quotaInBytes
+            } else {
+                quotaInBytes
+            }
+
+            if (projectAllocationInBytes > totalQuotaInBytes) {
                 val allocationInGB = projectAllocationInBytes / 1.GiB
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    "Project have already allocated $allocationInGB GB, and can therefore not have less allocated." +
+                    "Project have already allocated $allocationInGB GB, and can therefore not have less allocated. " +
                             "If need to allocate lower then contact the PI of the project and make them allocate less")
             }
             //Set new quota
