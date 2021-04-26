@@ -1,6 +1,6 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Thu Apr 22 12:11:34 CEST 2021 */
+/* Generated at: Fri Apr 23 10:49:46 CEST 2021 */
 
 import {buildQueryString} from "Utilities/URIUtilities";
 
@@ -186,13 +186,7 @@ export interface FileMetadataDocument {
      */
     id: string,
     specification: FileMetadataDocumentNS.Spec,
-    /**
-     * Timestamp referencing when the request for creation was received by UCloud
-     */
     createdAt: number /* int64 */,
-    /**
-     * Holds the current status of the `Resource`
-     */
     status: FileMetadataDocumentNS.Status,
     /**
      * Contains a list of updates from the provider as well as UCloud
@@ -1228,6 +1222,7 @@ export interface Deleted {
      * A reference to the user who made this change
      */
     createdBy: string,
+    status: FileMetadataDocumentNS.Status,
     type: ("deleted"),
 }
 }

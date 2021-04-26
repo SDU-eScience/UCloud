@@ -79,9 +79,7 @@ const Properties: React.FunctionComponent = () => {
 
             {file.data.metadata == null ? null :
                 <Section>
-                    <Box maxHeight={"800px"} overflow={"auto"}>
-                        <Browse path={file.data.path} metadata={file.data.metadata} reload={reload}/>
-                    </Box>
+                    <Browse path={file.data.path} metadata={file.data.metadata} reload={reload}/>
                 </Section>
             }
 

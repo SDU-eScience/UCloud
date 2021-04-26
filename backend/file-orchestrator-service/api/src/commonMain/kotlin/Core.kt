@@ -255,6 +255,9 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
 
 @Serializable
 sealed class FileMetadataOrDeleted {
+    abstract val status: FileMetadataDocument.Status
+    abstract val createdAt: Long
+
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc("Indicates that the metadata document has been deleted is no longer in use")
     @Serializable
@@ -263,9 +266,10 @@ sealed class FileMetadataOrDeleted {
         @UCloudApiDoc("Reason for this change")
         val changeLog: String,
         @UCloudApiDoc("Timestamp indicating when this change was made")
-        val createdAt: Long,
+        override val createdAt: Long,
         @UCloudApiDoc("A reference to the user who made this change")
         val createdBy: String,
+        override val status: FileMetadataDocument.Status
     ) : FileMetadataOrDeleted()
 }
 

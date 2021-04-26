@@ -539,8 +539,8 @@ A metadata document which conforms to a `FileMetadataTemplate`
 |----------|------|-------------|
 | `id` | `String` | A unique identifier referencing the `Resource` |
 | `specification` | `Spec` | No documentation |
-| `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
-| `status` | `Status` | Holds the current status of the `Resource` |
+| `createdAt` | `Long` | No documentation |
+| `status` | `Status` | No documentation |
 | `updates` | `Array<ResourceUpdate>` | Contains a list of updates from the provider as well as UCloud |
 | `owner` | `SimpleResourceOwner` | Contains information about the original creator of the `Resource` along with project association |
 | `acl` | `Any` | No documentation |

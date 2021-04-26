@@ -54,7 +54,7 @@ html {
     --midGray: #c9d3df;
     --gray: #8393A7;
     --darkGray: #53657d;
-    --lightBlue: #f0f6ff;
+    --lightBlue: #D9E9FF;
     --lightBlue2: #cdf;
     --blue: #006aff;
     --darkBlue: #049;
@@ -104,7 +104,7 @@ html.light {
     --black: #000;
     --text: #1e252e;
     --lightGray: #f5f7f9;
-    --lightBlue: #f0f6ff;
+    --lightBlue: #E6F1FF;
     --midGray: #c9d3df;
     --paginationDisabled: var(--lightGray, #f00);
     --paginationHoverColor: var(--lightBlue, #f00);
