@@ -12,6 +12,7 @@ import {Sessions} from "UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
 import {ChangeUserDetails} from "UserSettings/ChangeUserDetails";
 import {ChangeEmailSettings} from "UserSettings/ChangeEmailSettings";
+import {getCssVar} from "Utilities/StyledComponentsUtilities";
 
 interface UserSettingsState {
     headerLoading: boolean;
@@ -26,44 +27,60 @@ const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSetting
         Client.userInfo?.principalType === "password";
 
     return (
-        <Flex alignItems="center" flexDirection="column">
-            <Box width={0.7}>
-                <MainContainer
-                    header={<Heading.h1>User Settings</Heading.h1>}
-                    main={(
-                        <>
+        <Flex>
+            <MainContainer
+                header={<Heading.h1>User Settings</Heading.h1>}
+                main={(
+                    <>
+                        <SettingsBox>
                             <TwoFactorSetup
                                 mustActivate2fa={mustActivate2fa}
                                 loading={props.headerLoading}
                                 setLoading={props.setLoading}
                             />
+                        </SettingsBox>
 
-                            {mustActivate2fa ? null : (
-                                <>
+                        {mustActivate2fa ? null : (
+                            <>
+                                <SettingsBox>
                                     <ChangePassword
                                         setLoading={props.setLoading}
                                     />
+                                </SettingsBox>
 
+                                <SettingsBox>
                                     <ChangeUserDetails
                                         setLoading={props.setLoading}
                                     />
+                                </SettingsBox>
+                                <SettingsBox>
                                     <ChangeEmailSettings
                                         setLoading={props.setLoading}
                                     />
+                                </SettingsBox>
+                                <SettingsBox>
                                     <Sessions
                                         setLoading={props.setLoading}
                                         setRefresh={props.setRefresh}
                                     />
-                                </>
-                            )}
+                                </SettingsBox>
+                            </>
+                        )}
 
-                        </>
-                    )}
-                />
-            </Box>
+                    </>
+                )}
+            />
         </Flex>
     );
 };
+
+export function SettingsBox(props: React.PropsWithChildren<{}>): JSX.Element {
+    return (
+        <Box pl="8px" pt="5px" pb="4px" mb="24px" borderRadius="12px" backgroundColor={getCssVar("settingsBox")} width="100%">
+            {props.children}
+        </Box>
+    )
+}
 
 interface UserSettingsOperations extends SetStatusLoading {
     setRefresh: (fn?: () => void) => void;

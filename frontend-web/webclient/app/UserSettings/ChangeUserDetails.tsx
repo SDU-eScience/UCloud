@@ -99,6 +99,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                             First names
                             <Input
                                 ref={userFirstNames}
+                                style={{maxWidth: "700px"}}
                                 type="text"
                                 placeholder={state.placeHolderFirstNames}
                             />
@@ -110,6 +111,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                             Last name
                             <Input
                                 ref={userLastName}
+                                style={{maxWidth: "700px"}}
                                 type="text"
                                 placeholder={state.placeHolderLastName}
                             />
@@ -120,6 +122,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                             Email
                             <Input
                                 ref={userEmail}
+                                style={{maxWidth: "700px"}}
                                 type="email"
                                 placeholder={state.placeHolderEmail}
                             />

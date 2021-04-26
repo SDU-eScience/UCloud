@@ -19,21 +19,20 @@ interface TwoFactorSetupProps {
 export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactorSetupProps, TwoFactorSetupState> {
     public state = TwoFactorSetup.initialState();
 
-    public componentDidMount() {
+    public componentDidMount(): void {
         this.loadStatus();
     }
 
-    public render() {
+    public render(): JSX.Element {
         return (
             <React.StrictMode>
-                <Heading.h2>Two Factor Authentication</Heading.h2>
+                <Heading.h4 bold>Two Factor Authentication</Heading.h4>
                 {this.props.mustActivate2fa ? (
                     <Heading.h3 color={getCssVar("red")}>
                         You must activate 2FA for your account before you can continue
                     </Heading.h3>
                 ) : null}
                 <b>{this.displayConnectedStatus()}</b>
-                <Divider />
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
             </React.StrictMode>
         );

@@ -252,61 +252,6 @@ class Server(
             vncService.install(this)
             webService.install(this)
         }
-
-        if (requireTokenInit && AppK8IntegrationTesting.isProviderReady) {
-            log.warn("Initializing a provider for UCloud in development mode")
-            runBlocking {
-                val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-                val project = Projects.create.call(
-                    CreateProjectRequest("UCloudProviderForDev"),
-                    serviceClient
-                ).orThrow()
-
-                Providers.create.call(
-                    bulkRequestOf(
-                        ProviderSpecification(
-                            UCLOUD_PROVIDER,
-                            "localhost",
-                            false,
-                            8080
-                        )
-                    ),
-                    serviceClient.withProject(project.id)
-                ).orRethrowAs {
-                    throw IllegalStateException("Could not register a provider for development mode!")
-                }
-
-                val retrievedResponse = Providers.retrieve.call(
-                    ProvidersRetrieveRequest(UCLOUD_PROVIDER),
-                    serviceClient.withProject(project.id)
-                ).orThrow()
-
-                if (micro.developmentModeEnabled) {
-                    val defaultConfigDir = File(System.getProperty("user.home"), "ucloud").also { it.mkdirs() }
-                    val configFile = File(defaultConfigDir, "ucloud-compute-config.yml")
-                    log.warn("Provider configuration is stored at: ${configFile.absolutePath}")
-                    configFile.writeText(
-                        //language=yaml
-                        """
-                          ---
-                          app:
-                            kubernetes:
-                              providerRefreshToken: ${retrievedResponse.refreshToken}
-                              ucloudCertificate: ${retrievedResponse.publicKey}
-                        """.trimIndent()
-                    )
-                }
-
-                @Suppress("UNCHECKED_CAST")
-                micro.providerTokenValidation = InternalTokenValidationJWT
-                    .withPublicCertificate(retrievedResponse.publicKey) as TokenValidation<Any>
-
-                k8Dependencies.serviceClient = RefreshingJWTAuthenticator(
-                    micro.client,
-                    JwtRefresher.Provider(retrievedResponse.refreshToken)
-                ).authenticateClient(OutgoingHttpCall)
-            }
-        }
     }
 
     override fun stop() {

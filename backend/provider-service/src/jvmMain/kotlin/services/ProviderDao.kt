@@ -158,7 +158,6 @@ class ProviderDao(
                 }
 
             if (!hasPermission(actor, provider.owner, provider.acl, ProviderAclPermission.EDIT)) {
-                println("You don't have permissions!")
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         }
