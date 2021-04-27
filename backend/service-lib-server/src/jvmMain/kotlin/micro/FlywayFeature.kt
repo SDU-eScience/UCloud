@@ -186,7 +186,7 @@ fun DatabaseConfig.migrateAll() {
                     }
 
                 })
-                dataSource(jdbcUrl, username, password)
+                dataSource(jdbcUrl, this@migrateAll.username, this@migrateAll.password)
                 schemas(schema)
                 locations(*migrations.map { it.location }.toTypedArray())
             }.load()
