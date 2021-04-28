@@ -116,6 +116,12 @@ class FileSystemScanner(
         }
 
         val fileList = (path.listFiles() ?: emptyArray()).filter { !Files.isSymbolicLink(Path.of(it.path)) }
+        fileList.forEach {
+            if (it.name == ".skipFolder") {
+                log.info("Skipping $path due to .skipFolder file")
+                return
+            }
+        }
         val files = fileList.map { it.toElasticIndexedFile() }.associateBy { it.path }
         val filesInIndex = query.query(
             FileQuery(
