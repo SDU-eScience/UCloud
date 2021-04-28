@@ -1,4 +1,4 @@
-version = "0.2.6"
+version = "0.2.6-deletionRequestFix"
 
 application {
     mainClassName = "dk.sdu.cloud.app.aau.MainKt"

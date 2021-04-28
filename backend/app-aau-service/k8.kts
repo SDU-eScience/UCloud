@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-aau"
-    version = "0.2.6"
+    version = "0.2.6-deletionRequestFix"
     
     withAmbassador() {
         addSimpleMapping("/ucloud/aau")
