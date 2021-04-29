@@ -12,7 +12,9 @@ object AccountingService : Service {
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
         val config = micro.configuration.requestChunkAtOrNull<Configuration>("accounting") ?:
-            Configuration(notificationLimit =  5000000)
+            Configuration(
+                notificationLimit =  5000000
+            )
         return Server(micro, config)
     }
 }

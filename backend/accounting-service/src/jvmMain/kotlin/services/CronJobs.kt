@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.accounting.Configuration
+import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletOwnerType
@@ -35,11 +36,17 @@ class CronJobs(
                         setParameter("sent", false)
                         setParameter("limit", config.notificationLimit)
                         setParameter("type", WalletOwnerType.PROJECT.toString())
+                        setParameter("compute", ProductArea.COMPUTE.name)
+                        setParameter("storage", ProductArea.STORAGE.name)
                     },
                     """
                         DECLARE curs NO SCROLL CURSOR WITH HOLD
-                        FOR SELECT * FROM wallets 
-                        WHERE low_funds_notifications_send = :sent AND balance < :limit AND account_type = :type
+                        FOR SELECT account_id, account_type, product_category, product_provider 
+                        FROM accounting.wallets as w JOIN accounting.products as p ON w.product_category=p.category
+                        WHERE low_funds_notifications_send = :sent 
+                            AND balance < :limit 
+                            AND account_type = :type 
+                            AND (area = :compute or area = :storage)
                         GROUP BY account_id, account_type, product_provider, product_category
                     """
                 )
