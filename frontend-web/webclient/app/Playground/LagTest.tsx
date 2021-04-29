@@ -4,7 +4,7 @@ import * as Heading from "ui-components/Heading";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {Button, Icon, Input, List} from "ui-components";
 import {useCallback, useMemo, useState} from "react";
-import {ListRow, ListRowStat, ListStatContainer} from "ui-components/List";
+import {ListRow, ListRowStat} from "ui-components/List";
 
 const LagTest: React.FunctionComponent = () => {
     const numberOfInputs = 500;
@@ -47,31 +47,7 @@ const LagTest: React.FunctionComponent = () => {
                 {!useStyledComponents ? null :
                     <List>
                         {states.map((state, idx) => (
-                            <ListRow
-                                key={idx}
-                                left={
-                                    <Input
-                                        value={state}
-                                        onChange={updateStates[idx]}
-                                    />
-                                }
-                                leftSub={
-                                    <ListStatContainer>
-                                        <ListRowStat icon={"id"}>
-                                            {state}
-                                        </ListRowStat>
-                                        <ListRowStat icon={"activity"}>
-                                            {idx}
-                                        </ListRowStat>
-                                    </ListStatContainer>
-                                }
-                                right={
-                                    <Button>
-                                        <Icon name={"cpu"} mr={8}/>
-                                        Ignore me
-                                    </Button>
-                                }
-                            />
+                            <MemoRow key={idx} idx={idx} onChange={updateStates[idx]} state={state}/>
                         ))}
                     </List>
                 }
@@ -104,5 +80,35 @@ const LagTest: React.FunctionComponent = () => {
         }
     />;
 };
+
+const Row: React.FunctionComponent<{idx:number, state: string, onChange: (e) => void }> = ({idx, state, onChange}) => {
+    return <ListRow
+        key={idx}
+        left={
+            <Input
+                value={state}
+                onChange={onChange}
+            />
+        }
+        leftSub={
+            <>
+                <ListRowStat icon={"id"}>
+                    {state}
+                </ListRowStat>
+                <ListRowStat icon={"activity"}>
+                    {idx}
+                </ListRowStat>
+            </>
+        }
+        right={
+            <Button>
+                <Icon name={"docs"} mr={8}/>
+                Ignore me
+            </Button>
+        }
+    />
+};
+
+const MemoRow = React.memo(Row);
 
 export default LagTest;

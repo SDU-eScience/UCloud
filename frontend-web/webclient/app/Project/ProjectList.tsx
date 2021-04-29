@@ -323,7 +323,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         else selectedProjects.add(e.projectId);
                         setSelectedProjects(new Set(selectedProjects));
                     }}
-                    bg={Client.projectId === e.projectId ? "projectHighlight" : undefined}
+                    highlight={Client.projectId === e.projectId}
                     truncateWidth={e.needsVerification ? "300px" : "250px"}
                     isSelected={selectedProjects.has(e.projectId)}
                     icon={
