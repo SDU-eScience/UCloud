@@ -1,8 +1,14 @@
 package dk.sdu.cloud.app.store.api
 
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
+import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
 
 private const val TYPE_INPUT_FILE = "input_file"
 private const val TYPE_INPUT_DIRECTORY = "input_directory"

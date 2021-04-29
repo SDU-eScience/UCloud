@@ -2,6 +2,8 @@ package dk.sdu.cloud.app.store.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.calls.RPCException
+import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -57,11 +59,7 @@ sealed class ApplicationDescription(val application: String) {
                 throw ApplicationVerificationException.BadValue("author[$badAuthorIndex]", "Cannot contain new lines")
             }
 
-
-
-
             parameters.forEach { name, parameter -> parameter.name = name }
-
         }
 
         private fun parseInvocationParameter(
@@ -177,6 +175,31 @@ sealed class ApplicationDescription(val application: String) {
                 // TODO: should this always be false by default?
                 false
             )
+
+            parameters.forEach{ (_, appParam) ->
+                if (appParam is ApplicationParameter.Enumeration) {
+                    when (val defaultValue = appParam.defaultValue) {
+                        is JsonObject -> {
+                            val map = defaultValue
+                            val type = map["type"] as? JsonPrimitive ?: throw ApplicationVerificationException.BadValue(
+                                defaultValue.toString(),
+                                "Missing 'type' tag"
+                            )
+                            if (type.content != "enumeration") {
+                                throw ApplicationVerificationException.BadValue(map.toString(), "Should be enumeration")
+                            }
+                            val value = map["value"] as? JsonPrimitive ?: throw ApplicationVerificationException.BadValue(
+                                defaultValue.toString(),
+                                "Missing 'value'"
+                            )
+                            if (appParam.options.find { it.value == value.content } == null ) {
+                                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "default value does not match posibilities")
+                            }
+                        }
+                        else -> throw ApplicationVerificationException.BadValue(defaultValue.toString(), "Bad value")
+                    }
+                }
+            }
 
             val duplicateGlobs = outputFileGlobs.groupBy { it }.filter { it.value.size > 1 }.keys
             if (duplicateGlobs.isNotEmpty()) {
