@@ -15,14 +15,21 @@ import {bulkRequestOf} from "DefaultObjects";
 const AppAauAdmin: React.FunctionComponent = props => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [job, fetchJob] = useCloudAPI<Job | null>({noop: true}, null);
-    const retrieveIdRef = useRef<HTMLInputElement>(null);
+    var retrieveIdRef = useRef<HTMLInputElement>(null);
 
-    const statusUpdateIdRef = useRef<HTMLInputElement>(null);
-    const statusUpdateStateRef = useRef<HTMLSelectElement>(null);
-    const statusUpdateRef = useRef<HTMLTextAreaElement>(null);
+    var statusUpdateIdRef = useRef<HTMLInputElement>(null);
+    var statusUpdateStateRef = useRef<HTMLSelectElement>(null);
+    var statusUpdateRef = useRef<HTMLTextAreaElement>(null);
 
     const jobSource = job.error ? job.error.why :
         job.data === null ? "No job loaded" : "```json\n" + JSON.stringify(job.data, null, 4) + "\n```\n";
+
+    function resetFields() {
+        retrieveIdRef.current!.value = ""
+        statusUpdateIdRef.current!.value = ""
+        statusUpdateStateRef.current!.value = "NO_CHANGE"
+        statusUpdateRef.current!.value = ""
+    }
 
     return <MainContainer
         header={<Heading.h2>App/AAU: Maintenance</Heading.h2>}
@@ -33,6 +40,7 @@ const AppAauAdmin: React.FunctionComponent = props => {
                     e.preventDefault();
                     const id = retrieveIdRef.current!.value;
                     fetchJob(UCloud.compute.aau.maintenance.retrieve({id}));
+                    resetFields()
                 }}>
                     <Label>
                         Job ID
@@ -65,6 +73,7 @@ const AppAauAdmin: React.FunctionComponent = props => {
                     })));
 
                     snackbarStore.addSuccess("Successfully updated your job!", false);
+                    resetFields()
                 }}>
                     <Label>
                         Job ID
