@@ -15,11 +15,11 @@ import {bulkRequestOf} from "DefaultObjects";
 const AppAauAdmin: React.FunctionComponent = props => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [job, fetchJob] = useCloudAPI<Job | null>({noop: true}, null);
-    var retrieveIdRef = useRef<HTMLInputElement>(null);
+    const retrieveIdRef = useRef<HTMLInputElement>(null);
 
-    var statusUpdateIdRef = useRef<HTMLInputElement>(null);
-    var statusUpdateStateRef = useRef<HTMLSelectElement>(null);
-    var statusUpdateRef = useRef<HTMLTextAreaElement>(null);
+    const statusUpdateIdRef = useRef<HTMLInputElement>(null);
+    const statusUpdateStateRef = useRef<HTMLSelectElement>(null);
+    const statusUpdateRef = useRef<HTMLTextAreaElement>(null);
 
     const jobSource = job.error ? job.error.why :
         job.data === null ? "No job loaded" : "```json\n" + JSON.stringify(job.data, null, 4) + "\n```\n";
