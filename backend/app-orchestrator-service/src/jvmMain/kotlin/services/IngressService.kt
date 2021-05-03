@@ -143,7 +143,15 @@ class IngressService(
             throw RPCException("You are not a member of the supplied project", HttpStatusCode.Forbidden)
         }
 
-        return dao.browse(db, actor, project, pagination, flags, filters)
+        val result = dao.browse(db, actor, project, pagination, flags, filters)
+
+        return result.copy(
+            items = result.items.map {
+                it.copy(
+                    specification = it.specification.copy(domain = it.specification.domain.toLowerCase())
+                )
+            }
+        )
     }
 
     suspend fun retrieve(
@@ -167,7 +175,9 @@ class IngressService(
             }
         }
 
-        return result
+        return result.copy(
+            specification = result.specification.copy(domain = result.specification.domain.toLowerCase())
+        )
     }
 
     suspend fun delete(
