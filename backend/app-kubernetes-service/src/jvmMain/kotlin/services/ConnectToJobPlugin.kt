@@ -96,7 +96,7 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
                     ingress.add(NetworkPolicy.IngressRule().apply {
                         from = listOf(NetworkPolicy.Peer().apply {
                             ipBlock = NetworkPolicy.IPBlock().apply {
-                                cidr = INVALID_SUBNET
+                                cidr = "172.20.0.0/16"
                             }
                         })
                     })
