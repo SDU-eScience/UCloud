@@ -273,9 +273,10 @@ class IngressService(
                     val requestedPart = spec.domain
                         .removePrefix(settings.domainPrefix)
                         .removeSuffix(settings.domainSuffix)
+                        .toLowerCase()
 
                     // A few more sanity checks
-                    if (!requestedPart.matches(Regex("[A-Za-z0-9_-]+"))) {
+                    if (!requestedPart.matches(Regex("[a-z0-9_-]+"))) {
                         throw RPCException("Ingress contains invalid characters", HttpStatusCode.BadRequest)
                     }
 
@@ -287,7 +288,7 @@ class IngressService(
                     val ingress = Ingress(
                         id,
                         IngressSpecification(
-                            spec.domain,
+                            spec.domain.toLowerCase(),
                             spec.product,
                         ),
                         IngressOwner(actor.safeUsername(), project),
