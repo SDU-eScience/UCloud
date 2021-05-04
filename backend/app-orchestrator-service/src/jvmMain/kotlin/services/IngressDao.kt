@@ -214,7 +214,7 @@ class IngressDao(
             Ingress(
                 it.getField(IngressTable.id),
                 IngressSpecification(
-                    it.getField(IngressTable.domain),
+                    it.getField(IngressTable.domain).toLowerCase(),
                     ProductReference(
                         it.getField(IngressTable.productId),
                         it.getField(IngressTable.productCategory),
