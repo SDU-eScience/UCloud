@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.ucloud.services.acl.AclService
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.micro.BackgroundScopeFeature
 import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -22,6 +23,10 @@ object ApprovingAclService : AclService {
 
     override suspend fun fetchMyPermissions(actor: Actor, file: UCloudFile): Set<FilePermission> =
         FilePermission.values().toSet()
+
+    override suspend fun fetchOtherPermissions(file: UCloudFile): List<ResourceAclEntry<FilePermission>> {
+        return emptyList()
+    }
 }
 
 var keepDirectory = true

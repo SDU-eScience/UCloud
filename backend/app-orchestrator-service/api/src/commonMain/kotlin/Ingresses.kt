@@ -94,7 +94,9 @@ data class Ingress(
 
     val resolvedProduct: Product.Ingress? = null,
 
-    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null
+    override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null,
+
+    override val permissions: ResourcePermissions? = null,
 ) : IngressId, Resource<Nothing?>
 
 @Serializable

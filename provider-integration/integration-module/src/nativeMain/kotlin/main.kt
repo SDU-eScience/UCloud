@@ -109,8 +109,6 @@ fun main() {
                 )
         }
 
-        atomic("fie").value
-
         val authenticator = RefreshingJWTAuthenticator(
             client,
             JwtRefresher.Provider(refreshToken),

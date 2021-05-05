@@ -109,6 +109,30 @@ data class ComputeSupport(
     val virtualMachine: VirtualMachine = VirtualMachine(),
 ) {
     @Serializable
+    data class Permissions(
+        @UCloudApiDoc("""Flag to enable/disable permissions managed by UCloud (Default: `false`)
+            
+If the permissions of compute is not managed by UCloud, then it is the responsibility of the provider to verify that
+an entity has access to any requested resource. Note that UCloud will always verify project membership before forwarding
+it to the provider.
+
+If the permissions are managed by UCloud, then UCloud will enforce the following:
+
+- `jobs.create`: Will be allowed by any user
+- `jobs.delete`:
+    - If the user is a workspace admin: allowed for any job owned by the workspace
+    - If the user is not a workspace admin: allowed only for jobs created by the user
+- `jobs.browse`:
+    - If the user is a workspace admin: returns results from any job created in the project
+    - If the user is not a workspace admin: returns only the results created by the user
+- `jobs.extend`, `jobs.suspend`, `jobs.follow`, `jobs.openInteractiveSession`:
+    - If the user is a workspace admin: Allow
+    - If the user is not a workspace admin: Allow for jobs created by the user
+""")
+        var managedByUCloud: Boolean = false
+    )
+
+    @Serializable
     data class Docker(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
         var enabled: Boolean? = null,

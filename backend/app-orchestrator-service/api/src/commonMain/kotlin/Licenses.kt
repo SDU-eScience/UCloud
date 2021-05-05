@@ -85,6 +85,8 @@ data class License(
     val resolvedProduct: Product.License? = null,
 
     override val acl: List<ResourceAclEntry<LicensePermission>>? = null,
+
+    override val permissions: ResourcePermissions? = null,
 ) : Resource<LicensePermission>, LicenseId
 
 @Serializable

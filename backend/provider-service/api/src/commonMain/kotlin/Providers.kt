@@ -16,7 +16,8 @@ data class Provider(
     override val updates: List<ProviderUpdate>,
     override val billing: ProviderBilling,
     override val owner: ProviderOwner,
-    override val acl: List<ResourceAclEntry<ProviderAclPermission>>
+    override val acl: List<ResourceAclEntry<ProviderAclPermission>>,
+    override val permissions: ResourcePermissions? = null
 ) : Resource<ProviderAclPermission> {
     override fun toString(): String {
         return "Provider(id='$id', specification=$specification, createdAt=$createdAt, status=$status, " +

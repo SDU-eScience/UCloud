@@ -112,7 +112,7 @@ __Figure:__ UCloud orchestrates with the provider to create a `Resource`
 interface Resource<Permission> {
     @UCloudApiDoc("""A unique identifier referencing the `Resource`
 
-This ID is assigned by UCloud and is globally unique across all providers.""")
+The ID is unique across a provider for a single resource type.""")
     val id: String
 
     val specification: ResourceSpecification
@@ -141,5 +141,10 @@ resource.""")
     val owner: ResourceOwner
 
     @UCloudApiDoc("An ACL for this `Resource`")
+    @Deprecated("Replace with permissions")
     val acl: List<ResourceAclEntry<Permission>>?
+
+    @UCloudApiDoc("Permissions assigned to this resource\n\n" +
+        "A null value indicates that permissions are not supported by this resource type.")
+    val permissions: ResourcePermissions?
 }

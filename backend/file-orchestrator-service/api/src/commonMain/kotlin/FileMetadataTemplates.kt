@@ -28,6 +28,7 @@ data class FileMetadataTemplate(
     override val acl: List<ResourceAclEntry<FileMetadataTemplatePermission>>,
     override val createdAt: Long,
     val public: Boolean,
+    override val permissions: ResourcePermissions? = null,
 ) : Resource<FileMetadataTemplatePermission> {
     override val billing: ResourceBilling.Free = ResourceBilling.Free
 

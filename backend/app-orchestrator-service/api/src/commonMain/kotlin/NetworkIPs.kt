@@ -144,6 +144,8 @@ data class NetworkIP(
     val resolvedProduct: Product.NetworkIP? = null,
 
     override val acl: List<ResourceAclEntry<NetworkIPPermission>>? = null,
+
+    override val permissions: ResourcePermissions? = null,
 ) : Resource<NetworkIPPermission>, NetworkIPId
 
 @Serializable

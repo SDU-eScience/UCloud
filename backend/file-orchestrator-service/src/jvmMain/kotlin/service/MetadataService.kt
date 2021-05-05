@@ -266,6 +266,26 @@ class MetadataService(
         }
     }
 
+    suspend fun delete(
+        actorAndProject: ActorAndProject,
+        request: FileMetadataDeleteRequest,
+        ctx: DBContext = this.db
+    ) {
+        ctx.withSession { session ->
+            for (reqItem in request.items) {
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("template_id", reqItem.templateId)
+                        },
+                        """
+                            
+                        """
+                    )
+            }
+        }
+    }
+
     companion object {
         private val jacksonMapper = ObjectMapper().registerKotlinModule()
     }

@@ -128,6 +128,8 @@ data class Job(
     val output: JobOutput? = null,
 
     override val acl: List<ResourceAclEntry<@Contextual Nothing?>>? = null,
+
+    override val permissions: ResourcePermissions? = null,
 ) : Resource<Nothing?> {
     @Transient @Deprecated("Renamed to specification", ReplaceWith("specification"))
     val parameters = specification

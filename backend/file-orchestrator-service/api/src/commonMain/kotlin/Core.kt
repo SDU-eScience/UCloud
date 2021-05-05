@@ -287,6 +287,8 @@ data class FileMetadataDocument(
 ) : FileMetadataOrDeleted(), Resource<Nothing?> {
     @Contextual
     override val acl: Nothing? = null
+    override val permissions: ResourcePermissions? = null
+
     override val billing: ResourceBilling.Free = ResourceBilling.Free
 
     @Serializable
@@ -385,6 +387,7 @@ data class FileCollection(
     override val billing: Billing,
     override val owner: SimpleResourceOwner,
     override val acl: List<ResourceAclEntry<FilePermission>>?,
+    override val permissions: ResourcePermissions? = null,
 ) : Resource<FilePermission> {
     @Serializable
     data class Spec(
